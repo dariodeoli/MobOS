@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
 import { numero } from '../../../../../lib/montos'
+import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 
 // Plantilla sugerida según el estado de entrega del pedido.
 const TEMPLATE_BY_STATUS: Record<string, string> = {
@@ -58,7 +59,7 @@ const orderInclude = {
   customer: { select: { name: true, phone: true, countryCode: true } },
   branch: { select: { name: true } },
   seller: { select: { name: true } },
-  payments: { where: { status: 'CONFIRMED' as const }, select: { amountPyg: true } },
+  payments: { where: { status: 'CONFIRMED' as const, ...COUNTABLE_PAYMENT_WHERE }, select: { amountPyg: true } },
   // #178: el pedido nuevo no guarda su token histórico en claro; el enlace de
   // seguimiento del mensaje sale del enlace vigente de nivel rápido.
   accessTokens: { where: { revokedAt: null, level: 'rapido' }, orderBy: { createdAt: 'desc' as const }, take: 1, select: { token: true } },

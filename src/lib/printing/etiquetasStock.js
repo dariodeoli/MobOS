@@ -34,7 +34,8 @@ function itemDeFila(fila, base) {
       serial,
       condition: unidad.condition,
       batteryHealth: unidad.batteryHealth,
-      supplierName: unidad.supplierName,
+      supplier: unidad.supplier?.code ? { code: unidad.supplier.code } : undefined,
+      supplierCode: unidad.supplierCode,
       location: unidad.location,
       product: { ...(unidad.product || {}), name: unidad.product?.name ?? fila.name, model: unidad.product?.model ?? fila.model },
     }

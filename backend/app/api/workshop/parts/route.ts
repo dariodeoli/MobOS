@@ -1,6 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
+import { canSeeSupplierName, loadSupplierDirectory, redactSupplierNames } from '../../../../lib/cost-visibility'
 import { codigoRepuesto, deudaRepuesto, esPorPagar, estadoRepuesto, resumenRepuestos, validarRepuesto } from '../../../../lib/workshop-parts'
 
 // #250 · Repuestos del taller con tenencia y pago.
@@ -24,6 +25,11 @@ const INCLUDE_REPUESTO = {
   createdBy: { select: { id: true, name: true } },
 } as const
 
+// Quien no ve el nombre del proveedor recibe solo su sigla (#400).
+async function paraRol<T>(session: { user: { role: string; tenantId: string } }, payload: T): Promise<T> {
+  return canSeeSupplierName(session.user.role) ? payload : redactSupplierNames(payload, await loadSupplierDirectory(session.user.tenantId))
+}
+
 const puedeLeer = (user: { permissions: string[] }) => canAccessAny(user, ['stock:manage', 'stock:read', 'service:manage'])
 const puedeGestionar = (user: { permissions: string[] }) => canAccessAny(user, ['stock:manage', 'purchases:manage'])
 
@@ -42,7 +48,7 @@ export async function GET(request: Request) {
       include: { ...INCLUDE_REPUESTO, movements: { orderBy: { createdAt: 'desc' }, take: 100, include: { user: { select: { id: true, name: true } }, serviceOrder: { select: { id: true, serviceNumber: true } } } } },
     })
     if (!part) return error('Repuesto no encontrado.', 404)
-    return json({ part, deudaPyg: deudaRepuesto(part), porPagar: esPorPagar(part) })
+    return json(await paraRol(session, { part, deudaPyg: deudaRepuesto(part), porPagar: esPorPagar(part) }))
   }
 
   const branchId = (params.get('branchId') || '').trim()
@@ -67,11 +73,11 @@ export async function GET(request: Request) {
   })
   // La consignación suma deuda recién por lo usado: el filtro es en memoria.
   const visibles = soloPorPagar ? parts.filter(part => esPorPagar(part)) : parts
-  return json({
+  return json(await paraRol(session, {
     fecha: new Date().toISOString(),
     resumen: resumenRepuestos(visibles),
     parts: visibles.map(part => ({ ...part, deudaPyg: deudaRepuesto(part), porPagar: esPorPagar(part), estado: estadoRepuesto(part) })),
-  })
+  }))
 }
 
 export async function POST(request: Request) {
@@ -143,7 +149,7 @@ export async function POST(request: Request) {
     })
     return part
   })
-  return json(await prisma.workshopPart.findFirst({ where: { id: creado.id, tenantId: tenant }, include: INCLUDE_REPUESTO }), { status: 201 })
+  return json(await paraRol(session, await prisma.workshopPart.findFirst({ where: { id: creado.id, tenantId: tenant }, include: INCLUDE_REPUESTO })), { status: 201 })
 }
 
 export async function PATCH(request: Request) {
@@ -205,5 +211,5 @@ export async function PATCH(request: Request) {
     return fila
   })
   const conDetalle = await prisma.workshopPart.findFirst({ where: { id: actualizado.id, tenantId: tenant }, include: INCLUDE_REPUESTO })
-  return json({ part: conDetalle, deudaPyg: deudaRepuesto(conDetalle || {}), porPagar: esPorPagar(conDetalle || {}) })
+  return json(await paraRol(session, { part: conDetalle, deudaPyg: deudaRepuesto(conDetalle || {}), porPagar: esPorPagar(conDetalle || {}) }))
 }

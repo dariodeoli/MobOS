@@ -42,7 +42,7 @@ test('el manifiesto normaliza recorrido, transporte y resumen', () => {
   assert.equal(datos.conductor, 'Ramón Giménez')
   assert.equal(datos.guia, 'A003526979')
   assert.equal(datos.responsable, 'Lucía Benítez')
-  assert.equal(datos.proveedor, 'Mayorista Apple PY')
+  assert.equal(datos.proveedor, 'MAP', 'el papel imprime la sigla del proveedor, nunca su nombre real (#400)')
   assert.deepEqual(datos.resumen, { lineas: 2, unidades: 4, conImei: 2, pendientes: 2 })
   assert.equal(datos.lineas[0].condicion, 'Seminuevo')
   assert.equal(datos.lineas[0].pendientes, 1)

@@ -73,11 +73,12 @@ test('FieldRow: una caja con un borde, 44px, etiqueta arriba y error accesible',
   assert.equal((campo.match(/rounded-lg border /g) || []).length, 1, 'un solo borde exterior')
 })
 
-test('Stat tiene variante compact y StatGrid de 2 columnas en celular', () => {
+test('Stat tiene variante compact y StatGrid es una tira de una línea con scroll horizontal en celular', () => {
   const ui = leer('../ui/index.jsx')
   assert.match(ui, /export function Stat\(\{[^}]*compact = false/)
   const grilla = leer('./StatGrid.jsx')
-  assert.match(grilla, /grid grid-cols-2 gap-2/, '2 columnas en celular')
-  assert.match(grilla, /4: 'md:grid-cols-4'/, '4 columnas desde md por defecto')
-  assert.match(ui, /text-xl font-semibold leading-7 tabular-nums/, 'cifra compacta de 20px semibold tabular')
+  assert.match(grilla, /flex min-w-0 items-stretch overflow-x-auto/, 'tira de una línea')
+  assert.doesNotMatch(grilla, /grid-cols-2/, 'ya no apila 2×2 en celular')
+  assert.match(ui, /text-base font-semibold leading-6 tabular-nums/, 'cifra compacta de 16px semibold tabular')
+  assert.match(ui, /min-h-10 shrink-0 items-center gap-2 whitespace-nowrap/, 'etiqueta + cifra en una línea (≤ 64px)')
 })

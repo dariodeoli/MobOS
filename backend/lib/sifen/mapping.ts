@@ -17,6 +17,7 @@ import { CONDICION_OPERACION, MEDIO_PAGO, TIPO_DOCUMENTO_RECEPTOR } from './cont
 import { AFECTACION_IVA, DESCRIPCION_TIPO_DOCUMENTO, NATURALEZA_RECEPTOR, SIFEN_VERSION, TIPO_CONTRIBUYENTE, TIPO_DOCUMENTO, TIPO_EMISION, TIPO_OPERACION_RECEPTOR, TIPO_TRANSACCION } from './contracts'
 import type { SifenDocumentoFiscal, SifenEntrega, SifenItem } from './contracts'
 import { componerCdc, digitoVerificadorModulo11, dvRucValido } from './cdc'
+import { countablePayments } from '../payment-net-pure'
 import type { SifenConfig } from './config'
 
 export type OrdenFiscal = {
@@ -40,7 +41,7 @@ export type OrdenFiscal = {
     discountPyg?: bigint | number
     serials?: unknown
   }>
-  payments?: Array<{ method: string; amountPyg: bigint | number; status?: string | null }>
+  payments?: Array<{ id?: string | null; reversalOfId?: string | null; method: string; amountPyg: bigint | number; status?: string | null }>
 }
 
 export type ClienteFiscal = {
@@ -222,7 +223,8 @@ export function mapearDocumentoFiscal({ orden, cliente, config, numeroDocumento,
 
   // ── Condición y entregas ──────────────────────────────────────────────
   const credito = Boolean(orden.dueAt) || numero(orden.creditDays) > 0
-  const pagos = (orden.payments || []).filter((pago) => !pago.status || pago.status === 'CONFIRMED')
+  // Correcciones de pago (#393): la entrega fiscal usa los pagos vigentes (sin el par original + reversión).
+  const pagos = countablePayments(orden.payments || []).filter((pago) => !pago.status || pago.status === 'CONFIRMED')
   const entregas: SifenEntrega[] = credito
     ? []
     : pagos.map((pago) => ({ tipo: medioPagoDe(String(pago.method)), monto: numero(pago.amountPyg), moneda: 'PYG' }))

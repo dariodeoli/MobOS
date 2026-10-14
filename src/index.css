@@ -298,3 +298,20 @@ header button::after {
 .auth-landing-icono { background: color-mix(in srgb, var(--landing-accent) 12%, transparent); color: var(--landing-accent); }
 .auth-landing-visual { background: var(--landing-surface); border: 1px solid var(--landing-line); box-shadow: 0 18px 40px -28px rgb(23 43 36 / .45); }
 .auth-landing-chip { background: color-mix(in srgb, var(--landing-accent) 14%, transparent); color: var(--landing-accent); }
+
+/* #386: detalles y vistas previas son una ventana centrada, nunca un panel
+   lateral. La X de cierre (la del Modal de la biblioteca) es roja y de 44 px;
+   usa el par de tokens bad/on-bad para mantener el contraste en claro y oscuro.
+   En celular la ventana ocupa la pantalla con margen seguro. */
+.ventana-detalle { max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 640px) { .ventana-detalle { max-height: min(90dvh, 880px); } }
+@media (max-width: 639px) { .ventana-detalle { height: calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-width: 100%; } }
+.ventana-detalle > div:first-child { position: sticky; top: 0; z-index: 1; background: rgb(var(--c-ink)); }
+.ventana-detalle > div:first-child > button[aria-label="Cerrar"] {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; padding: 0; flex: none;
+  font-size: 1.75rem; line-height: 1; font-weight: 700; border-radius: 0.75rem;
+  background: rgb(var(--c-bad)); color: rgb(var(--c-on-bad));
+}
+.ventana-detalle > div:first-child > button[aria-label="Cerrar"]:hover { filter: brightness(1.1); background: rgb(var(--c-bad)); color: rgb(var(--c-on-bad)); }
+.ventana-detalle > div:first-child > button[aria-label="Cerrar"]:focus-visible { outline: 2px solid rgb(var(--c-bad)); outline-offset: 2px; }

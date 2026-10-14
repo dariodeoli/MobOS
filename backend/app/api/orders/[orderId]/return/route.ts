@@ -5,6 +5,7 @@ import { InputError, objectInput } from '../../../../../lib/payment-input'
 import { changeStock, recomputeStock, UNLINK_SOLD } from '../../../../../lib/stock'
 import { canAccessOrder, canProcessOrderReturn, returnRequest } from '../../../../../lib/orders'
 import { numero } from '../../../../../lib/montos'
+import { countablePayments } from '../../../../../lib/payment-net'
 
 // La devolución financiera se conserva en la orden original. La reposición de
 // stock es una decisión explícita del mostrador: puede volver a la venta,
@@ -18,6 +19,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     const { orderId } = await context.params
     const requestData = returnRequest(objectInput(await request.json()))
     const result = await prisma.$transaction(async tx => {
+      // Misma cerradura que la corrección de pagos (#393): no calcular lo cobrado mientras otra transacción lo reescribe.
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = await tx.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { payments: true, items: true } })
       if (!order || !canAccessOrder(session.user, order)) throw new InputError('Pedido no encontrado.', 404)
       if (order.status === 'CANCELLED') throw new InputError('Este pedido ya fue devuelto o cancelado.', 409)
@@ -46,7 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         storeCreditId = credit.id
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STORE_CREDIT_ISSUED', entity: 'StoreCredit', entityId: credit.id, metadata: { orderId: order.id, customerId: order.customerId, amountPyg: refundPyg, origin: requestData.operation } } })
       } else if (refundPyg > 0) {
-        const metodo = order.payments.find(payment => payment.status === 'CONFIRMED')?.method ?? 'CASH'
+        const metodo = countablePayments(order.payments).find(payment => payment.status === 'CONFIRMED')?.method ?? 'CASH'
         await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: metodo, status: 'REFUNDED', amountPyg: refundPyg, reference: `Reembolso ${requestData.operation === 'CANCEL' ? 'por cancelación' : 'por devolución'}: ${requestData.reason.slice(0, 120)}`, paidAt: new Date(), createdAt: new Date() } })
       }
       // Reposición de stock: devolver unidades al inventario (o dejarlas en

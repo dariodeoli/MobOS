@@ -649,6 +649,12 @@ echo "Delivery propio: asignar → cobrar → rendir → verificar, con permisos
 out="$(response_file)"; REPARTIDOR_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-repartidor-it","pin":"8642"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/delivery.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$REPARTIDOR_TOKEN"
 
+echo "Corrección del medio de pago: reversión + pagos nuevos, permisos, idempotencia y turno (#393)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-corrections.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$REPARTIDOR_TOKEN" "$TOKEN_A" "$CHECKOUT_SELLER_B" "$DATABASE_URL"
+
+echo "Corrección del medio de pago: caja, reportes y conciliación netean sin doble conteo (#393-B)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-corrections-consumers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
+
 echo "Reportes por producto, categoría, vendedor y día..."
 REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"
 REPORTS_FROM="$(node -e 'process.stdout.write(new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10))')"
@@ -796,6 +802,10 @@ node "$BACKEND_ROOT/tests/stock-notices.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKE
 
 echo "Centro de Abastecimiento: repuestos del taller con tenencia y pago (#250)..."
 node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
+# Después de las suites de repuestos (cuentan los suyos) y antes del logout de las sesiones.
+echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
+node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"

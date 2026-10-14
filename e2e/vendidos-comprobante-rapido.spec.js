@@ -102,7 +102,8 @@ test('el ícono de Vendidos imprime el comprobante rápido (80 mm) sin abrir la 
   await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('comprobante')
   const texto = textoDelTicket(capturados[0])
-  expect(texto).toContain('Comprobante de compra')
+  // El ticket térmico imprime el título en mayúsculas (#402).
+  expect(texto).toMatch(/comprobante de compra/i)
   expect(texto).toContain('Documento no fiscal')
   expect(texto).toContain('1.000.000')
   // Nivel Rápido: el QR del nivel va con su enlace de seguimiento.

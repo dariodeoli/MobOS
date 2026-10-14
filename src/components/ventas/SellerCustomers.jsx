@@ -11,7 +11,7 @@ import PhoneField from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import SegmentedField from '@/components/shared/SegmentedField'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { telefonoValido } from '@/utils/telefono'
 import { coincideCliente } from '@/utils/cliente'
@@ -327,91 +327,86 @@ export default function SellerCustomers() {
     </nav>}
     {puedeCampanas && seccion === 'campanas' ? <CampanasClientes templates={plantillasClientes} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} /> : <>
     {' '}
-    <BarraModulo
-      titulo="Clientes"
+    <Toolbar
+      plano
+      lista
+      label="Acciones de Clientes"
       testId="barra-clientes"
-      className="clientes-f3-header"
-      descripcion={
-        esDemo
-          ? 'Demo local: solo datos ficticios.'
-          : 'Tus clientes, lo que compraron y lo que deben.'
-      }
-    >
-      <div className="clientes-f3-actions">
-        {!esDemo && (
-          <Button type="button" variant="outline" disabled={exportando} onClick={exportar}>
-            <Icon name="download" className="h-4 w-4" />
-            {exportando ? 'Exportando…' : 'Exportar CSV'}
-          </Button>
-        )}
-        {!esDemo && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setImportAbierto(true)
-              setImportError('')
-              setImportResultado(null)
-            }}
-          >
-            Importar
-          </Button>
-        )}
-        <Button type="button" onClick={abrirCrear}>
-          + Crear cliente
-        </Button>
-      </div>
-    </BarraModulo>
-    <div className="clientes-f3-filters">
-      <div className="clientes-f3-search">
+      search={
         <SearchField
           ariaLabel="Buscar clientes"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Nombre, teléfono, RUC/CI…"
         />
-      </div>
-      <SegmentedField
-        value={filtro}
-        onChange={setFiltro}
-        className="clientes-f3-chips"
-        ariaLabel="Filtrar clientes"
-        options={FILTROS_CLIENTES.map(([key, label]) => [key, label])}
-      />
-      <Select
-        aria-label="Ordenar clientes en la tienda"
-        value={orden}
-        onChange={(event) => setOrden(event.target.value)}
-      >
-        <option value="recientes">Recientes</option>
-        <option value="nombre">Nombre</option>
-        <option value="total">Total gastado</option>
-      </Select>
-      <ListGridToggle value={vista} onChange={cambiarVista} />
-    </div>
+      }
+      filters={
+        <SegmentedField
+          value={filtro}
+          onChange={setFiltro}
+          className="clientes-f3-chips"
+          ariaLabel="Filtrar clientes"
+          options={FILTROS_CLIENTES.map(([key, label]) => [key, label])}
+        />
+      }
+      sort={
+        <Select
+          aria-label="Ordenar clientes en la tienda"
+          value={orden}
+          onChange={(event) => setOrden(event.target.value)}
+        >
+          <option value="recientes">Recientes</option>
+          <option value="nombre">Nombre</option>
+          <option value="total">Total gastado</option>
+        </Select>
+      }
+      display={<ListGridToggle value={vista} onChange={cambiarVista} />}
+      more={!esDemo && (
+        <>
+          <Button type="button" variant="outline" title="Exportar CSV" disabled={exportando} onClick={exportar} className="max-2xl:min-w-11 max-2xl:px-0">
+            <Icon name="download" className="h-4 w-4" />
+            <span className="max-2xl:sr-only">{exportando ? 'Exportando…' : 'Exportar CSV'}</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            title="Importar"
+            className="max-2xl:min-w-11 max-2xl:px-0"
+            onClick={() => {
+              setImportAbierto(true)
+              setImportError('')
+              setImportResultado(null)
+            }}
+          >
+            <Icon name="upload" className="h-4 w-4" />
+            <span className="max-2xl:sr-only">Importar</span>
+          </Button>
+        </>
+      )}
+      primary={
+        <Button type="button" onClick={abrirCrear}>
+          + Crear cliente
+        </Button>
+      }
+    />
     {exportError && <p role="alert" className="text-sm text-bad">{exportError}</p>}
     {' '}
     <div aria-busy={!esDemo && resumenCargando}>
       <ResumenMetricas
         testId="resumen-clientes"
-        columnas={4}
         className="clientes-f3-summary"
         items={[
           {
             titulo: 'Clientes',
             valor: resumenMostrar?.total ?? '—',
             alcance: esDemo ? 'En pantalla' : 'Tienda',
-            nota: `${rows.length} en pantalla`,
+            nota: esDemo ? undefined : `${rows.length} en pantalla`,
           },
           {
             titulo: 'Mayoristas',
             valor: resumenMostrar?.wholesalers ?? '—',
             alcance: esDemo ? 'En pantalla' : 'Tienda',
-            nota: resumenMostrar
-              ? `${resumenMostrar.retail} cliente final`
-              : resumenCargando
-                ? 'Cargando…'
-                : 'No disponible',
+            nota: resumenMostrar ? undefined : resumenCargando ? 'Cargando…' : 'No disponible',
           },
           { titulo: 'Con deuda', valor: resumenV2.conDeuda, alcance: 'En pantalla' },
           { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar), alcance: 'En pantalla' },

@@ -3,7 +3,7 @@ import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
 
-const TIMELINE_ACTIONS = ['ORDER_FULFILLMENT_UPDATED', 'ORDER_DELIVERED_UNPAID', 'ORDER_SERIALS_ATTACHED', 'ORDER_BILLING_UPDATED', 'ORDER_DISCOUNT_APPROVED', 'ORDER_DISCOUNT_AUTHORIZED', 'ORDER_PRICE_AUTHORIZED', 'ORDER_VOIDED', 'ORDER_TAGS_UPDATED', 'ORDER_ARCHIVED', 'ORDER_UNARCHIVED', 'INVENTORY_UNITS_SOLD', 'ORDER_NOTIFIED_WHATSAPP', 'ORDER_COLLECTION_WHATSAPP_REMINDED', 'ORDER_ASSIGNED_TO_DELIVERY', 'ORDER_DELIVERY_AUTHORIZED', 'DELIVERY_SETTLEMENT_VERIFIED', 'DELIVERY_SETTLEMENT_REJECTED', 'ORDER_CUSTOMER_CHANGED', 'ORDER_CUSTOMER_REMOVED', 'ORDER_CUSTOMER_CREATED']
+const TIMELINE_ACTIONS = ['ORDER_FULFILLMENT_UPDATED', 'ORDER_DELIVERED_UNPAID', 'ORDER_SERIALS_ATTACHED', 'ORDER_BILLING_UPDATED', 'ORDER_DISCOUNT_APPROVED', 'ORDER_DISCOUNT_AUTHORIZED', 'ORDER_PRICE_AUTHORIZED', 'ORDER_VOIDED', 'ORDER_TAGS_UPDATED', 'ORDER_ARCHIVED', 'ORDER_UNARCHIVED', 'INVENTORY_UNITS_SOLD', 'ORDER_NOTIFIED_WHATSAPP', 'ORDER_COLLECTION_WHATSAPP_REMINDED', 'ORDER_ASSIGNED_TO_DELIVERY', 'ORDER_DELIVERY_AUTHORIZED', 'DELIVERY_SETTLEMENT_VERIFIED', 'DELIVERY_SETTLEMENT_REJECTED', 'ORDER_CUSTOMER_CHANGED', 'ORDER_CUSTOMER_REMOVED', 'ORDER_CUSTOMER_CREATED', 'ORDER_PAYMENT_CORRECTED']
 
 // Cronología del pedido: pagos, cambios auditados y comentarios, más reciente
 // primero. Un solo viaje para la vista de detalle.
@@ -25,7 +25,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
     }),
     prisma.payment.findMany({
       where: { tenantId: tenant, orderId: order.id },
-      select: { id: true, method: true, status: true, amountPyg: true, reference: true, paidAt: true, createdAt: true, currency: true, originalAmount: true, settlesAt: true, accountSnapshot: true, userId: true },
+      select: { id: true, method: true, status: true, amountPyg: true, reference: true, paidAt: true, createdAt: true, currency: true, originalAmount: true, settlesAt: true, accountSnapshot: true, userId: true, reversalOfId: true, correctionId: true },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.orderComment.findMany({

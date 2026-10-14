@@ -82,6 +82,7 @@ model Tenant {
   orders                  Order[]
   orderAccessTokens       OrderAccessToken[]
   payments                Payment[]
+  paymentCorrections      PaymentCorrection[]
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
   reconciliationBatches   ReconciliationBatch[]
@@ -402,6 +403,7 @@ model User {
   customerNotices  CustomerNotice[]
   customersCreated Customer[]      @relation("CustomerCreatedBy")
   paymentsCreated Payment[]        @relation("PaymentCreatedBy")
+  paymentCorrections PaymentCorrection[] @relation("PaymentCorrectionCreatedBy")
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
@@ -1475,6 +1477,7 @@ model Order {
 
   items    OrderItem[]
   payments Payment[]
+  paymentCorrections PaymentCorrection[]
   comments OrderComment[]
   quotes   Quote[]
   quoteApprovals QuoteApproval[]
@@ -1822,6 +1825,14 @@ model Payment {
   collectedAt     DateTime?
   deliverySettlementId String?
   deliverySettlement   DeliverySettlement? @relation(fields: [deliverySettlementId], references: [id], onDelete: SetNull)
+  // Corrección de medio de pago (#393): el pago original nunca se edita. La
+  // corrección agrega una reversión (monto negativo, reversalOfId = original) y
+  // pagos nuevos; todas las filas comparten correctionId.
+  correctionId    String?
+  correction      PaymentCorrection? @relation("PaymentCorrectionRows", fields: [correctionId], references: [id], onDelete: NoAction)
+  reversalOfId    String?          @unique
+  reversalOf      Payment?         @relation("PaymentReversal", fields: [reversalOfId], references: [id], onDelete: NoAction)
+  reversal        Payment?         @relation("PaymentReversal")
   createdAt       DateTime         @default(now())
 
   proofs         PaymentProof[]
@@ -1834,6 +1845,37 @@ model Payment {
   @@index([orderId])
   @@index([deliveryUserId, deliverySettlementId])
   @@index([deliverySettlementId])
+  @@index([correctionId])
+}
+
+// Corrección del medio de pago de una venta (#393). before/after guardan el
+// pago original y los pagos nuevos; originSessionClosed indica si el pago salió
+// de un turno de caja ya cerrado y drawerImpact si la corrección toca el
+// efectivo del turno vigente (false = solo reportes, el cierre guardado no se
+// modifica).
+model PaymentCorrection {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId            String?
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason              String
+  createdById         String?
+  createdBy           User?    @relation("PaymentCorrectionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  idempotencyKey      String
+  // sha256 del cuerpo (pago, motivo, pagos nuevos): misma clave con otro cuerpo = 409.
+  requestHash         String?
+  before              Json
+  after               Json
+  originSessionClosed Boolean  @default(false)
+  drawerImpact        Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  payments            Payment[] @relation("PaymentCorrectionRows")
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, orderId])
+  @@index([tenantId, createdAt])
 }
 
 model PaymentProof {
