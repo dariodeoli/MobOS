@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Button, Input } from '@/components/ui'
+import { Button, ConfirmDialog, IconAction, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import CountrySelect from '@/components/shared/CountrySelect'
+import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
 import EmailField from '@/components/shared/EmailField'
 import RucField from '@/components/shared/RucField'
 import PhoneField from '@/components/shared/PhoneField'
@@ -13,7 +15,6 @@ import { normalizarNombre } from '@/utils/nombre'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
 import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
 import { fechaLegible } from '@/utils/pedido'
 import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
@@ -26,6 +27,7 @@ function estadisticasDemo(cliente) {
   return { orders: pedidos.length, lastOrderAt: ultimo, pendingPyg: pedidos.reduce((suma, o) => suma + Number(o.pendingPyg || 0), 0) }
 }
 
+const TITULO_SECCION = 'text-[11px] font-semibold uppercase tracking-wide text-mute'
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
@@ -49,6 +51,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   // #309: con la ficha elegida el bloque se lee en una línea; «Editar datos»
   // abre el formulario completo (contacto, direcciones y facturación).
   const [editar, setEditar] = useState(false)
+  // #389: el formulario (identidad, contacto, facturación y direcciones) vive en
+  // un bloque plegable; «Editar datos» lo abre ya desplegado.
+  const [abierto, setAbierto] = useState(false)
+  const [quitarDireccion, setQuitarDireccion] = useState(null)
   const [fichaAbierta, setFichaAbierta] = useState(false)
   // Registro completo del cliente elegido (con sus estadísticas): se guarda
   // aparte del valor del formulario para no viajar en el payload de la venta.
@@ -60,9 +66,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   // #309: el POS colapsa la ficha elegida a una línea; los modales de edición
   // (ficha del cliente, cambiar cliente del pedido) mantienen el formulario.
   const colapsado = colapsarFicha && Boolean(value.id) && !editar
-  // En el POS la ficha vive en una columna angosta: los campos van uno por fila
-  // (el teléfono con su código no se parte en dos).
-  const grillaCampos = colapsarFicha ? 'grid gap-3' : GRILLA_DOS_COLUMNAS
   // Última versión de `elegirCliente` accesible desde el efecto de búsqueda sin
   // recrearlo en cada render (evita reconsultas en loop).
   const elegirClienteRef = useRef(null)
@@ -150,6 +153,13 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
 
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
+  const abrirEdicion = () => { setEditar(true); setAbierto(true) }
+  // Una dirección vacía se quita sin preguntar; con datos pide confirmación.
+  const pedirQuitarDireccion = (index) => {
+    const { address = '', city = '', notes = '' } = value.addresses[index] || {}
+    if ([address, city, notes].some(texto => String(texto).trim())) setQuitarDireccion(index)
+    else removeAddress(index)
+  }
   const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
 
   // Tarjeta del cliente elegido (#309/#390): reemplaza al buscador y da el
@@ -173,7 +183,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Ver ficha" aria-label="Ver ficha del cliente" onClick={() => setFichaAbierta(true)}>
               <Icon name="eye" className="h-4 w-4" />
             </button>
-            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Editar datos" aria-label="Editar datos del cliente" onClick={() => setEditar(true)}>
+            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Editar datos" aria-label="Editar datos del cliente" onClick={abrirEdicion}>
               <Icon name="edit" className="h-4 w-4" />
             </button>
             <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-bad transition hover:bg-bad/10 md:h-8 md:w-8" title="Quitar cliente" aria-label="Quitar cliente" onClick={quitarCliente}>
@@ -202,8 +212,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           row={registro || { ...value, wholesale: value.pricingTier === 'WHOLESALE', stats }}
           open={fichaAbierta}
           onClose={() => setFichaAbierta(false)}
-          onEditar={() => { setFichaAbierta(false); setEditar(true) }}
-          onDetalle={() => { setFichaAbierta(false); setEditar(true) }}
+          onEditar={() => { setFichaAbierta(false); abrirEdicion() }}
+          onDetalle={() => { setFichaAbierta(false); abrirEdicion() }}
         />
       </div>
     )
@@ -215,42 +225,77 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
     {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-    <div className={cn(colapsarFicha && 'flex flex-wrap items-start gap-2')}>
-    <details className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'min-w-0 flex-1 basis-56 py-0 open:basis-full open:pb-3')}><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
-      <div className={cn('mt-3', grillaCampos)}>
-        <div className="text-xs text-mute">Teléfono<PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></div>
-        <div className="text-xs text-mute">CI o RUC<RucField ariaLabel="CI o RUC del cliente" disabled={false} value={value.document || ''} onChange={(document) => onChange({ ...value, document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></div>
-        <label className="text-xs text-mute">Correo<EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></label>
-      </div>
-      <div className="mt-4 space-y-3"><div className="flex items-center justify-between"><strong className="text-sm">Direcciones</strong><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>        {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
-        {(value.addresses || []).map((address, index) => <div key={index} className={cn('grid gap-2 rounded-xl border border-ink-600 p-3', !colapsarFicha && 'sm:grid-cols-2')}><div className="flex gap-2"><label className="text-xs text-mute">Etiqueta<Input autoCapitalize="words" value={address.label || ''} onChange={event => setAddress(index, 'label', capitalizarPrimera(event.target.value))} placeholder="Casa, trabajo…" /></label><label className="text-xs text-mute">País<Input maxLength={100} autoCapitalize="words" value={address.country ?? 'Paraguay'} onChange={event => setAddress(index, 'country', capitalizarPrimera(event.target.value))} placeholder="Paraguay" /></label></div><label className="text-xs text-mute">Ciudad<CityAutocomplete esDemo={esDemo} value={address.city || ''} onSelect={(city, department) => onChange({ ...value, addresses: value.addresses.map((item, position) => position === index ? { ...item, city, department } : item) })} placeholder="Asunción" />{address.department && <span className="block truncate px-1 pt-1 text-[11px] text-fono-light">{address.department}</span>}</label><label className={cn('text-xs text-mute', !colapsarFicha && 'sm:col-span-2')}>Dirección<Input autoCapitalize="sentences" value={address.address || ''} onChange={event => setAddress(index, 'address', capitalizarPrimera(event.target.value))} placeholder="Calle, número y referencia" /></label><div className={cn('flex items-center justify-between gap-2', !colapsarFicha && 'sm:col-span-2')}><label className="text-xs text-mute">Notas<Input autoCapitalize="sentences" value={address.notes || ''} onChange={event => setAddress(index, 'notes', capitalizarPrimera(event.target.value))} placeholder="Horario, piso, referencia" /></label><button type="button" className="self-end text-xs text-bad hover:underline" onClick={() => removeAddress(index)}>Quitar</button></div></div>)}
+    <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
+      <div className="mt-3 space-y-4">
+        <section aria-label="Identidad" className="space-y-2">
+          <h4 className={TITULO_SECCION}>Identidad</h4>
+          <GrillaCampos>
+            <Campo como="div" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={false} value={value.document || ''} onChange={(document) => onChange({ ...value, document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
+          </GrillaCampos>
+        </section>
+        <section aria-label="Contacto" className="space-y-2">
+          <h4 className={TITULO_SECCION}>Contacto</h4>
+          <GrillaCampos>
+            <Campo como="div" ancho="telefono" rotulo="Teléfono"><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
+            <Campo ancho="correo" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
+          </GrillaCampos>
+        </section>
+        {onBillingChange && (
+          <section aria-label="Facturación" className="rounded-xl border border-ink-600 p-3">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-fono-light md:min-h-0">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-fono"
+                checked={facturarAOtro}
+                onChange={event => {
+                  setFacturarAOtro(event.target.checked)
+                  if (!event.target.checked) onBillingChange({ name: '', document: '' })
+                }}
+              />
+              <Icon name="tag" className="h-3.5 w-3.5" /> Facturar a otro titular (opcional)
+            </label>
+            {facturarAOtro && (
+              <>
+                <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
+                <GrillaCampos className="mt-3">
+                  <Campo ancho="flexible" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...billingTo, name: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
+                  <Campo como="div" ancho="documento" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name, { apellidosPrimero: 'sifen' }), document: datos.fullRuc || billingTo?.document })} esDemo={esDemo} /></Campo>
+                </GrillaCampos>
+              </>
+            )}
+          </section>
+        )}
+        <section aria-label="Direcciones" className="space-y-2">
+          <div className="flex items-center justify-between"><h4 className={TITULO_SECCION}>Direcciones</h4><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
+          {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
+          {(value.addresses || []).map((address, index) => (
+            <div key={index} data-testid="direccion-tarjeta" className="relative space-y-3 rounded-xl border border-ink-600 p-3 md:pr-12">
+              <div className="flex justify-end md:absolute md:right-2 md:top-2"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => pedirQuitarDireccion(index)} /></div>
+              <GrillaCampos>
+                <Campo ancho="etiqueta" rotulo="Etiqueta"><Input autoCapitalize="words" value={address.label || ''} onChange={event => setAddress(index, 'label', capitalizarPrimera(event.target.value))} placeholder="Casa, trabajo…" /></Campo>
+                <Campo como="div" ancho="pais" rotulo="País"><CountrySelect value={address.country ?? 'Paraguay'} onChange={country => setAddress(index, 'country', country)} /></Campo>
+                <Campo como="div" ancho="ciudad" rotulo="Ciudad">
+                  <CityAutocomplete esDemo={esDemo} value={address.city || ''} onSelect={(city, department) => onChange({ ...value, addresses: value.addresses.map((item, position) => position === index ? { ...item, city, department } : item) })} placeholder="Asunción" />
+                  {address.department && address.department.trim().toLowerCase() !== String(address.city || '').trim().toLowerCase() && <span className="block truncate px-1 pt-1 text-[11px] text-fono-light">{address.department}</span>}
+                </Campo>
+              </GrillaCampos>
+              <GrillaCampos>
+                <Campo ancho="flexible" rotulo="Dirección"><Input autoCapitalize="sentences" value={address.address || ''} onChange={event => setAddress(index, 'address', capitalizarPrimera(event.target.value))} placeholder="Calle, número y referencia" /></Campo>
+                <Campo ancho="flexible" rotulo="Notas"><Input autoCapitalize="sentences" value={address.notes || ''} onChange={event => setAddress(index, 'notes', capitalizarPrimera(event.target.value))} placeholder="Horario, piso, referencia" /></Campo>
+              </GrillaCampos>
+            </div>
+          ))}
+        </section>
       </div>
     </details>
-    {onBillingChange && (
-      <div className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'min-w-0 flex-1 basis-56 py-0', colapsarFicha && facturarAOtro && 'pb-3')}>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-fono-light md:min-h-0">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-fono"
-            checked={facturarAOtro}
-            onChange={event => {
-              setFacturarAOtro(event.target.checked)
-              if (!event.target.checked) onBillingChange({ name: '', document: '' })
-            }}
-          />
-          <Icon name="tag" className="h-3.5 w-3.5" /> Facturar a otro titular (opcional)
-        </label>
-        {facturarAOtro && (
-          <>
-            <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
-            <div className={cn('mt-3', grillaCampos)}>
-              <label className="text-xs text-mute">Nombre y apellido del titular<Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...billingTo, name: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></label>
-              <div className="text-xs text-mute">RUC del titular<RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name, { apellidosPrimero: 'sifen' }), document: datos.fullRuc || billingTo?.document })} esDemo={esDemo} /></div>
-            </div>
-          </>
-        )}
-      </div>
-    )}
-    </div>
+    <ConfirmDialog
+      open={quitarDireccion !== null}
+      title="¿Quitar esta dirección?"
+      description="Se elimina de la ficha del cliente cuando guardes los cambios."
+      confirmLabel="Quitar dirección"
+      variant="danger"
+      onCancel={() => setQuitarDireccion(null)}
+      onConfirm={() => { removeAddress(quitarDireccion); setQuitarDireccion(null) }}
+    />
   </div>
 }

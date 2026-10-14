@@ -8,10 +8,11 @@ export const ANCHO_CAMPO = Object.freeze({
   correo: 'md:max-w-[26rem]', // ~32 caracteres
   ciudad: 'md:max-w-[20rem]', // ~24 caracteres
   pais: 'md:max-w-[16rem]', // ~18 caracteres
+  etiqueta: 'md:max-w-[12rem]', // nombre de dirección: Casa, oficina…
   corto: 'md:max-w-[8rem]', // código postal, número corto (8-10 caracteres)
 })
 
 // Máximos en píxeles (rem de 16px) para los tests de layout.
 export const ANCHO_CAMPO_PX = Object.freeze({
-  telefono: 352, documento: 288, correo: 416, ciudad: 320, pais: 256, corto: 128,
+  telefono: 352, etiqueta: 192, documento: 288, correo: 416, ciudad: 320, pais: 256, corto: 128,
 })
