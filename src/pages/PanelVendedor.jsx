@@ -12,6 +12,7 @@ import { ROLE_LABELS } from '@/lib/roles'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
+import VistaErrorBoundary from '@/components/app/VistaErrorBoundary'
 import { ConfirmDialog, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
@@ -795,6 +796,7 @@ export default function PanelVendedor() {
         )}
 
         <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-4">
+          <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
           {posMontado && (
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
@@ -922,6 +924,7 @@ export default function PanelVendedor() {
             </div>
           )}
           </Suspense>
+          </VistaErrorBoundary>
         </main>
       </AppShell>
 
