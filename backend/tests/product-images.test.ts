@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { hasImageMagicBytes, imageDimensions, primaryImageFields, productImageUrls, readProductImage, MAX_PRODUCT_IMAGE_BYTES } from '../lib/product-images'
-import { parseAccessoryCategory, parseCompatibleModels } from '../lib/product-accessories'
+import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../lib/product-accessories'
 
 // #404: fotos de producto — validación por magic bytes + dimensiones del archivo.
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
@@ -14,7 +14,7 @@ assert.deepEqual(imageDimensions(png, 'image/png'), { width: 1, height: 1 })
 assert.deepEqual(imageDimensions(webp, 'image/webp'), { width: 1, height: 1 })
 assert.deepEqual(imageDimensions(jpeg, 'image/jpeg'), { width: 3, height: 2 })
 
-const file = (bytes: Uint8Array, type: string, name = 'f') => new File([bytes], name, { type })
+const file = (bytes: Uint8Array, type: string, name = 'f') => new File([bytes as BlobPart], name, { type })
 async function rejects(value: File | null | string, status: number, options?: Parameters<typeof readProductImage>[1]) {
   await assert.rejects(() => readProductImage(value, options), (error: any) => error.status === status)
 }
@@ -53,6 +53,10 @@ async function main() {
   assert.deepEqual(parseCompatibleModels(null), [])
   assert.throws(() => parseCompatibleModels(Array.from({ length: 21 }, (_, i) => `M${i}`)), /hasta 20/)
   assert.throws(() => parseCompatibleModels(5), /lista/)
+  assert.equal(accessoryCatalogFilter(undefined), undefined)
+  assert.equal(accessoryCatalogFilter('MAGIA'), undefined)
+  assert.deepEqual(accessoryCatalogFilter('otro'), { accessoryCategory: 'OTRO' })
+  assert.equal((accessoryCatalogFilter('cable') as any).OR[0].accessoryCategory, 'CABLE')
   console.log('product-images.test.ts: ok')
 }
 main().catch(error => { console.error(error); process.exit(1) })

@@ -11,7 +11,7 @@ import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/monto
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 import { canSeeCostForSession, redactProductCosts } from '../../../lib/cost-visibility'
 import { catalogMeta, catalogSearchFilter, parseCatalogPage } from '../../../lib/product-catalog'
-import { parseAccessoryCategory, parseCompatibleModels } from '../../../lib/product-accessories'
+import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../../../lib/product-accessories'
 import { PRIMARY_IMAGE_INCLUDE, primaryImageFields } from '../../../lib/product-images'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
@@ -49,13 +49,14 @@ export async function GET(request: Request) {
   const branchEfectiva = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? await sucursalEfectiva(session) : null
   const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: branchEfectiva }, { branchId: null }] } : undefined
   const searchFilter = catalogSearchFilter(q)
+  const accessoryFilter = accessoryCatalogFilter(p.get('accessoryCategory'))
   // Paginado por cursor: el catálogo puede tener más de una pantalla y el
   // orden necesita un desempate estable (nombre no es único). El tope subió a
   // 500 para que la sincronización del panel traiga el catálogo en una sola
   // página (#247); el default sigue en 200 para el resto de los llamadores.
   const limit = Math.min(500, Math.max(1, Number(p.get('limit')) || 200))
   const cursor = p.get('cursor')
-  const where = { AND: [{ tenantId: tenant, isActive: true }, ...(branchFilter ? [branchFilter] : []), ...(searchFilter ? [searchFilter] : [])] }
+  const where = { AND: [{ tenantId: tenant, isActive: true }, ...(branchFilter ? [branchFilter] : []), ...(searchFilter ? [searchFilter] : []), ...(accessoryFilter ? [accessoryFilter] : [])] }
   // #354: con `page` el POS pide el catálogo por páginas y con búsqueda en el
   // servidor ({ items, total, page, pageSize, pages }). Sin `page` el contrato
   // anterior (arreglo con cursor) queda igual para el resto de los llamadores.

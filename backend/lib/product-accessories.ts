@@ -33,3 +33,22 @@ export function parseCompatibleModels(value: unknown): string[] | undefined {
   if (models.length > 20) throw new Error('Se admiten hasta 20 modelos compatibles.')
   return models
 }
+
+const KEYWORDS: Record<Exclude<AccessoryCategory, 'OTRO'>, string[]> = {
+  LAMINA: ['lámina', 'lamina', 'vidrio', 'templado', 'hidrogel'],
+  CASE: ['case', 'funda', 'carcasa', 'estuche'],
+  CABLE: ['cable'],
+  CARGADOR: ['cargador', 'charger', 'adaptador', 'power bank', 'magsafe'],
+  AUDIO: ['airpods', 'auricular', 'audífono', 'audifono', 'parlante', 'speaker', 'buds'],
+}
+
+/**
+ * Filtro de catálogo por categoría de accesorio: la guardada, o —si el producto
+ * aún no fue clasificado— una palabra clave en el nombre. undefined = sin filtro.
+ */
+export function accessoryCatalogFilter(value: unknown) {
+  const key = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  if (!isAccessoryCategory(key)) return undefined
+  if (key === 'OTRO') return { accessoryCategory: 'OTRO' }
+  return { OR: [{ accessoryCategory: key }, { accessoryCategory: null, OR: KEYWORDS[key].map(word => ({ name: { contains: word, mode: 'insensitive' as const } })) }] }
+}
