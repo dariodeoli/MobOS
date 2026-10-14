@@ -55,10 +55,13 @@ async function deny(ctx: AccountContext, request: Request, targetTenantId: strin
 }
 
 /** Revoca las sesiones presentadas y abre las de la empresa destino en una sola transacción. */
-async function openTenant(tx: any, ctx: AccountContext, request: Request, membership: { id: string; userId: string | null }, targetTenantId: string, extraAudit: Record<string, unknown> = {}, allowSeller = true): Promise<SwitchResult> {
+export async function openTenant(tx: any, ctx: AccountContext, request: Request, membership: { id: string; userId: string | null }, targetTenantId: string, extraAudit: Record<string, unknown> = {}, allowSeller = true): Promise<SwitchResult> {
   const now = new Date()
   const metadata = authRequestMetadata(request)
-  await tx.session.updateMany({ where: { id: { in: ctx.sessionIds }, revokedAt: null }, data: { revokedAt: now } })
+  // Si otra solicitud ya revocó alguna de estas sesiones (doble envío, carrera),
+  // se aborta: la transacción entera se deshace y no se abre ninguna sesión nueva.
+  const revoked = await tx.session.updateMany({ where: { id: { in: ctx.sessionIds }, revokedAt: null }, data: { revokedAt: now } })
+  if (revoked.count !== ctx.sessionIds.length) throw new TenantSwitchError(409, 'La sesión cambió mientras se procesaba el cambio. Intentá nuevamente.', 'TENANT_SWITCH_RACE')
   await tx.auditLog.create({ data: { tenantId: ctx.tenantId, userId: ctx.sellerUserId, action: 'TENANT_SWITCH_OUT', entity: 'Tenant', entityId: targetTenantId, metadata: { toTenantId: targetTenantId, ...metadata } } })
   const company = await createSession(tx, targetTenantId, null, 'COMPANY', ctx.deviceId, null, { userAgent: ctx.userAgent, accountId: ctx.accountId })
   // La sesión de vendedor del destino solo se abre si quien cambia es el perfil
@@ -112,14 +115,16 @@ export async function createCompany(request: Request, ctx: AccountContext, compa
   const companyName = typeof companyNameInput === 'string' ? companyNameInput.trim() : ''
   if (!companyName || companyName.length > 100) throw new TenantSwitchError(400, 'Completá el nombre de la empresa.', 'COMPANY_NAME')
   const current = await assertMembership(prisma, ctx.accountId, ctx.tenantId).catch(() => null)
-  if (!current || !canCreateCompany(current.role)) throw new TenantSwitchError(403, 'Solo el dueño puede crear otra empresa.', 'COMPANY_CREATE_FORBIDDEN')
+  // Quien actúa tiene que ser el perfil vinculado de una pertenencia OWNER y
+  // ese perfil seguir siendo ADMIN activo AHORA (no el rol de cuando se vinculó).
+  if (!current || !ctx.sellerUserId || current.userId !== ctx.sellerUserId || !canCreateCompany(current.role, current.user)) throw new TenantSwitchError(403, 'Solo el dueño puede crear otra empresa.', 'COMPANY_CREATE_FORBIDDEN')
   await limit(request, ctx, 'company-create', CREATE_MAX, CREATE_WINDOW_MS)
   const account = await prisma.account.findUniqueOrThrow({ where: { id: ctx.accountId }, select: { email: true } })
   const pinHash = await bcrypt.hash(randomBytes(32).toString('hex'), 12)
   return prisma.$transaction(async tx => {
     // Como el alta con Google: empresa sin correo propio, ADMIN con PIN
     // inutilizable y alta de PIN pendiente (adminPinPending).
-    const tenant = await tx.tenant.create({ data: { name: companyName, email: null, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
+    const tenant = await tx.tenant.create({ data: { name: companyName, email: null, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true, source: 'account' } } } })
     const admin = await tx.user.create({ data: { tenantId: tenant.id, name: current.user?.name?.slice(0, 100) || 'Administrador', email: account.email ?? current.user?.email ?? null, pinHash, role: 'ADMIN' } })
     const membership = await ensureMembership(tx, { accountId: ctx.accountId, tenantId: tenant.id, userId: admin.id, role: 'OWNER' })
     await tx.auditLog.create({ data: { tenantId: tenant.id, userId: admin.id, action: 'TENANT_COMPANY_CREATED', entity: 'Tenant', entityId: tenant.id, metadata: { fromTenantId: ctx.tenantId, ...authRequestMetadata(request) } } })

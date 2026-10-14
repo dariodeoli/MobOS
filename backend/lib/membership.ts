@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
-import { linkedUserBelongs, normalizeAccountEmail, passwordAccountDecision, roleForGoogleAccess, type MembershipRoleName } from './membership-rules'
+import { linkedUserBelongs, normalizeAccountEmail, passwordAccountDecision, REVOKED_ACCOUNT_CLOSED, REVOKED_USER_DEACTIVATED, roleForGoogleAccess, type MembershipRoleName } from './membership-rules'
 
 type Db = Prisma.TransactionClient | typeof prisma
 
@@ -17,11 +17,26 @@ export async function assertLinkedUserInTenant(db: Db, userId: string | null | u
   if (!user || !linkedUserBelongs(user, tenantId)) throw new MembershipError('INVALID_LINK', 'El perfil vinculado no pertenece a esa empresa.')
 }
 
-/** Perfil de la persona en la empresa: ADMIN con su correo; si no, el ADMIN más antiguo (activos primero). */
+/**
+ * Perfil de la persona en la empresa: SOLO el ADMIN activo cuyo correo coincide
+ * (el más antiguo si hay varios). Sin coincidencia devuelve null y la persona
+ * pasa por la pantalla de PIN; nunca se adivina por antigüedad. El perfil que
+ * crea la propia operación (alta de empresa, alta con Google) se pasa explícito.
+ */
 export async function defaultLinkedUser(db: Db, tenantId: string, email: string | null) {
-  const admins = await db.user.findMany({ where: { tenantId, role: 'ADMIN' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, email: true, status: true } })
-  const rank = (user: { email: string | null; status: string }) => (email && user.email?.toLowerCase() === email ? 0 : 2) + (user.status === 'ACTIVE' ? 0 : 1)
-  return [...admins].sort((a, b) => rank(a) - rank(b))[0]?.id ?? null
+  if (!email) return null
+  const admins = await db.user.findMany({ where: { tenantId, role: 'ADMIN', status: 'ACTIVE' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, email: true } })
+  return admins.find(user => user.email?.trim().toLowerCase() === email)?.id ?? null
+}
+
+/** Perfil que creó la tienda con Google (marca GOOGLE_STORE_OWNER_CREATED), si sigue siendo un ADMIN activo. */
+async function googleOwnerProfile(db: Db, tenantId: string) {
+  const marks = await db.auditLog.findMany({ where: { tenantId, action: 'GOOGLE_STORE_OWNER_CREATED', userId: { not: null } }, orderBy: { createdAt: 'asc' }, select: { userId: true } })
+  for (const mark of marks) {
+    const user = mark.userId ? await db.user.findFirst({ where: { id: mark.userId, tenantId, role: 'ADMIN', status: 'ACTIVE' }, select: { id: true } }) : null
+    if (user) return user.id
+  }
+  return null
 }
 
 /** Crea la pertenencia si no existe. Nunca revive una revocada ni pisa el rol existente. */
@@ -62,7 +77,8 @@ export async function accountForGoogle(tx: Prisma.TransactionClient, subject: st
 export async function syncGoogleMemberships(tx: Prisma.TransactionClient, accountId: string, subject: string, email: string | null) {
   const accesses = await tx.googleStoreAccess.findMany({ where: { subject }, select: { tenantId: true, owner: true } })
   for (const access of accesses) {
-    await ensureMembership(tx, { accountId, tenantId: access.tenantId, userId: await defaultLinkedUser(tx, access.tenantId, normalizeAccountEmail(email)), role: roleForGoogleAccess(access.owner) })
+    const userId = (await defaultLinkedUser(tx, access.tenantId, normalizeAccountEmail(email))) ?? (access.owner ? await googleOwnerProfile(tx, access.tenantId) : null)
+    await ensureMembership(tx, { accountId, tenantId: access.tenantId, userId, role: roleForGoogleAccess(access.owner) })
   }
 }
 
@@ -70,7 +86,7 @@ export async function syncGoogleMemberships(tx: Prisma.TransactionClient, accoun
 export async function assertMembership(db: Db, accountId: string, tenantId: string, { allowArchived = false }: { allowArchived?: boolean } = {}) {
   const membership = await db.tenantMembership.findUnique({
     where: { accountId_tenantId: { accountId, tenantId } },
-    include: { tenant: { select: { id: true, name: true, slug: true, archivedAt: true, settings: true } }, user: { select: { id: true, tenantId: true, name: true, email: true, status: true } } },
+    include: { tenant: { select: { id: true, name: true, slug: true, archivedAt: true, settings: true } }, user: { select: { id: true, tenantId: true, name: true, email: true, status: true, role: true } } },
   })
   if (!membership) throw new MembershipError('NOT_MEMBER')
   if (membership.revokedAt) throw new MembershipError('REVOKED')
@@ -93,16 +109,40 @@ export async function listTenantsForAccount(accountId: string, currentTenantId: 
   return rows.map(row => ({ id: row.tenant.id, name: row.tenant.name, slug: row.tenant.slug, role: row.role, current: row.tenant.id === currentTenantId }))
 }
 
-/** Revoca las pertenencias de un perfil (salir de la tienda / baja) ANTES de borrarlo: el FK lo dejaría en null. */
-export async function revokeMembershipsForUser(tx: Prisma.TransactionClient, tenantId: string, userId: string, now = new Date()) {
+/**
+ * Revoca las pertenencias de un perfil (salir de la tienda / baja) ANTES de
+ * borrarlo: el FK lo dejaría en null. `reason` queda registrado: solo
+ * USER_DEACTIVATED se restaura al reactivar el perfil (restoreMembershipsForUser).
+ */
+export async function revokeMembershipsForUser(tx: Prisma.TransactionClient, tenantId: string, userId: string, now = new Date(), reason: string = REVOKED_USER_DEACTIVATED) {
   const rows = await tx.tenantMembership.findMany({ where: { tenantId, userId, revokedAt: null }, select: { id: true, accountId: true } })
   if (!rows.length) return []
-  await tx.tenantMembership.updateMany({ where: { id: { in: rows.map(row => row.id) } }, data: { revokedAt: now } })
+  await tx.tenantMembership.updateMany({ where: { id: { in: rows.map(row => row.id) } }, data: { revokedAt: now, revokedReason: reason } })
   await tx.session.updateMany({ where: { tenantId, accountId: { in: rows.map(row => row.accountId) }, revokedAt: null }, data: { revokedAt: now } })
   return rows.map(row => row.accountId)
 }
 
+/**
+ * Camino de vuelta de la baja: reactivar el perfil vinculado reactiva SOLO las
+ * pertenencias que esa baja revocó (revokedReason USER_DEACTIVATED). Las que se
+ * revocaron por salir de la tienda o por cierre de cuenta no se reviven; las
+ * sesiones siguen revocadas y la persona vuelve a entrar con su PIN.
+ */
+export async function restoreMembershipsForUser(tx: Prisma.TransactionClient, tenantId: string, userId: string) {
+  const restored = await tx.tenantMembership.updateMany({ where: { tenantId, userId, revokedAt: { not: null }, revokedReason: REVOKED_USER_DEACTIVATED }, data: { revokedAt: null, revokedReason: null } })
+  return restored.count
+}
+
+/** Retira la pertenencia (y las sesiones) de la cuenta Google de una tienda, p. ej. al salir su dueña. */
+export async function revokeGoogleMembership(tx: Prisma.TransactionClient, tenantId: string, subject: string, now: Date, reason: string) {
+  const account = await tx.account.findUnique({ where: { googleSubject: subject }, select: { id: true } })
+  if (!account) return false
+  await tx.tenantMembership.updateMany({ where: { accountId: account.id, tenantId, revokedAt: null }, data: { revokedAt: now, revokedReason: reason } })
+  await tx.session.updateMany({ where: { tenantId, accountId: account.id, revokedAt: null }, data: { revokedAt: now } })
+  return true
+}
+
 export async function revokeAllMembershipsOfAccount(tx: Prisma.TransactionClient, accountId: string, now = new Date()) {
-  await tx.tenantMembership.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: now } })
+  await tx.tenantMembership.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: now, revokedReason: REVOKED_ACCOUNT_CLOSED } })
   await tx.session.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: now } })
 }

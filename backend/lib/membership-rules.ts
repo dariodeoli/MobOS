@@ -37,10 +37,19 @@ export function roleForGoogleAccess(owner: boolean): MembershipRoleName {
   return owner ? 'OWNER' : 'ADMIN'
 }
 
-/** Solo el dueño de la empresa actual puede crear otra empresa. */
-export function canCreateCompany(role: string | null | undefined) {
-  return role === 'OWNER'
+/**
+ * Solo el dueño de la empresa actual puede crear otra empresa, y solo mientras
+ * su perfil vinculado siga siendo ADMIN y activo: bajarle el rol o desactivarlo
+ * le quita el alta de empresas aunque la pertenencia siga siendo OWNER.
+ */
+export function canCreateCompany(role: string | null | undefined, linkedProfile?: { role: string; status: string } | null) {
+  return role === 'OWNER' && linkedProfile?.role === 'ADMIN' && linkedProfile?.status === 'ACTIVE'
 }
+
+/** Motivos de revocación: solo USER_DEACTIVATED se restaura al reactivar el perfil. */
+export const REVOKED_USER_DEACTIVATED = 'USER_DEACTIVATED'
+export const REVOKED_LEFT_STORE = 'LEFT_STORE'
+export const REVOKED_ACCOUNT_CLOSED = 'ACCOUNT_CLOSED'
 
 /**
  * La sesión de vendedor del destino solo se abre si quien cambia es la misma

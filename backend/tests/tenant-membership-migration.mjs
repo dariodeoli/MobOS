@@ -68,7 +68,7 @@ async function seed(db) {
   await user('u-email-match', 't-email', 'ADMIN', 'dueno@EXAMPLE.com', 'ACTIVE', new Date('2026-02-01T00:00:00Z'))
   await user('u-email-vend', 't-email', 'VENDEDOR', 'dueno@example.com', 'ACTIVE', new Date('2025-12-01T00:00:00Z'))
   await user('u-email2', 't-email2', 'ADMIN', null, 'ACTIVE', new Date('2026-01-01T00:00:00Z'))
-  // t-google: el ADMIN más antiguo está inactivo; gana el activo más antiguo.
+  // t-google: sin correo; solo el perfil marcado como creador de la tienda se vincula.
   await user('u-google-inactive', 't-google', 'ADMIN', null, 'INACTIVE', new Date('2026-01-01T00:00:00Z'))
   await user('u-google-b', 't-google', 'ADMIN', null, 'ACTIVE', new Date('2026-03-01T00:00:00Z'))
   await user('u-google-a', 't-google', 'ADMIN', null, 'ACTIVE', new Date('2026-02-01T00:00:00Z'))
@@ -81,6 +81,8 @@ async function seed(db) {
   await db.query(`INSERT INTO "GoogleIdentity" ("subject","name") VALUES ('g-1','Persona Uno'),('g-2','Persona Dos'),('g-3','Sin acceso')`)
   await db.query(`INSERT INTO "GoogleStoreAccess" ("subject","tenantId","owner") VALUES
     ('g-1','t-google',true),('g-1','t-both',true),('g-1','t-shared',true),('g-2','t-shared',false)`)
+  // t-google: el perfil que creó la tienda con Google (no es el más antiguo).
+  await db.query(`INSERT INTO "AuditLog" ("id","tenantId","userId","action","entity") VALUES ('al-g-owner','t-google','u-google-a','GOOGLE_STORE_OWNER_CREATED','GoogleStoreAccess')`)
 }
 
 const rows = (db, text) => db.query(text).then(result => result.rows)
@@ -132,9 +134,10 @@ try {
   ok(memberships.every(m => m.userId === null || m.userTenantId === m.tenantId), 'el userId de cada membresía pertenece a ese mismo tenant')
 
   ok(mem(byEmail['dueno@example.com'], 't-email')?.role === 'OWNER' && mem(byEmail['dueno@example.com'], 't-email2')?.role === 'OWNER', 'correo en otra capitalización: una sola cuenta con OWNER en ambas empresas')
-  ok(mem(byEmail['dueno@example.com'], 't-email').userId === 'u-email-match', 'userId = ADMIN con el correo del tenant, aunque no sea el más antiguo (ignora VENDEDOR)')
-  ok(mem(byEmail['dueno@example.com'], 't-email2').userId === 'u-email2', 'sin ADMIN con el mismo correo: el ADMIN más antiguo del tenant')
-  ok(mem(bySubject['g-1'], 't-google').userId === 'u-google-a', 'Google: ADMIN activo más antiguo (salta al inactivo)')
+  ok(mem(byEmail['dueno@example.com'], 't-email').userId === 'u-email-match', 'userId = ADMIN activo con el correo del tenant, aunque no sea el más antiguo (ignora VENDEDOR)')
+  ok(mem(byEmail['dueno@example.com'], 't-email2').userId === null, 'sin ADMIN con el mismo correo: userId nulo (pantalla de PIN), no el más antiguo')
+  ok(mem(bySubject['g-1'], 't-google').userId === 'u-google-a', 'Google dueño: el perfil que creó la tienda (marca GOOGLE_STORE_OWNER_CREATED), no el más antiguo')
+  ok(mem(bySubject['g-1'], 't-shared').userId === null && mem(bySubject['g-2'], 't-shared').userId === null, 'Google sin marca de creador, o no dueño: userId nulo')
   ok(mem(bySubject['g-1'], 't-google').role === 'OWNER' && mem(bySubject['g-1'], 't-shared').role === 'OWNER', 'GoogleStoreAccess.owner → OWNER')
   ok(mem(bySubject['g-2'], 't-shared').role === 'ADMIN', 'GoogleStoreAccess no dueño → ADMIN')
   ok(mem(bySubject['g-3'], 't-google') === undefined && memberships.filter(m => m.accountId === bySubject['g-3'].id).length === 0, 'identidad Google sin acceso: cuenta sin membresías')
@@ -142,7 +145,7 @@ try {
   ok(!byEmail['nopass@example.com'] && !memberships.some(m => m.tenantId === 't-nopass'), 'correo sin contraseña: no se crea cuenta ni membresía')
   ok(mem(byEmail['noadmin@example.com'], 't-noadmin').userId === null, 'tenant sin ADMIN: membresía OWNER con userId nulo (no se inventa)')
   ok(mem(byEmail['arch@example.com'], 't-archived')?.role === 'OWNER', 'tenant archivado conserva su membresía (restaurable)')
-  ok(memberships.every(m => m.revokedAt === null && m.lastUsedAt === null), 'ninguna membresía nace revocada ni usada')
+  ok(memberships.every(m => m.revokedAt === null && m.revokedReason === null && m.lastUsedAt === null), 'ninguna membresía nace revocada ni usada')
   ok(new Set(memberships.map(m => `${m.accountId}|${m.tenantId}`)).size === memberships.length, 'una sola membresía por (cuenta, tenant)')
 
   // Timestamps en UTC: el backfill coincide con la hora UTC del servidor, no con la local.

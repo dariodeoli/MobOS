@@ -204,6 +204,9 @@ model TenantMembership {
   user       User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   role       MembershipRole @default(MEMBER)
   revokedAt  DateTime?
+  // Por qué se revocó: USER_DEACTIVATED se restaura al reactivar el perfil
+  // vinculado; el resto (salir de la tienda, cierre de cuenta) no se revive.
+  revokedReason String?
   lastUsedAt DateTime?
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
