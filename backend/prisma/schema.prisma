@@ -43,6 +43,10 @@ model Tenant {
   // Identificador comercial visible de los pedidos: "MOB #310840".
   orderPrefix         String?
   orderNextNumber     Int?
+  // Sigla del código interno de unidades (MOV-0001): 2–4 letras mayúsculas.
+  // Sin valor se usa orderPrefix y, si tampoco hay, las iniciales del nombre.
+  unitCodePrefix      String?
+  tenantSequences     TenantSequence[]
   // Umbrales de autorización: gasto y compra a crédito sin autorización de
   // gerencia para los roles operativos. Null usa el default de la aplicación.
   expenseLimitPyg        BigInt?
@@ -687,6 +691,13 @@ model InventoryUnit {
   // Esto evita crear un producto distinto por cada IMEI.
   condition           ProductCondition    @default(NEW)
   batteryHealth       Int?
+  // Ciclos de carga de la batería (antes solo en inspection.bateriaCiclos).
+  batteryCycles       Int?
+  // Fin de la garantía: siempre el primer día del mes (UTC).
+  warrantyUntil       DateTime?
+  // Correlativo interno por empresa (MOV-0001): lo asigna el trigger
+  // InventoryUnit_assign_internal_seq; nunca se reutiliza.
+  internalSeq         Int?
   supplierName        String?
   purchasedAt         DateTime?
   costPyg             BigInt?
@@ -731,6 +742,7 @@ model InventoryUnit {
   updatedAt           DateTime            @updatedAt
 
   @@unique([tenantId, serial])
+  @@unique([tenantId, internalSeq])
   @@index([tenantId, productId, status])
   @@index([tenantId, removedAt])
   @@index([tenantId, soldAt])
@@ -765,6 +777,8 @@ model StockLocation {
   name           String
   code           String?
   color       String?
+  // Ícono de un set fijo (lib/location-icons.ts): DEPOSITO, VITRINA, etc.
+  icon           String?
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -3041,6 +3055,11 @@ model Supplier {
   name         String
   // Abreviatura visible para vendedores en stock; el nombre real solo lo ve administración.
   code         String?
+  // Reconocimiento rápido: ícono de un set fijo, color y cómo se muestra
+  // (ABREVIADO por defecto | COMPLETO).
+  icon         String?
+  color        String?
+  displayMode  String         @default("ABREVIADO")
   document     String?
   phone        String?
   address      String?
@@ -3711,4 +3730,16 @@ model UserBranchUsage {
 
   @@unique([userId, branchId])
   @@index([tenantId, userId, usedAt])
+}
+
+// Contadores transaccionales por empresa y clave ('unit' = código interno de
+// unidades, 'arrival' = ingresos). `next` es el próximo número a entregar.
+// Una fila por (empresa, clave): no bloquea la fila del Tenant.
+model TenantSequence {
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key      String
+  next     BigInt @default(1)
+
+  @@id([tenantId, key])
 }

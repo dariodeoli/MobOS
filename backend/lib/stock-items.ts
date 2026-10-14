@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { isStockKind, type StockKind } from './stock-kind'
 import { serialKey } from './validation'
+import { parseUnitCode } from './unit-code'
 
 // U2 · Lista unificada de Stock: unidades serializadas (una fila por IMEI) más
 // productos sin unidades (una fila por producto) en una sola consulta con
@@ -184,7 +185,9 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     const normalized = serialKey(raw)
     const rawLike = `%${likeEscape(raw)}%`
     const serialLike = `%${likeEscape(normalized || raw)}%`
-    where.push(Prisma.sql`(u."serial" ILIKE ${serialLike} OR p."sku" ILIKE ${rawLike} OR p."sku" ILIKE ${serialLike} OR p."name" ILIKE ${rawLike})`)
+    // Código interno (MOV-0042): coincide por el correlativo de la empresa.
+    const unitCode = parseUnitCode(raw)
+    where.push(Prisma.sql`(u."serial" ILIKE ${serialLike} OR p."sku" ILIKE ${rawLike} OR p."sku" ILIKE ${serialLike} OR p."name" ILIKE ${rawLike}${unitCode ? Prisma.sql` OR u."internalSeq" = ${unitCode.seq}` : Prisma.empty})`)
   }
   if (filters.from) where.push(Prisma.sql`${sortKey} >= ${filters.from.toISOString()}::timestamp`)
   if (filters.toExclusive) where.push(Prisma.sql`${sortKey} < ${filters.toExclusive.toISOString()}::timestamp`)
