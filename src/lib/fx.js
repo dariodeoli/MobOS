@@ -1,26 +1,52 @@
-// Cotización de referencia del dólar (BCP y casas de cambio) para precargar los
-// campos de costo en moneda extranjera. Se pide una vez por pestaña y siempre
-// queda editable a mano: si el proveedor no responde, se devuelve null.
+// Cotización automática (#401): la fuente y el lado los elige cada empresa en
+// Configuración → Comercial (por defecto Cambios Chaco · venta). Se pide con un
+// caché corto por pestaña y SIEMPRE queda editable a mano: si el servicio no
+// responde, devuelve null y la persona la carga ella.
 import { api } from '@/lib/api/client'
 
-let cache = null
-let enCurso = null
+const TTL_MS = 5 * 60 * 1000
+const cache = new Map()
+const enCurso = new Map()
 
-export async function cotizacionReferencia() {
-  if (cache !== null) return cache
-  if (!enCurso) {
-    enCurso = api
-      .get('/api/fx')
-      .then((data) => {
-        const valor = Number(data?.referencialDiario) || Number(data?.venta) || Number(data?.compra) || null
-        cache = valor
-        return valor
-      })
-      .catch(() => {
-        cache = null
-        return null
-      })
-      .finally(() => { enCurso = null })
+function normalizar(data) {
+  const rate = Number(data?.rate ?? data?.referencialDiario ?? data?.venta ?? data?.compra) || 0
+  if (!(rate > 0)) return null
+  return {
+    rate,
+    source: data.source || null,
+    sourceLabel: data.sourceLabel || null,
+    side: data.side || null,
+    updatedAt: data.updatedAt || null,
+    fetchedAt: data.fetchedAt || null,
+    stale: Boolean(data.stale),
   }
-  return enCurso
+}
+
+/**
+ * Cotización completa para `purpose` ('sales' para cobros, 'costs' para costos)
+ * y moneda: {rate, source, sourceLabel, side, updatedAt, stale} o null. Con
+ * `forzar` se salta el caché de la pestaña (botón «actualizar»).
+ */
+export async function cotizacionFx({ purpose = 'sales', currency = 'USD', forzar = false } = {}) {
+  const clave = `${purpose}:${currency}`
+  const hit = cache.get(clave)
+  if (!forzar && hit && Date.now() - hit.at < TTL_MS) return hit.info
+  if (!enCurso.has(clave)) {
+    enCurso.set(clave, api
+      .get(`/api/fx?purpose=${purpose}&currency=${currency}`)
+      .then((data) => {
+        const info = normalizar(data)
+        if (info) cache.set(clave, { at: Date.now(), info })
+        return info
+      })
+      .catch(() => null)
+      .finally(() => { enCurso.delete(clave) }))
+  }
+  return enCurso.get(clave)
+}
+
+/** Solo el número, para los costos en USD (Compras / unidades). */
+export async function cotizacionReferencia() {
+  const info = await cotizacionFx({ purpose: 'costs', currency: 'USD' })
+  return info ? info.rate : null
 }

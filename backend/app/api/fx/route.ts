@@ -1,39 +1,34 @@
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { prisma } from '../../../lib/prisma'
+import { FxUnavailableError, fxSettingsFrom, getFxQuote, isFxCurrency, pickRate } from '../../../lib/fx'
+import type { FxPurpose } from '../../../lib/fx'
 
-// Cotización pública del dólar en Paraguay (BCP y casas de cambio agregadas
-// por dolar.melizeche.com). Se usa como referencia para costos en USD; siempre
-// queda editable a mano. Caché corta para no depender del proveedor en cada
-// tecla y para sobrevivir caídas del servicio.
-const TTL_MS = 10 * 60 * 1000
-const FETCH_TIMEOUT_MS = 6000
-let cache: { at: number; payload: Record<string, unknown> } | null = null
-
+// Cotización de referencia para cobros y costos en moneda extranjera (#401).
+// Fuente y lado salen de Configuración → Comercial (por defecto Cambios Chaco ·
+// venta); la caché por fuente es del servidor y se comparte entre empresas.
+// Siempre queda editable a mano: sin dato, 503 con manualEntryAllowed.
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Sesión inválida.', 401)
-  const now = Date.now()
-  if (cache && now - cache.at < TTL_MS) return json({ ...cache.payload, cached: true })
+  const params = new URL(request.url).searchParams
+  const purpose: FxPurpose = params.get('purpose') === 'costs' ? 'costs' : 'sales'
+  const currency = (params.get('currency') || 'USD').toUpperCase()
+  if (!isFxCurrency(currency)) return error('Moneda no soportada.', 400)
+  const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { settings: true } })
+  const rule = fxSettingsFrom(tenant?.settings)[purpose]
   try {
-    const response = await fetch('https://dolar.melizeche.com/api/1.0/', { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), headers: { Accept: 'application/json' } })
-    if (!response.ok) throw new Error(`Cotización no disponible (${response.status}).`)
-    const data = await response.json()
-    const dolarpy = data?.dolarpy || {}
-    const bcp = dolarpy.bcp || {}
-    const payload = {
-      source: 'BCP + casas de cambio (dolar.melizeche.com)',
-      updated: typeof data?.updated === 'string' ? data.updated : null,
-      referencialDiario: Number(bcp.referencial_diario) || null,
-      compra: Number(bcp.compra) || null,
-      venta: Number(bcp.venta) || null,
-      providers: Object.fromEntries(Object.entries(dolarpy).map(([name, value]) => [name, value && typeof value === 'object' ? value : null])),
-    }
-    if (payload.referencialDiario === null) throw new Error('La cotización no trae el referencial diario del BCP.')
-    cache = { at: now, payload }
-    return json({ ...payload, cached: false })
+    const { quote, sourceLabel, fetchedAt, cached, stale } = await getFxQuote(rule.source, currency)
+    const rate = pickRate(quote, rule.side)
+    return json({
+      purpose, currency, source: quote.source, sourceLabel, side: rule.side, rate,
+      compra: quote.compra, venta: quote.venta, updatedAt: quote.updatedAt, fetchedAt, cached, stale,
+      // Compatibilidad con clientes anteriores a #401.
+      referencialDiario: rate,
+    })
   } catch (cause) {
-    // Si la caché venció pero existe, sirve como último valor conocido.
-    if (cache) return json({ ...cache.payload, cached: true, stale: true })
-    return error('No se pudo obtener la cotización del dólar. Cargala manualmente.', 503, { code: 'fx_unavailable', manualEntryAllowed: true })
+    const known = cause instanceof FxUnavailableError
+    if (!known) console.error('[fx] error inesperado:', cause)
+    return error(known ? cause.message : 'No se pudo obtener la cotización. Cargala manualmente.', 503, { code: known ? cause.code : 'fx_unavailable', manualEntryAllowed: true })
   }
 }

@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { PurchaseStatus } from '@prisma/client'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { canSeeSupplierName, loadSupplierDirectory, scrubSupplierNames, supplierCodeFor } from '../../../../../lib/cost-visibility'
 import { csvResponse } from '../../../../../lib/csv'
 import {
   KARDEX_MOVIMIENTO_LABEL,
@@ -59,6 +60,9 @@ export async function GET(request: Request, { params }: RouteContext) {
   if (!producto) return error('Producto no encontrado.', 404)
   if (['VENDEDOR', 'CAJERA'].includes(session.user.role) && producto.branchId && producto.branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
   const verCostos = ['ADMIN', 'GERENTE'].includes(session.user.role)
+  const verProveedor = canSeeSupplierName(session.user.role)
+  const directorio = verProveedor ? null : await loadSupplierDirectory(tenant)
+  const proveedor = (nombre: string, supplierId?: string | null) => directorio ? supplierCodeFor(directorio, supplierId) : nombre
 
   const [auditoriasProducto, compras, items, unidades, transferencias, devoluciones] = await Promise.all([
     prisma.auditLog.findMany({
@@ -69,7 +73,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }),
     prisma.purchaseLine.findMany({
       where: { productId: id, receivedQty: { gt: 0 }, purchase: { tenantId: tenant, status: { in: [PurchaseStatus.PARTIAL, PurchaseStatus.RECEIVED] } } },
-      select: { id: true, receivedQty: true, lotReference: true, unitCostPyg: true, finalUnitCostPyg: true, purchase: { select: { id: true, supplierName: true, status: true, createdAt: true, receivedAt: true, createdBy: { select: { name: true } } } } },
+      select: { id: true, receivedQty: true, lotReference: true, unitCostPyg: true, finalUnitCostPyg: true, purchase: { select: { id: true, supplierId: true, supplierName: true, status: true, createdAt: true, receivedAt: true, createdBy: { select: { name: true } } } } },
       take: 500,
     }),
     prisma.orderItem.findMany({
@@ -141,14 +145,16 @@ export async function GET(request: Request, { params }: RouteContext) {
     restitucionesPorPedido.set(orderId, lista)
   }
 
-  const eventos = [
+  const eventosBase = [
     ...eventosDeProducto(auditoriasProducto),
-    ...eventosDeCompras(compras, { costos: verCostos }),
+    ...eventosDeCompras(compras, { costos: verCostos, proveedor }),
     ...eventosDeVentas(items, adjuntosPorItem, restitucionesPorPedido, { precios: true }),
     ...eventosDeTransferencias(transferencias, producto.id),
-    ...eventosDeDevolucionesProveedor(devoluciones, { costos: verCostos }),
+    ...eventosDeDevolucionesProveedor(devoluciones, { costos: verCostos, proveedor }),
     ...eventosDeUnidades(auditoriasUnidad),
   ]
+  // Última pasada: ningún texto del kardex lleva el nombre real a quien no lo ve.
+  const eventos = directorio ? scrubSupplierNames(eventosBase, directorio) : eventosBase
   const kardex = construirKardex(eventos, producto.stock, { desde, hasta, limite: MAX_FILAS })
   const cargaInicial = cargaInicialDocumentada(auditoriasProducto.find(auditoria => auditoria.action === 'PRODUCT_CREATED')?.metadata)
 
