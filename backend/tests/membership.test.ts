@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { canCreateCompany, linkedUserBelongs, normalizeAccountEmail, passwordAccountDecision, roleForGoogleAccess, shouldKeepSeller } from '../lib/membership-rules'
 import { openTenant, TenantSwitchError } from '../lib/tenant-switch'
-import { defaultLinkedUser, ensureMembership, MembershipError, restoreMembershipsForUser, revokeGoogleMembership, revokeMembershipsForUser } from '../lib/membership'
+import { defaultLinkedUser, ensureMembership, MembershipError, restoreMembershipsForUser, revokeAllMembershipsOfAccount, revokeGoogleMembership, revokeMembershipsForUser } from '../lib/membership'
 
 // Multi-empresa (#377): reglas de prueba de propiedad y vínculo del perfil.
 assert.equal(normalizeAccountEmail('  Dueno@Tienda.COM '), 'dueno@tienda.com')
@@ -78,8 +78,16 @@ void (async () => {
   assert.equal(calls[2][1].data.revokedReason, 'LEFT_STORE')
   calls.length = 0
   assert.equal(await restoreMembershipsForUser(tx, 't1', 'u1'), 1)
-  assert.deepEqual(calls[0][1].where, { tenantId: 't1', userId: 'u1', revokedAt: { not: null }, revokedReason: 'USER_DEACTIVATED' }, 'solo restaura las revocadas por la baja del perfil')
+  assert.deepEqual(calls[0][1].where, { tenantId: 't1', userId: 'u1', revokedAt: { not: null }, revokedReason: 'USER_DEACTIVATED', account: { memberships: { none: { revokedReason: 'ACCOUNT_CLOSED' } } } }, 'solo restaura las revocadas por la baja del perfil y nunca las de una cuenta cerrada')
   assert.deepEqual(calls[0][1].data, { revokedAt: null, revokedReason: null })
+
+  // Cierre de cuenta: las vivas pasan a ACCOUNT_CLOSED; de las ya revocadas solo la baja restaurable (la salida conserva su motivo).
+  calls.length = 0
+  await revokeAllMembershipsOfAccount(tx, 'a1', now)
+  assert.deepEqual(calls[0][1].where, { accountId: 'a1', revokedAt: null })
+  assert.equal(calls[0][1].data.revokedReason, 'ACCOUNT_CLOSED')
+  assert.deepEqual(calls[1][1].where, { accountId: 'a1', revokedAt: { not: null }, revokedReason: 'USER_DEACTIVATED' }, 'no pisa LEFT_STORE ni otras revocaciones')
+  assert.deepEqual(calls[1][1].data, { revokedReason: 'ACCOUNT_CLOSED' }, 'conserva la fecha de revocación original')
 
   // M2: al salir la dueña Google se revoca la pertenencia de SU cuenta Google y sus sesiones en esa tienda.
   calls.length = 0

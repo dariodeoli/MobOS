@@ -125,11 +125,12 @@ export async function revokeMembershipsForUser(tx: Prisma.TransactionClient, ten
 /**
  * Camino de vuelta de la baja: reactivar el perfil vinculado reactiva SOLO las
  * pertenencias que esa baja revocó (revokedReason USER_DEACTIVATED). Las que se
- * revocaron por salir de la tienda o por cierre de cuenta no se reviven; las
+ * revocaron por salir de la tienda o por cierre de cuenta no se reviven (tampoco
+ * las de una cuenta cerrada, aunque su baja sea anterior al cierre); las
  * sesiones siguen revocadas y la persona vuelve a entrar con su PIN.
  */
 export async function restoreMembershipsForUser(tx: Prisma.TransactionClient, tenantId: string, userId: string) {
-  const restored = await tx.tenantMembership.updateMany({ where: { tenantId, userId, revokedAt: { not: null }, revokedReason: REVOKED_USER_DEACTIVATED }, data: { revokedAt: null, revokedReason: null } })
+  const restored = await tx.tenantMembership.updateMany({ where: { tenantId, userId, revokedAt: { not: null }, revokedReason: REVOKED_USER_DEACTIVATED, account: { memberships: { none: { revokedReason: REVOKED_ACCOUNT_CLOSED } } } }, data: { revokedAt: null, revokedReason: null } })
   return restored.count
 }
 
@@ -144,5 +145,8 @@ export async function revokeGoogleMembership(tx: Prisma.TransactionClient, tenan
 
 export async function revokeAllMembershipsOfAccount(tx: Prisma.TransactionClient, accountId: string, now = new Date()) {
   await tx.tenantMembership.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: now, revokedReason: REVOKED_ACCOUNT_CLOSED } })
+  // Las ya revocadas conservan su fecha y su motivo (salir de la tienda queda
+  // como tal); solo la baja restaurable pasa a cierre para que nunca se reviva.
+  await tx.tenantMembership.updateMany({ where: { accountId, revokedAt: { not: null }, revokedReason: REVOKED_USER_DEACTIVATED }, data: { revokedReason: REVOKED_ACCOUNT_CLOSED } })
   await tx.session.updateMany({ where: { accountId, revokedAt: null }, data: { revokedAt: now } })
 }
