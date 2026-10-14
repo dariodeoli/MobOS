@@ -345,7 +345,7 @@ export default function Recepcion() {
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h2 className="font-semibold">Recepción confirmada · {confirmada.recepcion?.shipment?.code || ''}</h2>
-            <p className="mt-1 text-sm text-mute">
+            <p className="text-sm text-mute">
               {creadas} unidad(es) entraron al stock en {confirmada.recepcion?.location?.name || 'el depósito elegido'}.
               {confirmada.estadoLote === 'RECEPCION_PARCIAL' ? ' El lote quedó parcial: lo faltante sigue pendiente de llegada.' : ''}
               {confirmada.estadoLote === 'CON_INCIDENCIA' ? ' El lote quedó con incidencias registradas.' : ''}
@@ -546,7 +546,6 @@ export default function Recepcion() {
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-semibold">Recepción de compras</h2>
             <p className="mt-1 text-sm text-mute">
               Lotes en camino: escaneá contra el manifiesto, marcá incidencias con nota y elegí el depósito.
               El stock entra recién al confirmar; lo que no llegó queda faltante.

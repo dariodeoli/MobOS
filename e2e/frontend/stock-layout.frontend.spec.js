@@ -439,3 +439,24 @@ for (const [width, esperaTabla] of [
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
   })
 }
+
+// Abastecimiento (#396): el título de la pantalla vive una sola vez (el H1 del shell);
+// ninguna tarjeta repite el mismo texto como H2.
+for (const destino of ['Por comprar', 'Preparar compra', 'Preparar lote', 'Recepción', 'Métricas de abastecimiento']) {
+  test(`${destino}: sin H1/H2 duplicados a 1440px (#396)`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await enterDemo(page)
+    await openShellDestination(page, destino)
+    await settle(page)
+    const titulos = await page.evaluate(() =>
+      [...document.querySelectorAll('main h1, main h2')].map(el => `${el.tagName}:${(el.textContent || '').trim().toLowerCase()}`),
+    )
+    const textos = titulos.map(t => t.split(':')[1])
+    const repetidos = textos.filter((t, i) => textos.indexOf(t) !== i)
+    expect(repetidos, `títulos repetidos: ${JSON.stringify(titulos)}`).toEqual([])
+    const h1 = await page.locator('h1').first().innerText()
+    for (const h2 of await page.locator('main h2').allInnerTexts()) {
+      expect(h2.trim().toLowerCase(), 'H2 igual al H1').not.toBe(h1.trim().toLowerCase())
+    }
+  })
+}
