@@ -15,6 +15,16 @@ import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
+import { fechaLegible } from '@/utils/pedido'
+import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
+
+// Los clientes demo no traen `stats`: se arman con su historial de ejemplo.
+function estadisticasDemo(cliente) {
+  const pedidos = cliente?.demoProfile?.orders
+  if (!Array.isArray(pedidos)) return null
+  const ultimo = pedidos.reduce((max, o) => (o.createdAt && (!max || o.createdAt > max) ? o.createdAt : max), null)
+  return { orders: pedidos.length, lastOrderAt: ultimo, pendingPyg: pedidos.reduce((suma, o) => suma + Number(o.pendingPyg || 0), 0) }
+}
 
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
@@ -39,6 +49,14 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   // #309: con la ficha elegida el bloque se lee en una línea; «Editar datos»
   // abre el formulario completo (contacto, direcciones y facturación).
   const [editar, setEditar] = useState(false)
+  const [fichaAbierta, setFichaAbierta] = useState(false)
+  // Registro completo del cliente elegido (con sus estadísticas): se guarda
+  // aparte del valor del formulario para no viajar en el payload de la venta.
+  const [registro, setRegistro] = useState(null)
+  const tarjetaRef = useRef(null)
+  const cajaRef = useRef(null)
+  const enfocarBusqueda = useRef(false)
+  const stats = registro?.id === value.id ? (registro?.stats || estadisticasDemo(registro)) : null
   // #309: el POS colapsa la ficha elegida a una línea; los modales de edición
   // (ficha del cliente, cambiar cliente del pedido) mantienen el formulario.
   const colapsado = colapsarFicha && Boolean(value.id) && !editar
@@ -78,6 +96,26 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     return () => { active = false; clearTimeout(timer) }
   }, [value.name, value.id, esDemo])
 
+  // Cliente restaurado (carrito guardado): se recupera su registro para la tarjeta.
+  useEffect(() => {
+    if (!colapsarFicha || !value.id || registro?.id === value.id) return undefined
+    let activo = true
+    const buscar = async () => {
+      try {
+        const filas = esDemo ? listarClientesDemo() : await api.get(`/api/customers?q=${encodeURIComponent(value.name || '')}`)
+        const fila = filas.find(item => item.id === value.id)
+        if (activo && fila) setRegistro(fila)
+      } catch { /* la tarjeta se muestra sin estadísticas */ }
+    }
+    buscar()
+    return () => { activo = false }
+  }, [colapsarFicha, value.id, value.name, esDemo, registro?.id])
+  useEffect(() => {
+    if (!enfocarBusqueda.current || value.id) return
+    enfocarBusqueda.current = false
+    cajaRef.current?.querySelector('input')?.focus()
+  })
+
   // RUC/CI consultado: se normaliza el nombre (nunca "Apellido, Nombre") y se
   // guarda el borrador por si la venta no se completa.
   function aplicarDocumento(datos) {
@@ -97,6 +135,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   }
   function elegirCliente(customer) {
     setEditar(false)
+    setRegistro(customer)
     onChange(customerValue(customer))
     // La factura a otro titular que el cliente ya usó se propone de nuevo,
     // salvo que esta venta ya tenga datos escritos.
@@ -104,7 +143,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
   }
   function quitarCliente() {
-    setMatches([]); setError(''); setEditar(false)
+    setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
+    enfocarBusqueda.current = true
     onChange(clienteVacio())
   }
 
@@ -112,50 +152,64 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
   const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
 
-  // Una línea: quién es, qué lista/crédito tiene y las acciones (#309).
+  // Tarjeta del cliente elegido (#309/#390): reemplaza al buscador y da el
+  // contexto para cobrar de un vistazo. Escritorio: una fila; celular: dos
+  // líneas con los chips en scroll horizontal.
   if (colapsado) {
+    const limite = Number(value.creditLimitPyg || 0)
+    const deuda = Number(stats?.pendingPyg || 0)
+    const disponible = Math.max(0, limite - deuda)
+    const avisos = [
+      !String(value.document || '').trim() && !String(billingTo?.document || '').trim() ? 'Sin RUC/CI para factura' : '',
+      limite > 0 && deuda > limite ? 'Crédito superado' : '',
+    ].filter(Boolean)
     return (
-      <div
-        data-testid="cliente-elegido"
-        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"
-      >
-        <span className="inline-flex items-center gap-1.5 font-bold text-ok">
-          <Icon name="check" className="h-3.5 w-3.5" /> Cliente
-        </span>
-        <span data-testid="cliente-elegido-nombre" className="font-semibold text-fore">{value.name}</span>
-        {value.document ? <span className="text-mute">{value.document}</span> : null}
-        {value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}
-        {value.pricingTier === 'WHOLESALE' ? (
-          <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span>
-        ) : null}
-        {nombreLista ? (
-          <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span>
-        ) : null}
-        {Number(value.creditLimitPyg || 0) > 0 ? (
-          <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">
-            Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}
+      <div ref={tarjetaRef} data-testid="cliente-elegido" className="rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span data-testid="cliente-elegido-nombre" className="min-w-0 max-w-full truncate text-sm font-bold text-fore">{value.name}</span>
+          {value.document ? <span className="text-mute">{value.document}</span> : null}
+          {value.phone ? <span className="whitespace-nowrap text-mute">{value.countryCode} {value.phone}</span> : null}
+          <span className="ml-auto flex shrink-0 items-center">
+            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Ver ficha" aria-label="Ver ficha del cliente" onClick={() => setFichaAbierta(true)}>
+              <Icon name="eye" className="h-4 w-4" />
+            </button>
+            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Editar datos" aria-label="Editar datos del cliente" onClick={() => setEditar(true)}>
+              <Icon name="edit" className="h-4 w-4" />
+            </button>
+            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-bad transition hover:bg-bad/10 md:h-8 md:w-8" title="Quitar cliente" aria-label="Quitar cliente" onClick={quitarCliente}>
+              <Icon name="close" className="h-4 w-4" />
+            </button>
           </span>
+        </div>
+        <div data-testid="cliente-chips" className="mt-1 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-0.5 md:flex-wrap md:overflow-visible">
+          <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">{value.pricingTier === 'WHOLESALE' ? 'Mayorista' : 'Cliente final'}</span>
+          {nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}
+          {limite > 0 ? (
+            <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">
+              Crédito disponible {montoGs(disponible)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}
+            </span>
+          ) : null}
+          {deuda > 0 ? <span className="rounded border border-bad/40 px-1.5 py-0.5 font-bold text-bad-text">Deuda {montoGs(deuda)}</span> : null}
+          {stats ? <span className="text-mute">{stats.orders ?? 0} {Number(stats.orders) === 1 ? 'pedido' : 'pedidos'}{stats.lastOrderAt ? ` · última compra ${fechaLegible(stats.lastOrderAt)}` : ''}</span> : null}
+          {facturarAOtro && (billingTo?.name || billingTo?.document) ? <span className="text-mute">Factura a {billingTo?.name || billingTo?.document}</span> : null}
+        </div>
+        {avisos.length > 0 ? (
+          <p role="status" data-testid="cliente-avisos" className="mt-1 flex flex-wrap items-center gap-x-3 font-semibold text-warn">
+            {avisos.map(aviso => <span key={aviso} className="inline-flex items-center gap-1"><Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{aviso}</span>)}
+          </p>
         ) : null}
-        {facturarAOtro && (billingTo?.name || billingTo?.document) ? (
-          <span className="text-mute">Factura a {billingTo?.name || billingTo?.document}</span>
-        ) : null}
-        <span className="ml-auto flex shrink-0 items-center gap-1.5">
-          <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" onClick={() => setEditar(true)}>
-            Editar datos
-          </Button>
-          <button
-            type="button"
-            className="rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10"
-            onClick={quitarCliente}
-          >
-            × Quitar
-          </button>
-        </span>
+        <ClienteResumenPopup
+          row={registro || { ...value, wholesale: value.pricingTier === 'WHOLESALE', stats }}
+          open={fichaAbierta}
+          onClose={() => setFichaAbierta(false)}
+          onEditar={() => { setFichaAbierta(false); setEditar(true) }}
+          onDetalle={() => { setFichaAbierta(false); setEditar(true) }}
+        />
       </div>
     )
   }
 
-  return <div className="space-y-3 md:col-span-2">
+  return <div ref={cajaRef} className="space-y-3 md:col-span-2">
     <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...value, id: undefined, name: event.target.value })} /></label>
     {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
