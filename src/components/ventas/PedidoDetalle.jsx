@@ -52,7 +52,19 @@ const PASOS_ENTREGA = (deliveryType) => (metodoEntrega(deliveryType) === 'DELIVE
       ['Retirado', ['PICKED_UP']],
     ])
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : status === 'Anulado' ? 'slate' : 'red'
-const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
+const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Por verificar', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
+const ICONO_MEDIO = { CASH: 'money', DINERO: 'money', TRANSFER: 'transfer', CARD: 'card', CREDIT: 'subscription', STORE_CREDIT: 'wallet', GIFT_CARD: 'wallet', CRYPTO: 'terminal', PIX: 'qr' }
+// Los pagos del demo/legado llegan como { monto, medioPago, cuenta, hora }: se
+// normalizan a la forma del API. Sin estado se cuentan como confirmados, igual
+// que en el listado (orderFields) y en totalesPedido, para que el dinero sea
+// el mismo en toda la pantalla.
+const normalizarPago = (pago) => ({
+  ...pago,
+  amountPyg: pago.amountPyg ?? pago.monto ?? 0,
+  method: pago.method ?? pago.medioPago,
+  status: pago.status ?? 'CONFIRMED',
+  accountSnapshot: pago.accountSnapshot || (pago.cuenta ? { name: pago.cuenta } : undefined),
+})
 const AUDIT_LABELS = {
   ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT[meta?.current] || meta?.current || '—'}`,
   ORDER_SERIALS_ATTACHED: (meta) => `IMEI agregados al pedido: ${(meta?.serials || []).join(', ')}`,
@@ -212,7 +224,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const items = order.items || []
   const itemsCantidad = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
   const nombreCliente = order.customer?.name || (typeof order.customer === 'string' ? order.customer : '') || 'Consumidor final'
-  const payments = order.payments || []
+  const payments = useMemo(() => (order.payments || order.pagos || []).map(normalizarPago), [order.payments, order.pagos])
+  const pagosPorVerificar = payments.filter(pago => pago.status === 'PENDING')
   const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - paid)
@@ -470,10 +483,24 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               </div>
               {payments.length > 0 && <div className="space-y-2 border-t border-ink-600 px-3 py-3">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
-                {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                  <span className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1.5 text-[10px] text-mute"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
-                </div>)}
+                {payments.map(pago => {
+                  const medio = ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method || 'Pago'
+                  const cuando = pago.createdAt || pago.date || pago.fecha ? relativeDate(pago.createdAt || pago.date || pago.fecha) : (pago.hora ? `Hoy ${pago.hora}` : relativeDate(order.createdAt || order.date))
+                  return (
+                    <div key={pago.id} data-testid="pedido-transaccion" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <span className="flex min-w-0 flex-1 basis-48 items-center gap-2">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-ink-600 text-mute" aria-hidden="true"><Icon name={ICONO_MEDIO[pago.method] || 'money'} className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0">
+                          <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-fore">{medio}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
+                          <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-mute">{cuando && <span>{cuando}</span>}<span className="flex items-center gap-1"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />{nombreActor(nombrePago(pago, order))}</span>{pago.settlesAt && <span>acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                        </span>
+                      </span>
+                      <Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status || 'Confirmado'}</Badge>
+                      <span className="ml-auto min-w-24 text-right text-sm font-semibold tabular-nums"><Money value={Number(pago.amountPyg || 0)} /></span>
+                    </div>
+                  )
+                })}
+                {pagosPorVerificar.length > 0 && <p className="text-[11px] text-warn">«Pagado» suma solo los pagos confirmados; {pagosPorVerificar.length} pago{pagosPorVerificar.length === 1 ? '' : 's'} por verificar ({gs(pagosPorVerificar.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0))}) no descuentan el saldo todavía.</p>}
               </div>}
             </section>
 
@@ -795,7 +822,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {anulado
                 ? <Badge color="red">Anulado</Badge>
                 : <>
-                    <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
+                    <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago === 'Pendiente' ? 'Pago pendiente' : estadoPago}</Badge>
                     <Badge key={order.fulfillmentStatus || 'PENDING'} className="mobos-chip-cambia" color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
                   </>}
               {archivado && <Badge color="slate">Archivado</Badge>}
@@ -817,7 +844,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               </Button>
               {/* #275: después de confirmar la venta la app aterriza acá; desde el
                   detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
-              <Button type="button" variant="outline" data-testid="volver-al-pos" aria-label="Volver al POS" onClick={() => navigate('/pos')}>
+              <Button type="button" variant="outline" data-testid="volver-al-pos" aria-label="Volver al POS" title="Volver al POS" onClick={() => navigate('/pos')}>
                 <Icon name="receipt" className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">Volver al POS</span>
               </Button>
               <MenuDesplegable
