@@ -86,20 +86,20 @@ export default function DemoAccess() {
               onClick={() => abrirPerfil(profile)}
               aria-label={`Entrar como ${profile.nombre}`}
               title={`${profile.description} ${profile.permissions}`}
-              className="min-h-11 rounded-xl border border-fore/10 bg-paper/70 p-2 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
+              className="min-h-11 rounded-xl border bg-paper/70 p-2.5 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 [border-color:var(--landing-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
             >
               <span className="flex items-center justify-between gap-1">
-                <span className="truncate text-[13px] font-bold leading-5 text-fore">{profile.nombre}</span>
+                <span className="truncate text-sm font-bold leading-5 text-fore">{profile.nombre}</span>
                 <span className="shrink-0 rounded-md bg-fono-dark/10 px-1.5 py-px font-mono text-[11px] font-bold tracking-widest text-fono-dark">{profile.pin}</span>
               </span>
-              <span className="mt-0.5 block text-[11px] font-medium leading-4 text-mute">{profile.description}</span>
-              <span className="block truncate text-[10px] leading-4 text-mute">{profile.persona}</span>
+              <span className="mt-0.5 block text-xs font-medium leading-4 text-mute">{profile.description}</span>
+              <span className="block truncate text-xs leading-4 text-mute">{profile.persona}</span>
             </button>
           ))}
         </div>
 
         {/* Ingresar otro PIN: siempre visible, sin colapsar (#235). */}
-        <div className="mt-3 rounded-xl border border-fore/10 bg-paper/50 p-2.5">
+        <div className="mt-3 rounded-xl border bg-paper/50 p-3 [border-color:var(--landing-line)]">
           <label htmlFor="demo-pin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-mute">
             <KeyRound size={13} className="text-fono-dark" /> Ingresar otro PIN
           </label>
@@ -110,19 +110,19 @@ export default function DemoAccess() {
             className="mt-1.5 h-12 w-40 disabled:opacity-50"
             ariaLabel="Ingresar otro PIN"
           />
-          <p id="demo-pin-status" role="status" className={`mt-1.5 min-h-4 text-center text-[11px] ${error ? 'text-bad' : 'text-mute'}`}>
-            {busy ? 'Abriendo tu tienda demo…' : error || 'Elegí una cápsula o ingresá el PIN de 4 dígitos.'}
+          <p id="demo-pin-status" role="status" className={`mt-1.5 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
+            {busy ? <><span aria-hidden="true" className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px] motion-reduce:animate-none" />Abriendo tu tienda demo…</> : error || 'Elegí una cápsula o ingresá el PIN de 4 dígitos.'}
           </p>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-mute sm:text-xs">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-mute">
           <p className="inline-flex items-center gap-1.5">
             <ShieldCheck size={14} className="text-fono-dark" />
             Sesión local · datos ficticios
           </p>
           <p>
             ¿Ya tenés tu tienda?{' '}
-            <Link to="/login" className="toque-44 font-semibold text-fono-dark hover:underline">
+            <Link to="/login" className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:underline">
               Ingresar con mi cuenta
             </Link>
           </p>
