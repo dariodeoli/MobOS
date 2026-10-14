@@ -25,6 +25,7 @@ import { encolarComprobanteDemo } from '@/lib/printing/demo'
 import { formatoDeTipo, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
 import { ticketComprobante } from '@/lib/printing/tickets'
 import { documentoDeVenta } from '@/lib/printing/ventaComprobanteLocal'
+import { imprimirReciboRegalo } from './imprimirOperacion'
 import { useSesion } from '@/lib/sesion'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -208,6 +209,20 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     }
   }
 
+  // Recibo de regalo (#426): mismos artículos sin precios, para regalar.
+  async function imprimirRegalo() {
+    if (enviando || !documento) return
+    setEnviando(true)
+    try {
+      if (isDemoRuntime) { toast.success('Recibo de regalo (demo)', 'Dato ficticio: no se envió nada a la impresora.'); return }
+      const resultado = await imprimirReciboRegalo(documento)
+      if (!resultado.ok && !resultado.dialogo) avisar.fallo('imprimir', resultado.error || 'Revisá la impresora.')
+      else avisar.impreso('Recibo de regalo')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   const acciones = (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -262,6 +277,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           disabled={!html || cargando}
         />
         <span className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={imprimirRegalo} disabled={cargando || enviando || !documento}>Imprimir recibo de regalo</Button>
           <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
           {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
           <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
