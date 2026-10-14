@@ -94,12 +94,12 @@ export default function Ads() {
   const promedioMensual = meses.length ? Math.round(total / meses.length) : 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="ads-resumen">
-        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="ads-total"><p className="text-xs text-mute">Total invertido</p><strong className={cn('mt-1 block tabular-nums text-warn', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(total)}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="ads-mes"><p className="text-xs text-mute">{mesLabel(mesActual)}</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(totalMesActual)}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="ads-promedio"><p className="text-xs text-mute">Promedio por mes</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(promedioMensual)}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="ads-inversiones"><p className="text-xs text-mute">Inversiones cargadas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{ads.length}</strong></div>
+        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-total"><p className="text-xs leading-4 text-mute">Total invertido</p><strong className={cn('block font-semibold leading-7 tabular-nums text-warn', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(total)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-mes"><p className="text-xs leading-4 text-mute">{mesLabel(mesActual)}</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(totalMesActual)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-promedio"><p className="text-xs leading-4 text-mute">Promedio por mes</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(promedioMensual)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-inversiones"><p className="text-xs leading-4 text-mute">Inversiones cargadas</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{ads.length}</strong></div>
       </div>
       <Card>
         <h2 className="font-bold mb-1">Gasto en publicidad (Meta Ads)</h2>

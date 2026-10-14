@@ -171,6 +171,7 @@ export function createDemoUnit(data = {}) {
       locationId: data.locationId || null,
       supplierName: data.supplierName || '',
       supplier: state.suppliers.find(item => item.name === data.supplierName) || null,
+      consignorName: data.consignorName || '',
       notes: data.notes || '',
       createdAt: new Date().toISOString(),
       lastVerifiedBy: null,

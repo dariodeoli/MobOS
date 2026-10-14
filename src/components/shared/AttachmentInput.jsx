@@ -62,7 +62,7 @@ export default function AttachmentInput({
         accept={accept}
         disabled={disabled}
         onChange={seleccionar}
-        className="sr-only"
+        className="sr-only !min-h-0"
         {...props}
       />
       {error && !onError && (

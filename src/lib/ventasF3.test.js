@@ -98,3 +98,21 @@ test('F3 order detail keeps real totals, guards and operational controls', () =>
   assert.ok(css.includes('white-space: nowrap'))
   assert.ok(css.includes('@media (max-width: 1199px)'))
 })
+
+test('F3 2C: filters are chips plus a sort menu, statuses use StatusChip, no native selects', () => {
+  const orders = source('SellerOrders.jsx')
+  const quotes = source('SellerQuotes.jsx')
+  for (const file of [orders, quotes]) {
+    assert.ok(file.includes('<ChipsFiltro'))
+    assert.ok(file.includes('<Toolbar'))
+    assert.doesNotMatch(file, /<Select\b/, 'sin select nativo')
+  }
+  assert.ok(orders.includes('FILTROS_MAS') && orders.includes('data-testid="pedidos-orden"'))
+  assert.ok(quotes.includes('<StatusChip') && quotes.includes('FILTROS_MAS'))
+  // The row "Más" trigger is a bordered 44px button, not bare text.
+  assert.match(quotes, /trigger=\{\s*<span className="[^"]*min-h-11[^"]*min-w-11[^"]*border/)
+  const lista = source('ListaVentasDia.jsx')
+  assert.ok(lista.includes('<StatusChip'))
+  assert.doesNotMatch(lista, /className=\{cn\(\s*'inline-flex items-center gap-1\.5 rounded-md border/, 'estado de cobro sin chip propio')
+  assert.ok(!lista.includes('block truncate'), 'el vendedor no se corta con puntos suspensivos')
+})

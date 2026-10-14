@@ -61,10 +61,11 @@ test.describe('owner panel', () => {
     // lista pasa a la presentación compacta del shell.
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`/stock/unidades?q=${encodeURIComponent(SEED.products.iphone.imei)}`)
-    // El título de la página lo pone el panel (un solo h1); Stock aporta el subtítulo.
+    // El título de la página lo pone el panel (un solo h1); la descripción de la
+    // pestaña vive en el tooltip de ayuda de la barra (rediseño 2A, #17).
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
-    await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
-    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: 'Unidades', exact: true }).first()).toBeVisible()
+    await expect(page.getByTestId('barra-ayuda').first()).toHaveAttribute('title', 'Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')
+    await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="unidades"]')).toHaveAttribute('aria-current', 'page')
     // La lista de Stock alinea el IMEI en su propia columna (Modelo · IMEI / serie ·
     // Batería · Proveedor · Costo · Estado).
     await expect(page.getByTestId('inventario-encabezado').getByText('IMEI / serie', { exact: true })).toBeVisible()
@@ -345,7 +346,7 @@ test.describe('owner panel', () => {
     await page.goto('/servicio')
     // Sección unificada (#224): el taller es una de sus solapas.
     await expect(page.getByRole('heading', { name: 'Taller', level: 1 })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Ver taller o garantías' }).getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
 
     const stamp = Date.now().toString(36)
     const cliente = `Taller ${stamp}`
@@ -501,7 +502,7 @@ test.describe('owner panel', () => {
     await expect(page.getByRole('heading', { name: 'Cerrar caja' })).toBeVisible()
     // La tabla nueva de Ventas por caja también muestra un badge "Abierta":
     // se escopa al estado de la sesión (el <strong> del encabezado de caja).
-    await expect(page.getByRole('strong').filter({ hasText: 'Abierta' })).toBeVisible()
+    await expect(page.getByTestId('caja-estado').filter({ hasText: 'Abierta' })).toBeVisible()
   })
 })
 
@@ -1223,11 +1224,11 @@ test('la sección y el contexto activos sobreviven a recargar y pueden cambiarse
   await expect(page).toHaveURL(/\/comparador$/)
   await page.reload()
   await expect((await shellPrimary(page)).getByRole('button', { name: 'Stock', exact: true })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByTestId('shell-subcontexto').getByRole('combobox')).toHaveValue('comparador')
+  await expect(page.getByTestId('shell-subcontexto').locator('[data-tab-id="comparador"]')).toHaveAttribute('aria-current', 'page')
   await openShellDestination(page, 'Lista por modelo')
   await expect(page).toHaveURL(/\/celulares$/)
   await page.reload()
-  await expect(page.getByTestId('shell-subcontexto').getByRole('combobox')).toHaveValue('celulares')
+  await expect(page.getByTestId('shell-subcontexto').locator('[data-tab-id="celulares"]')).toHaveAttribute('aria-current', 'page')
 })
 
 // Patrón #209: el último filtro usado queda como predeterminado al volver.

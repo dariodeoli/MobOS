@@ -142,3 +142,51 @@ export function columnaCostoVisible({ rolVeCosto = false, items = [] } = {}) {
   if (rolVeCosto) return true
   return (Array.isArray(items) ? items : []).some((item) => item?.costPyg !== null && item?.costPyg !== undefined)
 }
+
+// ── Orden de la lista ────────────────────────────────────────────────────────
+// La API pagina por fecha (cursor estable); el resto de los criterios se aplica a
+// lo ya cargado. Criterios y etiquetas como en el inventario original.
+export const ORDENES_STOCK = Object.freeze([
+  ['recientes', 'Recientes'],
+  ['modelo-az', 'Modelo A→Z'],
+  ['modelo-za', 'Modelo Z→A'],
+  ['nuevos', 'Nuevos primero'],
+  ['semis', 'Seminuevos primero'],
+  ['modelo-natural', 'Modelo (17→13)'],
+  ['mezclado', 'Modelos mezclados'],
+  ['costo-mayor', 'Costo mayor'],
+  ['costo-menor', 'Costo menor'],
+])
+export const ORDENES_CON_COSTO = Object.freeze(['costo-mayor', 'costo-menor'])
+
+/** Opciones visibles: los criterios de costo solo si el rol ve costos. */
+export const ordenesStockVisibles = (rolVeCosto) => ORDENES_STOCK.filter(([id]) => rolVeCosto || !ORDENES_CON_COSTO.includes(id))
+
+const nombreOrden = (item) => String(item?.name || item?.model || '').toLowerCase()
+const numeroModelo = (item) => {
+  const numero = String(item?.model || item?.name || '').match(/(\d{2})/)
+  return numero ? Number(numero[1]) : 0
+}
+const esNuevo = (item) => item?.condition === 'NEW'
+
+/**
+ * Ordena las filas ya cargadas (copia; el original no se toca). «recientes» y
+ * cualquier clave desconocida conservan el orden de la API. Sin permiso de costos
+ * los criterios de costo no ordenan nada (la API no devuelve el costo).
+ */
+export function ordenarItemsStock(items = [], orden = 'recientes', { rolVeCosto = true } = {}) {
+  const lista = Array.isArray(items) ? items : []
+  const porNombre = (a, b) => nombreOrden(a).localeCompare(nombreOrden(b))
+  const costo = (item) => Number(item?.costPyg) || 0
+  switch (orden) {
+    case 'modelo-az': return [...lista].sort(porNombre)
+    case 'modelo-za': return [...lista].sort((a, b) => porNombre(b, a))
+    case 'nuevos': return [...lista].sort((a, b) => (esNuevo(b) ? 1 : 0) - (esNuevo(a) ? 1 : 0) || porNombre(a, b))
+    case 'semis': return [...lista].sort((a, b) => (esNuevo(a) ? 1 : 0) - (esNuevo(b) ? 1 : 0) || porNombre(a, b))
+    case 'modelo-natural': return [...lista].sort((a, b) => numeroModelo(b) - numeroModelo(a) || porNombre(a, b))
+    case 'mezclado': return [...lista].sort(porNombre)
+    case 'costo-mayor': return rolVeCosto ? [...lista].sort((a, b) => costo(b) - costo(a)) : lista
+    case 'costo-menor': return rolVeCosto ? [...lista].sort((a, b) => costo(a) - costo(b)) : lista
+    default: return lista
+  }
+}

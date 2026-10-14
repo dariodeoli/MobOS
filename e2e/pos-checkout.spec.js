@@ -92,8 +92,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
   // Totals must balance before saving: el botón principal cambia de estado.
-  const pendiente = paymentsSection.getByText('Pendiente').first()
-  await expect(pendiente.locator('strong')).toHaveText('Gs 0')
+  await expect(page.getByTestId('cobro-pendiente').locator('strong')).toHaveText('Gs 0')
   await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
   // Delivery notes are optional: the backend accepts an omitted empty note
@@ -447,14 +446,19 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
   await expect(page.getByTestId('carrito-total')).toBeVisible()
 
-  // Las acciones secundarias están arriba del bloque de cliente (en el encabezado).
-  const suspender = page.getByTestId('pos-mas')
+  // Rediseño: las herramientas secundarias (Ventas suspendidas, Gift cards) viven en
+  // el encabezado del bloque Productos, sin menú «Más» ni franja propia.
+  const mas = page.getByTestId('pos-gift-cards')
+  await expect(mas).toBeVisible()
+  await expect(page.getByTestId('pos-mas')).toHaveCount(0)
+  expect(
+    await mas.evaluate(el => Boolean(el.closest('[data-testid="pos-bloque-productos"]'))),
+    'lo secundario vive dentro del encabezado de Productos',
+  ).toBe(true)
   const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
-  const ySuspender = await suspender.evaluate(
-    el => el.getBoundingClientRect().top + window.scrollY,
-  )
   const yCliente = await cliente.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
-  expect(ySuspender, 'lo secundario no corta el flujo de la venta').toBeLessThan(yCliente)
+  const yMas = await mas.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
+  expect(yMas, 'el cliente va primero, sobre las herramientas del catálogo').toBeGreaterThan(yCliente)
 })
 
 // Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea
@@ -614,8 +618,7 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
   await expect(page.getByText(/Venta suspendida/).first()).toBeVisible({ timeout: 15_000 })
 
   // Enlace público del borrador (se muestra una sola vez).
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-suspendidas').click()
   dialogo = page.getByRole('dialog')
   const fila = dialogo.getByRole('article').filter({ hasText: `Carrito ${marca}` }).first()
   await expect(fila).toBeVisible()
@@ -638,21 +641,9 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
 // menciones @ en los comentarios internos del pedido.
 test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await page.goto('/pos')
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Analytics' }).click()
-  const panel = page.getByRole('dialog')
-  await expect(panel.getByText('Ventas de hoy')).toBeVisible({ timeout: 15_000 })
-  await expect(panel.getByText('Ticket promedio')).toBeVisible()
-  await expect(panel.getByText('Items por pedido')).toBeVisible()
-  await expect(panel.getByText('Ubicación', { exact: false })).toHaveCount(0)
-  await expect(panel.getByText('Top productos')).toBeVisible()
-  // Período de los desgloses, cobros netos (por tipo, cuenta y sucursal) y efectivo.
-  await panel.getByRole('tab', { name: '7 días' }).click()
-  await expect(panel.getByText('Cobros netos por cuenta')).toBeVisible()
-  await expect(panel.getByText('Cobros netos por sucursal')).toBeVisible()
-  await expect(panel.getByText('Efectivo').first()).toBeVisible()
-  await expect(panel.getByText('Ventas netas')).toBeVisible()
-  await panel.getByText('Cerrar', { exact: true }).click()
+  // Analytics ya no tiene entrada en el POS (vive en Inicio/Análisis).
+  await expect(page.getByRole('button', { name: 'Analytics' })).toHaveCount(0)
+  await expect(page.getByTestId('pos-mas')).toHaveCount(0)
 
   // Comentario con mención: se elige del autocompletado y queda resaltada.
   await page.goto('/pedidos')

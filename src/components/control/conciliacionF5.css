@@ -17,12 +17,12 @@
 }
 .conciliacion-f5-kpi {
   min-width: 0;
-  padding: 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid rgb(var(--c-ink-600));
 }
 .conciliacion-f5-kpi strong {
-  font-size: 22px;
-  line-height: 1.35;
+  font-size: 20px;
+  line-height: 28px;
   white-space: nowrap;
 }
 .conciliacion-f5-kpi > p:first-child {

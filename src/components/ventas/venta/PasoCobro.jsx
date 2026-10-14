@@ -12,7 +12,6 @@ import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
 import { updateAccountPayment } from '@/utils/pagoCuenta'
 import EncabezadoBloque from './EncabezadoBloque'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -112,15 +111,12 @@ export default function PasoCobro({
     <section
       data-testid="pos-cobro"
       className={cn(
-        'space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5 shadow-card',
+        'space-y-3 rounded-2xl border border-ink-600 bg-ink-800 p-3 shadow-card',
         // Lenguaje v2 (#241, paso 5): el bloque de cobro detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <EncabezadoBloque
-        titulo="Cobro y entrega"
-
-      />
+      <EncabezadoBloque compacto titulo="Cobro y entrega" />
 
       {/* Venta a crédito con control de mora */}
       {Number(customer.creditLimitPyg || 0) > 0 && (
@@ -164,7 +160,7 @@ export default function PasoCobro({
 
       {/* Entrega primero (#230): el costo del envío se ve antes de cobrar. */}
             {/* Entrega + monto envío */}
-      <div className={GRILLA_DOS_COLUMNAS}>
+      <div className="grid gap-2.5" data-testid="pos-entrega">
         <div>
           <Label htmlFor="entrega">Entrega</Label>
           <Select id="entrega" value={f.entrega} onChange={event => {
@@ -196,6 +192,7 @@ export default function PasoCobro({
             value={f.montoDelivery}
             onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
             placeholder="0 si retira en tienda"
+            className="w-full"
             disabled={f.entrega === 'Retiro en tienda'}
           />
         </div>
@@ -232,14 +229,11 @@ export default function PasoCobro({
       {/* Pagos parciales y combinados */}
       {/* #281 · identidad de color: pagos = violeta (reserved), distintas del
           carrito (verde) y del catálogo (marca). */}
-      <div data-testid="pos-bloque-pagos" className="space-y-3 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-reserved">
-              Pagos de esta venta
-            </p>
-
-          </div>
+      <div data-testid="pos-bloque-pagos" className="space-y-3 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-3">
+        <p className="block text-[11px] font-medium uppercase tracking-wider text-reserved">
+          Pagos de esta venta
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
           {descuentoMedioPct > 0 && subtotal > 0 && (
             puedeDescontar ? (
               <button
@@ -457,32 +451,26 @@ export default function PasoCobro({
             )}
           </div>
         ))}
-        {/* #281 · tiles con identidad propia: Total (info) · Pagado (ok) ·
-            Pendiente (warn), con la familia de texto AA de cada tono. */}
-        <div data-testid="pos-tiles-resumen" className="grid grid-cols-1 gap-2 border-t border-reserved/20 pt-3 text-xs text-mute">
-          <span className="rounded-xl border border-info/35 bg-info/[.06] px-3 py-2 text-info" data-testid="cobro-total">
-            <Icon name="receipt" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Total
-            <strong className="pos-money-value v2-numero mt-0.5 block text-base tabular-nums text-fore">
-              {gs(totalGeneral)}
-            </strong>
-          </span>
-          <span className="rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-2 text-ok" data-testid="cobro-pagado">
-            <Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado
-            <strong className="pos-money-value v2-numero mt-0.5 block text-base tabular-nums text-ok">
+        {/* #281 · tiles con identidad propia: Pagado (ok) · Pendiente (warn).
+            El Total vive una sola vez, en el pie del carrito. */}
+        <div data-testid="pos-tiles-resumen" className="pos-tiles grid grid-cols-1 gap-1.5 border-t border-reserved/20 pt-2 text-xs text-mute">
+          <span className="flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-1.5 text-ok" data-testid="cobro-pagado">
+            <span className="inline-flex items-center gap-1"><Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado</span>
+            <strong className="pos-money-value v2-numero block whitespace-nowrap text-base tabular-nums text-ok">
               {gs(totalPagado)}
             </strong>
           </span>
           <span
             data-testid="cobro-pendiente"
             className={cn(
-              'rounded-xl border px-3 py-2',
+              'flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border px-3 py-1.5',
               pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok',
             )}
           >
-            <Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente
+            <span className="inline-flex items-center gap-1"><Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente</span>
             <strong
               className={cn(
-                'pos-money-value v2-numero mt-0.5 block text-base tabular-nums',
+                'pos-money-value v2-numero block whitespace-nowrap text-base tabular-nums',
                 pendiente ? 'text-warn' : 'text-ok',
               )}
             >
@@ -542,8 +530,8 @@ export default function PasoCobro({
         </p>
       )}
       {/* Escritorio: la acción vive al pie del bloque de cobro. */}
-      <div className="hidden items-center gap-3 lg:flex">
-        <BotonGuardar className="sticky bottom-3 flex-1" />
+      <div className="sticky bottom-0 z-10 -mx-3 -mb-3 hidden items-center gap-3 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-3 pb-3 pt-2 lg:flex">
+        <BotonGuardar className="flex-1" />
         {ok && (
           <span
             role="status"

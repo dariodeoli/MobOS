@@ -169,3 +169,48 @@ test('demo: tipo de categoría y costo en guaraníes completos', () => {
   const [item] = listarStockItemsDemo({ q: 'DEMO0000000001' }, fuente).items
   assert.equal(item.costPyg, 5000000)
 })
+
+// ── Orden de la lista y modal de ubicación (paridad con el inventario original) ──
+test('ordenarItemsStock aplica los 9 criterios sin mutar la lista', async () => {
+  const { ordenarItemsStock, ordenesStockVisibles, ORDENES_STOCK } = await import('./stockItems.js')
+  const filas = [
+    unidad(1, { id: 'a', name: 'iPhone 13', model: '13 128 Negro', condition: 'USED', costPyg: 3000000 }),
+    unidad(2, { id: 'b', name: 'iPhone 17', model: '17 256 Azul', condition: 'NEW', costPyg: 9000000 }),
+    unidad(3, { id: 'c', name: 'Galaxy S24', model: 'S24 256', condition: 'USED', costPyg: 6000000 }),
+  ]
+  const copia = filas.map((fila) => fila.id)
+  const ids = (orden, opciones) => ordenarItemsStock(filas, orden, opciones).map((fila) => fila.id)
+  assert.equal(ORDENES_STOCK.length, 9)
+  assert.deepEqual(ids('recientes'), ['a', 'b', 'c'])
+  assert.deepEqual(ids('modelo-az'), ['c', 'a', 'b'])
+  assert.deepEqual(ids('modelo-za'), ['b', 'a', 'c'])
+  assert.deepEqual(ids('nuevos'), ['b', 'c', 'a'])
+  assert.deepEqual(ids('semis'), ['c', 'a', 'b'])
+  assert.deepEqual(ids('modelo-natural'), ['c', 'b', 'a']) // S24 -> 24, 17, 13
+  assert.deepEqual(ids('mezclado'), ['c', 'a', 'b'])
+  assert.deepEqual(ids('costo-mayor'), ['b', 'c', 'a'])
+  assert.deepEqual(ids('costo-menor'), ['a', 'c', 'b'])
+  // Sin permiso de costos los criterios de costo no reordenan ni se ofrecen.
+  assert.deepEqual(ids('costo-mayor', { rolVeCosto: false }), ['a', 'b', 'c'])
+  assert.equal(ordenesStockVisibles(false).some(([id]) => id.startsWith('costo')), false)
+  assert.equal(ordenesStockVisibles(true).length, 9)
+  assert.deepEqual(filas.map((fila) => fila.id), copia)
+})
+
+test('Stock renderiza el modal de ubicación y el selector de orden', async () => {
+  const { readFileSync } = await import('node:fs')
+  const leer = (ruta) => readFileSync(new URL(ruta, import.meta.url), 'utf8')
+  const acciones = leer('../components/stock/AccionesUnidad.jsx')
+  assert.match(acciones, /open=\{locationForm !== null\}/)
+  assert.match(acciones, /onSubmit=\{saveLocation\}/)
+  assert.match(acciones, /onClose=\{\(\) => setLocationForm\(null\)\}/)
+  assert.match(acciones, /Editar ubicación/)
+  assert.match(acciones, /Crear ubicación/)
+  assert.match(acciones, /aria-label="Color de la ubicación"/)
+  const filtros = leer('../components/stock/FiltrosStock.jsx')
+  assert.match(filtros, /aria-label="Orden del inventario"/)
+  assert.match(leer('../components/stock/BarraStock.jsx'), /onOrden=\{recordarOrden\}/)
+  const lista = leer('../components/stock/ListaStock.jsx')
+  assert.match(lista, /ordenarItemsStock\(stock\.items, orden/)
+  assert.match(lista, /orden aplicado a lo cargado/)
+})

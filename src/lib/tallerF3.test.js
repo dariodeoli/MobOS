@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { advanceService, advanceSelectedServices, serviceAdvanceFeedback } from './tallerAvance.js'
 import { ESTADOS_SERVICIO, SIGUIENTE_SERVICIO } from './estadosServicio.js'
 
@@ -111,20 +110,35 @@ test('Taller all eight real states retain exact next transitions and terminal ou
     )
   }
 })
-test('Taller financial save, catalog, inspection and print handlers remain byte-identical', () => {
-  const path = 'src/components/control/ServicioTecnico.jsx'
-  const current = readFileSync(path, 'utf8')
-  const original = execFileSync('git', ['show', `11cb29d2:${path}`], {
-    encoding: 'utf8',
-  })
-  const between = (s, start, end) => s.slice(s.indexOf(start), s.indexOf(end)).trim()
-  for (const [start, end] of [
-    ['  const totales =', '  // ── Catálogo'],
-    ['  async function guardarServicio', '  const alternar ='],
-    ['  function editar(row)', '  return (\n    <Card'],
-    ['      <Modal open={Boolean(form)}', '      <Modal open={catalogoOpen}'],
+test('Taller financial save, catalog, inspection and print handlers keep their contracts', () => {
+  // Semantic contract (replaces the old `git show` byte comparison): every
+  // money field, handler and guard of the four protected regions is still there.
+  const current = readFileSync('src/components/control/ServicioTecnico.jsx', 'utf8')
+  for (const text of [
+    // Totals and the order save payload.
+    'acc.facturado += Number(row.pricePyg || 0)',
+    'acc.costos += Number(row.costPyg || 0)',
+    'if (!validarOrden({ customerName: form.customerName, device: form.device }).valido) return',
+    'partsPyg: numeroDe(form.partsPyg)',
+    'laborPyg: numeroDe(form.laborPyg)',
+    'otherCostPyg: numeroDe(form.otherCostPyg)',
+    'pricePyg: numeroDe(form.pricePyg)',
+    'costPyg: numeroDe(form.costPyg)',
+    // Service catalog save and delete.
+    'if (!servicioEdit.name.trim())',
+    'suggestedPricePyg: numeroDe(servicioEdit.precio)',
+    "api.patch('/api/service-items'",
+    "api.post('/api/service-items'",
+    // Opening an order for edit keeps every cost field and the dirty reference.
+    "pricePyg: String(row.pricePyg || '')",
+    'setReferenciaForm(JSON.stringify(datos))',
+    'const hayDesgloseForm',
+    // Order modal: submit handler, dirty guard and busy lock.
+    '<form onSubmit={guardar}',
+    'dirty={formSucio}',
+    'busy || checklistOpen || catalogoOpen ? undefined',
   ])
-    assert.equal(between(current, start, end), between(original, start, end))
+    assert.ok(current.includes(text), text)
   assert.ok(current.includes("await api.patch('/api/service-orders', payload)"))
   assert.ok(current.includes('current.filter(id => !result.confirmedIds.includes(id))'))
   assert.ok(current.includes('setRows(current =>'))

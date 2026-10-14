@@ -6,7 +6,7 @@ import { ventaDesdeApi, listVentas } from '@/lib/storage'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { construirDemoConciliacion, conciliarDemoLote } from '@/lib/demoConciliacion'
 import { gs } from '@/utils/calculos'
-import { formatMoney, errorMonto } from '@/utils/moneda'
+import { formatMoney, errorMonto, partesGs } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { fechaCorta } from '@/utils/fecha'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
@@ -19,8 +19,10 @@ import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/fin
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
+import Toolbar from '@/components/shared/Toolbar'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import './conciliacionF5.css'
+import './finanzasTactil.css'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
 // (esperado vs recibido + diferencia) y detalle pago por pago con acceso al
@@ -61,12 +63,12 @@ function Resumen({ resumen }) {
         <div key={tarjeta.label} className="conciliacion-f5-kpi">
           <p className={ROTULO_DATO}>{tarjeta.label}</p>
           <strong
-            className={cn('mt-1 block tabular-nums', v2 && 'v2-numero text-2xl', tarjeta.tono)}
+            className={cn('block tabular-nums', v2 && 'v2-numero', tarjeta.tono)}
           >
-            <span className="conciliacion-f5-currency">Gs </span>
-            <span className="conciliacion-f5-digits">{gs(tarjeta.valor || 0).slice(3)}</span>
+            <span className="conciliacion-f5-currency">{partesGs(tarjeta.valor || 0).signo}{partesGs(tarjeta.valor || 0).simbolo} </span>
+            <span className="conciliacion-f5-digits">{partesGs(tarjeta.valor || 0).digitos}</span>
           </strong>
-          <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
+          <p className="text-xs leading-4 text-mute">{tarjeta.sub}</p>
         </div>
       ))}
       {v2 && n(resumen.count) > 0 && (
@@ -364,7 +366,7 @@ export default function Conciliacion() {
   const rendered = usePaginaLista(filtrados, { tamano: { compacto: 2, amplio: 20 } })
 
   return (
-    <div className="conciliacion-f5 space-y-3">
+    <div className="conciliacion-f5 finanzas-tactil space-y-3">
       <Card className="conciliacion-f5-panel space-y-3">
         <div>
           <p className="text-sm text-mute">Comparación de pagos y depósitos: esperado, recibido y diferencia.</p>
@@ -440,20 +442,25 @@ export default function Conciliacion() {
       )}
 
       <Card className="conciliacion-f5-panel space-y-2">
-        <p className="text-xs text-mute" data-testid="conciliacion-list-scope">Lista: {filtrados.length} pago(s) · Estado: {ETIQUETAS[estado]?.label || 'Todos'} · Página: {filtrados.length ? rendered.inicio + 1 : 0}–{rendered.inicio + rendered.filas.length}. El estado solo filtra esta lista.</p>
-        <p className="text-xs text-mute">Selección masiva: reemplaza con pendientes de todas las páginas, sin reembolsados. Paginar conserva la selección.</p>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Pagos del período</h3>
-          <div className="flex flex-wrap items-center gap-2">
+        <p className="text-xs text-mute" data-testid="conciliacion-list-scope">
+          {filtrados.length === 1 ? '1 pago' : `${filtrados.length} pagos`}{estado ? ` · ${ETIQUETAS[estado]?.label || estado}` : ''}. El estado solo filtra esta lista.
+        </p>
+        <p className="text-[11px] text-mute" data-testid="conciliacion-seleccion-nota">La selección se mantiene al cambiar de página.</p>
+        <h3 className="text-sm font-semibold">Pagos del período</h3>
+        <Toolbar
+          plano
+          label="Filtros de pagos"
+          testId="conciliacion-toolbar"
+          filters={(
             <Select className="h-8 w-44 text-xs" aria-label="Estado" title="Se recuerda tu último filtro" value={estado} onChange={(event) => cambiarEstado(event.target.value)}>
               <option value="">Todos los estados</option>
               <option value="PENDING">Por conciliar</option>
               <option value="VERIFIED">Conciliados</option>
               <option value="REJECTED">Rechazados</option>
             </Select>
-            <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={!pendientes.length} onClick={seleccionarPendientes}>Seleccionar por conciliar</Button>
-          </div>
-        </div>
+          )}
+          primary={<Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Reemplaza la selección con los pendientes de todas las páginas, sin reembolsados. Paginar conserva la selección." disabled={!pendientes.length} onClick={seleccionarPendientes}>Seleccionar por conciliar</Button>}
+        />
         {loading && <div className="space-y-2" role="status">{[0, 1, 2].map((fila) => <Skeleton key={fila} className="h-10" />)}</div>}
         {!loading && !filtrados.length && (
           <EmptyState

@@ -26,6 +26,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 
 | Componente | Regla | Dónde se usa |
 |---|---|---|
+| `shared/FieldRow` | Campo compuesto en **una fila con un solo borde**: `prefijo` (código de país, «Gs.») + input + `final` (botón de acción) dentro de la misma caja; etiqueta arriba (`Label htmlFor`), 44 px, máx. 640 px, `hint`/`error` accesibles (`role="alert"`). El input hijo va sin borde propio. Pensado para que `PhoneField` migre y `RucField` (docs/PANTALLAS.md regla 9) | Preview `/bloques-preview`; adopción por pantalla en el rediseño |
 | `shared/PhoneField` (+ `parseTelefono`/`componerTelefono`) | Código de país editable (default `+595`, presets +55/+54/+56/+591/+598/+1/+34/+44/+351) + número que admite dígitos, espacios, guiones y paréntesis (espacio tras el código: `+595  99467453`). Valida con `telefonoValido` y muestra `MENSAJE_TELEFONO` | Sucursal, cliente, checkout, proveedor |
 | `shared/EmailField` | Sugiere dominios frecuentes mientras se teclea (gmail, hotmail, outlook, yahoo, icloud, live, hotmail.es, outlook.es); no interfiere con pegado, autocompletado ni `fill()`; `type="email"`; máx 200 | Login, registro, recuperación, empresa, vendedores ×2, cliente ×2, proveedor |
 | `shared/InstagramField` | `@` fijo no borrable, sin espacios, solo `[A-Za-z0-9._]`, máx 30; guarda el username pelado (el link se arma después) | Sucursal |

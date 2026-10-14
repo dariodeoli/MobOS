@@ -57,7 +57,7 @@ export function SellerSection({ title, description, children }) {
   // dejaba dos encabezados con el mismo nombre (rompía los tests por strict
   // mode). El título sigue en el `aria-label` de la sección para lectores de
   // pantalla y para ubicar la región en los tests.
-  return <section className="space-y-4" aria-label={title}>
+  return <section className="space-y-3" aria-label={title}>
     {description && <div><p className="text-sm text-mute">{description}</p></div>}
     {children}
   </section>

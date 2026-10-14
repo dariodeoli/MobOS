@@ -3,31 +3,10 @@
   min-width: 0;
 }
 
+/* Barra de la pestaña (Toolbar): búsqueda, chips y orden a la izquierda; las
+   acciones se alinean a la derecha. */
 .ventas-f3 .ventas-f3-toolbar {
-  align-items: flex-start;
-}
-
-.ventas-f3 .ventas-f3-toolbar p {
-  display: block;
-  white-space: normal;
-  font-size: 13px;
-}
-
-.ventas-f3 .ventas-f3-filters {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--ds-space-2);
-}
-
-.ventas-f3-filters > :first-child {
-  flex: 1 1 100%;
-  min-width: 0;
-}
-
-.ventas-f3 .ventas-f3-filters select {
-  width: auto;
-  max-width: 100%;
 }
 
 .ventas-f3 .ventas-f3-chips {
@@ -36,7 +15,7 @@
   gap: var(--ds-space-2);
 }
 
-.ventas-f3-chips button {
+.ventas-f3-chips > button {
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid rgb(var(--c-ink-600));
@@ -46,7 +25,11 @@
   background: rgb(var(--c-ink));
 }
 
-.ventas-f3-chips button[aria-pressed='true'] {
+.ventas-f3-chips > button[data-chip-mas] {
+  border-style: dashed;
+}
+
+.ventas-f3-chips > button[aria-pressed='true'] {
   color: rgb(var(--c-ink));
   background: rgb(var(--c-fore));
   border-color: rgb(var(--c-fore));
@@ -125,13 +108,28 @@
   border-radius: 0;
   border-width: 0 0 1px;
   background: transparent;
+  gap: 0;
   text-align: left;
 }
 
+.ventas-f3 .ventas-f3-metrics-inline {
+  border-width: 0;
+}
+
+.ventas-f3-metrics > div,
+.ventas-f3-metrics > p {
+  background: transparent;
+}
+
 .ventas-f3-metrics > div {
-  flex: 1 1 180px;
-  padding: 8px 16px 12px 0;
+  flex: 1 1 160px;
+  padding: 6px 16px 6px 0;
   border: 0;
+}
+
+.ventas-f3-metrics > p {
+  align-self: center;
+  padding: 0 0 0 8px;
 }
 
 .ventas-f3-metrics p {
@@ -141,7 +139,6 @@
 
 .ventas-f3-metrics p:nth-child(2) {
   font-size: 20px;
-  white-space: nowrap;
 }
 
 .ventas-f3-metrics p span {
@@ -300,29 +297,18 @@
   color: rgb(var(--c-bad-text));
 }
 
-.ventas-f3-extra-filters > summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  color: rgb(var(--c-mute));
-  font-size: 13px;
-}
-
-.ventas-f3-extra-filters > summary:focus-visible {
-  outline: 2px solid rgb(var(--c-fono));
-  outline-offset: 2px;
+/* Debajo de lg todo control se toca con el dedo: 44 px de alto (QA-A). */
+@media (max-width: 1023px) {
+  .ventas-f3 button,
+  .ventas-f3 [role='button'],
+  .ventas-f3 a[href],
+  .ventas-f3 select,
+  .ventas-f3 input:not([type='checkbox'], [type='radio']) {
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 639px) {
-  .ventas-f3 .ventas-f3-toolbar > div:first-child {
-    flex-basis: 100%;
-  }
-
-  .ventas-f3 .ventas-f3-toolbar > div:last-child {
-    width: 100%;
-  }
-
   .ventas-f3 .ventas-f3-quote-grid {
     grid-template-columns: minmax(0, 1fr) auto;
   }

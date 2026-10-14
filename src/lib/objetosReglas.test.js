@@ -628,7 +628,7 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // #298: una sola navegación, siempre con texto (sin colapso a iconos).
 test('Configuración usa selector accesible sin colapso ni tira horizontal móvil (#341)', () => {
   const riel = leerFuente(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
-  assert.match(riel, /import SectionSelector from '@\/components\/app\/SectionSelector'/, 'el adaptador usa el selector compartido del shell')
+  assert.match(riel, /import SectionTabs from '@\/components\/app\/SectionTabs'/, 'el adaptador usa las pestañas compartidas del shell')
   assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
   assert.ok(!riel.includes('role="tablist"'), 'el selector no simula un tablist')
   assert.ok(!/colapsado=|onToggle|useMenuConfigColapsado/.test(riel), 'la navegación no se colapsa a iconos (#298)')
@@ -697,7 +697,6 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   for (const [ruta, marca] of [
     ['components/ventas/SellerCustomers.jsx', /<BarraModulo[\s\S]*?testId="barra-clientes"/],
     ['components/ventas/FormularioVenta.jsx', /<BarraModulo[\s\S]*?testId="barra-pos"/],
-    ['components/control/Inventario.jsx', /<BarraModulo[\s\S]*?testId="barra-inventario"/],
     ['components/ventas/SellerCatalog.jsx', /<BarraModulo[\s\S]*?testId="barra-productos"/],
     ['components/control/Compras.jsx', /<BarraModulo[\s\S]*?testId="barra-compras"/],
     // #278: el pipeline Trade-In del dueño completa los compactos de #256.
@@ -709,12 +708,15 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
   }
   assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
+  // Rediseño 2A: Stock usa la barra compartida `Toolbar` (una por pestaña) con
+  // el testid `barra-inventario` en Unidades.
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<Toolbar[\s\S]*?testId="barra-inventario"/, 'Inventario: usa la barra compartida')
   // #305: Inventario dejó de apilar el resumen de métricas antes de la tabla.
   assert.doesNotMatch(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas/, 'Inventario ya no apila el resumen de métricas (#305)')
   assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-productos"/, 'Productos usa el resumen con alcance')
   assert.match(leerFuente(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
   assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="grupos-inventario"/, 'la navegación de Inventario está agrupada (#305)')
-  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las secciones de Inventario viven en un selector agrupado (sin contadores repetidos)')
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="subtabs-inventario"/, 'las vistas de cada pestaña de Stock viven en un segundo nivel agrupado (sin contadores repetidos)')
 })
 
 // Diseño #279 (A3/A5): los previews usan los objetos compartidos (barra,
@@ -756,10 +758,10 @@ test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)'
   const switch_ = leerFuente(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx'), 'utf8')
   assert.match(switch_, /data-testid="vista-productos-unidades"/, 'el switch tiene testid propio')
   assert.match(switch_, /SegmentedField/, 'usa el control compartido de la biblioteca')
-  for (const ruta of ['components/ventas/SellerCatalog.jsx', 'components/control/Inventario.jsx']) {
-    const fuente = leerFuente(join(RAIZ, ruta), 'utf8')
-    assert.match(fuente, /<VistaProductosUnidades/, `${ruta}: usa el switch compartido`)
-  }
+  assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<VistaProductosUnidades/, 'Productos usa el switch compartido')
+  // Rediseño 2A: en Stock, Unidades y Productos son pestañas del shell; el paso a
+  // Productos con el contexto puesto (búsqueda y producto) es el enlace del chip.
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /Ver en Productos/, 'Unidades lleva a Productos conservando el contexto')
   assert.match(leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8'), /\/stock\/unidades\?producto=/, 'la ficha del producto lleva a sus unidades')
   assert.match(leerFuente(join(RAIZ, 'components/inventory/UnidadDetalle.jsx'), 'utf8'), /\/productos\?producto=/, 'la ficha de la unidad lleva a su producto')
   assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /inventario-filtro-producto/, 'la vista de Unidades muestra el producto que la acota')

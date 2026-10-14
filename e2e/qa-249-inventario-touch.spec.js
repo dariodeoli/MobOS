@@ -34,7 +34,8 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/stock/unidades')
   // #304: en móvil el listado son tarjetas compactas (la tabla ancha no va).
-  const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+  // La lista de Stock es unificada (productos + unidades): la ficha con PhoneCheck es la de una unidad.
+  const tarjeta = page.locator('[data-testid="inventario-tarjeta-movil"][data-kind="unit"]').first()
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('inventario-tabla')).toHaveCount(0)
 
@@ -45,7 +46,7 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
   const nombre = await caja(tarjeta.locator('b').first())
   medidas['nombre del modelo'] = `${nombre.w}x${nombre.h}`
   expect(nombre.w, `nombre ${nombre.w} px < ${MINIMO_NOMBRE}`).toBeGreaterThanOrEqual(MINIMO_NOMBRE)
-  await exigirToque(page.getByTestId('tabs-inventario'), 'solapa Inventario (H3)')
+  await exigirToque(page.getByTestId('shell-contexto'), 'solapas de Stock (H3)')
   await exigirToque(page.getByLabel('Buscar en inventario'), 'buscador')
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/01-mobile-lista.png`, fullPage: true })

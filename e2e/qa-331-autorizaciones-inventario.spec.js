@@ -10,6 +10,7 @@ import { selectInventorySection } from './helpers/shell-navigation.js'
 // 390/1280 en el último test.
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
+import { contextoVendedorApi } from './helpers/seller-api.js'
 import { auditarContraste, informar, SHELL } from './helpers/contraste.js'
 import { SEED } from './helpers/seed-data.js'
 
@@ -48,23 +49,16 @@ async function prepararUnidad(page, clave) {
 
 // El vendedor pide exactamente como lo hace UnidadDetalle (POST STOCK_ADJUST).
 async function solicitarComoVendedor(browser, datos, texto) {
-  const contexto = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
-  const vendedor = await contexto.newPage()
+  const vendedor = await contextoVendedorApi({ origen: `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}` })
   try {
-    await vendedor.goto('/pos')
-    const respuesta = await vendedor.evaluate(async ({ api, unitId, motivo }) => {
-      const res = await fetch(`${api}/api/authorizations`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'STOCK_ADJUST', requestedValue: { unitId, action: 'remove', reason: motivo } }),
-      })
-      return { status: res.status, data: await res.json().catch(() => null) }
-    }, { api: API, unitId: datos.unitId, motivo: texto })
+    const res = await vendedor.post('/api/authorizations', {
+      data: { kind: 'STOCK_ADJUST', requestedValue: { unitId: datos.unitId, action: 'remove', reason: texto } },
+    })
+    const respuesta = { status: res.status(), data: await res.json().catch(() => null) }
     expect(respuesta.status, `solicitud del vendedor: ${JSON.stringify(respuesta.data)}`).toBe(201)
     return respuesta.data
   } finally {
-    await contexto.close()
+    await vendedor.dispose()
   }
 }
 
@@ -114,9 +108,9 @@ test('el dueño ve y aprueba una solicitud de stock desde Inventario (#331)', as
     await expect(fila).toContainText(SEED.sellers[0].name)
     await expect(fila).toContainText('Dar de baja')
 
-    // #331: las solapas de Stock reflejan los pendientes con un contador en
-    // Control y en la vista Autorizaciones.
-    await expect(page.getByTestId('tabs-inventario').getByRole('tab', { name: /Control/ })).toContainText(/\d+/)
+    // #331: Stock refleja los pendientes con un contador en la vista Autorizaciones
+    // (la pestaña Control es del shell, que no lleva contadores) y deja a Control activa.
+    await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="control"]')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: /Autorizaciones/ })).toContainText(/\d+/)
 
     await fila.getByRole('button', { name: 'Aprobar' }).click()
@@ -136,22 +130,14 @@ test('el dueño ve y aprueba una solicitud de stock desde Inventario (#331)', as
 
     // La ejecución es el mismo PATCH que dispara UnidadDetalle: consume la
     // autorización (usedAt) y recién ahí retira la unidad.
-    const contexto = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
-    const vendedor = await contexto.newPage()
+    const vendedor = await contextoVendedorApi({ origen: `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}` })
     try {
-      await vendedor.goto('/pos')
-      const estado = await vendedor.evaluate(async ({ api, id, unitId }) => {
-        const res = await fetch(`${api}/api/inventory-units`, {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: unitId, action: 'remove', reason: 'Ejecución con autorización aprobada', authorizationId: id }),
-        })
-        return res.status
-      }, { api: API, id: aprobada.id, unitId: datos.unitId })
-      expect(estado).toBe(200)
+      const res = await vendedor.patch('/api/inventory-units', {
+        data: { id: datos.unitId, action: 'remove', reason: 'Ejecución con autorización aprobada', authorizationId: aprobada.id },
+      })
+      expect(res.status()).toBe(200)
     } finally {
-      await contexto.close()
+      await vendedor.dispose()
     }
     await expect.poll(async () => (await autorizacionDe(page, datos.unitId))?.usedAt || null).toBeTruthy()
   } finally {

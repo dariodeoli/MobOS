@@ -1,6 +1,6 @@
 // Celdas compartidas de la lista unificada de Stock (fila de escritorio y
 // tarjeta móvil): estado, batería, costo y fecha de venta. Presentación pura.
-import { CeldaMoneda } from '@/components/ui'
+import { Badge, CeldaMoneda } from '@/components/ui'
 import ChipEstado from '@/components/shared/ChipEstado'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
@@ -36,3 +36,21 @@ export function CostoStock({ item }) {
 }
 
 export const fechaVentaStock = (item) => fechaHora(item.soldAt || item.createdAt, '—')
+
+// Equipo de un tercero en consignación: se ve en la fila y en la tarjeta (el
+// detalle con monto y teléfono vive en la ficha). La API solo lo informa a los
+// roles que ven costos (igual que el proveedor), así que no hay dato que mostrar
+// sin permiso.
+export function ConsignadoStock({ item, className }) {
+  if (!item?.consignorName) return null
+  return (
+    <Badge
+      color="blue"
+      data-testid="stock-consignado"
+      title={`En consignación de ${item.consignorName}`}
+      className={className ? `w-fit shrink-0 whitespace-nowrap px-1.5 py-0.5 text-[10px] ${className}` : 'w-fit shrink-0 whitespace-nowrap px-1.5 py-0.5 text-[10px]'}
+    >
+      Consignado
+    </Badge>
+  )
+}

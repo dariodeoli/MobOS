@@ -40,7 +40,7 @@ test.describe('finanzas · caja', () => {
       await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
     }
     await expect(page.getByRole('heading', { name: 'Cerrar caja' })).toBeVisible()
-    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
+    await expect(page.getByTestId('caja-estado').filter({ hasText: 'Abierta' })).toBeVisible()
     // #253: con la caja abierta y sin arqueo, la diferencia no anticipa un
     // número (se calcula al cierre); recién aparece con el conteo cargado.
     await expect(page.getByTestId('caja-diferencia')).toHaveText('—')
@@ -80,14 +80,16 @@ test.describe('finanzas · caja', () => {
     const guardar = filaCobro.getByRole('button', { name: 'Guardar' })
     await expect(guardar).toBeEnabled()
     await guardar.click()
-    // El badge es un span; la opción del selector tiene el mismo texto.
-    const badgeVerificado = filaCobro.locator('span').filter({ hasText: /^Verificado$/ }).first()
-    await expect(badgeVerificado).toBeVisible()
+    // El chip de estado ES el selector (un solo control por fila): guardado, queda
+    // en Verificado y ya no hay cambios pendientes.
+    await expect(estadoSelect).toHaveValue('VERIFIED')
+    await expect(estadoSelect).toContainText('Verificado')
+    await expect(filaCobro.getByRole('button', { name: 'Guardar' })).toBeDisabled()
 
     // Persistencia de la marca: al recargar sigue verificada.
     await page.reload()
     const filaRecargada = page.getByTestId('auditoria-fila').filter({ hasText: numero })
-    await expect(filaRecargada.locator('span').filter({ hasText: /^Verificado$/ }).first()).toBeVisible()
+    await expect(filaRecargada.getByRole('combobox')).toHaveValue('VERIFIED')
 
     // #148 §18: corte por caja del período con la sesión del turno.
     await expect(page.getByRole('heading', { name: 'Ventas por caja' })).toBeVisible()
@@ -108,13 +110,13 @@ test.describe('finanzas · caja', () => {
     const cierreFinal = page.getByRole('dialog', { name: 'Cerrar caja' })
     await cierreFinal.locator('#counted').fill(String(esperado))
     await cierreFinal.getByRole('button', { name: /Cerrar caja/ }).click()
-    await expect(page.locator('strong').filter({ hasText: 'Cerrada' }).first()).toBeVisible()
+    await expect(page.getByTestId('caja-estado').filter({ hasText: 'Cerrada' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Abrir caja' })).toBeVisible()
 
     // Se restaura el estado que espera la suite: caja abierta con 100.000.
     await page.locator('#opening').fill('100000')
     await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
-    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
+    await expect(page.getByTestId('caja-estado').filter({ hasText: 'Abierta' })).toBeVisible()
   })
 
   // #249 · Auditoría responsive mobile (H2/H3): en 390 px los controles de
@@ -135,7 +137,7 @@ test.describe('finanzas · caja', () => {
     await expect(page.getByTestId('auditoria-fila').filter({ hasText: numero })).toBeVisible()
 
     const controles = [
-      ['solapa de finanzas', page.getByRole('combobox', { name: 'Secciones de Finanzas' })],
+      ['solapa de finanzas', page.getByRole('navigation', { name: 'Secciones de Finanzas', exact: true }).getByRole('button', { name: 'Caja', exact: true })],
       ['selector de período', page.getByRole('button', { name: /30 días|7 días|Hoy|Ayer|Este mes|Mes pasado|Trimestre|Este año/ }).first()],
       ['fila · Guardar', page.getByTestId('auditoria-fila').first().getByRole('button', { name: 'Guardar' })],
       ['fila · casilla Coincide', page.locator('label:has-text("Coincide")').first()],
@@ -153,7 +155,7 @@ test.describe('finanzas · caja', () => {
       await fs.mkdir('docs/qa/249-finanzas', { recursive: true })
       await fs.writeFile(`docs/qa/249-finanzas/mediciones-${fase}.json`, JSON.stringify({ fecha: new Date().toISOString(), ancho: 390, mediciones }, null, 2))
       await page.screenshot({ path: `docs/qa/249-finanzas/caja-390-${fase}.png`, fullPage: true })
-      await page.getByRole('combobox', { name: 'Secciones de Finanzas' }).locator('..').screenshot({ path: `docs/qa/249-finanzas/subtabs-390-${fase}.png` })
+      await page.getByRole('navigation', { name: 'Secciones de Finanzas', exact: true }).screenshot({ path: `docs/qa/249-finanzas/subtabs-390-${fase}.png` })
       await page.getByTestId('auditoria-efectivo-tabla').screenshot({ path: `docs/qa/249-finanzas/auditoria-390-${fase}.png` })
       await page.locator('article:has-text("Coincide")').first().screenshot({ path: `docs/qa/249-finanzas/medios-390-${fase}.png` })
     }

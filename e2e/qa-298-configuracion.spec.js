@@ -17,7 +17,7 @@ import { selectConfigSection } from './helpers/shell-navigation.js'
 const SALIDA = process.env.MOBOS_298_CAPTURAS || ''
 const NAV = '[data-testid="config-grupos"]'
 const TOGGLE = '[data-testid="config-grupos-toggle"]'
-const ETIQUETAS = ['Mi cuenta', 'Organización', 'Equipo y acceso', 'Comercial', 'Seguridad y auditoría', 'Dispositivos', 'Sistema']
+const ETIQUETAS = ['Organización', 'Equipo y acceso', 'Impresión y dispositivos', 'Comercial', 'Seguridad y auditoría', 'Sistema', 'Mi cuenta']
 
 async function capturar(page, nombre) {
   if (!SALIDA) return
@@ -48,26 +48,26 @@ test('#298 · una sola navegación de Configuración, siempre con texto', async 
   const nav = page.locator(NAV)
   await expect(nav).toBeVisible({ timeout: 20_000 })
 
-  // Sin toggle de colapso y con los siete rótulos como opciones del selector
-  // de secciones (SectionSelector: lista nativa, siempre con texto).
+  // Sin toggle de colapso y con los siete rótulos como pestañas de la
+  // navegación de secciones (SectionTabs: siempre con texto).
   await expect(page.locator(TOGGLE)).toHaveCount(0)
-  const selector = nav.locator('select')
-  await expect(selector).toBeVisible()
-  expect(await selector.locator('option').allTextContents()).toEqual(ETIQUETAS)
+  const tabs = nav.locator('[data-tab-id]')
+  await expect(tabs.first()).toBeVisible()
+  expect(await tabs.allTextContents()).toEqual(ETIQUETAS)
 
   // Deep link intacto y navegación entre secciones.
   await page.goto('/configuracion/seguridad')
-  await expect(page.locator(NAV).locator('select')).toHaveValue('seguridad')
+  await expect(page.locator(NAV).locator('[data-tab-id="seguridad"]')).toHaveAttribute('aria-current', 'page')
   await selectConfigSection(page, 'Organización')
   await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '01-navegacion-escritorio')
 
-  // Mobile: el mismo selector nativo, con el rótulo actual y sin desborde.
+  // Mobile: la misma navegación como tira de pestañas, con el rótulo actual y sin desborde.
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
-  await expect(page.locator(NAV).locator('select')).toBeVisible()
-  await expect(page.locator(NAV).locator('option:checked')).toHaveText('Organización')
+  await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible()
+  await expect(page.locator(NAV).locator('[aria-current="page"]')).toHaveText('Organización')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '02-navegacion-mobile')
 })

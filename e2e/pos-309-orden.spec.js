@@ -4,7 +4,7 @@
 // - Carrito fijo en la columna derecha (escritorio) y Total + acción principal
 //   fijos abajo (celular).
 // - El total no se repite: vive una sola vez, en el carrito.
-// - Gift cards, Analytics y Ventas suspendidas viven en «Más».
+// - Gift cards y Ventas suspendidas son botones de la barra (sin «Más» ni Analytics).
 // - Feedback visible al guardar/imprimir/enviar.
 // - Soporte: una línea sobre pedido puede quedar «en tránsito» (reserva
 //   anticipada del lote que ingresa; la conciliación la hace Inventario).
@@ -67,7 +67,7 @@ const posicionDe = (page, selector) =>
     return { y: Math.round(r.y + window.scrollY), position: getComputedStyle(el).position }
   }, selector)
 
-test('producto y búsqueda van antes que el cliente, y la ficha elegida queda en una línea (#309)', async ({ page }) => {
+test('el cliente va arriba del catálogo, y la ficha elegida queda en una línea (#309)', async ({ page }) => {
   const id = clave()
   const nombreCliente = `Cliente 309 ${id}`
   const clienteCreado = await crearCliente(page, nombreCliente)
@@ -76,20 +76,18 @@ test('producto y búsqueda van antes que el cliente, y la ficha elegida queda en
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
-  // Orden de trabajo: catálogo primero, cliente después.
+  // Orden de trabajo: cliente compacto arriba, catálogo debajo.
   const productos = await posicionDe(page, 'pos-bloque-productos')
   const cliente = await posicionDe(page, 'pos-bloque-cliente')
   expect(productos, 'el bloque de productos existe').not.toBeNull()
   expect(cliente, 'el bloque de cliente existe').not.toBeNull()
-  // El shell nuevo puede poner ambos bloques en la misma fila: no queda
-  // más abajo el catálogo y, en el documento, sigue primero.
-  expect(productos.y).toBeLessThanOrEqual(cliente.y)
-  const productosPrimero = await page.evaluate(() => {
-    const a = document.querySelector('[data-testid="pos-bloque-productos"]')
-    const b = document.querySelector('[data-testid="pos-bloque-cliente"]')
+  expect(cliente.y).toBeLessThanOrEqual(productos.y)
+  const clientePrimero = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="pos-bloque-cliente"]')
+    const b = document.querySelector('[data-testid="pos-bloque-productos"]')
     return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
   })
-  expect(productosPrimero, 'el catálogo precede al cliente en el documento').toBe(true)
+  expect(clientePrimero, 'el cliente precede al catálogo en el documento').toBe(true)
 
   // Búsqueda y cliente siguen a mano (el buscador se ve antes en la página).
   await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
@@ -106,7 +104,7 @@ test('producto y búsqueda van antes que el cliente, y la ficha elegida queda en
   await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toBeVisible()
 })
 
-test('el carrito queda fijo a la derecha y el total vive una sola vez (#309)', async ({ page }) => {
+test('la columna del carrito y el cobro queda fija a la derecha y el total vive una sola vez (#309)', async ({ page }) => {
   const id = clave()
   const nombre = `Producto 309 ${id}`
   const { productId } = await crearProducto(page, { nombre, stock: 5 })
@@ -116,13 +114,17 @@ test('el carrito queda fijo a la derecha y el total vive una sola vez (#309)', a
     await agregarProducto(page, nombre)
 
     // Carrito fijo en escritorio.
-    const carrito = await posicionDe(page, '#pos-resumen-venta')
-    expect(carrito.position, 'el carrito es sticky en escritorio').toBe('sticky')
+    const columna = await posicionDe(page, 'pos-columna-venta')
+    expect(columna.position, 'la columna carrito + cobro es sticky en escritorio').toBe('sticky')
+    expect((await posicionDe(page, '#pos-resumen-venta')).position, 'el carrito no se pega solo sobre el cobro').not.toBe('sticky')
 
     // El total (una sola vez) está en el carrito y no se repite en la franja.
     const total = page.getByTestId('carrito-total')
     await expect(total).toHaveText('Gs 90.000')
     await expect(page.getByTestId('resumen-compra')).not.toContainText('Gs 90.000')
+    // Ni el cobro repite el Total: `cobro-total` es la misma fila del carrito.
+    await expect(page.getByTestId('cobro-total')).toHaveCount(1)
+    await expect(page.getByTestId('pos-tiles-resumen')).not.toContainText('Total')
 
     // Sigue a la vista al deslizar.
     await page.evaluate(() => window.scrollTo(0, 800))
@@ -160,27 +162,22 @@ test('celular: el Total y la acción principal quedan fijos abajo (#309)', async
   }
 })
 
-test('gift cards, analytics y ventas suspendidas viven en «Más» (#309)', async ({ page }) => {
+test('gift cards y ventas suspendidas son botones de la barra; Analytics ya no está en el POS (#309)', async ({ page }) => {
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
-  // No están sueltas en la barra del módulo.
-  for (const label of ['Gift cards', 'Analytics', 'Ventas suspendidas']) {
-    await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0)
+  // «Más» ya no existe y Analytics no tiene entrada en el POS.
+  await expect(page.getByTestId('pos-mas')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
+  for (const label of ['Gift cards', 'Ventas suspendidas']) {
+    await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible()
   }
 
-  await page.getByTestId('pos-mas').click()
-  const menu = page.getByRole('menu', { name: 'Herramientas de la venta' })
-  for (const label of ['Gift cards', 'Analytics', 'Ventas suspendidas']) {
-    await expect(menu.getByRole('menuitem', { name: label, exact: true })).toBeVisible()
-  }
-
-  await menu.getByRole('menuitem', { name: 'Gift cards' }).click()
+  await page.getByRole('button', { name: 'Gift cards', exact: true }).click()
   await expect(page.getByRole('dialog').filter({ hasText: /Gift card/i }).first()).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menu', { name: 'Herramientas de la venta' }).getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByRole('button', { name: 'Ventas suspendidas', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Ventas suspendidas' })).toBeVisible()
 })
 

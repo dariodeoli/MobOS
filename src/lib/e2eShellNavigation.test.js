@@ -39,67 +39,82 @@ test('E2E journey contracts identify real permitted primary/context destinations
   }
 })
 
-test('desktop journey uses primary and scoped context controls, never route shortcuts', async () => {
+// Minimal page double: records every click so the journey can be asserted.
+function fakePage({ desktop, sectionsInBar = [], segmentsPresent = false }) {
   const calls = []
-  const primary = {
-    getByRole: (_, options) => ({
-      click: async () => calls.push(['primary', options.name]),
-      getAttribute: async () => 'page',
-    }),
-  }
-  const context = {
+  const tab = (scope, selector) => ({
     count: async () => 1,
-    locator: () => ({
-      isVisible: async () => false,
-      locator: () => ({ textContent: async () => 'Clientes' }),
-    }),
-    getByRole: (role, options) =>
-      role === 'combobox'
-        ? {}
-        : { click: async () => calls.push(['context', options.name]) },
-  }
+    click: async () => calls.push([scope, selector.match(/data-tab-id="([^"]+)"/)[1]]),
+  })
+  const button = (scope, name) => ({
+    count: async () => (sectionsInBar.includes(name) ? 1 : 0),
+    click: async () => calls.push([scope, name]),
+    getAttribute: async () => 'page',
+  })
+  const container = scope => ({
+    count: async () => 1,
+    waitFor: async () => {},
+    locator: selector => {
+      const match = selector.match(/\[data-tab-id="([^"]+)"\]\[aria-current="page"\]/)
+      return match ? { count: async () => 1 } : tab(scope, selector)
+    },
+  })
+  const bar = scope => ({ getByRole: (_, options) => button(scope, options.name) })
   const page = {
-    getByTestId: id =>
-      id === 'shell-lateral'
-        ? { waitFor: async () => {}, getByRole: () => ({ ...primary, isVisible: async () => true }) }
-        : id === 'shell-contexto'
-          ? context
-          : { getByRole: () => ({ count: async () => 0 }) },
+    getByTestId: id => {
+      if (id === 'shell-lateral')
+        return {
+          waitFor: async () => {},
+          getByRole: () => ({ isVisible: async () => desktop, ...bar('primary') }),
+        }
+      if (id === 'shell-bottom-nav') return bar('primary')
+      if (id === 'shell-contexto') return container('tab')
+      if (id === 'shell-subcontexto')
+        return segmentsPresent ? container('segment') : { count: async () => 0, waitFor: async () => {} }
+      if (id === 'shell-mas')
+        return {
+          count: async () => 1,
+          // «Más» solo se ve en la barra inferior (móvil).
+          isVisible: async () => !desktop,
+          click: async () => calls.push(['mas', 'Más']),
+          getAttribute: async () => 'page',
+        }
+      if (id === 'shell-mas-hoja') return bar('sheet')
+      throw new Error(id)
+    },
   }
-  await openShellDestination(page, 'Clientes')
+  return { page, calls }
+}
+
+test('desktop journey clicks the primary section and its context tab, never route shortcuts', async () => {
+  const { page, calls } = fakePage({ desktop: true, sectionsInBar: ['Clientes', 'Stock'] })
+  await openShellDestination(page, 'Promociones')
   assert.deepEqual(calls, [
-    ['primary', 'Ventas'],
-    ['context', 'Clientes'],
+    ['primary', 'Clientes'],
+    ['tab', 'promociones'],
   ])
   assert.doesNotMatch(source, /\.goto\(|\.navigate\(/)
+  assert.doesNotMatch(source, /selectOption/, 'tabs are clicked, never chosen from a native select')
 })
 
-test('mobile journey selects the real native area rather than a hidden desktop button', async () => {
-  const calls = []
-  const page = {
-    getByTestId: id =>
-      id === 'shell-lateral'
-        ? { waitFor: async () => {}, getByRole: () => ({ isVisible: async () => false }) }
-        : id === 'shell-bottom-nav'
-          ? {
-            getByRole: (_, options) => ({
-              click: async () => calls.push(options.name),
-              getAttribute: async () => 'page',
-            }),
-          }
-          : id === 'shell-contexto'
-            ? {
-                count: async () => 1,
-                locator: () => ({
-                  isVisible: async () => true,
-                  selectOption: async value => calls.push(value),
-                  inputValue: async () => 'clientes',
-                }),
-              }
-            : { getByRole: () => ({ count: async () => 0 }) },
-  }
-  await openShellDestination(page, 'Clientes')
-  assert.deepEqual(calls, ['Ventas', 'clientes'])
+test('segmented destinations are reached by clicking the tab, then the segment', async () => {
+  const { page, calls } = fakePage({ desktop: true, sectionsInBar: ['Stock'], segmentsPresent: true })
+  await openShellDestination(page, 'Lista por modelo')
+  assert.deepEqual(calls, [
+    ['primary', 'Stock'],
+    ['tab', 'precios'],
+    ['segment', 'celulares'],
+  ])
+})
+
+test('mobile journey reaches sections outside the bottom bar through the Más sheet', async () => {
+  const { page, calls } = fakePage({ desktop: false, sectionsInBar: ['Stock'] })
+  await openShellDestination(page, 'Compras del Centro')
+  assert.deepEqual(calls, [
+    ['mas', 'Más'],
+    ['sheet', 'Compras'],
+    ['tab', 'compras-centro'],
+  ])
 })
 
 test('unknown journey fails closed without clicking a destination', async () => {

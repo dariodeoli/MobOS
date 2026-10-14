@@ -130,11 +130,11 @@ export default function Gastos() {
   const total = rows.filter(row => row.kind === 'EXPENSE' && row.status !== 'VOID').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
   const chequesPendientes = rows.filter(row => row.kind === 'CHEQUE' && row.status === 'PENDING').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
 
-  return <div className="space-y-4">
+  return <div className="space-y-3">
     <div className="grid gap-3 sm:grid-cols-3" data-testid="gastos-resumen">
-      <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="gastos-total"><p className="text-xs text-mute">Gastos (sin anular)</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(total)}</strong></div>
-      <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="gastos-cheques"><p className="text-xs text-mute">Cheques pendientes</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', chequesPendientes > 0 ? 'text-warn' : 'text-mute')}>{gs(chequesPendientes)}</strong></div>
-      <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="gastos-movimientos"><p className="text-xs text-mute">Movimientos en el libro</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{rows.length}</strong></div>
+      <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="gastos-total"><p className="text-xs leading-4 text-mute">Gastos (sin anular)</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(total)}</strong></div>
+      <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="gastos-cheques"><p className="text-xs leading-4 text-mute">Cheques pendientes</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl', chequesPendientes > 0 ? 'text-warn' : 'text-mute')}>{gs(chequesPendientes)}</strong></div>
+      <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="gastos-movimientos"><p className="text-xs leading-4 text-mute">Movimientos en el libro</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{rows.length}</strong></div>
     </div>
     <Card className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">

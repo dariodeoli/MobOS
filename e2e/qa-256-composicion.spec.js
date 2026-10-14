@@ -25,12 +25,13 @@ test.describe('composición compacta', () => {
     // La fecha ya no va en la barra (el shell pone el título): acompaña al
     // resumen de la venta, dentro de «Detalles de la venta y del día».
     await expect(page.getByText(/Fecha: \d{2}\/\d{2}\/\d{4}/)).toBeAttached()
-    // #309: gift cards, analytics y ventas suspendidas viven en «Más» para no
-    // llenar la barra; la principal de la venta sigue a mano.
-    await barra.getByTestId('pos-mas').click()
-    for (const accion of ['Analytics', 'Ventas suspendidas']) {
-      await expect(page.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
+    // Ventas suspendidas y Gift cards son botones de la barra; Analytics y
+    // «Más» ya no existen en el POS.
+    for (const accion of ['Ventas suspendidas', 'Gift cards']) {
+      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }
+    await expect(barra.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
+    await expect(barra.getByTestId('pos-mas')).toHaveCount(0)
   })
 
   test('Clientes: resumen con alcance explícito y acciones en la barra', async ({ page }) => {
@@ -59,8 +60,9 @@ test.describe('composición compacta', () => {
     // #320: la identidad visible es una sola (el h1 del shell); la barra no
     // repite el título: agrupa contexto y acciones.
     await expect(barra.getByRole('heading')).toHaveCount(0)
-    await expect(barra).toHaveAttribute('aria-label', 'Stock')
+    await expect(barra.getByRole('group', { name: 'Acciones de Stock' })).toHaveCount(1)
     // #305: buscador y filtros viven en la barra, con la acción primaria.
+    await expect(barra.getByTestId('filtros-stock')).toBeVisible()
     await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
     await expect(barra.getByRole('button', { name: '+ Recibir unidad', exact: true })).toBeVisible()
 
@@ -76,16 +78,17 @@ test.describe('composición compacta', () => {
     }
     await page.keyboard.press('Escape')
 
-    // #305/U3: navegación agrupada Unidades · Reservas · Movimientos · Control,
-    // con las vistas de cada sección en una segunda fila.
-    const tabs = page.getByTestId('tabs-inventario')
-    for (const seccion of ['Unidades', 'Reservas', 'Movimientos', 'Control']) {
-      await expect(tabs.getByRole('tab', { name: seccion })).toBeVisible()
+    // #305/U3 + rediseño 2A: navegación agrupada en pestañas del shell (Unidades ·
+    // Productos · Traslados · Control · Precios), con las vistas de cada pestaña
+    // como segundo nivel en su barra.
+    const contexto = page.getByTestId('shell-contexto')
+    for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios']) {
+      await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
     }
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
-    await tabs.getByRole('tab', { name: 'Movimientos' }).click()
+    await contexto.locator('[data-tab-id="traslados"]').click()
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toBeVisible()
-    await tabs.getByRole('tab', { name: 'Control' }).click()
+    await contexto.locator('[data-tab-id="control"]').click()
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'Conteos', exact: true })).toBeVisible()
     for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
 
@@ -106,8 +109,9 @@ test.describe('composición compacta', () => {
     const resumen = page.getByTestId('resumen-productos')
     await expect(resumen).toBeVisible()
     await expect(resumen.locator('> div')).toHaveCount(4)
-    // El catálogo se carga paginado: todas las métricas declaran su alcance.
-    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+    // El catálogo se carga paginado: todas las métricas comparten el alcance y
+    // la tira lo declara una sola vez.
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(1)
     await expect(resumen.getByText('Valor a costo')).toBeVisible()
 
     // Consulta agrupada: búsqueda + categoría + condición + vista.
@@ -131,7 +135,8 @@ test.describe('composición compacta', () => {
     const resumen = page.getByTestId('resumen-compras')
     if (await resumen.count()) {
       await expect(resumen.locator('> div')).toHaveCount(4)
-      await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+      // Mismo alcance en todas las métricas: se declara una vez para la tira.
+      await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(1)
     }
   })
 

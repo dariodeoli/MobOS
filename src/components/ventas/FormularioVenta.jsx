@@ -54,7 +54,6 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
-import AnalyticsPos from './AnalyticsPos'
 import GiftCardsPos from './venta/GiftCardsPos'
 import { buscarGiftCardDemo, canjearGiftCardDemo, normalizarCodigoGiftCard } from '@/lib/giftCards'
 import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
@@ -248,6 +247,33 @@ function ResumenVenta({ items, unidades, montoDescuento, montoDelivery, dia }) {
   )
 }
 
+// Columna lateral del POS en escritorio: queda pegada arriba (sticky) y su alto
+// máximo es lo que entra en pantalla desde donde está hasta el borde inferior,
+// así «Cobrar» se alcanza sin deslizar la página.
+function useColumnaPegada(ref) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof window === 'undefined') return undefined
+    const escritorio = window.matchMedia('(min-width: 1024px)')
+    let raf = 0
+    const medir = () => {
+      raf = 0
+      if (!escritorio.matches) { el.style.removeProperty('--pos-col-max'); return }
+      const arriba = Math.max(16, el.getBoundingClientRect().top)
+      el.style.setProperty('--pos-col-max', `${Math.max(320, Math.floor(window.innerHeight - arriba - 16))}px`)
+    }
+    const pedir = () => { if (!raf) raf = requestAnimationFrame(medir) }
+    medir()
+    window.addEventListener('scroll', pedir, { passive: true })
+    window.addEventListener('resize', pedir)
+    return () => {
+      window.removeEventListener('scroll', pedir)
+      window.removeEventListener('resize', pedir)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [ref])
+}
+
 export default function FormularioVenta({
   onGuardado,
   onCarrito,
@@ -257,6 +283,8 @@ export default function FormularioVenta({
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
+  const columnaVentaRef = useRef(null)
+  useColumnaPegada(columnaVentaRef)
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -346,8 +374,6 @@ export default function FormularioVenta({
   const [cargandoSuspendidas, setCargandoSuspendidas] = useState(false)
   const [errorSuspendidas, setErrorSuspendidas] = useState('')
   // #309: menú «Más» del encabezado (cierra al elegir una herramienta).
-  const refHerramientas = useRef(null)
-  const cerrarHerramientas = () => { if (refHerramientas.current) refHerramientas.current.open = false }
   const toast = useToast()
   // #308: familia con más de una variante esperando elección explícita.
   const [variantePara, setVariantePara] = useState(null)
@@ -362,7 +388,6 @@ export default function FormularioVenta({
   // Enlace público del borrador recién generado (se muestra una sola vez).
   const [enlacePublico, setEnlacePublico] = useState(null)
   const [avisoEnlace, setAvisoEnlace] = useState('')
-  const [analyticsOpen, setAnalyticsOpen] = useState(false)
   // Producto leído por el escáner: se muestra y se agrega recién al confirmar
   // (evita sumar al carrito por una lectura accidental).
   const [escaneado, setEscaneado] = useState(null)
@@ -1789,72 +1814,38 @@ export default function FormularioVenta({
     return () => document.removeEventListener('keydown', onKey)
   })
 
-  return (
-    <Card className="p-4 md:p-5">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-ink-600 pb-4">
-        {/* Composición compacta (#256): una sola barra con la identidad del
-            módulo, la fecha y las acciones juntas; el título sigue siendo un h2
-            para los tests y lectores, sin el bloque grande duplicado. */}
-        <BarraModulo
-          titulo="Nueva venta"
-          testId="barra-pos"
-        >
-          {/* #309: las herramientas del POS (gift cards, analytics y ventas
-              suspendidas) viven en «Más» para no llenar la barra del módulo.
-              Suspender la venta en curso queda a mano, junto al carrito. */}
-          <details ref={refHerramientas} className="relative">
-            <summary data-testid="pos-mas" className="inline-flex h-11 cursor-pointer list-none select-none items-center gap-2 rounded-lg border border-ink-500 px-4 text-sm font-semibold transition hover:border-fono hover:bg-fono/10 md:h-9 [&::-webkit-details-marker]:hidden">
-              <Icon name="menu" className="h-4 w-4" />
-              Más
-            </summary>
-            <div
-              role="menu"
-              aria-label="Herramientas de la venta"
-              className="absolute left-0 z-30 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-xl sm:left-auto sm:right-0 border border-ink-600 bg-ink-800 p-1 shadow-xl"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-                onClick={() => { cerrarHerramientas(); setGiftCardsOpen(true) }}
-              >
-                <Icon name="card" className="h-4 w-4" />
-                Gift cards
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-                onClick={() => { cerrarHerramientas(); setAnalyticsOpen(true) }}
-              >
-                <Icon name="chart" className="h-4 w-4" />
-                Analytics
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-                onClick={() => { cerrarHerramientas(); abrirSuspendidas() }}
-              >
-                <Icon name="clock" className="h-4 w-4" />
-                Ventas suspendidas
-              </button>
-            </div>
-          </details>
-          {items.length > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={abrirSuspender}
-              disabled={guardando}
-            >
-              <Icon name="save" className="h-4 w-4" />
-              Suspender venta
-            </Button>
-          )}
-        </BarraModulo>
-      </div>
+  // Las herramientas del POS viven en el encabezado del bloque Productos: sin
+  // una franja propia sobre la grilla.
+  const barraPos = (
+      <BarraModulo
+        titulo="Nueva venta"
+        testId="barra-pos"
+        className="w-auto justify-end border-b-0 pb-0"
+      >
+        {items.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={abrirSuspender}
+            disabled={guardando}
+          >
+            <Icon name="save" className="h-4 w-4" />
+            Suspender venta
+          </Button>
+        )}
+        <Button type="button" variant="outline" data-testid="pos-suspendidas" onClick={abrirSuspendidas}>
+          <Icon name="clock" className="h-4 w-4" />
+          Ventas suspendidas
+        </Button>
+        <Button type="button" variant="outline" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)}>
+          <Icon name="card" className="h-4 w-4" />
+          Gift cards
+        </Button>
+      </BarraModulo>
+  )
 
+  return (
+    <Card className="p-3 md:p-4">
       {ok && (
         <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
@@ -1985,8 +1976,13 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
+        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
           <div className="flex min-w-0 flex-col gap-4">
+            {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
+            <PosCustomer
+              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={setCustomer}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
+            />
             <PasoProductos
               sesion={sesion}
               esDemo={esDemo}
@@ -2021,6 +2017,7 @@ export default function FormularioVenta({
               variantePara={variantePara}
               onElegirVariante={(familia, opciones) => elegirVariante(familia, opciones)}
               onCerrarVariante={() => setVariantePara(null)}
+              acciones={barraPos}
             />
 
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
@@ -2032,12 +2029,14 @@ export default function FormularioVenta({
             </div>
           </div>
 
-          {/* Carrito fijo + cobro y entrega: la venta se lee y se cobra acá. */}
-          <div className="flex min-w-0 flex-col gap-4">
-            <PosCustomer
-              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={setCustomer}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
-            />
+          {/* Columna de la venta (carrito + cobro y entrega): pegada como un solo
+              bloque al deslizar el catálogo; si es más alta que la pantalla se
+              desplaza por dentro y «Cobrar» queda fijo al pie. */}
+          <div
+            ref={columnaVentaRef}
+            data-testid="pos-columna-venta"
+            className="pos-columna-venta flex min-w-0 flex-col gap-4 [&>*]:shrink-0"
+          >
             <PasoCarrito
               items={items}
               productos={productos}
@@ -2413,7 +2412,6 @@ export default function FormularioVenta({
         busy={descartando}
       />
 
-      <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
       <GiftCardsPos
         open={giftCardsOpen}
         onClose={() => setGiftCardsOpen(false)}

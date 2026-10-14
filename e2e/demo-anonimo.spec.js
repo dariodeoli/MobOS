@@ -136,12 +136,12 @@ const MODULOS_OWNER = [
   ['/resumen', 'Inicio'],
   ['/analisis', 'Reportes'],
   ['/finanzas', 'Caja'],
-  ['/configuracion', 'Mi cuenta'],
+  ['/configuracion', 'Organización'],
   ['/configuracion/organizacion', 'Organización'],
   ['/configuracion/equipo', 'Equipo y acceso'],
   ['/configuracion/comercial', 'Comercial'],
   ['/configuracion/seguridad', 'Seguridad y auditoría'],
-  ['/configuracion/dispositivos', 'Dispositivos'],
+  ['/configuracion/dispositivos', 'Impresión y dispositivos'],
   ['/ayuda/ayuda', 'Ayuda'],
   ['/configuracion/sistema', 'Sistema'],
 ]
@@ -619,8 +619,7 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 
   // La lista muestra etiqueta, cliente y vendedor del borrador.
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-suspendidas').click()
   const lista = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await expect(lista.getByText('Borrador demo QA')).toBeVisible()
   await expect(lista.getByText(/Cliente borrador demo/)).toBeVisible()
@@ -637,8 +636,7 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ })).toBeVisible()
   await expect(lista).toHaveCount(0)
 
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-suspendidas').click()
   const retomadas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await retomadas.getByRole('tab', { name: /Retomadas \(1\)/ }).click()
   await expect(retomadas.getByText(/Retomada por Diego López/)).toBeVisible()
@@ -648,8 +646,7 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await page.getByRole('button', { name: 'Suspender venta' }).click()
   await page.getByRole('dialog', { name: 'Suspender venta' }).getByRole('button', { name: 'Suspender venta' }).click()
   await expect(page.getByText(/Venta suspendida en la demo/)).toBeVisible()
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-suspendidas').click()
   const lista2 = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await lista2.getByRole('button', { name: 'Descartar' }).click()
   await page.getByRole('dialog', { name: 'Descartar venta suspendida' }).getByRole('button', { name: 'Descartar' }).click()

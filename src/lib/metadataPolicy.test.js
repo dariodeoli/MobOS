@@ -89,7 +89,7 @@ test('configuration subpages keep their own child slug in the URL and the title'
     '/configuracion/equipo': 'Equipo y acceso',
     '/configuracion/comercial': 'Comercial',
     '/configuracion/seguridad': 'Seguridad y auditoría',
-    '/configuracion/dispositivos': 'Dispositivos',
+    '/configuracion/dispositivos': 'Impresión y dispositivos',
     '/configuracion/sistema': 'Estado del sistema',
     // Ayuda sale de Configuración (Documentación vive ahí).
     '/ayuda': 'Ayuda',

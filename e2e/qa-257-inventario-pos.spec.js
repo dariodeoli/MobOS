@@ -46,7 +46,12 @@ test('el producto creado en Inventario aparece en el POS al volver sin recargar 
   // 1) POS cargado (catálogo hidratado al arrancar).
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
+  // El catálogo del POS es denso y paginado («Ver más»): con tantos productos de otras specs el
+  // iPhone sembrado puede quedar en otra página, así que la hidratación se verifica por la
+  // búsqueda (no por la primera página).
+  await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 E2E Serial')
   await expect(page.getByRole('button', { name: /iPhone 15 E2E Serial/ }).first()).toBeVisible({ timeout: 20_000 })
+  await page.getByPlaceholder('Buscar producto…').fill('')
 
   // 2) Alta en Inventario (como si fuese otra pestaña o el dueño en Productos).
   const productId = await crearProductoInventario(page, nombre)
@@ -83,7 +88,12 @@ test('el producto creado en Inventario aparece en el POS tras recargar (#257)', 
 
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
+  // El catálogo del POS es denso y paginado («Ver más»): con tantos productos de otras specs el
+  // iPhone sembrado puede quedar en otra página, así que la hidratación se verifica por la
+  // búsqueda (no por la primera página).
+  await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 E2E Serial')
   await expect(page.getByRole('button', { name: /iPhone 15 E2E Serial/ }).first()).toBeVisible({ timeout: 20_000 })
+  await page.getByPlaceholder('Buscar producto…').fill('')
   await page.waitForTimeout(2500) // deja guardar la foto local del catálogo
 
   const productId = await crearProductoInventario(page, nombre)

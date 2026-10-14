@@ -139,7 +139,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await paymentsSection.getByLabel('Cuenta de cobro').first().click()
   await page.getByRole('option', { name: /Caja E2E/ }).click()
   await paymentsSection.getByLabel('Monto original').fill('210000')
-  await expect(paymentsSection.getByText('Pendiente').first().locator('strong')).toHaveText('Gs 0')
+  await expect(page.getByTestId('cobro-pendiente').locator('strong')).toHaveText('Gs 0')
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   // #275: al confirmar, la app va sola al detalle del pedido recién creado.
   await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })

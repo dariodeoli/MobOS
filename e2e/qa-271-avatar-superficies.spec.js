@@ -102,7 +102,7 @@ test('ninguna superficie pinta una foto antes de resolver (y después muestra la
     await page.screenshot({ path: join(DIR, `superficie-${nombreSuperficie}-sin-foto.jpg`), type: 'jpeg', quality: 70 })
     liberar()
     if (muestraFoto) {
-      await expect(page.locator('img[alt^="Foto de"]').first()).toBeVisible({ timeout: 20_000 })
+      await expect(page.locator('img[alt^="Foto de"]:visible').first()).toBeVisible({ timeout: 20_000 })
       await page.screenshot({ path: join(DIR, `superficie-${nombreSuperficie}-con-foto.jpg`), type: 'jpeg', quality: 70 })
     } else {
       await expect.poll(() => enCurso.size, { timeout: 15_000 }).toBe(0)

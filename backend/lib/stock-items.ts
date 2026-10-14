@@ -53,9 +53,12 @@ export type StockItem = {
   model: string
   name: string
   serial: string | null
+  // NEW/USED/… de la unidad; null en filas de producto. Lo usa el orden por condición.
+  condition: string | null
   batteryHealth: number | null
   supplierId: string | null
   supplierName: string | null
+  consignorName: string | null
   costPyg: number | null
   status: StockItemStatus
   quantity: number
@@ -191,9 +194,10 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
   const cost = scope.canSeeCost
   return Prisma.sql`(SELECT 'unit'::text AS "kind", u."id" AS "id", ${unitStockKind} AS "stockKind", p."id" AS "productId", p."sku" AS "sku",
       NULLIF(btrim(concat_ws(' ', p."model", p."capacity", p."color")), '') AS "model", p."name" AS "name",
-      u."serial" AS "serial", u."batteryHealth" AS "batteryHealth",
+      u."serial" AS "serial", u."condition"::text AS "condition", u."batteryHealth" AS "batteryHealth",
       ${cost ? Prisma.sql`u."supplierId"` : Prisma.sql`NULL::text`} AS "supplierId",
       ${cost ? Prisma.sql`COALESCE(s."name", u."supplierName")` : Prisma.sql`NULL::text`} AS "supplierName",
+      ${cost ? Prisma.sql`u."consignorName"` : Prisma.sql`NULL::text`} AS "consignorName",
       ${cost ? Prisma.sql`u."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr} AS "status", 1 AS "quantity",
       u."branchId" AS "branchId", b."name" AS "branchName", u."locationId" AS "locationId", l."name" AS "locationName",
@@ -258,7 +262,7 @@ function productsBranch(filters: StockItemsFilters, scope: StockItemsScope, curs
   }
   return Prisma.sql`(SELECT 'product'::text AS "kind", p."id" AS "id", ${productStockKind} AS "stockKind", p."id" AS "productId", p."sku" AS "sku",
       NULLIF(btrim(concat_ws(' ', p."model", p."capacity", p."color")), '') AS "model", p."name" AS "name",
-      NULL::text AS "serial", NULL::int AS "batteryHealth", NULL::text AS "supplierId", NULL::text AS "supplierName",
+      NULL::text AS "serial", NULL::text AS "condition", NULL::int AS "batteryHealth", NULL::text AS "supplierId", NULL::text AS "supplierName", NULL::text AS "consignorName",
       ${scope.canSeeCost ? Prisma.sql`p."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr}::text AS "status", ${vendido ? Prisma.sql`sold."qty"` : Prisma.sql`GREATEST(p."stock", 0)`}::int AS "quantity",
       p."branchId" AS "branchId", b."name" AS "branchName", NULL::text AS "locationId", NULL::text AS "locationName",
@@ -293,16 +297,17 @@ type RawRow = Record<string, unknown> & { sortKey?: Date | string }
 const toNumber = (value: unknown) => value === null || value === undefined ? null : Number(value)
 
 /** Última barrera: sin permiso de costos no sale costo, proveedor ni consignación. */
-export function redactStockItem<T extends { costPyg: unknown; supplierId: unknown; supplierName: unknown }>(item: T, canSeeCost: boolean): T {
-  return canSeeCost ? item : { ...item, costPyg: null, supplierId: null, supplierName: null }
+export function redactStockItem<T extends { costPyg: unknown; supplierId: unknown; supplierName: unknown; consignorName?: unknown }>(item: T, canSeeCost: boolean): T {
+  return canSeeCost ? item : { ...item, costPyg: null, supplierId: null, supplierName: null, consignorName: null }
 }
 
 export function mapStockRow(row: RawRow, canSeeCost: boolean): StockItem {
   return redactStockItem({
     id: String(row.id), kind: row.kind as StockRowKind, stockKind: row.stockKind as StockKind, productId: String(row.productId),
     sku: String(row.sku ?? ''), model: String(row.model ?? ''), name: String(row.name ?? ''),
-    serial: (row.serial as string | null) ?? null, batteryHealth: toNumber(row.batteryHealth),
+    serial: (row.serial as string | null) ?? null, condition: (row.condition as string | null) ?? null, batteryHealth: toNumber(row.batteryHealth),
     supplierId: (row.supplierId as string | null) ?? null, supplierName: (row.supplierName as string | null) ?? null,
+    consignorName: (row.consignorName as string | null) ?? null,
     costPyg: toNumber(row.costPyg), status: row.status as StockItemStatus, quantity: Number(row.quantity),
     branchId: (row.branchId as string | null) ?? null, branchName: (row.branchName as string | null) ?? null,
     locationId: (row.locationId as string | null) ?? null, locationName: (row.locationName as string | null) ?? null,

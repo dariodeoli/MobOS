@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
 import { useSesion } from '@/lib/sesion'
@@ -8,7 +8,8 @@ import { fechaHora } from '@/utils/fecha'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
-import { Badge, Button, Card, CeldaMoneda, DataTable, EmptyState, Select, Stat } from '@/components/ui'
+import { Badge, Button, Card, CeldaMoneda, EmptyState, Select, Stat } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
 import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
@@ -22,11 +23,20 @@ import {
   esGrupoPorLinea,
   filasCsv,
   filasReporte,
+  filasImpresion,
   nombreArchivoCsv,
   rangoValido,
 } from '@/utils/reportes'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import Toolbar from '@/components/shared/Toolbar'
+import StatusChip from '@/components/shared/StatusChip'
 import { CELDA_NUMERO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import './finanzasTactil.css'
+
+// Todos los botones de la barra miden lo mismo: 44px bajo lg y 36px en escritorio.
+const BOTON_CONTROL = 'md:h-11 lg:h-9'
 
 const rangoInicial = () => ({ ...(PRESETS.find((p) => p.id === '30d') || PRESETS[0]).calc(), preset: '30d' })
 
@@ -108,7 +118,7 @@ export default function Reportes() {
   }, [rango, tipo])
 
   const totales = datos?.totals || null
-  const grupos = datos?.groups || []
+  const grupos = useMemo(() => datos?.groups || [], [datos])
   // Resultado por día (#181): Reportes reutiliza el calendario y los cálculos
   // de Ganancias. Ingresos/costo del reporte diario; gastos y publicidad de
   // Finanzas, con las mismas fórmulas que Análisis → Ganancias.
@@ -121,16 +131,34 @@ export default function Reportes() {
   const gananciaPeriodo = tipo === 'comisiones' || !totales ? null : gananciaDeRango(rango, datosGanancia, totales)
   const columnas = columnasReporte(grupo)
   const porLinea = esGrupoPorLinea(grupo)
-  // Columnas para DataTable: mismos encabezados, alineación y clases por tipo
-  // que la tabla escrita a mano.
+  // Columnas del listado: mismos encabezados y alineación que antes. Texto
+  // flexible; los montos con piso en rem para que nunca se corte una cifra.
   const columnasTabla = columnas.map((c) => ({
     key: c.key,
-    label: c.label,
+    header: c.label,
     align: c.tipo === 'texto' ? undefined : 'right',
-    render: (g) => c.tipo === 'texto'
-      ? <span className="font-medium text-fore">{g[c.key]}</span>
-      : <span className="tabular-nums text-mute">{c.tipo === 'monto' ? gs(g[c.key]) : g[c.key]}</span>,
+    dinero: c.tipo === 'monto',
+    ancho: c.tipo === 'texto' ? 'minmax(0,1.6fr)' : c.tipo === 'monto' ? 'minmax(8.5rem,1fr)' : 'minmax(4.5rem,0.6fr)',
+    className: c.tipo === 'texto' ? 'font-medium text-fore' : 'text-xs text-mute',
+    cell: (g) => (c.tipo === 'monto' ? gs(g[c.key]) : g[c.key]),
   }))
+  const listaGrupos = usePaginaLista(grupos, { tamano: { compacto: 8, amplio: 20 } })
+  const vendedores = datosComisiones?.sellers || []
+  const listaVendedores = usePaginaLista(vendedores, { tamano: { compacto: 8, amplio: 20 } })
+  // Curva ABC (#171): la clase y el % acumulado vienen del servidor; el
+  // cálculo local queda solo como respaldo de compatibilidad.
+  const filasAbc = useMemo(() => {
+    const totalVenta = grupos.reduce((suma, g) => suma + Number(g.grossPyg || 0), 0) || 1
+    let acumulado = 0
+    return [...grupos].sort((a, b) => Number(b.grossPyg || 0) - Number(a.grossPyg || 0)).map((g) => {
+      acumulado += Number(g.grossPyg || 0)
+      const pct = g.accumulatedPct === null || g.accumulatedPct === undefined ? (acumulado / totalVenta) * 100 : Number(g.accumulatedPct)
+      const clase = g.abcClass || (pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C')
+      const dias = g.oldestUnitAt ? Math.max(0, Math.floor((Date.now() - new Date(g.oldestUnitAt).getTime()) / 86400000)) : null
+      return { g, key: g.key, pct, clase, dias }
+    })
+  }, [grupos])
+  const listaAbc = usePaginaLista(filasAbc, { tamano: { compacto: 8, amplio: 20 } })
 
   async function exportar() {
     if (tipo === 'comisiones') {
@@ -155,38 +183,47 @@ export default function Reportes() {
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <RangoFechas valor={rango} onChange={cambiarRango} />
-          <Select value={tipo} onChange={(e) => setTipo(e.target.value)} className="h-9 w-auto">
-            <option value="ventas">Ventas</option>
-            {puedeComisiones && <option value="comisiones">Comisiones por vendedor</option>}
-          </Select>
-          {tipo !== 'comisiones' && (
-            <Select value={grupo} onChange={(e) => setGrupo(e.target.value)} className="h-9 w-auto">
-              {GRUPOS.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.plural}
-                </option>
-              ))}
-            </Select>
+    <div className="finanzas-tactil space-y-4">
+      <Card className="p-3">
+        <Toolbar
+          plano
+          label="Controles del reporte"
+          testId="reportes-toolbar"
+          filters={(
+            <>
+              <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 lg:[&>button]:h-9" />
+              <Select aria-label="Tipo de reporte" value={tipo} onChange={(e) => setTipo(e.target.value)} className="h-11 w-auto lg:h-9">
+                <option value="ventas">Ventas</option>
+                {puedeComisiones && <option value="comisiones">Comisiones por vendedor</option>}
+              </Select>
+              {tipo !== 'comisiones' && (
+                <Select aria-label="Agrupar por" value={grupo} onChange={(e) => setGrupo(e.target.value)} className="h-11 w-auto lg:h-9">
+                  {GRUPOS.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.plural}
+                    </option>
+                  ))}
+                </Select>
+              )}
+              <Button variant="outline" className={BOTON_CONTROL} onClick={cargar} disabled={cargando}>
+                <Icon name="refresh" className={cargando ? 'animate-spin' : ''} />
+                {cargando ? 'Cargando…' : 'Actualizar'}
+              </Button>
+            </>
           )}
-          <Button variant="outline" onClick={cargar} disabled={cargando}>
-            <Icon name="refresh" className={cargando ? 'animate-spin' : ''} />
-            {cargando ? 'Cargando…' : 'Actualizar'}
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="min-h-11 px-3 text-xs md:h-9 md:min-h-0" onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
-            <Icon name="download" />
-            {exportando ? 'Exportando…' : 'Exportar CSV'}
-          </Button>
-          <Button variant="outline" onClick={() => window.print()} disabled={!datos || !grupos.length}>
-            <Icon name="report" />
-            Imprimir
-          </Button>
-        </div>
+          more={(
+            <Button variant="outline" className={BOTON_CONTROL} onClick={() => window.print()} disabled={!datos || !grupos.length}>
+              <Icon name="report" />
+              Imprimir
+            </Button>
+          )}
+          primary={(
+            <Button variant="outline" className={BOTON_CONTROL} onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
+              <Icon name="download" />
+              {exportando ? 'Exportando…' : 'Exportar CSV'}
+            </Button>
+          )}
+        />
       </Card>
 
       {exportError && (
@@ -213,11 +250,11 @@ export default function Reportes() {
 
       {datosComisiones && tipo === 'comisiones' && (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={`${etiquetaRango(rango)}`} />
-            <Stat label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
-            <Stat label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
-          </div>
+          <StatGrid columnas={3}>
+            <Stat compact label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={`${etiquetaRango(rango)}`} />
+            <Stat compact label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
+            <Stat compact className="col-span-2 md:col-span-1" label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
+          </StatGrid>
 
           {datosComisiones.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
 
@@ -231,33 +268,44 @@ export default function Reportes() {
               />
             </Card>
           ) : (
-            <Card className="overflow-hidden p-0">
-              <DataTable
-                columns={[
-                  { key: 'sellerName', label: 'Vendedor', render: (fila) => <span className="font-medium text-fore">{fila.sellerName || 'Sin vendedor'}</span> },
-                  { key: 'totalPyg', label: 'Ventas', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{gs(fila.totalPyg)}</span> },
-                  { key: 'marginPyg', label: 'Margen', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{gs(fila.marginPyg)}</span> },
-                  { key: 'commissionPct', label: '% comisión', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${formatPercent(fila.commissionPct)}%`}</span> },
-                  { key: 'commissionPyg', label: 'Comisión', align: 'right', render: (fila) => <span className="tabular-nums font-semibold text-fore">{gs(fila.commissionPyg)}</span> },
-                ]}
-                rows={datosComisiones.sellers.map((fila) => ({ ...fila, key: fila.sellerId }))}
-                mobileCard={(fila) => (
-                  <Card className="p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-[13px] font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
-                      <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${formatPercent(fila.commissionPct)}%`}</Badge>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <Linea label="Ventas" valor={gs(fila.totalPyg)} />
-                      <Linea label="Órdenes" valor={fila.orders} />
-                      <Linea label="Margen" valor={gs(fila.marginPyg)} />
-                      <Linea label="Comisión" valor={gs(fila.commissionPyg)} />
-                    </div>
-                  </Card>
-                )}
-              />
-            </Card>
+            <ListaDensa
+              lista={listaVendedores}
+              testId="reportes-comisiones-tabla"
+              className="print:hidden"
+              etiquetaTabla="Comisiones por vendedor"
+              etiquetaPie="Páginas de vendedores"
+              unidad="vendedores"
+              obtenerClave={(fila) => fila.sellerId}
+              columns={[
+                { key: 'sellerName', header: 'Vendedor', ancho: 'minmax(0,1.6fr)', className: 'font-medium text-fore', cell: (fila) => fila.sellerName || 'Sin vendedor' },
+                { key: 'totalPyg', dinero: true, header: 'Ventas', align: 'right', ancho: 'minmax(8.5rem,1fr)', className: 'text-xs text-mute', cell: (fila) => gs(fila.totalPyg) },
+                { key: 'marginPyg', dinero: true, header: 'Margen', align: 'right', ancho: 'minmax(8.5rem,1fr)', className: 'text-xs text-mute', cell: (fila) => gs(fila.marginPyg) },
+                { key: 'commissionPct', header: '% comisión', align: 'right', ancho: '6rem', className: 'text-xs text-mute', cell: (fila) => (fila.commissionPct === null ? '—' : `${formatPercent(fila.commissionPct)}%`) },
+                { key: 'commissionPyg', dinero: true, header: 'Comisión', align: 'right', ancho: 'minmax(8.5rem,1fr)', className: 'text-xs font-semibold text-fore', cell: (fila) => gs(fila.commissionPyg) },
+              ]}
+              renderCard={(fila) => (
+                <Card className="p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-[13px] font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
+                    <StatusChip tono={fila.commissionPct === null ? 'neutral' : 'ok'} etiqueta={fila.commissionPct === null ? 'Sin regla' : `${formatPercent(fila.commissionPct)}%`} />
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Linea label="Ventas" valor={gs(fila.totalPyg)} />
+                    <Linea label="Órdenes" valor={fila.orders} />
+                    <Linea label="Margen" valor={gs(fila.marginPyg)} />
+                    <Linea label="Comisión" valor={gs(fila.commissionPyg)} />
+                  </div>
+                </Card>
+              )}
+            />
           )}
+
+          <TablaImpresion
+            testId="reportes-comisiones-impresion"
+            titulo="Comisiones por vendedor (completo)"
+            encabezados={['Vendedor', 'Ventas', 'Margen', '% comisión', 'Comisión']}
+            filas={vendedores.map((f) => [f.sellerName || 'Sin vendedor', gs(f.totalPyg), gs(f.marginPyg), f.commissionPct === null ? '—' : `${formatPercent(f.commissionPct)}%`, gs(f.commissionPyg)])}
+          />
 
           <p className="text-xs text-mute">
             La comisión se calcula sobre el margen de cada venta usando las reglas vigentes; la regla por usuario prevalece
@@ -268,21 +316,21 @@ export default function Reportes() {
 
       {totales && tipo !== 'comisiones' && (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-            <Stat
-              destacado
+          <StatGrid columnas={4}>
+            <Stat compact
+              className="border-fono/60"
               label="Total del período"
               valor={gs(totales.totalPyg)}
               sub={`${totales.orders} ventas · ${etiquetaRango(rango)}`}
             />
-            <Stat label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
-            <Stat
+            <Stat compact label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
+            <Stat compact
               label="Margen real"
               valor={gs(totales.netProfitPyg ?? totales.profitPyg)}
               sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${formatPercent(totales.netMarginPct)}%`}
             />
-            <Stat label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
-          </div>
+            <Stat compact label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
+          </StatGrid>
 
           {datos.previous?.totals && (
             <div className="flex flex-wrap items-center gap-2">
@@ -317,11 +365,11 @@ export default function Reportes() {
             {datos.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
-            <Stat label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
-            <Stat label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
-          </div>
+          <StatGrid columnas={3}>
+            <Stat compact label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
+            <Stat compact label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
+            <Stat compact className="col-span-2 md:col-span-1" label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
+          </StatGrid>
 
           {grupos.length === 0 ? (
             <Card>
@@ -333,63 +381,66 @@ export default function Reportes() {
               />
             </Card>
           ) : (
-            <Card className="overflow-hidden p-0">
-              <DataTable
-                columns={columnasTabla}
-                rows={grupos}
-                mobileCard={(g) => (
-                  <Card className="p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-[13px] font-semibold text-fore">{g.label}</div>
-                      <Badge color="slate">{g.units} u.</Badge>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <Linea label={porLinea ? 'Venta' : 'Total'} valor={gs(porLinea ? g.grossPyg : g.totalPyg)} />
-                      <Linea label="Costo" valor={gs(g.costPyg)} />
-                      <Linea label="Ganancia" valor={gs(g.profitPyg)} />
-                      <Linea label="Sin costo" valor={gs(g.salesWithoutCostPyg)} />
-                      {!porLinea && <Linea label="Cobrado" valor={gs(g.collectedPyg)} />}
-                      {!porLinea && <Linea label="Saldo" valor={gs(g.pendingPyg)} />}
-                    </div>
-                  </Card>
-                )}
-              />
-            </Card>
+            <ListaDensa
+              lista={listaGrupos}
+              testId="reportes-tabla"
+              className="print:hidden"
+              etiquetaTabla="Resultados del reporte"
+              etiquetaPie="Páginas del reporte"
+              unidad="filas"
+              desde="xl"
+              obtenerClave={(g) => g.key}
+              columns={columnasTabla}
+              renderCard={(g) => (
+                <Card className="p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-[13px] font-semibold text-fore">{g.label}</div>
+                    <StatusChip tono="neutral" etiqueta={`${g.units} u.`} />
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Linea label={porLinea ? 'Venta' : 'Total'} valor={gs(porLinea ? g.grossPyg : g.totalPyg)} />
+                    <Linea label="Costo" valor={gs(g.costPyg)} />
+                    <Linea label="Ganancia" valor={gs(g.profitPyg)} />
+                    <Linea label="Sin costo" valor={gs(g.salesWithoutCostPyg)} />
+                    {!porLinea && <Linea label="Cobrado" valor={gs(g.collectedPyg)} />}
+                    {!porLinea && <Linea label="Saldo" valor={gs(g.pendingPyg)} />}
+                  </div>
+                </Card>
+              )}
+            />
+          )}
+
+          {grupos.length > 0 && (
+            <TablaImpresion
+              testId="reportes-impresion"
+              titulo="Resultados del reporte (completo)"
+              encabezados={columnas.map((c) => c.label)}
+              filas={filasImpresion(columnas, grupos, gs)}
+            />
           )}
 
           {grupo === 'product' && grupos.length > 0 && (
-            <Card className="overflow-x-auto p-0" data-testid="reportes-abc-tabla">
-              <div className="flex items-center justify-between border-b border-ink-600 p-4">
+            <Card className="space-y-3 print:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold">Curva ABC y antigüedad</h3>
                 <span className="text-xs text-mute">A: 80% acumulado · B: 95% · C: resto</span>
               </div>
-              <table className="w-full min-w-[640px] text-sm">
-                <thead><tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-mute"><th className="px-4 py-3">Producto</th><th className="px-4 py-3 text-right">Venta</th><th className="px-4 py-3 text-right">% acum.</th><th className="px-4 py-3">Clase</th><th className="px-4 py-3 text-right">Disponibles</th><th className="px-4 py-3 text-right">Antigüedad</th></tr></thead>
-                <tbody>{(() => {
-                  // La clase ABC y el % acumulado vienen del servidor (#171):
-                  // la portada ejecutiva y esta tabla comparten el criterio.
-                  // El cálculo local queda solo como respaldo de compatibilidad.
-                  const totalVenta = grupos.reduce((suma, g) => suma + Number(g.grossPyg || 0), 0) || 1
-                  let acumulado = 0
-                  const filas = [...grupos].sort((a, b) => Number(b.grossPyg || 0) - Number(a.grossPyg || 0)).map(g => {
-                    acumulado += Number(g.grossPyg || 0)
-                    const pct = g.accumulatedPct === null || g.accumulatedPct === undefined ? (acumulado / totalVenta) * 100 : Number(g.accumulatedPct)
-                    const clase = g.abcClass || (pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C')
-                    const dias = g.oldestUnitAt ? Math.max(0, Math.floor((Date.now() - new Date(g.oldestUnitAt).getTime()) / 86400000)) : null
-                    return { g, pct, clase, dias }
-                  })
-                  return filas.map(({ g, pct, clase, dias }) => (
-                    <tr key={g.key} className="border-b border-ink-700/60 last:border-0">
-                      <td className="px-4 py-2.5 font-medium text-fore">{g.label}</td>
-                      <td className="px-4 py-2.5"><CeldaMoneda valor={g.grossPyg} tono="mute" className="w-full" /></td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_NUMERO)}>{pct.toFixed(1)}%</td>
-                      <td className="px-4 py-2.5"><Badge color={clase === 'A' ? 'green' : clase === 'B' ? 'orange' : 'slate'}>{clase}</Badge></td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_NUMERO)}>{g.availableUnits ?? 0}</td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_NUMERO)}>{dias === null ? '—' : `${dias} días`}</td>
-                    </tr>
-                  ))
-                })()}</tbody>
-              </table>
+              <ListaDensa
+                lista={listaAbc}
+                testId="reportes-abc-tabla"
+                etiquetaTabla="Curva ABC y antigüedad"
+                etiquetaPie="Páginas de la curva ABC"
+                unidad="productos"
+                obtenerClave={(fila) => fila.key}
+                columns={[
+                  { key: 'producto', header: 'Producto', ancho: 'minmax(0,1.6fr)', className: 'font-medium text-fore', cell: ({ g }) => g.label },
+                  { key: 'venta', dinero: true, header: 'Venta', align: 'right', ancho: 'minmax(8.5rem,1fr)', cell: ({ g }) => <CeldaMoneda valor={g.grossPyg} tono="mute" className="w-full" /> },
+                  { key: 'acumulado', header: '% acum.', align: 'right', ancho: '5rem', className: cn('text-xs text-mute', CELDA_NUMERO), cell: ({ pct }) => `${pct.toFixed(1)}%` },
+                  { key: 'clase', header: 'Clase', ancho: '4rem', cell: ({ clase }) => <StatusChip tono={clase === 'A' ? 'ok' : clase === 'B' ? 'warn' : 'neutral'} etiqueta={clase} /> },
+                  { key: 'disponibles', header: 'Disponibles', align: 'right', ancho: '6rem', className: cn('text-xs text-mute', CELDA_NUMERO), cell: ({ g }) => g.availableUnits ?? 0 },
+                  { key: 'antiguedad', header: 'Antigüedad', align: 'right', ancho: '6rem', className: cn('text-xs text-mute', CELDA_NUMERO), cell: ({ dias }) => (dias === null ? '—' : `${dias} días`) },
+                ]}
+              />
             </Card>
           )}
 
@@ -433,6 +484,23 @@ export default function Reportes() {
         </>
       )}
     </div>
+  )
+}
+
+// Impresión: el listado en pantalla está paginado; al imprimir se dibuja el
+// reporte completo (sin paginar) y se oculta el paginado.
+function TablaImpresion({ testId, titulo, encabezados, filas }) {
+  return (
+    <table data-testid={testId} aria-label={titulo} className="hidden w-full text-xs print:table">
+      <thead>
+        <tr>{encabezados.map((h) => <th key={h} className="border-b border-black px-1 py-1 text-left">{h}</th>)}</tr>
+      </thead>
+      <tbody>
+        {filas.map((fila, i) => (
+          <tr key={i} data-fila-impresion>{fila.map((celda, j) => <td key={j} className="border-b border-gray-300 px-1 py-0.5">{celda}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 

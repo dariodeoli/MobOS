@@ -245,8 +245,10 @@ test('la ficha permite conciliar una consulta desde el modal y deja la auditorí
   const requestId = `qa-233ui-${Date.now()}`
   const creada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI_UI, servicio: 'APPLE_BASIC', confirm: true, requestId, escenario: 'timeout' }) })
   expect(creada.status).toBe(201)
-  await page.getByTestId('inventario-fila').first().waitFor({ timeout: 15_000 })
-  await page.getByTestId('inventario-fila').first().click()
+  // La lista de Stock es unificada (productos + unidades): la ficha con consultas IMEI es la de una unidad.
+  const filaUnidad = page.locator('[data-testid="inventario-fila"][data-kind="unit"]').first()
+  await filaUnidad.waitFor({ timeout: 15_000 })
+  await filaUnidad.click()
   await page.getByTestId('imei-consultas-abrir').click()
   await page.getByLabel('IMEI a consultar').fill(IMEI_UI)
   await page.getByTestId('imei-consultas-buscar').click()

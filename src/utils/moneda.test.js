@@ -6,7 +6,9 @@ import { gs, gsInput } from './calculos.js'
 test('formatea guaraníes con separadores locales', () => {
   assert.equal(formatGs(1201032), 'Gs 1.201.032')
   assert.equal(gs(1201032), 'Gs 1.201.032')
-  assert.equal(formatGs(-1201032.7), 'Gs -1.201.033')
+  assert.equal(formatGs(-1201032.7), '-Gs 1.201.033')
+  assert.equal(formatGs(-50000), '-Gs 50.000', 'el signo va pegado al símbolo, sin hueco antes de la cifra')
+  assert.equal(formatGs(-0.4), 'Gs 0', 'un redondeo a cero no lleva signo')
 })
 
 test('formatea entrada de miles sin cambiar el valor numérico', () => {

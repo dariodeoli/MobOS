@@ -56,12 +56,8 @@ const PANTALLAS = [
 // auditan a 390 y se capturan. Con timeout corto: si el disparador no está, se
 // reporta y se sigue.
 const MODALES = {
-  // #337: las herramientas del POS viven en el <details> «Más» (#309): hay que
-  // abrirlo antes de buscar «Ventas suspendidas».
-  pos: async (page) => {
-    await page.getByTestId('pos-mas').click()
-    await page.getByRole('menuitem', { name: /Ventas suspendidas/ }).click({ timeout: 5_000 })
-  },
+  // «Ventas suspendidas» es un botón directo de la barra del POS.
+  pos: (page) => page.getByRole('button', { name: /Ventas suspendidas/ }).click({ timeout: 5_000 }),
   inventario: (page) => page.getByRole('button', { name: /Recibir unidad/ }).first().click({ timeout: 5_000 }),
 }
 
@@ -317,7 +313,7 @@ const GRUPOS_CONFIG_AUDIT = [
   ['equipo', 'Equipo y acceso', (page) => page.getByTestId('integrante-fila').first()],
   ['comercial', 'Comercial', (page) => page.getByText('Seguro de ventas').first()],
   ['seguridad', 'Seguridad y auditoría', (page) => page.getByTestId('auditoria-actualizar')],
-  ['dispositivos', 'Dispositivos', (page) => page.getByText('Configurá y probá tus impresoras térmicas').first()],
+  ['dispositivos', 'Impresión y dispositivos', (page) => page.getByText('Configurá y probá tus impresoras térmicas').first()],
   ['sistema', 'Sistema', (page) => page.getByText('Sincronización').first()],
 ]
 
@@ -325,7 +321,7 @@ function auditarConfiguracion(registro) {
   test('configuración: los 7 grupos a 360/390/414/768', async ({ page }) => {
     test.slow()
     mkdirSync(SHOTS, { recursive: true })
-    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] select' }]
+    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] [data-tab-id]' }]
     for (const [slug, label, listo] of GRUPOS_CONFIG_AUDIT) {
       for (const [ancho, alto] of ANCHOS) {
         await page.setViewportSize({ width: ancho, height: alto })

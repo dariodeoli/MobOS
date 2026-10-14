@@ -7,10 +7,12 @@ import PhotoCropper from '@/components/shared/PhotoCropper'
 import Avatar from '@/components/shared/Avatar'
 import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import PanelDerecho from '@/components/shared/PanelDerecho'
-import { Aviso, Button, Card, ConfirmDialog, FormField, Input, Skeleton, useToast } from '@/components/ui'
+import FieldRow from '@/components/shared/FieldRow'
+import { Aviso, Button, Card, ConfirmDialog, Input, Skeleton, useToast } from '@/components/ui'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
 import { etiquetaRol } from '@/lib/roles'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
+import '@/components/control/config/configTouch.css'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 
 // Mi cuenta (#253): la superficie PERSONAL de cualquier rol. Perfil (nombre,
@@ -164,7 +166,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
   )
 
   return (
-    <>
+    <div className="config-pagina">
       <PanelDerecho
         panel={preferencias && onCambiarPreferencias ? (
           <Card className="p-4 md:p-5">
@@ -179,7 +181,9 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
             <h2 className="font-semibold">Tu perfil</h2>
             <p className="mt-1 text-sm text-mute">Así te ven tus compañeros y tus clientes en ventas, reportes y comprobantes.</p>
           </div>
-          <div className="flex items-start gap-3">
+          {/* #33: identidad arriba (avatar + nombre + correo) y el control de
+              foto en su propio bloque, a todo el ancho, con botones de 44px. */}
+          <div className="flex items-center gap-3">
             <Avatar user={{ id: perfil?.id, name: perfil?.name }} hasAvatar={Boolean(foto) || perfil?.hasAvatar} picture={perfilEmpresa?.picture} size="xl" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -187,28 +191,28 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
                 {sesion?.rol && <span className="rounded-md border border-ink-500 bg-ink-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-mute">{etiquetaRol(sesion.rol)}</span>}
               </div>
               {perfil?.email && <p className="mt-0.5 truncate text-sm text-mute">{perfil.email}</p>}
-              {/* #300: un único control de foto, junto al avatar que muestra la
-                  foto. Antes había además una fila con la misma miniatura. */}
-              <div className="mt-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
-                    <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
-                  </AttachmentInput>
-                  {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
-                </div>
-                <p className="mt-1 text-xs text-mute">Aparece en la cronología de clientes y pedidos.</p>
-                {fotoError && <p role="alert" className="mt-1 text-sm text-bad">{fotoError}</p>}
-              </div>
             </div>
           </div>
-          <form onSubmit={guardarNombre} className="space-y-3">
-            <FormField label="Nombre" htmlFor="mi-cuenta-nombre">
+          {/* #300: un único control de foto, junto al avatar que muestra la foto. */}
+          <div data-testid="mi-cuenta-foto" className="rounded-xl border border-ink-600 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
+                <Button type="button" variant="outline" className="min-h-11" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
+              </AttachmentInput>
+              {foto && <Button type="button" variant="ghost" className="min-h-11" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
+            </div>
+            <p className="mt-2 text-xs text-mute">Aparece en la cronología de clientes y pedidos.</p>
+            {fotoError && <p role="alert" className="mt-1 text-sm text-bad">{fotoError}</p>}
+          </div>
+          <form onSubmit={guardarNombre} data-testid="mi-cuenta-form" className="space-y-3">
+            <FieldRow
+              label="Nombre"
+              htmlFor="mi-cuenta-nombre"
+              final={<Button type="submit" variant="ghost" disabled={guardandoNombre || nombre.trim().length < 2 || nombre.trim() === (perfil?.name || '')}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>}
+            >
               <Input id="mi-cuenta-nombre" data-testid="mi-cuenta-nombre" value={nombre} onChange={(event) => setNombre(event.target.value)} placeholder="Tu nombre" minLength={2} maxLength={100} required />
-            </FormField>
-            <Button type="submit" disabled={guardandoNombre || nombre.trim().length < 2 || nombre.trim() === (perfil?.name || '')}>
-              {guardandoNombre ? 'Guardando…' : 'Guardar nombre'}
-            </Button>
+            </FieldRow>
           </form>
           {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
           <div className="space-y-2">
@@ -272,6 +276,6 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
         variant="danger"
         busy={revocando}
       />
-    </>
+    </div>
   )
 }

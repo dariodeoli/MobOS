@@ -28,6 +28,8 @@ import { ticketResumenDia } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
+import Toolbar from '@/components/shared/Toolbar'
+import StatusChip from '@/components/shared/StatusChip'
 import { BarraProgreso, Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
@@ -44,53 +46,37 @@ const PENDIENTES_HOY = [
   { clave: 'cuotas', texto: 'Cuotas vencidas por cobrar', ruta: '/finanzas/cuotas', tono: 'bad' },
 ]
 
+// Cada pendiente es una fila alineada con el título de la tarjeta (sin sangría
+// ni tarjeta anidada): número, texto y chevron, 44 px de alto al tocar.
+const CLASE_FILA_PENDIENTE = 'h-auto min-h-11 w-full justify-start gap-3 rounded-lg px-0 py-2 text-left font-medium text-fore md:h-auto lg:min-h-9'
+
 function PendientesDeHoy({ pendientes, onIr }) {
   // Mientras carga no ocupa lugar; si no hay nada, se muestra el estado al día.
   if (!pendientes) return null
   const items = PENDIENTES_HOY.filter((item) => Number(pendientes[item.clave]) > 0)
   if (!items.length) {
     return (
-      <Card className="flex items-center gap-2.5 border-ok/25 bg-ok/5">
-        <Icon name="check" className="h-4 w-4 shrink-0 text-ok" />
+      <div className="flex min-h-11 items-center gap-3 py-2">
+        <Icon name="check" className="h-4 w-4 shrink-0 text-ok-text" />
         <p className="text-sm text-mute">
-          <strong className="font-semibold text-ok">Al día.</strong> No hay pendientes para hoy.
+          <strong className="font-semibold text-ok-text">Al día.</strong> No hay pendientes para hoy.
         </p>
-      </Card>
+      </div>
     )
   }
   const v2 = temaV2Activo()
   return (
-    <Card className="border-warn/30 bg-warn/5 p-4">
-      <div className="flex items-center gap-2">
-        <Icon name="alert" className="h-4 w-4 shrink-0 text-warn" />
-        <h2 className="text-sm font-semibold text-warn">Pendientes de hoy</h2>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {items.map((item) => (
-          <button
-            key={item.clave}
-            type="button"
-            onClick={() => onIr(item.ruta)}
-            className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-ink-600 bg-ink-800/70 px-3.5 py-2.5 text-left transition hover:border-fono/50"
-          >
-            <span
-              className={cn(
-                'text-xl font-bold tabular-nums',
-                v2 && 'v2-numero',
-                item.tono === 'bad' ? 'text-bad' : 'text-warn',
-              )}
-            >
-              {pendientes[item.clave]}
-            </span>
-            <span className={cn('min-w-0 flex-1', CELDA_DATO)}>{item.texto}</span>
-            <Icon
-              name="chevron"
-              className="h-3.5 w-3.5 shrink-0 rotate-180 text-mute transition group-hover:text-fore"
-            />
-          </button>
-        ))}
-      </div>
-    </Card>
+    <>
+      {items.map((item) => (
+        <Button key={item.clave} variant="ghost" onClick={() => onIr(item.ruta)} className={cn('group', CLASE_FILA_PENDIENTE)}>
+          <span className={cn('min-w-[2ch] text-lg font-bold tabular-nums', v2 && 'v2-numero', item.tono === 'bad' ? 'text-bad-text' : 'text-warn-text')}>
+            {pendientes[item.clave]}
+          </span>
+          <span className={cn('min-w-0 flex-1 whitespace-normal', CELDA_DATO)}>{item.texto}</span>
+          <Icon name="chevron" className="h-3.5 w-3.5 shrink-0 rotate-180 text-mute transition group-hover:text-fore" />
+        </Button>
+      ))}
+    </>
   )
 }
 
@@ -104,7 +90,7 @@ function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', progr
   return (
     <div className="inicio-kpi" data-testid={testId}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-mute">{etiqueta}</span>
+        <span className="text-xs font-medium leading-4 text-mute">{etiqueta}</span>
         {typeof delta === 'number' && (
           <span
             className={cn(
@@ -117,19 +103,18 @@ function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', progr
           </span>
         )}
       </div>
-      <div className={cn('inicio-kpi-value mt-1.5 font-semibold tracking-tight tabular-nums', v2 && 'v2-numero', color)}>
+      <div className={cn('inicio-kpi-value font-semibold tracking-tight tabular-nums', v2 && 'v2-numero', color)}>
         {valor}
       </div>
       {typeof progreso === 'number' && (
         <BarraProgreso
-          className="mt-2"
+          className="mt-1"
           valor={progreso}
           tono="ok"
           etiqueta={`Cobrado: ${Math.round(progreso)}%`}
         />
       )}
-      {sub && <p className="mt-1.5 text-xs text-mute">{sub}</p>}
-
+      {sub && <p className="text-xs leading-4 text-mute">{sub}</p>}
     </div>
   )
 }
@@ -143,10 +128,10 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
   // tendencia va con el objeto de chips (pill y tinte AA). Sin el flag, igual.
   const v2 = temaV2Activo()
   return (
-    <Card className={cn('p-4', v2 && 'v2-tile')}>
-      <div className="text-[11px] font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <span className={cn('text-2xl font-semibold tracking-tight tabular-nums', v2 && 'v2-numero sm:text-3xl')}>{valor}</span>
+    <Card className={cn('px-3 py-1.5', v2 && 'v2-tile')}>
+      <div className="text-xs font-medium leading-4 text-mute">{label}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn('text-xl font-semibold leading-7 tracking-tight tabular-nums', v2 && 'v2-numero')}>{valor}</span>
         {typeof delta === 'number' ? (
           <span
             className={cn(
@@ -412,19 +397,22 @@ export default function Resumen() {
   }
 
   return (
-    <div className="inicio-f2 space-y-5">
+    <div className="inicio-f2 space-y-3">
 
       {/* ── Encabezado + período ─────────────────────────────────── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="min-w-0 text-sm text-mute">
-          Cómo va la tienda en el período elegido.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {metricas?.truncado && <Badge color="orange">El período supera el tope de ventas analizadas</Badge>}
-          <RangoFechas valor={rango} onChange={cambiarRango} />
-          <Button variant="outline" onClick={() => setResumenOpen(true)}>Imprimir resumen</Button>
-        </div>
-      </div>
+      <Toolbar
+        plano
+        label="Período del resumen"
+        testId="resumen-toolbar"
+        lead={<p className="min-w-0 basis-full text-sm text-mute sm:flex-1 sm:basis-auto">Cómo va la tienda en el período elegido.</p>}
+        filters={
+          <>
+            {metricas?.truncado && <Badge color="orange">El período supera el tope de ventas analizadas</Badge>}
+            <RangoFechas valor={rango} onChange={cambiarRango} />
+          </>
+        }
+        more={<Button variant="outline" className="md:h-11 lg:h-9" onClick={() => setResumenOpen(true)}>Imprimir resumen</Button>}
+      />
 
       {/* ── Resumen del período (#310): cuatro indicadores compactos ── */}
       <div className="inicio-kpi-stripe" aria-label="Resumen del período" data-testid="resumen-indicadores">
@@ -457,18 +445,18 @@ export default function Resumen() {
           tono={d.ganancia > 0 ? 'ok' : d.ganancia < 0 ? 'bad' : 'neutro'}
           sub={
             d.sinCosto.lineas > 0
-              ? `Ventas − costos − gastos · costo pendiente en ${d.sinCosto.lineas} ${d.sinCosto.lineas === 1 ? 'línea' : 'líneas'}`
-              : 'Ventas − costos − gastos del período'
+              ? `Ventas − costos − gastos · ${d.sinCosto.lineas} ${d.sinCosto.lineas === 1 ? 'línea' : 'líneas'} sin costo`
+              : 'Ventas − costos − gastos'
           }
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card>
-          <h2 className="mb-3 font-semibold">Para resolver hoy</h2>
+          <h2 className="mb-1 font-semibold">Para resolver hoy</h2>
           <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
-          {d.sinPagar > 0 && <Button variant="ghost" onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
-          {lowStockProducts.length > 0 && <Button variant="ghost" onClick={() => navigate('/stock/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
+          {d.sinPagar > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
+          {lowStockProducts.length > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={() => navigate('/stock/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
           {!pendientesHoy && !d.sinPagar && !lowStockProducts.length && <p className="text-sm text-mute">Sin pendientes disponibles en esta vista.</p>}
         </Card>
         {/* ── Cómo te pagaron ─────────────────────────────────────── */}
@@ -621,7 +609,7 @@ export default function Resumen() {
             <Button
               type="button"
               variant="ghost"
-              className="h-auto px-2 py-1 text-xs font-medium"
+              className="h-auto min-h-11 px-2 py-1 text-xs font-medium md:h-auto lg:min-h-0"
               onClick={() => navigate('/stock/unidades')}
               title="Ver las alertas de stock en Inventario"
             >
@@ -645,13 +633,11 @@ export default function Resumen() {
                 >
                   <Dot color={stock <= 0 ? 'red' : 'orange'} />
                   <span className="min-w-0 flex-1 truncate text-sm">{p.nombre}</span>
-                  <Badge color={stock <= 0 ? 'red' : 'orange'} className="shrink-0">
-                    {stock <= 0 ? 'Sin stock' : `${stock} u.`}
-                  </Badge>
+                  <StatusChip tono={stock <= 0 ? 'bad' : 'warn'} etiqueta={stock <= 0 ? 'Sin stock' : `${stock} u.`} className="shrink-0" />
                   <button
                     type="button"
                     onClick={() => navigate('/stock/unidades')}
-                    className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-2 py-1 text-xs text-mute transition hover:border-fono hover:text-white"
+                    className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-3 py-1 text-xs text-mute transition hover:border-fono hover:text-white lg:min-h-0 lg:px-2"
                   >
                     Ver inventario
                   </button>

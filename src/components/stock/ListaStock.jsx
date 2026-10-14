@@ -6,14 +6,14 @@
 // - Móvil (<768 px): tarjetas con modelo, IMEI, batería y estado; proveedor y
 //   costo en un detalle plegado.
 import './stockLista.css'
+import { useMemo } from 'react'
 import { Aviso, Button, EmptyState, Skeleton } from '@/components/ui'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
-import { columnaCostoVisible, textoMostrandoStock, unidadDeItem } from '@/lib/stockItems'
+import { columnaCostoVisible, ordenarItemsStock, textoMostrandoStock, unidadDeItem } from '@/lib/stockItems'
 import { cn } from '@/lib/utils'
 import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { accionesDeItem } from './AccionesUnidad'
-import FiltrosStock from './FiltrosStock'
 import { FilaStock, columnasStock, estiloColumnas } from './FilaStock'
 import { TarjetaStockMovil } from './TarjetaStockMovil'
 import { hayFiltrosStock } from './stockFiltros'
@@ -78,11 +78,12 @@ function FilasCargandoStock({ columnas, angosta }) {
 
 export default function ListaStock({ ctx, vista = 'unidades' }) {
   const {
-    stock, filtros, cambiarFiltros, limpiarFiltros, seleccionados, setSeleccionados, busy, products,
-    branches, proveedores, rolVeCosto, abrirDetalleItem, requestReason, navigate, query,
+    stock, filtros, seleccionados, setSeleccionados, busy, products,
+    rolVeCosto, abrirDetalleItem, requestReason, navigate, query, orden,
   } = ctx
   const angosta = usePantallaAngosta('(min-width: 768px)')
-  const items = stock.items
+  const items = useMemo(() => ordenarItemsStock(stock.items, orden, { rolVeCosto }), [stock.items, orden, rolVeCosto])
+  const ordenLocal = orden && orden !== 'recientes' && stock.hasMore
   const verCosto = columnaCostoVisible({ rolVeCosto, items })
   const columnas = columnasStock({ verCosto, vista })
   const abrir = (item) => {
@@ -104,17 +105,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
   const todosMarcados = items.length > 0 && items.every((item) => seleccionados.includes(item.id))
 
   return (
-    <div className="stock-lista mt-2 space-y-2 md:mt-4 md:space-y-3" data-testid="inventario-lista" data-vista={vista}>
-      <FiltrosStock
-        filtros={filtros}
-        vista={vista}
-        sucursales={branches}
-        proveedores={proveedores}
-        verProveedor={rolVeCosto}
-        onCambio={cambiarFiltros}
-        onLimpiar={limpiarFiltros}
-        compacto={angosta}
-      />
+    <div className="stock-lista space-y-2 md:space-y-3" data-testid="inventario-lista" data-vista={vista}>
       {stock.error ? (
         <Aviso tono="error" data-testid="stock-error">
           {stock.error}{' '}
@@ -150,7 +141,10 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
       )}
       {items.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2" data-testid="pie-listado">
-          <p className="text-xs text-mute" role="status" data-testid="stock-mostrando">{textoMostrandoStock(items.length, stock.total)}</p>
+          <p className="text-xs text-mute" role="status" data-testid="stock-mostrando">
+            {textoMostrandoStock(items.length, stock.total)}
+            {ordenLocal ? <span data-testid="stock-orden-nota"> · orden aplicado a lo cargado</span> : null}
+          </p>
           {stock.hasMore ? (
             <Button type="button" variant="outline" className="min-h-11 px-4 text-xs" disabled={stock.cargandoMas} onClick={stock.cargarMas}>
               {stock.cargandoMas ? 'Cargando…' : 'Cargar más'}

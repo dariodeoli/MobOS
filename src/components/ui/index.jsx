@@ -111,10 +111,42 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
 }
 
 // ── Stat (local: delta sin flechas, pendiente con DSN) ──────────────
-export function Stat({ label, valor, delta, sub, destacado = false, className }) {
+// `compact`: tile para grillas de 2 columnas en celular (padding y cifra menores,
+// la cifra nunca se corta: break-words + tabular-nums).
+export function Stat({ label, valor, delta, sub, destacado = false, compact = false, className, testId, valorClassName, ...resto }) {
   const sube = typeof delta === 'number' && delta >= 0
+  if (compact) {
+    // Tile de la tira de KPI (docs/PANTALLAS.md): etiqueta 12px, cifra 20px
+    // semibold tabular, pista de 12px en una línea, relleno 12px, ≤ 76px.
+    return (
+      <div
+        data-testid={testId}
+        {...resto}
+        className={cn(
+          'relative min-w-0 overflow-hidden rounded-xl border px-3 py-1.5',
+          destacado ? 'border-fono/30 bg-gradient-to-br from-fono-dark via-fono to-fono' : 'border-ink-600 bg-ink-800',
+          className,
+        )}
+      >
+        <div className={cn('break-words text-xs font-medium leading-4', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</div>
+        <div className={cn('break-words text-xl font-semibold leading-7 tabular-nums v2-numero', destacado ? 'text-onbrand' : 'text-fore', valorClassName)}>
+          {valor}
+        </div>
+        {(typeof delta === 'number' || sub) && (
+          <div className="flex items-center gap-2 text-xs leading-4">
+            {typeof delta === 'number' && (
+              <span className={cn('shrink-0 font-medium', sube ? 'text-ok-text' : 'text-bad-text')}>{Math.abs(delta).toFixed(1)}%</span>
+            )}
+            {sub && <span title={typeof sub === 'string' ? sub : undefined} className={cn('min-w-0 break-words', destacado ? 'text-onbrand/75' : 'text-mute')}>{sub}</span>}
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <div
+      data-testid={testId}
+      {...resto}
       className={cn(
         'relative overflow-hidden rounded-xl border p-4',
         destacado ? 'border-fono/30 bg-gradient-to-br from-fono-dark via-fono to-fono' : 'border-ink-600 bg-ink-800',
@@ -122,13 +154,13 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
       )}
     >
       <div className={cn('text-[11px] font-medium uppercase tracking-wider', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</div>
-      <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight tabular-nums md:text-3xl v2-numero', destacado ? 'text-onbrand' : 'text-fore')}>
+      <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight tabular-nums v2-numero md:text-3xl', destacado ? 'text-onbrand' : 'text-fore', valorClassName)}>
         {valor}
       </div>
       <div className="mt-1.5 flex items-center gap-2 text-xs">
         {typeof delta === 'number' && (
           <span className={cn('font-medium', sube ? 'text-ok' : 'text-bad')}>
-            {sube ? '' : ''} {Math.abs(delta).toFixed(1)}%
+            {Math.abs(delta).toFixed(1)}%
           </span>
         )}
         {sub && <span className={destacado ? 'text-onbrand/75' : 'text-mute'}>{sub}</span>}

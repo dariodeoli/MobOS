@@ -108,7 +108,10 @@ test('F5 compact layout preserves full digit strings and accessible request filt
   const css = readFileSync('src/components/control/conciliacionF5.css', 'utf8')
   assert.ok(css.includes('(min-width: 350px) and (max-width: 619px)'))
   assert.ok(css.includes('.conciliacion-f5-digits'))
-  assert.ok(source.includes('gs(tarjeta.valor || 0).slice(3)'))
+  // El símbolo y los dígitos salen del formateador compartido (`partesGs`): el
+  // signo va pegado al símbolo y la cifra completa queda en su propio tramo.
+  assert.ok(source.includes('partesGs(tarjeta.valor || 0).digitos'))
+  assert.ok(source.includes('partesGs(tarjeta.valor || 0).signo'))
   assert.ok(source.includes('según cuenta, medio y procesadora'))
   assert.ok(source.includes('el estado no cambia el resumen'))
   assert.ok(source.includes('tamano: { compacto: 2, amplio: 20 }'))
@@ -116,7 +119,7 @@ test('F5 compact layout preserves full digit strings and accessible request filt
 
 test('F5 renewed spacing correction retains readable type, touch targets and paging', () => {
   const css = readFileSync('src/components/control/conciliacionF5.css', 'utf8')
-  assert.match(css, /\.conciliacion-f5-kpi strong\s*\{\s*font-size: 22px;/)
+  assert.match(css, /\.conciliacion-f5-kpi strong\s*\{\s*font-size: 20px;/)
   assert.match(css, /\.conciliacion-f5-kpi\s*\{\s*padding-inline: 8px;/)
   assert.match(css, /\.conciliacion-f5-panel\s*\{\s*padding: 10px;/)
   assert.match(css, /\.conciliacion-f5-payment-grid\s*\{\s*gap: 6px;/)

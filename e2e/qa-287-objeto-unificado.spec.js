@@ -79,8 +79,9 @@ test('#287 · de Producto a sus Unidades y vuelta, sin perder el contexto', asyn
       await expect(filas).toHaveCount(2, { timeout: 20_000 })
       await expect(filas.filter({ hasText: datos.seriales[0].slice(-4) }).first()).toBeVisible()
       await page.screenshot({ path: join(DIR, `${PREFIJO}-unidades-del-producto-1440-light.png`) })
-      // El switch vuelve a Productos conservando el contexto.
-      await page.getByTestId('vista-productos-unidades').getByRole('button', { name: 'Productos' }).click()
+      // El enlace del filtro vuelve a Productos conservando el contexto (rediseño 2A:
+      // Productos y Unidades son pestañas del shell, sin switch en Unidades).
+      await page.getByTestId('inventario-filtro-producto').getByRole('link', { name: 'Ver en Productos' }).click()
       await expect(page).toHaveURL(/\/productos\?.*q=/, { timeout: 15_000 })
       // El contexto viaja (el SKU o el nombre con el que se buscó).
       await expect(page.getByPlaceholder('Nombre o SKU')).toHaveValue(/ZZ287/)

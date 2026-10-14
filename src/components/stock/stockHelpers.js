@@ -86,8 +86,10 @@ export const fechaVerificacionCorta = (value) => {
 export const UNIDADES_GRID = 'stock-f4-grid'
 export const GRID_RESERVAS = 'grid min-w-[44rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(6rem,1.1fr)_6rem_15rem] items-center gap-x-2'
 export const GRID_ELIMINADOS = 'grid min-w-[42rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(7rem,1.6fr)_7rem] items-center gap-x-2'
-// #218: el lote suma ETA y Despachó/Recibió al detalle del tránsito.
-export const GRID_TRASLADOS = 'grid min-w-[72rem] grid-cols-[minmax(9rem,1.3fr)_minmax(7rem,1.2fr)_4rem_6rem_5.5rem_6rem_6rem_minmax(7rem,0.9fr)_7rem_13rem] items-center gap-x-2'
+// #218: el lote suma ETA y Despachó/Recibió al detalle del tránsito. Rediseño 2A:
+// siete columnas que llenan el ancho (Enviado y ETA/Llegada comparten celda) y
+// las acciones en su propia línea debajo de los datos.
+export const GRID_TRASLADOS = 'grid grid-cols-[minmax(7rem,1.3fr)_minmax(7rem,1.6fr)_3rem_minmax(6.5rem,1fr)_6rem_minmax(6rem,1fr)_minmax(6rem,1fr)] items-center gap-x-3 gap-y-2'
 export const fechaReserva = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
@@ -164,14 +166,16 @@ export const normalizeScan = (value = '') => {
 }
 export const safe = (value = '') => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
 export const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos', 'autorizaciones']
-// #305: la navegación agrupa las vistas en tres bloques (Stock · Movimientos ·
-// Control). El grupo activo se deriva de la pestaña actual, así los enlaces
-// directos (/stock/transito, y /inventario/transito por redirección) siguen
-// abriendo su vista.
+// Navegación de Stock (rediseño): el shell muestra Unidades · Productos ·
+// Traslados · Control · Precios. Cada grupo de acá es una de esas pestañas y sus
+// vistas van como segundo nivel en la barra de la pestaña (nunca una tercera
+// fila). Vendidos y Eliminados son filtros de Unidades (chip «Estado»). El grupo
+// activo se deriva de la pestaña actual, así los enlaces directos
+// (/stock/transito, y /inventario/transito por redirección) siguen abriendo su vista.
 export const GRUPOS_INVENTARIO = [
-  { id: 'stock', label: 'Stock', tabs: ['unidades', 'reservas', 'ubicaciones', 'alertas'] },
-  { id: 'movimientos', label: 'Movimientos', tabs: ['transito', 'traslados', 'vendidos', 'eliminados'] },
-  { id: 'control', label: 'Control', tabs: ['taller', 'conteos', 'compartido', 'autorizaciones'] },
+  { id: 'unidades', label: 'Unidades', tabs: ['unidades', 'vendidos', 'eliminados'] },
+  { id: 'traslados', label: 'Traslados', tabs: ['traslados', 'transito'] },
+  { id: 'control', label: 'Control', tabs: ['conteos', 'alertas', 'autorizaciones', 'taller', 'ubicaciones', 'compartido', 'reservas'] },
 ]
 export const TAB_LABEL = {
   unidades: 'Unidades', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
@@ -185,20 +189,8 @@ export const TABS_LISTA_STOCK = ['unidades', 'vendidos', 'eliminados']
 // Pestañas que todavía necesitan el inventario completo (ficha, tránsito, conteo…).
 export const TABS_CON_UNIDADES = ['taller', 'alertas', 'transito', 'traslados', 'conteos', 'autorizaciones']
 
-// U3: la barra muestra Unidades · Reservas · Movimientos · Control. Cada sección
-// agrupa sus vistas (Unidades suma Ubicaciones y Alertas; Movimientos y Control
-// conservan las suyas), así las doce pestañas siguen alcanzables.
-export function seccionesDeStock(grupos = GRUPOS_INVENTARIO) {
-  const secciones = []
-  for (const grupo of grupos) {
-    if (grupo.id === 'stock') {
-      const resto = grupo.tabs.filter((id) => id !== 'reservas')
-      if (resto.length) secciones.push({ id: 'unidades', label: 'Unidades', tabs: resto })
-      if (grupo.tabs.includes('reservas')) secciones.push({ id: 'reservas', label: 'Reservas', tabs: ['reservas'] })
-    } else if (grupo.tabs.length) {
-      secciones.push({ id: grupo.id, label: grupo.label, tabs: grupo.tabs })
-    }
-  }
-  return secciones
-}
+// Grupos con alguna vista visible (las doce pestañas siguen alcanzables).
+export const seccionesDeStock = (grupos = GRUPOS_INVENTARIO) => grupos.filter((grupo) => grupo.tabs.length)
 export const seccionDeTab = (secciones, tab) => secciones.find((seccion) => seccion.tabs.includes(tab)) || secciones[0]
+// Id de pestaña del shell (unidades · traslados · control) al que pertenece una vista.
+export const grupoShellDeTab = (tab) => seccionDeTab(GRUPOS_INVENTARIO, tab)

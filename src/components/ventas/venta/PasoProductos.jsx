@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Aviso, Button, Input, MoneyInput, Select } from '@/components/ui'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import { textoMostrando } from '@/components/shared/paginacion'
 import Icon from '@/components/shared/Icon'
-import IconoCategoria from '@/components/shared/IconoCategoria'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
 import SelectorVariante from './SelectorVariante'
@@ -8,6 +10,29 @@ import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+
+const FILAS_INICIALES = 4
+
+// Columnas reales de la grilla (auto-fill/breakpoints): la primera página
+// llena FILAS_INICIALES filas completas en cualquier ancho.
+function useColumnasGrilla(ref) {
+  const [columnas, setColumnas] = useState(2)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof window === 'undefined') return undefined
+    const medir = () => {
+      const plantilla = window.getComputedStyle(el).gridTemplateColumns || ''
+      const n = plantilla.split(' ').filter(Boolean).length
+      if (n > 0) setColumnas(n)
+    }
+    medir()
+    if (typeof ResizeObserver !== 'function') return undefined
+    const obs = new ResizeObserver(medir)
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [ref])
+  return columnas
+}
 
 // La venta en una sola pantalla: para quién es y qué se vende. Primero el
 // catálogo (buscar/escanear y agregar con un clic) y después el cliente, que
@@ -41,16 +66,39 @@ export default function PasoProductos({
   variantePara,
   onElegirVariante,
   onCerrarVariante,
+  acciones = null,
 }) {
+  const grillaRef = useRef(null)
+  const columnas = useColumnasGrilla(grillaRef)
+  // Con stock primero (lo vendible a mano); el resto conserva el orden del
+  // catálogo. La búsqueda ya filtra el catálogo completo: solo se pagina lo
+  // que se dibuja.
+  const clave = familiasVisibles
+    .map(fam => `${fam.base}${fam.items.some(item => num(item.stock) > 0) ? '+' : '-'}`)
+    .join('|')
+  const bases = useMemo(() => {
+    const conStock = familiasVisibles.filter(fam => fam.items.some(item => num(item.stock) > 0))
+    const sinStock = familiasVisibles.filter(fam => !fam.items.some(item => num(item.stock) > 0))
+    return [...conStock, ...sinStock].map(fam => fam.base)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+  const pagina = usePaginaLista(bases, { tamano: columnas * FILAS_INICIALES, modo: 'mas' })
+  const porBase = new Map(familiasVisibles.map(fam => [fam.base, fam]))
+  const familiasPagina = pagina.filas.map(base => porBase.get(base)).filter(Boolean)
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
-      <section data-testid="pos-bloque-productos" className="rounded-2xl border border-fono/35 bg-fono/[.04] p-3.5">
+      <section data-testid="pos-bloque-productos" className="rounded-2xl border border-fono/35 bg-fono/[.04] p-3">
         <EncabezadoBloque
+          compacto
           titulo="Productos"
           tono="text-fono-light"
-
-          extra={<span className="shrink-0 text-xs font-medium text-fono-light">{productos.length} disponibles</span>}
+          extra={
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2">
+              <span className="shrink-0 text-xs font-medium text-fono-light">{productos.length} disponibles</span>
+              {acciones}
+            </div>
+          }
         />
         {nuevoProd ? (
           <div className="space-y-3 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.07] to-transparent p-4">
@@ -204,42 +252,43 @@ export default function PasoProductos({
           </div>
         ) : (
           <>
-            {puedeCrearProducto && (
-              <div className="mb-2 flex justify-end">
+            <div className="mb-2 flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <ProductCombobox
+                  products={productos}
+                  placeholder="Buscar producto…"
+                  onQueryChange={next => setBusquedaProducto(next)}
+                  onSelect={producto => {
+                    setBusquedaProducto('')
+                    agregarProducto(producto)
+                  }}
+                  onCreate={text => {
+                    if (puedeCrearProducto) {
+                      setNombreProd(text)
+                      setNuevoProd(true)
+                    }
+                    return Promise.resolve(null)
+                  }}
+                  className="pl-9"
+                />
+                <Icon
+                  name="search"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
+                />
+              </div>
+              {puedeCrearProducto && (
                 <button
                   type="button"
                   onClick={() => setNuevoProd(true)}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-0"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
                 >
                   <Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto
                 </button>
-              </div>
-            )}
-            <div className="relative mb-2">
-              <ProductCombobox
-                products={productos}
-                placeholder="Buscar producto…"
-                onQueryChange={next => setBusquedaProducto(next)}
-                onSelect={producto => {
-                  setBusquedaProducto('')
-                  agregarProducto(producto)
-                }}
-                onCreate={text => {
-                  if (puedeCrearProducto) {
-                    setNombreProd(text)
-                    setNuevoProd(true)
-                  }
-                  return Promise.resolve(null)
-                }}
-                className="pl-9"
-              />
-              <Icon
-                name="search"
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
-              />
+              )}
             </div>
             <div
-              className="pos-product-grid grid grid-cols-2 gap-2"
+              ref={grillaRef}
+              className="pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3"
               aria-label="Resultados de productos"
             >
               {!esDemo && combos.length > 0 && (
@@ -268,7 +317,7 @@ export default function PasoProductos({
                   {noticeCombo}
                 </Aviso>
               )}
-              {familiasVisibles.map(fam => {
+              {familiasPagina.map(fam => {
                 const p = fam.items[0]
                 // Stock y datos de la ficha para elegir sin adivinar.
                 const stockFamilia = fam.items.reduce((suma, item) => suma + num(item.stock), 0)
@@ -284,36 +333,37 @@ export default function PasoProductos({
                     key={fam.base}
                     disabled={guardando}
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
-                    className="pos-product-card flex min-h-20 flex-col items-start gap-2 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
+                    className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
-                    {p.imagen || p.imageUrl ? (
-                      <img
-                        src={p.imagen || p.imageUrl}
-                        alt=""
-                        loading="lazy"
-                        className="h-12 w-12 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
-                        <IconoCategoria categoria={p?.category || p?.categoria || p?.name || p?.nombre || ''} className="h-6 w-6" />
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <strong className="block text-sm">{fam.base}</strong>
-                      <span className="block text-sm font-semibold text-fore">
-                        {fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}
+                    <span className="flex min-w-0 items-start gap-2">
+                      {p.imagen || p.imageUrl ? (
+                        <img
+                          src={p.imagen || p.imageUrl}
+                          alt=""
+                          loading="lazy"
+                          className="h-8 w-8 shrink-0 rounded-md object-cover"
+                        />
+                      ) : null}
+                      <strong className="pos-product-name min-w-0 text-[13px] font-semibold leading-snug">{fam.base}</strong>
+                    </span>
+                    <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+                      <span className="whitespace-nowrap text-sm font-bold tabular-nums text-fore">
+                        {fam.items.length > 1 ? <span className="block text-[11px] font-medium text-mute">{fam.items.length} variantes · desde</span> : null}
                         {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
                       </span>
-                      <span className="block text-[11px] text-mute">
-                        {[modelo, capacidad].filter(Boolean).join(' · ')}
-                        {modelo || capacidad ? ' · ' : ''}
-                        {stockFamilia > 0
-                          ? <b className="font-semibold text-ok">{stockFamilia} en stock</b>
-                          : <b className="font-semibold text-bad">Agotado</b>}
-                        {fam.items.length > 1 && <span className="text-mute"> · elegí la variante</span>}
-                        {unidadesFamilia > 0 && <span className="text-mute"> · {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI</span>}
-                      </span>
+                      {stockFamilia > 0
+                        ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok">{stockFamilia} en stock</b>
+                        : <b className="whitespace-nowrap text-[11px] font-semibold text-bad">Agotado</b>}
                     </span>
+                    {(modelo || capacidad || fam.items.length > 1 || unidadesFamilia > 0) && (
+                      <span className="block truncate text-[11px] text-mute">
+                        {[
+                          [modelo, capacidad].filter(Boolean).join(' · '),
+                          fam.items.length > 1 ? 'elegí la variante' : '',
+                          unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : '',
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -323,6 +373,27 @@ export default function PasoProductos({
                 </p>
               )}
             </div>
+            {pagina.total > 0 && (
+              <div
+                className="mt-2 flex flex-wrap items-center justify-between gap-2"
+                data-testid="pos-catalogo-pie"
+              >
+                <p className="text-xs text-mute" role="status" data-testid="pos-catalogo-contador">
+                  {textoMostrando(pagina.mostrados, pagina.total)}
+                </p>
+                {pagina.hayMas && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 px-4 text-xs"
+                    data-testid="pos-catalogo-ver-mas"
+                    onClick={pagina.cargarMas}
+                  >
+                    Ver más productos
+                  </Button>
+                )}
+              </div>
+            )}
           </>
         )}
       </section>
@@ -355,9 +426,10 @@ export function PosCustomer({
   return (
     <section
       data-testid="pos-bloque-cliente"
-      className="rounded-2xl border border-info/35 bg-info/[.04] p-3.5"
+      className="rounded-2xl border border-info/35 bg-info/[.04] p-3"
     >
       <EncabezadoBloque
+        compacto
         titulo="Cliente"
         tono="text-info"
 

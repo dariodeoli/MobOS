@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { rutaDeVista } from '../../src/lib/rutas.js'
+import {
+  clickShellTab,
+  openShellDestination,
+  selectFinanceSection,
+  selectInventorySection,
+} from '../helpers/shell-navigation.js'
 
 const output = '/tmp/mobos-nav-v2-qa'
 const widths = [320, 360, 390, 430, 1440]
@@ -43,13 +49,22 @@ for (const width of widths) {
       : page
           .getByTestId('shell-lateral')
           .getByRole('navigation', { name: 'Navegación principal', exact: true })
-    await expect(navigation.getByRole('button')).toHaveText([
-      'Inicio',
-      'Vender',
-      'Ventas',
-      'Stock',
-      'Finanzas',
-    ])
+    await expect(navigation.getByRole('button')).toHaveText(
+      mobile
+        ? ['Inicio', 'Vender', 'Ventas', 'Stock', 'Más']
+        : [
+            'Inicio',
+            'Vender',
+            'Ventas',
+            'Clientes',
+            'Taller',
+            'Stock',
+            'Compras',
+            'Finanzas',
+            'Análisis',
+            'Configuración',
+          ],
+    )
     await expect(
       page.getByTestId(mobile ? 'shell-sucursal-mobile' : 'shell-sucursal-desktop'),
     ).toContainText(/Casa Central/)
@@ -83,11 +98,12 @@ for (const width of widths) {
     await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
     await expect(page).toHaveURL(/\/stock\/unidades/)
     const context = page.getByTestId('shell-contexto')
-    if (mobile) await expect(context.getByRole('combobox')).toBeVisible()
-    await page.getByTestId('shell-subcontexto').getByRole('combobox').selectOption('productos')
+    // Tabs, never a native dropdown: Unidades · Productos · Traslados · Precios.
+    await expect(context.getByRole('combobox')).toHaveCount(0)
+    await expect(context.locator('[data-tab-id="unidades"]')).toHaveAttribute('aria-current', 'page')
+    await clickShellTab(page, 'shell-contexto', 'productos')
     await expect(page).toHaveURL(/\/productos/)
-    if (mobile) await context.getByRole('combobox').selectOption('compras')
-    else await context.getByRole('button', { name: 'Compras', exact: true }).click()
+    await openShellDestination(page, 'Compras')
     await expect(page).toHaveURL(/\/compras/)
     await noOverflow(page)
     await navigation.getByRole('button', { name: 'Vender', exact: true }).click()
@@ -146,17 +162,19 @@ for (const width of widths) {
 }
 
 for (const [role, landing, labels] of [
-  ['Vendedor', /\/pos/, ['Vender', 'Ventas', 'Stock']],
-  ['Gerente', /\/pos/, ['Vender', 'Ventas', 'Stock']],
-  ['Caja', /\/pos/, ['Vender', 'Ventas', 'Stock']],
-  ['Técnico', /\/servicio/, ['Taller']],
-  ['Delivery', /\/delivery\/repartos/, ['Entregas']],
+  ['Vendedor', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  ['Gerente', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  ['Caja', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  // A single section needs no bottom bar.
+  ['Técnico', /\/servicio/, null],
+  ['Delivery', /\/delivery\/repartos/, null],
 ]) {
   test(`${role} has only permitted primary destinations and correct landing`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 900 })
     await enterDemo(page, role)
     await expect(page).toHaveURL(landing)
-    await expect(page.getByTestId('shell-bottom-nav').getByRole('button')).toHaveText(labels)
+    if (labels) await expect(page.getByTestId('shell-bottom-nav').getByRole('button')).toHaveText(labels)
+    else await expect(page.getByTestId('shell-bottom-nav')).toHaveCount(0)
     await noOverflow(page)
     await expect(page.locator('main')).toContainText(/\S/)
     await page.screenshot({ path: `${output}/role-${role}.png` })
@@ -184,7 +202,8 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
   await openProfile()
   await profile.getByRole('button', { name: 'Configuración', exact: true }).click()
   await expect(page).toHaveURL(/\/configuracion\//)
-  await expect(page.getByTestId('config-grupos').getByRole('combobox')).toBeVisible()
+  await expect(page.getByTestId('config-grupos')).toBeVisible()
+  await expect(page.getByTestId('config-grupos').getByRole('combobox')).toHaveCount(0)
   await openProfile()
   await profile.getByRole('button', { name: 'Ayuda', exact: true }).click()
   await expect(page).toHaveURL(/\/ayuda\/ayuda/)
@@ -243,65 +262,94 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
   await page.setViewportSize({ width: 390, height: 900 })
   await enterDemo(page)
   const navigation = page.getByTestId('shell-bottom-nav')
+  // Section → level 1 tab → catalog ids it renders (level 2 when several).
   const destinations = {
     Inicio: { resumen: ['resumen'], ops: ['ops'] },
     Ventas: {
-      pedidos: ['pedidos', 'autorizaciones'],
+      pedidos: ['pedidos'],
       cotizaciones: ['cotizaciones'],
-      entregas: ['repartos'],
-      taller: ['servicio', 'tradein-admin'],
-      clientes: ['clientes', 'promociones', 'plantillas'],
+      repartos: ['repartos'],
+      autorizaciones: ['autorizaciones'],
     },
+    Clientes: {
+      clientes: ['clientes'],
+      promociones: ['promociones'],
+      plantillas: ['plantillas'],
+    },
+    Taller: { servicio: ['servicio'], 'tradein-admin': ['tradein-admin'] },
     Stock: {
-      inventario: ['unidades', 'productos'],
-      compras: [
-        'compras',
-        'abastecimiento',
-        'compras-centro',
-        'preparacion',
-        'lotes',
-        'recepcion',
-        'metricas',
-      ],
+      unidades: ['unidades'],
+      productos: ['productos'],
       traslados: ['traslados'],
+      control: ['control'],
       precios: ['precios', 'celulares', 'comparador', 'centro-control'],
     },
-    Finanzas: { finanzas: ['finanzas'], analisis: ['analisis'] },
+    Compras: {
+      compras: ['compras'],
+      abastecimiento: ['abastecimiento'],
+      'compras-centro': ['compras-centro'],
+      preparacion: ['preparacion'],
+      lotes: ['lotes'],
+      recepcion: ['recepcion'],
+      metricas: ['metricas'],
+    },
+    Finanzas: {},
+    Análisis: {},
+  }
+  const enter = async label => {
+    const direct = navigation.getByRole('button', { name: label, exact: true })
+    if (await direct.count()) await direct.click()
+    else {
+      await page.getByTestId('shell-mas').click()
+      await page
+        .getByTestId('shell-mas-hoja')
+        .getByRole('button', { name: label, exact: true })
+        .click()
+    }
+  }
+  const routes = {
+    unidades: '/stock/unidades',
+    traslados: '/stock/traslados',
+    control: '/stock/conteos',
+    'tradein-admin': '/trade-in',
   }
   for (const [label, groups] of Object.entries(destinations)) {
-    await navigation.getByRole('button', { name: label, exact: true }).click()
-    const selector = page.getByTestId('shell-contexto').getByRole('combobox')
+    await enter(label)
+    const context = page.getByTestId('shell-contexto')
+    if (!Object.keys(groups).length) {
+      // One destination: no level 1 row; the page tabs stay on the page header.
+      await expect(context).toHaveCount(0)
+      continue
+    }
     expect(
-      await selector.locator('option').evaluateAll(options => options.map(option => option.value)),
+      await context.locator('[data-tab-id]').evaluateAll(tabs => tabs.map(tab => tab.dataset.tabId)),
     ).toEqual(Object.keys(groups))
+    await expect(context.locator('[aria-current="page"]')).toHaveCount(1)
     for (const [group, ids] of Object.entries(groups)) {
       if (group === 'ops') continue // standalone protected operational board requires backend
-      await selector.selectOption(group)
+      await clickShellTab(page, 'shell-contexto', group)
       for (const id of ids) {
-        if (ids.length > 1)
-          await page.getByTestId('shell-subcontexto').getByRole('combobox').selectOption(id)
-        const route =
-          {
-            unidades: '/stock/unidades',
-            traslados: '/stock/traslados',
-            analisis: '/analisis/reportes',
-            finanzas: '/finanzas/caja',
-          }[id] || rutaDeVista(id)
+        if (ids.length > 1) await clickShellTab(page, 'shell-subcontexto', id)
+        const route = routes[id] || rutaDeVista(id)
         await expect(page).toHaveURL(new RegExp(`${route}$`))
+        // aria-current marks the active tab on both levels.
+        await expect(
+          page.getByTestId('shell-contexto').locator(`[data-tab-id="${group}"]`),
+        ).toHaveAttribute('aria-current', 'page')
+        if (ids.length > 1)
+          await expect(
+            page.getByTestId('shell-subcontexto').locator(`[data-tab-id="${id}"]`),
+          ).toHaveAttribute('aria-current', 'page')
       }
     }
   }
-  await navigation.getByRole('button', { name: 'Finanzas', exact: true }).click()
+  await enter('Finanzas')
   await expect(page).toHaveURL(/\/finanzas\/caja/)
-  await page
-    .getByRole('combobox', { name: 'Secciones de Finanzas', exact: true })
-    .selectOption('conciliacion')
+  await selectFinanceSection(page, 'Conciliación')
   await expect(page).toHaveURL(/\/finanzas\/conciliacion/)
   await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
-  await page
-    .getByTestId('tabs-inventario')
-    .getByRole('tab', { name: 'Reservas', exact: true })
-    .click()
+  // Reservas es una vista de Control (segundo nivel de la pestaña del shell).
+  await selectInventorySection(page, 'reservas')
   await expect(page).toHaveURL(/\/stock\/reservas/)
   await page.getByTestId('shell-buscar-mobile').click()
   await expect(
@@ -679,7 +727,7 @@ for (const width of widths) {
             shadow: getComputedStyle(element.parentElement).boxShadow,
           }
         })
-        expect(geometry.font).toBeGreaterThanOrEqual(22)
+        expect(geometry.font).toBeGreaterThanOrEqual(20)
         expect(geometry.contained).toBe(true)
         expect(geometry.shadow).toBe('none')
       }
@@ -731,17 +779,25 @@ for (const width of widths) {
         ).toBeGreaterThanOrEqual(minFont)
       }
       const toolbar = page.getByTestId('barra-pos')
-      const more = await toolbar.getByTestId('pos-mas').boundingBox()
+      const more = await toolbar.getByTestId('pos-suspendidas').boundingBox()
       const suspend = await toolbar
         .getByRole('button', { name: 'Suspender venta', exact: true })
         .boundingBox()
-      expect(more.x + more.width <= suspend.x + 1 || more.y + more.height <= suspend.y + 1).toBe(
-        true,
-      )
+      // Suspender venta va primero; «Ventas suspendidas» no se solapa con él.
+      expect(
+        suspend.x + suspend.width <= more.x + 1 ||
+          suspend.y + suspend.height <= more.y + 1 ||
+          more.x + more.width <= suspend.x + 1 ||
+          more.y + more.height <= suspend.y + 1,
+      ).toBe(true)
       const catalog = await page.getByTestId('pos-bloque-productos').boundingBox()
       const cart = await page.getByTestId('pos-bloque-carrito').boundingBox()
       const client = await page.getByTestId('pos-bloque-cliente').boundingBox()
-      expect(client.y).toBeLessThan(cart.y)
+      // Cliente arriba del catálogo (columna izquierda) y carrito al costado.
+      if (width >= 1024) {
+        expect(client.y + client.height).toBeLessThanOrEqual(catalog.y + 1)
+        expect(client.x + client.width).toBeLessThanOrEqual(cart.x + 1)
+      } else expect(client.y).toBeLessThan(cart.y)
       if (width === 1440) expect(catalog.x + catalog.width).toBeLessThanOrEqual(cart.x)
       else {
         const bar = await page.getByTestId('pos-barra-accion').boundingBox()
@@ -812,10 +868,9 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await note.click()
   await page.locator('#observacion').fill('Prueba local sin envío')
   await expect(page.locator('#observacion')).toHaveValue('Prueba local sin envío')
-  await page.getByTestId('pos-mas').click()
-  await expect(
-    page.getByRole('menuitem', { name: 'Ventas suspendidas', exact: true }),
-  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ventas suspendidas', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Gift cards', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
   // Submission/tenant/offline cases from #341 above remain unchanged and execute in the same suite.
 })
 
@@ -823,8 +878,7 @@ const f3Output = '/tmp/mobos-redesign-f3-qa'
 
 async function selectVentas(page, width, label) {
   const context = page.getByTestId('shell-contexto')
-  if (width < 1024) await context.getByRole('combobox').selectOption(label.toLowerCase())
-  else await context.getByRole('button', { name: label, exact: true }).click()
+  await context.locator(`[data-tab-id="${label.toLowerCase()}"]`).click()
 }
 
 async function setF3Theme(page, width, dark) {
@@ -898,11 +952,9 @@ for (const width of [320, 390, 1440]) {
         }),
       )
       await all.click()
-      await orders.locator('.ventas-f3-extra-filters > summary').focus()
-      await page.keyboard.press('Enter')
-      await orders
-        .getByRole('combobox', { name: 'Más estados de pago', exact: true })
-        .selectOption('parciales')
+      // «Más estados» despliega los chips de pago poco frecuentes (sin select nativo).
+      await orders.getByRole('button', { name: 'Más estados', exact: true }).click()
+      await orders.getByRole('button', { name: 'Parciales', exact: true }).click()
       await expect(page.getByTestId('pedido-fila')).toHaveCount(
         await page.evaluate(async () => {
           const { listVentas } = await import('/src/lib/storage.js')
@@ -918,12 +970,10 @@ for (const width of [320, 390, 1440]) {
         }),
       )
       await all.click()
-      await orders
-        .getByRole('combobox', { name: 'Ordenar pedidos', exact: true })
-        .selectOption('quantity')
-      await expect(
-        orders.getByRole('combobox', { name: 'Ordenar pedidos', exact: true }),
-      ).toHaveValue('quantity')
+      // El orden vive en el menú «Ordenar» (reemplaza al select nativo).
+      await orders.getByRole('button', { name: 'Ordenar', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Cantidad', exact: true }).click()
+      await expect(orders.getByTestId('pedidos-orden')).toHaveAttribute('data-orden', 'quantity')
       const search = orders.getByRole('textbox', { name: 'Buscar pedidos', exact: true })
       await search.fill(expected[0].customer)
       await expect(page.getByTestId('pedido-fila').first().locator('.ventas-f3-name')).toHaveText(
@@ -933,7 +983,9 @@ for (const width of [320, 390, 1440]) {
         .getByTestId('pedido-fila')
         .first()
         .getByRole('button', { name: /Vista rápida/ })
+      await expect(quick).toBeVisible()
       await quick.focus()
+      await expect(quick).toBeFocused()
       await page.keyboard.press('Enter')
       const drawer = page.getByRole('dialog')
       await expect(page.getByTestId('pedido-vista-rapida')).toBeVisible()
@@ -1008,9 +1060,8 @@ for (const width of [320, 390, 1440]) {
         quoteData.filter(row => row.status === 'SENT').length,
       )
       await quotes.getByRole('button', { name: 'Todas', exact: true }).click()
-      await quotes
-        .getByRole('combobox', { name: 'Más estados de cotización', exact: true })
-        .selectOption('DRAFT')
+      await quotes.getByRole('button', { name: 'Más estados', exact: true }).click()
+      await quotes.getByRole('button', { name: 'Borradores', exact: true }).click()
       await expect(page.getByTestId('cotizacion-fila')).toHaveCount(
         quoteData.filter(row => row.status === 'DRAFT').length,
       )
@@ -2592,7 +2643,7 @@ for (const width of [1440, 320]) {
       // All API data is isolated and every nonlocal request is blocked.
       await page.route('**/*', route => {
         const url = new URL(route.request().url())
-        return url.origin === 'http://127.0.0.1:5291' ? route.continue() : route.abort()
+        return url.origin === `http://127.0.0.1:${process.env.MOBOS_QA_PORT || 5291}` ? route.continue() : route.abort()
       })
       const state = await mockStock(page, { noRate })
       const cases = [
@@ -2996,7 +3047,7 @@ for (const width of reconciliationWidths) {
       const rows = root.getByTestId('conciliacion-fila')
       await expect(rows).toHaveCount(width < 1100 ? 2 : 4)
       await expect(rows.nth(0).locator('[data-label="Monto"]')).toHaveText('Gs 100.000.000')
-      await expect(rows.nth(1).locator('[data-label="Monto"]')).toHaveText('Gs -100.000.000')
+      await expect(rows.nth(1).locator('[data-label="Monto"]')).toHaveText('-Gs 100.000.000')
       if (width < 1100) await root.getByRole('button', { name: 'Siguiente', exact: true }).click()
       const refund = rows.filter({ hasText: 'QA-REFUND' })
       const verified = rows.filter({ hasText: 'QA-VERIFIED' })
@@ -3010,7 +3061,7 @@ for (const width of reconciliationWidths) {
       await expect(root.getByRole('button', { name: 'Conciliar lote', exact: true })).toBeDisabled()
       await expect(root.getByText('+Gs 100.000.000', { exact: true })).toBeVisible()
       await root.getByLabel('Monto recibido', { exact: true }).fill('0')
-      await expect(root.getByText('Gs -100.000.000', { exact: true }).last()).toBeVisible()
+      await expect(root.getByText('-Gs 100.000.000', { exact: true }).last()).toBeVisible()
       await root.getByRole('button', { name: 'Mostrar Cuentas del período' }).click()
       for (const cell of await reconciliationMetrics(page))
         expect(cell.scroll, cell.text).toBeLessThanOrEqual(cell.width + 1)
@@ -3307,7 +3358,9 @@ for (const dark of [false, true]) {
     expect(boxes[2].top).toBeGreaterThan(boxes[0].top)
     expect(boxes[1].left).toBeGreaterThan(boxes[0].left)
     await expect(kpis.nth(0).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
-    await expect(kpis.nth(3).locator('.conciliacion-f5-digits')).toHaveText('-100.000.000')
+    // El signo va pegado al símbolo («-Gs 100.000.000»); los dígitos quedan enteros.
+    await expect(kpis.nth(3).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
+    await expect(kpis.nth(3).locator('strong')).toHaveText('-Gs 100.000.000')
     await writeFile(
       `${reconciliationOutput}/kpi-stress-390-${dark ? 'dark' : 'light'}-metrics.json`,
       JSON.stringify(
@@ -3435,6 +3488,15 @@ async function masUnidadesDemo(page, cantidad = 90) {
     })
   }, cantidad)
 }
+async function abrirFiltroStock(page, grupo) {
+  // Celular: hoja «Filtros»; escritorio: el chip del grupo.
+  await page.getByTestId('filtros-abrir').or(page.getByTestId(`filtro-${grupo}-abrir`)).first().click()
+}
+async function elegirFiltroStock(page, grupo, id) {
+  await abrirFiltroStock(page, grupo)
+  await page.getByTestId(`filtro-${grupo}-${id}`).click()
+  if (await page.getByTestId('filtros-hoja').count()) await page.keyboard.press('Escape')
+}
 async function abrirStock(page, width) {
   await page
     .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
@@ -3450,19 +3512,23 @@ test('U3 /inventario/* redirige a /stock/* y las doce vistas siguen abriendo', a
     transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
     taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
   }
-  const secciones = page.getByTestId('tabs-inventario')
+  // Rediseño 2A: las pestañas son del shell y no hay una segunda barra de
+  // secciones dentro de la pantalla.
+  const contexto = page.getByTestId('shell-contexto')
   await abrirStock(page, 1440)
   await expect(page).toHaveURL(/\/stock\/unidades$/)
-  for (const nombre of ['Unidades', 'Reservas', 'Movimientos', 'Control'])
-    await expect(secciones.getByRole('tab', { name: nombre })).toBeVisible()
+  for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios'])
+    await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
+  await expect(page.getByTestId('tabs-inventario')).toHaveCount(0)
+  const grupoDe = { unidades: 'unidades', vendidos: 'unidades', eliminados: 'unidades', traslados: 'traslados', transito: 'traslados' }
   for (const [id, etiqueta] of Object.entries(vistas)) {
-    const seccion = { unidades: 'Unidades', ubicaciones: 'Unidades', alertas: 'Unidades', reservas: 'Reservas' }[id] || (['transito', 'traslados', 'vendidos', 'eliminados'].includes(id) ? 'Movimientos' : 'Control')
-    await secciones.getByRole('tab', { name: seccion }).click()
-    const vista = page.getByTestId('subtabs-inventario')
-    if (await vista.count()) await vista.getByRole('tab', { name: etiqueta }).click()
-    // Conteos y Autorizaciones viven solo en esta pantalla: no cambian la URL.
-    if (!['conteos', 'autorizaciones'].includes(id)) await expect(page).toHaveURL(new RegExp(`/stock/${id}$`))
-    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: etiqueta }).first()).toHaveAttribute('aria-selected', 'true')
+    await selectInventorySection(page, id)
+    // Autorizaciones vive solo en esta pantalla: no cambia la URL.
+    if (id !== 'autorizaciones') await expect(page).toHaveURL(new RegExp(`/stock/${id}$`))
+    await expect(contexto.locator(`[data-tab-id="${grupoDe[id] || 'control'}"]`)).toHaveAttribute('aria-current', 'page')
+    // Las vistas de segundo nivel marcan la activa; Unidades/Vendidos/Eliminados la muestran en el chip Estado.
+    if (!['unidades', 'vendidos', 'eliminados'].includes(id))
+      await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: new RegExp(`^${etiqueta}`) })).toHaveAttribute('aria-selected', 'true')
   }
   // Un enlace guardado a /inventario/<vista>?q=… conserva vista y búsqueda.
   await page.goto('/inventario/reservas?q=iphone')
@@ -3486,13 +3552,15 @@ for (const width of stockU3Widths) {
     await expect(page.getByTestId('stock-mostrando')).toHaveText(/^Mostrando 50 de 1\d\d$/)
     await page.getByRole('button', { name: 'Cargar más' }).click()
     await expect(page.getByTestId('stock-mostrando')).toHaveText(/^Mostrando 100 de 1\d\d$/)
-    // Filtros: el chip queda en la URL y la lista se acota.
-    await page.getByTestId('filtro-estado-reservado').click()
+    // Filtros: el chip queda en la URL y la lista se acota. Escritorio: un chip
+    // por filtro con su lista; celular: una hoja «Filtros» con los mismos grupos.
+    await elegirFiltroStock(page, 'estado', 'reservado')
     await expect(page).toHaveURL(/estado=reservado/)
     await expect(filas.first()).toContainText('Reservado')
-    await page.getByTestId('filtro-tipo-ACCESORIO').click()
+    await elegirFiltroStock(page, 'tipo', 'ACCESORIO')
     await expect(page).toHaveURL(/tipo=ACCESORIO/)
     await page.reload()
+    await abrirFiltroStock(page, 'estado')
     await expect(page.getByTestId('filtro-estado-reservado')).toHaveAttribute('aria-pressed', 'true')
     await page.getByTestId('filtros-limpiar').click()
     await expect(page).not.toHaveURL(/estado=|tipo=/)

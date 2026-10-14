@@ -6,7 +6,7 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Badge, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea, MenuDesplegable, Select } from '@/components/ui'
+import { Aviso, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
@@ -31,15 +31,19 @@ import { cotizacionUrlFor, estadoCotizacion } from '@/lib/cotizaciones'
 import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion, crearDemoCotizacion } from '@/lib/demoCotizaciones'
 import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
+import StatusChip from '@/components/shared/StatusChip'
+import ChipsFiltro from './ChipsFiltro'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import { quoteActions } from '@/lib/ventasF3'
 import './ventasF3.css'
-const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], REJECTED: ['Rechazada', 'red'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
+// Etiqueta y tono (ok · warn · bad · neutral) de cada estado: lo dibuja StatusChip.
+const STATUS = { DRAFT: ['Borrador', 'neutral'], SENT: ['Enviada', 'neutral'], ACCEPTED: ['Aceptada', 'warn'], REJECTED: ['Rechazada', 'bad'], CONVERTED: ['Convertida', 'ok'], EXPIRED: ['Vencida', 'bad'], CANCELLED: ['Cancelada', 'neutral'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
 const FILTROS = [['abiertas', 'Abiertas'], ['SENT', 'Enviadas'], ['ACCEPTED', 'Aceptadas'], ['REJECTED', 'Rechazadas'], ['CONVERTED', 'Convertidas'], ['todas', 'Todas']]
+const FILTROS_MAS = [['DRAFT', 'Borradores'], ['EXPIRED', 'Vencidas'], ['CANCELLED', 'Canceladas']]
 const identity = row => row
 // #314: la demo recorre el pipeline con los fixtures canónicos de #324 y el
 // estado de la pestaña (enviar/aceptar/convertir) resuelto en memoria.
@@ -408,55 +412,45 @@ export default function SellerQuotes() {
   return (
     <div className="ventas-f3" data-testid="ventas-cotizaciones-f3">
       <SellerSection title="Cotizaciones">
-        <BarraModulo
-          titulo="Cotizaciones"
-          descripcion="Precios y condiciones para compartir con el cliente."
-          className="ventas-f3-toolbar"
+        <Toolbar
+          label="Acciones de Cotizaciones"
           testId="barra-cotizaciones"
+          className="ventas-f3-toolbar"
+          plano
+          search={
+            <SearchField
+              ariaLabel="Buscar cotizaciones"
+              placeholder="Número, cliente o artículo"
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+            />
+          }
+          more={
+            <button
+              type="button"
+              onClick={data.refresh}
+              disabled={data.loading}
+              className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore lg:min-h-9"
+            >
+              Actualizar
+            </button>
+          }
+          primary={
+            // #314: crear también en demo: el pipeline completo es local.
+            <Button type="button" onClick={abrirCrear}>
+              + Nueva cotización
+            </Button>
+          }
         >
-          {/* #314: crear también en demo: el pipeline completo es local. */}
-          <Button type="button" onClick={abrirCrear}>
-            + Nueva cotización
-          </Button>
-          <button
-            type="button"
-            onClick={data.refresh}
-            disabled={data.loading}
-            className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0"
-          >
-            Actualizar
-          </button>
-        </BarraModulo>
-        <div className="ventas-f3-filters">
-          <SearchField
-            ariaLabel="Buscar cotizaciones"
-            placeholder="Número, cliente o artículo"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
+          <ChipsFiltro
+            className="basis-full"
+            etiqueta="Estado de las cotizaciones"
+            opciones={FILTROS}
+            mas={FILTROS_MAS}
+            valor={filtro}
+            onChange={setFiltro}
           />
-          <div className="ventas-f3-chips" role="group" aria-label="Estado de las cotizaciones">
-            {FILTROS.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={filtro === key}
-                onClick={() => setFiltro(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <Select
-            aria-label="Más estados de cotización"
-            value={['DRAFT', 'EXPIRED', 'CANCELLED'].includes(filtro) ? filtro : ''}
-            onChange={event => setFiltro(event.target.value || 'todas')}
-          >
-            <option value="">Más estados</option>
-            <option value="DRAFT">Borradores</option>
-            <option value="EXPIRED">Vencidas</option>
-            <option value="CANCELLED">Canceladas</option>
-          </Select>
-        </div>
+        </Toolbar>
         {notice && <Aviso tono="ok">{notice}</Aviso>}
         {error && <Aviso tono="error">{error}</Aviso>}
         <SellerFeedback {...data} empty={false} />
@@ -474,7 +468,7 @@ export default function SellerQuotes() {
               </div>
               {rows.map(row => {
                 const estado = esDemo ? estadoCotizacion(row) : row.status
-                const [label, tone] = STATUS[estado] || [estado || row.status, 'slate']
+                const [label, tone] = STATUS[estado] || [estado || row.status, 'neutral']
                 const cliente = row.customerName || row.customer?.name || 'Sin cliente'
                 const articulos = (row.items || [])
                   .map(item => `${item.quantity} × ${item.description}`)
@@ -537,7 +531,7 @@ export default function SellerQuotes() {
                       {vence.texto}
                     </span>
                     <span className="ventas-f3-quote-state">
-                      <Badge color={tone}>{label}</Badge>
+                      <StatusChip estado={estado} etiqueta={label} tono={tone} />
                     </span>
                     <span className="ventas-f3-money ventas-f3-quote-total">
                       {gs(row.totalPyg)}
@@ -589,9 +583,10 @@ export default function SellerQuotes() {
                       )}
                       <MenuDesplegable
                         trigger={
-                          <>
-                            <span>Más</span>
-                          </>
+                          <span className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm font-semibold text-fore">
+                            Más
+                            <Icon name="chevron" className="h-3.5 w-3.5 text-mute" />
+                          </span>
                         }
                         ariaLabel={`Acciones de ${row.number}`}
                         items={extras}

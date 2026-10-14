@@ -36,8 +36,9 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
   await page.goto('/stock/unidades')
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
-  // Una sola barra antes de la tabla: buscador, vista Productos ⇄ Unidades y
-  // acción primaria; sin el resumen de métricas que apilaba capas (#305).
+  // Una sola barra antes de la tabla: buscador, filtros y acción primaria; sin
+  // el resumen de métricas que apilaba capas (#305). Productos ⇄ Unidades son
+  // pestañas del shell (rediseño 2A).
   const barra = page.getByTestId('barra-inventario')
   await expect(barra).toHaveCount(1)
   await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
@@ -45,10 +46,11 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
   await expect(barra.getByRole('button', { name: 'Más', exact: true })).toBeVisible()
   await expect(page.getByTestId('resumen-inventario')).toHaveCount(0)
 
-  // Navegación agrupada: secciones arriba y solo las vistas de la sección activa.
-  const tabs = page.getByTestId('tabs-inventario')
-  for (const seccion of ['Unidades', 'Reservas', 'Movimientos', 'Control']) {
-    await expect(tabs.getByRole('tab', { name: seccion })).toBeVisible()
+  // Navegación agrupada: las pestañas son del shell y solo la pestaña activa
+  // muestra sus vistas (segundo nivel en su barra).
+  const contexto = page.getByTestId('shell-contexto')
+  for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios']) {
+    await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
   }
   await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
   for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)

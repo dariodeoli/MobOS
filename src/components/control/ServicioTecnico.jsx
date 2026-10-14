@@ -3,7 +3,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { Aviso, Badge, Button, Card, Drawer, EmptyState, FormActions, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import SearchField from '@/components/shared/SearchField'
 import InspeccionEquipo from '@/components/shared/InspeccionEquipo'
@@ -569,65 +569,72 @@ export default function ServicioTecnico() {
 
   return (
     <Card className="taller-f3 space-y-4">
-      {/* Composición compacta (#256): identidad y acciones en una sola barra. */}
-      <BarraModulo
-        icono="wrench"
-        titulo="Taller"
-        descripcion="Recepción, diagnóstico, reparación, costos y entrega de cada equipo."
+      {/* Barra de la pestaña (Toolbar): búsqueda, etapa y filtros a la izquierda;
+          Actualizar, catálogo y la acción principal a la derecha. */}
+      <Toolbar
+        plano
+        label="Acciones de Taller"
         testId="barra-taller"
-      >
-        <Button variant="outline" onClick={() => setCatalogoOpen(true)}>
-          Catálogo de servicios
-        </Button>
-        <Button
-          onClick={() => {
-            setEditing(null)
-            const vacio = { ...FORM_VACIO }
-            setForm(vacio)
-            setDispositivo({})
-            setReferenciaForm(JSON.stringify(vacio))
-          }}
-        >
-          + Nueva orden
-        </Button>
-      </BarraModulo>
-
-      <div className="taller-f3-tools flex flex-wrap items-center gap-2">
-        <Button variant="outline" onClick={load} disabled={loading || advanceBusy}>
-          Actualizar
-        </Button>
-        <div className="taller-f3-search min-w-0 flex-1">
+        className="taller-f3-tools"
+        search={
           <SearchField
             ariaLabel="Buscar órdenes de servicio"
             placeholder="Cliente, equipo, IMEI, falla o técnico"
             value={q}
             onChange={event => setQ(event.target.value)}
           />
-        </div>
-        <div className="w-full sm:w-60">
-          <Select
-            aria-label="Filtrar por etapa"
-            value={filtro}
-            onChange={event => setFiltro(event.target.value)}
+        }
+        filters={
+          <>
+            <div className="w-full sm:w-60">
+              <Select
+                aria-label="Filtrar por etapa"
+                value={filtro}
+                onChange={event => setFiltro(event.target.value)}
+              >
+                <option value="activos">Activas ({conteos.activos})</option>
+                {ESTADOS.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label} ({conteos[id] || 0})
+                  </option>
+                ))}
+                <option value="todos">Todas ({rows.length})</option>
+              </Select>
+            </div>
+            <Button
+              variant="outline"
+              className="min-h-11 md:min-h-0"
+              aria-expanded={filtrosOpen}
+              onClick={() => setFiltrosOpen(true)}
+            >
+              Filtros{filtrosActivos ? ` (${filtrosActivos})` : ''}
+            </Button>
+          </>
+        }
+        more={
+          <>
+            <Button variant="outline" onClick={load} disabled={loading || advanceBusy}>
+              Actualizar
+            </Button>
+            <Button variant="outline" onClick={() => setCatalogoOpen(true)}>
+              Catálogo de servicios
+            </Button>
+          </>
+        }
+        primary={
+          <Button
+            onClick={() => {
+              setEditing(null)
+              const vacio = { ...FORM_VACIO }
+              setForm(vacio)
+              setDispositivo({})
+              setReferenciaForm(JSON.stringify(vacio))
+            }}
           >
-            <option value="activos">Activas ({conteos.activos})</option>
-            {ESTADOS.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label} ({conteos[id] || 0})
-              </option>
-            ))}
-            <option value="todos">Todas ({rows.length})</option>
-          </Select>
-        </div>
-        <Button
-          variant="outline"
-          className="min-h-11 md:min-h-0"
-          aria-expanded={filtrosOpen}
-          onClick={() => setFiltrosOpen(true)}
-        >
-          Filtros{filtrosActivos ? ` (${filtrosActivos})` : ''}
-        </Button>
-      </div>
+            + Nueva orden
+          </Button>
+        }
+      />
 
       {advanceFeedback && (
         <p

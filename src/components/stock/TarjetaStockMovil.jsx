@@ -6,7 +6,7 @@ import { etiquetaDeCategoria } from '@/lib/categorias'
 import IconoCategoria from '@/components/shared/IconoCategoria'
 import { Badge, Button } from '@/components/ui'
 import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
-import { BateriaStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
+import { BateriaStock, ConsignadoStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
 import { temaV2Activo } from '@/lib/temaV2'
@@ -295,6 +295,7 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
           <span className="mt-1 flex flex-wrap items-center gap-2">
             <EstadoStock item={item} />
             <BateriaStock item={item} />
+            <ConsignadoStock item={item} />
           </span>
           {ubicacion ? <span className="mt-1 block truncate text-[11px] text-mute" title={ubicacion}>{ubicacion}</span> : null}
           {vista === 'vendidos' ? <span className="mt-1 block text-[11px] text-mute">Vendido el {fechaVentaStock(item)}</span> : null}

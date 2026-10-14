@@ -16,13 +16,13 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-
 // Sección nueva → contenido que la identifica: un encabezado propio o, cuando
 // la sección ordena su pantalla en paneles (#253 · Dispositivos), su navegación.
 const SECCIONES = [
-  ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Integrantes', 'equipo'],
+  ['Impresión y dispositivos', '', 'dispositivos', 'paneles-impresion'],
   ['Comercial', 'Seguro de ventas', 'comercial'],
   ['Seguridad y auditoría', 'Sesiones activas', 'seguridad'],
-  ['Dispositivos', '', 'dispositivos', 'paneles-impresion'],
   ['Sistema', 'Sincronización', 'sistema'],
+  ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
 ]
 
 test('las rutas viejas de Configuración entran por su sección nueva', async ({ page }) => {
@@ -47,9 +47,9 @@ test('las rutas viejas de Configuración entran por su sección nueva', async ({
 
 test('Configuración tiene siete secciones y ninguna duplica contenido', async ({ page }) => {
   await page.goto('/configuracion')
-  // Sin hijo entra por la primera: Mi cuenta.
-  await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
-  await expect(page.getByTestId('config-grupos').locator('option[value]:not([value=""])')).toHaveCount(SECCIONES.length)
+  // Sin hijo entra por la primera (la más usada): Organización.
+  await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
+  await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(SECCIONES.length)
 
   for (const [nombre, contenido, slug, testid] of SECCIONES) {
     await selectConfigSection(page, nombre)
@@ -60,7 +60,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   }
 
   // Documentación ya no es una pestaña de Configuración: vive en Ayuda.
-  await expect(page.getByTestId('config-grupos').locator('option', { hasText: 'Documentación' })).toHaveCount(0)
+  await expect(page.getByTestId('config-grupos').getByRole('button', { name: 'Documentación' })).toHaveCount(0)
 
   // Sin duplicar: la foto es de Mi cuenta y el ID de tienda no se repite en
   // Datos de la tienda (el detalle de Tiendas es el único lugar donde se copia).
