@@ -3,8 +3,9 @@ import { cn } from '@/lib/utils'
 
 const CLAVE = 'mobos:demo-aviso-oculto'
 
-// Aviso de la demo en una sola línea y dentro del flujo (no fijo): se puede
-// ocultar por sesión. Los dos controles son enlaces de texto en línea.
+// Aviso de la demo como chip pequeño dentro de la fila del título (#388), no
+// como fila propia: se puede ocultar por sesión. «Cómo funciona» y «Ocultar»
+// son enlaces de texto en línea; «Salir» es el único botón táctil.
 export default function DemoBanner({ angosta = false, onComoFunciona, onSalir }) {
   const [oculto, setOculto] = useState(() => {
     try {
@@ -27,23 +28,18 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
     <div
       role="status"
       data-testid="demo-aviso"
-      className={cn(
-        'flex items-center justify-between gap-3 border-b border-ink-600 bg-ink px-4 text-mute md:px-6',
-        angosta ? 'h-5 text-[11px] leading-[14px]' : 'h-6 text-xs leading-4',
-      )}
+      title="Modo demo: datos ficticios, no se guardan y se descartan al recargar."
+      className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-ink-600 bg-ink-800 pl-3 text-xs leading-4 text-mute"
     >
-      <span className="min-w-0 truncate">
-        {angosta
-          ? 'Demo: datos ficticios, nada se guarda.'
-          : 'Modo demo: datos ficticios, no se guardan y se descartan al recargar.'}
-      </span>
-      <span className="flex shrink-0 items-center gap-3">
+      <span className="shrink-0 font-semibold text-fore">Demo</span>
+      <span className="hidden min-w-0 truncate md:inline">datos ficticios, no se guardan</span>
+      <span className="flex shrink-0 items-center gap-2">
         {onSalir && (
           <button
             type="button"
             data-testid="demo-salir"
             onClick={onSalir}
-            className="inline-flex min-h-11 items-center rounded-lg bg-bad px-3 text-xs font-semibold text-onbrand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-bad"
+            className="inline-flex min-h-11 items-center rounded-full bg-bad px-3 text-xs font-semibold text-onbrand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-bad lg:min-h-7"
           >
             {angosta ? 'Salir' : 'Salir de la demo'}
           </button>
@@ -62,7 +58,7 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
           data-testid="demo-aviso-ocultar"
           data-inline-link
           onClick={ocultar}
-          className={enlace}
+          className={cn(enlace, 'pr-3')}
         >
           Ocultar
         </button>
