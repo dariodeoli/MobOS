@@ -136,8 +136,8 @@ test.describe('demo de Finanzas', () => {
     const fila = page.getByTestId('auditoria-fila').first()
     await fila.getByRole('combobox').selectOption('VERIFIED')
     await fila.getByRole('button', { name: 'Guardar' }).click()
-    // El primer match es la insignia; el otro es la opción del selector.
-    await expect(fila.getByText('Verificado', { exact: true }).first()).toBeVisible()
+    // El chip de estado ES el selector: queda en Verificado.
+    await expect(fila.getByRole('combobox')).toHaveValue('VERIFIED')
     await expect(fila.getByRole('button', { name: 'Guardar' })).toBeDisabled()
 
     // #311: el cierre guiado permite contar por denominación con los botones

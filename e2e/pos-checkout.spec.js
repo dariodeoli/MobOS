@@ -92,8 +92,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
   // Totals must balance before saving: el botón principal cambia de estado.
-  const pendiente = paymentsSection.getByText('Pendiente').first()
-  await expect(pendiente.locator('strong')).toHaveText('Gs 0')
+  await expect(page.getByTestId('cobro-pendiente').locator('strong')).toHaveText('Gs 0')
   await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
   // Delivery notes are optional: the backend accepts an omitted empty note
@@ -447,14 +446,18 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
   await expect(page.getByTestId('carrito-total')).toBeVisible()
 
-  // Las acciones secundarias están arriba del bloque de cliente (en el encabezado).
-  const suspender = page.getByTestId('pos-mas')
+  // Rediseño: las herramientas secundarias («Más») viven en el encabezado del bloque
+  // Productos, no en una franja propia que corte el flujo Cliente → Productos → Cobro.
+  const mas = page.getByTestId('pos-mas')
+  await expect(mas).toBeVisible()
+  expect(
+    await mas.evaluate(el => Boolean(el.closest('[data-testid="pos-bloque-productos"]'))),
+    'lo secundario vive dentro del encabezado de Productos',
+  ).toBe(true)
   const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
-  const ySuspender = await suspender.evaluate(
-    el => el.getBoundingClientRect().top + window.scrollY,
-  )
   const yCliente = await cliente.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
-  expect(ySuspender, 'lo secundario no corta el flujo de la venta').toBeLessThan(yCliente)
+  const yMas = await mas.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
+  expect(yMas, 'el cliente va primero, sobre las herramientas del catálogo').toBeGreaterThan(yCliente)
 })
 
 // Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea

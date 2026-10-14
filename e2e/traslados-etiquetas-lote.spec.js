@@ -138,7 +138,7 @@ test('desde la recepción del destino se reimprime la etiqueta de una unidad', a
   await sembrarLote(page, { marca, seriales: [serial] })
 
   await page.goto('/inventario/transito')
-  await page.getByLabel('Buscar en inventario').fill(serial)
+  await page.getByLabel('Buscar en tránsito').fill(serial)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.click()

@@ -10,9 +10,6 @@ import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
-// Imagen mínima válida para simular la foto subida de una persona.
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
-
 async function api(page, path, options = {}) {
   return page.evaluate(async ({ api, path, options }) => {
     const response = await fetch(`${api}${path}`, {
@@ -83,7 +80,7 @@ test('sin contexto local, la identidad de tienda sale del servidor', async ({ pa
   const pagina = await limpio.newPage()
   try {
     await pagina.goto('/')
-    await expect(pagina.getByTestId('shell-mobile-header').locator('strong')).toHaveText('MobOS')
+    await expect(pagina.getByTestId('shell-mobile-header').getByRole('img', { name: 'MobOS' })).toBeVisible()
     const profile = await openShellProfile(pagina)
     await expect(profile.getByTestId('shell-empresa')).toHaveText(SEED.company.name)
   } finally {
@@ -91,42 +88,33 @@ test('sin contexto local, la identidad de tienda sale del servidor', async ({ pa
   }
 })
 
-// La píldora de presencia resuelve la foto con el Avatar compartido para todas
-// las personas (foto subida → Google → iniciales) y usa nombre corto cuando hay
-// una sola persona en línea (#210/#211).
-function personasEnLinea(page, personas) {
-  const ahora = new Date().toISOString()
-  return Promise.all([
-    page.route('**/api/presence/heartbeat', (route) => route.fulfill({ json: { ok: true } })),
-    page.route('**/api/users/presencia-ana/avatar', (route) => route.fulfill({ contentType: 'image/png', body: PNG })),
-    page.route('**/api/presence', (route) => route.fulfill({
-      json: { people: personas.map((persona) => ({ lastSeenAt: ahora, active: false, scope: null, ...persona })) },
-    })),
-  ])
-}
-
-test('la píldora de presencia muestra foto, iniciales y el total en línea (#211)', async ({ page }) => {
-  await personasEnLinea(page, [
-    { id: 'presencia-ana', name: 'Ana María Gómez', role: 'ADMIN', scope: 'resumen' },
-    { id: 'presencia-bruno', name: 'Bruno Díaz', role: 'VENDEDOR', scope: 'pos' },
-  ])
+// Presencia (#210/#211): la píldora de personas en línea se retiró del header; el
+// estado en línea es un punto sobre el avatar del perfil (foto subida → Google →
+// iniciales, resuelto por el Avatar compartido) y su etiqueta accesible lo dice.
+test('el avatar del perfil muestra iniciales y el estado en línea (#211)', async ({ page }) => {
   await entrarComoDueno(page)
 
-  const pildora = page.getByRole('group', { name: 'Personas en línea' })
-  await expect(pildora).toBeVisible()
-  await expect(page.locator('img[alt="Foto de Ana María Gómez"]')).toBeVisible()
-  const bruno = page.getByTitle('Bruno Díaz · pos')
-  await expect(bruno).toBeVisible()
-  await expect(bruno).toHaveText('BD')
-  await expect(pildora.getByText('2 en línea')).toBeVisible()
+  const perfil = page.getByTestId('shell-perfil')
+  await expect(perfil).toBeVisible()
+  await expect(perfil).toHaveAttribute('aria-label', /Abrir perfil de .*, en línea/)
+  const chip = perfil.getByTestId('persona-chip')
+  await expect(chip).toHaveAttribute('title', /en línea/)
+  await expect(chip).toBeVisible()
+  // La píldora de personas en línea ya no existe en el header.
+  await expect(page.getByRole('group', { name: 'Personas en línea' })).toHaveCount(0)
 })
 
-test('con una sola persona en línea, la píldora muestra el nombre corto (#211)', async ({ page }) => {
-  await personasEnLinea(page, [{ id: 'presencia-ana', name: 'Ana María Gómez', role: 'ADMIN' }])
+test('sin conexión el avatar del perfil cambia de estado y lo anuncia (#211)', async ({ page }) => {
   await entrarComoDueno(page)
 
-  const pildora = page.getByRole('group', { name: 'Personas en línea' })
-  await expect(pildora).toBeVisible()
-  await expect(pildora.getByText('Ana en línea')).toBeVisible()
-  await expect(page.locator('img[alt="Foto de Ana María Gómez"]')).toBeVisible()
+  const perfil = page.getByTestId('shell-perfil')
+  await expect(perfil).toHaveAttribute('aria-label', /en línea/)
+  await page.context().setOffline(true)
+  try {
+    await expect(perfil).toHaveAttribute('aria-label', /sin conexión/)
+    await expect(perfil.getByTestId('persona-chip')).toHaveAttribute('title', /sin conexión/)
+  } finally {
+    await page.context().setOffline(false)
+  }
+  await expect(perfil).toHaveAttribute('aria-label', /en línea/)
 })

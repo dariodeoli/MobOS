@@ -58,7 +58,8 @@ test('cambiar o quitar la foto no muestra la anterior (revalidación del avatar)
   const pngA = await QRCode.toBuffer(`avatar-A-${Date.now()}`)
   const pngB = await QRCode.toBuffer(`avatar-B-${Date.now() + 1}`)
   const [b64A, b64B] = [pngA.toString('base64'), pngB.toString('base64')]
-  const foto = () => page.locator(`img[alt="Foto de ${nombre}"]`).first()
+  // El header móvil (oculto en escritorio) también pinta el avatar: se toma el visible.
+  const foto = () => page.locator(`img[alt="Foto de ${nombre}"]:visible`).first()
 
   // La API valida con ETag y `no-cache`: la URL estable ya no puede servir la vieja.
   expect(await subirAvatar(page, sesion.id, b64A)).toBeLessThan(300)
@@ -185,14 +186,14 @@ test('la foto cacheada se pinta sin red en la segunda carga (#284)', async ({ pa
 
   // Primera carga: la foto entra a la caché persistente.
   await page.reload()
-  await expect(page.locator(`img[alt="Foto de ${nombre}"]`).first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator(`img[alt="Foto de ${nombre}"]:visible`).first()).toBeVisible({ timeout: 20_000 })
   const cacheado = await page.evaluate((userId) => Boolean(localStorage.getItem(`mobos:avatar:${userId}`)), sesion.id)
   expect(cacheado, 'la primera carga tiene que dejar la foto en localStorage').toBe(true)
 
   // Segunda carga sin red: la foto sigue apareciendo al instante desde la caché.
   await page.route('**/api/users/*/avatar', (ruta) => ruta.abort())
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.locator(`img[alt="Foto de ${nombre}"]`).first()).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator(`img[alt="Foto de ${nombre}"]:visible`).first()).toBeVisible({ timeout: 10_000 })
   // Se libera la ruta antes de limpiar (el DELETE también pasa por ahí).
   await page.unroute('**/api/users/*/avatar')
   await borrarAvatar(page, sesion.id)

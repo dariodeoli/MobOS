@@ -6,7 +6,8 @@
 // Capturas reproducibles (claro/oscuro/desktop/mobile):
 //   MOBOS_CAPTURAS=docs/qa/323-crm npx playwright test e2e/qa-323-crm-modales.spec.js -g capturas
 import { mkdirSync } from 'node:fs'
-import { request, test, expect } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { contextoVendedorApi } from './helpers/seller-api.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const marca = () => Date.now().toString(36).toUpperCase()
@@ -22,11 +23,7 @@ const apiPagina = (page, ruta, opciones = {}) => page.evaluate(async ({ api, rut
 async function crearSolicitud(page, nombreCliente) {
   const cliente = await apiPagina(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: nombreCliente }) })
   expect([200, 201], JSON.stringify(cliente.body)).toContain(cliente.status)
-  const vendedor = await request.newContext({
-    baseURL: API,
-    storageState: 'e2e/.auth/seller.json',
-    extraHTTPHeaders: { Origin: `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}` },
-  })
+  const vendedor = await contextoVendedorApi({ origen: `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}` })
   try {
     const solicitud = await vendedor.post('/api/authorizations', {
       data: { kind: 'DISCOUNT', customerId: cliente.body.id, requestedValue: { discountPyg: 50000 }, note: `QA 323 CRM ${nombreCliente}` },

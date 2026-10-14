@@ -148,8 +148,9 @@ test('#324 · roles secundarios: el menú dice la misma persona y rol que Equipo
   for (const [perfil, persona, rol, url] of perfiles) {
     await entrarComo(page, perfil)
     await expect(page).toHaveURL(url)
-    await expect(page.getByText(persona).first()).toBeVisible({ timeout: 25_000 })
-    await expect(page.getByText(rol, { exact: true }).first()).toBeVisible()
+    await expect(page.getByTestId('shell-perfil')).toBeVisible({ timeout: 25_000 })
+    // El perfil del header es solo el avatar: persona y rol van en su etiqueta accesible.
+    await expect(page.getByTestId('shell-perfil')).toHaveAttribute('aria-label', new RegExp(`Abrir perfil de ${persona} \\(${rol}\\)`))
     await capturar(page, `11-rol-${perfil.toLowerCase()}`)
   }
 
