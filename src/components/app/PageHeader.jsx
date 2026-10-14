@@ -7,12 +7,18 @@ import Icon from '@/components/shared/Icon'
 // current section. `utilities` (desktop only) sits at the end of the title row:
 // bell and profile avatar. Mirrors the owncoding-ui PageHeader props (title,
 // subtitle, actions, backTo) so it can be swapped for the package one.
-export default function PageHeader({ title, subtitle, actions, backTo, breadcrumb = '', utilities, children }) {
+export default function PageHeader({ title, subtitle, actions, backTo, breadcrumb = '', utilities, children, record = false, recordRef }) {
   return (
     <div className="px-4 pt-1 md:px-6 lg:pt-3">
       <nav data-testid="shell-breadcrumb" aria-label="Sección actual" className="sr-only">
         {breadcrumb}
       </nav>
+      {/* Detail pages: the record renders its own single row here (RecordHeader). */}
+      <div className={record ? 'flex items-center gap-2' : 'hidden'}>
+        <div ref={recordRef} className="min-w-0 flex-1" />
+        {record && utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}
+      </div>
+      {!record && (
       <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div className="flex min-w-0 items-center gap-2">
           {backTo && (
@@ -34,8 +40,9 @@ export default function PageHeader({ title, subtitle, actions, backTo, breadcrum
           </div>
         )}
       </div>
-      {subtitle && <p className="text-sm text-mute">{subtitle}</p>}
-      {children && <div className="mt-0 lg:mt-1">{children}</div>}
+      )}
+      {!record && subtitle && <p className="text-sm text-mute">{subtitle}</p>}
+      {!record && children && <div className="mt-0 lg:mt-1">{children}</div>}
     </div>
   )
 }

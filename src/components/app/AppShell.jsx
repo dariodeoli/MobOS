@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useTemaV2 } from '@/lib/temaV2'
 import { Modal, Skeleton } from '@/components/ui'
@@ -11,6 +11,7 @@ import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionTabs from '@/components/app/SectionTabs'
 import PageHeader from '@/components/app/PageHeader'
+import { RecordSlotContext } from '@/components/app/RecordHeader'
 import { SegmentosToolbarContext } from '@/components/app/SegmentosToolbar'
 import DemoBanner from '@/components/app/DemoBanner'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
@@ -72,6 +73,9 @@ export default function AppShell({
   const temaV2 = useTemaV2()
   const [profileOpen, setProfileOpen] = useState(false)
   const [masOpen, setMasOpen] = useState(false)
+  const [recordSlot, setRecordSlot] = useState(null)
+  const [recordActivo, setRecordActivo] = useState(false)
+  const recordCtx = useMemo(() => ({ slot: recordSlot, setActivo: setRecordActivo }), [recordSlot])
   const [comoFunciona, setComoFunciona] = useState(false)
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
   useEffect(() => {
@@ -349,7 +353,7 @@ export default function AppShell({
           ))}
         </div>
       </aside>
-      <div className="shell-body flex min-w-0 flex-1 flex-col">
+      <div className="shell-body flex min-w-0 flex-1 flex-col" data-registro={recordActivo ? '1' : undefined}>
         <header
           data-testid="shell-mobile-header"
           className="sticky top-0 z-20 border-b border-ink-600 bg-ink pt-safe lg:hidden"
@@ -377,6 +381,8 @@ export default function AppShell({
           actions={headerActions}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
+          record={recordActivo}
+          recordRef={setRecordSlot}
           utilities={
             <>
               {alertsButton()}
@@ -387,6 +393,7 @@ export default function AppShell({
           {tabsNode}
           {!enToolbar && segmentsNode}
         </PageHeader>
+        <RecordSlotContext.Provider value={recordCtx}>
         <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
           {loading ? (
             <main className="flex-1 px-4 pb-4 pt-1 md:px-6 lg:pt-4" aria-busy="true">
@@ -396,6 +403,7 @@ export default function AppShell({
             children
           )}
         </SegmentosToolbarContext.Provider>
+        </RecordSlotContext.Provider>
       </div>
       {showBottomNav && (
         <nav

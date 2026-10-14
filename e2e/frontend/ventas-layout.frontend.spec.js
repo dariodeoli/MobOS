@@ -225,3 +225,45 @@ test('Pedidos: un solo punto de entrada a los filtros y el orden, sin selects, e
   await page.keyboard.press('Escape')
   await expect(page.getByRole('menu', { name: 'Ordenar pedidos' })).toBeHidden()
 })
+
+// Detail pages use the compact record header (back · title · chip · meta ·
+// actions in one row, no section tabs row, no list H1).
+for (const [width, height, maxTop, maxHeader] of [
+  [1440, 900, 120, 72],
+  [375, 812, 168, 140],
+]) {
+  test(`Detalle de pedido: encabezado compacto a ${width}px`, async ({ page }) => {
+    await mkdir(out, { recursive: true })
+    await page.setViewportSize({ width, height })
+    await enterDemo(page)
+    await openShellDestination(page, 'Pedidos')
+    await settle(page)
+    await page.getByTestId('pedido-fila').first().click()
+    await expect(page.getByTestId('pedido-detalle-f3')).toBeVisible()
+    await settle(page)
+    const header = page.getByTestId('record-header')
+    await expect(header).toBeVisible()
+    await expect(page.getByTestId('shell-contexto')).toHaveCount(0)
+    await expect(page.getByTestId('shell-pestanas')).toHaveCount(0)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^[A-Z]{2,}-#?\d+/)
+    const back = page.getByTestId('record-header-back')
+    expect((await back.boundingBox()).height, 'volver 44px').toBeGreaterThanOrEqual(44)
+    await expect(page.getByTestId('volver-al-pos')).toBeVisible()
+    const box = await header.boundingBox()
+    const first = await page.getByTestId('pedido-detalle-f3').boundingBox()
+    expect(box.height, 'alto del encabezado').toBeLessThanOrEqual(maxHeader)
+    expect(first.y, 'primer contenido').toBeLessThanOrEqual(maxTop)
+    expect(first.y - (box.y + box.height), 'aire entre encabezado y contenido').toBeLessThanOrEqual(12)
+    if (width >= 1024) {
+      const h1 = await page.getByRole('heading', { level: 1 }).boundingBox()
+      const pos = await page.getByTestId('volver-al-pos').boundingBox()
+      expect(Math.abs(h1.y + h1.height / 2 - (pos.y + pos.height / 2)), 'una sola fila').toBeLessThanOrEqual(24)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+    await page.screenshot({ path: `${out}/detalle-pedido-${width}.png` })
+    await back.click()
+    await expect(page.getByTestId('ventas-pedidos-f3')).toBeVisible()
+    await expect(page.getByTestId('record-header')).toHaveCount(0)
+  })
+}
