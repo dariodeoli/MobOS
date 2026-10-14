@@ -7,11 +7,13 @@
 import { CityAutocomplete as CampoCiudad } from 'owncoding-ui'
 import { api } from '@/lib/api/client'
 import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
+import { cn } from '@/lib/utils'
+import { ANCHO_CAMPO } from './anchoCampos'
 
 // Referencia estable: la biblioteca invalida la búsqueda si cambia `buscar`.
 const buscarEnApi = (texto) => api.get(`/api/geo/cities?q=${encodeURIComponent(texto)}`)
 
-export default function CityAutocomplete({ esDemo = false, ...props }) {
+export default function CityAutocomplete({ esDemo = false, className, ...props }) {
   const demo = esDemo || isDemoRuntime || demoSessionActive()
-  return <CampoCiudad buscar={demo ? undefined : buscarEnApi} {...props} />
+  return <CampoCiudad buscar={demo ? undefined : buscarEnApi} {...props} className={cn('w-full', ANCHO_CAMPO.ciudad, className)} />
 }
