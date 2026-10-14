@@ -1,5 +1,5 @@
 import { prisma } from '../../../../lib/prisma'
-import { syncOrderItemSerials } from '../../../../lib/order-serials'
+import { attachSerialsToOrderItem } from '../../../../lib/order-serials'
 import { Prisma } from '@prisma/client'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
@@ -7,7 +7,6 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 import { canAccessOrder, validateFulfillmentTransition, canApproveOrderDiscount } from '../../../../lib/orders'
 import { consumeAuthorization, usableAuthorization } from '../../../../lib/authorizations'
 import { serialKey } from '../../../../lib/validation'
-import { changeStock, linkSoldUnits, promoteToEquipo } from '../../../../lib/stock'
 import { numero } from '../../../../lib/montos'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 
@@ -120,32 +119,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       if (!itemId) throw new InputError('Indicá la línea del pedido.')
       const serials = Array.isArray(body.serials) ? body.serials.map(serialKey).filter(Boolean) : []
       if (!serials.length || serials.length > 100 || new Set(serials).size !== serials.length) throw new InputError('Indicá entre 1 y 100 IMEI/seriales distintos.')
-      const updated = await prisma.$transaction(async tx => {
-        const item = existing.items.find(row => row.id === itemId)
-        if (!item) throw new InputError('Línea no encontrada en el pedido.')
-        if (item.serialsPending < serials.length) throw new InputError(`La línea solo espera ${item.serialsPending} IMEI/serial(es) pendiente(s).`)
-        const existingSerials = new Set(existing.items.flatMap(row => (Array.isArray(row.serials) ? row.serials : [])))
-        if (serials.some(serial => existingSerials.has(serial))) throw new InputError('Ese IMEI/serial ya está en el pedido.')
-        for (const serial of serials) {
-          if (!item.productId) continue
-          const unit = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial, productId: item.productId } })
-          if (unit) {
-            if (!['AVAILABLE', 'RESERVED'].includes(unit.status)) throw new InputError(`El IMEI ${serial} no está disponible para esta entrega.`, 409)
-            await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'SOLD', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
-            if (unit.status === 'AVAILABLE') await changeStock(tx, { tenantId: tenant, productId: item.productId, delta: -1, message: 'El stock cambió mientras se entregaba el equipo.' })
-          } else {
-            // Sobre pedido entregado: la unidad no existía en stock; se crea
-            // directamente como vendida, sin mover existencias.
-            await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: item.productId, branchId: existing.branchId, serial, condition: 'NEW', status: 'SOLD' } })
-            await promoteToEquipo(tx, tenant, item.productId)
-          }
-        }
-        const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length } } })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_SERIALS_ATTACHED', entity: 'Order', entityId: existing.id, metadata: { itemId, serials } } })
-        await syncOrderItemSerials(tx, [saved])
-        await linkSoldUnits(tx, tenant, [{ id: saved.id, serials }])
-        return saved
-      })
+      await prisma.$transaction(tx => attachSerialsToOrderItem(tx, { tenantId: tenant, orderId: existing.id, orderItemId: itemId, serials, userId: session.user.id }))
       const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
       return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
     }

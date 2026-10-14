@@ -51,7 +51,7 @@ export async function crearTraslado(tx: Prisma.TransactionClient, input: CrearTr
   const { tenantId: tenant, fromBranchId: sourceBranchId, toBranchId: destinationBranchId, userId, authorizationId = null, destinationLocationId = null, note: notes = null, eta = null } = input
   if (input.idempotencyKey) {
     const previo = await tx.auditLog.findFirst({ where: { tenantId: tenant, action: 'STOCK_TRANSFERRED', entity: 'StockTransfer', metadata: { path: ['idempotencyKey'], equals: input.idempotencyKey } }, select: { entityId: true } })
-    if (previo) return tx.stockTransfer.findFirstOrThrow({ where: { id: previo.entityId, tenantId: tenant }, include: transferInclude })
+    if (previo?.entityId) return tx.stockTransfer.findFirstOrThrow({ where: { id: previo.entityId, tenantId: tenant }, include: transferInclude })
   }
   const lines = input.items ?? (input.unitIds ? await lineasDesdeUnidades(tx, input, input.unitIds) : [])
   if (!lines.length) throw new Error('Indicá al menos una línea para trasladar.')
