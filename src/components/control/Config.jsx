@@ -29,6 +29,7 @@ import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { mensajeDeGuardado } from '@/utils/guardadoCuenta'
 import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
 import { cambiosIdentidad, formularioIdentidad } from '@/lib/identidadCuenta'
+import { pestanasConIconos } from '@/components/control/config/pestanasConIconos'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -64,6 +65,7 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
 
 // #299 · Organización en secciones por tarea: cada una se abre con su tarea
 // clara y no se mezcla con el resto. El orden es el del uso cotidiano.
+const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', peligro: 'alert' }
 const ORG_SECCIONES = [
   ['datos', 'Datos generales'],
   ['identidad', 'Identidad visual'],
@@ -272,12 +274,12 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
       {seccion === 'organizacion' && (
         <div className="space-y-3" data-testid="organizacion-pantalla">
           <div data-testid="organizacion-secciones">
-            <Subtabs value={org} onChange={setOrg} items={ORG_SECCIONES} ariaLabel="Secciones de Organización" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
+            <Subtabs value={org} onChange={setOrg} items={pestanasConIconos(ORG_SECCIONES, ORG_ICONOS, { peligro: 'peligro' })} ariaLabel="Secciones de Organización" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
           </div>
           {org === 'datos' && (
             <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
           )}
-          {org === 'identidad' && esDueno && <Card className="space-y-3">
+          {org === 'identidad' && esDueno && <Card data-config-anchor="logo" className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
             <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
@@ -323,7 +325,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
               <p className="text-xs text-mute">Los depósitos y ubicaciones de cada sucursal se administran en <Link to="/stock/ubicaciones" className="font-semibold text-fono-light hover:underline">Inventario → Ubicaciones</Link>.</p>
             </>
           )}
-          {org === 'numeracion' && <Card className="space-y-3">
+          {org === 'numeracion' && <Card data-config-anchor="numeracion" className="space-y-3">
           <div>
             <h2 className="font-semibold">Identificador de pedidos</h2>
             <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
@@ -341,7 +343,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
         </Card>}
           {org === 'peligro' && <>
-        <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
+        <Card data-config-anchor="peligro" className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
 
         {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
         {esDueno && (
