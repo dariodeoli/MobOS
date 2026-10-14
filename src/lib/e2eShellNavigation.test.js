@@ -53,6 +53,7 @@ function fakePage({ desktop, sectionsInBar = [], segmentsPresent = false }) {
   })
   const container = scope => ({
     count: async () => 1,
+    waitFor: async () => {},
     locator: selector => {
       const match = selector.match(/\[data-tab-id="([^"]+)"\]\[aria-current="page"\]/)
       return match ? { count: async () => 1 } : tab(scope, selector)
@@ -69,10 +70,12 @@ function fakePage({ desktop, sectionsInBar = [], segmentsPresent = false }) {
       if (id === 'shell-bottom-nav') return bar('primary')
       if (id === 'shell-contexto') return container('tab')
       if (id === 'shell-subcontexto')
-        return segmentsPresent ? container('segment') : { count: async () => 0 }
+        return segmentsPresent ? container('segment') : { count: async () => 0, waitFor: async () => {} }
       if (id === 'shell-mas')
         return {
           count: async () => 1,
+          // «Más» solo se ve en la barra inferior (móvil).
+          isVisible: async () => !desktop,
           click: async () => calls.push(['mas', 'Más']),
           getAttribute: async () => 'page',
         }
