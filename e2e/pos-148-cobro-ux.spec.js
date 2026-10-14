@@ -64,11 +64,12 @@ test('el pago arranca sin cuenta, al elegirla queda la cápsula y la lista no ta
   await expect(fila.getByLabel('Cuenta de cobro')).toHaveCount(0)
   const capsula = fila.getByTestId('cuenta-capsula')
   await expect(capsula.getByTestId('cuenta-capsula-nombre')).toHaveText('Transferencia E2E')
-  await expect(fila.getByTestId('cuenta-cambiar-ayuda')).toContainText('eliminá este pago')
+  await expect(fila.getByTestId('cuenta-cambiar')).toBeVisible() // #391: cambiar de cuenta en el lugar
   await expect(fila.getByLabel('Monto original')).toBeEnabled()
   await expect(fila.getByLabel('Monto original')).toHaveValue('45.000')
 
   // Datos ordenados y rotulados: número, titular y banco (#283, ajuste de Dario).
+  await capsula.getByText('Ver datos para el cliente').click() // #391
   const datos = capsula.getByTestId('cuenta-capsula-datos')
   await expect(datos.locator('dt')).toHaveText(['Nro de cuenta', 'Titular', 'Banco'])
   await expect(datos).toContainText('E2E-0001')
@@ -93,6 +94,7 @@ test('la cuenta elegida muestra cápsula con banco, titular, número, moneda y s
   await expect(capsula).toContainText('Transferencia')
   // Banco, titular y número, rotulados y en orden (#283): lo que hace falta
   // para operar sin salir del cobro.
+  await capsula.getByText('Ver datos para el cliente').click() // #391
   const datos = capsula.getByTestId('cuenta-capsula-datos')
   await expect(datos.locator('dt')).toHaveText(['Nro de cuenta', 'Titular', 'Banco'])
   await expect(datos.locator('dd')).toHaveText(['E2E-0001', 'Tienda E2E', 'Banco E2E'])

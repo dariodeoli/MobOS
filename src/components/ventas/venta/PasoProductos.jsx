@@ -327,8 +327,6 @@ export default function PasoProductos({
                 // como parte de la vista del producto; elegirlas es el paso
                 // siguiente al agregarlo.
                 const unidadesFamilia = fam.items.reduce((suma, item) => suma + num(item.unitsCount), 0)
-                const modelo = p.model || p.modelo || ''
-                const capacidad = p.capacity || p.capacidad || ''
                 return (
                   <button
                     type="button"
@@ -349,21 +347,17 @@ export default function PasoProductos({
                       <strong className="pos-product-name min-w-0 text-[13px] font-semibold leading-snug">{fam.base}</strong>
                     </span>
                     <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-                      <span className="whitespace-nowrap text-sm font-bold tabular-nums text-fore">
-                        {fam.items.length > 1 ? <span className="block text-[11px] font-medium text-mute">{fam.items.length} variantes · desde</span> : null}
+                      <span className="whitespace-nowrap text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
+                        {fam.items.length > 1 ? <span className="mr-1 text-[11px] font-medium text-mute">desde</span> : null}
                         {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
                       </span>
                       {stockFamilia > 0
-                        ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok">{stockFamilia} en stock</b>
+                        ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : undefined}>{stockFamilia} en stock{fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}</b>
                         : <b className="whitespace-nowrap text-[11px] font-semibold text-bad">Agotado</b>}
                     </span>
-                    {(modelo || capacidad || fam.items.length > 1 || unidadesFamilia > 0) && (
+                    {unidadesFamilia > 0 && (
                       <span className="block truncate text-[11px] text-mute">
-                        {[
-                          [modelo, capacidad].filter(Boolean).join(' · '),
-                          fam.items.length > 1 ? 'elegí la variante' : '',
-                          unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : '',
-                        ].filter(Boolean).join(' · ')}
+                        {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
                       </span>
                     )}
                   </button>
