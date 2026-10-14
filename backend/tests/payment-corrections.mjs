@@ -209,7 +209,7 @@ const calle = await ok('/api/orders', cajera, 'POST', {
 pedidos.push(calle.id)
 await ok(`/api/orders/${calle.id}/assignment`, admin, 'POST', { assignedToId: 'user-repartidor-it' })
 const precobro = await ok(`/api/delivery/orders/${calle.id}/collections`, repartidor, 'POST', { amountPyg: 80000, method: 'CASH' }, 201)
-await corregir(admin, calle.id, precobro.id, { reason: 'Cambiar cobro de calle', payments: [{ accountId: transferencia.id, amount: 80000 }] }, clave('calle-pend'), 409)
+await corregir(admin, calle.id, precobro.id, { reason: 'Cambiar cobro de calle', payments: [{ accountId: transferencia.id, amount: 80000 }] }, clave('calle-pend'), 422)
 
 // La rendición del repartidor cierra la deuda (también la del efectivo dejado por corrección).
 const rendicion = await ok('/api/delivery/settlements', repartidor, 'POST', { note: 'Rendición con corrección' }, 201)
