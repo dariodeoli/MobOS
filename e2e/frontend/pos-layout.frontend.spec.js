@@ -54,6 +54,8 @@ async function seedCart(page) {
 
 const inter = (a, b) => a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1
 
+const caja = async loc => ((await loc.count()) ? loc.boundingBox() : null)
+
 async function assertNoOverlap(page, label) {
   const ids = ['pos-bloque-carrito', 'pos-cobro', 'pos-columna-venta', 'pos-bloque-cliente', 'pos-bloque-productos']
   for (const scrollY of [0, 300, 700]) {
@@ -67,7 +69,7 @@ async function assertNoOverlap(page, label) {
       cliente: boxes['pos-bloque-cliente'],
       productos: boxes['pos-bloque-productos'],
       entrega: await page.locator('#entrega').boundingBox(),
-      monto: await page.locator('#monto-entrega').boundingBox(),
+      monto: await caja(page.locator('#monto-entrega')),
       pagos: await page.getByTestId('pos-bloque-pagos').boundingBox(),
       agregar: await page.getByRole('button', { name: '+ Agregar pago' }).boundingBox(),
       gift: await page.getByRole('button', { name: '+ Canjear gift card' }).boundingBox(),
@@ -85,6 +87,7 @@ async function assertNoOverlap(page, label) {
       expect(col.y >= -1 || alFinal, `${label} scroll ${scrollY}: columna pegada (y=${col.y})`).toBe(true)
       expect(col.y, `${label} scroll ${scrollY}: columna no se despega hacia abajo`).toBeLessThan(200)
     }
+    for (const k of Object.keys(probes)) if (!probes[k]) delete probes[k]
     const names = Object.keys(probes)
     for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
       const a = probes[names[i]], b = probes[names[j]]
@@ -230,4 +233,86 @@ test('catálogo paginado a 375px: 8 productos, sin scroll horizontal y botón de
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
   const verMas = page.getByTestId('pos-catalogo-ver-mas')
   expect((await verMas.boundingBox()).height).toBeGreaterThanOrEqual(44)
+})
+
+async function elegirClienteDemo(page, texto = 'Luc') {
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(texto)
+  const opcion = page.getByTestId('pos-bloque-cliente').locator('button.block').first()
+  await opcion.click()
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+}
+
+test('escritorio 1440: columnas 50/50, catálogo de 3 columnas y primer contenido arriba', async ({ page }) => {
+  await mkdir(out, { recursive: true })
+  await enterPos(page, 1440, 900, false, true)
+  const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
+  const der = await page.getByTestId('pos-bloque-carrito').boundingBox()
+  expect(Math.abs(izq.width - der.width), `izq ${izq.width} der ${der.width}`).toBeLessThanOrEqual(24)
+  expect(Math.min(izq.y, der.y)).toBeLessThanOrEqual(132)
+  const columnas = await page.locator('.pos-product-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
+  expect(columnas).toBe(3)
+  // 1024-1280: Productos lleva más ancho que el carrito (55/45).
+  await page.setViewportSize({ width: 1100, height: 900 })
+  const p2 = await page.getByTestId('pos-bloque-productos').boundingBox()
+  const c2 = await page.getByTestId('pos-bloque-carrito').boundingBox()
+  expect(p2.width).toBeGreaterThan(c2.width)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.screenshot({ path: `${out}/after-1440.png` })
+})
+
+test('celular 390: resumen del carrito y «Crear pedido» siempre visibles en la barra inferior', async ({ page }) => {
+  await mkdir(out, { recursive: true })
+  await enterPos(page, 390, 800, false, true)
+  const barra = page.getByTestId('pos-barra-accion')
+  await expect(barra).toBeVisible()
+  await expect(barra.getByTestId('barra-total')).toContainText('Gs 180.000')
+  const boton = barra.locator('button[type="submit"]')
+  await expect(boton).toBeVisible()
+  const b = await boton.boundingBox()
+  expect(b.y + b.height).toBeLessThanOrEqual(800)
+  expect(b.height).toBeGreaterThanOrEqual(44)
+  await page.screenshot({ path: `${out}/after-390.png` })
+})
+
+test('cliente elegido: la tarjeta reemplaza al buscador y quitarlo devuelve el buscador con foco', async ({ page }) => {
+  await enterPos(page, 1440, 900)
+  await elegirClienteDemo(page)
+  const caja = page.getByTestId('pos-bloque-cliente')
+  await expect(caja.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toHaveCount(0)
+  await expect(caja.getByText('Cliente seleccionado')).toHaveCount(0)
+  await expect(caja.getByTestId('cliente-chips')).toContainText(/Mayorista|Cliente final/)
+  await caja.getByRole('button', { name: 'Ver ficha del cliente' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await caja.getByRole('button', { name: 'Quitar cliente' }).click()
+  await expect(caja.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toBeFocused()
+})
+
+test('entrega: el monto solo aparece con Delivery o encomienda y no hay texto de retiro', async ({ page }) => {
+  await enterPos(page, 1440, 900, false, true)
+  const cobro = page.getByTestId('pos-cobro')
+  await expect(page.locator('#entrega')).toHaveValue('Retiro en tienda')
+  await expect(page.locator('#monto-entrega')).toHaveCount(0)
+  await expect(cobro).not.toContainText('Monto del delivery')
+  await expect(cobro).not.toContainText('si retira en tienda')
+  await page.locator('#entrega').selectOption('Delivery')
+  await expect(page.locator('#monto-entrega')).toBeVisible()
+  await page.locator('#entrega').selectOption('Retiro en tienda')
+  await expect(page.locator('#monto-entrega')).toHaveCount(0)
+})
+
+test('pagos: sin «Equivalente» en cuentas en guaraníes y «Paga al recibir» oculta los pagos', async ({ page }) => {
+  await enterPos(page, 1440, 900, false, true)
+  const cobro = page.getByTestId('pos-cobro')
+  await cobro.getByRole('button', { name: '+ Agregar pago' }).click()
+  const fila = page.getByTestId('pago-fila-0')
+  await fila.getByLabel('Cuenta de cobro').click()
+  await page.getByRole('listbox', { name: 'Cuentas de cobro' }).getByRole('option').first().click()
+  await expect(fila.getByTestId('cuenta-capsula')).toBeVisible()
+  await expect(fila.getByText(/^Equivalente/)).toHaveCount(0)
+  await expect(fila.getByTestId('cuenta-cambiar')).toBeVisible()
+  await cobro.getByTestId('pos-paga-al-recibir').click()
+  await expect(page.getByTestId('pago-fila-0')).toHaveCount(0)
+  await expect(cobro.getByRole('button', { name: '+ Agregar pago' })).toBeHidden()
+  await expect(cobro.locator('button[type="submit"]').first()).toContainText('paga al recibir')
 })

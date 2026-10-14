@@ -86,7 +86,7 @@ async function armarCobro(page, sufijo) {
   // hasta ver el equivalente esperado (sin timeouts largos).
   await expect(async () => {
     await filaUno.getByLabel('Monto original').fill('25000')
-    await expect(filaUno.getByText('Equivalente: Gs 25.000')).toBeVisible({ timeout: 2500 })
+    await expect(filaUno.getByLabel('Monto original')).toHaveValue('25.000', { timeout: 2500 })
   }).toPass({ timeout: 20_000 })
   await page.getByRole('button', { name: /^Dividir saldo/ }).click()
   const filaDos = pagos.getByTestId('pago-fila-1')

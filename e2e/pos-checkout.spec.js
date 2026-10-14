@@ -73,7 +73,9 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(accountSelects).toHaveCount(1)
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await amountInputs.nth(0).fill('25000')
-  await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
+  // #391: en cuentas en guaraníes no se repite el monto como «Equivalente».
+  await expect(paymentsSection.getByText(/^Equivalente/)).toHaveCount(0)
+  await expect(amountInputs.nth(0)).toHaveValue('25.000')
 
   // Con un pago parcial aparece «Dividir saldo» con lo que falta y el bloque
   // nuevo (#187). #283: la fila nueva arranca sin cuenta (solo esa muestra el
@@ -89,7 +91,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await elegirCuenta(page, paymentsSection, 1, 'Transferencia E2E')
   await expect(accountSelects).toHaveCount(0)
   await expect(amountInputs.nth(1)).toHaveValue('20.000')
-  await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
+  await expect(paymentsSection.getByText(/^Equivalente/)).toHaveCount(0)
 
   // Totals must balance before saving: el botón principal cambia de estado.
   await expect(page.getByTestId('cobro-pendiente').locator('strong')).toHaveText('Gs 0')
@@ -394,7 +396,8 @@ test('POS manual price below list stores the list price for the receipt', async 
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
     await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
     await paymentsSection.getByLabel('Monto original').fill('40000')
-    await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
+    await expect(paymentsSection.getByText(/^Equivalente/)).toHaveCount(0)
+    await expect(paymentsSection.getByLabel('Monto original')).toHaveValue('40.000')
 
     await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
     await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })

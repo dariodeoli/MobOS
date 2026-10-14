@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Aviso, Button, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
 import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
 import { formatearCodigo, limpiarCodigo } from '@/lib/codigoSegmentado'
@@ -60,6 +61,9 @@ export default function PasoCobro({
 }) {
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
+  // «Paga al recibir» (#390): no se pide el medio todavía; el pedido queda
+  // pendiente y se cobra después desde la lista de pedidos.
+  const [pagaAlRecibir, setPagaAlRecibir] = useState(false)
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
   const sinPago = totalPagado <= 0
   // Segundo renglón del botón: productos e importe (#148 §5/§11).
@@ -80,6 +84,9 @@ export default function PasoCobro({
       ? 'Cargá un producto con precio para canjear gift cards.'
       : 'No queda saldo pendiente por cobrar en esta venta.'
   const motivoPago = sinProductos ? 'Agregá productos a la venta para cargar pagos.' : 'Cargá un producto con precio para cargar pagos.'
+  // Un solo aviso por problema: «sin productos» ya lo dice el bloque de pagos y
+  // las líneas pendientes las guía su propia nota.
+  const motivosVisibles = motivos.filter(m => !(sinProductos && !pagaAlRecibir && /producto/i.test(m)))
   const etiquetaBoton = guardando
     ? 'Guardando venta…'
     : !valido
@@ -87,7 +94,7 @@ export default function PasoCobro({
       : pagoCompleto
         ? 'Confirmar venta'
         : sinPago
-          ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
+          ? (venderACredito ? 'Crear pedido a crédito' : pagaAlRecibir ? 'Crear pedido · paga al recibir' : 'Crear pedido sin pago')
           : 'Crear pedido'
   // Primary action remains neutral in every payment state (#341); status
   // meaning is preserved in the label and the payment summary.
@@ -123,24 +130,28 @@ export default function PasoCobro({
     >
       <EncabezadoBloque compacto titulo="Cobro y entrega" />
 
-      {/* Venta a crédito con control de mora */}
+      {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
       {Number(customer.creditLimitPyg || 0) > 0 && (
-        <div className="rounded-2xl border border-fono/25 bg-fono/5 p-4">
-          <label className="flex items-start gap-2 text-sm">
+        <div data-testid="pos-credito" className="rounded-xl border border-fono/25 bg-fono/5 px-3 py-2">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm md:min-h-0">
             <input
               type="checkbox"
-              className="mt-0.5 h-4 w-4 accent-fono"
+              role="switch"
+              className="h-4 w-4 shrink-0 accent-fono"
               checked={venderACredito}
               onChange={e => setVenderACredito(e.target.checked)}
             />
-            <span>
-              Vender a crédito — límite {gs(Number(customer.creditLimitPyg))}
-              {customer.creditDays ? ` · plazo estándar ${customer.creditDays} días` : ''}
+            <span className="min-w-0">
+              <span className="font-semibold">Vender a crédito</span>
+              <span className="ml-2 text-xs text-mute">
+                límite {gs(Number(customer.creditLimitPyg))}
+                {customer.creditDays ? ` · plazo ${customer.creditDays} días` : ''}
+              </span>
             </span>
           </label>
           {venderACredito && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Label htmlFor="plazo-en-dias">Plazo en días</Label>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Label htmlFor="plazo-en-dias" className="mb-0">Plazo en días</Label>
               <Input
                 id="plazo-en-dias"
                 aria-label="Días de crédito"
@@ -164,46 +175,41 @@ export default function PasoCobro({
       )}
 
       {/* Entrega primero (#230): el costo del envío se ve antes de cobrar. */}
-            {/* Entrega + monto envío */}
-      <div className="grid gap-2.5" data-testid="pos-entrega">
+      {/* Entrega + monto: el monto aparece solo con Delivery o encomienda. */}
+      <div className="pos-fila-doble items-end" data-testid="pos-entrega">
         <div>
           <Label htmlFor="entrega">Entrega</Label>
           <Select id="entrega" value={f.entrega} onChange={event => {
             const entrega = event.target.value
-            // Retiro en tienda no cobra envío: al elegirlo se limpia el monto
-            // para que el total y el cobro no arrastren un delivery viejo (#187).
-            setF(actual => ({ ...actual, entrega, ...(entrega === 'Retiro en tienda' ? { montoDelivery: '' } : {}) }))
+            // Sin envío a cobrar se limpia el monto para que el total y el
+            // cobro no arrastren un delivery viejo (#187).
+            setF(actual => ({ ...actual, entrega, ...(entrega === 'Delivery' || entrega === 'Encomienda' ? {} : { montoDelivery: '' }) }))
           }}>
             {ENTREGA.map(x => (
               <option key={x} value={x}>
-                {x === 'Delivery'
-                  ? 'Delivery'
-                  : x === 'Encomienda'
-                    ? 'Envío por encomienda'
-                    : x === 'Retiro en tienda'
-                      ? 'Retiro en tienda'
-                      : x}
+                {x === 'Encomienda' ? 'Envío por encomienda' : x}
               </option>
             ))}
           </Select>
         </div>
-        <div>
-          <Label htmlFor="monto-entrega">
-            {f.entrega === 'Retiro en tienda' ? 'Monto del delivery (₲)' : f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Costo del envío (₲)'}
-          </Label>
-          <MoneyInput
-            id="monto-entrega"
-            max={LIMITE_MONTO_VENTAS}
-            value={f.montoDelivery}
-            onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
-            placeholder="0 si retira en tienda"
-            className="w-full"
-            disabled={f.entrega === 'Retiro en tienda'}
-          />
-        </div>
+        {(f.entrega === 'Delivery' || f.entrega === 'Encomienda') && (
+          <div>
+            <Label htmlFor="monto-entrega">
+              {f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Costo del envío (₲)'}
+            </Label>
+            <MoneyInput
+              id="monto-entrega"
+              max={LIMITE_MONTO_VENTAS}
+              value={f.montoDelivery}
+              onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
+              placeholder="0"
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
 
-      {/* The existing note remains editable behind a keyboard-native disclosure. */}
+      {/* La nota sigue editable detrás de un enlace. */}
       <details className="inicio-disclosure">
         <summary>Agregar nota</summary>
         <Label htmlFor="observacion">Observación</Label>
@@ -235,10 +241,32 @@ export default function PasoCobro({
       {/* #281 · identidad de color: pagos = violeta (reserved), distintas del
           carrito (verde) y del catálogo (marca). */}
       <div data-testid="pos-bloque-pagos" className="space-y-3 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-3">
-        <p className="block text-[11px] font-medium uppercase tracking-wider text-reserved">
-          Pagos de esta venta
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="block text-[11px] font-medium uppercase tracking-wider text-reserved">
+            Pagos de esta venta
+          </p>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-semibold text-fono-light md:min-h-0" data-testid="pos-paga-al-recibir">
+            <input
+              type="checkbox"
+              role="switch"
+              className="h-4 w-4 accent-fono"
+              checked={pagaAlRecibir}
+              disabled={guardando}
+              onChange={e => {
+                setPagaAlRecibir(e.target.checked)
+                // Sin cobro ahora: se descartan los pagos cargados.
+                if (e.target.checked) setPagos([])
+              }}
+            />
+            Paga al recibir
+          </label>
+        </div>
+        {pagaAlRecibir && (
+          <p role="status" data-testid="cobro-paga-al-recibir" className="text-xs text-mute">
+            No se elige el medio de pago ahora: el pedido queda pendiente y se cobra desde Pedidos.
+          </p>
+        )}
+        <div className={cn('flex flex-wrap items-center gap-2', pagaAlRecibir && 'hidden')}>
           {descuentoMedioPct > 0 && subtotal > 0 && (
             puedeDescontar ? (
               <button
@@ -283,12 +311,12 @@ export default function PasoCobro({
             </Button>
           )}
         </div>
-        {sinProductos && (
+        {sinProductos && !pagaAlRecibir && (
           <p role="status" data-testid="cobro-sin-productos" className="text-xs text-mute">
             Agregá productos a la venta para cargar pagos o canjear gift cards.
           </p>
         )}
-        {cantTotal > 0 && totalGeneral <= 0 && (
+        {cantTotal > 0 && totalGeneral <= 0 && !pagaAlRecibir && (
           <p role="status" data-testid="cobro-total-cero" className="text-xs text-mute">
             Cargá un producto con precio para cobrar o canjear gift cards.
           </p>
@@ -317,7 +345,7 @@ export default function PasoCobro({
               No hay cuentas activas en USD o PYG para recibir pagos.
             </p>
           )}
-        {pagos.map((p, i) => (
+        {!pagaAlRecibir && pagos.map((p, i) => (
           <div
             key={i}
             data-testid={`pago-fila-${i}`}
@@ -531,9 +559,9 @@ export default function PasoCobro({
         </Nota>
       )}
 
-      {!guardando && motivos.length > 0 && (
+      {!guardando && motivosVisibles.length > 0 && (
         <p role="status" data-testid="motivos-bloqueo" className="mb-2 text-xs font-semibold text-warn">
-          Falta: {motivos.join(' · ')}
+          Falta: {motivosVisibles.join(' · ')}
         </p>
       )}
       {/* Escritorio: la acción vive al pie del bloque de cobro. */}
