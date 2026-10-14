@@ -21,6 +21,7 @@ export default defineConfig({
     'login-codigos.frontend.spec.js',
     'multiempresa.frontend.spec.js',
     'corregir-pago.frontend.spec.js',
+    'superadmin.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

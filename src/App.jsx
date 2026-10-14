@@ -47,6 +47,12 @@ const ProductoPublico = lazy(() => import('@/pages/ProductoPublico'))
 const PruebaImpresion = lazy(() => import('@/pages/PruebaImpresion'))
 const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'))
 const VerificarCorreo = lazy(() => import('@/pages/VerificarCorreo'))
+// Panel del dueño de la plataforma: layout propio, fuera de la app de las
+// empresas. Solo se dibuja si el API confirma el acceso; si no, vuelve a «/».
+const SuperadminLayout = lazy(() => import('@/pages/superadmin/SuperadminLayout'))
+const SuperadminResumen = lazy(() => import('@/pages/superadmin/Resumen'))
+const SuperadminEmpresas = lazy(() => import('@/pages/superadmin/Empresas'))
+const SuperadminUsuarios = lazy(() => import('@/pages/superadmin/Usuarios'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -321,6 +327,12 @@ export default function App() {
               caían al catch-all y terminaban en el login. */}
           <Route path="/producto/:sku" element={<ProductoPublico />} />
           <Route path="/prueba" element={<PruebaImpresion />} />
+          <Route path="/superadmin" element={<SuperadminLayout />}>
+            <Route index element={<SuperadminResumen />} />
+            <Route path="empresas" element={<SuperadminEmpresas />} />
+            <Route path="usuarios" element={<SuperadminUsuarios />} />
+            <Route path="*" element={<Navigate to="/superadmin" replace />} />
+          </Route>
           <Route
             path="/"
             element={
