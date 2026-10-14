@@ -4,6 +4,8 @@
 // bloquea ni demora la página: envío fire-and-forget y todo error se traga acá
 // (el servidor registra los suyos).
 const CLAVE_VISITANTE = 'mobos:vid'
+// Preferencia «No medir» (switch de /privacidad): si vale '1' no se envía nada.
+export const CLAVE_NO_MEDIR = 'mobos:no-medir'
 
 // ── Puro (probado en trafico.test.js) ──────────────────────────────────────
 // Módulos conocidos de la demo (el servidor valida contra la misma lista:
@@ -44,6 +46,25 @@ export function noMedir(nav = typeof navigator !== 'undefined' ? navigator : {})
   return nav.doNotTrack === '1' || nav.globalPrivacyControl === true || (typeof window !== 'undefined' && window.doNotTrack === '1')
 }
 
+/** ¿El visitante eligió «No medir»? Recibe el storage para probarse sin navegador. */
+export function optOutActivo(storage = typeof localStorage !== 'undefined' ? localStorage : null) {
+  try { return storage?.getItem(CLAVE_NO_MEDIR) === '1' } catch { return false }
+}
+
+/** Activa o desactiva «No medir». Al activarlo olvida el id anónimo guardado. */
+export function fijarNoMedir(activo, storage = typeof localStorage !== 'undefined' ? localStorage : null) {
+  try {
+    if (activo) { storage?.setItem(CLAVE_NO_MEDIR, '1'); storage?.removeItem(CLAVE_VISITANTE) }
+    else storage?.removeItem(CLAVE_NO_MEDIR)
+  } catch { /* sin storage: la preferencia dura solo esta carga */ }
+  if (activo) idMemoria = null
+}
+
+/** Medición efectiva apagada: «No rastrear»/GPC del navegador o «No medir». */
+export function medicionDesactivada() {
+  return noMedir() || optOutActivo()
+}
+
 export function nuevoId() {
   const bytes = new Uint8Array(16)
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes)
@@ -71,7 +92,7 @@ const API = (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '')
 /** Envía un evento sin esperar respuesta. Nunca lanza. */
 export function enviarEvento(evento) {
   try {
-    if (!API || noMedir()) return
+    if (!API || medicionDesactivada()) return
     const cuerpo = JSON.stringify({ ...evento, visitorId: idVisitante() })
     const url = `${API}/api/public/track`
     // text/plain: es una petición «simple» (sin preflight) y cabe en sendBeacon.

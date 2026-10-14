@@ -22,6 +22,7 @@ export default defineConfig({
     'multiempresa.frontend.spec.js',
     'corregir-pago.frontend.spec.js',
     'superadmin.frontend.spec.js',
+    'aviso-privacidad.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,
