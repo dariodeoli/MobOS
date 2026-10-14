@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../../../lib/auth'
+import { canSeeSupplierName } from '../../../../../../lib/cost-visibility'
 import { manifiestoEnvio } from '../../../../../../lib/supply'
 
 // #250 Fase 4 (§11): manifiesto del envío entrante — lo que se imprime con el
@@ -41,5 +42,5 @@ export async function GET(request: Request, { params }: RouteContext) {
   const lineas = envio.items.length ? await prisma.supplyPurchaseLine.findMany({ where: { id: { in: [...new Set(envio.items.map((item) => item.lineId))] }, tenantId: tenant }, select: { id: true, condition: true } }) : []
   const condicionDe = new Map(lineas.map((linea) => [linea.id, linea.condition]))
   const manifiesto = manifiestoEnvio({ envio, items: items.map((item) => ({ ...item, condicion: condicionDe.get(item.lineId) || 'NEW' })), base })
-  return json({ ...manifiesto, proveedor: envio.purchase?.supplierName || null })
+  return json({ ...manifiesto, proveedor: canSeeSupplierName(session.user.role) ? envio.purchase?.supplierName || null : null })
 }

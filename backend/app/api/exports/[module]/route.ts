@@ -4,7 +4,7 @@ import { error } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import type { SessionContext } from '../../../../lib/auth'
 import { canAccessAny } from '../../../../lib/auth'
-import { canSeeCostForSession, dropCostColumns } from '../../../../lib/cost-visibility'
+import { canSeeCostForSession, canSeeSupplierName, dropCostColumns, loadSupplierDirectory, scrubSupplierNames } from '../../../../lib/cost-visibility'
 import { csvResponse } from '../../../../lib/csv'
 import { MAX_REPORT_ORDERS, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
 import { numero, numeroOpcional } from '../../../../lib/montos'
@@ -61,7 +61,9 @@ export async function GET(request: Request, { params }: { params: { module: stri
   const module = texto(params.module).slice(0, 40) as ExportModule
   if (!(MODULES as readonly string[]).includes(module)) return error('Módulo de exportación inválido.', 404)
   try {
-    const exportacion = await construirExportacion(module, session, new URL(request.url).searchParams)
+    const construida = await construirExportacion(module, session, new URL(request.url).searchParams)
+    // Última pasada (#400): quien no ve el nombre del proveedor no lo recibe en ninguna celda.
+    const exportacion = canSeeSupplierName(session.user.role) ? construida : { ...construida, filas: scrubSupplierNames(construida.filas, await loadSupplierDirectory(session.user.tenantId)) }
     await prisma.auditLog.create({
       data: {
         tenantId: session.user.tenantId,
@@ -221,22 +223,26 @@ async function exportarUnidades(session: SessionContext, params: URLSearchParams
     originalCost: Prisma.Decimal | null
     costCurrency: string
     supplierName: string | null
+    supplierCode: string | null
     productName: string
     sku: string | null
     capacity: string | null
     branchName: string | null
     locationName: string | null
   }>>(Prisma.sql`
-    SELECT u."serial", u."status", u."condition", u."costPyg", u."originalCost", u."costCurrency", u."supplierName",
+    SELECT u."serial", u."status", u."condition", u."costPyg", u."originalCost", u."costCurrency", COALESCE(s."name", u."supplierName") AS "supplierName",
+           CASE WHEN u."supplierId" IS NULL AND u."supplierName" IS NULL THEN NULL ELSE COALESCE(NULLIF(btrim(s."code"), ''), 'S/S') END AS "supplierCode",
            p."name" AS "productName", p."sku", p."capacity",
            b."name" AS "branchName", l."name" AS "locationName"
     FROM "InventoryUnit" u
     JOIN "Product" p ON p."id" = u."productId"
     LEFT JOIN "Branch" b ON b."id" = u."branchId"
     LEFT JOIN "StockLocation" l ON l."id" = u."locationId"
+    LEFT JOIN "Supplier" s ON s."id" = u."supplierId"
     WHERE ${Prisma.join(condiciones, ' AND ')}
     ORDER BY ${orderBy}
     LIMIT ${MAX_EXPORT_ROWS}`)
+  const verProveedor = canSeeSupplierName(session.user.role)
   const filas = unidades.map((unidad) => {
     const costo = unidad.costPyg ?? (unidad.costCurrency === 'PYG' && unidad.originalCost !== null ? Number(unidad.originalCost) : '')
     return [
@@ -248,12 +254,12 @@ async function exportarUnidades(session: SessionContext, params: URLSearchParams
       ESTADOS_UNIDAD[unidad.status] || unidad.status,
       unidad.branchName || '',
       unidad.locationName || '',
-      unidad.supplierName || '',
+      verProveedor ? unidad.supplierName || '' : unidad.supplierCode || '',
       costo,
     ]
   })
-  // Proveedor y costo solo para administración y gerencia.
-  const visible = dropCostColumns(encabezados, filas, ['Proveedor', 'Costo (Gs)'], await canSeeCostForSession(session))
+  // Costo según permiso; el proveedor sale con su sigla salvo para gerencia.
+  const visible = dropCostColumns(encabezados, filas, ['Costo (Gs)'], await canSeeCostForSession(session))
   return { encabezados: visible.headers, filas: visible.rows, filtros, nombre: 'mobos-inventario-unidades.csv' }
 }
 
@@ -267,16 +273,18 @@ async function exportarCompras(session: SessionContext, params: URLSearchParams)
   if (branchId === '') return { encabezados, filas: [], filtros: {}, nombre: 'mobos-compras.csv' }
   const compras = await prisma.$queryRaw<Array<{
     supplierName: string
+    supplierCode: string | null
     status: string
     createdAt: Date
     dueAt: Date | null
     finalCostPyg: bigint
     paidPyg: bigint
   }>>(Prisma.sql`
-    SELECT po."supplierName", po."status", po."createdAt", po."dueAt",
+    SELECT po."supplierName", COALESCE(NULLIF(btrim(sup."code"), ''), 'S/S') AS "supplierCode", po."status", po."createdAt", po."dueAt",
            COALESCE((SELECT SUM(pl."finalTotalCostPyg") FROM "PurchaseLine" pl WHERE pl."purchaseId" = po."id"), 0)::bigint AS "finalCostPyg",
            COALESCE((SELECT SUM(pp."amountPyg") FROM "PurchasePayment" pp WHERE pp."purchaseId" = po."id"), 0)::bigint AS "paidPyg"
     FROM "PurchaseOrder" po
+    LEFT JOIN "Supplier" sup ON sup."id" = po."supplierId"
     WHERE po."tenantId" = ${tenant}${branchId ? Prisma.sql` AND po."branchId" = ${branchId}` : Prisma.empty}
     ORDER BY po."createdAt" DESC
     LIMIT ${MAX_EXPORT_ROWS}`)
@@ -284,7 +292,7 @@ async function exportarCompras(session: SessionContext, params: URLSearchParams)
     const total = Number(compra.finalCostPyg)
     const pagado = Number(compra.paidPyg)
     return [
-      compra.supplierName,
+      canSeeSupplierName(session.user.role) ? compra.supplierName : compra.supplierCode || 'S/S',
       ESTADOS_COMPRA[compra.status] || compra.status,
       fechaCsv(compra.createdAt),
       fechaCsv(compra.dueAt),

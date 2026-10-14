@@ -14,7 +14,7 @@ const parse = (query: string) => {
   assert.ok(!('error' in result), 'error' in result ? result.error : '')
   return result as Exclude<typeof result, { error: string }>
 }
-const scope = (extra: Partial<StockItemsScope> = {}): StockItemsScope => ({ tenantId: 'tenant-x', forcedBranchId: null, canSeeCost: true, canSeeRemoved: true, ...extra })
+const scope = (extra: Partial<StockItemsScope> = {}): StockItemsScope => ({ tenantId: 'tenant-x', forcedBranchId: null, canSeeCost: true, canSeeSupplier: true, canSeeRemoved: true, ...extra })
 const filtersOf = (query = '') => parse(query).filters
 const sqlOf = (sql: { text: string }) => sql.text.replace(/\s+/g, ' ')
 
@@ -98,11 +98,19 @@ test('SQL: eliminado solo para ADMIN y sucursal forzada por el rol', () => {
   assert.equal(own.values.filter(value => value === 'branch-1').length, 2, 'unidades y productos acotados a la sucursal')
 })
 
-test('SQL: sin permiso de costos el SQL ni siquiera selecciona costo ni proveedor', () => {
-  const text = sqlOf(buildStockItemsPageSql(filtersOf(), scope({ canSeeCost: false }), null)!)
-  assert.ok(!text.includes('u."costPyg"') && !text.includes('p."costPyg"') && !text.includes('"Supplier"') && !text.includes('u."supplierId" AS'))
+test('SQL: sin permiso de costos el SQL ni siquiera selecciona costo ni id de proveedor', () => {
+  const text = sqlOf(buildStockItemsPageSql(filtersOf(), scope({ canSeeCost: false, canSeeSupplier: false }), null)!)
+  assert.ok(!text.includes('u."costPyg"') && !text.includes('p."costPyg"') && !text.includes('u."supplierId" AS'))
   const withCost = sqlOf(buildStockItemsPageSql(filtersOf(), scope(), null)!)
   assert.ok(withCost.includes('u."costPyg"') && withCost.includes('p."costPyg"') && withCost.includes('"Supplier" s'))
+})
+
+test('SQL (#400): sin permiso de ver el proveedor el SQL no selecciona su nombre, solo la sigla', () => {
+  for (const canSeeCost of [true, false]) {
+    const text = sqlOf(buildStockItemsPageSql(filtersOf(), scope({ canSeeCost, canSeeSupplier: false }), null)!)
+    assert.ok(!text.includes('s."name"') && !text.includes('u."supplierName") AS') && text.includes('s."code"'), `canSeeCost=${canSeeCost}`)
+  }
+  assert.ok(sqlOf(buildStockItemsPageSql(filtersOf(), scope(), null)!).includes('COALESCE(s."name", u."supplierName")'))
 })
 
 test('SQL: cursor compara (sortKey, id) en cada rama, con createdAt (soldAt en vendido)', () => {
@@ -143,18 +151,24 @@ test('SQL estado: IN_TRANSIT explícito y un estado desconocido conserva su valo
 
 test('mapeo y redacción: costo, proveedor y consignación nulos sin permiso; BigInt a número', () => {
   const row = { id: 'u1', kind: 'unit', stockKind: 'EQUIPO', productId: 'p1', sku: 'S', model: '15 128 Negro', name: 'iPhone', serial: 'IMEI1', batteryHealth: 91, supplierId: 'sup', supplierName: 'Prov', consignorName: 'Ana', costPyg: BigInt(4200000), status: 'disponible', quantity: 1, branchId: 'b', branchName: 'Sucursal', locationId: null, locationName: null, createdAt: new Date(), soldAt: null }
-  assert.equal(mapStockRow(row, true).costPyg, 4200000)
-  assert.equal(mapStockRow(row, true).supplierName, 'Prov')
-  const oculto = mapStockRow(row, false)
-  assert.equal(mapStockRow(row, true).consignorName, 'Ana')
-  assert.deepEqual([oculto.costPyg, oculto.supplierId, oculto.supplierName, oculto.consignorName], [null, null, null, null])
-  assert.deepEqual(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'b', consignorName: 'c', x: 1 }, false), { costPyg: null, supplierId: null, supplierName: null, consignorName: null, x: 1 })
+  assert.equal(mapStockRow(row, true, true).costPyg, 4200000)
+  assert.equal(mapStockRow(row, true, true).supplierName, 'Prov')
+  const oculto = mapStockRow(row, false, true)
+  assert.equal(mapStockRow(row, true, true).consignorName, 'Ana')
+  assert.deepEqual([oculto.costPyg, oculto.supplierId, oculto.consignorName], [null, null, null])
+  assert.deepEqual(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'b', consignorName: 'c', x: 1 }, false, true), { costPyg: null, supplierId: null, supplierName: 'b', consignorName: null, x: 1 })
+  // Sin permiso de proveedor solo sale la sigla, con o sin permiso de costos.
+  for (const verCosto of [true, false]) {
+    assert.equal(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'Mayorista Real', supplierCode: 'MR', x: 1 }, verCosto, false).supplierName, 'MR')
+    assert.equal(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'Mayorista Real', x: 1 }, verCosto, false).supplierName, null)
+  }
 
   const unidad = { id: 'u', serial: 'IMEI', costPyg: BigInt(10), originalCost: '5', exchangeRatePyg: '7000', consignorPyg: BigInt(3), consignorName: 'Ana', consignorPhone: '0981', costCurrency: 'USD', supplierId: 's', supplierName: 'P', supplier: { id: 's' }, inspection: { grado: 'A', costoRepuestosPyg: 80000 }, status: 'AVAILABLE' }
-  assert.equal(redactUnitCosts(unidad, true), unidad)
-  const redacted = redactUnitCosts(unidad, false) as Record<string, any>
-  for (const field of ['costPyg', 'originalCost', 'exchangeRatePyg', 'consignorPyg', 'consignorName', 'consignorPhone', 'costCurrency', 'supplierId', 'supplierName']) assert.equal(redacted[field], null, field)
-  assert.equal('supplier' in redacted, false)
+  assert.equal(redactUnitCosts(unidad, true, true), unidad)
+  const redacted = redactUnitCosts(unidad, false, false) as Record<string, any>
+  for (const field of ['costPyg', 'originalCost', 'exchangeRatePyg', 'consignorPyg', 'consignorName', 'consignorPhone', 'costCurrency']) assert.equal(redacted[field], null, field)
+  assert.deepEqual(redacted.supplier, { id: 's', code: 'S/S' })
+  assert.equal(redacted.supplierName, 'S/S')
   assert.equal(redacted.inspection.costoRepuestosPyg, null)
   assert.equal(redacted.inspection.grado, 'A')
   assert.equal(redacted.serial, 'IMEI', 'el selector de IMEI sigue recibiendo serial, estado y producto')

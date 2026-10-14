@@ -91,6 +91,7 @@ export function unidadDeItem(item, productos = []) {
     locationId: item.locationId || null,
     batteryHealth: item.batteryHealth ?? null,
     supplierName: item.supplierName || '',
+    supplierCode: item.supplierCode || '',
     costPyg: item.costPyg ?? null,
     createdAt: item.createdAt,
     product: { id: item.productId, name: nombre, model: variante || nombre, sku: item.sku || '', pricePyg: precio },
@@ -111,7 +112,7 @@ export function filasEtiquetasDeItems(items = [], productos = []) {
       return {
         serial: item.serial,
         batteryHealth: item.batteryHealth ?? undefined,
-        supplierName: item.supplierName || undefined,
+        supplierCode: item.supplierCode || undefined,
         location: item.locationName ? { name: item.locationName } : undefined,
         product: { name: nombre, model: variante || nombre },
       }
