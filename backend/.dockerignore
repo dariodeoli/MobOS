@@ -7,3 +7,15 @@
 node_modules
 .next
 npm-debug.log*
+
+# Evidencia y herramientas que el build no usa (backend/tests se queda: el
+# typecheck de `next build` incluye **/*.ts).
+.git
+.claude
+.atl
+**/coverage
+**/playwright-report
+**/test-results
+**/*.har
+**/*.har.gz
+**/*.zip
