@@ -1,4 +1,5 @@
 import '../control/inicioPosF2.css'
+import './posCobro.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -28,6 +29,7 @@ import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
+import { montoEnvioEfectivo, pagaAlRecibirVigente } from '@/utils/cobroPos'
 import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVenta'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -356,6 +358,8 @@ export default function FormularioVenta({
   const [intentoCuentas, setIntentoCuentas] = useState(0)
   // Venta a crédito: plazo en días y límite del cliente.
   const [venderACredito, setVenderACredito] = useState(false)
+  // «Paga al recibir» (#390): vive acá para resetearse con la venta y viajar en la suspensión.
+  const [pagaAlRecibir, setPagaAlRecibir] = useState(false)
   const [creditoDias, setCreditoDias] = useState('')
   // Factura a otro titular (esposo/a, padre, empresa) con RUC.
   const [billingTo, setBillingTo] = useState({ name: '', document: '' })
@@ -405,6 +409,10 @@ export default function FormularioVenta({
   const [avisoEnlaceDemo, setAvisoEnlaceDemo] = useState(null)
   // Gift cards (#280): emisión/consulta desde el POS y canje dentro del cobro.
   const [giftCardsOpen, setGiftCardsOpen] = useState(false)
+
+  // Un pago que entra por otro camino (canje borrador, venta recuperada) apaga
+  // «Paga al recibir»: nunca quedan pagos ocultos.
+  useEffect(() => { if (pagos.length > 0) setPagaAlRecibir(false) }, [pagos.length])
 
   // #275: si el POS se desmonta antes de que dispare la ida automática al
   // detalle, no navegamos en nombre del usuario.
@@ -773,7 +781,7 @@ export default function FormularioVenta({
   const subtotal = totalCarrito
   // Retiro en tienda no cobra envío: si quedó un monto cargado (p. ej. un
   // borrador viejo), la venta lo ignora y no lo manda al backend (#187).
-  const montoDeliveryEfectivo = f.entrega === 'Retiro en tienda' ? 0 : gsNum(f.montoDelivery)
+  const montoDeliveryEfectivo = montoEnvioEfectivo(f.entrega, gsNum(f.montoDelivery))
   const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + montoDeliveryEfectivo)
   // «No pagado» (#148 §11): un bloque marcado así no suma a lo cobrado y la
   // venta queda con ese saldo pendiente (el pago viaja con estado PENDING).
@@ -1374,6 +1382,9 @@ export default function FormularioVenta({
       setDescuento('')
       setAuthDescuento(null)
       setPagos([])
+      setPagaAlRecibir(false)
+      setVenderACredito(false)
+      setCreditoDias('')
       setF(VACIO(f.vendedorId))
       setBusquedaProducto('')
       setLastOrder(completedOrder)
@@ -1413,6 +1424,9 @@ export default function FormularioVenta({
           setDescuento('')
           setAuthDescuento(null)
           setPagos([])
+          setPagaAlRecibir(false)
+          setVenderACredito(false)
+          setCreditoDias('')
           setF(VACIO(f.vendedorId))
           setBusquedaProducto('')
           setAvisoOffline(
@@ -1543,12 +1557,18 @@ export default function FormularioVenta({
       it.descuento || it.descuentoPct ? { ...it, descuento: '', descuentoPct: '' } : it,
     ))
   }
+  // Cambiar o quitar el cliente apaga «Vender a crédito»: el crédito es de la ficha anterior.
+  function cambiarCliente(siguiente) {
+    if ((siguiente?.id ?? null) !== (customer?.id ?? null)) setVenderACredito(false)
+    setCustomer(siguiente)
+  }
   function limpiarCarrito() {
     const { empresaId, sucursalId, userId } = contextoActual()
     borrarCarrito(empresaId, sucursalId, userId)
     setItems([])
     setDescuento('')
     setPagos([])
+    setPagaAlRecibir(false)
     setAuthDescuento(null)
     setAuthPrecio(null)
     setBillingTo({ name: '', document: '' })
@@ -1613,6 +1633,7 @@ export default function FormularioVenta({
             observacion: f.observacion,
             billingTo,
             venderACredito,
+            pagaAlRecibir: pagaAlRecibirVigente(pagaAlRecibir, pagos),
             creditoDias,
             specialOrder: f.specialOrder,
             expectedAt: f.expectedAt,
@@ -1638,6 +1659,7 @@ export default function FormularioVenta({
           observacion: f.observacion,
           billingTo,
           venderACredito,
+          pagaAlRecibir: pagaAlRecibirVigente(pagaAlRecibir, pagos),
           creditoDias,
           specialOrder: f.specialOrder,
           expectedAt: f.expectedAt,
@@ -1724,6 +1746,7 @@ export default function FormularioVenta({
       document: typeof payload.billingTo?.document === 'string' ? payload.billingTo.document : '',
     })
     setVenderACredito(Boolean(payload.venderACredito))
+    setPagaAlRecibir(Boolean(payload.pagaAlRecibir) && !(Array.isArray(payload.pagos) && payload.pagos.length))
     setCreditoDias(
       payload.creditoDias === undefined || payload.creditoDias === null
         ? ''
@@ -1838,20 +1861,20 @@ export default function FormularioVenta({
           <Button
             type="button"
             variant="outline"
+            className="pos-accion-icono"
             onClick={abrirSuspender}
             disabled={guardando}
+            title="Suspender venta"
+            aria-label="Suspender venta"
           >
             <Icon name="save" className="h-4 w-4" />
-            Suspender venta
           </Button>
         )}
-        <Button type="button" variant="outline" data-testid="pos-suspendidas" onClick={abrirSuspendidas}>
+        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-suspendidas" onClick={abrirSuspendidas} title="Ventas suspendidas" aria-label="Ventas suspendidas">
           <Icon name="clock" className="h-4 w-4" />
-          Ventas suspendidas
         </Button>
-        <Button type="button" variant="outline" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)}>
+        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)} title="Gift cards" aria-label="Gift cards">
           <Icon name="card" className="h-4 w-4" />
-          Gift cards
         </Button>
       </BarraModulo>
   )
@@ -1986,11 +2009,11 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
+        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">
             {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
             <PosCustomer
-              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={setCustomer}
+              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
               billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
             />
             <PasoProductos
@@ -2073,14 +2096,12 @@ export default function FormularioVenta({
               productoBajoId={productoBajoId}
               onAuthPrecio={setAuthPrecio}
               tieneCupon={tieneCupon}
-              f={f}
-              setF={setF}
-              cliente={customer?.name || f.cliente}
-              vendedor={sesion?.nombre}
             />
 
             <PasoCobro
               customer={customer}
+              pagaAlRecibir={pagaAlRecibir}
+              setPagaAlRecibir={setPagaAlRecibir}
               venderACredito={venderACredito}
               setVenderACredito={setVenderACredito}
               creditoDias={creditoDias}

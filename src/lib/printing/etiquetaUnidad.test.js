@@ -7,6 +7,7 @@ const UNIDAD = {
   condition: 'USED',
   batteryHealth: 89,
   supplierName: 'Proveedor XYZ',
+  supplier: { id: 's1', name: 'Proveedor XYZ', code: 'PX' },
   location: { code: 'D2', name: 'Depósito 2' },
   product: { name: 'iPhone 15 Pro 256GB Titanio', model: 'iPhone 15 Pro', capacity: '256GB', color: 'Titanio' },
 }
@@ -18,7 +19,9 @@ test('la etiqueta arma modelo, identificador, serial y código de unidad (#220)'
   assert.equal(datos.serial, '356789012345678')
   assert.equal(datos.codigo, 'MOBOS:356789012345678')
   assert.equal(datos.enlace, 'https://app.moboss.online/u/356789012345678')
-  assert.equal(contextoEtiquetaUnidad(datos), 'Seminuevo · Batería 89% · Ubicación: D2 · Depósito 2 · Proveedor: Proveedor XYZ')
+  assert.equal(contextoEtiquetaUnidad(datos), 'Seminuevo · Batería 89% · Ubicación: D2 · Depósito 2 · Proveedor: PX')
+  // #400: el nombre real del proveedor nunca se imprime.
+  assert.equal(JSON.stringify(datos).includes('Proveedor XYZ'), false)
 })
 
 test('no repite capacidad ni color cuando el modelo ya los trae', () => {

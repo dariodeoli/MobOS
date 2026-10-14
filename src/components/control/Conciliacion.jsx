@@ -47,15 +47,16 @@ const GRID_ITEMS = 'conciliacion-f5-payment-grid'
 
 function Resumen({ resumen, alcance }) {
   // #388: tira de UNA línea («etiqueta + cifra»), sin subtextos que repiten el
-  // conteo. El alcance (período, filtros, sin sucursal) va como nombre accesible
-  // y tooltip de la tira en vez de un párrafo propio; el avance es una celda más.
+  // conteo. El alcance (período, filtros, sin sucursal) va como tooltip/descripción
+  // de la tira en vez de un párrafo propio; el nombre accesible es corto para no
+  // chocar con los filtros «Estado»/«Procesadora» al buscarlos por etiqueta; el avance es una celda más.
   const n = (valor) => Number(valor || 0)
   const gsCompleto = (valor) => {
     const { signo, simbolo, digitos } = partesGs(valor || 0)
     return `${signo}${simbolo} ${digitos}`
   }
   return (
-    <StatGrid testId="conciliacion-resumen" etiqueta={alcance} title={alcance}>
+    <StatGrid testId="conciliacion-resumen" etiqueta="Resumen de conciliación" title={alcance}>
       <Stat compact label="Ingresos conciliables" valor={gsCompleto(n(resumen.confirmedPyg))} sub={`${n(resumen.count)} pago(s)`} />
       <Stat compact label="Conciliado" valor={gsCompleto(n(resumen.verifiedPyg))} valorClassName="text-ok" />
       <Stat compact label="Por conciliar" valor={gsCompleto(n(resumen.unverifiedPyg))} valorClassName={n(resumen.unverifiedPyg) > 0 ? 'text-warn' : ''} />
@@ -344,7 +345,7 @@ export default function Conciliacion() {
           plano
           lista
           scrollFiltros={false}
-          etiquetaBoton="Cuenta, medio y procesadora"
+          etiquetaBoton="Filtrar conciliación"
           etiquetaOrden="Filtrar por"
           label="Filtros del período"
           testId="conciliacion-filtros"

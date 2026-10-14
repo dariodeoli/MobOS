@@ -1,6 +1,7 @@
 import { Prisma, type CashDirection, type CashMovementKind, type PaymentCurrency } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
+import { canSeeSupplierName, loadSupplierDirectory, redactSupplierNames, supplierCodeFor } from '../../../lib/cost-visibility'
 import { error, json } from '../../../lib/http'
 import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
@@ -10,6 +11,7 @@ import { deudaRepuesto, resumenRepuestos } from '../../../lib/workshop-parts'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 import { numero } from '../../../lib/montos'
+import { signedOriginalAmount } from '../../../lib/payment-net'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -39,6 +41,11 @@ async function scope(request: Request, write = false) {
   return { session, branchId }
 }
 
+// Respuestas de escritura: el nombre real del proveedor no vuelve a quien no puede verlo (#400).
+async function paraRol<T>(session: { user: { role: string; tenantId: string } }, payload: T): Promise<T> {
+  return canSeeSupplierName(session.user.role) ? payload : redactSupplierNames(payload, await loadSupplierDirectory(session.user.tenantId))
+}
+
 export async function GET(request: Request) {
   const ctx = await scope(request)
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
@@ -48,9 +55,9 @@ export async function GET(request: Request) {
     prisma.cashMovement.findMany({ where: { tenantId, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
-    prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
-    prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true } }),
-    prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING' }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
+    prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
+    prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true, reversalOfId: true } }),
+    prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING', payment: { reversalOfId: null, reversal: { is: null } } }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
     // Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83): contado,
     // crédito con vencimiento y consignación (que recién impacta al consumirse).
     prisma.supplierPayable.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, concept: true, condition: true, amountPyg: true, paidPyg: true, consumedPyg: true, dueAt: true, reference: true, createdAt: true, supplyPurchaseId: true }, orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }], take: 2000 }),
@@ -63,7 +70,9 @@ export async function GET(request: Request) {
     }),
   ])
   const receivables = orders.map(order => ({ id: order.id, totalPyg: numero(order.totalPyg), paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + numero(payment.amountPyg), 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
-  const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
+  // Nombre real del proveedor solo para administración/gerencia; CAJERA recibe la sigla (#400).
+  const directorio = canSeeSupplierName(ctx.session.user.role) ? null : await loadSupplierDirectory(tenantId)
+  const payables = purchases.map(purchase => ({ ...purchasePayable(purchase), ...(directorio ? { supplierName: supplierCodeFor(directorio, purchase.supplierId) } : {}) })).filter(row => row.pendingPyg > 0)
   // Los KPI de la tarjeta (por cobrar, por pagar y margen real) se calculan
   // sobre TODO el historial: las listas de abajo se cortan en 5.000 filas y sus
   // totales no pueden depender de ese tope (#83, misma regla que créditos).
@@ -119,7 +128,7 @@ export async function GET(request: Request) {
   }
   const balances = new Map(accounts.map(account => [account.id, { ...account, balance: 0 }]))
   for (const movement of movements) if (movement.status === 'CLEARED' && movement.accountId && balances.has(movement.accountId)) balances.get(movement.accountId)!.balance += (movement.direction === 'IN' ? 1 : -1) * Number(movement.originalAmount)
-  for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += Number(payment.originalAmount ?? payment.amountPyg)
+  for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += signedOriginalAmount(payment)
   for (const purchase of purchases) for (const payment of purchase.payments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance -= Number(payment.originalAmount ?? payment.amountPyg)
   // Repuestos del taller (#250 · FIN): deuda real (crédito y consignación
   // consumida) con vencimiento, para el KPI de «por pagar» y su pago desde Caja.
@@ -127,7 +136,7 @@ export async function GET(request: Request) {
     .map(part => ({ ...part, deudaPyg: deudaRepuesto(part), vencimiento: estadoDeVencimiento(part.dueAt) }))
     .filter(part => part.deudaPyg > 0)
   const resumenTaller = resumenRepuestos(workshopPartRows)
-  return json({
+  const respuesta = {
     movements, accounts: [...balances.values()],
     receivables: { rows: receivables, totalPyg: Number(receivablesTotales[0]?.totalPyg ?? 0), orders: Number(receivablesTotales[0]?.orders ?? 0) },
     payables: { rows: payables, totalPyg: Number(payablesTotales[0]?.totalPyg ?? 0), purchases: Number(payablesTotales[0]?.purchases ?? 0) },
@@ -136,7 +145,7 @@ export async function GET(request: Request) {
     // impacta (consignación sin consumir).
     supplierPayables: {
       rows: supplierPayablesRows
-        .map(fila => ({ ...fila, pendientePyg: pendienteDeCompra(fila), depositoPyg: enDepositoDeCompra(fila), vencimiento: estadoDeVencimiento(fila.dueAt) }))
+        .map(fila => ({ ...fila, ...(directorio ? { supplierName: supplierCodeFor(directorio, fila.supplierId) } : {}), pendientePyg: pendienteDeCompra(fila), depositoPyg: enDepositoDeCompra(fila), vencimiento: estadoDeVencimiento(fila.dueAt) }))
         .filter(fila => fila.pendientePyg > 0 || fila.depositoPyg > 0),
       totalPyg: Number(proveedoresTotales[0]?.totalPyg ?? 0),
       vencidasPyg: Number(proveedoresTotales[0]?.vencidasPyg ?? 0),
@@ -147,14 +156,16 @@ export async function GET(request: Request) {
     // Repuestos del taller (#250 · FIN): la deuda entra al «por pagar» y se
     // paga desde Caja (el pago registra el egreso de la cuenta elegida).
     workshopParts: {
-      rows: repuestosTaller.map(part => ({ ...part, supplierName: part.supplier?.name || null })),
+      rows: repuestosTaller.map(({ supplier, ...part }) => ({ ...part, supplierName: directorio ? (part.supplierId ? supplierCodeFor(directorio, part.supplierId) : null) : supplier?.name || null })),
       totalPyg: resumenTaller.porPagarPyg,
       vencidasPyg: resumenTaller.vencidasPyg,
       partes: resumenTaller.porPagar,
     },
     margin: marginTotal,
     reconciliations: reconciliations.filter(row => !ctx.branchId || row.payment.order.branchId === ctx.branchId),
-  })
+  }
+  // Última pasada: asientos de caja y textos libres con el nombre real pasan a sigla.
+  return json(directorio ? redactSupplierNames(respuesta, directorio) : respuesta)
 }
 
 export async function POST(request: Request) {
@@ -208,7 +219,7 @@ export async function POST(request: Request) {
         }
         return movement
       })
-      return json(movement, { status: 201 })
+      return json(await paraRol(ctx.session, movement), { status: 201 })
     }
     if (action === 'clear' || action === 'void') {
       const id = text(body.id, 'Movimiento', 200, true)!
@@ -255,7 +266,7 @@ export async function POST(request: Request) {
         await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_CREATED', entity: 'SupplierPayable', entityId: fila.id, metadata: { condition, amountPyg, paidPyg, dueAt: dueAt?.toISOString() ?? null, supplierName } } })
         return fila
       })
-      return json({ ...creado, pendientePyg: pendienteDeCompra(creado), depositoPyg: enDepositoDeCompra(creado), vencimiento: estadoDeVencimiento(creado.dueAt) }, { status: 201 })
+      return json(await paraRol(ctx.session, { ...creado, pendientePyg: pendienteDeCompra(creado), depositoPyg: enDepositoDeCompra(creado), vencimiento: estadoDeVencimiento(creado.dueAt) }), { status: 201 })
     }
     if (action === 'supplierPayment') {
       const id = text(body.id, 'Compra', 200, true)!
@@ -281,7 +292,7 @@ export async function POST(request: Request) {
         await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_PAID', entity: 'SupplierPayable', entityId: compra.id, metadata: { amountPyg, saldoAnteriorPyg: pendiente, conCuenta: Boolean(accountId) } } })
         return fila
       })
-      return json({ ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) })
+      return json(await paraRol(ctx.session, { ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) }))
     }
     // Repuestos del taller (#250 · FIN): paga la deuda del repuesto (crédito o
     // consignación consumida) y, con cuenta, registra el egreso en Caja. Espeja
@@ -315,7 +326,7 @@ export async function POST(request: Request) {
         await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'WORKSHOP_PART_PAID', entity: 'WorkshopPart', entityId: fila.id, metadata: { code: fila.code, paymentMode: fila.paymentMode, deudaPyg: deuda, desde: 'FINANZAS', conCuenta: Boolean(accountId) } } })
         return fila
       })
-      return json({ ...actualizado, deudaPyg: 0, porPagar: false })
+      return json(await paraRol(ctx.session, { ...actualizado, deudaPyg: 0, porPagar: false }))
     }
     if (action === 'supplierConsumption') {
       const id = text(body.id, 'Compra', 200, true)!
@@ -329,7 +340,7 @@ export async function POST(request: Request) {
         await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_CONSUMED', entity: 'SupplierPayable', entityId: compra.id, metadata: { amountPyg, enDepositoAnteriorPyg: enDeposito } } })
         return fila
       })
-      return json({ ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) })
+      return json(await paraRol(ctx.session, { ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) }))
     }
     throw new FinanceInputError('Acción financiera inválida.')
   } catch (cause) {

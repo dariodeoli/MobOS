@@ -125,10 +125,14 @@ export type CompraKardex = {
   lotReference: string | null
   unitCostPyg: bigint | number
   finalUnitCostPyg: bigint | number
-  purchase: { id: string; supplierName: string; status: string; createdAt: Date; receivedAt: Date | null; createdBy: { name: string } | null }
+  purchase: { id: string; supplierId?: string | null; supplierName: string; status: string; createdAt: Date; receivedAt: Date | null; createdBy: { name: string } | null }
 }
 
-export function eventosDeCompras(lineas: CompraKardex[], opciones: { costos?: boolean } = {}): KardexEvento[] {
+// `proveedor` decide qué texto sale por el proveedor: el nombre real solo para
+// gerencia; el resto recibe la sigla (#400). Sin él se usa el nombre guardado.
+export type OpcionesProveedor = { proveedor?: (nombre: string, supplierId?: string | null) => string }
+
+export function eventosDeCompras(lineas: CompraKardex[], opciones: { costos?: boolean } & OpcionesProveedor = {}): KardexEvento[] {
   const eventos: KardexEvento[] = []
   for (const linea of lineas) {
     const cantidad = numero(linea.receivedQty)
@@ -140,7 +144,7 @@ export function eventosDeCompras(lineas: CompraKardex[], opciones: { costos?: bo
       at: linea.purchase.receivedAt ?? linea.purchase.createdAt,
       kind: 'COMPRA',
       label: parcial ? 'Recepción parcial de compra' : 'Compra recibida',
-      detail: unir(parcial ? `recibido: ${unid(cantidad)}` : unid(cantidad), linea.purchase.supplierName, linea.lotReference ? `lote ${linea.lotReference}` : null, opciones.costos && costo ? `${gs(costo)} c/u` : null),
+      detail: unir(parcial ? `recibido: ${unid(cantidad)}` : unid(cantidad), (opciones.proveedor ? opciones.proveedor(linea.purchase.supplierName, linea.purchase.supplierId) : linea.purchase.supplierName), linea.lotReference ? `lote ${linea.lotReference}` : null, opciones.costos && costo ? `${gs(costo)} c/u` : null),
       reference: linea.purchase.id,
       user: linea.purchase.createdBy?.name ?? null,
       delta: cantidad,
@@ -262,10 +266,10 @@ export type DevolucionProveedorKardex = {
   id: string
   quantity: number
   unitCostPyg: bigint | number
-  purchaseReturn: { id: string; createdAt: Date; reason: string; purchase: { supplierName: string } }
+  purchaseReturn: { id: string; createdAt: Date; reason: string; purchase: { supplierId?: string | null; supplierName: string } }
 }
 
-export function eventosDeDevolucionesProveedor(lineas: DevolucionProveedorKardex[], opciones: { costos?: boolean } = {}): KardexEvento[] {
+export function eventosDeDevolucionesProveedor(lineas: DevolucionProveedorKardex[], opciones: { costos?: boolean } & OpcionesProveedor = {}): KardexEvento[] {
   const eventos: KardexEvento[] = []
   for (const linea of lineas) {
     const cantidad = numero(linea.quantity)
@@ -273,7 +277,7 @@ export function eventosDeDevolucionesProveedor(lineas: DevolucionProveedorKardex
     eventos.push({
       id: `devolucion-proveedor-${linea.id}`, at: linea.purchaseReturn.createdAt, kind: 'DEVOLUCION',
       label: 'Devolución al proveedor',
-      detail: unir(unid(cantidad), linea.purchaseReturn.purchase.supplierName, linea.purchaseReturn.reason, opciones.costos ? `${gs(linea.unitCostPyg)} c/u` : null),
+      detail: unir(unid(cantidad), (opciones.proveedor ? opciones.proveedor(linea.purchaseReturn.purchase.supplierName, linea.purchaseReturn.purchase.supplierId) : linea.purchaseReturn.purchase.supplierName), linea.purchaseReturn.reason, opciones.costos ? `${gs(linea.unitCostPyg)} c/u` : null),
       reference: linea.purchaseReturn.id, user: null, delta: -cantidad,
     })
   }

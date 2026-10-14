@@ -127,7 +127,8 @@ test.describe('composición compacta', () => {
     // #320: la identidad visible es una sola (el h1 del shell); la barra no
     // repite el título: agrupa contexto y acciones.
     await expect(barra.getByRole('heading')).toHaveCount(0)
-    await expect(barra).toHaveAttribute('aria-label', 'Compras')
+    // #388: el nombre accesible lo lleva el grupo de la barra (Toolbar), no su envoltorio.
+    await expect(barra.getByRole('group', { name: 'Compras', exact: true })).toBeVisible()
     for (const accion of ['Proveedores', 'Exportar CSV']) {
       await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }

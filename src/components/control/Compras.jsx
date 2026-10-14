@@ -492,7 +492,7 @@ export default function Compras() {
       plano
       lista
       testId="barra-compras"
-      label="Acciones de Compras"
+      label="Compras"
       search={<SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" />}
       more={
         <>

@@ -1,0 +1,46 @@
+/* POS (#390/#391): presentación del cobro. Se carga después de inicioPosF2.css
+   y gana por especificidad; no toca montos ni reglas de negocio. */
+
+/* Catálogo: 3 columnas con tarjetas bajas (nombre + precio/stock). */
+@media (min-width: 1024px) {
+  .pos-f2 .pos-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.pos-f2 .pos-product-card {
+  gap: 2px;
+  padding: 8px 10px;
+}
+
+/* Acciones del POS como íconos con tooltip. */
+.pos-accion-icono {
+  min-width: 44px;
+  padding-inline: 10px;
+}
+@media (min-width: 768px) {
+  [data-testid='barra-pos'] .pos-accion-icono {
+    min-width: 36px;
+    padding-inline: 8px;
+  }
+}
+
+/* Carrito y cobro: a 50% entran en filas, no hace falta apilar. */
+.pos-f2 [data-testid='pos-cobro'] .pos-fila-doble {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .pos-f2 [data-testid='pos-cobro'] .pos-fila-doble {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* «Agregar nota» como enlace discreto. */
+.pos-f2 [data-testid='pos-cobro'] .inicio-disclosure > summary {
+  min-height: 36px;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--c-fono-light, var(--c-fono)));
+}

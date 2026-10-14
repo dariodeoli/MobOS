@@ -69,6 +69,9 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await pagos.getByLabel('Cuenta de cobro').first().click()
   await page.getByRole('option', { name: /Caja E2E/ }).first().click()
   await expect(pagos.getByTestId('cuenta-capsula').first()).toBeVisible()
+  // #391: cambiar de cuenta es en el lugar y «Paga al recibir» es un interruptor.
+  await toque(pagos.getByTestId('cuenta-cambiar').first(), 'cambiar cuenta')
+  await toque(pagos.getByTestId('pos-paga-al-recibir'), 'paga al recibir')
   await toque(pagos.getByLabel('Monto original').first(), 'monto original')
   await toque(pagos.getByRole('button', { name: 'Eliminar pago 1' }), 'eliminar pago')
   await toque(page.getByRole('button', { name: '+ Agregar pago' }), 'agregar pago')
@@ -76,7 +79,11 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
 
   // Entrega.
   await toque(page.getByLabel('Entrega'), 'selector de entrega')
-  await toque(page.getByLabel(/Monto del delivery|Costo (de la encomienda|del envío)/), 'monto del delivery')
+  // #391: el monto del envío solo aparece con Delivery o encomienda.
+  await expect(page.getByLabel(/Monto del delivery|Costo (de la encomienda|del envío)/)).toHaveCount(0)
+  await page.getByLabel('Entrega').selectOption('Delivery')
+  await toque(page.getByLabel(/Costo (de la encomienda|del envío)/), 'monto del delivery')
+  await page.getByText('Agregar nota', { exact: true }).click()
   await toque(page.getByLabel('Observación'), 'observación')
 })
 
