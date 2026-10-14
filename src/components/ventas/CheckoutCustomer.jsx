@@ -161,7 +161,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     const disponible = Math.max(0, limite - deuda)
     const avisos = [
       !String(value.document || '').trim() && !String(billingTo?.document || '').trim() ? 'Sin RUC/CI para factura' : '',
-      limite > 0 && deuda > limite ? 'Crédito superado' : '',
+      stats && limite > 0 && deuda > limite ? 'Crédito superado' : '',
     ].filter(Boolean)
     return (
       <div ref={tarjetaRef} data-testid="cliente-elegido" className="rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs">
@@ -186,7 +186,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           {nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}
           {limite > 0 ? (
             <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">
-              Crédito disponible {montoGs(disponible)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}
+              {stats ? `Crédito disponible ${montoGs(disponible)}` : `Crédito hasta ${montoGs(limite)}`}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}
             </span>
           ) : null}
           {deuda > 0 ? <span className="rounded border border-bad/40 px-1.5 py-0.5 font-bold text-bad-text">Deuda {montoGs(deuda)}</span> : null}
