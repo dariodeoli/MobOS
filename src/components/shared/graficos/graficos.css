@@ -1,0 +1,64 @@
+/* Kit de gráficos (#376). Colores como tokens, claro y oscuro; los textos usan
+   siempre los tokens de la app (fore/mute) para conservar el contraste. */
+:root {
+  --g-1: #0d9488;
+  --g-2: #2563eb;
+  --g-3: #d97706;
+  --g-4: #7c3aed;
+  --g-5: #db2777;
+  --g-6: #64748b;
+  --g-previo: #94a3b8;
+}
+html.dark {
+  --g-1: #2dd4bf;
+  --g-2: #60a5fa;
+  --g-3: #fbbf24;
+  --g-4: #a78bfa;
+  --g-5: #f472b6;
+  --g-6: #94a3b8;
+  --g-previo: #64748b;
+}
+.graf-serie-1 { color: var(--g-1); }
+.graf-eje { stroke: rgb(var(--c-ink-600)); }
+.graf-tinta-mute { fill: rgb(var(--c-mute)); }
+.graf-foco:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.graf-tooltip {
+  border: 1px solid rgb(var(--c-ink-500));
+  background: rgb(var(--c-paper));
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.14);
+}
+.graf-card[data-ui='card'] {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+/* Entrada: solo si la persona no pidió menos movimiento. */
+@media (prefers-reduced-motion: no-preference) {
+  .graf-entra-linea {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: graf-dibuja 700ms ease-out forwards;
+  }
+  .graf-entra-area { animation: graf-aparece 700ms ease-out both; }
+  .graf-entra-barra { transform-origin: left center; animation: graf-barra 500ms ease-out both; }
+  .graf-entra-sector { animation: graf-aparece 600ms ease-out both; }
+}
+@keyframes graf-dibuja { to { stroke-dashoffset: 0; } }
+@keyframes graf-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes graf-barra { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Tabla de respaldo solo para lectores de pantalla. */
+.graf-solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

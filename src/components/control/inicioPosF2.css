@@ -103,6 +103,11 @@
     border-top: 0;
   }
 }
+@media (min-width: 1280px) {
+  .inicio-kpi-stripe.inicio-kpi-stripe--dos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (min-width: 1024px) {
   .pos-product-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

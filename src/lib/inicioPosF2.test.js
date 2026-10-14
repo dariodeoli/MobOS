@@ -27,7 +27,9 @@ test('F2 keeps secondary metrics, server details, graphs and printing reachable'
   for (const control of [
     'Ticket promedio',
     'Comisiones',
-    'Evolución',
+    'GraficoArea',
+    'GraficoDona',
+    'GraficoBarras',
     'CardTopProductos',
     'CardStock',
     'CardPagos',
