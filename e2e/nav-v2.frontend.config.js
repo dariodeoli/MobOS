@@ -13,6 +13,7 @@ export default defineConfig({
     'shell-layout.frontend.spec.js',
     'blocks-preview.frontend.spec.js',
     'ventas-layout.frontend.spec.js',
+    'ventana-detalle.frontend.spec.js',
     'finanzas-layout.frontend.spec.js',
     'config-layout.frontend.spec.js',
     'campos-ancho.frontend.spec.js',

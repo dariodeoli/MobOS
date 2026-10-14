@@ -39,7 +39,7 @@ test('la lista agrupa por producto y condición con cantidad, prioridad y contex
   assert.equal(datos.estado, 'Comprada')
   assert.equal(datos.recorrido, 'CDE → Casa Central')
   assert.equal(datos.comprador, 'Lucía Benítez')
-  assert.equal(datos.proveedor, 'Mayorista Apple PY')
+  assert.equal(datos.proveedor, 'MAP', 'el papel imprime la sigla del proveedor, nunca su nombre real (#400)')
   assert.equal(datos.referencia, 'Factura 001-002')
   assert.equal(datos.notas, 'Retirar antes del mediodía')
 

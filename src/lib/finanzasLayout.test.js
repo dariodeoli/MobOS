@@ -60,7 +60,7 @@ test('Reportes: la barra de controles es una Toolbar con botones del mismo tama√
   const codigo = leer('control/Reportes.jsx')
   assert.match(codigo, /<Toolbar/)
   assert.ok(!/text-xs md:h-9 md:min-h-0/.test(codigo), 'Exportar CSV ya no usa su propio tama√±o de 12px')
-  const botones = codigo.match(/className=\{BOTON_CONTROL\}/g) || []
+  const botones = codigo.match(/className=\{(?:cn\()?BOTON_CONTROL/g) || []
   assert.ok(botones.length >= 3, 'Actualizar, Imprimir y Exportar comparten BOTON_CONTROL')
 })
 

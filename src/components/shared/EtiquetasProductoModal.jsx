@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, FormActions, Input, Modal, useResultado } from '@/components/ui'
+import { Button, FormActions, Input, useResultado } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { gs } from '@/utils/calculos'
@@ -90,7 +91,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Etiquetas de góndola" size="amplio">
+    <VentanaDetalle open={open} onClose={onClose} title="Etiquetas de góndola" size="lg">
       <div className="space-y-4">
         <p className="text-sm text-mute">Elegí los productos y cuántas etiquetas de cada uno. El código de barras sale sobre el SKU (EAN-13 si el SKU lo es; si no, CODE128) y el precio es el de venta del producto.</p>
         <SearchField ariaLabel="Buscar por nombre o SKU" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -133,6 +134,6 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
           <Button type="button" disabled={!items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>
         </FormActions>
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }

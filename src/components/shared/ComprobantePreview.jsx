@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Aviso, Button, ConfirmDialog, FormActions, Modal, useResultado, useToast } from '@/components/ui'
+import { Aviso, Button, ConfirmDialog, FormActions, useResultado, useToast } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import CompartirImagen from '@/components/shared/CompartirImagen'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
@@ -270,7 +271,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   )
 
   return (
-    <Modal open={open} onClose={onClose} title="Comprobante" size="amplio">
+    <VentanaDetalle open={open} onClose={onClose} title="Comprobante" size="lg">
       <div className="space-y-3">
         {agente && Number(estado?.cola?.pendientes || 0) > 0 && (
           <Aviso tono="warn" compact className="px-3">
@@ -325,6 +326,6 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
         {/* #318 + #323: acciones en el pie fijo del modal estándar. */}
         <FormActions>{acciones}</FormActions>
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }

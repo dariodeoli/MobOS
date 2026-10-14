@@ -113,7 +113,7 @@ test('Clientes scoped presentation supports readable full amounts and keyboard m
     'overflow-wrap: anywhere',
     'white-space: nowrap',
     'text-overflow: clip',
-    'repeat(4, minmax(0, 1fr))',
+    'grid-template-columns: minmax(0, 1fr)',
     '.clientes-f3-table',
   ])
     assert.ok(css.includes(contract), contract)

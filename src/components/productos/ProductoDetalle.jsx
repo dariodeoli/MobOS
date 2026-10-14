@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Aviso, Badge, Button, Drawer, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import Cronologia from '@/components/shared/Cronologia'
@@ -226,7 +227,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
 
   return (
     <>
-      <Drawer open onClose={onClose} title={nombre(current)} className="w-full sm:max-w-3xl lg:max-w-4xl">
+      <VentanaDetalle open onClose={onClose} title={nombre(current)} size="xl">
       <div className="space-y-5">
         {/* #306: índice de secciones, fijo arriba mientras se recorre la ficha. */}
         <nav className="-mx-4 -mt-4 sticky top-0 z-20 flex gap-1.5 overflow-x-auto border-b border-ink-600 bg-ink-800 px-4 py-2 sm:-mx-5 sm:-mt-5 sm:px-5" role="tablist" aria-label="Secciones del producto" data-testid="producto-secciones">
@@ -451,7 +452,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           )}
         </section>
       </div>
-      </Drawer>
+      </VentanaDetalle>
       <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={[current]} seleccionInicial={[current?.id || current?.sku]} />
     </>
   )

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Modal, Select, useResultado } from '@/components/ui'
+import { Button, Select, useResultado } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { printHtml } from '@/utils/printHtml'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { cargarImpresorasRemotas, configImpresora, estadoAgente, imprimirConDestino, impresoraPredeterminada, puedeCaerAlDialogo } from '@/lib/printing/agent'
@@ -67,7 +68,7 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={titulo} size="amplio">
+    <VentanaDetalle open={open} onClose={onClose} title={titulo} size="lg">
       <div className="space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block space-y-1 text-xs text-mute">
@@ -85,6 +86,6 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
         <p className="text-[11px] text-mute">Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.</p>
         <VistaPreviaPapel formato={formato} contenido={html} titulo={`Vista previa · ${titulo}`} />
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }
