@@ -51,13 +51,21 @@ sin sobrescribir confianza. Documentación oficial:
 https://developer.apple.com/help/account/certificates/wwdr-intermediate-certificates/
 
 La combinación archive automático + identidad Distribution forzada da conflicto.
-Funcionó generar archive sin firma y exportarlo con Xcode, que firma para tienda:
+La exportación de un archive sin firma puede producir un IPA firmado **sin los
+entitlements de Apple/Push**, por lo que no se usa para distribución.
+
+Se creó un perfil manual App Store Connect para el bundle existente con el mismo
+certificado Distribution: `MobOS App Store 2026-10-15`. Tiene APNs production y
+Sign in with Apple. Se instala el `.mobileprovision` descargado en
+`~/Library/Developer/Xcode/UserData/Provisioning Profiles/<UUID>.mobileprovision`.
+Un perfil administrado por Xcode no sirve para este archive manual.
 
 ```sh
 xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
   -configuration Release -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE_PATH" -derivedDataPath "$DERIVED_PATH" \
-  archive CODE_SIGNING_ALLOWED=NO
+  archive CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' \
+  PROVISIONING_PROFILE_SPECIFIER='MobOS App Store 2026-10-15'
 xcodebuild -exportArchive -archivePath "$ARCHIVE_PATH" \
   -exportOptionsPlist "$EXPORT_OPTIONS" -exportPath "$EXPORT_PATH" \
   -allowProvisioningUpdates
@@ -65,9 +73,12 @@ xcodebuild -exportArchive -archivePath "$ARCHIVE_PATH" \
 
 El plist de exportación usa `method=app-store-connect`, `destination=export`,
 `teamID=F65VS7VHB9`, `signingStyle=automatic`, `signingCertificate=Apple Distribution`,
-`manageAppVersionAndBuildNumber=false`. El diagnóstico exportó un IPA con firma y
-perfil embebido. No equivale a subida ni aceptación de Apple. Para enviar el SHA
-final, reconstruir sus assets y archive y subirlo desde Organizer/Distribute App.
+`manageAppVersionAndBuildNumber=false`. Archive y exportación pasaron. El IPA final
+se verifica con `codesign --verify --deep --strict`: debe conservar
+`aps-environment=production`, `com.apple.developer.applesignin=[Default]`,
+`com.apple.developer.associated-domains=[applinks:app.moboss.online]` y
+`get-task-allow=false`. No equivale a subida ni aceptación de Apple. Para enviar el
+SHA final, reconstruir sus assets y archive y subirlo desde Organizer/Distribute App.
 
 ## Ficha y privacidad
 
