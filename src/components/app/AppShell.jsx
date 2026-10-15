@@ -94,6 +94,11 @@ export default function AppShell({
       /* sin storage: no se abre sola */
     }
   }, [esDemo])
+  // #448: entrar a una sección o cambiar de pestaña arranca siempre arriba de la
+  // página, nunca en el scroll que dejó la pantalla anterior.
+  useEffect(() => {
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) } catch { /* entorno sin scroll */ }
+  }, [active])
   const { usuario: usuarioSesion } = useSesion()
   const usuarioActual = usuario || usuarioSesion
   const [preferencias] = usePreferencias(usuarioActual?.id)
