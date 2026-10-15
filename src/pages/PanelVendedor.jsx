@@ -38,6 +38,7 @@ import { grupoShellDeTab } from '@/components/stock/stockHelpers'
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
 const Reportes = lazy(() => import('@/components/control/Reportes'))
+const AnalyticsPos = lazy(() => import('@/components/ventas/AnalyticsPos'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
@@ -212,6 +213,7 @@ const TECNICO_NAV = [
 
 const TABS_ANALISIS = [
   ['reportes', 'Reportes'],
+  ['ventas-dia', 'Ventas del día'],
   ['ganancias', 'Ganancias'],
   ['ganadores', 'Ganadores'],
   ['asistente', 'Asistente'],
@@ -341,6 +343,7 @@ const LABELS = {
   dispositivos: 'Impresión y dispositivos',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
+  'ventas-dia': 'Ventas del día',
   ganancias: 'Ganancias',
   ganadores: 'Ganadores',
   asistente: 'Asistente',
@@ -967,6 +970,7 @@ export default function PanelVendedor() {
           {esOwner && subpadre === 'analisis' && (
             <div>
               {vista === 'reportes' && <Reportes />}
+              {vista === 'ventas-dia' && <AnalyticsPos inline />}
               {vista === 'ganancias' && <Ganancias />}
               {vista === 'ganadores' && <Ganadores />}
               {vista === 'asistente' && <Asistente />}
