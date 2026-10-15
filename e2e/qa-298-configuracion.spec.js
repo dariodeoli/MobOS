@@ -25,11 +25,12 @@ async function capturar(page, nombre) {
   await page.screenshot({ path: join(SALIDA, `${nombre}.png`), fullPage: true })
 }
 
+// #422: Datos de la tienda son filas; «Dirección» abre el formulario en una ventana.
 async function abrirEdicion(page) {
   await page.goto('/configuracion/organizacion')
-  await page.getByTestId('datos-tienda-editar').click()
+  await page.getByTestId('fila-direccion').click()
   await expect(page.getByTestId('datos-tienda-form')).toBeVisible()
-  await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20_000 })
+  await expect(page.locator('#edit-direccion')).toBeVisible()
 }
 
 // La sesión del arnés puede tener vencida la ventana de reautenticación: si el
@@ -74,30 +75,21 @@ test('#298 · una sola navegación de Configuración, siempre con texto', async 
   await capturar(page, '02-navegacion-mobile')
 })
 
-test('#298 · Datos de la tienda: una sola tarjeta con Editar y sin resumen duplicado', async ({ page }) => {
+test('#298 · Datos de la tienda: filas que abren su formulario y sin resumen duplicado', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/configuracion/organizacion')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toHaveCount(1)
-  await expect(page.getByTestId('datos-tienda-lectura')).toBeVisible()
+  for (const fila of ['fila-comercial', 'fila-contacto', 'fila-direccion']) await expect(page.getByTestId(fila)).toBeVisible()
   await expect(page.locator('#edit-nombre')).toHaveCount(0)
   await expect(page.getByTestId('datos-tienda-form')).toHaveCount(0)
   await expect(page.getByTestId('datos-tienda-barra')).toHaveCount(0)
   await capturar(page, '03-datos-lectura')
 
-  await page.getByTestId('datos-tienda-editar').click()
-  // La edición reemplaza la tarjeta: no quedan los datos duplicados al lado.
+  await page.getByTestId('fila-direccion').click()
+  // El formulario vive en la ventana: los datos no quedan duplicados al lado.
   await expect(page.getByTestId('datos-tienda-form')).toBeVisible()
-  await expect(page.getByTestId('datos-tienda-lectura')).toHaveCount(0)
-
-  // Formulario en 2 columnas (#389): nombre y dirección comparten el ancho de columna
-  // y la dirección comparte fila con la ciudad, debajo de la fila de nombre y RUC.
-  const nombre = await page.locator('#edit-nombre').boundingBox()
-  const direccion = await page.locator('#edit-direccion').boundingBox()
-  const ruc = await page.locator('#edit-ruc').boundingBox()
-  expect(Math.abs(direccion.width - nombre.width)).toBeLessThan(2)
-  expect(Math.abs(ruc.y - nombre.y)).toBeLessThan(2)
-  expect(direccion.x).toBeGreaterThan(nombre.x + 10)
-  expect(direccion.y).toBeGreaterThan(nombre.y + 10)
+  await expect(page.getByTestId('cuenta-form-ventana')).toBeVisible()
+  await expect(page.locator('#edit-direccion')).toBeVisible()
   // Sin diferencias no hay barra de guardado.
   await expect(page.getByTestId('datos-tienda-barra')).toHaveCount(0)
   await capturar(page, '04-datos-edicion')
@@ -110,10 +102,10 @@ test('#298 · Datos de la tienda: una sola tarjeta con Editar y sin resumen dupl
   await page.locator('#edit-direccion').fill(original)
   await expect(page.getByTestId('datos-tienda-barra')).toHaveCount(0)
 
-  // Cancelar vuelve a la tarjeta de lectura.
+  // Cancelar cierra la ventana y deja las filas.
   await page.getByRole('button', { name: 'Cancelar' }).click()
-  await expect(page.getByTestId('datos-tienda-lectura')).toBeVisible()
-  await expect(page.getByTestId('datos-tienda-form')).toHaveCount(0)
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0)
+  await expect(page.getByTestId('fila-direccion')).toBeVisible()
 })
 
 test('#298 · «Guardar cambios» solo se envía con diferencias y persiste', async ({ page }) => {
@@ -128,7 +120,7 @@ test('#298 · «Guardar cambios» solo se envía con diferencias y persiste', as
   const nueva = original === 'Av. QA 298' ? 'Av. QA 298 bis' : 'Av. QA 298'
   try {
     // Enter sin cambios: no viaja ningún guardado.
-    await page.locator('#edit-nombre').press('Enter')
+    await page.locator('#edit-direccion').press('Enter')
     await page.waitForTimeout(600)
     expect(updates.filter((cuerpo) => cuerpo.includes('updateProfile'))).toHaveLength(0)
 
@@ -136,23 +128,24 @@ test('#298 · «Guardar cambios» solo se envía con diferencias y persiste', as
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await confirmarPasswordSiPide(page)
     await expect(page.getByText('Datos de la tienda actualizados.')).toBeVisible({ timeout: 20_000 })
-    // La tarjeta vuelve a lectura con el dato nuevo.
-    await expect(page.getByTestId('datos-tienda-lectura').getByText(nueva, { exact: true })).toBeVisible()
+    // La ventana se cierra y la fila muestra el dato nuevo.
+    await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0)
+    await expect(page.getByTestId('fila-direccion')).toContainText(nueva)
     await capturar(page, '06-datos-guardado')
     // Al menos un envío con el cambio (con reautenticación puede haber un
     // primer intento rechazado y el reintento).
     expect(updates.filter((cuerpo) => cuerpo.includes('updateProfile')).length).toBeGreaterThanOrEqual(1)
 
     await page.reload()
-    await expect(page.getByTestId('datos-tienda-lectura').getByText(nueva, { exact: true })).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId('fila-direccion')).toContainText(nueva, { timeout: 20_000 })
 
     // Restaura el valor compartido por la suite.
-    await page.getByTestId('datos-tienda-editar').click()
+    await page.getByTestId('fila-direccion').click()
     await page.locator('#edit-direccion').fill(original)
     await page.getByRole('button', { name: 'Guardar cambios' }).click()
     await confirmarPasswordSiPide(page)
-    await expect(page.getByTestId('datos-tienda-lectura')).toBeVisible({ timeout: 20_000 })
-    if (original) await expect(page.getByTestId('datos-tienda-lectura').getByText(original, { exact: true })).toBeVisible()
+    await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 20_000 })
+    if (original) await expect(page.getByTestId('fila-direccion')).toContainText(original)
   } finally {
     // Red de seguridad: si el test falló a mitad, restaura por API.
     await page.evaluate(async ({ api, original }) => {

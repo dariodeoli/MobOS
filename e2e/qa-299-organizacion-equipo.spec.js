@@ -30,6 +30,8 @@ const ORG = [
   ['Datos fiscales', 'Empresas/personas jurídicas (privado)'],
   ['Numeración', 'Identificador de pedidos'],
   ['Políticas', 'Políticas de la tienda'],
+  ['Portal de clientes', 'Cuentas de cliente'],
+  ['Notificaciones', 'Correo del remitente'],
   ['Zona de peligro', 'Archivar empresa'],
 ]
 

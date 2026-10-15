@@ -20,6 +20,7 @@ export default defineConfig({
     'config-layout.frontend.spec.js',
     'config-nav.frontend.spec.js',
     'campos-ancho.frontend.spec.js',
+    'config-secciones.frontend.spec.js',
     'stock-layout.frontend.spec.js',
     'ficha-unidad.frontend.spec.js',
     'graficos.frontend.spec.js',

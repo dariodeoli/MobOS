@@ -1,4 +1,5 @@
 import { prisma } from '../../../../lib/prisma'
+import { loadTenantPreferences } from '../../../../lib/tenant-preferences'
 import { serialKey } from '../../../../lib/validation'
 import { error, json } from '../../../../lib/http'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
@@ -181,6 +182,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     }),
   ])
 
+  const mostrarSaldoFavor = (await loadTenantPreferences(portal.tenantId)).portal.showStoreCredit
+
   // Seguimiento de la entrega (#240 → portal): los pasos del método con sus
   // fechas, con el mismo armado que la página pública del pedido. Viaja en los
   // dos niveles: es el estado de la entrega, no un comprobante ni datos internos.
@@ -223,7 +226,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     contacto: await contactoPublicoDePortal(prisma, portal.tenantId, portal.customerId),
     balancePyg: numero(saldo[0]?.pending),
     // Tus beneficios (#240 → portal): saldo a favor (1 punto = 1 Gs. canjeable).
-    saldoFavorPyg: numero(saldoFavor._sum.remainingPyg),
+    // #422: la empresa puede ocultar el saldo a favor en el portal.
+    saldoFavorPyg: mostrarSaldoFavor ? numero(saldoFavor._sum.remainingPyg) : 0,
     puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),
     dueDates: vencimientos,
     informes: informes.map((fila) => ({ serial: fila.serial, model: fila.orderItem.description, orderNumber: fila.orderItem.order.orderNumber })),
