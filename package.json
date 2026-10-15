@@ -41,6 +41,7 @@
     "@capacitor-mlkit/barcode-scanning": "^7.5.0",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.6.9",
+    "@capacitor/filesystem": "^7.1.9",
     "@capacitor/haptics": "^7.0.5",
     "@capacitor/ios": "^7.6.9",
     "@capacitor/keyboard": "^7.0.6",
