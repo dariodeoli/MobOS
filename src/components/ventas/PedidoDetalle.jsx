@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import PresenciaPedido from './PresenciaPedido'
 import RecordHeader from '@/components/app/RecordHeader'
-import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, Input, MenuDesplegable, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -30,7 +30,7 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
 import { gs } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
-import { codigoPedido } from '@/utils/pedido'
+import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { getVendedores, ventaDesdeApi } from '@/lib/storage'
 import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
@@ -55,7 +55,19 @@ const PASOS_ENTREGA = (deliveryType) => (metodoEntrega(deliveryType) === 'DELIVE
       ['Retirado', ['PICKED_UP']],
     ])
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : status === 'Anulado' ? 'slate' : 'red'
-const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
+const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Por verificar', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
+const ICONO_MEDIO = { CASH: 'money', DINERO: 'money', TRANSFER: 'transfer', CARD: 'card', CREDIT: 'subscription', STORE_CREDIT: 'wallet', GIFT_CARD: 'wallet', CRYPTO: 'terminal', PIX: 'qr' }
+// Los pagos del demo/legado llegan como { monto, medioPago, cuenta, hora }: se
+// normalizan a la forma del API. Sin estado se cuentan como confirmados, igual
+// que en el listado (orderFields) y en totalesPedido, para que el dinero sea
+// el mismo en toda la pantalla.
+const normalizarPago = (pago) => ({
+  ...pago,
+  amountPyg: pago.amountPyg ?? pago.monto ?? 0,
+  method: pago.method ?? pago.medioPago,
+  status: pago.status ?? 'CONFIRMED',
+  accountSnapshot: pago.accountSnapshot || (pago.cuenta ? { name: pago.cuenta } : undefined),
+})
 const AUDIT_LABELS = {
   ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT[meta?.current] || meta?.current || '—'}`,
   ORDER_SERIALS_ATTACHED: (meta) => `IMEI agregados al pedido: ${(meta?.serials || []).join(', ')}`,
@@ -136,7 +148,7 @@ function PhotoThumb({ orderId, commentId, photo }) {
 
 const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
 
-export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false, abrirCobro = false }) {
+export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false, navegacion = null, abrirCobro = false }) {
   const toast = useToast()
   const navigate = useNavigate()
   const ubicacion = useLocation()
@@ -221,7 +233,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   }, [order?.id, esDemo])
 
   const items = order.items || []
-  const payments = order.payments || []
+  const itemsCantidad = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
+  const nombreCliente = order.customer?.name || (typeof order.customer === 'string' ? order.customer : '') || 'Consumidor final'
+  const payments = useMemo(() => (order.payments || order.pagos || []).map(normalizarPago), [order.payments, order.pagos])
+  const pagosPorVerificar = payments.filter(pago => pago.status === 'PENDING')
   const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - paid)
@@ -426,257 +441,322 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       {loading && !detail && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {error && <Aviso tono="error" className="mb-4 rounded-xl">{error}</Aviso>}
       {(!loading || detail) && (
-        <div className="space-y-3">
-          {/* Existing financial source, presented before secondary controls. */}
-          <section className="ventas-f3-detail-header">
-            <dl className="ventas-f3-detail-totals" data-testid="pedido-totales-f3">
-              <div><dt>Total</dt><dd className="ventas-f3-money">{gs(total)}</dd></div>
-              <div><dt>Pagado</dt><dd className="ventas-f3-money">{gs(paid)}</dd></div>
-              <div><dt>Saldo</dt><dd className="ventas-f3-money">{gs(pendiente)}</dd></div>
-            </dl>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
-              {creditoRetiene
-                ? <Badge data-testid="estado-credito" color={credito.status === 'REJECTED' ? 'red' : 'orange'}>{credito.status === 'REJECTED' ? 'Crédito rechazado' : 'Pendiente de autorización de crédito'}</Badge>
-                : <Badge key={order.fulfillmentStatus || 'PENDING'} className="mobos-chip-cambia" color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>}
-              {archivado && <Badge color="slate">Archivado</Badge>}
-              {order.isSpecialOrder && (
-                <Badge color="orange">
-                  Pedido especial
-                  {order.expectedAt && !Number.isNaN(new Date(order.expectedAt).getTime())
-                    ? ` · esperado ${new Date(order.expectedAt).toLocaleDateString('es-PY')}`
-                    : ''}
-                </Badge>
-              )}
-              {order.assignedTo?.name && <Badge color="blue">Reparto: {order.assignedTo.name}</Badge>}
-              {order.offlineSyncedAt && <Badge color="orange">Sincronizada sin conexión · revisar stock</Badge>}
-              {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
-            </div>
-            {v2 && !anulado && (() => {
-              const pasos = PASOS_ENTREGA(order.deliveryType)
-              const actual = pasos.findIndex(([, estados]) => estados.includes(order.fulfillmentStatus || 'PENDING'))
-              return (
-                <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Flujo de entrega">
-                  {pasos.map(([paso], indice) => {
-                    const activo = indice === actual
-                    const hecho = actual > -1 && indice < actual
-                    return (
-                      <li key={`${paso}-${activo ? 'a' : hecho ? 'h' : 'p'}`} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2.5 border-b py-2 transition-colors duration-300', activo ? 'border-info text-fore' : 'border-ink-600 text-mute')}>
-                        <span data-testid={activo ? 'paso-activo' : undefined} className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo && 'mobos-paso-entra', activo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
-                        <span className="min-w-0 truncate text-xs font-semibold">{paso}</span>
-                      </li>
-                    )
-                  })}
-                </ol>
-              )
-            })()}
-            <p className="mt-3 text-xs text-mute">
-              {order.seller?.name ? `${order.seller.name} · ` : ''}{order.branch?.name || 'Sucursal'}{order.date || order.createdAt ? ` · ${relativeDate(order.createdAt || order.date)}` : ''}
-            </p>
-            {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
-              {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
-              {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
-              {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
-              {!esDemo && !anulado && pendiente > 0 && <Button onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
-              <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
-              <Button variant="outline" onClick={imprimirNotaEntrega}>Nota de entrega</Button>
-              {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
-              {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
-            </div>
-          </section>
-
-          {credito && (
-            <CreditoPedido
-              order={order}
-              credito={credito}
-              esDemo={esDemo}
-              sesion={sesion}
-              puedeResolver={['ADMIN', 'GERENTE'].includes(usuario?.role) || (esDemo && ['dueno', 'ADMIN', 'GERENTE'].includes(sesion?.rol))}
-              onCambio={(siguiente) => {
-                setCreditoLocal(siguiente)
-                if (!esDemo) { load(); onChanged?.() } else onChanged?.()
-              }}
-            />
-          )}
-          {preguntaEntrega && !loading && !anulado && preguntaEntregaAplica({ ...order, creditAuthorization: credito }) && (
-            <EntregaPregunta
-              order={order}
-              esDemo={esDemo}
-              onEntregado={(estado) => {
-                setPreguntaEntrega(false)
-                if (esDemo) { setDetail({ ...order, fulfillmentStatus: estado }); onChanged?.() } else { load(); onChanged?.() }
-                toast.success('Pedido retirado', 'Quedó marcado como retirado.')
-              }}
-              onNoTodavia={() => setPreguntaEntrega(false)}
-            />
-          )}
-
-          {/* Acceso del cliente: un enlace privado por nivel de información */}
-          {!esDemo && (
-            <section className="ventas-f3-detail-section p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
-                <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="min-h-11 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60 md:min-h-0">Regenerar acceso QR</button>
+        <div className="ventas-f3-page" data-testid="pedido-pagina-f3">
+          <div className="ventas-f3-page-main">
+            {credito && (
+              <CreditoPedido
+                order={order}
+                credito={credito}
+                esDemo={esDemo}
+                sesion={sesion}
+                puedeResolver={['ADMIN', 'GERENTE'].includes(usuario?.role) || (esDemo && ['dueno', 'ADMIN', 'GERENTE'].includes(sesion?.rol))}
+                onCambio={(siguiente) => {
+                  setCreditoLocal(siguiente)
+                  if (!esDemo) { load(); onChanged?.() } else onChanged?.()
+                }}
+              />
+            )}
+            {preguntaEntrega && !loading && !anulado && preguntaEntregaAplica({ ...order, creditAuthorization: credito }) && (
+              <EntregaPregunta
+                order={order}
+                esDemo={esDemo}
+                onEntregado={(estado) => {
+                  setPreguntaEntrega(false)
+                  if (esDemo) { setDetail({ ...order, fulfillmentStatus: estado }); onChanged?.() } else { load(); onChanged?.() }
+                  toast.success('Pedido retirado', 'Quedó marcado como retirado.')
+                }}
+                onNoTodavia={() => setPreguntaEntrega(false)}
+              />
+            )}
+            {(order.isSpecialOrder || order.assignedTo?.name || order.offlineSyncedAt || order.billingName) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {order.isSpecialOrder && (
+                  <Badge color="orange">
+                    Pedido especial
+                    {order.expectedAt && !Number.isNaN(new Date(order.expectedAt).getTime())
+                      ? ` · esperado ${new Date(order.expectedAt).toLocaleDateString('es-PY')}`
+                      : ''}
+                  </Badge>
+                )}
+                {order.assignedTo?.name && <Badge color="blue">Reparto: {order.assignedTo.name}</Badge>}
+                {order.offlineSyncedAt && <Badge color="orange">Sincronizada sin conexión · revisar stock</Badge>}
+                {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
               </div>
-              <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerar uno invalida el anterior; «Regenerar acceso QR» invalida además los QR ya impresos y los enlaces compartidos.</p>
-              <div className="mt-3 space-y-2">
-                {NIVELES_ACCESO.map(([level, label]) => {
-                  const token = accesos[level]
+            )}
+
+            {/* Artículos */}
+            <section className="ventas-f3-detail-section" data-testid="pedido-articulos">
+              <h3 className="ventas-f3-card-title"><Icon name="box" className="h-3.5 w-3.5" /> Artículos preparados <span className="ventas-f3-card-sub">{items.length ? `${itemsCantidad} artículo${itemsCantidad === 1 ? '' : 's'}` : ''}</span></h3>
+              <div className="divide-y divide-ink-600/70 px-3 pb-1">
+                {items.map((item, index) => {
+                  const serials = Array.isArray(item.serials) ? item.serials : []
                   return (
-                    <div key={level} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2 text-xs">
-                      <span className="font-semibold">{label}</span>
-                      <span className="flex flex-wrap items-center gap-3">
-                        {token ? (
-                          <>
-                            <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>Copiar enlace</button>
-                            <button type="button" className="inline-flex min-h-11 -my-2 items-center text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
-                          </>
-                        ) : (
-                          <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" disabled={accesoBusy} onClick={() => generarAcceso(level, false)}>Generar enlace</button>
-                        )}
+                    <article key={item.id || index} className="ventas-f3-detail-item py-2">
+                      <div className="min-w-0">
+                        <p className="ventas-f3-name">{item.description}</p>
+                        {serials.length > 0 && <p className="mt-1 flex flex-wrap gap-1">{serials.map(serial => <span key={serial} className="rounded border border-fono/25 bg-fono/10 px-1.5 py-0.5 font-mono text-[11px] text-fono-light">IMEI {serial}</span>)}</p>}
+                        {(item.costPending || Number(item.serialsPending || 0) > 0 || Number(item.stockPending || 0) > 0) && <p className="mt-1 flex flex-wrap gap-2 text-[11px] text-warn">{Number(item.serialsPending || 0) > 0 && <span>{item.serialsPending} sin IMEI (sobre pedido)</span>}{Number(item.stockPending || 0) > 0 && <span>{item.stockPending} sobre pedido</span>}{item.costPending && <span>costo pendiente</span>}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums"><Money value={Number(item.totalPyg ?? 0)} /></p>
+                        <p className="text-[11px] text-mute tabular-nums"><Money value={Number(item.unitPricePyg ?? 0)} /> × {item.quantity || 1}{Number(item.discountPyg || 0) > 0 ? <> · −<Money value={item.discountPyg} /></> : ''}</p>
+                      </div>
+                    </article>
+                  )
+                })}
+                {!items.length && <p className="py-3 text-sm text-mute">Sin artículos detallados.</p>}
+              </div>
+            </section>
+
+            {/* Información de pago */}
+            <section className="ventas-f3-detail-section" data-testid="pedido-pago">
+              <h3 className="ventas-f3-card-title"><Icon name="wallet" className="h-3.5 w-3.5" /> Información de pago</h3>
+              <div className="space-y-1 px-3 pb-3 text-sm">
+                <p className="flex justify-between gap-3"><span className="text-mute">Subtotal · {itemsCantidad} artículo{itemsCantidad === 1 ? '' : 's'}</span><span className="tabular-nums"><Money value={Number(order.subtotalPyg ?? total)} /></span></p>
+                {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between gap-3 text-warn"><span>Descuento</span><span className="tabular-nums">− <Money value={order.discountPyg} /></span></p>}
+                {Number(order.deliveryPyg || 0) > 0 && <p className="flex justify-between gap-3"><span className="text-mute">Envío</span><span className="tabular-nums"><Money value={order.deliveryPyg} /></span></p>}
+                <dl className="ventas-f3-detail-totals" data-testid="pedido-totales-f3">
+                  <div><dt>Total</dt><dd className="ventas-f3-money">{gs(total)}</dd></div>
+                  <div><dt>Pagado</dt><dd className="ventas-f3-money text-ok">{gs(paid)}</dd></div>
+                  <div><dt>{pendiente > 0 && Number(order.creditDays || 0) > 0 ? `Saldo · plazo ${order.creditDays} días` : 'Saldo'}</dt><dd className={cn('ventas-f3-money', pendiente > 0 && 'text-warn')}>{gs(pendiente)}</dd></div>
+                </dl>
+                {pendiente > 0 && order.dueAt && <p className="text-xs text-mute">Vence {new Date(order.dueAt).toLocaleDateString('es-PY')}</p>}
+                {!esDemo && !anulado && pendiente > 0 && <Button className="mt-1 w-full sm:w-auto" onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
+              </div>
+              {payments.length > 0 && <div className="space-y-2 border-t border-ink-600 px-3 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
+                {payments.map(pago => {
+                  const medio = ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method || 'Pago'
+                  const cuando = pago.createdAt || pago.date || pago.fecha ? relativeDate(pago.createdAt || pago.date || pago.fecha) : (pago.hora ? `Hoy ${pago.hora}` : relativeDate(order.createdAt || order.date))
+                  return (
+                    <div key={pago.id} data-testid="pedido-transaccion" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      <span className="flex min-w-0 flex-1 basis-48 items-center gap-2">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-ink-600 text-mute" aria-hidden="true"><Icon name={ICONO_MEDIO[pago.method] || 'money'} className="h-3.5 w-3.5" /></span>
+                        <span className="min-w-0">
+                          <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-fore">{medio}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
+                          <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-mute">{cuando && <span>{cuando}</span>}<span className="flex items-center gap-1"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />{nombreActor(nombrePago(pago, order))}</span>{pago.settlesAt && <span>acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                        </span>
                       </span>
+                      <Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status || 'Confirmado'}</Badge>
+                      <span className="ml-auto min-w-24 text-right text-sm font-semibold tabular-nums"><Money value={Number(pago.amountPyg || 0)} /></span>
                     </div>
                   )
                 })}
-              </div>
-              {accesoMsg && <p role="status" className="mt-2 text-xs text-fono-light">{accesoMsg}</p>}
+                {pagosPorVerificar.length > 0 && <p className="text-[11px] text-warn">«Pagado» suma solo los pagos confirmados; {pagosPorVerificar.length} pago{pagosPorVerificar.length === 1 ? '' : 's'} por verificar ({gs(pagosPorVerificar.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0))}) no descuentan el saldo todavía.</p>}
+              </div>}
             </section>
-          )}
 
-          {/* Etiquetas */}
-          {!esDemo && (
-            <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-etiquetas`} titulo="Etiquetas" icono="tag" resumen={tags.length ? `${tags.length} etiqueta${tags.length === 1 ? '' : 's'}` : 'Sin etiquetas'}>
-              <div className="flex flex-wrap items-center gap-2">
-                {tags.map(tag => <button key={tag} type="button" onClick={() => guardarTags(tags.filter(item => item !== tag))} className="group inline-flex items-center gap-1 rounded-full border border-fono/25 bg-fono/10 px-2.5 py-1 text-xs text-fono-light" title="Quitar etiqueta">{tag}<span className="text-mute group-hover:text-bad">×</span></button>)}
-                <form onSubmit={event => { event.preventDefault(); const tag = tagInput.trim(); if (!tag || tags.includes(tag) || tags.length >= 20) return; guardarTags([...tags, tag]); setTagInput('') }} className="flex items-center gap-1">
-                  <Input aria-label="Nueva etiqueta" className="h-8 w-36 text-xs" maxLength={40} value={tagInput} onChange={event => setTagInput(event.target.value)} placeholder="Busca o crea etiquetas" />
-                  <button type="submit" className="rounded-lg p-1.5 text-fono-light hover:bg-fono/10" aria-label="Agregar etiqueta"><Icon name="plus" className="h-4 w-4" /></button>
-                </form>
-              </div>
-            </SeccionColapsable>
-          )}
-
-          {/* Artículos */}
-          <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-articulos`} titulo="Artículos preparados" icono="box" resumen={items.length ? `${items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículo(s) · ${gs(total)}` : 'Sin artículos detallados'}>
-            <div className="divide-y divide-ink-600/70">
-              {items.map((item, index) => {
-                const serials = Array.isArray(item.serials) ? item.serials : []
-                return (
-                  <article key={item.id || index} className="ventas-f3-detail-item py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0">
-                      <p className="ventas-f3-name">{item.description}</p>
-                      <p className="mt-0.5 text-xs text-mute">{FULFILLMENT[order.fulfillmentStatus] || 'En tienda'} · {relativeDate(item.createdAt || order.createdAt || order.date)}</p>
-                      {serials.length > 0 && <p className="mt-1 flex flex-wrap gap-1">{serials.map(serial => <span key={serial} className="rounded border border-fono/25 bg-fono/10 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">IMEI {serial}</span>)}</p>}
-                      {(item.costPending || Number(item.serialsPending || 0) > 0 || Number(item.stockPending || 0) > 0) && <p className="mt-1 flex flex-wrap gap-2 text-[11px] text-warn">{Number(item.serialsPending || 0) > 0 && <span>{item.serialsPending} sin IMEI (sobre pedido)</span>}{Number(item.stockPending || 0) > 0 && <span>{item.stockPending} sobre pedido</span>}{item.costPending && <span>costo pendiente</span>}</p>}
+            {/* Comprobantes de pago: archivos adjuntos a cada cobro */}
+            {payments.some(pago => (pago.proofs || []).length > 0) && (
+              <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-comprobantes`} titulo="Comprobantes" icono="report" resumen={`${payments.reduce((sum, pago) => sum + (pago.proofs || []).length, 0)} archivo(s) de pago`}>
+                <div className="space-y-3">
+                  {payments.filter(pago => (pago.proofs || []).length > 0).map(pago => (
+                    <div key={pago.id}>
+                      <p className="text-xs text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method} · <Money value={Number(pago.amountPyg || 0)} /></p>
+                      <ul className="mt-1 space-y-1">
+                        {(pago.proofs || []).map(proof => (
+                          <li key={proof.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2 text-xs">
+                            <span className="flex min-w-0 items-center gap-2"><Icon name="report" className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{proof.fileName}</span><span className="shrink-0 text-mute">{Math.max(1, Math.round((proof.sizeBytes || 0) / 1024))} KB</span></span>
+                            <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => descargarComprobante(pago.id, proof)}>Descargar</button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold"><Money value={Number(item.totalPyg ?? 0)} /></p>
-                      <p className="text-[11px] text-mute"><Money value={Number(item.unitPricePyg ?? 0)} /> × {item.quantity || 1}{Number(item.discountPyg || 0) > 0 ? <> · −<Money value={item.discountPyg} /></> : ''}</p>
-                    </div>
-                  </article>
-                )
-              })}
-              {!items.length && <p className="py-3 text-sm text-mute">Sin artículos detallados.</p>}
-            </div>
-          </SeccionColapsable>
-
-          {/* Información de pago */}
-          <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-pago`} titulo="Información de pago" icono="wallet" resumen={`${estadoPago} · total ${gs(total)}`}>
-            <div className="space-y-1.5 text-sm">
-              <p className="flex justify-between"><span className="text-mute">Subtotal · {items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículos</span><span className="tabular-nums"><Money value={Number(order.subtotalPyg ?? total)} /></span></p>
-              {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− <Money value={order.discountPyg} /></span></p>}
-              {Number(order.deliveryPyg || 0) > 0 && <p className="flex justify-between"><span className="text-mute">Envío</span><span className="tabular-nums"><Money value={order.deliveryPyg} /></span></p>}
-              <p className="flex justify-between border-t border-ink-600 pt-1.5 font-bold"><span>Total</span><span className="tabular-nums"><Money value={total} /></span></p>
-              <p className="flex justify-between text-ok"><span>Pagado</span><span className="tabular-nums"><Money value={paid} /></span></p>
-              {pendiente > 0 && <p className="flex justify-between text-warn"><span>{['Pendiente', Number(order.creditDays || 0) > 0 ? `plazo ${order.creditDays} días` : '', order.dueAt ? `vence ${new Date(order.dueAt).toLocaleDateString('es-PY')}` : ''].filter(Boolean).join(' · ')}</span><span className="tabular-nums"><Money value={pendiente} /></span></p>}
-            </div>
-            {payments.length > 0 && <div className="mt-3 space-y-2 border-t border-ink-600 pt-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
-              {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                <span className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1.5 text-[10px] text-mute"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
-              </div>)}
-            </div>}
-          </SeccionColapsable>
-
-          {/* Comprobantes de pago: archivos adjuntos a cada cobro */}
-          {payments.some(pago => (pago.proofs || []).length > 0) && (
-            <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-comprobantes`} titulo="Comprobantes" icono="report" resumen={`${payments.reduce((sum, pago) => sum + (pago.proofs || []).length, 0)} archivo(s) de pago`}>
-              <div className="space-y-3">
-                {payments.filter(pago => (pago.proofs || []).length > 0).map(pago => (
-                  <div key={pago.id}>
-                    <p className="text-xs text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method} · <Money value={Number(pago.amountPyg || 0)} /></p>
-                    <ul className="mt-1 space-y-1">
-                      {(pago.proofs || []).map(proof => (
-                        <li key={proof.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2 text-xs">
-                          <span className="flex min-w-0 items-center gap-2"><Icon name="report" className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{proof.fileName}</span><span className="shrink-0 text-mute">{Math.max(1, Math.round((proof.sizeBytes || 0) / 1024))} KB</span></span>
-                          <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => descargarComprobante(pago.id, proof)}>Descargar</button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </SeccionColapsable>
-          )}
-
-          {/* Cliente */}
-          <SeccionColapsable
-            className="ventas-f3-detail-section"
-            id={`pedido-${order.id}-cliente`}
-            titulo="Cliente"
-            icono="user"
-            resumen={[order.customer?.name || order.customer || 'Consumidor final', order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : ''].filter(Boolean).join(' · ')}
-          >
-            <div className="flex items-start gap-3">
-              <Avatar user={{ name: order.customer?.name || order.customer || 'Consumidor final' }} size="lg" />
-              <div className="min-w-0">
-                <p className="ventas-f3-name">{order.customer?.name || order.customer || 'Consumidor final'}</p>
-                <p className="mt-0.5 text-xs text-mute">{order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : 'Sin teléfono'}{order.customer?.email ? ` · ${order.customer.email}` : ''}</p>
-                {order.customer?.document && <p className="text-xs text-mute">CI/RUC {order.customer.document}</p>}
-                {customerOrderCount > 0 && <p className="mt-1 text-xs text-fono-light">{customerOrderCount} pedido{customerOrderCount === 1 ? '' : 's'}</p>}
-                {(order.customer?.addresses || []).map(address => <p key={address.id || address.address} className="mt-1 text-xs text-mute">{address.label}: {address.address}{address.city ? ` · ${address.city}` : ''}</p>)}
-                {!order.customer?.addresses?.length && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
-              </div>
-            </div>
-            {!esDemo && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {order.customer?.id ? (
-                  <>
-                    <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-cambiar-cliente" onClick={() => setClienteModal('asignar')}>Cambiar cliente</Button>
-                    <Button type="button" variant="ghost" className="h-9 px-3 text-xs text-warn" data-testid="pedido-quitar-cliente" onClick={() => setQuitarCliente(true)}>Quitar cliente</Button>
-                  </>
-                ) : (
-                  <>
-                    <Button type="button" className="h-9 px-3 text-xs" data-testid="pedido-asignar-cliente" onClick={() => setClienteModal('asignar')}>Asignar cliente</Button>
-                    <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-crear-ficha" onClick={() => setClienteModal('crear')}>Crear ficha</Button>
-                  </>
-                )}
-              </div>
+                  ))}
+                </div>
+              </SeccionColapsable>
             )}
-            {order.notes && !notaOpen && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
-            {!esDemo && (notaOpen ? (
-              <div className="mt-3 space-y-2">
-                <Textarea rows={2} maxLength={2000} value={notaTexto} onChange={(event) => setNotaTexto(event.target.value)} placeholder="Nota interna del pedido" aria-label="Nota del pedido" />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="ghost" onClick={() => setNotaOpen(false)}>Cancelar</Button>
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))}
-                  >
-                    Guardar nota
-                  </Button>
+
+            {/* Cronología */}
+            <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>
+              {esDemo && <p className="text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
+              {!esDemo && (
+                <>
+                  <form onSubmit={enviarComentario} className="mt-3 space-y-2">
+                    <Textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo… Usá @ para mencionar" className="rounded-xl px-3 py-2 text-sm" />
+                    {sugerenciasMencion.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-mute">Mencionar:</span>
+                        {sugerenciasMencion.map((nombre) => (
+                          <button
+                            key={nombre}
+                            type="button"
+                            onMouseDown={(event) => { event.preventDefault(); setComentario((texto) => insertarMencion(texto, nombre)) }}
+                            className="rounded-full border border-fono/30 bg-fono/10 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/20"
+                          >
+                            @{nombre}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs text-mute transition hover:border-fono hover:text-fore">
+                        <Icon name="image" className="h-3.5 w-3.5" />{adjunto ? adjunto.name : 'Adjuntar foto o PDF'}
+                        <AttachmentInput inputRef={fileRef} className="hidden" onSelect={file => { setAdjunto(file); setError('') }} onError={setError} />
+                      </label>
+                      <Button type="submit" disabled={subiendo || (!comentario.trim() && !adjunto)}>{subiendo ? 'Enviando…' : 'Comentar'}</Button>
+                      <span className="text-[10px] text-mute">Solo tú y otros empleados pueden ver los comentarios.</span>
+                    </div>
+                  </form>
+                  <div className="mt-3 space-y-3">
+                    {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
+                      <PersonaChip user={event.user || { name: 'Sistema' }} picture={event.user?.picture} size="sm" nombreCorto textoClassName="text-xs" title={event.user?.name || 'Sistema'}>
+                        · {relativeDate(event.at)}
+                      </PersonaChip>
+                      <div className="min-w-0 flex-1">
+                        {event.type === 'comment' && <>
+                          <p className="mt-1 whitespace-pre-wrap text-sm">{tramosDeMencion(event.body, nombresEquipo).map((tramo, indice) => tramo.mencion ? <span key={indice} className="font-semibold text-fono-light">{tramo.texto}</span> : <span key={indice}>{tramo.texto}</span>)}</p>
+                          {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
+                        </>}
+                        {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
+                        {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || 'Movimiento del pedido'}</p>}
+                        {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
+                      </div>
+                    </article>)}
+                    {!events.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
+                  </div>
+                </>
+              )}
+            </SeccionColapsable>
+            {/* Acceso del cliente: un enlace privado por nivel de información */}
+            {!esDemo && (
+              <section className="ventas-f3-detail-section p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
+                  <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="min-h-11 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60 md:min-h-0">Regenerar acceso QR</button>
+                </div>
+                <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerar uno invalida el anterior; «Regenerar acceso QR» invalida además los QR ya impresos y los enlaces compartidos.</p>
+                <div className="mt-3 space-y-2">
+                  {NIVELES_ACCESO.map(([level, label]) => {
+                    const token = accesos[level]
+                    return (
+                      <div key={level} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2 text-xs">
+                        <span className="font-semibold">{label}</span>
+                        <span className="flex flex-wrap items-center gap-3">
+                          {token ? (
+                            <>
+                              <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>Copiar enlace</button>
+                              <button type="button" className="inline-flex min-h-11 -my-2 items-center text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
+                            </>
+                          ) : (
+                            <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" disabled={accesoBusy} onClick={() => generarAcceso(level, false)}>Generar enlace</button>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+                {accesoMsg && <p role="status" className="mt-2 text-xs text-fono-light">{accesoMsg}</p>}
+              </section>
+            )}
+
+          </div>
+
+          <aside className="ventas-f3-page-side" aria-label="Información del pedido" data-testid="pedido-lateral">
+            {/* Notas */}
+            <section className="ventas-f3-detail-section p-3" data-testid="pedido-notas">
+              <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="edit" className="h-3.5 w-3.5" /> Notas</h3>
+              {order.notes && !notaOpen && <p className="whitespace-pre-wrap text-sm text-fore">{order.notes}</p>}
+              {!order.notes && !notaOpen && <p className="text-xs text-mute">Sin notas.</p>}
+              {!esDemo && (notaOpen ? (
+                <div className="mt-2 space-y-2">
+                  <Textarea rows={2} maxLength={2000} value={notaTexto} onChange={(event) => setNotaTexto(event.target.value)} placeholder="Nota interna del pedido" aria-label="Nota del pedido" />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="ghost" onClick={() => setNotaOpen(false)}>Cancelar</Button>
+                    <Button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))}
+                    >
+                      Guardar nota
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="mt-1 inline-flex min-h-11 items-center text-xs font-semibold text-fono-light hover:underline lg:min-h-0" onClick={() => { setNotaTexto(order.notes || ''); setNotaOpen(true) }}>
+                  {order.notes ? 'Editar nota' : '＋ Agregar nota'}
+                </button>
+              ))}
+            </section>
+
+            {/* Cliente */}
+            <section className="ventas-f3-detail-section p-3" data-testid="pedido-cliente">
+              <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="user" className="h-3.5 w-3.5" /> Cliente</h3>
+              <div className="flex items-start gap-2.5">
+                <Avatar user={{ name: nombreCliente }} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="ventas-f3-name">{nombreCliente}</p>
+                  {customerOrderCount > 0 && <p className="text-xs text-fono-light">{customerOrderCount} pedido{customerOrderCount === 1 ? '' : 's'}</p>}
+                  <p className="mt-0.5 break-words text-xs text-mute">{order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : 'Sin teléfono'}</p>
+                  {order.customer?.email && <p className="break-all text-xs text-mute">{order.customer.email}</p>}
+                  {order.customer?.document && <p className="text-xs text-mute">CI/RUC {order.customer.document}</p>}
+                  {order.customer?.id && !esDemo && <Link to={`/clientes?cliente=${encodeURIComponent(order.customer.id)}`} className="mt-1 inline-flex min-h-11 items-center text-xs font-semibold text-fono-light hover:underline lg:min-h-0" data-testid="pedido-ver-perfil">Ver perfil</Link>}
                 </div>
               </div>
-            ) : (
-              <button type="button" className="mt-2 text-xs font-semibold text-fono-light hover:underline" onClick={() => { setNotaTexto(order.notes || ''); setNotaOpen(true) }}>
-                {order.notes ? 'Editar nota' : '＋ Agregar nota'}
-              </button>
-            ))}
-          </SeccionColapsable>
+              {!esDemo && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {order.customer?.id ? (
+                    <>
+                      <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-cambiar-cliente" onClick={() => setClienteModal('asignar')}>Cambiar cliente</Button>
+                      <Button type="button" variant="ghost" className="h-9 px-3 text-xs text-warn" data-testid="pedido-quitar-cliente" onClick={() => setQuitarCliente(true)}>Quitar cliente</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button type="button" className="h-9 px-3 text-xs" data-testid="pedido-asignar-cliente" onClick={() => setClienteModal('asignar')}>Asignar cliente</Button>
+                      <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-crear-ficha" onClick={() => setClienteModal('crear')}>Crear ficha</Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Entrega y dirección */}
+            <section className="ventas-f3-detail-section p-3" data-testid="pedido-entrega">
+              <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="truck" className="h-3.5 w-3.5" /> Entrega</h3>
+              <p className="text-xs text-mute">{metodoEntrega(order.deliveryType) === 'DELIVERY' ? 'Delivery' : 'Retiro en tienda'}</p>
+              {(order.customer?.addresses || []).map(address => <p key={address.id || address.address} className="mt-1 break-words text-xs text-mute">{address.label}: {address.address}{address.city ? ` · ${address.city}` : ''}</p>)}
+              {!order.customer?.addresses?.length && metodoEntrega(order.deliveryType) === 'DELIVERY' && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
+              {v2 && !anulado && (() => {
+                const pasos = PASOS_ENTREGA(order.deliveryType)
+                const actual = pasos.findIndex(([, estados]) => estados.includes(order.fulfillmentStatus || 'PENDING'))
+                return (
+                  <ol className="mt-2 grid grid-cols-2 gap-x-2" aria-label="Flujo de entrega">
+                    {pasos.map(([paso], indice) => {
+                      const activo = indice === actual
+                      const hecho = actual > -1 && indice < actual
+                      return (
+                        <li key={`${paso}-${activo ? 'a' : hecho ? 'h' : 'p'}`} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2 border-b py-1.5 transition-colors duration-300', activo ? 'border-info text-fore' : 'border-ink-600 text-mute')}>
+                          <span data-testid={activo ? 'paso-activo' : undefined} className={cn('v2-numero grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold', activo && 'mobos-paso-entra', activo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
+                          <span className="min-w-0 truncate text-xs font-semibold">{paso}</span>
+                        </li>
+                      )
+                    })}
+                  </ol>
+                )
+              })()}
+              {row.publicToken && !esDemo && <p className="mt-2 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
+                {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+                {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
+                {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
+              </div>
+            </section>
+
+            {/* Etiquetas */}
+            {!esDemo && (
+              <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-etiquetas`} titulo="Etiquetas" icono="tag" resumen={tags.length ? `${tags.length} etiqueta${tags.length === 1 ? '' : 's'}` : 'Sin etiquetas'}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {tags.map(tag => <button key={tag} type="button" onClick={() => guardarTags(tags.filter(item => item !== tag))} className="group inline-flex items-center gap-1 rounded-full border border-fono/25 bg-fono/10 px-2.5 py-1 text-xs text-fono-light" title="Quitar etiqueta">{tag}<span className="text-mute group-hover:text-bad">×</span></button>)}
+                  <form onSubmit={event => { event.preventDefault(); const tag = tagInput.trim(); if (!tag || tags.includes(tag) || tags.length >= 20) return; guardarTags([...tags, tag]); setTagInput('') }} className="flex items-center gap-1">
+                    <Input aria-label="Nueva etiqueta" className="h-8 w-36 text-xs" maxLength={40} value={tagInput} onChange={event => setTagInput(event.target.value)} placeholder="Busca o crea etiquetas" />
+                    <button type="submit" className="rounded-lg p-1.5 text-fono-light hover:bg-fono/10" aria-label="Agregar etiqueta"><Icon name="plus" className="h-4 w-4" /></button>
+                  </form>
+                </div>
+              </SeccionColapsable>
+            )}
+
+          </aside>
 
           {/* Cliente ocasional (#149): asignar/cambiar la ficha o crear una
               desde el pedido, reutilizando el buscador/alta rápida del POS. */}
@@ -696,57 +776,6 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             confirmLabel="Quitar cliente"
           />
 
-          {/* Cronología */}
-          <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>
-            {esDemo && <p className="text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
-            {!esDemo && (
-              <>
-                <form onSubmit={enviarComentario} className="mt-3 space-y-2">
-                  <Textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo… Usá @ para mencionar" className="rounded-xl px-3 py-2 text-sm" />
-                  {sugerenciasMencion.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] text-mute">Mencionar:</span>
-                      {sugerenciasMencion.map((nombre) => (
-                        <button
-                          key={nombre}
-                          type="button"
-                          onMouseDown={(event) => { event.preventDefault(); setComentario((texto) => insertarMencion(texto, nombre)) }}
-                          className="rounded-full border border-fono/30 bg-fono/10 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/20"
-                        >
-                          @{nombre}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs text-mute transition hover:border-fono hover:text-fore">
-                      <Icon name="image" className="h-3.5 w-3.5" />{adjunto ? adjunto.name : 'Adjuntar foto o PDF'}
-                      <AttachmentInput inputRef={fileRef} className="hidden" onSelect={file => { setAdjunto(file); setError('') }} onError={setError} />
-                    </label>
-                    <Button type="submit" disabled={subiendo || (!comentario.trim() && !adjunto)}>{subiendo ? 'Enviando…' : 'Comentar'}</Button>
-                    <span className="text-[10px] text-mute">Solo tú y otros empleados pueden ver los comentarios.</span>
-                  </div>
-                </form>
-                <div className="mt-3 space-y-3">
-                  {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                    <PersonaChip user={event.user || { name: 'Sistema' }} picture={event.user?.picture} size="sm" nombreCorto textoClassName="text-xs" title={event.user?.name || 'Sistema'}>
-                      · {relativeDate(event.at)}
-                    </PersonaChip>
-                    <div className="min-w-0 flex-1">
-                      {event.type === 'comment' && <>
-                        <p className="mt-1 whitespace-pre-wrap text-sm">{tramosDeMencion(event.body, nombresEquipo).map((tramo, indice) => tramo.mencion ? <span key={indice} className="font-semibold text-fono-light">{tramo.texto}</span> : <span key={indice}>{tramo.texto}</span>)}</p>
-                        {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
-                      </>}
-                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
-                      {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || 'Movimiento del pedido'}</p>}
-                      {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
-                    </div>
-                  </article>)}
-                  {!events.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
-                </div>
-              </>
-            )}
-          </SeccionColapsable>
         </div>
       )}
       <ComprobantePreview order={ordenComprobante} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
@@ -829,16 +858,49 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           onBack={onClose}
           title={codigoPedido(order.orderNumber || order.number) || 'Pedido'}
           mono
-          chip={<Badge color={anulado ? 'red' : tonoEntrega(order.fulfillmentStatus)}>{anulado ? 'Anulado' : FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>}
-          meta={[order.customer?.name || order.customer || 'Consumidor final', order.createdAt || order.date ? new Date(order.createdAt || order.date).toLocaleDateString('es-PY') : ''].filter(Boolean).join(' · ')}
+          metaEnLinea
+          chip={
+            <span className="flex flex-wrap items-center gap-1.5" data-testid="pedido-chips">
+              {anulado
+                ? <Badge color="red">Anulado</Badge>
+                : <>
+                    <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago === 'Pendiente' ? 'Pago pendiente' : estadoPago}</Badge>
+                    {creditoRetiene
+                      ? <Badge data-testid="estado-credito" color={credito.status === 'REJECTED' ? 'red' : 'orange'}>{credito.status === 'REJECTED' ? 'Crédito rechazado' : 'Pendiente de autorización de crédito'}</Badge>
+                      : <Badge key={order.fulfillmentStatus || 'PENDING'} className="mobos-chip-cambia" color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>}
+                  </>}
+              {archivado && <Badge color="slate">Archivado</Badge>}
+            </span>
+          }
+          meta={[order.createdAt || order.date ? fechaLegible(order.createdAt || order.date) : '', order.branch?.name, order.seller?.name].filter(Boolean).join(' · ')}
           actions={
             <>
               <PresenciaPedido pedidoId={order.id || row?.id} />
+              {navegacion && (
+                <span className="flex items-center" role="group" aria-label="Pedidos vecinos">
+                  <button type="button" data-testid="pedido-anterior" aria-label="Pedido anterior" title="Pedido anterior" disabled={!navegacion.anterior} onClick={() => navegacion.onIr(navegacion.anterior)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:h-9 lg:w-9"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
+                  <button type="button" data-testid="pedido-siguiente" aria-label="Pedido siguiente" title="Pedido siguiente" disabled={!navegacion.siguiente} onClick={() => navegacion.onIr(navegacion.siguiente)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:h-9 lg:w-9"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
+                </span>
+              )}
+              {!esDemo && !anulado && <Button type="button" variant="outline" data-testid="pedido-devolver" onClick={() => setCobroAbierto(true)}>Devolver</Button>}
+              <Button type="button" variant="outline" aria-label="Imprimir comprobante" title="Imprimir comprobante" onClick={() => setComprobante(true)}>
+                <Icon name="printer" className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">Imprimir comprobante</span>
+              </Button>
               {/* #275: después de confirmar la venta la app aterriza acá; desde el
                   detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
-              <Button type="button" variant="outline" data-testid="volver-al-pos" aria-label="Volver al POS" onClick={() => navigate('/pos')}>
-                <Icon name="receipt" className="h-3.5 w-3.5" /><span className="hidden sm:inline">Volver al POS</span>
+              <Button type="button" variant="outline" data-testid="volver-al-pos" aria-label="Volver al POS" title="Volver al POS" onClick={() => navigate('/pos')}>
+                <Icon name="receipt" className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">Volver al POS</span>
               </Button>
+              <MenuDesplegable
+                alineacion="right"
+                ariaLabel="Más acciones del pedido"
+                trigger={<span className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fore lg:min-h-9">Más acciones<Icon name="chevron" className="h-3.5 w-3.5" /></span>}
+                items={[
+                  { id: 'nota-entrega', label: 'Nota de entrega', onClick: imprimirNotaEntrega },
+                  ...(!esDemo ? [{ id: 'archivar', label: archivado ? 'Desarchivar' : 'Archivar', onClick: alternarArchivado }] : []),
+                  ...(!esDemo && !anulado ? [{ separador: true }, { id: 'anular', label: 'Anular pedido', onClick: abrirAnular }] : []),
+                ]}
+              />
             </>
           }
         />

@@ -268,7 +268,9 @@ test('Pedidos: un solo punto de entrada a los filtros y el orden, sin selects, e
 // actions in one row, no section tabs row, no list H1).
 for (const [width, height, maxTop, maxHeader] of [
   [1440, 900, 120, 72],
-  [375, 812, 168, 140],
+  // #387: en celular el encabezado suma la fila de acciones (flechas, Devolver,
+  // imprimir, POS, Más acciones) que antes vivía en el cuerpo del pedido.
+  [375, 812, 188, 140],
 ]) {
   test(`Detalle de pedido: encabezado compacto a ${width}px`, async ({ page }) => {
     await mkdir(out, { recursive: true })
@@ -339,5 +341,57 @@ for (const [width, height, columnas] of [
     await expect(page.getByRole('checkbox')).toHaveCount(0)
     await expect(filas.first()).not.toContainText('AUR-OS')
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+  })
+}
+
+// #387 · Pedidos densos: tira de KPI con período y mini-gráficos; página de
+// pedido en dos columnas (lateral ≤ 360px) en escritorio y una en celular.
+test('Pedidos: KPI de una línea con período «Hoy», cinco métricas y mini-gráficos a 1440', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  await openShellDestination(page, 'Pedidos')
+  await settle(page)
+  const strip = page.getByTestId('resumen-pedidos')
+  await expect(strip).toBeVisible()
+  await expect(page.getByTestId('kpi-periodo')).toHaveText('Hoy')
+  for (const titulo of ['Pedidos', 'Artículos', 'Devoluciones', 'Preparados', 'Entregados'])
+    await expect(strip.getByText(titulo, { exact: true })).toHaveCount(1)
+  await expect(strip.getByTestId('kpi-grafico')).toHaveCount(5)
+  expect((await strip.boundingBox()).height, 'KPI ≤ 64px').toBeLessThanOrEqual(64)
+  const columnas = await page.getByTestId('pedidos-tabla').locator('.ventas-f3-list-header > button').allInnerTexts()
+  expect(columnas.map(texto => texto.replace(/[↑↓]/g, '').trim())).toEqual(['Pedido', 'Fecha', 'Cliente / artículos', 'Canal', 'Pago', 'Estado', 'Total'])
+  await page.getByTestId('kpi-periodo').click()
+  await page.getByRole('menuitem', { name: '7 días', exact: true }).click()
+  await expect(page.getByTestId('kpi-periodo')).toHaveText('7 días')
+})
+
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+]) {
+  test(`Página de pedido: ${width >= 1024 ? 'dos columnas con lateral ≤ 360px' : 'una columna sin scroll horizontal'} a ${width}px`, async ({ page }) => {
+    await mkdir(out, { recursive: true })
+    await page.setViewportSize({ width, height })
+    await enterDemo(page)
+    await openShellDestination(page, 'Pedidos')
+    await settle(page)
+    await page.getByTestId('pedido-fila').first().click()
+    await expect(page.getByTestId('pedido-pagina-f3')).toBeVisible()
+    await settle(page)
+    const main = await page.locator('.ventas-f3-page-main').boundingBox()
+    const side = await page.getByTestId('pedido-lateral').boundingBox()
+    if (width >= 1024) {
+      expect(side.x, 'lateral a la derecha').toBeGreaterThan(main.x + main.width - 1)
+      expect(side.width, 'lateral ≤ 360px').toBeLessThanOrEqual(360)
+      expect(Math.abs(side.y - main.y), 'columnas alineadas arriba').toBeLessThanOrEqual(24)
+    } else {
+      expect(Math.abs(side.x - main.x), 'una sola columna').toBeLessThanOrEqual(1)
+      expect(side.y + side.height, 'lateral antes del cuerpo').toBeLessThanOrEqual(main.y + 1)
+    }
+    for (const id of ['pedido-articulos', 'pedido-pago', 'pedido-notas', 'pedido-cliente', 'pedido-entrega']) await expect(page.getByTestId(id)).toBeVisible()
+    await expect(page.getByTestId('pedido-chips')).toBeVisible()
+    await expect(page.getByTestId('pedido-siguiente')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+    await page.screenshot({ path: `${out}/pedido-pro-${width}.png`, fullPage: true })
   })
 }
