@@ -37,6 +37,11 @@ if [[ ! -f "$BACKEND_ROOT/.next/BUILD_ID" ]]; then
   exit 1
 fi
 
+# Contrato de privacidad del carrito: su propio PostgreSQL descartable evita
+# heredar una URL o contaminar los datos/contadores del arnés HTTP principal.
+echo "Carrito público: token, vencimiento y ausencia de datos internos (#403)..."
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/suspended-sales-public.mjs"
+
 free_port() {
   node -e "const net=require('net'); const s=net.createServer(); s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port)); s.close();});"
 }
