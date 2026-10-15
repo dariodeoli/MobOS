@@ -1246,9 +1246,15 @@ for (const width of [320, 390, 1440]) {
         storage.updateVenta(order.id, {
           cliente: customer,
           customer: { name: customer },
+          precio: 100000000,
+          montoDelivery: 0,
           totalPyg: 100000000,
           subtotalPyg: 100000000,
-          pagos: [],
+          totalPagado: 50000000,
+          totalPendiente: 50000000,
+          pagos: [
+            { id: 'qa-f3-payment', status: 'CONFIRMED', amountPyg: 50000000, monto: 50000000, method: 'CASH', medioPago: 'Efectivo' },
+          ],
           payments: [
             { id: 'qa-f3-payment', status: 'CONFIRMED', amountPyg: 50000000, method: 'CASH' },
           ],
@@ -3675,3 +3681,4 @@ test('U3 selección: N filas elegidas ofrecen imprimir etiquetas y vista previa'
   await expect(page.getByText(/demostración|demo/i).first()).toBeVisible()
   await page.keyboard.press('Escape')
 })
+
