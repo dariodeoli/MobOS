@@ -52,16 +52,6 @@ export default function CapsulaCuentaCobro({ account, className, acciones = null
           <b className="min-w-0 truncate text-sm text-fore" data-testid="cuenta-capsula-nombre">{account.name}</b>
           <span className="whitespace-nowrap rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{moneda} · {medio}</span>
         </div>
-        {filas.length > 0 && (
-          <button
-            type="button"
-            data-testid="cuenta-copiar-datos"
-            className="toque-44 inline-flex h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-fono-light transition hover:bg-ink-700 md:h-8"
-            onClick={() => copiarValor(toast, textoDatosCuenta(account), 'Los datos de la cuenta')}
-          >
-            <Icon name="copy" className="h-3.5 w-3.5" />Copiar datos
-          </button>
-        )}
         {acciones}
       </div>
       {children}
@@ -69,6 +59,16 @@ export default function CapsulaCuentaCobro({ account, className, acciones = null
         <details className="mt-0.5">
           <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 text-xs font-semibold text-fono-light hover:underline md:min-h-6">
             <span>Ver datos para el cliente</span>
+            {filas.length > 0 && (
+              <button
+                type="button"
+                data-testid="cuenta-copiar-datos"
+                className="toque-44 inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-xs font-semibold text-fono-light hover:bg-ink-700"
+                onClick={(event) => { event.preventDefault(); event.stopPropagation(); copiarValor(toast, textoDatosCuenta(account), 'Los datos de la cuenta') }}
+              >
+                <Icon name="copy" className="h-3.5 w-3.5" />Copiar datos
+              </button>
+            )}
             {account.aliasValue && <span data-testid="cuenta-alias" className="min-w-0 truncate font-normal text-mute" title={`${etiquetaAlias(account)}: ${account.aliasValue}`}>{etiquetaAlias(account)}: <b className="font-semibold text-fore">{account.aliasValue}</b></span>}
           </summary>
           {filas.length > 0 && (

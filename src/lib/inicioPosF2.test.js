@@ -88,7 +88,8 @@ test('F2 catalog/customer split keeps real collection, variants and form submiss
     'onConsultarGiftCard',
     'data-testid="cobro-pagado"',
     'data-testid="cobro-pendiente"',
-    '<summary>Agregar nota</summary>',
+    'data-testid="pos-nota-casillero"',
+    'Agregar nota',
   ])
     assert.ok(payment.includes(contract), contract)
 })

@@ -184,7 +184,7 @@ test('«Agregar nota» es un casillero, «Vender a crédito» comparte renglón 
   // «Paga al recibir» comparte el bloque compacto de opciones.
   const entrega = await page.locator('#entrega').boundingBox()
   const paga = await cobro.getByTestId('pos-paga-al-recibir').boundingBox()
-  expect(paga.y - (entrega.y + entrega.height), 'paga al recibir justo debajo de la entrega').toBeLessThan(30)
+  expect(Math.abs((paga.y + paga.height / 2) - (entrega.y + entrega.height / 2)), 'paga al recibir en el mismo bloque compacto que la entrega').toBeLessThan(60)
   // Listo, ir a cobrar: la lista de productos se resume y el cobro gana altura.
   const altoCobroAntes = (await cobro.boundingBox()).height
   await page.getByTestId('carrito-listo').click()

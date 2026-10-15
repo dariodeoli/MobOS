@@ -121,10 +121,10 @@ export default function PasoCobro({
         disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
         title={motivos[0] || undefined}
       >
-        <span className="flex min-w-0 flex-col items-center gap-0.5 leading-tight">
+        <span className="flex min-w-0 flex-col items-center gap-0.5 leading-tight lg:flex-row lg:gap-2">
           <span className="text-[15px] font-bold">{etiquetaBoton}</span>
-          {detalleBoton && <span className="flex flex-col items-center text-xs font-semibold tabular-nums opacity-95">
-            {cantTotal > 1 && <span>{cantTotal} productos</span>}
+          {detalleBoton && <span className="flex flex-col items-center text-xs font-semibold tabular-nums opacity-95 lg:flex-row lg:gap-2 lg:text-[15px]">
+            {cantTotal > 1 && <span className="lg:hidden">{cantTotal} productos</span>}
             {totalGeneral > 0 && <span className="pos-money-value">{gs(totalGeneral)}</span>}
           </span>}
         </span>
@@ -216,6 +216,38 @@ export default function PasoCobro({
             )}
           </div>
         )}
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-nota-casillero">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-fono"
+            checked={notaAbierta}
+            onChange={e => {
+              setNotaAbierta(e.target.checked)
+              if (!e.target.checked) setF(current => ({ ...current, observacion: '' }))
+            }}
+          />
+          Agregar nota
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-paga-al-recibir">
+          <input
+            type="checkbox"
+            role="switch"
+            className="h-4 w-4 accent-fono"
+            checked={pagaAlRecibir}
+            disabled={guardando}
+            onChange={e => {
+              // Con pagos cargados (gift card consultada, canje) no se descartan en silencio.
+              if (e.target.checked && pagos.length > 0) { setConfirmarPaga(true); return }
+              setPagaAlRecibir(e.target.checked)
+            }}
+          />
+          Paga al recibir
+        </label>
+        {pagaAlRecibir && (
+          <p role="status" data-testid="cobro-paga-al-recibir" className="min-w-0 flex-1 text-xs text-mute">
+            No se elige el medio de pago ahora: el pedido queda pendiente y se cobra desde Pedidos.
+          </p>
+        )}
       </div>
 
       {/* Encomienda (#399): empresa, sucursal de destino y dirección del cliente. */}
@@ -261,41 +293,6 @@ export default function PasoCobro({
         </div>
       )}
 
-      {/* Nota y «Paga al recibir»: casilleros en el mismo renglón. */}
-      <div className="-mt-1 flex flex-wrap items-center gap-x-5 gap-y-0">
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-nota-casillero">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-fono"
-            checked={notaAbierta}
-            onChange={e => {
-              setNotaAbierta(e.target.checked)
-              if (!e.target.checked) setF(current => ({ ...current, observacion: '' }))
-            }}
-          />
-          Agregar nota
-        </label>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-paga-al-recibir">
-          <input
-            type="checkbox"
-            role="switch"
-            className="h-4 w-4 accent-fono"
-            checked={pagaAlRecibir}
-            disabled={guardando}
-            onChange={e => {
-              // Con pagos cargados (gift card consultada, canje) no se descartan en silencio.
-              if (e.target.checked && pagos.length > 0) { setConfirmarPaga(true); return }
-              setPagaAlRecibir(e.target.checked)
-            }}
-          />
-          Paga al recibir
-        </label>
-        {pagaAlRecibir && (
-          <p role="status" data-testid="cobro-paga-al-recibir" className="min-w-0 flex-1 text-xs text-mute">
-            No se elige el medio de pago ahora: el pedido queda pendiente y se cobra desde Pedidos.
-          </p>
-        )}
-      </div>
       {notaAbierta && (
         <div>
           <Label htmlFor="observacion" className="sr-only">Observación</Label>
