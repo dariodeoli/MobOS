@@ -19,12 +19,20 @@ async function toque(locator, etiqueta, minimo = 44) {
   expect(w, `${etiqueta}: ancho real (${w}x${h})`).toBeGreaterThanOrEqual(minimo)
 }
 
-async function armarCarrito(page) {
+// #429: debajo de 768 px el cliente y el carrito viven en hojas (acción «Agregar cliente»
+// y barra del carrito). `abrirCarrito: false` deja la hoja cerrada (para usar las acciones del inicio).
+async function armarCarrito(page, { abrirCarrito = true } = {}) {
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente QA 249')
+  const movil = page.viewportSize().width < 768
+  if (movil) {
+    await page.getByTestId('accion-cliente').click()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente QA 249')
+    await page.getByTestId('hoja-cliente').getByRole('button', { name: 'Listo' }).click()
+  } else await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente QA 249')
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  if (movil && abrirCarrito) await page.getByTestId('pos-barra-carrito-abrir').click()
   return {
     carrito: page.locator('#pos-resumen-venta'),
     fila: page.locator('#pos-resumen-venta .divide-y > div').first(),
@@ -42,10 +50,12 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await toque(carrito.getByRole('button', { name: 'Vaciar carrito' }), 'vaciar carrito')
 
   // Equipo serializado: el chip de IMEI (que solo aparece cuando la línea lo
-  // pide) también llega a 44.
+  // pide) también llega a 44. #429: la hoja del carrito se cierra para buscar y se reabre.
+  await page.keyboard.press('Escape')
   await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)
   await expect(page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first().click()
+  await page.getByTestId('pos-barra-carrito-abrir').click()
   const filaIphone = page.locator('#pos-resumen-venta .divide-y > div').filter({ hasText: SEED.products.iphone.name })
   await toque(filaIphone.getByRole('button', { name: `Elegir IMEI de ${SEED.products.iphone.name} (pendiente)` }), 'IMEI de la línea')
 
@@ -59,6 +69,14 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await fila.getByLabel(`Descuento % de ${cable}`).fill('10')
   await expect(fila.getByTestId('linea-descuento')).toHaveText('− Gs 4.500')
   await toque(carrito.getByRole('button', { name: 'Borrar descuento' }), 'borrar descuento')
+
+  // #429: un equipo sin IMEI frena el cobro del celular («Elegir unidad»): se quita la línea
+  // y el formulario completo de pagos se abre desde «Otros medios y entrega».
+  await filaIphone.getByRole('button', { name: `Eliminar ${SEED.products.iphone.name}` }).click()
+  const quitar = page.getByRole('dialog', { name: '¿Eliminar la línea?' })
+  if (await quitar.isVisible().catch(() => false)) await quitar.getByRole('button', { name: 'Eliminar línea' }).click()
+  await page.getByTestId('carrito-cobrar').click()
+  await page.getByTestId('medio-otros').click()
 
   // Cobros/split: agregar pago, cuenta, monto y la papelera de la fila.
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
@@ -78,12 +96,12 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await toque(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido|Guardar pedido)/ }), 'botón principal')
 
   // Entrega.
-  await toque(page.getByLabel('Entrega'), 'selector de entrega')
+  await toque(page.locator('#entrega'), 'selector de entrega')
   // #391: el monto del envío solo aparece con Delivery o encomienda.
   await expect(page.getByLabel(/Monto del delivery|Costo (de la encomienda|del envío)/)).toHaveCount(0)
-  await page.getByLabel('Entrega').selectOption('Delivery')
+  await page.locator('#entrega').selectOption('Delivery')
   await toque(page.getByLabel(/Costo (de la encomienda|del envío)/), 'monto del delivery')
-  await page.getByText('Agregar nota', { exact: true }).click()
+  await page.getByTestId('pos-cobro').getByText('Agregar nota', { exact: true }).click()
   await toque(page.getByLabel('Observación'), 'observación')
 })
 
@@ -104,7 +122,7 @@ test('768: el POS vuelve compacto y no pierde densidad', async ({ page }) => {
 
 test('mobile 390: los modales de la venta son usables (targets de 44)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await armarCarrito(page)
+  await armarCarrito(page, { abrirCarrito: false })
 
   // Suspender venta.
   await page.getByRole('button', { name: 'Suspender venta' }).click()

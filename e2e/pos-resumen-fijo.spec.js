@@ -26,7 +26,9 @@ async function agregarProducto(page) {
   const producto = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })
   await expect(producto).toBeVisible()
   await producto.click()
-  await expect(page.getByText('Productos de esta venta')).toBeVisible()
+  // <768 px (#429) el carrito vive en una hoja: se espera su barra fija.
+  if ((page.viewportSize()?.width ?? 1440) < 768) await expect(page.getByTestId('pos-barra-carrito')).toBeVisible()
+  else await expect(page.getByText('Productos de esta venta')).toBeVisible()
 }
 
 function medicion(page) {
@@ -55,6 +57,8 @@ function medicion(page) {
       // #309: la barra superior del celular se reemplazó por la barra fija del
       // bloque de cobro (Total + acción principal).
       accion: datos('pos-barra-accion'),
+      // #429: en celular (<768 px) la barra fija es la del carrito.
+      barra_carrito: datos('pos-barra-carrito'),
     }
   })
 }
@@ -130,20 +134,20 @@ test.describe('notebook 1152', () => {
 test.describe('phone 390', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('el total y la acción principal quedan fijos abajo al deslizar (#309)', async ({ page }) => {
+  test('el total y el carrito quedan fijos abajo al deslizar (#309, #429)', async ({ page }) => {
     await agregarProducto(page)
 
-    const primera = await desplazar(page, 300)
-    expect(primera.accion, 'la barra de acción existe en el celular').not.toBeNull()
-    expect(primera.accion.position).toBe('fixed')
-    expect(primera.accion.texto).toContain('Total')
-    expect(primera.accion.texto).toContain('Gs 45.000')
-    await expect(
-      page.getByTestId('pos-barra-accion').getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ }),
-    ).toBeVisible()
+    // El inicio de celular puede ser más corto que la pantalla: no se exige recorrido.
+    const primera = await medicion(page)
+    expect(primera.barra_carrito, 'la barra del carrito existe en el celular').not.toBeNull()
+    expect(primera.barra_carrito.position).toBe('fixed')
+    expect(primera.barra_carrito.texto).toContain('Carrito')
+    expect(primera.barra_carrito.texto).toContain('Gs 45.000')
+    await expect(page.getByTestId('pos-barra-carrito-abrir')).toBeVisible()
 
-    const segunda = await desplazar(page, 900)
-    expect(segunda.accion.y).toBe(primera.accion.y)
-    expect(segunda.accion.position).toBe('fixed')
+    await page.evaluate(() => window.scrollTo(0, 900))
+    const segunda = await medicion(page)
+    expect(segunda.barra_carrito.y).toBe(primera.barra_carrito.y)
+    expect(segunda.barra_carrito.position).toBe('fixed')
   })
 })

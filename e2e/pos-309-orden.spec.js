@@ -134,22 +134,28 @@ test('la columna del carrito y el cobro queda fija a la derecha y el total vive 
   }
 })
 
-test('celular: el Total y la acción principal quedan fijos abajo (#309)', async ({ page }) => {
+test('celular: el Total y el carrito quedan fijos abajo (#309, #429)', async ({ page }) => {
   const id = clave()
   const nombre = `Producto 309 movil ${id}`
   const { productId } = await crearProducto(page, { nombre, stock: 3 })
   try {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/pos')
+    // #429: en celular el cliente se elige desde la acción «Agregar cliente» (hoja).
+    await page.getByTestId('accion-cliente').click()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente movil ${id}`)
-    await agregarProducto(page, nombre)
+    await page.getByTestId('hoja-cliente').getByRole('button', { name: 'Listo' }).click()
+    const buscar = page.getByPlaceholder('Buscar producto…')
+    await buscar.fill(nombre)
+    const tarjeta = page.getByRole('button', { name: new RegExp(nombre) }).first()
+    await expect(tarjeta).toBeVisible({ timeout: 15_000 })
+    await tarjeta.click()
 
-    const barra = page.getByTestId('pos-barra-accion')
+    const barra = page.getByTestId('pos-barra-carrito')
     await expect(barra).toBeVisible()
     expect(await barra.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
     await expect(barra.getByTestId('barra-total')).toHaveText('Gs 90.000')
-    await expect(barra.getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })).toBeVisible()
-    await expect(barra.getByRole('button', { name: /^Carrito/ })).toBeVisible()
+    await expect(barra.getByTestId('barra-cantidad')).toHaveText('1 artículo')
     // La barra superior con el total (duplicado) ya no existe.
     await expect(page.getByTestId('carrito-barra')).toHaveCount(0)
 

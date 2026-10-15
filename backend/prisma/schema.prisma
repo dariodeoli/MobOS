@@ -931,6 +931,11 @@ model Customer {
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
+  // Cliente bloqueado (#399): no se le vende a crédito. Lo gestionan
+  // administración/gerencia y queda auditado.
+  blocked       Boolean   @default(false)
+  blockedReason String?
+  blockedAt     DateTime?
   // Exact fiscal name and explicitly reviewed person parts; no legacy backfill.
   nameOfficial String?
   identityKind String?
@@ -1450,6 +1455,15 @@ model Order {
   deliveryPyg       BigInt            @default(0)
   deliveryType      String?
   deliveryNotes     String?
+  // «Paga al recibir» (#399): pedido sin pago cargado que se cobra después
+  // desde la lista de pedidos.
+  paymentOnDelivery Boolean           @default(false)
+  // Envío por encomienda (#399): empresa, sucursal de destino y dirección
+  // (id de la dirección guardada del cliente + copia del texto al vender).
+  shippingCarrier   String?
+  shippingBranch    String?
+  shippingAddressId String?
+  shippingAddress   String?
   // Factura a otro titular (esposo/a, padre, empresa): nombre y RUC.
   billingName       String?
   billingDocument   String?
