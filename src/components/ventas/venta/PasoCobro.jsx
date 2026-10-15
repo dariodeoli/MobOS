@@ -16,6 +16,7 @@ import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
 import { cuentaEfectivoPyg, FOREIGN, residuoSubCentavo, updateAccountPayment } from '@/utils/pagoCuenta'
+import CreditoAutorizacion from './CreditoAutorizacion'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -31,6 +32,12 @@ export default function PasoCobro({
   setVenderACredito,
   creditoDias,
   setCreditoDias,
+  evaluacionCredito = null,
+  creditoPin = '',
+  setCreditoPin = () => {},
+  creditoAutorizoYo = false,
+  setCreditoAutorizoYo = () => {},
+  puedeAutorizarCredito = false,
   cuentas,
   usaCuentas,
   errorCuentas,
@@ -112,7 +119,7 @@ export default function PasoCobro({
       : pagoCompleto
         ? 'Confirmar venta'
         : sinPago
-          ? (venderACredito ? 'Crear pedido a crédito' : pagaAlRecibir ? 'Crear pedido · paga al recibir' : 'Crear pedido sin pago')
+          ? (venderACredito ? (evaluacionCredito?.requiereAutorizacion && !creditoAutorizoYo && !creditoPin ? 'Crear pedido · pendiente de autorización' : 'Crear pedido a crédito') : pagaAlRecibir ? 'Crear pedido · paga al recibir' : 'Crear pedido sin pago')
           : 'Crear pedido'
   // Primary action remains neutral in every payment state (#341); status
   // meaning is preserved in the label and the payment summary.
@@ -181,7 +188,7 @@ export default function PasoCobro({
           </div>
         )}
         {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
-        {Number(customer.creditLimitPyg || 0) > 0 && (
+        {Boolean(customer.id) && (
           <div data-testid="pos-credito" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-fono/25 bg-fono/5 px-2.5 py-1">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-8">
               <input
@@ -194,7 +201,7 @@ export default function PasoCobro({
               />
               <span className="font-semibold">Vender a crédito</span>
               <span className="text-xs text-mute">
-                límite {gs(Number(customer.creditLimitPyg))}
+                {Number(customer.creditLimitPyg || 0) > 0 ? `límite ${gs(Number(customer.creditLimitPyg))}` : 'sin crédito habilitado · requiere autorización'}
                 {customer.creditDays ? ` · ${customer.creditDays} días` : ''}
               </span>
               {customer.blocked ? <span className="text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
@@ -219,6 +226,17 @@ export default function PasoCobro({
                   ).toLocaleDateString('es-PY')}
                 </span>
               </span>
+            )}
+            {venderACredito && (
+              <CreditoAutorizacion
+                evaluacion={evaluacionCredito}
+                pin={creditoPin}
+                setPin={setCreditoPin}
+                autorizoYo={creditoAutorizoYo}
+                setAutorizoYo={setCreditoAutorizoYo}
+                puedeAutorizar={puedeAutorizarCredito}
+                deshabilitado={guardando}
+              />
             )}
           </div>
         )}

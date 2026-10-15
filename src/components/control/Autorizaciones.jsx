@@ -26,6 +26,7 @@ import {
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
+import { autorizacionesCreditoDemo } from '@/lib/demoCreditoStore'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
@@ -44,6 +45,7 @@ const KINDS = {
   EXPENSE_OVER_LIMIT: 'Gasto sobre límite',
   TRANSFER: 'Transferencia',
   PURCHASE_CREDIT: 'Compra a crédito',
+  ORDER_CREDIT_OVER: 'Crédito sobre el límite',
 }
 
 const SUJETOS = {
@@ -84,6 +86,7 @@ function resumenValor(kind, value) {
   const data = value && typeof value === 'object' ? value : {}
   if (kind === 'WHOLESALE') return 'Pasar a precio mayorista'
   if (kind === 'ORDER_VOID') return 'Anulación total del pedido'
+  if (kind === 'ORDER_CREDIT_OVER') return [`Supera el crédito en ${data.overPyg !== undefined ? formatGs(data.overPyg) : '—'}`, data.orderNumber, data.limitPyg !== undefined ? `límite ${formatGs(data.limitPyg)}` : ''].filter(Boolean).join(' · ')
   if (kind === 'ORDER_DELIVER_UNPAID') return data.reason ? `Entrega con saldo · ${data.reason}` : 'Entrega con saldo pendiente'
   if (kind === 'STOCK_ADJUST') return `${data.action === 'remove' ? 'Retirar unidad' : 'Ajustar unidad'}${data.reason ? ` · ${data.reason}` : ''}`
   if (kind === 'EXPENSE_OVER_LIMIT') return [`Gasto ${data.amountPyg !== undefined ? formatGs(data.amountPyg) : ''}`.trim(), data.description].filter(Boolean).join(' · ') || '—'
@@ -131,7 +134,9 @@ export default function Autorizaciones() {
 
   async function load() {
     if (esDemo) {
-      setRows(demoAutorizacionesFiltradas(filtro, tipo))
+      // Las ventas demo que superaron el crédito del cliente aparecen arriba, como en la cuenta real.
+      const credito = autorizacionesCreditoDemo().filter((fila) => (!filtro || fila.status === filtro) && (!tipo || fila.kind === tipo))
+      setRows([...credito, ...demoAutorizacionesFiltradas(filtro, tipo)])
       return
     }
     setLoading(true)

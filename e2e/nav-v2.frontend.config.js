@@ -31,6 +31,7 @@ export default defineConfig({
     'superadmin.frontend.spec.js',
     'aviso-privacidad.frontend.spec.js',
     'politicas.frontend.spec.js',
+    'credito.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

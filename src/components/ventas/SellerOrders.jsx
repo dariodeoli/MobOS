@@ -74,6 +74,8 @@ export const orderFields = (row) => {
     offlineSyncedAt: row.offlineSyncedAt || null,
     isSpecialOrder: row.isSpecialOrder === true || row.specialOrder === true,
     expectedAt: row.expectedAt || null,
+    // Autorización de crédito (venta que superó el crédito del cliente).
+    creditAuthorization: row.creditAuthorization || null,
   }
 }
 // Etiquetas compartidas: incluyen los estados nuevos de entrega (enviado,
@@ -132,6 +134,12 @@ function BadgePago({ row, v2 }) {
 }
 
 function BadgeEstado({ row, v2 }) {
+  // Una venta que superó el crédito del cliente no se entrega: el estado que
+  // importa es la autorización pendiente (o rechazada), no «en preparación».
+  const credito = row.creditAuthorization?.status
+  if (!estaCancelado(row) && (credito === 'PENDING' || credito === 'REJECTED')) {
+    return <span data-testid="chip-credito-pendiente" className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border border-warn/30 bg-warn/10 px-1.5 py-0.5 text-[10px] font-bold text-warn-text', credito === 'REJECTED' && 'border-bad/30 bg-bad/10 text-bad-text', v2 && 'v2-chip')}>{credito === 'PENDING' ? 'Pendiente de autorización de crédito' : 'Crédito rechazado'}</span>
+  }
   if (estaCancelado(row)) return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 px-1.5 py-0.5 text-[10px] font-bold text-bad-text', v2 && 'v2-chip')}>Cancelado</span>
   const tono = ['DELIVERED', 'PICKED_UP'].includes(row.fulfillmentStatus) ? 'border-ok/25 bg-ok/10 text-ok-text'
     : ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus) ? 'border-info/25 bg-info/10 text-info'
