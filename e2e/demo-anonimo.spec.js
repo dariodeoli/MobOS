@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
 import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+import { serialDemo } from '../src/lib/demo/iphones.js'
 
 test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
@@ -217,7 +218,7 @@ test('dueño: el inventario demo muestra unidades ficticias sin tocar el API', a
   const filas = page.getByTestId('inventario-fila')
   await expect(filas.first()).toBeVisible({ timeout: 15_000 })
   expect(await filas.count()).toBeGreaterThanOrEqual(20)
-  await expect(page.getByText(/AUR0001/).first()).toBeVisible()
+  await expect(page.getByText(new RegExp(serialDemo(1))).first()).toBeVisible()
 
   await filas.first().click()
   const detalle = page.getByRole('dialog')

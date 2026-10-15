@@ -265,7 +265,7 @@ const SERIAL_MAX = 64
  * verificador (Luhn) de los IMEI de 15 dígitos. Los seriales de producto que no
  * son IMEI viajan tal cual (mismo criterio que el resto de la app).
  */
-export function normalizarSeriales(valor: unknown): { ok: true; seriales: string[] } | { ok: false; error: string } {
+export function normalizarSeriales(valor: unknown, opciones: { sinLuhn?: boolean } = {}): { ok: true; seriales: string[] } | { ok: false; error: string } {
   const crudos = Array.isArray(valor) ? valor : typeof valor === 'string' ? valor.split(/[\s,;]+/) : []
   const seriales: string[] = []
   const vistos = new Set<string>()
@@ -275,7 +275,8 @@ export function normalizarSeriales(valor: unknown): { ok: true; seriales: string
     if (vistos.has(serial)) return { ok: false, error: `El serial ${serial} está repetido en la compra.` }
     if (/^\d{15}$/.test(serial)) {
       const valido = validarImei(serial)
-      if (!valido.ok) return { ok: false, error: `El IMEI ${serial} no pasa la verificación de dígito control (Luhn).` }
+      // #450: la persona puede forzar un IMEI de 15 dígitos que no pasa Luhn (queda auditado).
+      if (!valido.ok && !opciones.sinLuhn) return { ok: false, error: `El IMEI ${serial} no pasa la verificación de dígito control (Luhn).` }
     } else if (!/^[A-Z0-9-]{4,}$/.test(serial)) {
       return { ok: false, error: `El serial ${serial} no parece válido.` }
     }
@@ -577,8 +578,8 @@ export function normalizarCierreDeCostos(
  * comprada. Es el mismo camino para el pegado múltiple y para el escaneo de a
  * uno (escaneo móvil).
  */
-export function cuadrarSeriales({ seriales, cantidad, yaEnLinea = [] }: { seriales: unknown; cantidad: number; yaEnLinea?: string[] }): { ok: true; nuevos: string[] } | { ok: false; error: string } {
-  const normalizados = normalizarSeriales(seriales)
+export function cuadrarSeriales({ seriales, cantidad, yaEnLinea = [], sinLuhn = false }: { seriales: unknown; cantidad: number; yaEnLinea?: string[]; sinLuhn?: boolean }): { ok: true; nuevos: string[] } | { ok: false; error: string } {
+  const normalizados = normalizarSeriales(seriales, { sinLuhn })
   if (!normalizados.ok) return { ok: false, error: normalizados.error }
   if (!normalizados.seriales.length) return { ok: false, error: 'Indicá al menos un IMEI/serial.' }
   const cargados = new Set(yaEnLinea.map((serial) => String(serial).toUpperCase()))
@@ -592,6 +593,27 @@ export function cuadrarSeriales({ seriales, cantidad, yaEnLinea = [] }: { serial
     return { ok: false, error: `La línea admite ${total} IMEI/serial (ya tiene ${cargados.size}).` }
   }
   return { ok: true, nuevos }
+}
+
+/**
+ * Estado de un IMEI/serial dentro de la compra (#450): `pendiente` = comprado
+ * y cargado pero todavía no llegó; `recibido` = entró por una recepción
+ * (unidad en stock o ítem de lote recibido); `verificado` = además tiene una
+ * consulta IMEI exitosa.
+ */
+export type EstadoSerialCompra = 'pendiente' | 'recibido' | 'verificado'
+export function estadoSerialCompra({ recibido = false, verificado = false }: { recibido?: boolean; verificado?: boolean } = {}): EstadoSerialCompra {
+  if (recibido && verificado) return 'verificado'
+  if (recibido) return 'recibido'
+  return verificado ? 'verificado' : 'pendiente'
+}
+
+/** Quitar un IMEI cargado por error: solo si la compra sigue abierta y el IMEI no avanzó (lote o stock). */
+export function validarQuitarSerial({ estadoCompra, enLote = false, enStock = false }: { estadoCompra: string; enLote?: boolean; enStock?: boolean }): { ok: true } | { ok: false; error: string } {
+  if (['CANCELADA', 'RECIBIDA'].includes(estadoCompra)) return { ok: false, error: 'La compra ya está cerrada: no se pueden quitar IMEI.' }
+  if (enStock) return { ok: false, error: 'Ese IMEI ya está en el inventario.' }
+  if (enLote) return { ok: false, error: 'Ese IMEI ya está asignado a un lote: quitalo desde el lote.' }
+  return { ok: true }
 }
 
 const normalizarTexto = (valor: unknown) => String(valor ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')
