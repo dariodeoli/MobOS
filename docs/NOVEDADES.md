@@ -17,7 +17,7 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 - **Compras:** los filtros se reúnen en una hoja del celular, el paso actual queda visible y preparación/recepción tienen controles táctiles de 44 px. Se verificó el recorrido de QR e IMEI y la recepción sin duplicar stock al recargar.
 - **Cobrar:** los botones indican cuándo están listos al cambiar de paso; el primer toque disponible avanza y se mantiene la protección contra cobros duplicados.
 - **Caja:** corregir un pago de una caja cerrada aplica el ajuste al efectivo de hoy del cobrador original, conserva el cierre anterior y no cuenta otra venta. Abrir, cerrar y corregir al mismo tiempo se coordinan para conservar el saldo. El motivo y quién corrigió quedan en el historial.
-- **Políticas:** editar las políticas exige la cuenta propietaria vinculada al perfil activo de esa empresa; el rol administrador por sí solo no alcanza. La página pública mantiene el acceso sin sesión.
+- **Acceso y políticas:** los enlaces de vuelta del login y las notificaciones rechazan destinos que escapan de MobOS. Editar las políticas exige la cuenta propietaria vinculada al perfil activo de esa empresa; el rol administrador por sí solo no alcanza. La página pública mantiene el acceso sin sesión.
 
 ## v1.0.228 — 2026-10-15
 

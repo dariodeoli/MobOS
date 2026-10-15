@@ -24,6 +24,9 @@ Correcciones tardías: reversión y pagos nuevos con fecha actual, cobrador orig
 
 La regresión HTTP de consumidores pasó156 comprobaciones, incluidas cuatro carreras observadas con barreras SQL (ambos órdenes, turno de origen antiguo con otro vigente y apertura sin fila vigente). El harness HTTP completo terminó con exit 0: políticas 22, correcciones 67+156, conciliación de esperados con signo, reportes 764 y consistencia de datos 99 aprobados. Las sesiones sintéticas usan vencimiento UTC; los 401 de sesión inválida se distinguen de los 403 por permisos. El último oráculo de auditoría calcula en JavaScript desde filas crudas; el CI final debe ejecutar también esa actualización.
 
+## Retornos del acceso (#491)
+El control de dependencias identificó rutas `next`/`volver` controladas desde query que aceptaban barras invertidas hacia otro origen. App y Login usan ahora el guard común, que rechaza rutas de red, barras invertidas y controles. Las notificaciones aplican además su validación de origen MobOS y el mismo guard. Tres regresiones fallaron antes del arreglo y20unitarios pasaron después;5escenarios frontend comprobaron rechazos y rutas válidas con query/hash. QA independiente aprobada. La dependencia React Router6.30.4 sigue teniendo avisos; no se declara resuelta la alerta de la biblioteca mediante este guard.
+
 ## Base de identidades fiscales (#345)
 Se ejecutó de forma aislada `node --test backend/tests/billing-identity-default.test.mjs`:3 aprobados,0 fallidos. Reproduce la ruta nueva y la antigua, verifica la reparación dos veces, conserva cada fila y fecha, reproduce la reversión y repara de nuevo, y comprueba los escritores Prisma. El proceso crea y elimina su propio clúster; no hereda credenciales ni URLs reales. Esta prueba no acredita importadores SQL externos ni respaldos de producción.
 
