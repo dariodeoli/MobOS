@@ -61,8 +61,11 @@ function Columna({ info, valor, onModelo, onColor, modelos }) {
               key={c}
               onClick={() => onColor(c)}
               title={c}
+              aria-label={`Color ${c}`}
+              aria-pressed={color === c}
+              type="button"
               className={cn(
-                'h-7 w-7 rounded-full border transition',
+                'h-11 w-11 shrink-0 rounded-full border transition',
                 color === c ? 'ring-2 ring-fono ring-offset-2' : 'border-ink-500 hover:scale-110',
               )}
               style={{ background: colorHex(c) }}
@@ -176,8 +179,9 @@ export default function Comparador() {
               key={key}
               type="button"
               onClick={() => setCondicion(key)}
+              aria-pressed={condicion === key}
               className={cn(
-                'rounded-lg px-4 py-1.5 text-sm font-bold transition',
+                'min-h-11 min-w-11 rounded-lg px-4 py-1.5 text-sm font-bold transition',
                 condicion === key ? 'bg-fono text-onbrand shadow-sm' : 'text-mute hover:text-fono',
               )}
             >
