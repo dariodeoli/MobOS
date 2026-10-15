@@ -444,7 +444,7 @@ export default function Recepcion() {
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h3 className="text-sm font-semibold">Escanear contra el manifiesto</h3>
-            <p className="mt-1 text-sm text-mute">Lector Bluetooth/USB (escribí y Enter), cámara del teléfono o pegado múltiple. Un código ya escaneado se rechaza; los IMEI se validan con Luhn.</p>
+            <p className="mt-1 text-sm text-mute">Lector Bluetooth/USB (escribí y Enter), cámara del teléfono o pegado múltiple. Un código ya escaneado se rechaza; también revisamos que el IMEI esté bien escrito.</p>
           </div>
           <form
             onSubmit={(evento) => { evento.preventDefault(); escanear(entrada) }}
