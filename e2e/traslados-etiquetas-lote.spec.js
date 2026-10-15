@@ -67,8 +67,8 @@ function marcarLoteEnDestino({ marca, seriales, productoId, eta = null }) {
      ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name";
      INSERT INTO "StockTransfer" ("id","tenantId","sourceBranchId","destinationBranchId","createdById","dispatchedById","eta","createdAt")
      SELECT 'e2e-lote-${marca}', t."id", '${SEED.branch2Id}', '${SEED.branchId}',
-       (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' LIMIT 1),
-       (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' LIMIT 1),
+       (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' AND u."name" = '${SEED.admin.name}' LIMIT 1),
+       (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' AND u."name" = '${SEED.admin.name}' LIMIT 1),
        ${eta ? `'${eta}'::timestamp` : 'NULL'},
        CURRENT_TIMESTAMP
      FROM "Tenant" t WHERE t."email" = '${SEED.company.email}'
