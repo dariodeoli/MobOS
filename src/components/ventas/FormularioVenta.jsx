@@ -30,7 +30,7 @@ import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { datosEncomienda, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from '@/utils/cobroPos'
+import { datosEncomienda, montoEnvioEfectivo, notasDeEntrega, pagaAlRecibirVigente, recordarEmpresa } from '@/utils/cobroPos'
 import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVenta'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -42,6 +42,7 @@ import EntregaPregunta from './venta/EntregaPregunta'
 import { tomarNumeroPedidoDemo } from '@/lib/demoTenant'
 import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
+import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
 import {
   Aviso,
@@ -111,6 +112,9 @@ const VACIO = vendedorId => ({
   encEmpresa: '',
   encSucursal: '',
   encDireccionId: '',
+  entregaDireccionId: '',
+  entregaDireccion: '',
+  repartidorId: '',
   observacion: '',
   specialOrder: false,
   expectedAt: '',
@@ -472,6 +476,8 @@ export default function FormularioVenta({
   const [errorSuspendidas, setErrorSuspendidas] = useState('')
   // #309: menú «Más» del encabezado (cierra al elegir una herramienta).
   const toast = useToast()
+  // Delivery propio (#461): repartidores asignables; solo se piden con «Delivery» elegido.
+  const repartidores = useRepartidores({ activo: f.entrega === 'Delivery', esDemo })
   // #308: familia con más de una variante esperando elección explícita.
   const [variantePara, setVariantePara] = useState(null)
   const [suspenderOpen, setSuspenderOpen] = useState(false)
@@ -1291,6 +1297,9 @@ export default function FormularioVenta({
     // Payload de la venta tal como viajaría a la API: si la conexión se corta,
     // se encola este mismo objeto (con `offline: true`) sin perder nada.
     let payloadParaCola = null
+    // Delivery (#461): dirección y repartidor; el nombre del repartidor solo va en el texto de la demo.
+    const repartidorElegido = repartidores.find(r => r.id === f.repartidorId) || null
+    const notasEntrega = notasDeEntrega(f.entrega, f, customer.addresses, esDemo ? repartidorElegido : null)
     try {
       if (!esDemo) {
         const orderPayload = {
@@ -1346,7 +1355,7 @@ export default function FormularioVenta({
               : {}),
             deliveryPyg: montoDeliveryEfectivo,
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
-            ...(f.observacion?.trim() ? { deliveryNotes: f.observacion } : {}),
+            ...(notasEntrega ? { deliveryNotes: notasEntrega } : {}),
             deliveryType: f.entrega,
             // «Paga al recibir» (#399): la marca viaja solo si estaba activa al enviar.
             ...(pagaAlRecibirVigente(pagaAlRecibir, pagos) ? { paymentOnDelivery: true } : {}),
@@ -1380,6 +1389,16 @@ export default function FormularioVenta({
         ventaPersistida = true
         completedOrder = order
         if (f.entrega === 'Encomienda') recordarEmpresa(f.encEmpresa)
+        // Repartidor elegido en el POS: queda asignado al pedido. Si falla no se pierde la
+        // venta: se avisa y se asigna después desde Entregas.
+        if (f.entrega === 'Delivery' && f.repartidorId) {
+          try {
+            await api.post(`/api/orders/${encodeURIComponent(order.id)}/assignment`, { assignedToId: f.repartidorId })
+          } catch (causa) {
+            console.error('[pos] no se pudo asignar el repartidor', causa)
+            toast.error('Venta guardada, repartidor sin asignar', 'Asignalo desde Entregas.')
+          }
+        }
       } else {
         const validation = await validateDemoTradeIns(payments)
         if (validation === false || validation?.error || validation?.ok === false)
@@ -1436,7 +1455,7 @@ export default function FormularioVenta({
             medioPago: f.medioPago,
             entrega: i === 0 ? f.entrega : 'Retiro en tienda',
             montoDelivery: it.montoDelivery,
-            observacion: f.observacion,
+            observacion: notasEntrega,
             descuento: it.descuento,
             subtotal,
             total: it.total,
@@ -2347,6 +2366,7 @@ export default function FormularioVenta({
             {pos('cobro',
             <PasoCobro
               customer={customer}
+              repartidores={repartidores}
               pagaAlRecibir={pagaAlRecibir}
               setPagaAlRecibir={setPagaAlRecibir}
               venderACredito={venderACredito}

@@ -47,3 +47,24 @@ export const recordarEmpresa = (empresa) => {
     globalThis.localStorage?.setItem(CLAVE_EMPRESAS, JSON.stringify([nombre, ...resto].slice(0, 8)))
   } catch { /* sin almacenamiento: la sugerencia es solo comodidad */ }
 }
+
+// Delivery propio (#461): se pide la dirección de entrega y el repartidor (o
+// «asignar después»). La dirección viaja en las indicaciones de entrega del
+// pedido; el repartidor, como asignación del pedido (o, en la demo, como texto).
+export const direccionDeEntrega = (f = {}, direcciones = []) => {
+  const guardada = (direcciones || []).find(d => d?.id && d.id === f.entregaDireccionId)
+  if (guardada) return [guardada.address, guardada.city].filter(Boolean).join(', ')
+  return String(f.entregaDireccion || '').trim()
+}
+
+export const notasDeEntrega = (entrega, f = {}, direcciones = [], repartidor = null) => {
+  const partes = []
+  const observacion = String(f.observacion || '').trim()
+  if (observacion) partes.push(observacion)
+  if (entrega === 'Delivery') {
+    const direccion = direccionDeEntrega(f, direcciones)
+    if (direccion) partes.push(`Entregar en: ${direccion}`)
+    if (repartidor?.name) partes.push(`Repartidor: ${repartidor.name}`)
+  }
+  return partes.join(' · ')
+}
