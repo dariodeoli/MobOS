@@ -15,7 +15,7 @@ import { ABIERTAS, ESTADO_COTIZACION as ESTADO, TONO_COTIZACION as TONO } from '
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import AprobacionPresupuesto from '@/components/shared/AprobacionPresupuesto'
 import { buildProformaHtml } from '@/components/shared/OrderReceipt'
-import { BotonWhatsApp, CabeceraTienda, ResumenTotales } from '@/components/publico/KitPublico'
+import { BotonWhatsApp, CabeceraTienda, EnlacePoliticas, ResumenTotales } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 
 
@@ -229,6 +229,7 @@ export default function CotizacionPublica() {
             )}
 
             <p className="pt-2 text-center text-xs text-mute">Documento no fiscal · Generado por MobOS para {quote.company?.name || 'la tienda'}</p>
+            <EnlacePoliticas slug={quote.company?.policiesSlug} />
           </div>
         )}
       </div>

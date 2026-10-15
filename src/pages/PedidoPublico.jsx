@@ -12,7 +12,7 @@ import { CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabl
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPedido'
 import { temaV2Activo } from '@/lib/temaV2'
 import ProductFooter from '@/components/app/ProductFooter'
-import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
+import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, EnlacePoliticas, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
 
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
@@ -249,6 +249,7 @@ export default function PedidoPublico() {
             <p className="pt-1 text-center text-xs text-mute">
               Documento no fiscal · Generado por MobOS para {order.company?.name || 'la tienda'}
             </p>
+            <EnlacePoliticas slug={order.company?.policiesSlug} />
           </>
         )}
       </div>

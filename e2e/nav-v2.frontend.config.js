@@ -24,6 +24,7 @@ export default defineConfig({
     'multiempresa.frontend.spec.js',
     'publicas-layout.frontend.spec.js',
     'corregir-pago.frontend.spec.js',
+    'politicas.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

@@ -35,6 +35,7 @@ const PedidoPublico = lazy(() => import('@/pages/PedidoPublico'))
 const CarritoPublico = lazy(() => import('@/pages/CarritoPublico'))
 const InformePublico = lazy(() => import('@/pages/InformePublico'))
 const GarantiaPublica = lazy(() => import('@/pages/GarantiaPublica'))
+const PoliticasPublicas = lazy(() => import('@/pages/PoliticasPublicas'))
 const CotizacionPublica = lazy(() => import('@/pages/CotizacionPublica'))
 const CuentaPublica = lazy(() => import('@/pages/CuentaPublica'))
 const PortalCliente = lazy(() => import('@/pages/PortalCliente'))
@@ -283,6 +284,9 @@ export default function App() {
             <Route path="/u/:serial" element={<InformePublico />} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
+            {/* Políticas públicas de cada empresa (#433). */}
+            <Route path="/:slug/politicas" element={<PoliticasPublicas />} />
+            <Route path="/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
@@ -314,6 +318,8 @@ export default function App() {
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          <Route path="/:slug/politicas" element={<PoliticasPublicas />} />
+          <Route path="/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
           {/* A5 (#279): el cliente aprueba la alternativa de una variante agotada. */}
           <Route path="/alternativa/:token" element={<AlternativaPublica />} />
           {/* QR impresos (ver src/lib/printing/qr.js): la etiqueta de góndola

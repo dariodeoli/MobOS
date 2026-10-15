@@ -124,6 +124,8 @@ function resolveRoute(pathname) {
   if (pathname.startsWith('/cuenta/')) return { label: 'Mi cuenta' }
   if (pathname.startsWith('/portal/')) return { label: 'Portal del cliente' }
   if (pathname.startsWith('/remito/')) return { label: 'Remito de traslado' }
+  // Políticas públicas de cada empresa (#433): /<empresa>/politicas[/<tipo>].
+  if (/^\/[^/]+\/politicas(\/[^/]+)?$/.test(pathname)) return { label: 'Políticas de la tienda' }
   // QR internos (ver printing/qr.js): fichas de unidad y producto.
   if (pathname.startsWith('/u/')) return { label: 'Unidad' }
   if (pathname.startsWith('/producto/')) return { label: 'Producto' }

@@ -220,6 +220,18 @@ test('el comprobante muestra subtotal, descuento, envío, pagado y saldo solo cu
   assert.match(texto, /SALDO PENDIENTE\n\s+Gs 2\.450\.000/, 'el saldo completo cabe en 58 mm')
 })
 
+test('el ticket usa la política de garantía de la tienda y el QR lleva a las políticas sin enlace del pedido (#433)', () => {
+  const politica = { garantia: 'Garantía\n• 12 meses en equipos nuevos', cambios: '', url: 'https://clientes.moboss.online/don-pepe/politicas' }
+  const texto = ticketComprobante(PEDIDO_PREMIUM, { nivel: 'completo', ancho: 80, link: politica.url, politica }).lineas().join('')
+  assert.ok(texto.includes('• 12 meses en equipos nuevos'), 'garantía de la tienda')
+  assert.ok(texto.includes('Políticas de la tienda'), 'rótulo del QR')
+  assert.ok(texto.includes('[QR] https://clientes.moboss.online/don-pepe'), 'QR a las políticas (la URL larga se parte en líneas)')
+  assert.ok(texto.replace(/\s+/g, '').includes('don-pepe/politicas'), 'la URL completa queda impresa')
+  const generica = ticketComprobante(PEDIDO_PREMIUM, { nivel: 'completo', ancho: 80 }).lineas().join('')
+  assert.ok(generica.includes('Garantía'), 'sin política queda la leyenda general')
+  assert.ok(!generica.includes('Políticas de la tienda'))
+})
+
 const PEDIDO = {
   orderNumber: 'MOB-#0042',
   createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),

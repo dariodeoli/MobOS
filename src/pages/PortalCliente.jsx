@@ -171,7 +171,7 @@ export default function PortalCliente() {
                 </PortalSeccion>
               )}
 
-              <PortalPie tienda={portal.tienda?.nombre} />
+              <PortalPie tienda={portal.tienda?.nombre} politicasSlug={portal.tienda?.policiesSlug} />
             </div>
           </>
         )}
