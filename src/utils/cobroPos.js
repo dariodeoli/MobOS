@@ -68,3 +68,13 @@ export const notasDeEntrega = (entrega, f = {}, direcciones = [], repartidor = n
   }
   return partes.join(' · ')
 }
+
+// «Vender a crédito / fiado» (#461): la opción se ofrece con cualquier cliente de
+// la ficha (no solo si ya tiene un límite cargado). Las reglas son del servidor
+// (límite, autorización del dueño al superarlo): la pantalla solo lo dice claro.
+export const puedeOfrecerCredito = (cliente) => Boolean(cliente?.id)
+export const detalleCredito = (cliente, formato = (n) => String(n)) => {
+  const limite = Number(cliente?.creditLimitPyg || 0)
+  const dias = cliente?.creditDays ? ` · ${cliente.creditDays} días` : ''
+  return limite > 0 ? `límite ${formato(limite)}${dias}` : 'sin límite cargado: el dueño debe autorizarlo'
+}

@@ -5,6 +5,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import Icon from '@/components/shared/Icon'
 import { KIND_LABELS } from '@/lib/paymentAccounts'
 import { gs } from '@/utils/calculos'
+import { detalleCredito, puedeOfrecerCredito } from '@/utils/cobroPos'
 import { cn } from '@/lib/utils'
 import {
   cuentasRapidas,
@@ -269,12 +270,12 @@ export default function CobroMovil({
                     onClick={() => elegirMedio(m)}
                   />
                 ))}
-                {reales.length === 0 && Number(customer?.creditLimitPyg || 0) > 0 && (
+                {reales.length === 0 && puedeOfrecerCredito(customer) && (
                   <BotonMedio
                     testId="medio-credito"
                     icono="clock"
-                    titulo="Vender a crédito"
-                    detalle={`Límite ${gs(Number(customer.creditLimitPyg))}`}
+                    titulo="Vender a crédito / fiado"
+                    detalle={detalleCredito(customer, n => gs(n))}
                     disabled={sinTotal || guardando}
                     onClick={() => { setPagos(l => l.filter(pagoReal)); setVenderACredito(true); irA('confirmar') }}
                   />

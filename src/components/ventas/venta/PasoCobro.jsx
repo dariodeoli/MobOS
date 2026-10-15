@@ -9,7 +9,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
-import { empresasRecientes, pagaAlRecibirVigente } from '@/utils/cobroPos'
+import { detalleCredito, empresasRecientes, pagaAlRecibirVigente, puedeOfrecerCredito } from '@/utils/cobroPos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
@@ -181,8 +181,9 @@ export default function PasoCobro({
             />
           </div>
         )}
-        {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
-        {Number(customer.creditLimitPyg || 0) > 0 && (
+        {/* Venta a crédito / fiado: interruptor compacto con cualquier cliente de la ficha;
+            el límite y la autorización del dueño los resuelve el servidor. */}
+        {puedeOfrecerCredito(customer) && (
           <div data-testid="pos-credito" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-fono/25 bg-fono/5 px-2.5 py-1">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-8">
               <input
@@ -193,11 +194,8 @@ export default function PasoCobro({
                 disabled={Boolean(customer.blocked)}
                 onChange={e => setVenderACredito(e.target.checked)}
               />
-              <span className="font-semibold">Vender a crédito</span>
-              <span className="text-xs text-mute">
-                límite {gs(Number(customer.creditLimitPyg))}
-                {customer.creditDays ? ` · ${customer.creditDays} días` : ''}
-              </span>
+              <span className="font-semibold">Vender a crédito / fiado</span>
+              <span className="text-xs text-mute">{detalleCredito(customer, n => gs(n))}</span>
               {customer.blocked ? <span className="text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
             </label>
             {venderACredito && (
