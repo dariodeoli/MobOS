@@ -31,8 +31,17 @@ El control de dependencias identificó rutas `next`/`volver` controladas desde q
 Se ejecutó de forma aislada `node --test backend/tests/billing-identity-default.test.mjs`:3 aprobados,0 fallidos. Reproduce la ruta nueva y la antigua, verifica la reparación dos veces, conserva cada fila y fecha, reproduce la reversión y repara de nuevo, y comprueba los escritores Prisma. El proceso crea y elimina su propio clúster; no hereda credenciales ni URLs reales. Esta prueba no acredita importadores SQL externos ni respaldos de producción.
 
 ## Publicación
-Builds frontend/backend y Prisma aprobados; 1488 unitarios frontend y 330 backend aprobados (un salto condicional de SQL). Smoke conjunto: 19 aprobados al primer intento. Pendiente CI protegido, deploy y smoke de producción. Este informe no afirma todavía producción229 ni un nuevo build de TestFlight.
+Builds frontend/backend y Prisma aprobados; 1490 unitarios frontend y 330 backend aprobados (un salto condicional de SQL). Smoke conjunto: 19 aprobados al primer intento. Pendiente CI protegido, deploy y smoke de producción. Este informe no afirma todavía producción229 ni un nuevo build de TestFlight.
 
 ## Criterios finales antes del merge
 #489: teclado y árbol accesible a320/390px aprobados (2 escenarios, reloj349/350ms, un solo envío). Se conserva el ensayo físico con VoiceOver como límite de la evidencia automatizada.
 #433: se agregan alias /p/:slug/politicas y detalle en ambas ramas de rutas, manteniendo la vista y enlaces canónicos. La prueba de app cubre360/1440; el ensayo exploratorio de hostname portal falló en el proxy Vite antes de cargar React y no se cuenta como aprobación de ese hostname. Los cuatro Route comparten PoliticasPublicas y fueron revisados.
+
+## Ampliación final de responsividad y demo
+La demo nueva contiene 60 teléfonos. QA independiente comparó con reloj fijo las 24 unidades originales completas y comprobó que una sesión guardada conserva sus mutaciones sin escrituras ni reset. Pruebas relacionadas: 60 aprobadas; reportes y pantallas de demo: 6 aprobadas. Los trackers globales #350/#461 no se cierran sin cotejar todos sus criterios.
+
+Páginas de cliente #403: 66 casos nuevos aprobados (8 vistas por 3 anchos y 2 temas, acceso restringido de Producto, acciones, errores y pantalla/impresión), 27 regresiones previas y 22 unitarios relacionados. QA independiente aprobó los cambios. El informe mejora solo en pantalla; impresión conserva tamaño y ajuste anteriores. Los contratos completos de API, contacto/marca y routing real del hostname de Entrada siguen siendo límites explícitos. El contrato aislado del carrito público pasó 24 comprobaciones y ahora lo ejecuta el arnés de integración.
+
+#492: se reprodujo la ausencia del ícono en Vender cuando falta una foto. FotoProducto se monta siempre con su fallback de categoría; el nombre conserva todo el ancho móvil y precio/stock pueden envolver sin cambiar valores. Matriz de 6 escenarios a 320/390/1440 en ambos temas y regresión de fotos incluidas dentro de 49 casos completos de POS aprobados. La prueba de densidad distingue fotos reales de iconos; no se quitó el límite de altura. QA de fuente aprobada; no equivale a instalar el siguiente build en un teléfono.
+
+El CI de 89447282 detectó cuatro selectores antiguos de Taller/Comparador. Se adaptaron al menú vigente y al nombre accesible del color, preservando las comprobaciones funcionales; los cuatro casos pasaron en su base aislada. La publicación quedó detenida y requiere CI nuevo del SHA final. Fuente final: 1490 unitarios frontend aprobados, lint sin errores con una advertencia previa, build frontend aprobado.

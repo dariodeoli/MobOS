@@ -13,8 +13,8 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
-- **Celular, tablet y escritorio:** Taller muestra antes las órdenes y vuelve desde arriba; Productos cabe en tablet. Clientes y Stock conservan filas compactas, controles cómodos y estados legibles en ambos temas.
-- **Compras:** los filtros se reúnen en una hoja del celular, el paso actual queda visible y preparación/recepción tienen controles táctiles de 44 px. Se verificó el recorrido de QR e IMEI y la recepción sin duplicar stock al recargar.
+- **Celular, tablet y escritorio:** Taller muestra antes las órdenes y vuelve desde arriba; Productos cabe en tablet. Clientes y Stock conservan filas compactas, controles cómodos y estados legibles en ambos temas. Vender conserva íconos por categoría cuando falta la foto. Las vistas de clientes revisadas mejoran contraste, botones y nombres completos sin cambiar los impresos.
+- **Compras y demo:** los filtros se reúnen en una hoja del celular, el paso actual queda visible y preparación/recepción tienen controles táctiles de 44 px. La revisión del IMEI se explica con palabras simples. Las demos nuevas incluyen 60 teléfonos y las sesiones guardadas se conservan.
 - **Cobrar:** los botones indican cuándo están listos al cambiar de paso; el primer toque disponible avanza y se mantiene la protección contra cobros duplicados.
 - **Caja:** corregir un pago de una caja cerrada aplica el ajuste al efectivo de hoy del cobrador original, conserva el cierre anterior y no cuenta otra venta. Abrir, cerrar y corregir al mismo tiempo se coordinan para conservar el saldo. El motivo y quién corrigió quedan en el historial.
 - **Acceso y políticas:** los enlaces de vuelta del login y las notificaciones rechazan destinos que escapan de MobOS. Editar las políticas exige la cuenta propietaria vinculada al perfil activo de esa empresa; el rol administrador por sí solo no alcanza. La página pública mantiene el acceso sin sesión.
