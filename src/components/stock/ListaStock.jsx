@@ -11,6 +11,8 @@ import { Aviso, Button, EmptyState, Skeleton } from '@/components/ui'
 import { resources } from '@/lib/api'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { useStockDisplay } from '@/hooks/useStockDisplay'
+import { hayPreferenciaDeOrden, ordenarPorPreferencia } from '@/lib/stockDisplay'
 import { columnaCostoVisible, ordenarItemsStock, textoMostrandoStock, unidadDeItem } from '@/lib/stockItems'
 import { cn } from '@/lib/utils'
 import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
@@ -84,8 +86,14 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
     rolVeCosto, abrirDetalleItem, requestReason, navigate, query, orden, vistaUnidades, setError,
   } = ctx
   const angosta = usePantallaAngosta('(min-width: 768px)')
-  const items = useMemo(() => ordenarItemsStock(stock.items, orden, { rolVeCosto }), [stock.items, orden, rolVeCosto])
-  const ordenLocal = orden && orden !== 'recientes' && stock.hasMore
+  const { colores, preferencia } = useStockDisplay()
+  // El orden por defecto (tipo y condición primero, #448) solo rige mientras el usuario no eligió otro orden.
+  const conPreferencia = (!orden || orden === 'recientes') && hayPreferenciaDeOrden(preferencia)
+  const items = useMemo(() => {
+    const ordenados = ordenarItemsStock(stock.items, orden, { rolVeCosto })
+    return conPreferencia ? ordenarPorPreferencia(ordenados, preferencia) : ordenados
+  }, [stock.items, orden, rolVeCosto, conPreferencia, preferencia])
+  const ordenLocal = (orden && orden !== 'recientes' && stock.hasMore) || (conPreferencia && stock.hasMore)
   const verCosto = columnaCostoVisible({ rolVeCosto, items })
   const columnas = columnasStock({ verCosto, vista })
   const abrir = (item) => {
@@ -93,6 +101,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
     else abrirDetalleItem(item)
   }
   const propsFila = (item) => ({
+    colores,
     item,
     vista,
     verCosto,
@@ -138,6 +147,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
         </div>
       ) : enPlanilla ? (
         <PlanillaUnidades
+          colores={colores}
           items={items}
           angosta={angosta}
           verCosto={verCosto}

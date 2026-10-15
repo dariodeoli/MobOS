@@ -106,6 +106,17 @@
   white-space: nowrap;
 }
 
+/* Densidad (#448): una línea por pedido en escritorio. Cliente y artículos van
+   en la misma fila, el canal y la entrega juntos, el ojo de 32 px → ~44 px. */
+.ventas-f3 .ventas-f3-order-grid.ventas-f3-order-row { padding-top: 6px; padding-bottom: 6px; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-order-identity { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-order-identity .ventas-f3-name { flex: 0 1 auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-order-identity .ventas-f3-description { flex: 1 1 0; margin-top: 0; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-delivery { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-delivery > span { display: inline; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-delivery > span + span::before { content: ' · '; }
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-quick { height: 32px; width: 32px; }
+
 .ventas-f3 .ventas-f3-money {
   white-space: nowrap;
   font-size: 14px;

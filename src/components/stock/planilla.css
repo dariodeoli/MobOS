@@ -52,7 +52,7 @@
   background: rgb(var(--pl-bg));
   border: 1px solid rgb(var(--pl-bd));
   border-radius: 6px;
-  color: rgb(var(--c-fore));
+  color: rgb(var(--pl-fg, var(--c-fore)));
   font-size: 12px;
   min-height: 44px;
   padding: 0 8px;
@@ -67,7 +67,7 @@
   --pl-bd: var(--cond-used-bd);
 }
 /* Variante por ubicación: el color propio de la depósito tiñe el fondo de su familia. */
-.pl-fila[data-tono] {
+.pl-fila[data-tono]:not([data-propio]) {
   background: color-mix(in srgb, rgb(var(--pl-bg)) 88%, var(--pl-tono) 12%);
 }
 .pl-fila:hover {
@@ -77,7 +77,7 @@
   box-shadow: inset 3px 0 0 rgb(var(--c-fono-text));
 }
 .pl-sec {
-  color: rgb(var(--cond-fg-2));
+  color: rgb(var(--pl-fg2, var(--cond-fg-2)));
 }
 .pl-fila .stock-f4-menu > button {
   background: rgb(var(--c-ink));
@@ -151,4 +151,23 @@
   padding-top: 6px;
   padding-bottom: 6px;
   min-height: 52px;
+}
+
+/* Tarjeta de celular (#448): mismo color de condición que la fila, sin su alto fijo. */
+.cond-color {
+  --pl-bg: var(--cond-new-bg);
+  --pl-bd: var(--cond-new-bd);
+  background: rgb(var(--pl-bg));
+  border: 1px solid rgb(var(--pl-bd));
+  color: rgb(var(--pl-fg, var(--c-fore)));
+}
+.cond-color[data-condicion='used'] {
+  --pl-bg: var(--cond-used-bg);
+  --pl-bd: var(--cond-used-bd);
+}
+.cond-color[data-tono]:not([data-propio]) {
+  background: color-mix(in srgb, rgb(var(--pl-bg)) 88%, var(--pl-tono) 12%);
+}
+.cond-color[data-sel='true'] {
+  box-shadow: inset 3px 0 0 rgb(var(--c-fono-text));
 }

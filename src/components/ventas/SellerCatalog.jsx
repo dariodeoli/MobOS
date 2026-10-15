@@ -29,6 +29,10 @@ import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { useToast } from '@/components/ui'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
+import { useStockDisplay } from '@/hooks/useStockDisplay'
+import { estiloCondicion } from '@/lib/stockDisplay'
+import { familiaCondicion } from '@/lib/planilla'
+import '@/components/stock/planilla.css'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -45,21 +49,27 @@ const usd = (row) => Number(row?.priceUsd ?? 0)
 const GRID_CATALOGO = 'grid min-w-[61rem] grid-cols-[1.5rem_minmax(9rem,1.6fr)_7rem_6.5rem_8rem_6.5rem_5.5rem_7rem_4.5rem] items-center gap-x-2'
 const usdTexto = (row) => usd(row) > 0 ? montoUsd(usd(row)) : '—'
 
-function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
+// Sin condición cargada el catálogo dice «Nuevo»; el color de la fila también.
+const condicionFila = (row) => ({ condition: row.condition || 'NEW' })
+
+function FilaProducto({ row, onClick, seleccionado = false, onAlternar, colores }) {
   const stock = Number(row.stock ?? 0)
   return (
     <div
+      data-condicion={familiaCondicion(condicionFila(row))}
+      data-propio={estiloCondicion(condicionFila(row), colores) ? 'true' : undefined}
+      style={estiloCondicion(condicionFila(row), colores)}
       role="button"
       tabIndex={0}
       data-testid="producto-fila"
       onClick={onClick}
       onKeyDown={(event) => { if (event.key === 'Enter') onClick?.() }}
-      className={cn(GRID_CATALOGO, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40 hover:bg-ink-700/50')}
+      className={cn(GRID_CATALOGO, 'cond-color cursor-pointer rounded-lg px-3.5 py-1.5 transition hover:border-fono/40')}
     >
       <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
-        <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
+        <input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
       </span>
-      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}><FotoProducto src={fotoDe(row)} size={28} icono={categoriaMeta(row).icon} className="mr-1.5 align-middle" />{row.name}{textoCompatibilidad(row) && <span className="ml-1.5 text-[11px] font-normal text-mute">{textoCompatibilidad(row)}</span>}</span>
+      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}><FotoProducto src={fotoDe(row)} size={24} icono={categoriaMeta(row).icon} className="mr-1.5 align-middle" />{row.name}{textoCompatibilidad(row) && <span className="ml-1.5 text-[11px] font-normal text-mute">{textoCompatibilidad(row)}</span>}</span>
       <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{categoriaMeta(row).label}</span>
       <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
       <span className="truncate font-mono text-[11px] text-mute" title={row.sku || undefined}>{row.sku || 'Sin SKU'}</span>
@@ -98,6 +108,7 @@ export default function SellerCatalog() {
   const { esDemo, sesion, usuario } = useSesion()
   const toast = useToast()
   const [seleccionados, setSeleccionados] = useState([])
+  const { colores } = useStockDisplay()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   // #287: la vista de Productos comparte contexto con la de Unidades: `q` (la
   // búsqueda) y `producto` (llegar desde una unidad a su ficha).
@@ -290,7 +301,7 @@ export default function SellerCatalog() {
         {encabezado('precio', 'Precio', 'justify-end')}
         {encabezado('stock', 'Stock', 'justify-end')}
       </div>
-      <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />)}</div>
+      <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} colores={colores} />)}</div>
     </div>}
     {!data.loading && !data.error && vista === 'grid' && <div className={cn('grid grid-cols-1 gap-2 md:grid-cols-2 min-[1200px]:grid-cols-3', movil && 'gap-2')}>{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}

@@ -22,6 +22,7 @@ import {
   garantiaPlanilla, imeiCorto, modeloPlanilla, quienVerifico, siglaUbicacion, textoBateria, textoGrupo,
 } from '@/lib/planilla'
 import { identificadorDeItem, textoEstadoItem } from '@/lib/stockItems'
+import { estiloCondicion } from '@/lib/stockDisplay'
 import { fechaHora } from '@/utils/fecha'
 import { CostoStock } from './CeldasStock'
 import { MenuAcciones } from './MenuAcciones'
@@ -34,7 +35,11 @@ export function columnasPlanilla({ verCosto }) {
   return { '--pl-cols': completa.join(' '), '--pl-cols-compacta': compacta.join(' ') }
 }
 
-const estiloFila = (item) => {
+// Estilo de la fila: el color propio de la tienda (Stock › Depósitos, #448) o, sin él,
+// los tokens de condición con la variante del depósito.
+const estiloFila = (item, colores) => {
+  const propio = estiloCondicion(item, colores)
+  if (propio) return propio
   const color = colorUbicacion(item)
   return color ? { '--pl-tono': color } : undefined
 }
@@ -102,7 +107,7 @@ function NotaEditable({ item, puedeEditar, onGuardar }) {
   )
 }
 
-function FilaPlanilla({ item, verCosto, rolVeCosto, seleccionado, onAlternar, onAbrir, acciones, busy, onGuardarNota }) {
+function FilaPlanilla({ colores, item, verCosto, rolVeCosto, seleccionado, onAlternar, onAbrir, acciones, busy, onGuardarNota }) {
   const ahora = useMemo(() => new Date(), [])
   const modelo = modeloPlanilla(item)
   const bateria = textoBateria(item, { corto: true })
@@ -122,9 +127,10 @@ function FilaPlanilla({ item, verCosto, rolVeCosto, seleccionado, onAlternar, on
       data-condicion={familiaCondicion(item)}
       data-estado={item.status}
       data-tono={colorUbicacion(item) ? 'ubicacion' : undefined}
+      data-propio={estiloCondicion(item, colores) ? 'true' : undefined}
       data-sel={seleccionado ? 'true' : undefined}
       aria-label={`Ver detalles de ${modelo} ${imei}`.trim()}
-      style={estiloFila(item)}
+      style={estiloFila(item, colores)}
       className="pl-fila pl-grid"
       onClick={onAbrir}
       onKeyDown={(event) => {
@@ -176,7 +182,7 @@ function FilaPlanilla({ item, verCosto, rolVeCosto, seleccionado, onAlternar, on
   )
 }
 
-function FilaMovil({ item, onAbrir }) {
+function FilaMovil({ item, onAbrir, colores }) {
   const ahora = useMemo(() => new Date(), [])
   const modelo = modeloPlanilla(item)
   const estado = estadoPlanilla(item, ahora)
@@ -191,8 +197,9 @@ function FilaMovil({ item, onAbrir }) {
       data-condicion={familiaCondicion(item)}
       data-estado={item.status}
       data-tono={colorUbicacion(item) ? 'ubicacion' : undefined}
+      data-propio={estiloCondicion(item, colores) ? 'true' : undefined}
       aria-label={`Ver detalles de ${modelo} ${imei}`.trim()}
-      style={estiloFila(item)}
+      style={estiloFila(item, colores)}
       className="pl-fila pl-movil"
       onClick={onAbrir}
       onKeyDown={(event) => {
@@ -256,7 +263,7 @@ function EncabezadoGrupo({ grupo, abierto, onAlternar, idLista }) {
  *   onAlternar: (id: string) => void, onMarcarTodos: () => void, onAbrir: (item: object) => void,
  *   accionesDe: (item: object) => object[], busy: boolean, onGuardarNota: (item: object, texto: string) => Promise<boolean> }} props
  */
-export default function PlanillaUnidades({ items, angosta, verCosto, rolVeCosto, seleccionados, onAlternar, onMarcarTodos, onAbrir, accionesDe, busy, onGuardarNota }) {
+export default function PlanillaUnidades({ colores, items, angosta, verCosto, rolVeCosto, seleccionados, onAlternar, onMarcarTodos, onAbrir, accionesDe, busy, onGuardarNota }) {
   const grupos = useMemo(() => agruparPorModelo(items), [items])
   const [plegados, setPlegados] = useState(() => new Set())
   const alternarGrupo = (clave) => setPlegados((actual) => { const siguiente = new Set(actual); if (siguiente.has(clave)) siguiente.delete(clave); else siguiente.add(clave); return siguiente })
@@ -273,10 +280,11 @@ export default function PlanillaUnidades({ items, angosta, verCosto, rolVeCosto,
             {abierto ? (
               <div id={idLista} className="space-y-1">
                 {grupo.items.map((item) => (angosta
-                  ? <FilaMovil key={item.id} item={item} onAbrir={() => onAbrir(item)} />
+                  ? <FilaMovil key={item.id} item={item} colores={colores} onAbrir={() => onAbrir(item)} />
                   : (
                     <FilaPlanilla
                       key={item.id}
+                      colores={colores}
                       item={item}
                       verCosto={verCosto}
                       rolVeCosto={rolVeCosto}

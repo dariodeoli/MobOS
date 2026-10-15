@@ -10,6 +10,8 @@ import Icon from '@/components/shared/Icon'
 import { Badge, Button, Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
+import { estiloCondicion } from '@/lib/stockDisplay'
+import { colorUbicacion, familiaCondicion } from '@/lib/planilla'
 import { BateriaStock, ConsignadoStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
 import { UNIDADES_GRID, accionesDeUnidad, costoVisible, fechaReserva, fechaVerificacionCorta, locationTone, rowTone, verifiedLabel } from './stockHelpers'
 import { MenuAcciones } from './MenuAcciones'
@@ -385,8 +387,8 @@ export function columnasStock({ verCosto, vista }) {
   const extra = vista === 'vendidos' ? ['8.5rem'] : vista === 'eliminados' ? ['minmax(8rem,1fr)'] : []
   const acciones = vista === 'eliminados' ? '11.5rem' : '2.75rem'
   // Anchos mínimos medidos para que la grilla compacta entre en 768 px (tablet) sin recortar Acciones.
-  const base = ['2.75rem', 'minmax(6rem,1.7fr)', 'minmax(7.25rem,1fr)', '4.5rem']
-  const completa = [...base, ...(verCosto ? ['minmax(5.5rem,0.9fr)', '7.75rem'] : []), '8.25rem', ...extra, acciones]
+  const base = ['2.75rem', 'minmax(8rem,2.4fr)', '8.25rem', '4.25rem']
+  const completa = [...base, ...(verCosto ? ['minmax(5.5rem,1fr)', '7.75rem'] : []), '8.25rem', ...extra, acciones]
   const compacta = [...base, ...(verCosto ? ['6.5rem'] : []), '8.25rem', ...extra, acciones]
   return { completa: completa.join(' '), compacta: compacta.join(' ') }
 }
@@ -395,7 +397,7 @@ export function estiloColumnas(columnas) {
   return { '--stock-cols': columnas.completa, '--stock-cols-compacta': columnas.compacta }
 }
 
-export function FilaStock({ item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
+export function FilaStock({ colores, item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
   const { nombre, variante } = modeloDeItem(item)
   const identificador = identificadorDeItem(item)
   const ubicacion = [item.branchName, item.locationName].filter(Boolean).join(' · ')
@@ -414,13 +416,14 @@ export function FilaStock({ item, vista = 'unidades', verCosto = false, seleccio
           onAbrir?.()
         }
       }}
-      className={cn(
-        'stock-lista-grid stock-lista-fila cursor-pointer rounded-lg border px-2 py-1.5 transition hover:border-fono/40',
-        seleccionado ? 'border-fono/50 bg-fono/5' : 'border-ink-600',
-      )}
+      data-condicion={familiaCondicion(item)}
+      data-tono={colorUbicacion(item) ? 'ubicacion' : undefined}
+      data-propio={estiloCondicion(item, colores) ? 'true' : undefined}
+      style={estiloCondicion(item, colores) || (colorUbicacion(item) ? { '--pl-tono': colorUbicacion(item) } : undefined)}
+      className={cn('stock-lista-grid stock-lista-fila pl-fila cursor-pointer', seleccionado && 'stock-lista-fila-sel')}
     >
       <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
-        <label className="flex h-11 w-11 items-center justify-center">
+        <label className="flex h-11 w-11 items-center justify-center lg:h-7 lg:w-7">
           <input
             type="checkbox"
             className="h-4 min-h-0 w-4 accent-fono"
@@ -430,25 +433,22 @@ export function FilaStock({ item, vista = 'unidades', verCosto = false, seleccio
           />
         </label>
       </span>
-      <span data-testid="unidad-modelo" className="min-w-0">
-        <b className="block min-w-0 text-[13px] leading-tight" title={`${nombre}${variante ? ` · ${variante}` : ''}`}>
+      {/* Una sola línea (#448): modelo y variante, y el depósito atenuado a su lado. */}
+      <span data-testid="unidad-modelo" className="flex min-w-0 items-baseline gap-2">
+        <b className="min-w-0 truncate text-[13px] leading-tight" title={`${nombre}${variante ? ` · ${variante}` : ''}`}>
           {nombre}
-          {variante ? <span className="font-normal text-mute"> · {variante}</span> : null}
+          {variante ? <span className="pl-sec font-normal"> · {variante}</span> : null}
         </b>
-        {ubicacion || item.consignorName ? (
-          <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-mute">
-            {ubicacion ? <span className="truncate" title={ubicacion}>{ubicacion}</span> : null}
-            <ConsignadoStock item={item} />
-          </span>
-        ) : null}
-        {verCosto && item.supplierName ? <span className="stock-lista-prov-chico truncate text-[11px] text-mute" title={`Proveedor: ${item.supplierName}`}>Proveedor: {item.supplierName}</span> : null}
+        {ubicacion ? <span className="pl-sec min-w-0 shrink-[3] truncate text-[11px]" title={ubicacion}>{ubicacion}</span> : null}
+        <ConsignadoStock item={item} />
+        {verCosto && item.supplierName ? <span className="stock-lista-prov-chico pl-sec truncate text-[11px]" title={`Proveedor: ${item.supplierName}`}>{item.supplierName}</span> : null}
       </span>
-      <span data-testid="unidad-imei" className={cn('min-w-0 text-[11px] leading-tight tabular-nums text-mute [overflow-wrap:anywhere]', item.kind === 'unit' && 'font-mono')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
+      <span data-testid="unidad-imei" className={cn('pl-sec min-w-0 truncate text-[11px] leading-tight tabular-nums', item.kind === 'unit' && 'font-mono')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
         {identificador || '—'}
       </span>
       <span className="flex items-center"><BateriaStock item={item} /></span>
       {verCosto ? (
-        <span className="stock-lista-prov min-w-0 text-xs text-mute [overflow-wrap:anywhere]" title={item.supplierName || 'Sin proveedor'}>{item.supplierName || '—'}</span>
+        <span className="stock-lista-prov pl-sec min-w-0 truncate text-xs" title={item.supplierName || 'Sin proveedor'}>{item.supplierName || '—'}</span>
       ) : null}
       {verCosto ? <span className="flex items-center justify-end text-right"><CostoStock item={item} /></span> : null}
       <span className="flex items-center pl-1"><EstadoStock item={item} /></span>
