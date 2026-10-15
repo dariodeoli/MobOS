@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { Buffer } from 'node:buffer'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
