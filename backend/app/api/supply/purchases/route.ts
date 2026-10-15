@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { coberturaDeCompra, codigoCompra, compararModelo, costoPorUnidad, cuadrarSeriales, normalizarCierreDeCostos, normalizarCompra, normalizarLineasCompra, resumenPreparacion } from '../../../../lib/supply'
+import { coberturaDeCompra, codigoCompra, compararModelo, costoPorUnidad, cuadrarSeriales, normalizarCierreDeCostos, normalizarCompra, normalizarLineasCompra, resumenPreparacion, estadoSerialCompra, validarQuitarSerial } from '../../../../lib/supply'
 import { numero, numeroOpcional } from '../../../../lib/montos'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
@@ -156,6 +156,17 @@ export async function GET(request: Request) {
       },
     },
   })
+  // #450 · estado de cada IMEI (pendiente / recibido / verificado) para el detalle de la compra.
+  const todosLosSeriales = [...new Set(compras.flatMap((compra) => compra.lines.flatMap((linea) => linea.serials.map((fila) => fila.serial))))]
+  const [recibidosEnLote, enInventario, consultasOk] = todosLosSeriales.length
+    ? await Promise.all([
+      prisma.supplyShipmentItem.findMany({ where: { tenantId: tenant, serial: { in: todosLosSeriales }, status: 'RECIBIDO' }, select: { serial: true } }),
+      prisma.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: todosLosSeriales } }, select: { serial: true } }),
+      prisma.imeiCheckQuery.findMany({ where: { tenantId: tenant, imei: { in: todosLosSeriales }, status: 'ok' }, select: { imei: true } }),
+    ])
+    : [[], [], []]
+  const recibidosSet = new Set<string>([...recibidosEnLote.map((fila) => String(fila.serial)), ...enInventario.map((fila) => String(fila.serial))])
+  const verificadosSet = new Set<string>(consultasOk.map((fila) => fila.imei))
   const conPreparacion = compras.map((compra) => ({
     ...compra,
     originalCost: compra.originalCost === null ? null : Number(compra.originalCost),
@@ -163,6 +174,10 @@ export async function GET(request: Request) {
     unidades: compra.lines.reduce((total, linea) => total + linea.quantity, 0),
     lines: compra.lines.map((linea) => ({
       ...linea,
+      serials: linea.serials.map((fila) => ({
+        serial: fila.serial,
+        estado: estadoSerialCompra({ recibido: compra.status === 'RECIBIDA' || recibidosSet.has(fila.serial), verificado: verificadosSet.has(fila.serial) }),
+      })),
       originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
       faltan: Math.max(0, linea.quantity - linea.serials.length),
       libreQuantity: linea.needId ? Math.max(0, linea.quantity - (linea.coveredQuantity ?? linea.quantity)) : linea.quantity,
@@ -620,7 +635,7 @@ export async function PATCH(request: Request) {
       return error('Línea no encontrada.', 404)
     }
 
-    const seriales = cuadrarSeriales({ seriales: escaneo ? [body?.serial] : body?.serials, cantidad: linea.quantity, yaEnLinea: linea.serials.map((fila) => fila.serial) })
+    const seriales = cuadrarSeriales({ seriales: escaneo ? [body?.serial] : body?.serials, cantidad: linea.quantity, yaEnLinea: linea.serials.map((fila) => fila.serial), sinLuhn: escaneo && body?.forzarLuhn === true })
     if (!seriales.ok) return error(seriales.error)
     const duplicado = await prisma.supplyPurchaseSerial.findFirst({ where: { tenantId: tenant, serial: { in: seriales.nuevos } }, select: { serial: true } })
     if (duplicado) return error(`El IMEI ${duplicado.serial} ya está cargado en otra compra.`, 409)
@@ -639,11 +654,45 @@ export async function PATCH(request: Request) {
 
     await prisma.$transaction(async (tx) => {
       await tx.supplyPurchaseSerial.createMany({ data: seriales.nuevos.map((serial) => ({ tenantId: tenant, lineId: linea!.id, serial })) })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_SERIALS_ADDED', entity: 'SupplyPurchase', entityId: compra.id, metadata: { code: compra.code, lineId: linea!.id, seriales: seriales.nuevos.length, via: escaneo ? 'scan' : 'bulk' } } })
+      // #450: Recepción cuenta los IMEI por completar sobre las unidades del lote; lo que
+      // se carga en la compra se asigna a esas unidades pendientes para que ambas
+      // pantallas cuenten desde la misma fuente.
+      const pendientesLote = await tx.supplyShipmentItem.findMany({
+        where: { tenantId: tenant, lineId: linea!.id, serial: null, shipment: { status: { notIn: ['CANCELADO', 'RECIBIDO'] } } },
+        orderBy: { createdAt: 'asc' },
+        take: seriales.nuevos.length,
+        select: { id: true },
+      })
+      for (const [indice, item] of pendientesLote.entries()) {
+        await tx.supplyShipmentItem.update({ where: { id: item.id }, data: { serial: seriales.nuevos[indice] } })
+      }
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_SERIALS_ADDED', entity: 'SupplyPurchase', entityId: compra.id, metadata: { code: compra.code, lineId: linea!.id, seriales: seriales.nuevos.length, via: escaneo ? 'scan' : 'bulk', ...(escaneo && body?.forzarLuhn === true ? { luhnForzado: true } : {}) } } })
     })
     const detalle = await compraConDetalle(compra.id, tenant)
     return json(escaneo ? { ...detalle, linea: linea.id, agregados: seriales.nuevos.length, aviso } : detalle)
   }
 
-  return error('Acción inválida: usá cancel, addLines, serials o scan.')
+  // #450: quitar un IMEI cargado por error (compra abierta, IMEI sin lote ni stock).
+  if (body?.action === 'removeSerial') {
+    const lineId = typeof body?.lineId === 'string' ? body.lineId.trim() : ''
+    const serial = String(body?.serial ?? '').trim().toUpperCase()
+    if (!lineId || !serial) return error('Indicá la línea y el IMEI a quitar.')
+    const fila = await prisma.supplyPurchaseSerial.findFirst({ where: { tenantId: tenant, lineId, serial, line: { purchaseId: compra.id } }, select: { id: true } })
+    if (!fila) return error('Ese IMEI no está cargado en la compra.', 404)
+    const [enLote, enStock] = await Promise.all([
+      // Un IMEI que ya se recibió en un lote no se quita; si solo está asignado a una unidad pendiente, se libera.
+      prisma.supplyShipmentItem.findFirst({ where: { tenantId: tenant, serial, status: 'RECIBIDO' }, select: { id: true } }),
+      prisma.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } }),
+    ])
+    const permitido = validarQuitarSerial({ estadoCompra: compra.status, enLote: Boolean(enLote), enStock: Boolean(enStock) })
+    if (!permitido.ok) return error(permitido.error, 409)
+    await prisma.$transaction(async (tx) => {
+      await tx.supplyShipmentItem.updateMany({ where: { tenantId: tenant, serial }, data: { serial: null } })
+      await tx.supplyPurchaseSerial.delete({ where: { id: fila.id } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_SERIAL_REMOVED', entity: 'SupplyPurchase', entityId: compra.id, metadata: { code: compra.code, lineId, serial } } })
+    })
+    return json(await compraConDetalle(compra.id, tenant))
+  }
+
+  return error('Acción inválida: usá cancel, addLines, serials, scan o removeSerial.')
 }
