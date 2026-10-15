@@ -325,3 +325,28 @@ test('pagos: sin «Equivalente» en cuentas en guaraníes y «Paga al recibir» 
   await expect(cobro.getByRole('button', { name: '+ Agregar pago' })).toBeHidden()
   await expect(cobro.locator('button[type="submit"]').first()).toContainText('paga al recibir')
 })
+
+// #404: la miniatura (40 px) no hace crecer la tarjeta del catálogo: ninguna con
+// foto supera en más de 8 px la más alta de las tarjetas actuales (sin foto).
+for (const ancho of [375, 1440]) {
+  test(`miniaturas de producto: la tarjeta no crece más de 8 px (${ancho}px)`, async ({ page }) => {
+    await mkdir(out, { recursive: true })
+    await enterPos(page, ancho, 900)
+    const conFoto = page.locator('.pos-product-card:has([data-testid="foto-producto"])')
+    await expect.poll(() => conFoto.count()).toBeGreaterThan(0)
+    const medidas = await page.locator('.pos-product-card').evaluateAll(tarjetas => tarjetas.map(tarjeta => {
+      const foto = tarjeta.querySelector('[data-testid="foto-producto"]')
+      return { foto: Boolean(foto), alto: tarjeta.getBoundingClientRect().height, lado: foto ? Math.round(foto.getBoundingClientRect().width) : 0 }
+    }))
+    const actuales = medidas.filter(m => !m.foto).map(m => m.alto)
+    expect(actuales.length).toBeGreaterThan(0)
+    const tope = Math.max(...actuales) + 8
+    for (const m of medidas.filter(item => item.foto)) {
+      expect(m.lado).toBeGreaterThanOrEqual(40)
+      expect(m.lado).toBeLessThanOrEqual(48)
+      expect(m.alto, `con foto ${m.alto}, tope ${tope}`).toBeLessThanOrEqual(tope)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho)
+    await page.screenshot({ path: `${out}/${ancho}-pos-miniaturas.png` })
+  })
+}

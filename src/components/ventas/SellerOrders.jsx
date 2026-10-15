@@ -55,6 +55,10 @@ export const orderFields = (row) => {
     fulfillmentStatus: row.fulfillmentStatus || row.entrega || 'PROCESSING',
     deliveryType: row.deliveryType || row.entrega || '',
     assignedTo: row.assignedTo?.name || '',
+    paymentOnDelivery: Boolean(row.paymentOnDelivery),
+    shippingCarrier: row.shippingCarrier || '',
+    shippingBranch: row.shippingBranch || '',
+    shippingAddress: row.shippingAddress || '',
     publicToken: row.publicToken,
     items, payments: pagos, seriales,
     quantity: items.reduce((sum, item) => sum + Number(item.quantity || 1), 0) || (products.length ? 1 : 0),
@@ -110,6 +114,13 @@ const vistaArticulos = (row) => {
 const pagoDe = (row) => (row.creditDays > 0 && row.pending > 0 ? 'A crédito' : row.paymentStatus || 'Pendiente')
 const estaCompletado = (row) => Boolean(row.archivedAt) || (row.paymentStatus === 'Pagado' && row.fulfillmentStatus === 'DELIVERED')
 const estaCancelado = (row) => row.status === 'CANCELLED'
+// «Paga al recibir» (#399): sigue visible mientras quede saldo por cobrar.
+export const esPagaAlRecibirPendiente = (row) => Boolean(row.paymentOnDelivery) && Number(row.pending || 0) > 0 && !estaCancelado(row)
+
+function ChipPagaAlRecibir({ row }) {
+  if (!esPagaAlRecibirPendiente(row)) return null
+  return <span data-testid="chip-paga-al-recibir" className="w-fit justify-self-start whitespace-nowrap rounded-md border border-warn/30 bg-warn/10 px-1.5 py-0.5 text-[10px] font-bold text-warn-text">Paga al recibir</span>
+}
 
 function BadgePago({ row, v2 }) {
   const estado = estaCancelado(row) ? row.paymentStatus : pagoDe(row)
@@ -154,7 +165,7 @@ const ACENTO_PAGO = (row) => {
   return 'border-l-bad/60'
 }
 
-function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
+function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false }) {
   const cancelado = estaCancelado(row)
   const articulos = vistaArticulos(row)
   const total = Number.isFinite(Number(row.total)) ? gs(row.total) : '—'
@@ -192,8 +203,19 @@ function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
       <span className="ventas-f3-delivery text-xs text-mute">
         {ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}
       </span>
-      <span className="ventas-f3-payment">
+      <span className="ventas-f3-payment flex flex-wrap items-center gap-1">
         <BadgePago row={row} v2={v2} />
+        <ChipPagaAlRecibir row={row} />
+        {esPagaAlRecibirPendiente(row) && onCobrar ? (
+          <button
+            type="button"
+            data-testid="pedido-cobrar"
+            onClick={event => { event.stopPropagation(); onCobrar() }}
+            onKeyDown={event => event.stopPropagation()}
+            aria-label={`Cobrar pedido ${codigo}`}
+            className="min-h-11 rounded-md border border-fono/40 px-2 text-[11px] font-bold text-fono-light hover:bg-fono/10 md:min-h-0 md:py-0.5"
+          >Cobrar</button>
+        ) : null}
       </span>
       <span className="ventas-f3-state">
         <BadgeEstado row={row} v2={v2} />
@@ -228,7 +250,7 @@ function FilaResumen({ etiqueta, children, tono = '' }) {
 // #313: la vista rápida del listado ya no repite el detalle completo. Muestra
 // el resumen del pedido (cliente, artículos y totales) y deriva a la página
 // exclusiva, donde viven la impresión, los cobros y la cronología.
-function VistaRapidaPedido({ row, onClose, onAbrir }) {
+function VistaRapidaPedido({ row, onClose, onAbrir, onCobrar }) {
   const articulos = vistaArticulos(row)
   const total = Number(row.total || 0)
   const pagado = Number(row.paid || 0)
@@ -238,6 +260,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
       <div className="space-y-4" data-testid="pedido-vista-rapida">
         <div className="flex flex-wrap items-center gap-2">
           <BadgePago row={row} v2 />
+          <ChipPagaAlRecibir row={row} />
           <BadgeEstado row={row} v2 />
         </div>
         <dl className="ventas-f3-summary space-y-2">
@@ -257,6 +280,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
           <FilaResumen etiqueta="Saldo" tono={pendiente > 0 ? 'text-warn' : ''}>{gs(pendiente)}</FilaResumen>
         </dl>
         <div className="flex flex-wrap justify-end border-t border-ink-600 pt-3">
+          {esPagaAlRecibirPendiente(row) && onCobrar ? <Button type="button" variant="outline" className="mr-2" onClick={onCobrar}>Cobrar</Button> : null}
           <Button type="button" onClick={onAbrir}>Ver pedido completo</Button>
         </div>
       </div>
@@ -369,7 +393,8 @@ export default function SellerOrders() {
   // tipeado.
   const respaldo = useMemo(() => (orderId ? { id: orderId } : null), [orderId])
   const detalleAbierto = seleccion || (!esDemo ? respaldo : null)
-  const abrirPedido = (row) => navigate(`/pedidos/${encodeURIComponent(row.id)}${location.search}`)
+  const abrirPedido = (row, opciones) => navigate(`/pedidos/${encodeURIComponent(row.id)}${location.search}`, opciones)
+  const cobrarPedido = (row) => abrirPedido(row, { state: { cobrar: true } })
   const cerrarPedido = () => navigate(`/pedidos${location.search}`)
 
   const ordenarPor = (key) => setOrden((current) => current.key === key ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' || key === 'total' || key === 'quantity' ? 'desc' : 'asc' })
@@ -389,6 +414,7 @@ export default function SellerOrders() {
       customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0}
       onClose={cerrarPedido}
       onChanged={data.refresh}
+      abrirCobro={Boolean(location.state?.cobrar)}
     />
   }
 
@@ -497,6 +523,7 @@ export default function SellerOrders() {
                   v2={v2}
                   angosta
                   onClick={() => abrirPedido(row)}
+                  onCobrar={() => cobrarPedido(row)}
                   onAcciones={() => setPedidoPanel(row)}
                 />
               ))}
@@ -519,6 +546,7 @@ export default function SellerOrders() {
                     row={row}
                     v2={v2}
                     onClick={() => abrirPedido(row)}
+                    onCobrar={() => cobrarPedido(row)}
                     onAcciones={() => setPedidoPanel(row)}
                   />
                 ))}
@@ -545,6 +573,11 @@ export default function SellerOrders() {
               const seleccionado = pedidoPanel
               setPedidoPanel(null)
               abrirPedido(seleccionado)
+            }}
+            onCobrar={() => {
+              const seleccionado = pedidoPanel
+              setPedidoPanel(null)
+              cobrarPedido(seleccionado)
             }}
           />
         )}

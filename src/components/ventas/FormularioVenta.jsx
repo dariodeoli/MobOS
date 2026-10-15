@@ -29,7 +29,7 @@ import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { montoEnvioEfectivo, pagaAlRecibirVigente } from '@/utils/cobroPos'
+import { datosEncomienda, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from '@/utils/cobroPos'
 import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVenta'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -66,6 +66,8 @@ import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos, { PosCustomer } from './venta/PasoProductos'
 import { usePosCatalogoServidor } from '@/hooks/usePosCatalogoServidor'
+import { categoriaAccesorioDe } from '@/lib/categoriasAccesorio'
+import { subirFotosPendientes } from '@/components/productos/GaleriaFotosProducto'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
@@ -96,6 +98,9 @@ const VACIO = vendedorId => ({
   medioPago: MEDIOS_PAGO[0],
   entrega: ENTREGA[0],
   montoDelivery: '',
+  encEmpresa: '',
+  encSucursal: '',
+  encDireccionId: '',
   observacion: '',
   specialOrder: false,
   expectedAt: '',
@@ -326,7 +331,9 @@ export default function FormularioVenta({
   const [busquedaProducto, setBusquedaProducto] = useState('')
   // #354: en cuenta real el catálogo del POS se pagina y busca en el servidor;
   // sin conexión (o en demo) sigue el catálogo completo del espejo local.
-  const catalogoServidor = usePosCatalogoServidor({ q: busquedaProducto, habilitado: !esDemo && modoDatosActual() === 'api' })
+  const [accesorio, setAccesorio] = useState('todas')
+  const fotosNuevas = useRef([])
+  const catalogoServidor = usePosCatalogoServidor({ q: busquedaProducto, accesorio: accesorio === 'todas' ? '' : accesorio, habilitado: !esDemo && modoDatosActual() === 'api' })
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
   const [unidadesDeImei, setUnidadesDeImei] = useState(0)
@@ -849,6 +856,7 @@ export default function FormularioVenta({
   }, [busquedaProducto, productos])
 
   const familiasVisibles = familias.filter(fam => {
+    if (accesorio !== 'todas' && !fam.items.some(item => categoriaAccesorioDe(item) === accesorio)) return false
     const query = busquedaProducto.trim().toLocaleLowerCase()
     if (!query) return true
     // Nombre, modelo/variante y SKU: tipear el código a mano tiene que
@@ -877,7 +885,7 @@ export default function FormularioVenta({
     setNombreProd('')
     setColoresNuevos([])
     setColorInput('')
-    setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
+    setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '', accesorio: '' })
   }
 
   // SKU legible y estable a partir del nombre; si ya existe, el backend le
@@ -900,8 +908,13 @@ export default function FormularioVenta({
           updateProducto(creado.id, { precioVenta: precioNuevo, precioCosto: costoNuevo ?? 0, condicion: nuevoDetalles.condicion, mayorista: mayoristaNuevo ?? 0 })
           return creado
         }
-        return addProductoApi({ nombre, sku: skuDe(nombre), precioVenta: precioNuevo, precioCosto: costoNuevo, category: nuevoDetalles.categoria, condition: nuevoDetalles.condicion, ...(mayoristaNuevo ? { wholesalePricePyg: mayoristaNuevo } : {}), stock: 0 })
-      }
+        const creado = await addProductoApi({ nombre, sku: skuDe(nombre), precioVenta: precioNuevo, precioCosto: costoNuevo, category: nuevoDetalles.categoria, condition: nuevoDetalles.condicion, ...(mayoristaNuevo ? { wholesalePricePyg: mayoristaNuevo } : {}), ...(nuevoDetalles.accesorio ? { accessoryCategory: nuevoDetalles.accesorio } : {}), stock: 0 })
+          // #404: las fotos preparadas en el alta suben apenas existe el producto.
+          if (fotosNuevas.current.length) {
+            try { await subirFotosPendientes(creado.id, fotosNuevas.current) } catch (cause) { console.error('[fotos-producto] alta sin fotos', cause); setErrorVenta('El producto se creó, pero no se pudieron subir las fotos. Agregalas desde su ficha.') }
+          }
+          return creado
+        }
       if (coloresNuevos.length === 0) {
         // Producto sin colores: entra directo a la venta.
         agregarProducto(await crear(base))
@@ -916,7 +929,7 @@ export default function FormularioVenta({
       setNombreProd('')
       setColoresNuevos([])
       setColorInput('')
-      setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
+      setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '', accesorio: '' })
     } catch (error) {
       setErrorVenta(error?.message || 'No se pudo crear el producto.')
     } finally {
@@ -1057,6 +1070,8 @@ export default function FormularioVenta({
             `La autorización de precio no alcanza para esta venta (excedente bajo lista ${gs(excedenteBajoLista)}, máx ${gs(Number(authPrecio.maxDiscountPyg || 0))}). Solicitá una nueva.`,
           )
       }
+      if (venderACredito && customer.blocked)
+        throw new Error(`Cliente bloqueado${customer.blockedReason ? `: ${customer.blockedReason}` : ''}. No se puede vender a crédito.`)
       if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
         throw new Error('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
@@ -1236,6 +1251,9 @@ export default function FormularioVenta({
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
             ...(f.observacion?.trim() ? { deliveryNotes: f.observacion } : {}),
             deliveryType: f.entrega,
+            // «Paga al recibir» (#399): la marca viaja solo si estaba activa al enviar.
+            ...(pagaAlRecibirVigente(pagaAlRecibir, pagos) ? { paymentOnDelivery: true } : {}),
+            ...datosEncomienda(f.entrega, f, customer.addresses),
             // Factura a otro titular: solo viaja si se completó nombre o RUC.
             ...(billingTo.name.trim() || billingTo.document.trim()
               ? {
@@ -1261,6 +1279,7 @@ export default function FormularioVenta({
           throw new Error(order?.error || 'No se recibió confirmación de la orden.')
         ventaPersistida = true
         completedOrder = order
+        if (f.entrega === 'Encomienda') recordarEmpresa(f.encEmpresa)
       } else {
         const validation = await validateDemoTradeIns(payments)
         if (validation === false || validation?.error || validation?.ok === false)
@@ -2041,6 +2060,9 @@ export default function FormularioVenta({
               creandoProd={creandoProd}
               cancelarNuevoProd={cancelarNuevoProd}
               setBusquedaProducto={setBusquedaProducto}
+              accesorio={accesorio}
+              onFotosNuevas={fotos => { fotosNuevas.current = fotos }}
+              setAccesorio={setAccesorio}
               combos={combos}
               agregarCombo={agregarCombo}
               noticeCombo={noticeCombo}

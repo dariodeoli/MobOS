@@ -142,7 +142,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!session) return error('Falta sesión.', 401)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Cliente obligatorio.')
-  const existing = await prisma.customer.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true, firstName: true, secondName: true } })
+  const existing = await prisma.customer.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true, firstName: true, secondName: true, blocked: true } })
   if (!existing) return error('Cliente no encontrado.', 404)
   try {
     const body = objectInput(await request.json())
@@ -174,6 +174,20 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       const rate = leerPorcentajeSeguro(body.insuranceRatePct)
       if (rate === 'invalido') throw new InputError('El seguro debe ser un porcentaje entre 0 y 100 (hasta 2 decimales).')
       if (rate !== undefined) data.insuranceRatePct = rate
+    }
+    // Cliente bloqueado (#399): solo administración/gerencia; el motivo es
+    // obligatorio al bloquear y el cambio queda auditado aparte.
+    let cambioBloqueo: { blocked: boolean; reason: string | null } | null = null
+    if (body.blocked !== undefined || body.blockedReason !== undefined) {
+      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden bloquear clientes.', 403)
+      if (body.blocked !== undefined && typeof body.blocked !== 'boolean') throw new InputError('blocked debe ser verdadero o falso.')
+      const blocked = body.blocked === undefined ? existing.blocked : body.blocked
+      const reason = blocked && typeof body.blockedReason === 'string' && body.blockedReason.trim() ? body.blockedReason.trim().slice(0, 300) : null
+      if (blocked && !reason) throw new InputError('Indicá el motivo del bloqueo.')
+      data.blocked = blocked
+      data.blockedReason = reason
+      data.blockedAt = blocked ? new Date() : null
+      cambioBloqueo = { blocked, reason }
     }
     if (body.document !== undefined) data.document = typeof body.document === 'string' && body.document.trim() ? body.document.trim().slice(0, 100) : null
     if (body.phone !== undefined) data.phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim().slice(0, 100) : null
@@ -211,8 +225,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
     const updated = await prisma.customer.update({ where: { id: existing.id, tenantId: session.user.tenantId }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: updated.id, metadata: { fields: Object.keys(data) } } })
+    if (cambioBloqueo && (cambioBloqueo.blocked !== existing.blocked || cambioBloqueo.blocked)) {
+      await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: cambioBloqueo.blocked ? 'CUSTOMER_BLOCKED' : 'CUSTOMER_UNBLOCKED', entity: 'Customer', entityId: updated.id, metadata: { reason: cambioBloqueo.reason, previous: existing.blocked } } })
+    }
     return json(serializeCustomer(updated))
   } catch (cause) {
-    return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el cliente.', 400)
+    return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el cliente.', cause instanceof InputError ? cause.status : 400)
   }
 }

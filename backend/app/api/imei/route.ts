@@ -130,32 +130,62 @@ export async function POST(request: Request) {
   if (body?.confirm !== true) return error('La consulta necesita confirmación explícita del costo.', 409, { requiereConfirmacion: true, costoEstimadoUsd: servicio.precioUsd })
   const requestId = typeof body?.requestId === 'string' && body.requestId.trim() ? body.requestId.trim().slice(0, 128) : null
   if (!requestId) return error('Falta requestId para evitar dobles cobros.', 400)
-  const yaExiste = await prisma.imeiCheckQuery.findUnique({ where: { requestId } })
-  if (yaExiste) return json(expectativa(yaExiste, ROLES_VER_CRUDO.includes(session.user.role)), { status: 200 })
+  const verCrudo = ROLES_VER_CRUDO.includes(session.user.role)
+  // Todo lookup por (tenantId, requestId): el requestId de otra empresa nunca se lee.
+  const propia = () => prisma.imeiCheckQuery.findFirst({ where: { tenantId: tenant, requestId } })
+  const yaExiste = await propia()
+  if (yaExiste) return json({ ...expectativa(yaExiste, verCrudo), ...(yaExiste.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
 
-  const resultado = await consultarImei({ imei: validacion.imei, servicio: clave, escenario: escenarioMock })
-  const registro = await prisma.imeiCheckQuery.create({
+  // Reserva primero: la fila nace en estado «reservado» y la unicidad de la base
+  // decide quién consulta. Solo quien reserva llama al proveedor (sin doble cobro).
+  let reserva
+  try {
+    reserva = await prisma.imeiCheckQuery.create({
+      data: {
+        tenantId: tenant,
+        branchId: session.user.branchId,
+        userId: session.user.id,
+        imei: validacion.imei,
+        imeiMasked: enmascararImei(validacion.imei),
+        provider: 'imeicheck.net',
+        serviceKey: clave,
+        serviceId: servicio.serviceId,
+        serviceName: servicio.nombre,
+        status: 'reservado',
+        costUsd: '0.00',
+        requestId,
+      },
+    })
+  } catch (causa: any) {
+    if (causa?.code !== 'P2002') throw causa
+    const existente = await propia()
+    // Si el requestId es de OTRA empresa no se devuelve nada suyo.
+    if (!existente) return error('requestId en uso', 409)
+    return json({ ...expectativa(existente, verCrudo), ...(existente.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
+  }
+
+  // El proveedor se llama fuera de cualquier transacción y una sola vez.
+  let resultado
+  try {
+    resultado = await consultarImei({ imei: validacion.imei, servicio: clave, escenario: escenarioMock })
+  } catch (causa) {
+    console.error('imei: falló la consulta al proveedor', causa)
+    // Ambiguo: pudo haberse cobrado. Queda a conciliar, nunca se reintenta sola.
+    resultado = { estado: 'conciliar' as const, etiqueta: 'A conciliar', campos: [], crudo: null, costoUsd: servicio.precioUsd, esMock: false, error: 'Error inesperado al consultar al proveedor: queda a conciliar (no se reintenta sola).' }
+  }
+  const registro = await prisma.imeiCheckQuery.update({
+    where: { id: reserva.id },
     data: {
-      tenantId: tenant,
-      branchId: session.user.branchId,
-      userId: session.user.id,
-      imei: validacion.imei,
-      imeiMasked: enmascararImei(validacion.imei),
-      provider: 'imeicheck.net',
-      serviceKey: clave,
-      serviceId: servicio.serviceId,
-      serviceName: servicio.nombre,
       status: resultado.estado,
       costUsd: String(resultado.costoUsd.toFixed(2)),
       externalId: (resultado.crudo as any)?.id ? String((resultado.crudo as any).id).slice(0, 128) : null,
       responseRaw: (resultado.crudo ?? null) as any,
       normalized: resultado.campos as any,
-      requestId,
       error: resultado.error ?? null,
       resolvedAt: resultado.estado === 'pendiente' ? null : new Date(),
     },
   })
-  return json({ ...expectativa(registro, ROLES_VER_CRUDO.includes(session.user.role)), esMock: resultado.esMock, ...modoImeicheck() }, { status: 201 })
+  return json({ ...expectativa(registro, verCrudo), esMock: resultado.esMock, ...modoImeicheck() }, { status: 201 })
 }
 
 function expectativa(fila: any, verCrudo: boolean) {

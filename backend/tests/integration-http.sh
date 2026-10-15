@@ -155,6 +155,7 @@ SQL
   RUC_PILOT_OWNER_EMAIL=dariodeoli@gmail.com RUC_API_KEY='' RUC_SUN_API_KEY='' \
   RUC_ACCOUNT_HOURLY_LIMIT=12 RUC_INSTALLATION_MONTHLY_LIMIT=90 \
   NODE_ENV=test MOBOS_APP_URL=https://app.moboss.online MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" \
+    MOBOS_STORAGE_DIR="$RUN_ROOT/storage" \
     MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" \
     MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID="it-v1" \
     MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON='{"it-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}' \
@@ -582,6 +583,8 @@ node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/stock-unificado.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 # #400 (A): código interno de unidad (trigger), ciclos/garantía, íconos y sigla.
 node "$BACKEND_ROOT/tests/unit-code.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
+echo "Consulta de IMEI: requestId por empresa y una sola llamada al proveedor (#193)..."
+node "$BACKEND_ROOT/tests/imei-request-id.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 
 echo "Sucursal efectiva: un vendedor sin sucursal ve catálogo, unidades y vende (#286)..."
 node "$BACKEND_ROOT/tests/sucursal-efectiva.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
@@ -634,6 +637,8 @@ echo "Conciliación por cuenta/procesadora: lote recibido vs esperado, diferenci
 node "$BACKEND_ROOT/tests/reconciliation-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/attachments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
+echo "Fotos de producto: alta por magic bytes, orden, principal, baja lógica y aislamiento por empresa (#404)..."
+node "$BACKEND_ROOT/tests/product-images.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$ADMIN_TOKEN_C" "$RUN_ROOT/storage"
 node "$BACKEND_ROOT/tests/history-timelines.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 echo "Seguimiento del informe compartido: envío, visto/no visto y apertura desde el portal..."
 node "$BACKEND_ROOT/tests/device-report-tracking.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
@@ -818,6 +823,12 @@ node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" 
 # Después de las suites de repuestos (cuentan los suyos) y antes del logout de las sesiones.
 echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
 node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
+
+echo "Llegada de mercadería: pegado, conciliación y confirmación por destino (#408)..."
+node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
+
+echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
+node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"
