@@ -407,3 +407,17 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-logo { height: 1.5rem; }
 html.app-ios [data-testid='pantalla-bloqueada'] #lock-pin,
 html.app-ios [data-testid='pantalla-bloqueada'] [class*='mt-5'] { margin-top: 0.75rem; }
 html.app-ios [data-testid='pantalla-bloqueada'] p.rounded-xl { margin-top: 0.75rem; }
+
+/* ── PIN segmentado (celdas iguales, un punto por dígito) ─────────────── */
+@keyframes pin-seg-pop { 0% { transform: scale(.55); opacity: 0; } 65% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes pin-seg-sacude { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
+.pin-seg-celda { border-color: rgb(var(--c-ink-500)); transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.pin-seg-celda[data-lleno="true"] { border-color: rgb(var(--c-fono-dark) / .6); background-color: rgb(var(--c-fono) / .08); }
+.pin-seg-celda[data-activa="true"] { border-color: rgb(var(--c-fono-dark)); box-shadow: 0 0 0 3px rgb(var(--c-fono-dark) / .2); }
+.pin-seg-punto { background: rgb(var(--c-fore)); animation: pin-seg-pop .22s cubic-bezier(.2,.8,.3,1) both; }
+.pin-seg[data-invalido="true"] .pin-seg-celda { border-color: rgb(var(--c-bad)); background-color: rgb(var(--c-bad) / .06); }
+.pin-seg[data-invalido="true"] .pin-seg-punto { background: rgb(var(--c-bad)); }
+.pin-seg[data-exito="true"] .pin-seg-celda { border-color: rgb(var(--c-ok)); background-color: rgb(var(--c-ok) / .08); color: rgb(var(--c-ok)); }
+.pin-seg-check { animation: pin-seg-pop .3s cubic-bezier(.2,.8,.3,1) both; }
+.pin-seg-sacude { animation: pin-seg-sacude .3s ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) { .pin-seg-punto, .pin-seg-check, .pin-seg-sacude { animation: none !important; } }
