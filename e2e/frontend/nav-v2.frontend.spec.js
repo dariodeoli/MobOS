@@ -926,7 +926,7 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('1 producto')
   const client = page.getByTestId('pos-bloque-cliente')
   await client.getByPlaceholder('Buscar cliente o escribir un nombre nuevo').fill('María González')
-  await expect(client.getByRole('button', { name: 'Editar datos', exact: true })).toBeVisible()
+  await expect(client.getByRole('button', { name: 'Editar datos del cliente', exact: true })).toBeVisible()
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('María González')
   const payment = page.getByTestId('pos-bloque-pagos')
   await payment.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
@@ -2026,7 +2026,12 @@ for (const width of [320, 390, 1440]) {
       await setF3Theme(page, width, dark)
       await page.goto('/servicio')
       const root = page.locator('.taller-f3')
-      await expect(root.getByTestId('servicio-fila')).toHaveCount(4)
+      const esperadas = await page.evaluate(async () => {
+        const { getDemoServicio } = await import('/src/lib/demoServicio.js')
+        return getDemoServicio().rows.filter(row => !['ENTREGADO', 'CANCELADO'].includes(row.status)).length
+      })
+      expect(esperadas).toBeGreaterThan(0)
+      await expect(root.getByTestId('servicio-fila')).toHaveCount(esperadas)
       await expect(root).toContainText('Distribuidora del Este S.A.')
       await expect(root).toContainText('MacBook Air M2')
       // #396: las etapas son chips filtrables con su conteo, no un select.
@@ -2320,6 +2325,9 @@ async function stockCellMetrics(page) {
       cells: [...row.children].map((cell) => ({
         width: cell.clientWidth,
         scroll: cell.scrollWidth,
+        elipsisPermitida: getComputedStyle(cell).textOverflow === 'ellipsis' &&
+          Boolean(cell.title) && (cell.matches('.stock-lista-prov') ||
+            (row.dataset.kind === 'product' && cell.dataset.testid === 'unidad-imei' && cell.title === `SKU ${cell.textContent.trim()}`)),
       })),
       identity: [
         ...row.querySelectorAll(
@@ -2335,6 +2343,8 @@ async function stockCellMetrics(page) {
           text: cell.textContent.trim(),
           width: cell.clientWidth,
           scroll: cell.scrollWidth,
+          elipsisPermitida: row.dataset.kind === 'product' && cell.dataset.testid === 'unidad-imei' &&
+            cell.title === `SKU ${cell.textContent.trim()}` && getComputedStyle(cell).textOverflow === 'ellipsis',
           lines: new Set(
             [...range.getClientRects()]
               .filter((rect) => rect.width > 0)
@@ -2363,9 +2373,11 @@ for (const width of stockWidths) {
       const metrics = await stockCellMetrics(page)
       for (const row of metrics) {
         expect(row.scroll).toBeLessThanOrEqual(row.width)
-        for (const cell of row.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+        for (const cell of row.cells) {
+          if (cell.scroll > cell.width + 1) expect(cell.elipsisPermitida).toBe(true)
+        }
         for (const cell of row.identity) {
-          expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+          if (cell.scroll > cell.width + 1) expect(cell.elipsisPermitida).toBe(true)
           if (width >= 1440) expect(cell.lines, cell.text).toBe(1)
         }
       }
@@ -3678,7 +3690,7 @@ test('U3 selección: N filas elegidas ofrecen imprimir etiquetas y vista previa'
   await expect(page.getByTestId('etiquetas-vista-previa')).toBeVisible()
   // En el demo la impresora no está disponible: el aviso lo dice sin inventar un éxito.
   await page.getByTestId('imprimir-etiquetas').click()
-  await expect(page.getByText(/demostración|demo/i).first()).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'la impresión no está disponible en el demo' })).toBeVisible()
   await page.keyboard.press('Escape')
 })
 

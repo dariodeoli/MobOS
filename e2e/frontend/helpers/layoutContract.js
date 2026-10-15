@@ -128,6 +128,13 @@ export async function measureLayout(page) {
       const cutAmounts = [...document.querySelectorAll('.tabular-nums')]
         .filter(visible)
         .filter(el => el.scrollWidth > el.clientWidth + 1)
+        .filter(el => {
+          // U3 comparte tipografía tabular entre dinero e identificadores.
+          // Solo el SKU de un producto admite elipsis con su tooltip completo.
+          const sku = el.dataset.testid === 'unidad-imei' && el.closest('[data-kind="product"]')
+          const completo = el.getAttribute('title') === `SKU ${el.textContent.trim()}`
+          return !(sku && completo && getComputedStyle(el).textOverflow === 'ellipsis')
+        })
         .map(el => describe(el))
 
       // 7. Contrast of visible text.
