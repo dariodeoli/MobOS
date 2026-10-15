@@ -45,7 +45,7 @@ test('la lista agrupa por condición y modelo, deja afuera lo inactivo o sin pre
   assert.equal(datos.bloques[1].modelos.length, 1, 'sin el sin precio ni el inactivo')
   assert.equal(datos.filas, 4)
   assert.match(datos.vigencia, /15\/10\/2026/)
-  assert.equal(datos.tienda.whatsapp, 'https://wa.me/595983123456')
+  assert.equal(datos.tienda.whatsapp, 'https://wa.me/595983123456?text=')
   assert.equal(datos.tienda.telefono, '+595 983 123 456')
 })
 
@@ -58,9 +58,9 @@ test('sin «mostrar stock» no hay avisos y con cotización suma el precio en d�
 })
 
 test('teléfono y WhatsApp sacan el 0 de marcado local y no duplican el código de país', () => {
-  assert.equal(enlaceWhatsApp('0983 123 456'), 'https://wa.me/595983123456')
-  assert.equal(enlaceWhatsApp('+595 983 123 456'), 'https://wa.me/595983123456')
-  assert.equal(enlaceWhatsApp('+595 0983 123 456'), 'https://wa.me/595983123456')
+  assert.equal(enlaceWhatsApp('0983 123 456'), 'https://wa.me/595983123456?text=')
+  assert.equal(enlaceWhatsApp('+595 983 123 456'), 'https://wa.me/595983123456?text=')
+  assert.equal(enlaceWhatsApp('+595 0983 123 456'), 'https://wa.me/595983123456?text=')
   assert.equal(enlaceWhatsApp(''), '')
   assert.equal(telefonoLegible('+595 0983123456'), '+595 983 123 456')
   assert.equal(telefonoLegible(''), '')

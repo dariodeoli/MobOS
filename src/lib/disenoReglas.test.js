@@ -186,7 +186,10 @@ test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo 
   assert.match(pedido, /variant=\$\{varianteDeTema\(\)\}/, 'el seguimiento pide la variante del tema activo')
   assert.doesNotMatch(pedido, /logo\?variant=dark/, 'el seguimiento no fija el logo claro sobre fondo claro')
   const celulares = leer('pages/Celulares.jsx')
-  assert.match(celulares, /ThemeLogo[^>]{0,80}variante="dark"/, 'la tarjeta con degradé verde fuerza el logo claro')
+  // #448: la lista por modelo ya no lleva la marca de MobOS arriba: el papel premium usa el logo de la tienda.
+  assert.match(celulares, /buildListaPreciosHtml/, 'la lista por modelo se arma con el papel premium')
+  assert.doesNotMatch(celulares, /ThemeLogo/, 'sin la marca de MobOS en la lista')
+  assert.match(leer('components/shared/OrderReceipt.jsx'), /Hecho con \$\{escapeHtml\(APP_NAME\)\}/, 'MobOS solo como pie chiquito')
 })
 
 test('finanzas: horas en 24 h, vacíos y estados con etiquetas (#205)', () => {

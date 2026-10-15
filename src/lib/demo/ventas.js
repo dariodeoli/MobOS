@@ -104,7 +104,7 @@ const VENTAS_MANUALES = [
     clienteId: 'demo-cliente-juan', cliente: 'Juan Pereira', vendedorId: 'demo-user-vendedor',
     entrega: 'DELIVERY', fulfillment: 'DELIVERED', montoDelivery: 30000,
     items: [linea('demo-iphone-15-128-azul', 1, 4850000)],
-    pagos: [pago('demo-pago-extra-1-0', 'DINERO', '', 2000000, '10:30'), pago('demo-pago-extra-1-1', 'TARJETA', 'ueno · Tarjeta', 2880000, '11:30')],
+    pagos: [pago('demo-pago-extra-1-0', 'DINERO', '', 2000000, '10:30'), pago('demo-pago-extra-1-1', 'TARJETA', 'Ueno · Tarjeta', 2880000, '11:30')],
     observacion: 'Pedido con pagos variados',
   },
   {
@@ -152,7 +152,7 @@ const VENTAS_MANUALES = [
     clienteId: 'demo-cliente-fernando', cliente: 'Fernando Ortellado', vendedorId: 'demo-user-vendedor',
     entrega: 'DELIVERY', fulfillment: 'DELIVERED', montoDelivery: 30000,
     items: [linea('demo-iphone-15-pro-256-negro', 1, 6750000)],
-    pagos: [pago('demo-pago-extra-7-0', 'DINERO', '', 3000000, '10:30'), pago('demo-pago-extra-7-1', 'POS UENO', 'ueno · Tarjeta', 3780000, '11:30')],
+    pagos: [pago('demo-pago-extra-7-0', 'DINERO', '', 3000000, '10:30'), pago('demo-pago-extra-7-1', 'POS UENO', 'Ueno · Tarjeta', 3780000, '11:30')],
     observacion: 'Pedido con pagos variados',
   },
   {

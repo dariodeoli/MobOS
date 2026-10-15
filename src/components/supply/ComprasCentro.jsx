@@ -9,6 +9,7 @@ import AttachmentList from '@/components/shared/AttachmentList'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
+import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
 import SerialesCompra from '@/components/supply/SerialesCompra'
 import ProductCombobox from '@/components/shared/ProductCombobox'
@@ -157,7 +158,7 @@ export default function ComprasCentro() {
               <Card key={compra.id} className="px-3 py-1.5" data-testid="compra-centro-fila">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <div className="min-w-[14rem] flex-1">
-                    <p className="truncate text-sm font-semibold" title={`${compra.code} · ${compra.supplierName || compra.supplier?.name || 'Sin proveedor'}`}>
+                    <p className={CELDA_IDENTIDAD} title={`${compra.code} · ${compra.supplierName || compra.supplier?.name || 'Sin proveedor'}`}>
                       {compra.code}
                       <span className="font-normal text-mute"> · {compra.supplierName || compra.supplier?.name || 'Sin proveedor'}</span>
                       <span className="text-xs font-normal text-mute">
