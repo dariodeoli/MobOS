@@ -9,6 +9,7 @@ export const ROLES_AUDITORIA = ['ADMIN', 'GERENTE'] as const
 export const MAX_AUDIT_LIMIT = 200
 
 export const ACCIONES_AUDITORIA: Record<string, string> = {
+  PAYMENT_ACCOUNT_DEFAULT_RETIRED: 'Cuenta de ejemplo retirada',
   STOCK_VERIFICATION_POLICY_UPDATED: 'Permisos de verificación de stock actualizados',
   DELIVERY_TARIFF_CREATED: 'Tarifa del repartidor guardada',
   DELIVERY_TARIFF_DEACTIVATED: 'Tarifa del repartidor desactivada',

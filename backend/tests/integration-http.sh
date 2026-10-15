@@ -82,6 +82,9 @@ export DATABASE_URL
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma)
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma generate --schema prisma/schema.prisma >/dev/null)
 
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-account-retirement.mjs" "$DATABASE_URL"
+(cd "$REPO_ROOT" && node scripts/check-db-schema.mjs)
+
 # Base migrada y vacía: el chequeo de consistencia no debe romper sin datos.
 (cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
   echo "El chequeo de consistencia falló sobre una base vacía." >&2
