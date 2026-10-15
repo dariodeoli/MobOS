@@ -44,6 +44,7 @@ import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
 import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
+import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
 import {
   Aviso,
   Button,
@@ -1437,43 +1438,32 @@ export default function FormularioVenta({
           : null
         const plazoDemo = venderACredito ? Number(creditoDias) || Number(clienteDemo.creditDays) || 0 : 0
         const numeroPedidoDemo = tomarNumeroPedidoDemo()
-        const ventas = []
-        for (const [i, it] of lineas.entries()) {
-          const venta = await addVenta({
-            compraId,
-            orderNumber: numeroPedidoDemo,
-            vendedorId: sesion.vendedorId,
-            cliente: String(f.cliente ?? ''),
-            clienteId: clienteDemo.id,
-            clienteTelefono: clienteDemo.phone,
-            clienteDireccion: clienteDemo.address,
-            vendedorNombre: sesion.nombre,
-            productoId: it.productoId,
-            // IMEI/serial elegido: el comprobante y la ficha del pedido lo muestran por línea (#461).
-            ...(it.serials?.length ? { seriales: it.serials } : {}),
-            couponCode: it.couponCode || null,
-            estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
-            fecha: fechaVenta,
-            precio: it.precio,
-            listPricePyg: precioListaDe(it.productoId),
-            medioPago: f.medioPago,
-            entrega: i === 0 ? f.entrega : 'Retiro en tienda',
-            montoDelivery: it.montoDelivery,
-            observacion: notasEntrega,
-            descuento: it.descuento,
-            subtotal,
-            total: it.total,
-            pagos: it.pagos,
-            totalPagado,
-            totalPendiente: pendiente,
-            ...(venderACredito ? { creditDays: plazoDemo } : {}),
-            ...(creditoDemo ? { creditAuthorization: creditoDemo } : {}),
-          })
-          if (!venta?.id || venta.error || venta.ok === false)
-            throw new Error(venta?.error || 'No se recibió confirmación de la venta demo.')
-          ventaPersistida = true
-          ventas.push(venta)
-        }
+        // Un pedido persistido con todas sus líneas: el detalle y los cobros
+        // vuelven a leer este mismo ID, igual que con la API real (#487).
+        const venta = await addVenta({
+          ...pedidoPosDemo(lineas, productos),
+          compraId,
+          orderNumber: numeroPedidoDemo,
+          vendedorId: sesion.vendedorId,
+          vendedorNombre: sesion.nombre,
+          cliente: String(f.cliente ?? '').trim(),
+          clienteId: clienteDemo.id,
+          clienteTelefono: clienteDemo.phone,
+          clienteDireccion: clienteDemo.address,
+          fecha: fechaVenta,
+          medioPago: f.medioPago,
+          entrega: f.entrega,
+          observacion: notasEntrega,
+          pagos: payments.map((pago, indice) => ({ ...pagos[indice], ...pago, monto: pago.amountPyg })),
+          isSpecialOrder: Boolean(f.specialOrder),
+          ...(f.expectedAt ? { expectedAt: f.expectedAt } : {}),
+          ...(venderACredito ? { creditDays: plazoDemo } : {}),
+          ...(creditoDemo ? { creditAuthorization: creditoDemo } : {}),
+        })
+        if (!venta?.id || venta.error || venta.ok === false)
+          throw new Error(venta?.error || 'No se recibió confirmación de la venta demo.')
+        ventaPersistida = true
+        const ventas = [venta]
         for (const canje of canjesGiftCard) {
           canjearGiftCardDemo({ code: canje.giftCardCode, amountPyg: canje.amountPyg, orderId: ventas[0]?.id, orderNumber: numeroPedidoDemo })
         }
@@ -1514,11 +1504,11 @@ export default function FormularioVenta({
           seller: { id: sesion.vendedorId, name: sesion.nombre },
           fecha: fechaVenta,
           totalPyg: totalGeneral,
-          payments,
+          payments: venta.pagos,
           ventas,
           // El comprobante imprime `order.items`: sin esto el papel demo salía
           // sin la lista de artículos (#206).
-          items: orderItems,
+          items: venta.items,
           isSpecialOrder: Boolean(f.specialOrder),
           ...(f.expectedAt ? { expectedAt: f.expectedAt } : {}),
         }

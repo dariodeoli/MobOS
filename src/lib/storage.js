@@ -20,6 +20,7 @@ import { guardarDemo } from './demoStorage.js'
 import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import { skuDemo } from './demo/sku.js'
+import { stockDePedidoDemo } from './demo/pedidoPos.js'
 import { garantiaDiasDemo, ventasDemoLegacy } from './demo/ventas.js'
 import { sincronizarPedidoDemoConVenta } from './demoClientes.js'
 import { CATALOGO_VENTA } from './demo/catalogoPro.js'
@@ -1006,7 +1007,7 @@ export function addVenta(venta) {
     nueva.totalPendiente === 0 ? 'Pagado' : nueva.totalPagado > 0 ? 'Parcial' : 'Pendiente'
   if (isDemoRuntime) enriquecerVentaDemo(nueva, prod)
   entUpsert('ventas', nueva)
-  moverStock(nueva.productoId, -1)
+  for (const item of stockDePedidoDemo(nueva)) moverStock(item.productoId, -item.quantity)
   // #227: la venta demo también baja la unidad (SOLD + cronología), como el API real.
   if (isDemoRuntime) {
     const seriales = nueva.seriales || nueva.serials || nueva.imei || (nueva.items || []).flatMap(item => item.serials || item.seriales || (item.imei ? [item.imei] : []))
@@ -1036,7 +1037,7 @@ export function updateVenta(id, cambios) {
 export function deleteVenta(id) {
   const v = cache.ventas.find(x => x.id === id)
   entDelete('ventas', id)
-  if (v) moverStock(v.productoId, +1) // se repone lo que había salido
+  if (v) for (const item of stockDePedidoDemo(v)) moverStock(item.productoId, item.quantity)
   logAuditoria('eliminar', v || { id })
 }
 
