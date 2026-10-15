@@ -46,6 +46,7 @@ export default defineConfig({
     'datos-consistentes.frontend.spec.js',
     'pin-segmentado.frontend.spec.js',
     'pin-tactil.frontend.spec.js',
+    'ruc-mobile.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

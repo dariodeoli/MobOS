@@ -1,0 +1,80 @@
+import { test, expect } from '@playwright/test'
+
+async function abrirCliente(page, width, dark) {
+  await page.setViewportSize({ width, height: 844 })
+  await page.addInitScript(value => {
+    localStorage.setItem('mobos:theme', value)
+    sessionStorage.setItem('mobos:demo-guia-vista', '1')
+  }, dark ? 'dark' : 'light')
+  await page.route('**/api/**', route => new URL(route.request().url()).pathname.startsWith('/api/') ? route.fulfill({ status: 503, json: { error: 'Sin proveedor real en QA demo' } }) : route.continue())
+  await page.goto('/demo')
+  await page.getByRole('button', { name: 'Entrar como Dueño', exact: true }).click()
+  await expect(page.getByTestId('shell')).toBeVisible()
+  await page.goto('/clientes')
+  await page.getByRole('button', { name: '+ Crear cliente', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Crear cliente', exact: true })
+  await expect(dialog).toBeVisible()
+  return dialog
+}
+
+for (const width of [360, 390, 1440]) for (const dark of [false, true]) {
+  test(`RUC demo ${width} ${dark ? 'oscuro' : 'claro'}: consulta, confirma y guarda identidad fiscal`, async ({ page }) => {
+    const external = []
+    page.on('request', req => { if (/\/api\/ruc(?:\?|$)|controlaria\.online/.test(req.url())) external.push(req.url()) })
+    const dialog = await abrirCliente(page, width, dark)
+    const name = dialog.getByLabel('Primer nombre', { exact: true })
+    const ruc = dialog.locator('#cliente-documento')
+    const field = dialog.locator('.mobos-ruc-field')
+    const extract = field.getByRole('button', { name: 'Extraer los datos del RUC', exact: true })
+    await expect(extract).toBeDisabled()
+    await name.fill('Nombre manual conservado')
+    await ruc.fill('80012345')
+    await extract.click()
+    await expect(field.getByText('Simulada en demo', { exact: true })).toBeVisible()
+    await expect(name).toHaveValue('Nombre manual conservado')
+    await expect(ruc).toHaveValue('80012345')
+    const official = await field.locator('b').innerText()
+    await field.getByRole('button', { name: 'Descartar', exact: true }).click()
+    await expect(field.getByText('Simulada en demo', { exact: true })).toHaveCount(0)
+    await expect(name).toHaveValue('Nombre manual conservado')
+    await ruc.fill('80012345-0')
+    await extract.click()
+    await expect(field.locator('b')).toHaveText(official)
+    const apply = field.getByRole('button', { name: 'Usar estos datos', exact: true })
+    for (const button of [extract, apply]) {
+      const box = await button.boundingBox()
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await apply.click()
+    await expect(dialog.getByText('Nombre fiscal aceptado:', { exact: true })).toBeVisible()
+    await expect(dialog.locator('p').filter({ hasText: 'Nombre fiscal aceptado:' })).toContainText(official)
+    await expect(ruc).toHaveValue('80012345-0')
+    await dialog.getByLabel('Tipo de identidad (revisión manual)').selectOption('COMPANY')
+    await name.fill('')
+    await dialog.getByRole('button', { name: 'Guardar cliente', exact: true }).click()
+    await expect(dialog).toHaveCount(0)
+    expect(external).toEqual([])
+  })
+}
+
+test('RUC demo móvil: inválido y respuesta anterior no pisan el formulario', async ({ page }) => {
+  const dialog = await abrirCliente(page, 390, false)
+  const ruc = dialog.locator('#cliente-documento')
+  const name = dialog.getByLabel('Primer nombre', { exact: true })
+  const field = dialog.locator('.mobos-ruc-field')
+  const extract = field.getByRole('button', { name: 'Extraer los datos del RUC', exact: true })
+  await name.fill('Edición manual')
+  await ruc.fill('80012345-6')
+  await extract.click()
+  await expect(field.getByRole('alert')).toContainText('RUC')
+  await expect(name).toHaveValue('Edición manual')
+  await ruc.fill('80012345-0')
+  await extract.click()
+  await ruc.fill('1234567')
+  await page.waitForTimeout(650)
+  await expect(field.getByRole('button', { name: 'Usar estos datos', exact: true })).toHaveCount(0)
+  await expect(name).toHaveValue('Edición manual')
+  await expect(ruc).toHaveValue('1234567')
+})
