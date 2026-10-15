@@ -19,9 +19,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 - **Acceso en iPhone:** el PIN usa un teclado táctil de la app; al volver a entrar se descartan verificaciones anteriores y cerrar sesión limpia las credenciales locales antes de salir.
 - **Cuentas de cobro:** las cuentas de ejemplo originales se retiran con respaldo, sin borrar movimientos históricos ni cuentas personalizadas, y no vuelven a crearse al abrir el selector.
 - **Finanzas:** declaración y verificación de cobros por día y sucursal, con diferencias justificadas e historial; registrar una declaración no crea un cobro.
-- **Demo:** las fechas siguen el reloj actual de Paraguay, sin ejemplos en el futuro.
+- **Demo:** las fechas siguen el reloj actual de Paraguay, sin ejemplos en el futuro. Los pedidos conservan todos sus productos, pagos y saldo al volver a abrirlos, incluso al completar un pago parcial.
 - **Clientes y proveedores:** campo de RUC compacto con descarte antes de aplicar y buscador de proveedores compartido; los bancos usan un catálogo común, con respaldo al normalizar nombres inequívocos.
-- **Impresión:** la prueba utiliza el encabezado y pie del negocio y conserva el diagnóstico, el QR y el corte.
+- **Impresión:** la prueba utiliza el encabezado y pie del negocio y conserva el diagnóstico, el QR y el corte. En iPhone, compartir el comprobante abre la hoja nativa con el archivo y limpia la copia temporal al cerrarla.
 - **Servidor:** se corrige una diferencia del esquema de IMEI, se actualiza una dependencia de seguridad y la compilación recupera el registro de novedades cuando el proveedor lo reubica.
 
 ## v1.0.227 — 2026-10-15
