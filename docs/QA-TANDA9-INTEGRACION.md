@@ -17,6 +17,13 @@ Puertas locales anteriores a integrar backend393/433:1485 unitarios frontend apr
 
 Responsividad de suministro y QR/IMEI: ver docs/QA-COMPRAS-450-396.md. Taller/Productos/Comparador: ver docs/QA-396-responsive.md. Cámara simulada; no acredita lectura óptica en un teléfono físico. La cobertura revisada no representa el cierre global de todos los criterios de396/370.
 
+## Pagos y permisos (#393/#433)
+La edición de políticas exige la cuenta propietaria real vinculada al perfil activo, dentro de la empresa de sesión. QA independiente aprobó los negativos de rol, empresa, perfil y membresía, y la escritura auditada en una transacción. La matriz de políticas públicas y editor aprobó10escenarios a360/390/1440, en ambos temas cuando aplica.
+
+Correcciones tardías: reversión y pagos nuevos con fecha actual, cobrador original y motivo/actor auditados; cierre anterior intacto y conteo sin otra venta. La revisión encontró una carrera concreta con el cierre de caja, que se corrigió compartiendo un bloqueo transaccional por empresa/sucursal/cobrador entre apertura, cierre y corrección; la clasificación y la fecha se calculan después. La fecha queda fuera del corte inclusivo del último cierre.
+
+La regresión HTTP de consumidores pasó156comprobaciones, incluidas cuatro carreras observadas con barreras SQL (ambos órdenes, turno de origen antiguo con otro vigente y apertura sin fila vigente). La prueba completa permanece pendiente hasta su exit0; la corrida previa terminó en un problema del vencimiento UTC de una sesión sintética de políticas, corregido sin ampliar permisos ni relajar los403de sesiones válidas.
+
 ## Base de identidades fiscales (#345)
 Se ejecutó de forma aislada `node --test backend/tests/billing-identity-default.test.mjs`:3 aprobados,0 fallidos. Reproduce la ruta nueva y la antigua, verifica la reparación dos veces, conserva cada fila y fecha, reproduce la reversión y repara de nuevo, y comprueba los escritores Prisma. El proceso crea y elimina su propio clúster; no hereda credenciales ni URLs reales. Esta prueba no acredita importadores SQL externos ni respaldos de producción.
 
