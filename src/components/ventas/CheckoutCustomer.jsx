@@ -12,6 +12,7 @@ import { montoGs } from '@/utils/moneda'
 import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { normalizarNombre } from '@/utils/nombre'
+import { applyCheckoutIdentity, clearCheckoutIdentity } from '@/lib/checkoutIdentity'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
 import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
@@ -32,6 +33,7 @@ const TITULO_SECCION = 'text-[11px] font-semibold uppercase tracking-wide text-m
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
+  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName } : {}),
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
   pricingTier: customer.pricingTier || 'RETAIL', priceListId: customer.priceListId || null, creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
@@ -123,16 +125,17 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     cajaRef.current?.querySelector('input')?.focus()
   })
 
-  // RUC/CI consultado: se normaliza el nombre (nunca "Apellido, Nombre") y se
-  // guarda el borrador por si la venta no se completa.
+  // Solo el consentimiento del extractor aplica la identidad fiscal exacta.
+  // El nombre de mostrador queda separado, sin adivinar nombres/apellidos.
   function aplicarDocumento(datos) {
-    const nombre = normalizarNombre(datos?.name || value.name, { apellidosPrimero: 'sifen' })
-    onChange({ ...value, name: nombre || value.name, document: datos?.fullRuc || value.document })
-    if (!esDemo && empresaId && datos?.name)
-      guardarPreCliente(empresaId, { document: datos.fullRuc || value.document, name: datos.name }, { dias: diasDeBorrador(empresa) })
+    const next = applyCheckoutIdentity(value, datos)
+    onChange(next)
+    if (!esDemo && empresaId && next.nameOfficial)
+      guardarPreCliente(empresaId, next, { dias: diasDeBorrador(empresa) })
   }
   function usarBorrador(borrador) {
     onChange({
+      ...('nameOfficial' in borrador ? { nameOfficial: borrador.nameOfficial, displayName: borrador.displayName } : {}),
       id: undefined, name: borrador.name, phone: borrador.phone || '', countryCode: borrador.countryCode || '+595',
       email: borrador.email || '', document: borrador.document || '', pricingTier: 'RETAIL', priceListId: null,
       creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '',
@@ -229,7 +232,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   }
 
   return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...value, id: undefined, name: event.target.value })} /></label>
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} /></label>
     {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
     {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
@@ -239,7 +242,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad</h4>
           <GrillaCampos>
-            <Campo como="div" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={false} value={value.document || ''} onChange={(document) => onChange({ ...value, document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
+            <Campo como="div" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={false} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
           </GrillaCampos>
         </section>
         <section aria-label="Contacto" className="space-y-2">
@@ -267,8 +270,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
               <>
                 <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
                 <GrillaCampos className="mt-3">
-                  <Campo ancho="flexible" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...billingTo, name: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
-                  <Campo como="div" ancho="documento" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name, { apellidosPrimero: 'sifen' }), document: datos.fullRuc || billingTo?.document })} esDemo={esDemo} /></Campo>
+                  <Campo ancho="flexible" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
+                  <Campo como="div" ancho="documento" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => onBillingChange(applyCheckoutIdentity(billingTo || {}, datos))} esDemo={esDemo} /></Campo>
                 </GrillaCampos>
               </>
             )}

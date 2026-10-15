@@ -26,7 +26,7 @@ import { encolarVenta } from '@/lib/offline/ventas'
 import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
 import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo, marcarBorradorRetomadoDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
-import { normalizarNombre } from '@/utils/nombre'
+import { checkoutName, checkoutBillingPayload, restoreBillingIdentity } from '@/lib/checkoutIdentity'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
@@ -1322,9 +1322,8 @@ export default function FormularioVenta({
                 }
               : {
                   customer: {
-                    // Nombre normalizado ("PEREZ, JUAN" → "Juan Perez"): la
-                    // ficha y el pedido se muestran siempre igual.
-                    name: normalizarNombre(clienteEfectivo),
+                    // El nombre fiscal aceptado se envía exacto, sin cambiar su orden.
+                    name: checkoutName(customer, clienteEfectivo),
                     ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
                     ...(customer.countryCode ? { countryCode: customer.countryCode } : {}),
                     ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
@@ -1366,10 +1365,7 @@ export default function FormularioVenta({
             // Factura a otro titular: solo viaja si se completó nombre o RUC.
             ...(billingTo.name.trim() || billingTo.document.trim()
               ? {
-                  billingTo: {
-                    ...(billingTo.name.trim() ? { name: billingTo.name.trim() } : {}),
-                    ...(billingTo.document.trim() ? { document: billingTo.document.trim() } : {}),
-                  },
+                  billingTo: checkoutBillingPayload(billingTo),
                 }
               : {}),
             // Venta a crédito: plazo en días; el vencimiento lo calcula el backend.
@@ -1413,7 +1409,7 @@ export default function FormularioVenta({
               c =>
                 String(c.name || '').toLowerCase() === String(customer.name || '').trim().toLowerCase() &&
                 (!customer.phone || c.phone === customer.phone),
-            ) || { ...customer, name: customer.name.trim(), id: crypto.randomUUID() }
+            ) || { ...customer, name: typeof customer.nameOfficial === 'string' ? customer.nameOfficial : customer.name.trim(), id: crypto.randomUUID() }
         // Gift cards demo (#280): se valida el saldo antes de crear la venta y
         // el canje se aplica al store local con la misma forma que el backend.
         const canjesGiftCard = payments.filter(p => p.method === 'GIFT_CARD')
@@ -1908,10 +1904,7 @@ export default function FormularioVenta({
         : String(payload.descuento),
     )
     setPagos(Array.isArray(payload.pagos) ? payload.pagos : [])
-    setBillingTo({
-      name: typeof payload.billingTo?.name === 'string' ? payload.billingTo.name : '',
-      document: typeof payload.billingTo?.document === 'string' ? payload.billingTo.document : '',
-    })
+    setBillingTo(restoreBillingIdentity(payload.billingTo))
     setVenderACredito(Boolean(payload.venderACredito))
     setPagaAlRecibir(Boolean(payload.pagaAlRecibir) && !(Array.isArray(payload.pagos) && payload.pagos.length))
     setCreditoDias(

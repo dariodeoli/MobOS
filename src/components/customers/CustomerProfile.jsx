@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
 import { api } from '@/lib/api/client'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
@@ -28,6 +28,7 @@ import Icon from '@/components/shared/Icon'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_CUSTOMER_TEMPLATES, ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
+import { guardarIdentidadFacturacionDemo } from '@/lib/demoBillingIdentities'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import {
@@ -191,9 +192,10 @@ function CronologiaCliente({ desde, creadoPor, pedidos, total, onHistorial }) {
 
 export default function CustomerProfile({ customer, open, onClose, tabInicial = 'resumen' }) {
   const toast = useToast()
-  const { usuario, esDemo } = useSesion()
+  const { usuario, esDemo, empresa } = useSesion()
   // Modo demo (#189): nada de la ficha se guarda contra el API real. Los
-  // controles quedan deshabilitados y, si algo igual llega, se avisa y no se envía.
+  // acciones sin simulación quedan bloqueadas; las identidades fiscales usan
+  // su almacenamiento demo local y nunca envían una petición.
   const demoBloqueado = () => {
     if (!esDemo) return false
     toast.info('Modo demo', 'Esta acción no está disponible en la demo.')
@@ -582,6 +584,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [identitiesError, setIdentitiesError] = useState('')
   const [identityForm, setIdentityForm] = useState(null)
   const [identityBusy, setIdentityBusy] = useState(false)
+  // Cambiar de ficha/contexto descarta el formulario y su consulta pendiente.
+  useLayoutEffect(() => { setIdentityForm(null) }, [open, customer?.id, esDemo, empresa?.id])
   // Informe de dispositivo (#240 ítem 3): link público por serial + WhatsApp.
   // En demo se navega en la misma pestaña (el modo demo vive por pestaña) y el
   // enlace viaja con `?demo=1`: el portal demo vive en su subdominio y no
@@ -669,7 +673,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     // Modo demo (#189): la ficha se arma con los datos del navegador; no hay
     // pedidos, deuda, cronología ni portal y nada de esto pega al API real.
     if (esDemo) {
-      const demoPerfil = buildDemoProfile(customer)
+      const demoPerfil = buildDemoProfile(customer, { empresaId: empresa?.id })
       setProfile(demoPerfil)
       setIdentities(demoPerfil.billingIdentities)
       setTimeline(buildDemoTimeline(customer))
@@ -685,7 +689,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [open, customer?.id, customer, esDemo, revision])
+  }, [open, customer?.id, customer, esDemo, empresa?.id, revision])
 
   // Puntero del merge (#268): nombre de la ficha principal si esta quedó
   // archivada por una unificación.
@@ -1134,7 +1138,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   async function guardarIdentidad(event) {
     event.preventDefault()
-    if (demoBloqueado() || !identityForm || identityBusy) return
+    if (!open || !customer?.id || !identityForm || identityBusy) return
     const name = identityForm.name
     const document = identityForm.document.trim()
     if (!name.trim() || !document) {
@@ -1143,7 +1147,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     }
     setIdentityBusy(true)
     try {
-      if (identityForm.id) {
+      if (esDemo) {
+        guardarIdentidadFacturacionDemo(customer, { ...identityForm, name, document }, { empresaId: empresa?.id, actorId: usuario?.id || 'demo-user' })
+        toast.success(identityForm.id ? 'Identidad actualizada en la demo' : 'Identidad agregada en la demo')
+      } else if (identityForm.id) {
         await api.patch(`/api/customers/${customer.id}/billing-identities`, { id: identityForm.id, name, document })
         toast.success('Identidad actualizada')
       } else {
@@ -2057,7 +2064,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
                         <span className="flex items-center justify-end gap-2">
                           {!actual && <button type="button" disabled={esDemo || identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
-                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirIdentidad(identity)}>Editar</button>
+                          <button type="button" disabled={identityBusy} className="min-h-11 min-w-11 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirIdentidad(identity)}>Editar</button>
                           <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
                         </span>
                       </div>
@@ -2319,7 +2326,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 id="profile-identity-document"
                 value={identityForm.document}
                 onChange={(document) => setIdentityForm((form) => ({ ...form, document }))}
-                onAplicar={(datos) => setIdentityForm((form) => ({ ...form, name: datos.nameOfficial ?? datos.name ?? form.name, document: datos.fullRuc || form.document }))}
+                onAplicar={(datos) => setIdentityForm((form) => form ? ({ ...form, name: datos.nameOfficial ?? datos.name ?? form.name, document: datos.fullRuc || form.document }) : null)}
                 esDemo={esDemo}
               />
             </FormField>

@@ -1,4 +1,5 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { identidadesFacturacionDemo } from './demoBillingIdentities.js'
 import { formatGs } from '../utils/moneda.js'
 import { codigoPedido, totalesPedido } from '../utils/pedido.js'
 import { etiquetaServicio } from './estadosServicio.js'
@@ -511,7 +512,7 @@ export function guardarClienteDemo(customer) {
 
 // Perfil que consume la ficha en modo demo: mismos campos que el API, con
 // datos ficticios visibles (pedidos, deuda, cronología, comentarios, facturación).
-export function buildDemoProfile(customer = {}) {
+export function buildDemoProfile(customer = {}, { empresaId } = {}) {
   const demo = customer.demoProfile || {}
   const orders = Array.isArray(demo.orders) ? demo.orders : []
   return {
@@ -520,7 +521,7 @@ export function buildDemoProfile(customer = {}) {
     warranties: Array.isArray(demo.warranties) ? demo.warranties : [],
     notes: Array.isArray(demo.notes) ? demo.notes : [],
     followUps: Array.isArray(demo.followUps) ? demo.followUps : [],
-    billingIdentities: Array.isArray(demo.billingIdentities) ? demo.billingIdentities : [],
+    billingIdentities: identidadesFacturacionDemo(customer, { empresaId }),
     // Seguimiento del informe compartido (#240 ítem 3): mismo shape que el API.
     deviceReportShares: filasInformeDemo(customer.id),
     // Servicio técnico (#240 §4): mismas órdenes que muestra el taller.
