@@ -52,7 +52,7 @@ function configuredAppOrigin() {
   try { return new URL(value).origin } catch { return '' }
 }
 
-function applyResponseHeaders(response: NextResponse, origin: string, requestId: string) {
+function applyResponseHeaders(response: NextResponse, origin: string, requestId: string, cacheControl = 'no-store') {
   if (origin && ((MOBOS_ALLOWED_APP_ORIGINS as readonly string[]).includes(origin) || origin === configuredAppOrigin())) response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Idempotency-Key')
@@ -61,7 +61,7 @@ function applyResponseHeaders(response: NextResponse, origin: string, requestId:
   // Defensa en profundidad para toda respuesta del API. La autorización vive
   // en cada ruta; estos encabezados reducen vectores del navegador sin
   // flexibilizar CORS ni exponer información de sesión.
-  response.headers.set('Cache-Control', 'no-store')
+  response.headers.set('Cache-Control', cacheControl)
   response.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('X-Content-Type-Options', 'nosniff')
@@ -116,7 +116,10 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   }
   const status = upstream.status
   const body = status === 204 || status === 304 ? null : upstream.body
-  const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId)
+  // #404: los bytes de una foto de producto tienen id inmutable y la ruta los declara
+  // privados con caché larga; es la única excepción al no-store del API.
+  const cacheFoto = method === 'GET' && status < 400 && /^\/api\/products\/[^/]+\/images\/[^/]+$/.test(path) && /^private, max-age=\d+(, immutable)?$/.test(upstream.headers.get('cache-control') || '') ? upstream.headers.get('cache-control') || undefined : undefined
+  const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId, cacheFoto)
   const ms = Date.now() - startedAt
   if (status >= 500) logError('request_error', { requestId, method, path, status, ms })
   // Diagnóstico temporal de accesos con cookie: un 401 inesperado en flujos

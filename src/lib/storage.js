@@ -9,6 +9,7 @@
 // Nadie más debe tocar localStorage directamente.
 // ════════════════════════════════════════════════════════════════════
 
+import { conFotosDemo } from '@/lib/demo/fotosAccesorios.js'
 import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
@@ -857,6 +858,8 @@ export function prepararDatosDemo() {
       }))
     }
   }
+  // #404: fotos de muestra y categorías de accesorio (idempotente, no depende de la versión).
+  cache.productos = conFotosDemo(cache.productos, (id, nombre, categoria, precioVenta, precioCosto, stock) => ({ ...producto(id, nombre, categoria, precioVenta, precioCosto, stock, {}), branchId: 'mobos-demo-central', precioMayorista: Math.round(precioVenta * 0.93) }))
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',

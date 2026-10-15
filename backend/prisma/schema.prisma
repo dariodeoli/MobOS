@@ -7,6 +7,7 @@ datasource db {
 }
 
 model Tenant {
+  productImages       ProductImage[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
   webPushEnvios      WebPushEnvio[]
@@ -555,6 +556,11 @@ enum StockKind {
 model Product {
   stockKind     StockKind?
   tradeInDevice TradeInDevice?
+  // #404: categoría de accesorio (LAMINA|CASE|CABLE|CARGADOR|AUDIO|OTRO) separada
+  // de `category` (texto libre / política de seguro) y modelos compatibles.
+  accessoryCategory String?
+  compatibleModels  String[]           @default([])
+  images            ProductImage[]
   destination   ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
   purchaseReturnLines PurchaseReturnLine[]
@@ -1921,6 +1927,33 @@ model Attachment {
   createdAt   DateTime @default(now())
 
   @@index([tenantId, entity, entityId])
+}
+
+// #404: fotos de producto. Los bytes viven en MOBOS_STORAGE_DIR (storagePath /
+// thumbPath, por empresa) y, si no hay volumen, en `data` / `thumbData`.
+// Borrar = ocultar (deletedAt). Una sola principal activa por producto.
+model ProductImage {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantKey  String?
+  position    Int       @default(0)
+  isPrimary   Boolean   @default(false)
+  storagePath String?
+  thumbPath   String?
+  data        Bytes?    @db.ByteA
+  thumbData   Bytes?    @db.ByteA
+  width       Int
+  height      Int
+  contentType String
+  sizeBytes   Int
+  createdById String?
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  @@index([tenantId, productId, position])
 }
 
 // Tombstone de adjuntos: un archivo eliminado no vuelve solo si un cliente
