@@ -14,6 +14,8 @@ import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Etiqueta humana por acción. Lo que no está en el mapa se muestra tal cual
 // (el código crudo), que sigue siendo mejor que ocultarlo.
 const ACCIONES = {
+  STOCK_VERIFICATION_POLICY_UPDATED: ['Permisos de verificación de stock actualizados', 'blue'],
+  PAYMENT_ACCOUNT_BANK_CATALOG_NORMALIZED: ['Nombre del banco normalizado', 'blue'],
   DELIVERY_TARIFF_CREATED: ['Tarifa del repartidor guardada', 'blue'],
   DELIVERY_TARIFF_DEACTIVATED: ['Tarifa del repartidor desactivada', 'blue'],
   DELIVERY_TRIP_RECORDED: ['Viajes de reparto registrados', 'blue'],
