@@ -110,7 +110,7 @@ export default function PanelEscaneoSeriales({
       return
     }
     if (lectura.accion === 'confirmar-luhn') {
-      mostrar('aviso', `IMEI ${lectura.serial}: el dígito de control no coincide. Revisalo; si es correcto, cargalo igual.`, { luhn: lectura.serial })
+      mostrar('aviso', `IMEI ${lectura.serial}: el dígito verificador no coincide. Revisalo; si es correcto, cargalo igual.`, { luhn: lectura.serial })
       return
     }
     if (lectura.accion === 'rechazar') {
