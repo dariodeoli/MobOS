@@ -36,10 +36,13 @@ try {
   const write = { content: 'Política QA de garantía de la tienda.', published: true }
   await req('/api/tenant/policies', { status: 401 })
   await req('/api/tenant/policies/garantia', { method: 'PUT', body: write, status: 401 })
-  for (const token of [admin, seller, adminOther, foreignToken]) {
+  for (const token of [admin, seller, adminOther]) {
     await req('/api/tenant/policies', { token, status: 403 })
     await req('/api/tenant/policies/garantia', { token, method: 'PUT', body: write, status: 403 })
   }
+  // Una cuenta ajena sin membresía en esta empresa no constituye sesión válida.
+  await req('/api/tenant/policies', { token: foreignToken, status: 401 })
+  await req('/api/tenant/policies/garantia', { token: foreignToken, method: 'PUT', body: write, status: 401 })
   await req('/api/tenant/policies', { token: ownerToken })
   const foreignBefore = await one(`SELECT "settings" FROM "Tenant" WHERE "id"=$1`, [other.tenantId])
   const result = await req('/api/tenant/policies/garantia', { token: ownerToken, method: 'PUT', body: { ...write, tenantId: other.tenantId } })
@@ -56,7 +59,7 @@ try {
     { sql: `UPDATE "TenantMembership" SET "userId"=$2 WHERE "id"=$1`, user: other.userId },
   ]) {
     await db.query(mutation.sql, mutation.user ? [membershipId, mutation.user] : [membershipId])
-    await req('/api/tenant/policies/garantia', { token: ownerToken, method: 'PUT', body: { content: 'NO_AUTORIZADO', published: true }, status: 403 })
+    await req('/api/tenant/policies/garantia', { token: ownerToken, method: 'PUT', body: { content: 'NO_AUTORIZADO', published: true }, status: mutation.sql.includes('revokedAt') ? 401 : 403 })
     await db.query(`UPDATE "TenantMembership" SET "role"='OWNER',"revokedAt"=null,"userId"=$2 WHERE "id"=$1`, [membershipId, owner.userId])
   }
   assert.deepEqual((await one(`SELECT "settings" FROM "Tenant" WHERE "id"=$1`, [owner.tenantId])).settings, saved, 'rechazos no alteran texto')
@@ -75,7 +78,7 @@ try {
   assert.ok(!JSON.stringify(print).includes('BORRADOR_QA_INTERNO'))
   console.log(`Políticas HTTP (#433): ${checks} checks OK, dueño real/tenant/auditoría/público mínimo.`)
 } finally {
-  if (owner && before !== undefined) await db.query(`UPDATE "Tenant" SET "settings"=$2::jsonb WHERE "id"=$1`, [owner.tenantId, JSON.stringify(before)])
+  if (owner && before !== undefined) await db.query(`UPDATE "Tenant" SET "settings"=$2::jsonb WHERE "id"=$1`, [owner.tenantId, before === null ? null : JSON.stringify(before)])
   await db.query(`DELETE FROM "Session" WHERE "id"=ANY($1::text[])`, [[sessionId, foreignSessionId]])
   await db.query(`DELETE FROM "TenantMembership" WHERE "id"=$1`, [membershipId])
   await db.query(`DELETE FROM "Account" WHERE "id"=$1`, [accountId])
