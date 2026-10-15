@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { avisoClienteBloqueado, datosEncomienda, empresasRecientes, entregaCobraEnvio, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from './cobroPos.js'
+import { avisoClienteBloqueado, datosEncomienda, direccionDeEntrega, notasDeEntrega, empresasRecientes, entregaCobraEnvio, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from './cobroPos.js'
 
 test('el envío solo suma con Delivery o Encomienda (#390)', () => {
   assert.equal(montoEnvioEfectivo('Delivery', '30000'), 30000)
@@ -38,4 +38,15 @@ test('empresas recientes: sin repetidos, la última primero (#399)', () => {
   recordarEmpresa('Nuestra Señora'); recordarEmpresa('Flecha de Oro'); recordarEmpresa('nuestra señora'); recordarEmpresa('  ')
   assert.deepEqual(empresasRecientes(), ['nuestra señora', 'Flecha de Oro'])
   delete globalThis.localStorage
+})
+
+test('delivery: la dirección guardada o escrita y el repartidor van en las indicaciones (#461)', () => {
+  const direcciones = [{ id: 'a1', address: 'Calle 1 123', city: 'Asunción' }]
+  assert.equal(direccionDeEntrega({ entregaDireccionId: 'a1' }, direcciones), 'Calle 1 123, Asunción')
+  assert.equal(direccionDeEntrega({ entregaDireccion: '  Av. Mcal. López 456 ' }, direcciones), 'Av. Mcal. López 456')
+  assert.equal(direccionDeEntrega({ entregaDireccionId: 'ajena' }, direcciones), '')
+  assert.equal(notasDeEntrega('Delivery', { observacion: 'Llamar antes', entregaDireccionId: 'a1' }, direcciones), 'Llamar antes · Entregar en: Calle 1 123, Asunción')
+  assert.equal(notasDeEntrega('Delivery', { entregaDireccion: 'X' }, [], { name: 'Marcos' }), 'Entregar en: X · Repartidor: Marcos')
+  assert.equal(notasDeEntrega('Retiro en tienda', { observacion: 'Nota', entregaDireccion: 'X' }, [], { name: 'Marcos' }), 'Nota')
+  assert.equal(notasDeEntrega('Delivery', {}, []), '')
 })

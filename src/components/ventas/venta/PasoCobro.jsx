@@ -25,6 +25,7 @@ const cuerpoGiftCard = (codigo) => limpiarCodigo(codigo, 'crockford', 'GC')
 
 export default function PasoCobro({
   customer,
+  repartidores = [],
   pagaAlRecibir: pagaAlRecibirActivo = false,
   setPagaAlRecibir,
   venderACredito,
@@ -255,6 +256,46 @@ export default function PasoCobro({
           </p>
         )}
       </div>
+
+      {/* Delivery (#461): a dónde se entrega y quién lo lleva (o se asigna después). */}
+      {f.entrega === 'Delivery' && (
+        <div data-testid="pos-delivery" className="flex flex-wrap items-end gap-3">
+          <div className="w-full md:w-72">
+            <Label htmlFor="entrega-direccion">Dirección de entrega</Label>
+            {direccionesGuardadas.length > 0 && (
+              <Select
+                id="entrega-direccion-guardada"
+                aria-label="Dirección guardada del cliente"
+                className="mb-1"
+                value={f.entregaDireccionId || ''}
+                onChange={e => setF(s => ({ ...s, entregaDireccionId: e.target.value, entregaDireccion: e.target.value ? '' : s.entregaDireccion }))}
+              >
+                <option value="">Otra dirección…</option>
+                {direccionesGuardadas.map(d => (
+                  <option key={d.id} value={d.id}>{[d.label, d.address, d.city].filter(Boolean).join(' · ')}</option>
+                ))}
+              </Select>
+            )}
+            {!f.entregaDireccionId && (
+              <Input
+                id="entrega-direccion"
+                maxLength={300}
+                autoComplete="street-address"
+                value={f.entregaDireccion || ''}
+                onChange={e => setF(s => ({ ...s, entregaDireccion: e.target.value }))}
+                placeholder="Calle, número, barrio y referencia"
+              />
+            )}
+          </div>
+          <div className="w-full md:w-56">
+            <Label htmlFor="entrega-repartidor">Repartidor</Label>
+            <Select id="entrega-repartidor" value={f.repartidorId || ''} onChange={e => setF(s => ({ ...s, repartidorId: e.target.value }))}>
+              <option value="">Asignar después</option>
+              {repartidores.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </div>
+        </div>
+      )}
 
       {/* Encomienda (#399): empresa, sucursal de destino y dirección del cliente. */}
       {f.entrega === 'Encomienda' && (

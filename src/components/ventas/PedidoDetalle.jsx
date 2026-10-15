@@ -674,6 +674,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <p className="text-xs text-mute">{metodoEntrega(order.deliveryType) === 'DELIVERY' ? 'Delivery' : 'Retiro en tienda'}</p>
               {(order.customer?.addresses || []).map(address => <p key={address.id || address.address} className="mt-1 break-words text-xs text-mute">{address.label}: {address.address}{address.city ? ` · ${address.city}` : ''}</p>)}
               {!order.customer?.addresses?.length && metodoEntrega(order.deliveryType) === 'DELIVERY' && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
+              {/* #461: a dónde y con quién sale el delivery, a la vista del pedido. */}
+              {metodoEntrega(order.deliveryType) === 'DELIVERY' && (
+                <div className="mt-1.5 space-y-0.5 text-xs" data-testid="pedido-entrega-delivery">
+                  {(order.deliveryNotes || order.observacion) && <p className="break-words text-fore">{order.deliveryNotes || order.observacion}</p>}
+                  <p className="text-mute">Repartidor: <b className="text-fore">{order.assignedTo?.name || 'Sin asignar'}</b>{order.assignedTo?.name ? '' : ' · se asigna desde Entregas'}</p>
+                </div>
+              )}
               {v2 && !anulado && (() => {
                 const pasos = PASOS_ENTREGA(order.deliveryType)
                 const actual = pasos.findIndex(([, estados]) => estados.includes(order.fulfillmentStatus || 'PENDING'))
