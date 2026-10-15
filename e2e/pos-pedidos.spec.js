@@ -20,12 +20,14 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await expect(page.getByTestId("pedido-fila").first()).toBeVisible()
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
-  // La grilla de cada fila tiene 8 celdas (código, fecha, cliente, entrega,
-  // pago, estado, total y, la última, la vista rápida) y la fecha entra
-  // completa: nada descolgado ni cortado.
-  const celdas = page.getByTestId("pedido-fila").first().locator(":scope > *")
-  await expect(celdas).toHaveCount(8)
-  const fecha = celdas.nth(1)
+  // Pago y entrega comparten una celda visual, conservando ambos estados
+  // accesibles. La fecha sigue completa y la vista rápida conserva su lugar.
+  const fila = page.getByTestId('pedido-fila').first()
+  const celdas = fila.locator(':scope > *')
+  await expect(celdas).toHaveCount(7)
+  await expect(fila.getByRole('group', { name: 'Estado de pago', exact: true })).toBeVisible()
+  await expect(fila.getByRole('group', { name: 'Estado de entrega', exact: true })).toBeVisible()
+  const fecha = fila.locator('.ventas-f3-order-date')
   expect(await fecha.evaluate(elemento => elemento.scrollWidth <= elemento.clientWidth + 1)).toBeTruthy()
 
   await page.reload()
