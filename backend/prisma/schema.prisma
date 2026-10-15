@@ -2306,6 +2306,10 @@ model PaymentAccount {
   pixKey        String?
   reference     String?
   currencyLabel String?
+  // Alias para transferencias (RUC, correo, teléfono u otro): se muestra y se
+  // copia junto con los datos de la cuenta al cobrar.
+  aliasType     String?
+  aliasValue    String?
   // Titular registrado (#143) y empresa/persona jurídica dueña de la cuenta.
   // `holder` sigue guardando el nombre compuesto para historial y búsquedas.
   holderId      String?

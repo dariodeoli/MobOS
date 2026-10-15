@@ -36,6 +36,9 @@ export default function PasoCarrito({
   productoBajoId,
   onAuthPrecio,
   tieneCupon,
+  modoCobro = false,
+  onListo,
+  onEditar,
 }) {
   const unidades = items.reduce((a, it) => a + (it.quantity || 1), 0)
   const descuentoTotal = montoDescuento + items.reduce((suma, it) => {
@@ -51,7 +54,8 @@ export default function PasoCarrito({
       data-testid="pos-bloque-carrito"
       className={cn(
         // #281 · identidad de color: carrito = verde de venta (ok).
-        'scroll-mt-32 overflow-hidden rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
+        'pos-carrito scroll-mt-32 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
+        modoCobro && 'pos-carrito-colapsado',
         // El carrito NO es sticky: el cobro va debajo en la misma columna y un
         // bloque pegado se montaba sobre él al scrollear. El botón Cobrar queda
         // fijo al pie (PasoCobro).
@@ -59,7 +63,7 @@ export default function PasoCarrito({
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ok/20 bg-ok/[.06] px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ok/20 bg-ok/[.06] px-3 py-1.5">
         <EncabezadoBloque
           compacto
           titulo="Productos de esta venta"
@@ -71,7 +75,17 @@ export default function PasoCarrito({
             </span>
           }
         />
-        {items.length > 0 && (
+        {modoCobro && (
+          <button
+            type="button"
+            data-testid="carrito-editar"
+            onClick={onEditar}
+            className="inline-flex min-h-11 items-center rounded-lg border border-ok/40 px-2.5 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 md:min-h-0"
+          >
+            Editar productos
+          </button>
+        )}
+        {!modoCobro && items.length > 0 && (
           <button
             type="button"
             onClick={onVaciarCarrito}
@@ -83,6 +97,7 @@ export default function PasoCarrito({
         )}
       </div>
 
+      <div data-testid="pos-carrito-cuerpo" className={cn('pos-carrito-cuerpo min-h-0 flex-1 overflow-y-auto', modoCobro && 'hidden')}>
       <ListaVenta
         items={items}
         productos={productos}
@@ -99,7 +114,7 @@ export default function PasoCarrito({
       {/* Ajuste de la venta: el descuento extra se escribe al lado de su rótulo
           para que el carrito gane altura. */}
       {items.length > 0 && (
-        <div className="space-y-2 border-t border-ink-600 px-3.5 py-2.5">
+        <div className="space-y-2 border-t border-ink-600 px-3 py-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <Label htmlFor="descuento-extra-gs" className="mb-0 shrink-0">
               Descuento extra (Gs)
@@ -163,31 +178,38 @@ export default function PasoCarrito({
           )}
         </div>
       )}
+      </div>
 
-      <div className="border-t border-ink-600 bg-ink-700 px-3.5 py-2.5">
-        <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2 text-xs text-mute">
-          <span>Subtotal</span>
-          <span className="pos-money-value tabular-nums">{gs(totalCarrito)}</span>
-        </div>
-        {descuentoTotal > 0 && (
-          <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2 text-xs text-warn">
-            <span>Descuento</span>
-            <span className="pos-money-value tabular-nums">− {gs(descuentoTotal)}</span>
-          </div>
-        )}
-        {Number(montoDelivery || 0) > 0 && (
-          <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2 text-xs text-mute">
-            <span>Envío</span>
-            <span className="pos-money-value tabular-nums">{gs(montoDelivery)}</span>
+      <div className="shrink-0 border-t border-ink-600 bg-ink-700 px-3 py-1.5">
+        {/* Subtotal, descuento y envío solo cuando cambian el total: si no, serían
+            el mismo importe dos veces. */}
+        {(descuentoTotal > 0 || Number(montoDelivery || 0) > 0) && (
+          <div className="pos-money-row flex flex-wrap items-center gap-x-4 gap-y-0 text-xs text-mute">
+            <span>Subtotal <span className="pos-money-value tabular-nums">{gs(totalCarrito)}</span></span>
+            {descuentoTotal > 0 && <span className="text-warn">Descuento <span className="pos-money-value tabular-nums">− {gs(descuentoTotal)}</span></span>}
+            {Number(montoDelivery || 0) > 0 && <span>Envío <span className="pos-money-value tabular-nums">{gs(montoDelivery)}</span></span>}
           </div>
         )}
         {/* El Total vive acá, una sola vez: `cobro-total` envuelve la fila y
-            `carrito-total` es el importe (ambos alcanzables en un solo lugar). */}
-        <div data-testid="cobro-total" className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-fono/20 pt-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <strong data-testid="carrito-total" className="pos-money-value v2-numero whitespace-nowrap text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
-            {gs(totalGeneral ?? totalCarrito)}
-          </strong>
+            `carrito-total` es el importe (ambos alcanzables en un solo lugar).
+            «Listo, ir a cobrar» comparte la fila en escritorio. */}
+        <div className="flex items-center gap-3">
+          <div data-testid="cobro-total" className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
+            <strong data-testid="carrito-total" className="pos-money-value v2-numero whitespace-nowrap text-[clamp(1.25rem,5vw,1.5rem)] font-extrabold tracking-tight tabular-nums text-fore">
+              {gs(totalGeneral ?? totalCarrito)}
+            </strong>
+          </div>
+          {!modoCobro && items.length > 0 && onListo && (
+            <button
+              type="button"
+              data-testid="carrito-listo"
+              onClick={onListo}
+              className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ok px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
+            >
+              Listo, ir a cobrar
+            </button>
+          )}
         </div>
       </div>
     </section>

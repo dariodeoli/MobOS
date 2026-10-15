@@ -76,10 +76,31 @@ const USD_INPUT_FORMATTER = new Intl.NumberFormat('es-PY', {
 // Presentación editable para monedas decimales (USD/BRL/EUR/USDT):
 // separador de miles con punto y 2 decimales con coma (es-PY).
 export function formatUsdInput(value) {
-  const text = String(value ?? '').trim()
+  let text = String(value ?? '').trim()
   if (!text) return ''
+  // Acepta «12,50» y «1.234,50» (decimal con coma, como lo propone el POS) además
+  // del decimal con punto que emite el campo.
+  if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.')
   const amount = Number(text)
   return Number.isFinite(amount) ? USD_INPUT_FORMATTER.format(amount) : ''
+}
+
+// Borrador de un monto decimal MIENTRAS se escribe (USD/BRL/EUR/USDT): conserva
+// lo tipeado («300», «300,», «1.250,5») con miles a la izquierda y hasta
+// `decimales` dígitos a la derecha, sin forzar «,00» en cada tecla (eso comía
+// los dígitos siguientes: solo entraba 1 cifra). El punto es siempre separador
+// de miles; la coma es el decimal. `valor` es el string con punto decimal.
+export function borradorDecimal(raw, decimales = 2) {
+  const limpio = String(raw ?? '').replace(/[^\d,]/g, '')
+  const coma = limpio.indexOf(',')
+  const entero = (coma < 0 ? limpio : limpio.slice(0, coma)).replace(/\D/g, '').replace(/^0+(?=\d)/, '')
+  const dec = coma < 0 ? null : limpio.slice(coma + 1).replace(/\D/g, '').slice(0, decimales)
+  if (!entero && dec === null) return { texto: '', valor: '' }
+  const miles = (entero || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return {
+    texto: dec === null ? miles : `${miles},${dec}`,
+    valor: String(Number(`${entero || '0'}${dec ? `.${dec}` : ''}`)),
+  }
 }
 
 // Convierte el texto del campo a un string decimal limpio (punto como

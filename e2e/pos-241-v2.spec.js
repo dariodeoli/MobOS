@@ -106,7 +106,7 @@ async function armarCobro(page, sufijo) {
     await filaUno.getByLabel('Monto original').fill('25000')
     await expect(filaUno.getByLabel('Monto original')).toHaveValue('25.000', { timeout: 2500 })
   }).toPass({ timeout: 20_000 })
-  await page.getByRole('button', { name: /^Dividir saldo/ }).click()
+  await filaUno.getByRole('button', { name: /^Dividir pago/ }).click()
   const filaDos = pagos.getByTestId('pago-fila-1')
   await expect(filaDos).toBeVisible()
   await elegirCuenta(page, filaDos, new RegExp(usd))

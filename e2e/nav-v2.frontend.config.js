@@ -11,6 +11,7 @@ export default defineConfig({
     'nav-v2.frontend.spec.js',
     'pos-layout.frontend.spec.js',
     'pos-movil.frontend.spec.js',
+    'pos-cobro.frontend.spec.js',
     'shell-layout.frontend.spec.js',
     'blocks-preview.frontend.spec.js',
     'ventas-layout.frontend.spec.js',

@@ -1,5 +1,6 @@
 import '../control/inicioPosF2.css'
 import './posCobro.css'
+import './posUnaPantalla.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -261,10 +262,11 @@ function ResumenVenta({ items, unidades, montoDescuento, montoDelivery, dia }) {
   )
 }
 
-// Columna lateral del POS en escritorio: queda pegada arriba (sticky) y su alto
-// máximo es lo que entra en pantalla desde donde está hasta el borde inferior,
-// así «Cobrar» se alcanza sin deslizar la página.
-function useColumnaPegada(ref) {
+// POS en escritorio (≥1024 px): todo el POS cabe en UNA pantalla, sin deslizar
+// la página. El alto de la grilla es el que queda desde donde empieza hasta el
+// borde inferior (menos lo que haya debajo); dentro, solo las listas
+// (catálogo, productos de la venta, pagos) se desplazan.
+function useAlturaPos(ref) {
   useEffect(() => {
     const el = ref.current
     if (!el || typeof window === 'undefined') return undefined
@@ -272,20 +274,65 @@ function useColumnaPegada(ref) {
     let raf = 0
     const medir = () => {
       raf = 0
-      if (!escritorio.matches) { el.style.removeProperty('--pos-col-max'); return }
-      const arriba = Math.max(16, el.getBoundingClientRect().top)
-      el.style.setProperty('--pos-col-max', `${Math.max(320, Math.floor(window.innerHeight - arriba - 16))}px`)
+      if (!escritorio.matches) { el.style.removeProperty('--pos-alto'); return }
+      // Con la grilla "infinita" lo que sobra en el documento es exactamente lo
+      // que hay debajo de ella (resumen, márgenes del shell).
+      const PRUEBA = 9000
+      el.style.setProperty('--pos-alto', `${PRUEBA}px`)
+      const arriba = el.getBoundingClientRect().top + window.scrollY
+      const debajo = document.documentElement.scrollHeight - arriba - PRUEBA
+      const alto = Math.max(420, Math.floor(window.innerHeight - arriba - Math.max(0, debajo)))
+      el.style.setProperty('--pos-alto', `${alto}px`)
     }
     const pedir = () => { if (!raf) raf = requestAnimationFrame(medir) }
     medir()
-    window.addEventListener('scroll', pedir, { passive: true })
+    const t = setTimeout(medir, 400)
     window.addEventListener('resize', pedir)
+    document.addEventListener('toggle', pedir, true)
     return () => {
-      window.removeEventListener('scroll', pedir)
+      clearTimeout(t)
       window.removeEventListener('resize', pedir)
+      document.removeEventListener('toggle', pedir, true)
       if (raf) cancelAnimationFrame(raf)
     }
   }, [ref])
+}
+
+// Divisor arrastrable entre el catálogo y la venta: la proporción se guarda por
+// persona en este dispositivo. Doble clic la restablece; con el teclado, ← →.
+const LIMITE_DIVISOR = [0.3, 0.7]
+function leerDivisor(clave) {
+  try {
+    const v = Number(localStorage.getItem(clave))
+    return v >= LIMITE_DIVISOR[0] && v <= LIMITE_DIVISOR[1] ? v : null
+  } catch { return null }
+}
+function useDivisorPos(layoutRef, clave) {
+  const [izq, setIzq] = useState(() => leerDivisor(clave))
+  useEffect(() => { setIzq(leerDivisor(clave)) }, [clave])
+  const guardar = (valor) => {
+    try { if (valor == null) localStorage.removeItem(clave); else localStorage.setItem(clave, String(valor)) } catch { /* sin almacenamiento */ }
+  }
+  const limitar = (v) => Math.min(LIMITE_DIVISOR[1], Math.max(LIMITE_DIVISOR[0], v))
+  const desdePuntero = (e) => {
+    const r = layoutRef.current?.getBoundingClientRect()
+    if (!r) return null
+    return limitar(Number(((e.clientX - r.left - 8) / (r.width - 16)).toFixed(3)))
+  }
+  const props = {
+    onPointerDown: (e) => { e.currentTarget.setPointerCapture?.(e.pointerId); e.preventDefault() },
+    onPointerMove: (e) => { if (e.currentTarget.hasPointerCapture?.(e.pointerId)) { const v = desdePuntero(e); if (v != null) setIzq(v) } },
+    onPointerUp: (e) => { e.currentTarget.releasePointerCapture?.(e.pointerId); const v = desdePuntero(e); if (v != null) { setIzq(v); guardar(v) } },
+    onDoubleClick: () => { setIzq(null); guardar(null) },
+    onKeyDown: (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      e.preventDefault()
+      const base = izq ?? (window.innerWidth >= 1280 ? 0.5 : 0.55)
+      const v = limitar(Number((base + (e.key === 'ArrowLeft' ? -0.02 : 0.02)).toFixed(3)))
+      setIzq(v); guardar(v)
+    },
+  }
+  return { izq, props }
 }
 
 export default function FormularioVenta({
@@ -299,8 +346,11 @@ export default function FormularioVenta({
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
-  const columnaVentaRef = useRef(null)
-  useColumnaPegada(columnaVentaRef)
+  const layoutRef = useRef(null)
+  useAlturaPos(layoutRef)
+  // «Listo, ir a cobrar»: el carrito se resume y el cobro gana la altura.
+  const [modoCobro, setModoCobro] = useState(false)
+  const divisor = useDivisorPos(layoutRef, `mobos:pos-divisor:${contextoActual().userId || 'anon'}`)
   // POS en celular (#429): <768 px cambia solo la presentación (acciones,
   // barra del carrito y hojas). Es la misma venta: el estado, el guardado y
   // las reglas siguen siendo los de abajo.
@@ -2103,8 +2153,26 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className={`pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}>
-          <div className="flex min-w-0 flex-col gap-4">
+        <div
+          ref={layoutRef}
+          data-testid="pos-layout"
+          style={divisor.izq != null ? { '--pos-izq': divisor.izq } : undefined}
+          className={`pos-layout relative grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}
+        >
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ajustar ancho del catálogo y de la venta"
+            aria-valuemin={30}
+            aria-valuemax={70}
+            aria-valuenow={Math.round((divisor.izq ?? 0.5) * 100)}
+            tabIndex={0}
+            data-testid="pos-divisor"
+            title="Arrastrá para cambiar el ancho (doble clic: restablecer)"
+            className="pos-divisor hidden lg:block"
+            {...divisor.props}
+          />
+          <div className="pos-col-izq flex min-w-0 flex-col gap-3">
             {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
             {pos('cliente',
             <PosCustomer
@@ -2163,9 +2231,8 @@ export default function FormularioVenta({
               bloque al deslizar el catálogo; si es más alta que la pantalla se
               desplaza por dentro y «Cobrar» queda fijo al pie. */}
           <div
-            ref={columnaVentaRef}
             data-testid="pos-columna-venta"
-            className="pos-columna-venta flex min-w-0 flex-col gap-4 [&>*]:shrink-0"
+            className="pos-columna-venta flex min-w-0 flex-col gap-2"
           >
             {pos('carrito',
             <PasoCarrito
@@ -2193,6 +2260,9 @@ export default function FormularioVenta({
               productoBajoId={productoBajoId}
               onAuthPrecio={setAuthPrecio}
               tieneCupon={tieneCupon}
+              modoCobro={modoCobro && !esMovil && items.length > 0}
+              onListo={() => setModoCobro(true)}
+              onEditar={() => setModoCobro(false)}
             />)}
 
             {pos('cobro',
