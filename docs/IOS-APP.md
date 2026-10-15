@@ -107,10 +107,11 @@ Basado en `agendese/docs/app-store/GUIA-PUBLICAR-APP-STORE.md`.
   accede a contenido de terceros»; clasificación por edades: **No / Ninguno** en todo
   (queda **4+**).
 - **Precio:** gratis (EE. UU. $0.00). Sin compras dentro de la app: es una herramienta
-  B2B gratuita (guía 3.1.3). La app no muestra precios, planes ni créditos.
+  B2B gratuita (guía 3.1.3). La app no muestra planes ni precios de suscripción. El POS sí muestra precios de los productos físicos de la tienda.
 - **Privacidad:** URL `https://moboss.online/privacidad`. «Sí, recopilamos datos»:
-  Nombre, Correo, Teléfono, Otro contenido del usuario, ID de usuario, ID del
-  dispositivo (token push). En cada uno: Funcionalidad de la app, vinculado a la
+  Nombre, Correo, Teléfono, Dirección física (clientes), Fotos o vídeos
+  (foto del perfil), Otro contenido del usuario (notas de clientes y pedidos),
+  Historial de compras (ventas/pedidos), ID de usuario e ID del dispositivo (token push). En cada uno: Funcionalidad de la app, vinculado a la
   identidad, **sin seguimiento**. Tiene que coincidir con `PrivacyInfo.xcprivacy`.
   Publicar la declaración la confirma el dueño.
 - **Versión:** URL de soporte `https://moboss.online/soporte`; URL de marketing
@@ -133,7 +134,7 @@ Basado en `agendese/docs/app-store/GUIA-PUBLICAR-APP-STORE.md`.
 
 ```
 1. SCREEN RECORDING: attached. It shows launching the app, signing in, the personal PIN prompt, a sale, the barcode/IMEI scanner and Account > Delete my account (confirmation screen).
-2. PURPOSE AND AUDIENCE: MobOS (https://moboss.online) is a free B2B point-of-sale and operations tool for phone shops in Paraguay. The app is for store owners and their staff, not for end customers, and sells nothing: there are no in-app purchases, prices or plans.
+2. PURPOSE AND AUDIENCE: MobOS (https://moboss.online) is a free B2B point-of-sale and operations tool for phone shops in Paraguay. The app is for store owners and their staff, not for end customers, and manages sales of physical products in those shops. There are no in-app purchases, subscription prices or subscription plans in the app. Product prices shown in the POS refer to physical goods.
 3. ACCESS: use the demo account in Sign-In Information, or tap "Probar la demo" on the sign-in screen (fictitious data, no account needed). Sign in with Apple and Google only open stores that already exist. Every time the app opens or returns from the background it asks the seller's private PIN (shared company iPhones); Face ID is an optional extra. Account deletion: Configuración > Mi cuenta > Eliminar mi cuenta.
 4. EXTERNAL SERVICES: our own backend (https://api.moboss.online), Sign in with Apple, Google Sign-In, and Apple Push Notification service. No third-party analytics, advertising or tracking.
 5. NATIVE FEATURES: barcode/IMEI scanner (camera), share sheet for receipts and quotes, haptics, push notifications, deep links to orders.
