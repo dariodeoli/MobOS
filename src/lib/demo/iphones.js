@@ -34,9 +34,33 @@ export const EQUIPO_DEMO = [
   { id: 'demo-user-repartidor', nombre: 'Marcos Aquino', rol: 'REPARTIDOR', email: '35800107@correo.com.py', pin: '2007', metaDiaria: 0, activo: true, hasAvatar: true },
 ]
 
-// Seriales/IMEIs ficticios del inventario demo (#213): prefijo DEMO y nunca un
-// IMEI real (no pasan Luhn). La lista es explícita para poder auditarla.
+// IMEIs del modo demo (#450): 15 dígitos con aspecto real (TAC 35xxxxxx de
+// Apple/Samsung + 6 de serie + dígito Luhn). Deterministas por semilla y únicos
+// para semillas < 1.000.000 (7919 es coprimo con 10^6). Son ficticios: no se
+// corresponden con equipos reales.
+const TAC_DEMO = ['35332411', '35391110', '35720910', '35849110', '35475611', '35283711', '35662311', '35403211']
+
+function digitoLuhn(base) {
+  let suma = 0
+  for (let indice = 0; indice < base.length; indice += 1) {
+    let digito = Number(base[base.length - 1 - indice])
+    if (indice % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 }
+    suma += digito
+  }
+  return String((10 - (suma % 10)) % 10)
+}
+
+export function imeiDemo(semilla) {
+  const n = Math.abs(Math.trunc(Number(semilla) || 0))
+  const tac = TAC_DEMO[n % TAC_DEMO.length]
+  const serie = String(((n * 7919) + 100003) % 1000000).padStart(6, '0')
+  const base = `${tac}${serie}`
+  return `${base}${digitoLuhn(base)}`
+}
+
+// Seriales/IMEIs del inventario demo (#213, #450): IMEI de aspecto real y
+// único por posición. La lista es explícita para poder auditarla.
 export function serialDemo(n) {
-  return `AUR${String(n).padStart(4, '0')}0000000000`.slice(0, 16)
+  return imeiDemo(n)
 }
 export const IMEIS_DEMO_FICTICIOS = Array.from({ length: 24 }, (_, i) => serialDemo(i + 1))

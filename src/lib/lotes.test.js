@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { etiquetaLineaDeLote, pendientesDeEnvio, serialesDeEnvio, totalPendienteLotes } from './lotes.js'
+import { etiquetaLineaDeLote, lineasDeEnvio, pendientesDeEnvio, serialesDeEnvio, totalPendienteLotes } from './lotes.js'
 
 const ENVIO = {
   id: 'env-1',
@@ -51,4 +51,11 @@ test('la etiqueta de la línea muestra producto, capacidad y color', () => {
   assert.equal(etiquetaLineaDeLote({ producto: 'iPhone 15', capacidad: '128GB', color: 'Azul' }), 'iPhone 15 · 128GB · Azul')
   assert.equal(etiquetaLineaDeLote({ producto: 'Cargador' }), 'Cargador')
   assert.equal(etiquetaLineaDeLote(null), 'Producto')
+})
+
+test('lineasDeEnvio da cantidad total y seriales cargados por línea (#450)', () => {
+  const lineas = lineasDeEnvio(ENVIO)
+  assert.equal(lineas[0].cantidad, 3)
+  assert.deepEqual(lineas[0].seriales, [{ serial: '356789102345678', estado: 'pendiente' }])
+  assert.equal(lineas[1].nombre, "iPhone 14 · 256GB")
 })

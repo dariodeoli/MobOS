@@ -4,6 +4,8 @@
 // que despachan los lotes y reciben las llegadas, y todo cierra contra el
 // catálogo, los proveedores y el equipo ficticios.
 import { guardarDemo, leerDemo } from '../demoStorage.js'
+import { createDemoUnit } from '../demoInventory.js'
+import { luhnValido } from '../escanerSeriales.js'
 import { EQUIPO_DEMO, serialDemo } from './iphones.js'
 import { PROVEEDORES_DEMO, proveedorDemo } from './proveedores.js'
 
@@ -60,6 +62,18 @@ const seed = () => ({
         id: 'demo-spl-2', productId: 'demo-iphone-15-pro-256-titanio', condition: 'NEW', quantity: 2, unitCostPyg: 5600000, needId: 'demo-need-1', coveredQuantity: 2, faltan: 0, libreQuantity: 0,
         serials: [{ serial: serialDemo(110) }, { serial: serialDemo(111) }], priority: 'URGENTE', source: 'SALE_NO_STOCK', promisedAt: enDias(1), orderNumber: 'AUR-0001', needOrigin: 'SALE_NO_STOCK',
       }] },
+    // #450: compras en curso para que Preparar compra se entienda a la primera
+    // apertura: una con IMEI a medias y una recién comprada sin ninguno.
+    { id: 'demo-sp-4', code: 'CMP-AUR-0004', status: 'COMPRADA', supplierId: 'demo-prov-distribuidora', reference: 'DISESTE-2244', notes: 'Reposición iPhone 13.', currency: 'PYG', originalCost: null, exchangeRatePyg: 1, costPyg: 9600000, branchId: BRANCH, createdAt: hace(14), receivedAt: null, createdById: 'demo-user',
+      lines: [{
+        id: 'demo-spl-4', productId: 'demo-iphone-13-128-blanco', condition: 'REFURBISHED', quantity: 4, unitCostPyg: 2400000, needId: 'demo-need-5', coveredQuantity: 1, faltan: 2, libreQuantity: 3,
+        serials: [{ serial: serialDemo(120) }, { serial: serialDemo(121), verificado: true }], priority: 'NORMAL', source: 'RESERVATION_NO_STOCK', promisedAt: enDias(3), orderNumber: null, needOrigin: 'LOCAL',
+      }] },
+    { id: 'demo-sp-5', code: 'CMP-AUR-0005', status: 'COMPRADA', supplierId: 'demo-prov-importadora', reference: 'IMPTEC-5571', notes: 'Recién comprada: IMEI pendientes.', currency: 'PYG', originalCost: null, exchangeRatePyg: 1, costPyg: 16800000, branchId: BRANCH, createdAt: hace(3), receivedAt: null, createdById: 'demo-user',
+      lines: [{
+        id: 'demo-spl-5', productId: 'demo-iphone-15-pro-256-titanio', condition: 'NEW', quantity: 3, unitCostPyg: 5600000, needId: null, coveredQuantity: 0, faltan: 3, libreQuantity: 3,
+        serials: [], priority: 'NORMAL', source: 'MANUAL', promisedAt: null, orderNumber: null, needOrigin: 'USA',
+      }] },
     { id: 'demo-sp-3', code: 'CMP-AUR-0003', status: 'RECIBIDA', supplierId: 'demo-prov-distribuidora', reference: 'DISESTE-2210', notes: '', currency: 'PYG', originalCost: null, exchangeRatePyg: 1, costPyg: 960000, branchId: BRANCH, createdAt: hace(140), receivedAt: hace(120), createdById: 'demo-user',
       lines: [{
         id: 'demo-spl-3', productId: 'demo-cargador-usbc-20w', condition: 'NEW', quantity: 8, unitCostPyg: 120000, needId: 'demo-need-6', coveredQuantity: 8, faltan: 0, libreQuantity: 0,
@@ -69,8 +83,8 @@ const seed = () => ({
   shipments: [
     { id: 'demo-env-1', code: 'LOTE-AUR-0001', status: 'PREPARANDO', origin: 'CDE', method: 'AEX', company: 'AEX', driver: '', guide: '', purchaseId: 'demo-sp-2', destinationBranchId: BRANCH_2, responsibleId: 'demo-user', etaAt: enDias(1), sentAt: null, arrivedAt: null, notes: 'Entrega en Villa Morra.', publicToken: 'demo-remito-1', createdAt: hace(20),
       items: [
-        { id: 'demo-item-1', lineId: 'demo-spl-2', productId: 'demo-iphone-15-pro-256-titanio', serial: null, status: 'PENDIENTE' },
-        { id: 'demo-item-2', lineId: 'demo-spl-2', productId: 'demo-iphone-15-pro-256-titanio', serial: null, status: 'PENDIENTE' },
+        { id: 'demo-item-1', lineId: 'demo-spl-2', productId: 'demo-iphone-15-pro-256-titanio', serial: serialDemo(110), status: 'PENDIENTE' },
+        { id: 'demo-item-2', lineId: 'demo-spl-2', productId: 'demo-iphone-15-pro-256-titanio', serial: serialDemo(111), status: 'PENDIENTE' },
       ] },
     { id: 'demo-env-2', code: 'LOTE-AUR-0002', status: 'EN_TRANSITO', origin: 'USA', method: 'AEX', company: 'AEX', driver: 'Marcos Aquino', guide: 'AEX-778812', purchaseId: 'demo-sp-1', destinationBranchId: BRANCH, responsibleId: 'demo-user-repartidor', etaAt: enDias(0), sentAt: hace(10), arrivedAt: null, notes: '', publicToken: 'demo-remito-2', createdAt: hace(48),
       items: [
@@ -195,22 +209,32 @@ export function updateDemoSupplyNeeds(data = {}) {
 }
 
 // ── Compras del Centro ──────────────────────────────────────────────
-const conDetalle = (compra) => ({
+// Estado de cada IMEI en el detalle de la compra (#450): pendiente → recibido → verificado.
+const estadoSerial = (compra, fila, recibidos) => {
+  const recibido = compra.status === 'RECIBIDA' || recibidos.has(fila.serial)
+  if (fila.verificado) return 'verificado'
+  return recibido ? 'recibido' : 'pendiente'
+}
+const recibidosDemo = { has: () => false }
+const conDetalle = (compra, recibidos = recibidosDemo) => ({
   ...compra,
   supplier: proveedorDemo(compra.supplierId) || { id: compra.supplierId, name: compra.supplierName },
   supplierName: proveedorDemo(compra.supplierId)?.name || compra.supplierName || '',
   branch: { id: compra.branchId, name: compra.branchId === BRANCH_2 ? 'Sucursal Villa Morra' : 'Casa Central' },
   createdBy: { name: usuario(compra.createdById)?.nombre || 'Equipo demo' },
   unidades: (compra.lines || []).reduce((suma, linea) => suma + Number(linea.quantity || 0), 0),
-  lines: (compra.lines || []).map((linea) => ({ ...linea, product: producto(linea.productId), serials: linea.serials || [], faltan: Number(linea.faltan ?? Math.max(0, Number(linea.quantity) - (linea.serials || []).length)) })),
+  lines: (compra.lines || []).map((linea) => ({ ...linea, product: producto(linea.productId), serials: (linea.serials || []).map((fila) => ({ serial: fila.serial, estado: estadoSerial(compra, fila, recibidos) })), faltan: Number(linea.faltan ?? Math.max(0, Number(linea.quantity) - (linea.serials || []).length)) })),
 })
+
+const serialesRecibidos = (state) => new Set(state.shipments.flatMap((envio) => (envio.items || []).filter((item) => item.status === 'RECIBIDO' && item.serial).map((item) => item.serial)))
 
 export function listDemoSupplyPurchases(params = {}) {
   const state = read()
+  const recibidos = serialesRecibidos(state)
   let compras = state.purchases
   if (params.status) compras = compras.filter((compra) => compra.status === params.status)
   if (params.pendientes === 1 || params.pendientes === '1') compras = compras.filter((compra) => (compra.lines || []).some((linea) => conDetalle(compra).lines.find((fila) => fila.id === linea.id).faltan > 0))
-  const detalladas = compras.map(conDetalle)
+  const detalladas = compras.map((compra) => conDetalle(compra, recibidos))
   return {
     fecha: new Date().toISOString().slice(0, 10),
     totales: {
@@ -271,16 +295,47 @@ export function updateDemoSupplyPurchase(data = {}) {
   if (data.action === 'addLines') compra.lines = [...(compra.lines || []), ...(data.lines || []).map((linea, indice) => ({ id: `demo-spl-add-${Date.now().toString(36)}-${indice}`, productId: linea.productId, condition: linea.condition || 'NEW', quantity: Number(linea.quantity) || 1, unitCostPyg: Number(linea.unitCostPyg) || 0, needId: null, coveredQuantity: 0, faltan: Number(linea.quantity) || 1, libreQuantity: Number(linea.quantity) || 1, serials: [], priority: 'NORMAL', source: 'MANUAL' }))]
   if (data.action === 'scan' || data.action === 'serials') {
     const linea = compra.lines.find((fila) => fila.id === data.lineId)
-    if (linea) {
-      const nuevos = data.action === 'scan' ? [data.serial] : (data.serials || [])
-      for (const serial of nuevos.map((valor) => String(valor || '').trim().toUpperCase()).filter(Boolean)) {
-        if (!(linea.serials || []).some((fila) => fila.serial === serial)) linea.serials = [...(linea.serials || []), { serial }]
+    if (!linea) throw new Error('Línea no encontrada.')
+    const crudos = data.action === 'scan' ? [data.serial] : (data.serials || [])
+    const nuevos = []
+    for (const crudo of crudos) {
+      const serial = String(crudo || '').trim().toUpperCase()
+      if (!serial) continue
+      if (/^\d{15}$/.test(serial)) {
+        if (!luhnValido(serial) && !(data.action === 'scan' && data.forzarLuhn === true)) throw new Error(`El IMEI ${serial} no pasa la verificación de dígito control (Luhn).`)
+      } else if (!/^[A-Z0-9-]{4,}$/.test(serial)) {
+        throw new Error(`El serial ${serial} no parece válido.`)
       }
-      linea.faltan = Math.max(0, Number(linea.quantity) - (linea.serials || []).length)
+      if ((linea.serials || []).some((fila) => fila.serial === serial) || nuevos.includes(serial)) throw new Error(`El IMEI ${serial} ya está cargado en esta línea.`)
+      const enOtra = state.purchases.some((otra) => (otra.lines || []).some((fila) => (fila.serials || []).some((item) => item.serial === serial)))
+      if (enOtra) throw new Error(`El IMEI ${serial} ya está cargado en otra compra.`)
+      nuevos.push(serial)
+    }
+    if (!nuevos.length) throw new Error('Indicá al menos un IMEI/serial.')
+    if ((linea.serials || []).length + nuevos.length > Number(linea.quantity)) throw new Error(`La línea admite ${linea.quantity} IMEI/serial (ya tiene ${(linea.serials || []).length}).`)
+    linea.serials = [...(linea.serials || []), ...nuevos.map((serial) => ({ serial }))]
+    linea.faltan = Math.max(0, Number(linea.quantity) - linea.serials.length)
+    // Recepción cuenta los IMEI por completar sobre las unidades del lote: se asignan ahí también.
+    let restantes = [...nuevos]
+    for (const envio of state.shipments) {
+      if (['CANCELADO', 'RECIBIDO'].includes(envio.status)) continue
+      for (const item of envio.items || []) {
+        if (restantes.length && item.lineId === linea.id && !item.serial) item.serial = restantes.shift()
+      }
     }
   }
+  if (data.action === 'removeSerial') {
+    const serial = String(data.serial || '').trim().toUpperCase()
+    const linea = compra.lines.find((fila) => fila.id === data.lineId)
+    if (!linea || !(linea.serials || []).some((fila) => fila.serial === serial)) throw new Error('Ese IMEI no está cargado en la compra.')
+    if (['CANCELADA', 'RECIBIDA'].includes(compra.status)) throw new Error('La compra ya está cerrada: no se pueden quitar IMEI.')
+    if (state.shipments.some((envio) => (envio.items || []).some((item) => item.serial === serial && item.status === 'RECIBIDO'))) throw new Error('Ese IMEI ya fue recibido.')
+    linea.serials = linea.serials.filter((fila) => fila.serial !== serial)
+    linea.faltan = Math.max(0, Number(linea.quantity) - linea.serials.length)
+    for (const envio of state.shipments) for (const item of envio.items || []) if (item.serial === serial) item.serial = null
+  }
   write(state)
-  return conDetalle(compra)
+  return conDetalle(compra, serialesRecibidos(state))
 }
 
 export function demoSupplyPurchaseLabels(id) {
@@ -342,9 +397,19 @@ export function updateDemoSupplyShipment(data = {}) {
   if (!envio) throw new Error('Lote no encontrado.')
   if (data.action === 'scan' || data.action === 'serials') {
     const nuevos = data.action === 'scan' ? [data.serial] : (data.serials || [])
+    const compra = state.purchases.find((fila) => fila.id === envio.purchaseId)
     for (const serial of nuevos.map((valor) => String(valor || '').trim().toUpperCase()).filter(Boolean)) {
+      if (/^\d{15}$/.test(serial) && !luhnValido(serial) && !(data.action === 'scan' && data.forzarLuhn === true)) throw new Error(`El IMEI ${serial} no pasa la verificación de dígito control (Luhn).`)
+      if (state.shipments.some((otro) => (otro.items || []).some((fila) => fila.serial === serial))) throw new Error(`El IMEI ${serial} ya está cargado en un lote.`)
       const item = (envio.items || []).find((fila) => fila.lineId === data.lineId && !fila.serial)
-      if (item) { item.serial = serial; item.status = 'EN_TRANSITO' }
+      if (!item) throw new Error('El lote no tiene unidades con IMEI pendiente.')
+      item.serial = serial
+      item.status = envio.status === 'EN_TRANSITO' ? 'EN_TRANSITO' : item.status
+      const linea = (compra?.lines || []).find((fila) => fila.id === data.lineId)
+      if (linea && !(linea.serials || []).some((fila) => fila.serial === serial)) {
+        linea.serials = [...(linea.serials || []), { serial }]
+        linea.faltan = Math.max(0, Number(linea.quantity) - linea.serials.length)
+      }
     }
   }
   if (data.action === 'prepare') envio.status = 'PREPARANDO'
@@ -462,6 +527,16 @@ export function updateDemoSupplyReception(data = {}) {
     if (envio) { envio.status = 'RECIBIDO'; envio.arrivedAt = new Date().toISOString() }
     const need = state.needs.find((fila) => fila.status === 'ASIGNADA' || fila.status === 'ABIERTA')
     if (need) need.status = 'RECIBIDA'
+    // #450: lo recibido entra al stock de la demo con su IMEI (visible en Stock › Unidades).
+    if (envio) {
+      for (const item of recepcion.items || []) {
+        if (item.resultado !== 'RECIBIDO' || !item.serial) continue
+        const unidad = (envio.items || []).find((fila) => fila.id === item.shipmentItemId) || null
+        const productoId = item.productId || unidad?.productId
+        if (!productoId) continue
+        try { createDemoUnit({ productId: productoId, serial: item.serial, branchId: envio.destinationBranchId, locationId: recepcion.locationId, supplierName: '', notes: `Recibida en ${envio.code}` }) } catch { /* ya existía en el stock demo */ }
+      }
+    }
   }
   write(state)
   return { ...demoSupplyReceptionDetail({ shipmentId: recepcion.shipmentId }), ok: true }

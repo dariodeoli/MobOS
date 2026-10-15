@@ -316,3 +316,16 @@ assert.equal(costoPorUnidad({ totalCostPyg: null, currency: 'PYG', unidades: 2 }
 assert.deepEqual(resumenRecepcion([{ resultado: 'RECIBIDO' }, { resultado: 'DANADO' }, { resultado: 'RECIBIDO' }]), { RECIBIDO: 2, FALTANTE: 0, SOBRANTE: 0, DANADO: 1, INCORRECTO: 0 })
 assert.deepEqual(resumenRecepcion([]), { RECIBIDO: 0, FALTANTE: 0, SOBRANTE: 0, DANADO: 0, INCORRECTO: 0 })
 assert.ok(RESULTADOS_RECEPCION.includes('SOBRANTE'))
+
+// ── #450: estado de cada IMEI y quitar uno cargado por error ────────────────
+import { estadoSerialCompra, validarQuitarSerial } from '../lib/supply'
+assert.equal(estadoSerialCompra(), 'pendiente')
+assert.equal(estadoSerialCompra({ recibido: true }), 'recibido')
+assert.equal(estadoSerialCompra({ recibido: true, verificado: true }), 'verificado')
+assert.equal(estadoSerialCompra({ verificado: true }), 'verificado')
+assert.deepEqual(validarQuitarSerial({ estadoCompra: 'COMPRADA' }), { ok: true })
+assert.equal(validarQuitarSerial({ estadoCompra: 'RECIBIDA' }).ok, false)
+assert.equal(validarQuitarSerial({ estadoCompra: 'COMPRADA', enLote: true }).ok, false)
+assert.equal(validarQuitarSerial({ estadoCompra: 'COMPRADA', enStock: true }).ok, false)
+assert.equal(normalizarSeriales(['356938035643808']).ok, false, 'Luhn inválido se rechaza')
+assert.equal(normalizarSeriales(['356938035643808'], { sinLuhn: true }).ok, true, 'con forzar Luhn se acepta')

@@ -39,3 +39,25 @@ export function totalPendienteLotes(envios = []) {
 export function etiquetaLineaDeLote(linea) {
   return [linea?.producto || 'Producto', linea?.capacidad, linea?.color].filter(Boolean).join(' · ')
 }
+
+// #450: las líneas del lote para el panel de escaneo — cantidad = unidades de la
+// línea en el lote, seriales = las que ya tienen IMEI (con su estado en el lote).
+export function lineasDeEnvio(envio) {
+  const lineas = new Map()
+  for (const item of envio?.items || []) {
+    const clave = item.lineId || item.productId || item.id
+    if (!lineas.has(clave)) {
+      lineas.set(clave, {
+        id: item.lineId || clave,
+        productId: item.productId || null,
+        nombre: [item.product?.name || 'Producto', item.product?.capacity, item.product?.color].filter(Boolean).join(' · '),
+        cantidad: 0,
+        seriales: [],
+      })
+    }
+    const fila = lineas.get(clave)
+    fila.cantidad += 1
+    if (item.serial) fila.seriales.push({ serial: item.serial, estado: item.status === 'RECIBIDO' ? 'recibido' : 'pendiente' })
+  }
+  return [...lineas.values()]
+}
