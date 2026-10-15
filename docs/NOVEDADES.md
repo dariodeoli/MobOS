@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.228 — 2026-10-15
+
+- **Reparto:** tarifas con vigencia, varios viajes por pedido y cierre semanal del repartidor; los ajustes dejan motivo e historial y el cobro al cliente se mantiene separado.
+- **Inventario:** el dueño elige quién puede verificar stock y qué datos adicionales registrar; cada verificación conserva quién la hizo y cuándo. Los ciclos de batería se cargan en la recepción rápida y aparecen en las etiquetas.
+- **Celular:** Stock deja más equipos a la vista desde el inicio y actualiza la vista al cambiar el día en Paraguay.
+- **Clientes y proveedores:** campo de RUC compacto con descarte antes de aplicar y buscador de proveedores compartido; los bancos usan un catálogo común, con respaldo al normalizar nombres inequívocos.
+- **Impresión:** la prueba utiliza el encabezado y pie del negocio y conserva el diagnóstico, el QR y el corte.
+- **Servidor:** se corrige una diferencia del esquema de IMEI, se actualiza una dependencia de seguridad y la compilación recupera el registro de novedades cuando el proveedor lo reubica.
+
 ## v1.0.227 — 2026-10-15
 
 - **Análisis:** vuelve Ventas del día, con productos, vendedores y cobros por cuenta y sucursal; los días con más de 500 pedidos se cuentan completos.
