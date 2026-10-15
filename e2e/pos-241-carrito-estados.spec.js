@@ -80,7 +80,7 @@ test('los bloques de cobro muestran su estado (pagado / no pagado) (#241)', asyn
   await expect(filaUno).toHaveAttribute('data-estado', 'pagado')
   await expect(filaUno).toHaveClass(/mobos-aparece/)
 
-  await page.getByRole('button', { name: /^Dividir saldo/ }).click()
+  await filaUno.getByRole('button', { name: /^Dividir pago/ }).click()
   const filaDos = pagos.getByTestId('pago-fila-1')
   await filaDos.getByLabel('Cuenta de cobro').click()
   await page.getByRole('option', { name: /Caja E2E/ }).first().click()

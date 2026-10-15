@@ -490,6 +490,7 @@ export function PosCustomer({
   setBillingTo,
   setF,
   nombreLista = '',
+  onStats,
 }) {
   const { perfilEmpresa } = useSesion()
   const nombreVendedor =
@@ -525,6 +526,7 @@ export function PosCustomer({
         billingTo={billingTo}
         onBillingChange={setBillingTo}
         nombreLista={nombreLista}
+        onStats={onStats}
       />
     </section>
   )

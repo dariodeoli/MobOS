@@ -177,21 +177,9 @@
   white-space: nowrap;
 }
 
-/* Columna de la venta (carrito + cobro): un solo bloque pegado en escritorio.
-   El alto máximo lo mide FormularioVenta (--pos-col-max) para que «Cobrar»
-   entre en pantalla; si el contenido es más alto, se desplaza por dentro. */
-@media (min-width: 1024px) {
-  .pos-columna-venta {
-    position: sticky;
-    top: 16px;
-    max-height: var(--pos-col-max, calc(100dvh - 2rem));
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    padding: 2px;
-    margin: -2px;
-  }
-}
+/* Columna de la venta (carrito + cobro): ocupa el alto de la grilla del POS
+   (que mide FormularioVenta con --pos-alto); las listas se desplazan por dentro
+   y el pie del cobro queda siempre a la vista (ver posUnaPantalla.css). */
 /* Cliente compacto sobre el catálogo: buscador + chip; el detalle se abre aparte. */
 [data-testid='pos-bloque-cliente'] details > summary {
   min-height: 44px;
@@ -260,4 +248,10 @@
 .shell-nav-v2 .stock-lista-encabezado {
   background: rgb(var(--c-ink-700));
   border-color: rgb(var(--c-ink-600));
+}
+
+/* #451: el contenido del desplegable cerrado no ocupa caja: sus botones no
+   deben contar como controles visibles superpuestos con la lista de abajo. */
+.inicio-disclosure:not([open]) > :not(summary) {
+  display: none;
 }

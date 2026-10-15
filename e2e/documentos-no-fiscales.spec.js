@@ -60,7 +60,8 @@ test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal',
     return filas.find((fila) => fila.id === id)
   }, { api: API, id })
 
-  await page.getByRole('button', { name: 'Nota de entrega' }).click()
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Nota de entrega' }).click()
   await expect(page.getByText('Nota de entrega enviada a la impresora')).toBeVisible({ timeout: 15_000 })
 
   await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { formatoPermitido } from '@/lib/printing/preferencias'
 import { Button, FormActions, Input, useResultado } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
@@ -20,7 +21,7 @@ import { cn } from '@/lib/utils'
 const claveDe = (product) => String(product?.id || product?.sku || product?.nombre || product?.name || '')
 const nombreDe = (product) => product?.name || product?.nombre || 'Producto'
 const precioDe = (product) => Number(product?.precioEtiqueta ?? product?.precioPyg ?? product?.pricePyg ?? product?.precioVenta ?? 0)
-const formatosPorAncho = (ancho) => (Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
+const formatosPorAncho = (ancho) => formatoPermitido(Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
 
 
 export default function EtiquetasProductoModal({ open, onClose, productos = [], seleccionInicial = [] }) {

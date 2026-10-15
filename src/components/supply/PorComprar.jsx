@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { resources } from '@/lib/api'
 import { contextoActual, getProductos } from '@/lib/storage'
 import { suppliersApi } from '@/lib/api/suppliers'
@@ -48,7 +49,7 @@ const PARAMS_ESTADO = {
 const VACIO_ESTADO = {
   pendientes: ['No hay nada por comprar.', 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'],
   asignadas: ['Sin compras asignadas.', 'Asigná un comprador desde «Por comprar» para que aparezca acá.'],
-  compradas: ['No hay compras registradas.', 'Lo comprado (fase 2) se lista acá mientras espera la recepción.'],
+  compradas: ['No hay compras registradas.', 'Lo que comprás sale de «Por comprar» y se lista acá mientras espera la recepción; sus IMEI se cargan en «Preparar compra».'],
   recibidas: ['Todavía no hay recepciones.', 'Cuando llegue la compra y se reciba, la necesidad pasa acá.'],
   canceladas: ['No hay necesidades canceladas.', 'Las que se cancelan con motivo quedan acá para la auditoría.'],
 }
@@ -74,6 +75,9 @@ function plazo(prometidaEl) {
 const claveGrupo = (grupo) => `${grupo.productoId}::${grupo.condicion}::${grupo.centro || ''}`
 
 export default function PorComprar() {
+  const navigate = useNavigate()
+  // #450: lo recién comprado no desaparece en silencio: queda el aviso con el enlace a su compra.
+  const [recienComprada, setRecienComprada] = useState(null)
   const toast = useToast()
   const [filas, setFilas] = useState([])
   const [totales, setTotales] = useState(null)
@@ -215,13 +219,14 @@ export default function PorComprar() {
     if (!libreForm.productId || !libreForm.supplierName.trim() || cantidad < 1 || busy) return
     setBusy(true)
     try {
-      await resources.supplyPurchases.create({
+      const creada = await resources.supplyPurchases.create({
         supplierName: libreForm.supplierName.trim(),
         currency: 'PYG',
         ...(costo > 0 ? { originalCost: cantidad * costo } : {}),
         lines: [{ productId: libreForm.productId, quantity: cantidad, ...(costo > 0 ? { unitCostPyg: costo } : {}) }],
       })
       toast.success('Compra libre registrada', 'No crea necesidad: el stock entra al recibirla.')
+      setRecienComprada({ code: creada?.code || '', unidades: cantidad })
       setLibre(false)
       setLibreForm({ productId: '', quantity: '1', unitCostPyg: '', supplierName: '' })
       cargar()
@@ -287,6 +292,15 @@ export default function PorComprar() {
           </div>
         </div>
       </Card>
+
+      {recienComprada && (
+        <div role="status" data-testid="por-comprar-comprado" className="flex flex-wrap items-center gap-2 rounded-xl border border-ok/40 bg-ok/10 px-3 py-2 text-sm text-ok">
+          <Icon name="check" className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">Comprado{recienComprada.code ? ` · ${recienComprada.code}` : ''} · {recienComprada.unidades} unidad(es). Ya no está en «Por comprar»: sus IMEI quedan pendientes.</span>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => navigate(recienComprada.code ? `/preparacion?compra=${encodeURIComponent(recienComprada.code)}` : '/preparacion')}>Ver en Preparar compra</Button>
+          <Button type="button" variant="ghost" className="min-h-11 min-w-11" aria-label="Cerrar aviso" onClick={() => setRecienComprada(null)}><Icon name="close" className="h-4 w-4" /></Button>
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -408,6 +422,14 @@ export default function PorComprar() {
                   </p>
                 )}
 
+                {(vista === 'compradas' || vista === 'recibidas') && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge color="green">{vista === 'compradas' ? 'Comprado' : 'Recibido'}</Badge>
+                    <Button type="button" variant="outline" className="min-h-11" onClick={() => navigate(vista === 'compradas' ? '/preparacion' : '/stock/unidades')} data-testid="por-comprar-ver-compra">
+                      {vista === 'compradas' ? 'Ver en Preparar compra' : 'Ver en Stock'}
+                    </Button>
+                  </div>
+                )}
                 {enPendientes && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Button type="button" variant="outline" onClick={() => abrirAsignacion(grupo)}>Asignar comprador</Button>

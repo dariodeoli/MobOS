@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
@@ -8,6 +9,8 @@ import AttachmentList from '@/components/shared/AttachmentList'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
+import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
+import SerialesCompra from '@/components/supply/SerialesCompra'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import ListaCompraModal from '@/components/supply/ListaCompraModal'
 import { etiquetaCompra, tonoCompra } from 'owncoding-ui'
@@ -24,6 +27,7 @@ const ESTADOS_FILTRO = ['TODAS', 'COMPRADA', 'PREPARANDO', 'EN_TRANSITO', 'RECIB
 
 export default function ComprasCentro() {
   const toast = useToast()
+  const navigate = useNavigate()
   const [compras, setCompras] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -121,16 +125,12 @@ export default function ComprasCentro() {
 
   return (
     <div className="space-y-4" data-testid="compras-centro">
-      <BarraModulo
-        icono="store"
-        titulo="Compras del Centro"
-        descripcion="Lo comprado por el Centro: necesidades cubiertas y reposición libre, con sus IMEI y cantidades libres. El stock nace en la recepción."
-        testId="barra-compras-centro"
-      >
+      <BarraModulo icono="store" titulo="Compras del Centro" testId="barra-compras-centro">
         <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
           <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
         </Button>
       </BarraModulo>
+      <EncabezadoFlujo paso="compras-centro" onIr={(paso) => navigate(paso.ruta)} />
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchField value={busqueda} onChange={(evento) => setBusqueda(evento.target.value)} placeholder="Buscar por código, proveedor o producto" ariaLabel="Buscar en compras del Centro" className="min-w-0 flex-1" />
@@ -191,19 +191,25 @@ export default function ComprasCentro() {
                     {(compra.lines || []).map((fila) => {
                       const seriales = (fila.serials || []).length
                       return (
-                        <div key={fila.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm">
-                          <span className="min-w-0 flex-1 truncate">
-                            {fila.product?.name || 'Producto'}
-                            {fila.product?.capacity ? ` · ${fila.product.capacity}` : ''}
-                            <span className="ml-1 text-xs text-mute">{CONDICION_UNIDAD[fila.condition] || fila.condition || ''}</span>
-                          </span>
-                          <span className="text-xs tabular-nums text-mute">{fila.quantity} unidad(es)</span>
-                          <Badge color={seriales >= Number(fila.quantity) ? 'green' : 'blue'}>{seriales}/{fila.quantity} IMEI</Badge>
-                          {Number(fila.libreQuantity || 0) > 0 && <Badge color="blue">{fila.libreQuantity} libre(s)</Badge>}
-                          {fila.unitCostPyg ? <span className="text-xs tabular-nums text-mute">{gs(Number(fila.unitCostPyg))} c/u</span> : null}
+                        <div key={fila.id} className="space-y-2 rounded-lg border border-ink-600 px-3 py-2 text-sm" data-testid="compra-centro-linea">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate">
+                              {fila.product?.name || 'Producto'}
+                              {fila.product?.capacity ? ` · ${fila.product.capacity}` : ''}
+                              <span className="ml-1 text-xs text-mute">{CONDICION_UNIDAD[fila.condition] || fila.condition || ''}</span>
+                            </span>
+                            <span className="text-xs tabular-nums text-mute">{fila.quantity} unidad(es)</span>
+                            <Badge color={seriales >= Number(fila.quantity) ? 'green' : 'blue'}>{seriales}/{fila.quantity} IMEI</Badge>
+                            {Number(fila.libreQuantity || 0) > 0 && <Badge color="blue">{fila.libreQuantity} libre(s)</Badge>}
+                            {fila.unitCostPyg ? <span className="text-xs tabular-nums text-mute">{gs(Number(fila.unitCostPyg))} c/u</span> : null}
+                          </div>
+                          <SerialesCompra linea={fila} />
                         </div>
                       )
                     })}
+                    {(compra.lines || []).some((fila) => Number(fila.faltan || 0) > 0) && (
+                      <Button type="button" variant="outline" className="min-h-11" onClick={() => navigate(`/preparacion?compra=${encodeURIComponent(compra.code)}`)}>Cargar IMEI pendientes</Button>
+                    )}
                   </div>
                 )}
               </Card>

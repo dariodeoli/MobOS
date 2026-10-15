@@ -76,3 +76,50 @@ export const recordarFormatoDeTipo = (tipo, formato) => memoria.recordarFormato(
 export const olvidarTipoDeImpresion = (tipo) => memoria.olvidar(tipo)
 export const memoriaDeImpresion = () => memoria.todas()
 
+// ── Formato 58 mm (#426) ────────────────────────────────────────────
+// La térmica de la tienda es de 80 mm y el otro formato es A4: el 58 mm queda
+// fuera de los selectores y de las vistas previas salvo que se encienda en
+// Configuración › Impresión y dispositivos › «Formato 58 mm» (apagado por
+// defecto). Es una preferencia del equipo, como el resto de este módulo.
+const CLAVE_58 = 'mobos:impresion:formato-58'
+export const EVENTO_FORMATO_58 = 'mobos:formato-58'
+
+/** Núcleo puro: recibe el storage (se testea sin navegador). */
+export function crearPreferenciaFormato58(storage) {
+  return {
+    activo: () => {
+      try { return storage?.getItem(CLAVE_58) === '1' } catch { return false }
+    },
+    fijar: (valor) => {
+      try { storage?.setItem(CLAVE_58, valor ? '1' : '0') } catch { /* sin almacenamiento */ }
+    },
+  }
+}
+
+const preferencia58 = crearPreferenciaFormato58(typeof localStorage !== 'undefined' ? localStorage : null)
+
+export const formato58Activo = () => preferencia58.activo()
+export function fijarFormato58(valor) {
+  preferencia58.fijar(Boolean(valor))
+  try { if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO_FORMATO_58)) } catch { /* sin ventana */ }
+}
+
+const es58 = (id) => /58$/.test(String(id)) || String(id) === 'thermal'
+
+/**
+ * Filtra una lista de formatos ([id, etiqueta]) o de anchos (58 | 80): sin el
+ * interruptor, el 58 mm no se ofrece. `actual` conserva el valor ya elegido
+ * (una impresora de 58 mm existente no pierde su ancho en el formulario).
+ */
+export function formatosVisibles(lista = [], { activo = formato58Activo(), actual = null } = {}) {
+  if (activo) return lista
+  return lista.filter((item) => {
+    const id = Array.isArray(item) ? item[0] : item
+    if (actual !== null && String(id) === String(actual)) return true
+    return !es58(id)
+  })
+}
+
+/** Formato válido para mostrar: con el 58 mm apagado, cae a 80 mm. */
+export const formatoPermitido = (formato, { activo = formato58Activo() } = {}) => (!activo && es58(formato) ? 'thermal-80' : formato)
+

@@ -57,7 +57,7 @@ test('#306 · secciones de la ficha y kardex del demo con saldo verificado', asy
   expect(stock).toBeGreaterThan(0)
   await expect(ficha.getByText('Este producto del demo no tiene unidades con IMEI.')).toHaveCount(0)
   const unidades = ficha.locator('section#producto-seccion-unidades')
-  await expect(unidades.getByText('AUR', { exact: false }).first()).toBeVisible()
+  await expect(unidades.getByText(/35\d{13}/).first()).toBeVisible()
   await capturar(page, 'ficha-secciones-1440-light.png', false)
   await capturar(page, 'ficha-secciones-1440-dark.png', true)
   // Compras del demo: el ingreso de cada unidad ficticia con su proveedor.

@@ -73,7 +73,8 @@ test('#302 · Delivery y Abastecimiento abren con los fixtures del demo (#324)',
   await expect(page.getByText('CMP-AUR-0001').first()).toBeVisible()
   await page.goto('/preparacion')
   await expect(page.getByText('CMP-AUR-0001').first()).toBeVisible()
-  await page.goto('/preparar-lote')
+  // Con todos sus IMEI cargados el lote ya no figura en «por completar»: se abre por su código.
+  await page.goto('/preparar-lote?lote=LOTE-AUR-0001')
   await expect(page.getByText('LOTE-AUR-0001').first()).toBeVisible()
   await page.goto('/recepcion')
   await expect(page.getByTestId('recepcion-llegada').first()).toBeVisible()

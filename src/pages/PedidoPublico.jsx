@@ -13,6 +13,7 @@ import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPed
 import { temaV2Activo } from '@/lib/temaV2'
 import ProductFooter from '@/components/app/ProductFooter'
 import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, EnlacePoliticas, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
@@ -253,6 +254,7 @@ export default function PedidoPublico() {
           </>
         )}
       </div>
+      <WhatsAppSucursal contacto={order?.contacto} />
       <ProductFooter />
     </main>
   )

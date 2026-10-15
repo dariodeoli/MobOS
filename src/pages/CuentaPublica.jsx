@@ -16,6 +16,7 @@ import { etiquetaCotizacion, cotizacionUrlFor, diasParaVencer, estadoCotizacion,
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import { tonoServicioPortal } from '@/lib/estadosServicio'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
 
 // Tonos de los avisos del portal (el mismo set que la cronología del CRM).
@@ -516,6 +517,7 @@ export default function CuentaPublica() {
           </div>
         )}
       </div>
+      <WhatsAppSucursal contacto={cuenta?.contacto} />
       <ProductFooter />
     </main>
   )

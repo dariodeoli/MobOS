@@ -20,12 +20,12 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await expect(page.getByTestId("pedido-fila").first()).toBeVisible()
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
-  // La grilla de cada fila tiene 7 celdas (código/fecha, cliente, entrega,
+  // La grilla de cada fila tiene 8 celdas (código, fecha, cliente, entrega,
   // pago, estado, total y, la última, la vista rápida) y la fecha entra
   // completa: nada descolgado ni cortado.
   const celdas = page.getByTestId("pedido-fila").first().locator(":scope > *")
-  await expect(celdas).toHaveCount(7)
-  const fecha = celdas.nth(0).locator("p")
+  await expect(celdas).toHaveCount(8)
+  const fecha = celdas.nth(1)
   expect(await fecha.evaluate(elemento => elemento.scrollWidth <= elemento.clientWidth + 1)).toBeTruthy()
 
   await page.reload()
@@ -76,7 +76,7 @@ test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por AP
 
 // Impresión del pedido: 80 mm (predeterminado), A4 y el rollo de 58 mm con
 // diseño vertical propio. Nivel y formato se eligen con íconos (#207/#208).
-test('pedidos: el comprobante ofrece 80 mm, A4 y 58 mm con diseño propio', async ({ page }) => {
+test('pedidos: el comprobante ofrece 80 mm y A4; el 58 mm solo con el interruptor de Impresión', async ({ page }) => {
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
@@ -87,7 +87,8 @@ test('pedidos: el comprobante ofrece 80 mm, A4 y 58 mm con diseño propio', asyn
   const opciones = await formato
     .getByRole('radio')
     .evaluateAll((radios) => radios.map((radio) => radio.getAttribute('aria-label')))
-  expect(opciones).toEqual(['Formato 80 mm', 'Formato A4', 'Formato 58 mm'])
+  // Sin el interruptor «Formato 58 mm» (apagado por defecto) solo 80 mm y A4.
+  expect(opciones).toEqual(['Formato 80 mm', 'Formato A4'])
   await expect(formato.getByRole('radio', { name: 'Formato 80 mm' })).toBeChecked()
 
   const nivel = page.getByRole('radiogroup', { name: 'Tipo de comprobante' })
@@ -104,6 +105,7 @@ test('pedidos: el comprobante ofrece 80 mm, A4 y 58 mm con diseño propio', asyn
   // 58 mm: una columna, total destacado y alto dinámico (no el A4 encogido).
   // #402: comparte plantilla con A4/80 mm; el marcador del cuerpo (`rollo t58`)
   // y el `@page` con alto automático lo distinguen de los otros formatos.
+  await page.evaluate(() => { localStorage.setItem('mobos:impresion:formato-58', '1'); window.dispatchEvent(new Event('mobos:formato-58')) })
   await formato.getByRole('radio', { name: 'Formato 58 mm' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /@page\{size:58mm auto;margin:[^}]+\}/, { timeout: 15000 })
   await expect(frame).toHaveAttribute('srcdoc', /<body class="rollo t58">/)
@@ -174,10 +176,8 @@ test('pedidos: la nota del pedido se edita desde el detalle', async ({ page }) =
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   const nota = `Nota E2E ${Date.now().toString(36)}`
-  // La sección de cliente (donde vive la nota) arranca plegada.
-  await page.locator('main').getByRole('button', { name: /^Cliente/ }).first().click()
   await page.getByRole('button', { name: /Agregar nota|Editar nota/ }).click()
   await page.getByLabel('Nota del pedido').fill(nota)
   await page.getByRole('button', { name: 'Guardar nota' }).click()
-  await expect(page.getByText(`Nota: ${nota}`)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId("pedido-notas").getByText(nota)).toBeVisible({ timeout: 15_000 })
 })

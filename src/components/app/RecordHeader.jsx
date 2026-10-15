@@ -9,7 +9,7 @@ import Icon from '@/components/shared/Icon'
 // and flags the shell while mounted, so lists keep the regular header.
 export const RecordSlotContext = createContext(null)
 
-export default function RecordHeader({ backLabel, onBack, title, mono = false, chip, meta, actions }) {
+export default function RecordHeader({ backLabel, onBack, title, mono = false, chip, meta, actions, metaEnLinea = false }) {
   const ctx = useContext(RecordSlotContext)
   const setActivo = ctx?.setActivo
   useLayoutEffect(() => {
@@ -32,8 +32,8 @@ export default function RecordHeader({ backLabel, onBack, title, mono = false, c
       </button>
       <h1 className={`min-w-0 truncate text-[22px] font-semibold leading-7 tracking-tight ${mono ? 'font-mono' : ''}`}>{title}</h1>
       {chip}
-      {meta && <p className="order-last min-w-0 basis-full truncate pb-1 text-sm text-mute sm:order-none sm:basis-auto sm:pb-0">{meta}</p>}
-      {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
+      {meta && <p data-testid="record-header-meta" className={`order-last min-w-0 basis-full truncate pb-1 text-sm text-mute ${metaEnLinea ? '' : 'sm:order-none sm:basis-auto sm:pb-0'}`}>{meta}</p>}
+      {actions && <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2">{actions}</div>}
     </div>,
     ctx.slot,
   )

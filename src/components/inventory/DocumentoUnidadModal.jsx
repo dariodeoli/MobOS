@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import useFormato58 from '@/hooks/useFormato58'
+import { formatoPermitido, formatosVisibles } from '@/lib/printing/preferencias'
 import { Button, Modal, Select, useResultado } from '@/components/ui'
 import { buildCertificadoHtml, buildInformeDispositivoHtml, printCertificado, printInformeDispositivo } from '@/components/shared/OrderReceipt'
 import CompartirImagen from '@/components/shared/CompartirImagen'
@@ -58,7 +60,9 @@ const TIPOS = {
 export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onClose }) {
   const avisar = useResultado()
   const config = TIPOS[tipo] || TIPOS.informe
-  const [formato, setFormato] = useState('thermal-80')
+  const con58 = useFormato58()
+  const [formatoElegido, setFormato] = useState('thermal-80')
+  const formato = formatoPermitido(formatoElegido, { activo: con58 })
   const [datos, setDatos] = useState(null)
   const [html, setHtml] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -122,7 +126,7 @@ export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onC
           <label className="block space-y-1 text-xs text-mute">
             <span>Formato</span>
             <Select aria-label="Formato del documento" className="w-32" value={formato} onChange={(event) => setFormato(event.target.value)}>
-              {FORMATOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              {formatosVisibles(FORMATOS, { activo: con58 }).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
             </Select>
           </label>
           <span className="flex flex-wrap items-center justify-end gap-2">

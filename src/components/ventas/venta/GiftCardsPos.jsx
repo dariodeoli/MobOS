@@ -9,6 +9,7 @@ import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { estadoGiftCard } from '@/lib/giftCards'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
+import { imprimirTarjetaRegalo } from '@/components/shared/imprimirOperacion'
 
 // Gift cards desde el POS (#280): emisión con código (se muestra una sola vez),
 // listado con saldo y el historial de cada tarjeta. El canje vive en el cobro.
@@ -21,7 +22,7 @@ function fechaCorta(valor) {
 }
 
 export default function GiftCardsPos({ open, onClose, cuentas = [], customer = null }) {
-  const { sesion, esDemo } = useSesion()
+  const { sesion, esDemo, empresa, sucursal } = useSesion()
   const puedeAnular = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE', 'dueno'].includes(sesion?.rol))
   const [tarjetas, setTarjetas] = useState([])
   const [cargando, setCargando] = useState(false)
@@ -90,6 +91,15 @@ export default function GiftCardsPos({ open, onClose, cuentas = [], customer = n
     }
   }
 
+  // Tarjeta de regalo impresa (#426): el código completo solo existe aquí, en la
+  // emisión; el papel lo muestra enmascarado y lo lleva en el QR.
+  async function imprimirEmitida() {
+    if (!emitida?.code) return
+    setError('')
+    const resultado = await imprimirTarjetaRegalo(emitida, { empresa, sucursal })
+    if (!resultado.ok && !resultado.dialogo) setError(resultado.error || 'No se pudo imprimir la tarjeta.')
+  }
+
   async function abrirDetalle(tarjeta) {
     if (detalle?.id === tarjeta.id) { setDetalle(null); return }
     setCargandoDetalle(true)
@@ -139,6 +149,7 @@ export default function GiftCardsPos({ open, onClose, cuentas = [], customer = n
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <code className="rounded-xl border border-ok/30 bg-ink-900 px-3 py-2 font-mono text-base font-bold tracking-wider text-fono-light" data-testid="gift-card-codigo">{emitida.code}</code>
               <Button type="button" variant="outline" onClick={copiarCodigo}><Icon name="copy" className="h-4 w-4" />{copiado ? 'Copiado' : 'Copiar código'}</Button>
+              <Button type="button" variant="outline" onClick={imprimirEmitida}><Icon name="receipt" className="h-4 w-4" />Imprimir tarjeta</Button>
               <Button type="button" variant="ghost" onClick={() => setEmitida(null)}>Emitir otra</Button>
             </div>
           </section>

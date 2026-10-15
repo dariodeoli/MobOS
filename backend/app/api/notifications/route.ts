@@ -25,6 +25,7 @@ const ETIQUETA_KIND: Record<string, string> = {
   EXPENSE_OVER_LIMIT: 'Gasto sobre el límite',
   TRANSFER: 'Transferencia entre sucursales',
   PURCHASE_CREDIT: 'Compra a crédito',
+  ORDER_CREDIT_OVER: 'Crédito sobre el límite',
 }
 
 // Estados del taller en lenguaje de pantalla (#148 §14: "tareas").
@@ -135,12 +136,25 @@ export async function GET(request: Request) {
     },
     orderBy: { createdAt: 'desc' },
     take: 30,
-    select: { id: true, kind: true, status: true, createdAt: true, resolvedAt: true, requestedBy: { select: { name: true } }, customer: { select: { name: true } } },
+    select: { id: true, kind: true, status: true, entityId: true, requestedValue: true, createdAt: true, resolvedAt: true, requestedBy: { select: { name: true } }, customer: { select: { name: true } } },
   })
   for (const autorizacion of autorizaciones) {
     const etiqueta = ETIQUETA_KIND[autorizacion.kind] || autorizacion.kind
     const quien = autorizacion.requestedBy?.name || 'Equipo'
     const cliente = autorizacion.customer?.name ? ` · ${autorizacion.customer.name}` : ''
+    if (autorizacion.kind === 'ORDER_CREDIT_OVER' && autorizacion.entityId) {
+      // Crédito sobre el límite: el aviso nombra al cliente y el monto, y lleva al pedido.
+      const valor = (autorizacion.requestedValue && typeof autorizacion.requestedValue === 'object' ? autorizacion.requestedValue : {}) as Record<string, unknown>
+      const cliente = autorizacion.customer?.name || 'El cliente'
+      const href = `/pedidos/${autorizacion.entityId}`
+      if (autorizacion.status === 'PENDING') {
+        items.push({ id: `autorizacion-${autorizacion.id}`, kind: 'APROBACION', title: 'Autorizar entrega a crédito', detail: `${cliente} superaría su crédito en ${gs(valor.overPyg)}${valor.orderNumber ? ` · ${String(valor.orderNumber)}` : ''} · pidió ${quien}`, at: autorizacion.createdAt, href })
+      } else {
+        const aprobada = autorizacion.status === 'APPROVED'
+        items.push({ id: `autorizacion-${autorizacion.id}`, kind: aprobada ? 'APROBADA' : 'RECHAZADA', title: aprobada ? 'Crédito autorizado' : 'Crédito rechazado', detail: `${cliente} · ${gs(valor.overPyg)} sobre el límite${valor.orderNumber ? ` · ${String(valor.orderNumber)}` : ''}`, at: autorizacion.resolvedAt || autorizacion.createdAt, href })
+      }
+      continue
+    }
     if (autorizacion.status === 'PENDING') {
       items.push({ id: `autorizacion-${autorizacion.id}`, kind: 'APROBACION', title: 'Aprobación pendiente', detail: `${etiqueta} · ${quien}${cliente}`, at: autorizacion.createdAt, href: '/autorizaciones' })
     } else {

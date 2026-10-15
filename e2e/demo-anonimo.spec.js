@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
 import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+import { serialDemo } from '../src/lib/demo/iphones.js'
 
 test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
@@ -217,7 +218,7 @@ test('dueño: el inventario demo muestra unidades ficticias sin tocar el API', a
   const filas = page.getByTestId('inventario-fila')
   await expect(filas.first()).toBeVisible({ timeout: 15_000 })
   expect(await filas.count()).toBeGreaterThanOrEqual(20)
-  await expect(page.getByText(/AUR0001/).first()).toBeVisible()
+  await expect(page.getByText(new RegExp(serialDemo(1))).first()).toBeVisible()
 
   await filas.first().click()
   const detalle = page.getByRole('dialog')
@@ -383,10 +384,10 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
   await page.getByRole('button', { name: /Funda/ }).first().click()
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
-  const pagos = page.locator('div.space-y-3').filter({ hasText: 'Pagos de esta venta' })
+  const pagos = page.getByTestId('pos-bloque-pagos')
   await pagos.getByLabel('Cuenta de cobro').first().click()
   await page.getByRole('option', { name: /Caja · Guaraníes/ }).first().click()
-  const dividir = pagos.getByRole('button', { name: /^Dividir saldo/ })
+  const dividir = pagos.getByRole('button', { name: /^Dividir pago/ })
   if (await dividir.count()) await dividir.click()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   // #275: también en la demo la venta aterriza en el detalle del pedido, con

@@ -23,9 +23,11 @@ import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, es
 import { printingApi } from '@/lib/api/printing'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { encolarComprobanteDemo } from '@/lib/printing/demo'
-import { formatoDeTipo, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
+import { formatoDeTipo, formatosVisibles, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
+import useFormato58 from '@/hooks/useFormato58'
 import { ticketComprobante } from '@/lib/printing/tickets'
 import { documentoDeVenta } from '@/lib/printing/ventaComprobanteLocal'
+import { imprimirReciboRegalo } from './imprimirOperacion'
 import { useSesion } from '@/lib/sesion'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -40,8 +42,11 @@ import { useSesion } from '@/lib/sesion'
 // y total— también para las ventas legacy del demo; el modal mantiene header y
 // pie fijos con el cuerpo desplazable, y el papel se dimensiona a su contenido
 // para que el comprobante no quede cortado.
-export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
+export default function ComprobantePreview({ order, open, onClose, formatos: formatosOfrecidos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
+  // El 58 mm solo se ofrece si se enciende en Configuración › Impresión y dispositivos.
+  const con58 = useFormato58()
+  const formatos = useMemo(() => formatosVisibles(formatosOfrecidos, { activo: con58 }), [formatosOfrecidos, con58])
   const avisar = useResultado()
   const { empresa, sucursal, sesion } = useSesion()
   const contexto = useMemo(
@@ -210,6 +215,20 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     }
   }
 
+  // Recibo de regalo (#426): mismos artículos sin precios, para regalar.
+  async function imprimirRegalo() {
+    if (enviando || !documento) return
+    setEnviando(true)
+    try {
+      if (isDemoRuntime) { toast.success('Recibo de regalo (demo)', 'Dato ficticio: no se envió nada a la impresora.'); return }
+      const resultado = await imprimirReciboRegalo(documento)
+      if (!resultado.ok && !resultado.dialogo) avisar.fallo('imprimir', resultado.error || 'Revisá la impresora.')
+      else avisar.impreso('Recibo de regalo')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   const acciones = (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -264,6 +283,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           disabled={!html || cargando}
         />
         <span className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={imprimirRegalo} disabled={cargando || enviando || !documento}>Imprimir recibo de regalo</Button>
           <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
           {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
           <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>

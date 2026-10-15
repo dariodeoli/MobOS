@@ -61,6 +61,12 @@ const detalle = await call(`/api/orders/${orderId}`)
 assert.equal(detalle.status, 200)
 assert.ok(!detalle.body.publicToken, 'el detalle no reexpone el token histórico')
 
+// #412: contacto público = teléfono de la SUCURSAL (nunca del cliente ni del vendedor).
+sql(`UPDATE "Branch" SET phone = '0971 555 123' WHERE id = (SELECT "branchId" FROM "Order" WHERE id = '${orderId}')`)
+const conContacto = await call(`/api/orders/public/${token}`, { headers: {} })
+assert.equal(conContacto.body.contacto?.whatsapp, '595971555123', 'el pedido público trae el WhatsApp de la sucursal')
+assert.ok(!/costPyg|margin|internalNote|"notes"/i.test(JSON.stringify(conContacto.body)), 'la vista rápida no filtra costos ni notas internas')
+
 // Enlaces legacy ya entregados: resuelven por la columna vieja...
 sql(`UPDATE "Order" SET "publicToken" = 'legacy-${stamp}' WHERE id = '${orderId}'`)
 const legacy = await call(`/api/orders/public/legacy-${stamp}`, { headers: {} })

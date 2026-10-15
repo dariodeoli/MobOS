@@ -14,6 +14,8 @@ import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento
 import { documentoComprobante } from '@/lib/printing/ventaComprobante'
 import { garantiaConPolitica } from '@/lib/politicas'
 import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
+import { CONDICIONES, pieDocumentoHtml } from '@/lib/printing/bloquesDocumento'
+import { datosEncabezado } from '@/lib/printing/empresaImpresion'
 import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -44,7 +46,7 @@ export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
   let qr = ''
   try { if (enlace) qr = await qrDataUrl(enlace, { ancho: 200 }) } catch { /* el enlace queda impreso igual */ }
   const recepcion = enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de recepción">` : ''}<p class="small">Confirmá la recepción escaneando el QR o desde ${escapeHtml(enlace)}</p>` : ''
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '4mm' : '16mm'}}body{font:${thermal ? '10px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.items{margin:14px 0;border-top:1px dashed #999}.item{padding:8px 0;border-bottom:1px dashed #999}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}.qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:12px auto 4px}.small{font-size:10px;word-break:break-all;text-align:center;color:#555}@media print{body{margin:0}}</style></head><body><h1>Remito de traslado</h1><p class="muted">${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}</p><div class="items">${lineas}</div>${transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : ''}${(transfer.dispatchedBy?.name || transfer.createdBy?.name) ? `<div class="row"><span>Despachado por</span><span>${escapeHtml(transfer.dispatchedBy?.name || transfer.createdBy.name)}</span></div>` : ''}${transfer.eta ? `<div class="row"><span>ETA</span><span>${escapeHtml(new Date(transfer.eta).toLocaleDateString('es-PY'))}</span></div>` : ''}${transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedBy?.name ? ` · ${escapeHtml(transfer.receivedBy.name)}` : ''}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : ''}${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}${recepcion}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '10mm 4mm 6mm' : '18mm 16mm 16mm'}}body{font:${thermal ? '10px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.items{margin:14px 0;border-top:1px dashed #999}.item{padding:8px 0;border-bottom:1px dashed #999}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}.qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:12px auto 4px}.small{font-size:10px;word-break:break-all;text-align:center;color:#555}@media print{body{margin:0}}</style></head><body><h1>Remito de traslado</h1><p class="muted">${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}</p><div class="items">${lineas}</div>${transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : ''}${(transfer.dispatchedBy?.name || transfer.createdBy?.name) ? `<div class="row"><span>Despachado por</span><span>${escapeHtml(transfer.dispatchedBy?.name || transfer.createdBy.name)}</span></div>` : ''}${transfer.eta ? `<div class="row"><span>ETA</span><span>${escapeHtml(new Date(transfer.eta).toLocaleDateString('es-PY'))}</span></div>` : ''}${transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedBy?.name ? ` · ${escapeHtml(transfer.receivedBy.name)}` : ''}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : ''}${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}${recepcion}</body></html>`
   return printHtml(html)
 }
 
@@ -217,13 +219,14 @@ const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
 // tipográfica, grises neutros y un único acento (el color de la marca de la
 // empresa). Legible en blanco y negro: el acento solo marca la regla del
 // encabezado y el tipo de documento; nada depende del color para entenderse.
-const styles = (format, acento = ACENTO_POR_DEFECTO) => {
+export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   const width = thermalWidth(format)
   // Cada formato reserva su propio margen: A4 respira a los lados y arriba/abajo;
   // las térmicas centran la columna en el rollo con padding parejo (el papel
   // suele ser más ancho que el área imprimible real).
   const page = width ? `${width}mm auto` : 'A4'
-  const margin = width ? '5mm 4mm' : '16mm 16mm'
+  // El rollo deja aire arriba y abajo: el encabezado no queda pegado al corte.
+  const margin = width ? '6mm 4mm 8mm' : '18mm 16mm 16mm'
   const bodyMax = width ? `${width - 8}mm` : '178mm'
   const baseFont = width ? '10px/1.45' : '12px/1.5'
   const h1Size = width ? '15px' : '20px'
@@ -233,19 +236,23 @@ const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   :root{--tinta:#111418;--tinta-2:#3b424a;--gris:#666d75;--linea:#d9dde1;--suave:#f3f4f6;--acento:${acento}}
   @page{size:${page};margin:${margin}}
   *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '1mm 0 6mm' : '0 0 4mm'};font-variant-numeric:tabular-nums}
+  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '10mm 0 8mm' : '4mm 0 4mm'};font-variant-numeric:tabular-nums}
   /* Encabezado: empresa a la izquierda, tipo de documento y número a la derecha
      (en el rollo, apilado y centrado). */
   .brand{display:flex;flex-direction:${width ? 'column' : 'row'};align-items:${width ? 'center' : 'flex-start'};justify-content:space-between;gap:${width ? '6px' : '18px'};border-bottom:2px solid var(--acento);padding-bottom:${width ? '6px' : '10px'};margin-bottom:${width ? '8px' : '14px'};text-align:${width ? 'center' : 'left'}}
   .brand .emp{min-width:0}
   .brand b{display:block;font-size:${width ? '12px' : '15px'};color:var(--tinta);font-weight:800;letter-spacing:.02em}
-  .brand .rz{font-size:${width ? '12px' : '15px'};font-weight:800;line-height:1.25}
+  /* La razón social nunca se corta: pasa a dos líneas y, si es larga, achica la fuente. */
+  .brand .rz{font-size:${width ? '12px' : '15px'};font-weight:800;line-height:1.25;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+  .brand .rz.larga{font-size:${width ? '10.5px' : '13px'}}
+  .brand .rz.muy-larga{font-size:${width ? '9.5px' : '11.5px'}}
+  .brand .sub{overflow-wrap:anywhere}
   .brand .sub{font-size:${width ? '9px' : '10.5px'};color:var(--tinta-2);line-height:1.45}
   .brand .doc{text-align:${width ? 'center' : 'right'};flex:none}
   .brand .tipo{font-size:${width ? '10px' : '11px'};font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--acento)}
   .brand .num{font-size:${width ? '17px' : '22px'};font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
   .brand .cuando{font-size:${width ? '9px' : '10.5px'};color:var(--gris);margin-top:2px}
-  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '15mm'};max-width:${width ? `${width - 20}mm` : '60mm'};object-fit:contain;margin:0 ${width ? 'auto' : '0'} 5px}
+  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '15mm'};max-width:min(100%,${width ? `${width - 20}mm` : '60mm'});object-fit:contain;margin:0 ${width ? 'auto' : '0'} 5px}
   h1{font-size:${h1Size};margin:0 0 2px;letter-spacing:-.01em}
   .muted{color:var(--gris)}
   .meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;margin:6px 0 0}
@@ -290,6 +297,8 @@ const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   .observaciones .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gris)}
   .observaciones .linea{border-bottom:1px dotted #9aa4ad;height:11mm}
   footer{margin-top:12px;border-top:1px solid var(--linea);padding-top:8px;font-size:9.5px;color:var(--gris);text-align:center}
+  .totals.venta tr.total td{font-weight:800;font-size:${totalSize};border-top:2px solid var(--tinta);padding-top:7px;line-height:1.15}
+  .card .totals{width:100%}
   @media print{body{margin:0;color:#000}.muted,.brand .cuando,footer,.small,.card .label,th{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea,.pie-doc{border-color:#000}.brand .tipo,.firma .rol{color:#000}.tag{border-color:#000}td{border-bottom-color:#999}}
 `
 }
@@ -323,12 +332,23 @@ const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, 
 // RUC, sucursal y contacto) y, a la derecha, el tipo de documento con el número
 // destacado. `extra`: `razon`, `lineas` (RUC, dirección, contacto) y `numero`.
 // Sin datos de la empresa, el bloque se reduce al logo o a la marca de la app.
-const header = (title, when, logo = '', marca = '', extra = {}) => {
-  const lineas = (extra.lineas || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
-  const identidad = extra.razon ? `<div class="rz">${escapeHtml(extra.razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
+export const header = (title, when, logo = '', marca = '', extra = {}) => {
+  // Empresa: la que pasa el builder manda; si no, la de la sesión (#426), para
+  // que TODO impreso lleve logo, razón social, RUC, dirección y contacto.
+  const base = datosEncabezado()
+  const razon = extra.razon ?? base.razon
+  const lineasEmpresa = extra.lineas ?? base.lineas
+  const lineas = (lineasEmpresa || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
+  const claseRz = razon && razon.length > 38 ? 'rz muy-larga' : razon && razon.length > 24 ? 'rz larga' : 'rz'
+  const identidad = razon ? `<div class="${claseRz}">${escapeHtml(razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
   return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><h1 class="tipo">${escapeHtml(title)}</h1>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
 }
-const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
+// Pie compartido: la leyenda propia del documento y «Generado por MobOS para
+// <empresa>» (la empresa sale de la sesión).
+export const footer = (leyenda = 'Conservá este comprobante para cambios y garantía.', empresa = '') => {
+  const nombre = String(empresa || '').trim() || datosEncabezado().razon
+  return `<footer>${escapeHtml(leyenda)} Generado por ${escapeHtml(APP_NAME)}${nombre ? ` para ${escapeHtml(nombre.replace(/\.$/, ''))}` : ''}.</footer>`
+}
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
 // Modelos de comprobante: cada uno suma una capa de información sobre el
@@ -396,7 +416,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
   const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
-  const { total, pagado: paid, pendiente } = totalesPedido(order)
+  const { total, pagado: paid, pendiente: pendienteBruto } = totalesPedido(order)
   const when = order.createdAt || order.creadoEn || order.fecha
   const politica = await getPoliticasImpresion()
   const linkPedido = token ? accessUrlFor(token) : trackingUrlFor(order)
@@ -415,6 +435,8 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
 
   const termico = Boolean(thermalWidth(format))
   const desglose = desgloseVenta(order)
+  // Con redondeo de efectivo lo pendiente se mide contra el total ajustado.
+  const pendiente = desglose.mostrarRedondeo ? desglose.saldo : pendienteBruto
   const acento = acentoDeEmpresa(order.tenant)
   const nombreItem = (item) => escapeHtml(item.description || item.nombre || 'Producto')
   const seriales = (item) => serialesDeItem(item).map(serie => `<span class="imei">IMEI/Serie ${escapeHtml(serie)}</span>`).join('')
@@ -482,6 +504,10 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${desglose.descuento ? fila('Descuento', `− ${escapeHtml(gs(desglose.descuento))}`) : ''}
       ${desglose.envio ? fila('Entrega', escapeHtml(gs(desglose.envio))) : ''}
       ${fila('Total', escapeHtml(gs(total)), 'total')}
+      ${desglose.mostrarRedondeo ? fila('Redondeo en efectivo', `${desglose.redondeo < 0 ? '− ' : ''}${escapeHtml(gs(Math.abs(desglose.redondeo)))}`) : ''}
+      ${desglose.mostrarRedondeo ? fila('Total ajustado', escapeHtml(gs(desglose.totalAjustado))) : ''}
+      ${desglose.mostrarEfectivo ? fila('Efectivo recibido', escapeHtml(gs(desglose.efectivoRecibido))) : ''}
+      ${desglose.mostrarEfectivo && desglose.vuelto > 0 ? fila('Vuelto', escapeHtml(gs(desglose.vuelto))) : ''}
       ${desglose.mostrarPagado ? fila('Pagado', escapeHtml(gs(paid))) : ''}
       ${pendiente > 0 ? fila('Saldo pendiente', escapeHtml(gs(pendiente)), 'saldo') : ''}
       ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago)) : ''}
@@ -493,7 +519,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaConPolitica(garantiaDeVenta(order), politica)).replace(/\n/g, '<br>')}<br>Documento no fiscal · No válido como factura.</div>
       ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link)}` : ''}</div></div>` : ''}
     </div>
-    <footer>Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa.replace(/\.$/, ''))}` : ''}.</footer>
+    ${footer('', empresa)}
   </body></html>`
 }
 
@@ -511,7 +537,7 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const logo = await getLogoDataUrl()
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format)}</style></head><body>
-    ${header('Recibo de pago', `${order?.orderNumber || order?.codigo || 'Pedido'} · ${new Date(fecha).toLocaleString('es-PY')}`, logo)}
+    ${header('Recibo de pago', new Date(fecha).toLocaleString('es-PY'), logo, '', { numero: order?.orderNumber || order?.codigo || 'Pedido' })}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
       <tr><td>Método</td><td class="num">${escapeHtml(metodo)}</td></tr>
@@ -544,7 +570,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
   const contactoCliente = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(quote.customer.countryCode || '')} ${escapeHtml(quote.customer.phone)}` : ''}</div></div>`
   const descuento = Number(quote.discountPyg || 0)
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cotización ${escapeHtml(quote.number || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Cotización', `${quote.number || 'Cotización'} · ${quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Cotización', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
     ${empresaCard}
     ${contactoCliente}
     <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
@@ -557,7 +583,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
     <p><span class="tag">${escapeHtml(QUOTE_STATUS[quote.status] || quote.status || '')}</span></p>
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
     ${enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de la cotización">` : ''}<p class="small">Aceptá o rechazá esta cotización: ${escapeHtml(enlace)}</p>` : ''}
-    <footer>Documento no fiscal. Cotización generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
   return printHtml(html)
 }
@@ -598,7 +624,7 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${cliente?.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente?.phone ? `<br>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}` : ''}${direccion ? `<br>${escapeHtml(direccion)}` : ''}</div></div>`
   const entregaNotas = order.deliveryType || order.deliveryNotes ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>` : ''
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Nota de entrega', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Nota de entrega', when ? new Date(when).toLocaleString('es-PY') : '', logo, '', { numero: order.orderNumber || order.codigo || 'Pedido' })}
     ${avisoNoFiscal()}
     ${empresaCard}
     ${clienteCard}
@@ -607,7 +633,7 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
     ${entregaNotas}
     <p class="muted">Recibí conforme la mercadería detallada en este documento.</p>
     ${firmas([{ rol: 'Recibí conforme (firma)' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -637,7 +663,7 @@ export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
     ${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}
     <p class="muted">Controlá el contenido contra esta remisión al recibir.</p>
     ${firmas([{ rol: 'Entregué (despacho)' }, { rol: 'Recibí conforme (recepción)' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -658,7 +684,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
   const empresa = order?.tenant?.name || order?.empresaNombre || ''
   const cliente = order?.customer?.name || order?.cliente || 'Consumidor final'
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo interno ${escapeHtml(numero)}</title><style>${styles(format)}</style></head><body>
-    ${header('Recibo interno', `N.º ${numero} · ${new Date(when).toLocaleString('es-PY')}`, logo)}
+    ${header('Recibo interno', new Date(when).toLocaleString('es-PY'), logo, '', { numero })}
     ${avisoNoFiscal()}
     <div class="card"><div class="label">Recibí de</div><div><strong>${escapeHtml(cliente)}</strong><br>Concepto: cobro del pedido ${escapeHtml(pedido)}</div></div>
     <table class="totals">
@@ -668,7 +694,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
       <tr><td>Monto cobrado</td><td class="num">${escapeHtml(gs(monto))}</td></tr>
     </table>
     ${firmas([{ rol: 'Entregué / cobré' }, { rol: 'Recibí conforme' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -698,12 +724,12 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
     .qr-fila{display:flex;align-items:center;gap:10px}.qr-fila .qr{width:24mm;margin:0;flex:0 0 auto}.qr-fila .small{text-align:left;margin:0}
     /* A4 compacto (como el resto de los impresos): la cotización entra en una
        hoja aunque sume el QR de aceptación y las firmas. */
-    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+    ${format === 'a4' ? `@page{margin:18mm 14mm 12mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}
       .firmas{margin:16px 0 4px}` : ''}
   </style></head><body>
-    ${header('Factura proforma', `Presupuesto ${quote.number || ''} · ${quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Factura proforma', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
     ${avisoNoFiscal()}
     ${empresaCard}
     ${clienteCard}
@@ -718,7 +744,7 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
     <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
     ${enlace ? `<div class="card"><div class="label">Aceptación en línea</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR de la cotización">` : ''}<p class="small">Escaneá o abrí el enlace para aceptar o rechazar la cotización:<br>${escapeHtml(enlace)}</p></div></div>` : ''}
     ${firmas([{ rol: 'Aceptación del cliente' }], { observaciones: format !== 'a4', estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Proforma generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -757,7 +783,7 @@ export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
     <h2 style="font-size:13px;margin:14px 0 4px">Movimientos de la sesión (${movimientos.length})</h2>
     <table><thead><tr><th>Movimiento</th><th class="num">Fecha</th><th class="num">Monto</th></tr></thead><tbody>${movimientosRows || '<tr><td class="muted">Sin movimientos registrados.</td><td class="num"></td><td class="num"></td></tr>'}</tbody></table>
     ${firma}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.')}
   </body></html>`
 }
 
@@ -791,7 +817,7 @@ export async function buildResumenDiaHtml(resumen = {}, { format = 'a4' } = {}) 
     <h2 style="font-size:13px;margin:14px 0 4px">Medios de pago</h2>
     <table><thead><tr><th>Medio</th><th class="num">Monto</th></tr></thead><tbody>${mediosRows || '<tr><td class="muted">Sin datos.</td><td class="num"></td></tr>'}</tbody></table>
     ${firmas([{ rol: 'Responsable' }, { rol: 'Control' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.')}
   </body></html>`
 }
 
@@ -856,7 +882,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
     .qr-fila{display:flex;align-items:center;gap:10px}
     .qr-fila .qr{width:22mm;margin:0;flex:0 0 auto}
     .qr-fila .small{text-align:left;margin:0}
-    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+    ${format === 'a4' ? `@page{margin:18mm 14mm 12mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -872,11 +898,10 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
       ${fila('Proveedor', datos.proveedor)}
     </div></div>
     <div class="card"><div class="label">Verificación IMEI</div>${verificacion}</div>
-    ${format === 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div></div>` : ''}
     <div class="card"><div class="label">Inspección física</div>${inspeccionHtml}</div>
     <div class="card"><div class="label">Garantía de la tienda</div>${fila('Estado', garantia.etiqueta)}${fila('Vence el', garantia.hasta)}</div>
-    ${format !== 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div>${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>` : ''}
-    <footer>Documento informativo. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.informe, qrSrc: qr, enlace: datos.enlacePublico ? datos.enlace : '', tieneQr: Boolean(datos.enlace), termico: format !== 'a4', aviso: '' })}
+    ${footer('Documento informativo.', datos.emisor)}
   </body></html>`
 }
 
@@ -933,7 +958,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     .card{page-break-inside:avoid}
     .qr{display:block;width:24mm;height:auto;margin:5px auto 2px}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
-    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+    ${format === 'a4' ? `@page{margin:18mm 14mm 12mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -962,8 +987,8 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
       ${fila('Verificado el', fechaHoraDocumento(datos.verificado))}
       ${fila('Fuente', datos.fuente?.proveedor ? `${datos.fuente.proveedor}${datos.fuente.fecha ? ` · ${fechaCortaDocumento(datos.fuente.fecha)}` : ''}` : '')}
     </div>
-    ${datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>${barras}</div>` : ''}
-    <footer>Firma / control: ______________ · Constancia de inspección. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.certificado, qrSrc: qr, enlace: datos.enlacePublico ? datos.enlace : '', tieneQr: Boolean(datos.enlace), termico: format !== 'a4', aviso: '' })}${barras}
+    ${footer('Firma / control: ______________ · Constancia de inspección.', datos.emisor)}
   </body></html>`
 }
 
@@ -1040,12 +1065,12 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
     .linea-lista .marca-prioridad{color:#a33;font-weight:700}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
-    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
+    ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
   </style></head><body>
-    ${header(datos.titulo || 'Lista de compra', [datos.code, datos.recorrido].filter(Boolean).join(' · ') || datos.fecha || '', logo)}
+    ${header(datos.titulo || 'Lista de compra', [datos.recorrido, datos.fecha].filter(Boolean).join(' · '), logo, '', { numero: datos.code || '' })}
     ${avisoNoFiscal()}
     <div class="card"><div class="label">Compra</div><div>
       ${fila('Estado', datos.estado)}
@@ -1062,9 +1087,10 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
       ${resumen.pendientes ? `<tr class="saldo"><td>IMEI pendientes</td><td class="num">${escapeHtml(String(resumen.pendientes))}</td></tr>` : ''}
       ${resumen.urgentes ? `<tr><td>Líneas urgentes/altas</td><td class="num">${escapeHtml(String(resumen.urgentes))}</td></tr>` : ''}
     </table></div>
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.lista, tieneQr: false, aviso: '' })}
     ${datos.enlace || barras ? `<div class="card"><div class="label">Panel de la compra</div>${qr ? `<img class="qr" src="${qr}" alt="QR del panel">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')}</p></div>` : ''}
     ${firmas([{ rol: 'Compró / control' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fecha || '')}</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
   </body></html>`
 }
 
@@ -1109,7 +1135,7 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
     .codigo-grande{font-size:${a4 ? '26px' : '20px'};font-weight:900;letter-spacing:.06em;font-variant-numeric:tabular-nums}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
-    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
+    ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -1135,9 +1161,10 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
       <tr><td>Con IMEI</td><td class="num">${escapeHtml(String(resumen.conImei ?? 0))}</td></tr>
       ${resumen.pendientes ? `<tr class="saldo"><td>Sin IMEI (se completa en recepción)</td><td class="num">${escapeHtml(String(resumen.pendientes))}</td></tr>` : ''}
     </table></div>
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.manifiesto, tieneQr: false, aviso: '' })}
     ${datos.enlace || barras ? `<div class="card"><div class="label">Recepción del lote</div>${qr ? `<img class="qr" src="${qr}" alt="QR del lote">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el manifiesto del lote.')}</p></div>` : ''}
     ${firmas([{ rol: 'Despachó / responsable' }, { rol: 'Recibió el transportista' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${footer('Documento de control interno.', datos.emisor)}
   </body></html>`
 }
 
@@ -1219,13 +1246,13 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
     .totales-recepcion{margin-top:4px;border-top:1px solid #0f1720}
     .totales-recepcion td{border:0;padding:1px 0}
     .totales-recepcion tr.saldo td{font-weight:800}
-    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:4px 0}.card .label{margin-bottom:2px}
+    ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:4px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}
       .firmas{margin:14px 0 3px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
   </style></head><body>
-    ${header(datos.titulo || 'Comprobante de recepción', [datos.envio, datos.compra].filter(Boolean).join(' · ') || datos.fechaEmision || '', logo)}
+    ${header(datos.titulo || 'Comprobante de recepción', [datos.compra, datos.fechaEmision].filter(Boolean).join(' · '), logo, '', { numero: datos.envio || '' })}
     ${avisoNoFiscal()}
     ${cabecera}
     <div class="card"><div class="label">Esperado vs recibido</div>${tablaLineas}<table class="totals totales-recepcion">
@@ -1237,8 +1264,9 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
       ${resumen.incorrectos ? `<tr><td>Incorrectos</td><td class="num">${escapeHtml(String(resumen.incorrectos))}</td></tr>` : ''}
     </table></div>
     ${incidencias.length ? `<div class="card"><div class="label">Incidencias (${incidencias.length})</div>${tablaIncidencias}</div>` : ''}
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.recepcion, tieneQr: false, aviso: '' })}
     ${firmas([{ rol: 'Recibí conforme (depósito)' }, { rol: 'Control de stock' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
   </body></html>`
 }
 

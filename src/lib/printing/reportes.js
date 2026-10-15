@@ -3,7 +3,7 @@
 // pantalla (`armarCierreCaja`, `armarResumenDia`): acá solo se les da formato
 // de papel, igual que los comprobantes de tickets.js.
 import { gs } from '../../utils/calculos.js'
-import { APP_NAME } from '../brand.js'
+import { encabezadoTicket } from './encabezadoTicket.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -24,8 +24,8 @@ export function ticketCierreCaja(cierre = {}, { ancho = 80 } = {}) {
   const cobros = Array.isArray(cierre.cobros) ? cierre.cobros : []
   const cerrada = cierre.estado === 'CLOSED'
 
-  t.centrado(cierre.empresa || APP_NAME).negrita().centrado('CIERRE DE CAJA').negrita(false)
-  t.centrado(cierre.sucursal || '')
+  encabezadoTicket(t, 'CIERRE DE CAJA', { empresa: cierre.empresa || null })
+  if (cierre.sucursal) t.centrado(cierre.sucursal)
   t.centrado(`${cerrada ? 'Cierre' : 'Apertura'}: ${fecha(cierre.abiertoEn)}`)
   t.linea()
   if (cierre.usuario) t.par('Generado por', cierre.usuario)
@@ -87,7 +87,7 @@ export function ticketResumenDia(resumen = {}, { ancho = 80 } = {}) {
   const top = Array.isArray(resumen.topProductos) ? resumen.topProductos : []
   const medios = Array.isArray(resumen.medios) ? resumen.medios : []
 
-  t.centrado(resumen.empresa || APP_NAME).negrita().centrado('RESUMEN DEL DÍA').negrita(false)
+  encabezadoTicket(t, 'RESUMEN DEL DÍA', { empresa: resumen.empresa || null, cerrar: false })
   t.centrado(resumen.etiqueta || `${fechaCorta(resumen.rango?.desde)} a ${fechaCorta(resumen.rango?.hasta)}`)
   t.linea()
   t.par('Ventas', String(resumen.ventas ?? 0))

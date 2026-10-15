@@ -31,9 +31,6 @@ test('cliente ocasional: crear ficha, cambiar y quitar con cronología', async (
   await expect(fila).toBeVisible({ timeout: 15000 })
   await fila.click()
   const crear = page.getByTestId('pedido-crear-ficha')
-  // La sección «Cliente» puede venir plegada: se abre por su encabezado
-  // (resumen «Consumidor final»), que es único en la pantalla.
-  if (!(await crear.isVisible().catch(() => false))) await page.getByRole('button', { name: /Consumidor final/ }).first().click()
 
   // Ocasional: sin ficha, con las dos salidas (asignar una existente o crear).
   await expect(page.getByTestId('pedido-asignar-cliente')).toBeVisible({ timeout: 15000 })

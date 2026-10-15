@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resources } from '@/lib/api'
-import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
-import CameraScan from '@/components/shared/CameraScan'
+import { Badge, Button, Card, EmptyState, Skeleton, useToast } from '@/components/ui'
+import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
+import PanelEscaneoSeriales from '@/components/supply/PanelEscaneoSeriales'
+import { getProductos } from '@/lib/storage'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
-import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
-import { etiquetaLineaDeLote, pendientesDeEnvio, serialesDeEnvio, totalPendienteLotes } from '@/lib/lotes'
+import { lineasDeEnvio, totalPendienteLotes } from '@/lib/lotes'
 import { configImpresora } from '@/lib/printing/agent'
 import { datosManifiesto, etiquetasDeLote } from '@/lib/printing/manifiesto'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -23,17 +25,15 @@ import { printHtml } from '@/utils/printHtml'
 
 export default function PrepararLote() {
   const toast = useToast()
+  const navigate = useNavigate()
+  // #450: llegar con ?lote=<código> abre ese lote ya listo para cargar IMEI.
+  const [params, setParams] = useSearchParams()
+  const filtroLote = (params.get('lote') || '').trim()
   const [envios, setEnvios] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [abierto, setAbierto] = useState(null)
   const [lineaId, setLineaId] = useState('')
-  const [entrada, setEntrada] = useState('')
-  const [pegado, setPegado] = useState('')
-  const [verPegado, setVerPegado] = useState(false)
-  const [camara, setCamara] = useState(false)
-  const [aviso, setAviso] = useState('')
-  const [busy, setBusy] = useState(false)
   const [imprimiendo, setImprimiendo] = useState('')
 
   const cargar = useCallback(async () => {
@@ -43,61 +43,31 @@ export default function PrepararLote() {
       const datos = await resources.supplyShipments.list({ pendientes: 1, limit: 100 })
       const lista = datos?.envios || []
       setEnvios(lista)
-      setAbierto((actual) => (actual ? lista.find((envio) => envio.id === actual.id) || null : null))
+      setAbierto((actual) => {
+        if (actual) return lista.find((envio) => envio.id === actual.id) || null
+        const pedido = filtroLote.toLowerCase()
+        return pedido ? lista.find((envio) => envio.id === filtroLote || String(envio.code || '').toLowerCase() === pedido) || null : null
+      })
     } catch (causa) {
       setError(causa?.message || 'No se pudieron cargar los lotes.')
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [filtroLote])
 
   useEffect(() => { cargar() }, [cargar])
 
-  const lineas = useMemo(() => pendientesDeEnvio(abierto), [abierto])
-  const linea = useMemo(() => lineas.find((fila) => fila.lineId === lineaId) || lineas[0] || null, [lineas, lineaId])
-  const cargadosLinea = useMemo(() => serialesDeEnvio(abierto, linea?.lineId), [abierto, linea])
+  const catalogo = useMemo(() => getProductos(), [])
+  const lineasPanel = useMemo(() => lineasDeEnvio(abierto), [abierto])
 
-  async function escanear(serialBruto) {
-    if (!abierto || !linea || busy) return
-    const analisis = analizarSerial(serialBruto)
-    if (!analisis.ok) {
-      setAviso(`${analisis.serial || 'Código'}: ${textoMotivo(analisis.motivo)}`)
-      return
-    }
-    setBusy(true)
-    setAviso('')
-    try {
-      await resources.supplyShipments.update({ id: abierto.id, action: 'scan', lineId: linea.lineId, serial: analisis.serial })
-      setEntrada('')
-      cargar()
-    } catch (causa) {
-      setAviso(causa?.message || 'El IMEI no se pudo cargar al lote.')
-    } finally {
-      setBusy(false)
-    }
+  async function agregarSerial(serial, { luhnForzado, lineId }) {
+    await resources.supplyShipments.update({ id: abierto.id, action: 'scan', lineId, serial, ...(luhnForzado ? { forzarLuhn: true } : {}) })
+    await cargar()
   }
 
-  async function pegarLote() {
-    if (!abierto || !linea || busy) return
-    const { validos, errores } = validarLote({ entradas: pegado, yaCargados: cargadosLinea, limite: linea.cantidad })
-    if (!validos.length) {
-      setAviso(errores.map((fila) => `${fila.serial}: ${textoMotivo(fila.motivo)}`).join(' · ') || 'No hay códigos para cargar.')
-      return
-    }
-    setBusy(true)
-    try {
-      await resources.supplyShipments.update({ id: abierto.id, action: 'serials', lineId: linea.lineId, serials: validos })
-      setPegado('')
-      setVerPegado(false)
-      const rechazados = errores.length ? ` · no cargados: ${errores.map((fila) => `${fila.serial} (${textoMotivo(fila.motivo)})`).join(', ')}` : ''
-      setAviso(`${validos.length} cargado(s)${rechazados}`)
-      toast.success('IMEI del lote', `${validos.length} serial(es) cargados.`)
-      cargar()
-    } catch (causa) {
-      setAviso(causa?.message || 'No se pudo cargar el lote.')
-    } finally {
-      setBusy(false)
-    }
+  async function agregarVarios(seriales, lineId) {
+    await resources.supplyShipments.update({ id: abierto.id, action: 'serials', lineId, serials: seriales })
+    await cargar()
   }
 
   // F3/F4 (#250 §11): desde el lote salen el manifiesto (va con el transporte)
@@ -141,12 +111,7 @@ export default function PrepararLote() {
     <div className="space-y-4" data-testid="preparar-lote">
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-mute">
-              Lotes con IMEI por completar: se cargan antes de despachar o en tránsito, escaneando de a uno (lector
-              Bluetooth/USB o cámara) o pegando varios. La recepción (F5) también puede completarlos.
-            </p>
-          </div>
+          <EncabezadoFlujo className="min-w-0 flex-1" paso="lotes" onIr={(paso) => navigate(paso.ruta)} />
           <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
           </Button>
@@ -159,6 +124,12 @@ export default function PrepararLote() {
         )}
       </Card>
 
+      {filtroLote && (
+        <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="preparar-lote-filtro">
+          <Badge color="blue">Lote {filtroLote}</Badge>
+          <button type="button" className="min-h-11 underline" onClick={() => setParams({}, { replace: true })}>Ver todos los lotes</button>
+        </p>
+      )}
       {error && <Card className="text-sm text-bad">{error}</Card>}
       {cargando && !envios.length ? (
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
@@ -187,7 +158,7 @@ export default function PrepararLote() {
                   <Button
                     type="button"
                     variant={expandida ? 'outline' : 'primary'}
-                    onClick={() => { setAbierto(expandida ? null : envio); setLineaId(''); setAviso('') }}
+                    onClick={() => { setAbierto(expandida ? null : envio); setLineaId('') }}
                   >
                     {expandida ? 'Cerrar' : 'Cargar IMEI'}
                   </Button>
@@ -195,62 +166,23 @@ export default function PrepararLote() {
 
                 {expandida && (
                   <div className="mt-3 space-y-3 border-t border-ink-600 pt-3" data-testid="preparar-lote-activa">
-                    {lineas.map((fila) => (
-                      <label key={fila.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="radio"
-                          name={`linea-lote-${envio.id}`}
-                          checked={linea?.lineId === fila.lineId}
-                          onChange={() => { setLineaId(fila.lineId); setAviso('') }}
-                          aria-label={`Línea ${etiquetaLineaDeLote(fila)}`}
-                        />
-                        <span className="min-w-0 flex-1 truncate">{etiquetaLineaDeLote(fila)}</span>
-                        <Badge color="orange">{fila.cantidad} pendiente{fila.cantidad === 1 ? '' : 's'}</Badge>
-                      </label>
-                    ))}
-
-                    {linea && (
-                      <>
-                        <form onSubmit={(evento) => { evento.preventDefault(); escanear(entrada) }} className="flex flex-wrap items-center gap-2">
-                          <Input
-                            autoFocus
-                            value={entrada}
-                            onChange={(evento) => setEntrada(evento.target.value)}
-                            placeholder="Escaneá o escribí el IMEI…"
-                            aria-label="IMEI del lote a escanear"
-                            className="min-w-0 flex-1"
-                          />
-                          <Button type="submit" disabled={busy || !entrada.trim()}>Cargar</Button>
-                          <Button type="button" variant="outline" onClick={() => setCamara((valor) => !valor)}>
-                            <Icon name="image" className="h-3.5 w-3.5" />Cámara
-                          </Button>
-                          <Button type="button" variant="outline" onClick={() => setVerPegado((valor) => !valor)}>Pegar varios</Button>
-                        </form>
-                        {camara && <CameraScan continuous onDetected={escanear} onClose={() => setCamara(false)} />}
-                        {verPegado && (
-                          <div className="space-y-2">
-                            <Textarea
-                              value={pegado}
-                              onChange={(evento) => setPegado(evento.target.value)}
-                              placeholder="Pegá los IMEI separados por coma, espacio o salto de línea…"
-                              aria-label="IMEI del lote para pegar"
-                              className="min-h-24 w-full"
-                            />
-                            <div className="flex justify-end gap-2">
-                              <Button type="button" variant="outline" onClick={() => { setVerPegado(false); setPegado('') }} disabled={busy}>Cerrar</Button>
-                              <Button type="button" onClick={pegarLote} disabled={busy || !pegado.trim()}>{busy ? 'Cargando…' : 'Cargar lote'}</Button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {aviso && <p role="status" className="text-sm text-warn">{aviso}</p>}
+                    <PanelEscaneoSeriales
+                      idBase="preparar-lote"
+                      lineas={lineasPanel}
+                      lineaId={lineaId}
+                      onLinea={setLineaId}
+                      productos={catalogo}
+                      agregar={agregarSerial}
+                      agregarVarios={agregarVarios}
+                      ariaEntrada="IMEI del lote a escanear"
+                      ariaPegado="IMEI del lote para pegar"
+                    />
                     <div className="flex flex-wrap items-center gap-2 border-t border-ink-600 pt-3">
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => imprimirDelLote(envio, 'manifiesto')}
-                        disabled={busy || Boolean(imprimiendo)}
+                        disabled={Boolean(imprimiendo)}
                         data-testid="preparar-lote-manifiesto"
                       >
                         <Icon name="printer" className="h-3.5 w-3.5" />{imprimiendo === 'manifiesto' ? 'Preparando…' : 'Manifiesto'}
@@ -259,7 +191,7 @@ export default function PrepararLote() {
                         type="button"
                         variant="outline"
                         onClick={() => imprimirDelLote(envio, 'etiquetas')}
-                        disabled={busy || Boolean(imprimiendo)}
+                        disabled={Boolean(imprimiendo)}
                         data-testid="preparar-lote-etiquetas"
                       >
                         <Icon name="tag" className="h-3.5 w-3.5" />{imprimiendo === 'etiquetas' ? 'Preparando…' : 'Etiquetas del lote'}

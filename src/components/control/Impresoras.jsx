@@ -14,7 +14,9 @@ import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, texto
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import useValidacionFormulario from '@/hooks/useValidacionFormulario'
 import { ETIQUETAS_IMPRESORA, reglasImpresora, valoresImpresora } from '@/lib/validacionGlobal'
-import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
+import { etiquetaTipoImpresion, fijarFormato58, formatosVisibles, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
+import useFormato58 from '@/hooks/useFormato58'
+import Switch from '@/components/shared/Switch'
 import { presenciaDePuente } from '@/lib/printing/presenciaPuentes'
 import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
@@ -204,6 +206,7 @@ export default function Impresoras() {
   const [parametros, setParametros] = useSearchParams()
   const panel = panelDeImpresion(parametros.get('panel'))
   const irAPanel = (id) => setParametros(panelDeImpresion(id) === 'impresoras' ? {} : { panel: panelDeImpresion(id) })
+  const formato58 = useFormato58()
   const [guiaAbierta, setGuiaAbierta] = useState(false)
   const [puenteNuevo, setPuenteNuevo] = useState(null)
   const [creandoPuente, setCreandoPuente] = useState(false)
@@ -1101,6 +1104,19 @@ export default function Impresoras() {
         </Card>
       )}
 
+      {panel === 'impresoras' && (
+        <Card data-testid="formato-58-fila">
+          {/* Toda la fila es la etiqueta del interruptor: el área táctil es la fila (>= 44px). */}
+          <label htmlFor="formato-58" className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Formato 58 mm</span>
+              <span className="block text-xs text-mute">Apagado: los comprobantes y las vistas previas ofrecen solo 80 mm y A4. Encendelo si tu impresora usa rollo de 58 mm.</span>
+            </span>
+            <Switch id="formato-58" checked={formato58} onChange={(event) => fijarFormato58(event.target.checked)} ariaLabel="Formato 58 mm" data-testid="formato-58" />
+          </label>
+        </Card>
+      )}
+
       {panel === 'impresoras' && resultadoPrueba && (
         <Aviso tono={resultadoPrueba.tono} como="div" role="status" data-testid="resultado-prueba">
           <span className="flex flex-wrap items-center justify-between gap-2">
@@ -1685,6 +1701,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
   const [validando, setValidando] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const f = formulario
+  const con58 = useFormato58()
   const set = (cambios) => setFormulario((actual) => ({ ...actual, ...cambios }))
   const destino = f.conexion === 'cups' ? `cups:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`
   // Cambios sin guardar (#323): el modal confirma antes de descartar. La foto
@@ -1788,8 +1805,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <FormField label="Ancho" htmlFor="imp-ancho">
               <Select id="imp-ancho" value={String(f.ancho)} onChange={(event) => set({ ancho: Number(event.target.value) })}>
-                <option value="58">58 mm</option>
-                <option value="80">80 mm</option>
+                {formatosVisibles([58, 80], { activo: con58, actual: f.ancho }).map((mm) => <option key={mm} value={String(mm)}>{mm} mm</option>)}
               </Select>
             </FormField>
             <FormField label="Copias" htmlFor="imp-copias" error={control.errorDe('copias')}>
@@ -1920,6 +1936,7 @@ function hojaDeTicket(texto) {
 }
 
 function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar, onGuardarPlantilla, intencion = 'probar' }) {
+  const con58 = useFormato58()
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
   const [verPrevia, setVerPrevia] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -2020,7 +2037,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             <div>
               <span className={ROTULO_SECCION}>Ancho del papel</span>
               <div className="mt-1 flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Ancho del papel">
-                {ANCHOS_PRUEBA.map((mm) => (
+                {formatosVisibles(ANCHOS_PRUEBA, { activo: con58, actual: plantilla.ancho }).map((mm) => (
                   <button
                     key={mm}
                     type="button"
@@ -2075,7 +2092,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
               <p className={CELDA_DATO}>Tal como sale del rollo · {plantilla.ancho} mm</p>
               <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
             </div>
-            <VistaPreviaPapel formato={plantilla.ancho === 58 ? 'thermal-58' : 'thermal-80'} contenido={hoja} titulo="Vista previa del ticket de prueba" alto="h-72" />
+            <VistaPreviaPapel formato={plantilla.ancho === 58 && con58 ? 'thermal-58' : 'thermal-80'} contenido={hoja} titulo="Vista previa del ticket de prueba" alto="h-72" />
           </div>
         )}
         {plantilla.tipo === 'corte' && (

@@ -1068,7 +1068,6 @@ for (const width of [320, 390, 1440]) {
       await page.keyboard.press('Enter')
       await expect(page).toHaveURL(/\/pedidos\/[^?]+/)
       await expect(page.getByTestId('pedido-detalle-f3')).toBeVisible()
-      await page.getByRole('button', { name: /Artículos preparados/ }).click()
       await expect(page.locator('.ventas-f3-detail-item').first()).toBeVisible()
       const print = page.getByRole('button', { name: 'Imprimir comprobante', exact: true })
       await print.click()
@@ -1294,14 +1293,13 @@ for (const width of [320, 390, 1440]) {
       await expect(page).toHaveURL(new RegExp(`/pedidos/${fixture.id}`))
       for (const [index, value] of ['Gs 100.000.000', 'Gs 50.000.000', 'Gs 50.000.000'].entries())
         await assertMoneyFits(page.getByTestId('pedido-totales-f3').locator('dd').nth(index), value)
-      await page.getByRole('button', { name: /Artículos preparados/ }).click()
+      // Artículos y pago son tarjetas siempre visibles (no plegables).
       await expect(page.locator('.ventas-f3-detail-item')).toContainText(fixture.description)
-      await page.getByRole('button', { name: /Información de pago/ }).click()
       for (const close of await page
         .getByRole('button', { name: 'Cerrar aviso', exact: true })
         .all())
         await close.click()
-      await page.evaluate(() => scrollTo(0, 0))
+      await page.getByTestId('pedido-totales-f3').scrollIntoViewIfNeeded()
       await expect(page.getByTestId('pedido-totales-f3')).toBeInViewport()
       await page
         .getByTestId('pedido-totales-f3')
@@ -1312,6 +1310,8 @@ for (const width of [320, 390, 1440]) {
         path: `${f3Output}/${width}-Pedido100m${dark ? '-dark' : ''}.png`,
         fullPage: true,
       })
+      // La página del pedido reemplaza las pestañas por su encabezado: se vuelve a la lista.
+      await page.getByTestId('record-header-back').click()
       await selectVentas(page, width, 'Cotizaciones')
       const quote = page.getByTestId('cotizacion-fila').filter({ hasText: fixture.quoteNumber })
       await assertMoneyFits(quote.locator('.ventas-f3-quote-total'), 'Gs 100.000.000')

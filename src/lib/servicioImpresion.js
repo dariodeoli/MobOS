@@ -74,7 +74,7 @@ const estilos = (thermal) => `
   .firmas{width:100%;margin-top:10px;font-size:${thermal ? '9px' : '10px'}}
   .pie{margin-top:8px;font-size:${thermal ? '9px' : '10px'};text-align:center;color:#444}
   @media print{ .mitad{break-inside:avoid} }
-  ${thermal ? '@page{size:80mm auto;margin:4mm}' : '@page{size:A4;margin:12mm}'}`
+  ${thermal ? '@page{size:80mm auto;margin:10mm 4mm 6mm}' : '@page{size:A4;margin:18mm 12mm 12mm}'}`
 
 function half(order, empresa, logoUrl) {
   return `<div class="mitad">

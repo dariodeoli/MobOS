@@ -115,7 +115,10 @@ test('la columna del carrito y el cobro queda fija a la derecha y el total vive 
 
     // Carrito fijo en escritorio.
     const columna = await posicionDe(page, 'pos-columna-venta')
-    expect(columna.position, 'la columna carrito + cobro es sticky en escritorio').toBe('sticky')
+    // POS de una sola pantalla: la columna queda fija porque la grilla mide el
+    // alto de la ventana (la página no se desplaza); antes era `sticky`.
+    const paginaSinScroll = await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)
+    expect(columna.position === 'sticky' || paginaSinScroll, 'la columna carrito + cobro queda fija en escritorio').toBe(true)
     expect((await posicionDe(page, '#pos-resumen-venta')).position, 'el carrito no se pega solo sobre el cobro').not.toBe('sticky')
 
     // El total (una sola vez) está en el carrito y no se repite en la franja.

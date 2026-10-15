@@ -258,7 +258,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await page.getByRole('dialog', { name: 'Pasar la garantía a servicio' }).getByRole('button', { name: 'Pasar a servicio' }).click()
   await expect(page.getByText(/quedó vinculada y el historial se conserva en este navegador/)).toBeVisible()
   await expect(pendiente.getByText('En servicio')).toBeVisible()
-  await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'OS-#0005' })).toContainText('Desde garantía')
+  await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'OS-#0013' })).toContainText('Desde garantía')
   await page.screenshot({ path: '/tmp/qa224-demo-conversion.png' })
 
   expect(apiReal, `la demo no debe llamar al API real: ${apiReal.join(', ')}`).toEqual([])

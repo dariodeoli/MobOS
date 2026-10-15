@@ -23,6 +23,7 @@ import { printInternalReceipt, printOrderReceipt } from '@/components/shared/Ord
 import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketReciboInterno } from '@/lib/printing/tickets'
+import { cargarPedidoPorNumero, imprimirCambio, imprimirDevolucion, imprimirReciboRegalo } from '@/components/shared/imprimirOperacion'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
@@ -171,6 +172,8 @@ export default function PagosPedido({ venta, onClose }) {
   }
   const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '', refundMode: 'CASH', restock: 'NONE' })
   const [postventaBusy, setPostventaBusy] = useState(false)
+  // Última devolución/cambio registrado: habilita imprimir su recibo (#426).
+  const [reciboPostventa, setReciboPostventa] = useState(null)
   const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
 
   // Elegir una cuota prepara el cobro: monto fijo, cuota seleccionada y aviso.
@@ -194,6 +197,16 @@ export default function PagosPedido({ venta, onClose }) {
       if (postventa.refundMode === 'CREDIT' && !order.customer?.id) { setError('Para dejar saldo a favor el pedido necesita un cliente identificado.'); return }
       const payload = { operation: postventa.operation, reason: postventa.reason.trim(), restock: postventa.restock, ...(postventa.operation === 'EXCHANGE' ? { replacementOrderNumber: postventa.replacementNumber.trim() } : { refundPyg: reembolso, refundMode: postventa.refundMode }) }
       await api.post(`/api/orders/${encodeURIComponent(order.id)}/return`, payload)
+      if (postventa.operation !== 'CANCEL') {
+        setReciboPostventa({
+          operation: postventa.operation,
+          reason: postventa.reason.trim(),
+          refundPyg: reembolso,
+          refundMode: postventa.refundMode,
+          replacementNumber: postventa.replacementNumber.trim(),
+          fecha: new Date().toISOString(),
+        })
+      }
       setPostventaOpen(false)
       setPostventa({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '', refundMode: 'CASH', restock: 'NONE' })
       const reposicion = postventa.restock === 'AVAILABLE' ? ' El stock volvió a estar disponible.' : postventa.restock === 'REVIEW' ? ' El stock quedó marcado para revisión.' : ''
@@ -327,6 +340,26 @@ export default function PagosPedido({ venta, onClose }) {
     } catch (e) { setError(e.message) }
   }
 
+  // Recibos por operación (#426): devolución, cambio y regalo.
+  async function imprimirPostventa() {
+    if (!reciboPostventa) return
+    setError(''); setNotice('')
+    const esCambio = reciboPostventa.operation === 'EXCHANGE'
+    const nuevoPedido = esCambio ? await cargarPedidoPorNumero(reciboPostventa.replacementNumber) : null
+    const resultado = esCambio
+      ? await imprimirCambio(order, { nuevos: nuevoPedido?.items || [], motivo: reciboPostventa.reason, fecha: reciboPostventa.fecha })
+      : await imprimirDevolucion(order, { refundPyg: reciboPostventa.refundPyg, refundMode: reciboPostventa.refundMode, motivo: reciboPostventa.reason, fecha: reciboPostventa.fecha })
+    if (resultado.ok) setNotice(`${esCambio ? 'Recibo de cambio' : 'Recibo de devolución'} ${resultado.encolado ? 'encolado.' : 'enviado a la impresora.'}${esCambio && !nuevoPedido ? ' No se encontró el pedido de reemplazo: salió sin la sección «Nuevos».' : ''}`)
+    else if (!resultado.dialogo) setError(resultado.error || 'No se pudo imprimir el recibo.')
+  }
+
+  async function imprimirRegalo() {
+    setError(''); setNotice('')
+    const resultado = await imprimirReciboRegalo(order)
+    if (resultado.ok) setNotice(resultado.encolado ? 'Recibo de regalo encolado.' : 'Recibo de regalo enviado a la impresora.')
+    else if (!resultado.dialogo) setError(resultado.error || 'No se pudo imprimir el recibo de regalo.')
+  }
+
   // Recibo interno de un cobro puntual: primero la térmica (agente o puente) y
   // solo si el fallo fue claro cae al diálogo con el A4. Tras encolar o un
   // resultado incierto no se abre nada: el reintento podría duplicar el papel.
@@ -356,6 +389,7 @@ export default function PagosPedido({ venta, onClose }) {
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { copiarAlPortapapeles(trackingUrlFor(order)) }}>Copiar enlace</button>
         {!esDemo && order.customer?.email && <button type="button" disabled={emailBusy} className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={enviarComprobante}>{emailBusy ? 'Encolando…' : 'Enviar comprobante por email'}</button>}
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => printOrderReceipt(order, { format: 'a4' })}>Imprimir comprobante</button>
+        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={imprimirRegalo}>Imprimir recibo de regalo</button>
         <span className="w-full text-xs text-mute sm:w-auto">El enlace muestra solo estado y comprobante; sin teléfonos, direcciones ni pagos.</span>
       </div>
     )}
@@ -370,6 +404,11 @@ export default function PagosPedido({ venta, onClose }) {
       />
       {saldoFavor?.availablePyg > 0 && <p className="col-span-2 text-xs text-ok">Saldo a favor disponible: {gs(saldoFavor.availablePyg)}</p>}
     </div>
+    {reciboPostventa && !postventaOpen && (
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
+        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={imprimirPostventa}>{reciboPostventa.operation === 'EXCHANGE' ? 'Imprimir recibo de cambio' : 'Imprimir recibo de devolución'}</button>
+      </div>
+    )}
     {canReturn && !postventaOpen && (
       <div className="mb-5">
         <button type="button" className="text-sm font-semibold text-bad hover:underline" onClick={() => { setPostventaOpen(true); setError(''); setNotice('') }}>Registrar cambio o devolución…</button>

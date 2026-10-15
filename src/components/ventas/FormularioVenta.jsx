@@ -1,5 +1,6 @@
 import '../control/inicioPosF2.css'
 import './posCobro.css'
+import './posUnaPantalla.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -35,6 +36,9 @@ import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
 import { guardarClienteDemo, listarClientesDemo, registrarPedidoDemoDeVenta } from '@/lib/demoClientes'
+import { evaluarCredito, preguntaEntregaAplica } from '@/lib/credito'
+import { autorizacionCreditoDemo, evaluarCreditoDemo } from '@/lib/demoCreditoStore'
+import EntregaPregunta from './venta/EntregaPregunta'
 import { tomarNumeroPedidoDemo } from '@/lib/demoTenant'
 import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
@@ -55,7 +59,7 @@ import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
-import { accountPayment } from '@/utils/pagoCuenta'
+import { accountPayment, pagosSinVuelto, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import GiftCardsPos from './venta/GiftCardsPos'
@@ -77,7 +81,7 @@ import { useMediaQuery } from '@/components/shared/useMediaQuery'
 import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
 import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
 import CobroMovil from './movil/CobroMovil'
-import { vueltoDePagos } from './movil/posMovil'
+import { pagoDeMedio, vueltoDePagos } from './movil/posMovil'
 import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
@@ -263,10 +267,11 @@ function ResumenVenta({ items, unidades, montoDescuento, montoDelivery, dia }) {
   )
 }
 
-// Columna lateral del POS en escritorio: queda pegada arriba (sticky) y su alto
-// máximo es lo que entra en pantalla desde donde está hasta el borde inferior,
-// así «Cobrar» se alcanza sin deslizar la página.
-function useColumnaPegada(ref) {
+// POS en escritorio (≥1024 px): todo el POS cabe en UNA pantalla, sin deslizar
+// la página. El alto de la grilla es el que queda desde donde empieza hasta el
+// borde inferior (menos lo que haya debajo); dentro, solo las listas
+// (catálogo, productos de la venta, pagos) se desplazan.
+function useAlturaPos(ref) {
   useEffect(() => {
     const el = ref.current
     if (!el || typeof window === 'undefined') return undefined
@@ -274,20 +279,68 @@ function useColumnaPegada(ref) {
     let raf = 0
     const medir = () => {
       raf = 0
-      if (!escritorio.matches) { el.style.removeProperty('--pos-col-max'); return }
-      const arriba = Math.max(16, el.getBoundingClientRect().top)
-      el.style.setProperty('--pos-col-max', `${Math.max(320, Math.floor(window.innerHeight - arriba - 16))}px`)
+      if (!escritorio.matches) { el.style.removeProperty('--pos-alto'); return }
+      // Con la grilla "infinita" lo que sobra en el documento es exactamente lo
+      // que hay debajo de ella (resumen, márgenes del shell).
+      const PRUEBA = 9000
+      el.style.setProperty('--pos-alto', `${PRUEBA}px`)
+      const arriba = el.getBoundingClientRect().top + window.scrollY
+      const debajo = document.documentElement.scrollHeight - arriba - PRUEBA
+      const alto = Math.max(420, Math.floor(window.innerHeight - arriba - Math.max(0, debajo)))
+      el.style.setProperty('--pos-alto', `${alto}px`)
     }
     const pedir = () => { if (!raf) raf = requestAnimationFrame(medir) }
     medir()
-    window.addEventListener('scroll', pedir, { passive: true })
+    // Re-mide cuando el contenido de la página cambia de alto (fuentes, avisos,
+    // resumen) en vez de esperar un tiempo fijo.
+    const observador = typeof ResizeObserver === 'function' ? new ResizeObserver(pedir) : null
+    observador?.observe(document.body)
     window.addEventListener('resize', pedir)
+    document.addEventListener('toggle', pedir, true)
     return () => {
-      window.removeEventListener('scroll', pedir)
+      observador?.disconnect()
       window.removeEventListener('resize', pedir)
+      document.removeEventListener('toggle', pedir, true)
       if (raf) cancelAnimationFrame(raf)
     }
   }, [ref])
+}
+
+// Divisor arrastrable entre el catálogo y la venta: la proporción se guarda por
+// persona en este dispositivo. Doble clic la restablece; con el teclado, ← →.
+const LIMITE_DIVISOR = [0.3, 0.7]
+function leerDivisor(clave) {
+  try {
+    const v = Number(localStorage.getItem(clave))
+    return v >= LIMITE_DIVISOR[0] && v <= LIMITE_DIVISOR[1] ? v : null
+  } catch { return null }
+}
+function useDivisorPos(layoutRef, clave) {
+  const [izq, setIzq] = useState(() => leerDivisor(clave))
+  useEffect(() => { setIzq(leerDivisor(clave)) }, [clave])
+  const guardar = (valor) => {
+    try { if (valor == null) localStorage.removeItem(clave); else localStorage.setItem(clave, String(valor)) } catch { /* sin almacenamiento */ }
+  }
+  const limitar = (v) => Math.min(LIMITE_DIVISOR[1], Math.max(LIMITE_DIVISOR[0], v))
+  const desdePuntero = (e) => {
+    const r = layoutRef.current?.getBoundingClientRect()
+    if (!r) return null
+    return limitar(Number(((e.clientX - r.left - 8) / (r.width - 16)).toFixed(3)))
+  }
+  const props = {
+    onPointerDown: (e) => { e.currentTarget.setPointerCapture?.(e.pointerId); e.preventDefault() },
+    onPointerMove: (e) => { if (e.currentTarget.hasPointerCapture?.(e.pointerId)) { const v = desdePuntero(e); if (v != null) setIzq(v) } },
+    onPointerUp: (e) => { e.currentTarget.releasePointerCapture?.(e.pointerId); const v = desdePuntero(e); if (v != null) { setIzq(v); guardar(v) } },
+    onDoubleClick: () => { setIzq(null); guardar(null) },
+    onKeyDown: (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      e.preventDefault()
+      const base = izq ?? (window.innerWidth >= 1280 ? 0.5 : 0.55)
+      const v = limitar(Number((base + (e.key === 'ArrowLeft' ? -0.02 : 0.02)).toFixed(3)))
+      setIzq(v); guardar(v)
+    },
+  }
+  return { izq, props }
 }
 
 export default function FormularioVenta({
@@ -301,8 +354,11 @@ export default function FormularioVenta({
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
-  const columnaVentaRef = useRef(null)
-  useColumnaPegada(columnaVentaRef)
+  const layoutRef = useRef(null)
+  useAlturaPos(layoutRef)
+  // «Listo, ir a cobrar»: el carrito se resume y el cobro gana la altura.
+  const [modoCobro, setModoCobro] = useState(false)
+  const divisor = useDivisorPos(layoutRef, `mobos:pos-divisor:${contextoActual().userId || 'anon'}`)
   // POS en celular (#429): <768 px cambia solo la presentación (acciones,
   // barra del carrito y hojas). Es la misma venta: el estado, el guardado y
   // las reglas siguen siendo los de abajo.
@@ -385,6 +441,13 @@ export default function FormularioVenta({
   // «Paga al recibir» (#390): vive acá para resetearse con la venta y viajar en la suspensión.
   const [pagaAlRecibir, setPagaAlRecibir] = useState(false)
   const [creditoDias, setCreditoDias] = useState('')
+  // Crédito sobre el límite: PIN de gerente/administrador o «autorizo yo». Nunca
+  // se guardan en el carrito ni en la cola sin conexión.
+  const [creditoPin, setCreditoPin] = useState('')
+  const [creditoAutorizoYo, setCreditoAutorizoYo] = useState(false)
+  const [deudaCliente, setDeudaCliente] = useState(null)
+  // Venta recién cerrada en celular a la que falta preguntar si el cliente ya se la llevó.
+  const [preguntaEntrega, setPreguntaEntrega] = useState(null)
   // Factura a otro titular (esposo/a, padre, empresa) con RUC.
   const [billingTo, setBillingTo] = useState({ name: '', document: '' })
   const [lastOrder, setLastOrder] = useState(null)
@@ -814,6 +877,16 @@ export default function FormularioVenta({
   const descuentoMedioPct = Math.max(0, ...pagos.map(pago => Number(cuentas?.find(cuenta => cuenta.id === pago.accountId)?.discountPct || 0)), 0)
   const descuentoMedioGs = Math.round((subtotal * descuentoMedioPct) / 100)
   const pendiente = Math.max(0, totalGeneral - totalPagado)
+  // Crédito: anticipa lo que el servidor va a decidir (límite − deuda abierta).
+  // Quien puede autorizar es el dueño o un gerente; los demás usan el PIN de uno.
+  // «Autorizo yo»: solo el dueño/administrador; un gerente no se aprueba su propia venta (usa el PIN de otro).
+  const puedeAutorizarCredito = ['dueno', 'ADMIN'].includes(sesion?.rol)
+  const evaluacionCredito = venderACredito && customer?.id
+    ? evaluarCredito({ limite: customer.creditLimitPyg, deuda: deudaCliente, saldo: pendiente })
+    : null
+  // Efectivo en dólares: se puede entregar de más y se devuelve el vuelto en Gs.
+  const vueltoExtranjero = usaCuentas ? vueltoEfectivoExtranjero(pagos, cuentas, totalGeneral) : { exceso: 0, vuelto: 0, permitido: true }
+  const excedePagos = totalPagado > totalGeneral && !vueltoExtranjero.permitido
 
   // Guía inline (#148 §11): líneas que hoy bloquean el guardado — sin IMEI
   // elegido o sin stock y sin marcar «sobre pedido» — con su acción para
@@ -839,10 +912,10 @@ export default function FormularioVenta({
   const motivosBloqueo = [
     !sesion?.vendedorId && 'Ingresá con tu PIN para vender.',
     cantTotal === 0 && 'Agregá al menos un producto.',
-    totalPagado > totalGeneral && 'Los pagos superan el total de la venta.',
+    excedePagos && 'Los pagos superan el total de la venta.',
     gsNum(descuento) > subtotal && 'El descuento supera el subtotal.',
   ].filter(Boolean)
-  const valido = sesion?.vendedorId && cantTotal > 0 && totalPagado <= totalGeneral && gsNum(descuento) <= subtotal
+  const valido = sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
   // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
@@ -975,7 +1048,7 @@ export default function FormularioVenta({
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
     const lista = [...items]
     if (!sesion?.vendedorId || lista.length === 0) return
-    if (totalPagado > totalGeneral) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
+    if (excedePagos) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
     if (gsNum(descuento) > subtotal) { setErrorVenta('El descuento supera el subtotal de la venta.'); return }
     const orderItems = lista.map(it => {
       const pct = parsePercent(it.descuentoPct) ?? 0
@@ -1090,8 +1163,11 @@ export default function FormularioVenta({
       }
       if (venderACredito && customer.blocked)
         throw new Error(`Cliente bloqueado${customer.blockedReason ? `: ${customer.blockedReason}` : ''}. No se puede vender a crédito.`)
-      if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
-        throw new Error('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
+      // Sin crédito (o por encima del disponible) la venta no se bloquea acá: el
+      // servidor la deja «Pendiente de autorización de crédito» o la autoriza
+      // gerencia con su PIN. Lo que sí hace falta es un cliente con ficha.
+      if (venderACredito && !customer.id)
+        throw new Error('Elegí un cliente con ficha para vender a crédito.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
       if (!sinRed && (!cuentas || errorCuentas))
         throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
@@ -1129,8 +1205,11 @@ export default function FormularioVenta({
       // Los campos de moneda (originalAmount/currency/exchangeRatePyg) se
       // rechazan sin accountId.
       // «No pagado» (#148 §11): el bloque queda PENDING y no cuenta como cobrado.
+      // Vuelto en dólares: al servidor viaja solo lo aplicado a la venta.
+      const pagosParaServidor = usaCuentas && vueltoExtranjero.exceso > 0 ? pagosSinVuelto(pagos, cuentas, totalGeneral) : pagos
+      if (!pagosParaServidor) throw new Error('Para dar vuelto en dólares hace falta una cuenta de efectivo en guaraníes.')
       payments = usaCuentas
-        ? pagos.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
+        ? pagosParaServidor.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
         : pagos.map(p => (p.giftCardCode !== undefined
           ? pagoGiftCard(p)
           : {
@@ -1283,6 +1362,9 @@ export default function FormularioVenta({
               : {}),
             // Venta a crédito: plazo en días; el vencimiento lo calcula el backend.
             ...(venderACredito ? { creditDays: Number(creditoDias) || 0 } : {}),
+            // Autorización en el mostrador: el servidor la ignora si no hace falta.
+            ...(venderACredito && creditoAutorizoYo && puedeAutorizarCredito ? { creditSelfApproval: true } : {}),
+            ...(venderACredito && !creditoAutorizoYo && creditoPin ? { creditApprovalPin: creditoPin } : {}),
             // Pedido especial con seña: la seña es el pago parcial ya cargado;
             // solo viaja la marca y la fecha esperada opcional.
             ...(f.specialOrder
@@ -1321,6 +1403,18 @@ export default function FormularioVenta({
         // El número de pedido se toma ANTES de persistir la venta para que cada
         // venta demo lo guarde igual que una orden real (#275): el listado y el
         // detalle del pedido muestran AUR-#0001, no el id interno.
+        // Crédito sobre el límite (misma regla que el servidor): sin crédito o por
+        // encima del disponible la venta queda pendiente de autorización y no se
+        // entrega. Un PIN incorrecto corta la venta antes de crearla.
+        const creditoDemo = venderACredito
+          ? autorizacionCreditoDemo({
+              evaluacion: evaluarCreditoDemo({ clienteId: clienteDemo.id, limite: clienteDemo.creditLimitPyg, saldo: pendiente }),
+              pin: creditoAutorizoYo ? '' : creditoPin,
+              yoAutorizo: creditoAutorizoYo,
+              sesion,
+            })
+          : null
+        const plazoDemo = venderACredito ? Number(creditoDias) || Number(clienteDemo.creditDays) || 0 : 0
         const numeroPedidoDemo = tomarNumeroPedidoDemo()
         const ventas = []
         for (const [i, it] of lineas.entries()) {
@@ -1349,6 +1443,8 @@ export default function FormularioVenta({
             pagos: it.pagos,
             totalPagado,
             totalPendiente: pendiente,
+            ...(venderACredito ? { creditDays: plazoDemo } : {}),
+            ...(creditoDemo ? { creditAuthorization: creditoDemo } : {}),
           })
           if (!venta?.id || venta.error || venta.ok === false)
             throw new Error(venta?.error || 'No se recibió confirmación de la venta demo.')
@@ -1371,6 +1467,8 @@ export default function FormularioVenta({
           vendedor: sesion?.nombre || '',
           sucursal: sucursal?.nombre || '',
           estado: pendiente === 0 ? 'COMPLETED' : 'PENDING',
+          credito: creditoDemo,
+          creditDays: venderACredito ? plazoDemo : null,
           items: orderItems.map(item => {
             const producto = productos.find(p => p.id === item.productId)
             return {
@@ -1418,7 +1516,7 @@ export default function FormularioVenta({
       setItems([])
       setDescuento('')
       setAuthDescuento(null)
-      setVueltoExito(vueltoDePagos(pagos))
+      setVueltoExito(vueltoDePagos(pagos) + vueltoExtranjero.vuelto)
       setPagos([])
       setPagaAlRecibir(false)
       setVenderACredito(false)
@@ -1426,6 +1524,11 @@ export default function FormularioVenta({
       setF(VACIO(f.vendedorId))
       setBusquedaProducto('')
       setLastOrder(completedOrder)
+      // En celular la pregunta vive en la hoja de recibo; en escritorio, en el detalle.
+      setPreguntaEntrega(esMovilRef.current && preguntaEntregaAplica(completedOrder) ? completedOrder : null)
+      if (completedOrder?.creditAuthorization?.status === 'PENDING') {
+        toast.info('Pendiente de autorización de crédito', 'Avisamos a gerencia. No se entrega hasta que lo autorice.')
+      }
       setOk(true)
       setTimeout(() => setOk(false), 2500)
       onGuardado?.()
@@ -1440,7 +1543,8 @@ export default function FormularioVenta({
           irAlDetalleRef.current = null
           // Si el vendedor ya se movió a otra pantalla, no lo interrumpimos.
           const path = orderDetailPath(completedOrder, orderContext, contextoActual(), window.location.pathname)
-          if (path) navigate(path)
+          // El detalle pregunta «¿ya se llevó el producto?»: la venta no se marca retirada sola.
+          if (path) navigate(path, { state: { preguntaEntrega: true } })
         }, MS_CONFIRMACION_ANTES_DEL_DETALLE)
       }
     } catch (error) {
@@ -1450,7 +1554,8 @@ export default function FormularioVenta({
       if (!esDemo && payloadParaCola && esErrorDeRed(error)) {
         try {
           const item = await encolarVenta({
-            payload: { ...payloadParaCola, offline: true },
+            // El PIN de un gerente y el «Autorizo yo» nunca se guardan en la cola local: la venta a crédito sobre el límite se sincroniza retenida, pendiente de autorización.
+            payload: { ...payloadParaCola, creditApprovalPin: undefined, creditSelfApproval: undefined, offline: true },
             idempotencyKey: idempotencyKeyRef.current,
             resumen: { cliente: f.cliente, total: totalGeneral, items: orderItems.length },
           })
@@ -1503,7 +1608,11 @@ export default function FormularioVenta({
         // #283: el pago arranca SIN cuenta (la predeterminada de #272 se
         // elimina) y el monto se edita en `originalAmount` (moneda de la
         // cuenta): al elegirla se propone el saldo que falta.
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
+        // «Dividir pago» / «Completar en Gs»: la fila nueva sale con el saldo
+        // que falta (o con la cuenta indicada ya elegida).
+        ? (prefill.cuenta && prefill.monto > 0
+          ? pagoDeMedio(prefill.cuenta, prefill.monto)
+          : { ...PAGO_VACIO, accountId: '', originalAmount: prefill.monto > 0 ? String(Math.round(prefill.monto)) : '', exchangeRatePyg: '' })
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
@@ -1618,6 +1727,10 @@ export default function FormularioVenta({
     setCustomer({ ...CLIENTE_VACIO })
     setF(VACIO(f.vendedorId))
   }
+  // Al apagar «Vender a crédito» se olvidan el PIN y la autorización propia.
+  useEffect(() => {
+    if (!venderACredito) { setCreditoPin(''); setCreditoAutorizoYo(false) }
+  }, [venderACredito])
   async function abrirSuspendidas() {
     setSuspendidasOpen(true)
     setFiltroSuspendidas('pendientes')
@@ -1990,6 +2103,9 @@ export default function FormularioVenta({
               {lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : 'Venta registrada'}
             </b>
             Venta registrada correctamente. Ya podés cargar la siguiente.
+            {lastOrder?.creditAuthorization?.status === 'PENDING' && (
+              <span className="mt-1 block font-semibold">Pendiente de autorización de crédito: no se entrega hasta que gerencia lo autorice.</span>
+            )}
             {esDemo && (
               <span className="mt-1 block text-xs font-semibold text-mute">
                 Modo demo: la venta queda guardada solo en este navegador, no en una tienda real.
@@ -2113,13 +2229,31 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className={`pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}>
-          <div className="flex min-w-0 flex-col gap-4">
+        <div
+          ref={layoutRef}
+          data-testid="pos-layout"
+          style={divisor.izq != null ? { '--pos-izq': divisor.izq } : undefined}
+          className={`pos-layout relative grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}
+        >
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ajustar ancho del catálogo y de la venta"
+            aria-valuemin={30}
+            aria-valuemax={70}
+            aria-valuenow={Math.round((divisor.izq ?? 0.5) * 100)}
+            tabIndex={0}
+            data-testid="pos-divisor"
+            title="Arrastrá para cambiar el ancho (doble clic: restablecer)"
+            className="pos-divisor hidden lg:block"
+            {...divisor.props}
+          />
+          <div className="pos-col-izq flex min-w-0 flex-col gap-3">
             {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
             {pos('cliente',
             <PosCustomer
               sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente}
             />)}
             {pos('productos',
             <PasoProductos
@@ -2176,9 +2310,8 @@ export default function FormularioVenta({
               bloque al deslizar el catálogo; si es más alta que la pantalla se
               desplaza por dentro y «Cobrar» queda fijo al pie. */}
           <div
-            ref={columnaVentaRef}
             data-testid="pos-columna-venta"
-            className="pos-columna-venta flex min-w-0 flex-col gap-4 [&>*]:shrink-0"
+            className="pos-columna-venta flex min-w-0 flex-col gap-2"
           >
             {pos('carrito',
             <PasoCarrito
@@ -2206,6 +2339,9 @@ export default function FormularioVenta({
               productoBajoId={productoBajoId}
               onAuthPrecio={setAuthPrecio}
               tieneCupon={tieneCupon}
+              modoCobro={modoCobro && !esMovil && items.length > 0}
+              onListo={() => setModoCobro(true)}
+              onEditar={() => setModoCobro(false)}
             />)}
 
             {pos('cobro',
@@ -2217,6 +2353,12 @@ export default function FormularioVenta({
               setVenderACredito={setVenderACredito}
               creditoDias={creditoDias}
               setCreditoDias={setCreditoDias}
+              evaluacionCredito={evaluacionCredito}
+              creditoPin={creditoPin}
+              setCreditoPin={setCreditoPin}
+              creditoAutorizoYo={creditoAutorizoYo}
+              setCreditoAutorizoYo={setCreditoAutorizoYo}
+              puedeAutorizarCredito={puedeAutorizarCredito}
               cuentas={cuentas}
               usaCuentas={usaCuentas}
               errorCuentas={errorCuentas}
@@ -2236,6 +2378,7 @@ export default function FormularioVenta({
               totalGeneral={totalGeneral}
               totalPagado={totalPagado}
               pendiente={pendiente}
+              vuelto={vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0}
               f={f}
               setF={setF}
               set={set}
@@ -2304,6 +2447,12 @@ export default function FormularioVenta({
                 setPagaAlRecibir={setPagaAlRecibir}
                 venderACredito={venderACredito}
                 setVenderACredito={setVenderACredito}
+                evaluacionCredito={evaluacionCredito}
+                creditoPin={creditoPin}
+                setCreditoPin={setCreditoPin}
+                creditoAutorizoYo={creditoAutorizoYo}
+                setCreditoAutorizoYo={setCreditoAutorizoYo}
+                puedeAutorizarCredito={puedeAutorizarCredito}
                 guardando={guardando}
                 guardadoIncompleto={guardadoIncompleto}
                 valido={Boolean(valido)}
@@ -2324,6 +2473,15 @@ export default function FormularioVenta({
               onImprimir={() => { toast.info('Comprobante abierto', 'Revisalo y confirmá la impresión.'); setComprobante(true) }}
               onVerPedido={() => { setHoja(null); setVueltoExito(0); navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`) }}
               esDemo={esDemo}
+              creditoPendiente={lastOrder?.creditAuthorization?.status === 'PENDING'}
+              pregunta={preguntaEntrega ? (
+                <EntregaPregunta
+                  order={preguntaEntrega}
+                  esDemo={esDemo}
+                  onEntregado={() => { setPreguntaEntrega(null); toast.success('Pedido retirado', 'Quedó marcado como retirado.') }}
+                  onNoTodavia={() => setPreguntaEntrega(null)}
+                />
+              ) : null}
             />
           </>
         )}

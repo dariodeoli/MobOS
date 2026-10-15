@@ -61,15 +61,15 @@
 
 .ventas-f3 .ventas-f3-order-grid {
   display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr) 5rem 5rem 6rem minmax(9rem, max-content) 44px;
+  grid-template-columns: 6rem 7.5rem minmax(0, 1fr) 7.5rem 6.5rem 6.5rem minmax(7rem, max-content) 36px;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .ventas-f3 .ventas-f3-order-row,
 .ventas-f3 .ventas-f3-quote-row {
   min-width: 0;
-  padding: 16px;
+  padding: 8px 16px;
   border-top: 1px solid rgb(var(--c-ink-600));
 }
 
@@ -90,19 +90,25 @@
 }
 
 .ventas-f3-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .ventas-f3-description {
-  margin-top: 4px;
-  font-size: 13px;
+  margin-top: 1px;
+  font-size: 12px;
   color: rgb(var(--c-mute));
+}
+
+.ventas-f3 .ventas-f3-order-grid .ventas-f3-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ventas-f3 .ventas-f3-money {
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -157,20 +163,68 @@
 .ventas-f3-detail-totals {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px 32px;
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid rgb(var(--c-ink-600));
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgb(var(--c-ink-600));
 }
 
 .ventas-f3-detail-totals dt {
   color: rgb(var(--c-mute));
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .ventas-f3 .ventas-f3-detail-totals dd {
-  font-size: 22px;
+  font-size: 16px;
   text-align: left;
+}
+
+/* Página de pedido: columna principal + lateral (≤360px) en escritorio; una
+   sola columna en celular con la información lateral bajo el encabezado. */
+.ventas-f3 .ventas-f3-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.ventas-f3 .ventas-f3-page-main,
+.ventas-f3 .ventas-f3-page-side {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+}
+
+.ventas-f3 .ventas-f3-page-side {
+  order: -1;
+}
+
+@media (min-width: 1024px) {
+  .ventas-f3 .ventas-f3-page {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+    align-items: start;
+  }
+  .ventas-f3 .ventas-f3-page-side {
+    order: 0;
+  }
+}
+
+.ventas-f3 .ventas-f3-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--c-fore));
+}
+
+.ventas-f3 .ventas-f3-card-sub {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--c-mute));
 }
 
 .ventas-f3-detail-item {
@@ -194,40 +248,44 @@
 }
 
 @media (max-width: 1199px) {
+  /* Tarjeta compacta: cliente y total arriba, datos en línea, chips abajo. */
   .ventas-f3 .ventas-f3-order-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
-    gap: 8px;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 10px 12px;
   }
 
   .ventas-f3-order-identity {
-    grid-column: 1 / -1;
-    grid-row: 1;
+    order: 1;
+    flex: 1 1 100%;
+    padding-right: 52px;
   }
   .ventas-f3-order-total {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    order: 2;
+    flex: 1 1 100%;
     text-align: left !important;
   }
-  .ventas-f3-order-code {
-    grid-column: 1;
-    grid-row: 3;
-  }
+  .ventas-f3-order-code { order: 3; }
+  .ventas-f3-order-date { order: 4; }
   .ventas-f3-delivery {
-    grid-column: 1;
-    grid-row: 4;
+    order: 5;
+    min-width: 0;
   }
-  .ventas-f3-payment {
-    grid-column: 1;
-    grid-row: 5;
+  .ventas-f3-delivery > span {
+    display: inline !important;
   }
-  .ventas-f3-state {
-    grid-column: 1;
-    grid-row: 6;
+  .ventas-f3-delivery > span + span::before {
+    content: ' · ';
   }
+  .ventas-f3-payment { order: 6; }
+  .ventas-f3-state { order: 7; }
   .ventas-f3-quick {
-    grid-column: 2;
-    grid-row: 5 / 7;
+    position: absolute;
+    top: 6px;
+    right: 8px;
   }
 
   .ventas-f3 .ventas-f3-quote-grid {

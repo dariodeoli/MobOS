@@ -138,7 +138,7 @@ test('el informe de la unidad sale directo por el agente con el QR al informe p�
   expect(texto).toContain('Sin grado asignado')
   expect(texto).toContain('Garant')
   // El QR y el enlace al informe público de la unidad.
-  expect(texto).toContain('INFORME DEL DISPOSITIVO')
+  expect(texto).toContain('INFORME DE DISPOSITIVO')
   expect(texto).toContain(`/u/${imei}`)
   expect(texto).toContain('Documento informativo')
   // Sin diálogo: la impresión directa no crea el iframe del respaldo.
@@ -223,7 +223,7 @@ test('el certificado de inspección sale directo y sin inventar la inspección',
   // El QR y el código de barras llevan al informe público de la unidad.
   expect(texto).toContain(`/u/${imei}`)
   // Los rótulos del QR y del código interno viajan en CP850 (sin acentos al comparar).
-  expect(texto).toContain('INFORME P')
+  expect(texto).toContain('Comprobante y seguimiento')
   expect(texto).toContain('DIGO INTERNO')
   expect(texto).toContain('CERT|')
   const lineaSerial = texto.split('\n').find((linea) => linea.trim().startsWith('Serial')) || ''
@@ -327,9 +327,10 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   const marco = page.locator('iframe[aria-hidden="true"]').last()
   await marco.waitFor({ state: 'attached', timeout: 10_000 })
   const contenido = marco.contentFrame()
-  await expect(contenido.locator('h1')).toHaveText('Equipos en preparación')
+  await expect(contenido.locator('.doc .tipo')).toHaveText('Hoja de estación')
+  await expect(contenido.locator('.meta')).toContainText('en preparación')
   const texto = await contenido.locator('body').innerText()
-  expect(texto).toContain('Hoja de estación')
+  expect(texto).toMatch(/hoja de estación/i)
   expect(texto).toContain(imei)
   expect(texto).toContain('Firma / control')
   expect(texto).toContain('Marcá cada uno al verificarlo')

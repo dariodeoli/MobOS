@@ -113,7 +113,7 @@ test('F3 · preparar compra: escaneo, Luhn, duplicados y pegado múltiple', asyn
   const imeiRoto = `${imeiB.slice(0, 14)}${(Number(imeiB[14]) + 1) % 10}`
   await page.getByLabel('IMEI a escanear').fill(imeiRoto)
   await page.getByRole('button', { name: 'Cargar', exact: true }).click()
-  await expect(page.getByText(/IMEI inválido/)).toBeVisible()
+  await expect(page.getByTestId("preparar-compra-estado-texto")).toContainText(/dígito verificador/)
 
   // Duplicado: el IMEI que ya tiene la línea se rechaza.
   await page.getByLabel('IMEI a escanear').fill(imeiA)
@@ -452,10 +452,10 @@ test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page })
   // Escaneo de a uno: el inválido (Luhn) no sale del panel.
   const activa = page.getByTestId('preparar-lote-activa')
   await expect(activa).toBeVisible()
-  await expect(activa.getByText('2 pendientes')).toBeVisible()
+  await expect(activa.getByText('2 faltan')).toBeVisible()
   await page.getByLabel('IMEI del lote a escanear').fill(imeiRoto)
   await page.getByRole('button', { name: 'Cargar', exact: true }).click()
-  await expect(page.getByText(/IMEI inválido/)).toBeVisible()
+  await expect(page.getByTestId("preparar-lote-estado-texto")).toContainText(/dígito verificador/)
 
   // El válido entra por escaneo y el lote baja a 1 pendiente.
   await page.getByLabel('IMEI del lote a escanear').fill(imeiA)
