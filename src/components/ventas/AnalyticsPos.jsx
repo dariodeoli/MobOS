@@ -12,6 +12,7 @@ import { fechaClave } from '@/utils/calculos'
 import { fechaCorta } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Tablero del POS (#156): ventas de hoy contra ayer, pedidos, unidades por
 // pedido, ticket promedio, ventas netas, top productos, ventas por vendedor y
@@ -30,7 +31,7 @@ function Metrica({ label, valor, extra }) {
   return (
     <div className="min-w-0 rounded-xl border border-ink-600 bg-ink-800/50 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold uppercase tracking-wider text-mute">{label}</span>
+        <span className={ROTULO_SECCION}>{label}</span>
         {extra}
       </div>
       <div className="mt-1 break-words text-base sm:text-lg font-semibold tracking-tight tabular-nums text-fore">{valor}</div>
@@ -43,7 +44,7 @@ function Lista({ titulo, filas, valorDe, etiquetaDe }) {
   const maximo = Math.max(1, ...filas.map(valorDe))
   return (
     <section className="rounded-xl border border-ink-600 p-3">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-mute">{titulo}</h3>
+      <h3 className={ROTULO_SECCION}>{titulo}</h3>
       <div className="mt-2 space-y-1.5">
         {filas.map((fila) => (
           <div key={fila.clave}>
@@ -146,7 +147,7 @@ export default function AnalyticsPos({ open = true, onClose, inline = false }) {
       {tablero && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Resumen de hoy</h3>
+            <h3 className={ROTULO_SECCION}>Resumen de hoy</h3>
             <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Período del análisis">
               {PERIODOS.map(([id, label]) => (
                 <button
