@@ -1,3 +1,4 @@
+import { lockCashSessionDomain } from '../../../lib/cash-session-lock'
 import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
@@ -209,6 +210,7 @@ export async function POST(request: Request) {
     const openingPyg = Number(body.openingPyg); if (!int(openingPyg)) return error(`El fondo inicial debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
     try {
       const result = await prisma.$transaction(async (tx) => {
+        await lockCashSessionDomain(tx, ctx.session.user.tenantId, ctx.branchId, ctx.session.user.id)
         const id = randomUUID()
         const openedAt = new Date()
         const row = await tx.$queryRaw<Array<Record<string, unknown>>>`
@@ -231,6 +233,11 @@ export async function POST(request: Request) {
     if (!contadoMonedas) return error('El efectivo contado por moneda es inválido.')
     const requestedSessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : null
     const result = await prisma.$transaction(async (tx) => {
+      const target = requestedSessionId
+        ? await tx.cashSession.findFirst({ where: { id: requestedSessionId, tenantId: ctx.session.user.tenantId, branchId: ctx.branchId }, select: { openedById: true } })
+        : { openedById: ctx.session.user.id }
+      if (!target) return null
+      await lockCashSessionDomain(tx, ctx.session.user.tenantId, ctx.branchId, target.openedById)
       const open = requestedSessionId
         ? await tx.$queryRaw<Array<{ id: string; openedAt: Date; openingPyg: bigint | number; openedById: string }>>`SELECT "id", "openedAt", "openingPyg", "openedById" FROM "CashSession" WHERE "id" = ${requestedSessionId} AND "tenantId" = ${ctx.session.user.tenantId} AND "branchId" = ${ctx.branchId} AND "status" = 'OPEN' FOR UPDATE`
         : await tx.$queryRaw<Array<{ id: string; openedAt: Date; openingPyg: bigint | number; openedById: string }>>`SELECT "id", "openedAt", "openingPyg", "openedById" FROM "CashSession" WHERE "tenantId" = ${ctx.session.user.tenantId} AND "branchId" = ${ctx.branchId} AND "openedById" = ${ctx.session.user.id} AND "status" = 'OPEN' FOR UPDATE`
