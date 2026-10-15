@@ -3796,6 +3796,9 @@ model StockArrival {
   currency        PaymentCurrency    @default(USD)
   exchangeRatePyg Decimal?           @db.Decimal(14, 4)
   purchaseIds     Json?
+  // Alcance de la conciliación (unidad E): envío esperado y proveedores del lote.
+  shipmentId      String?
+  supplierIds     Json?
   idempotencyKey  String
   summary         Json?
   createdById     String
