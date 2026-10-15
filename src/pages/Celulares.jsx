@@ -1,176 +1,165 @@
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { toPng } from 'html-to-image'
-import { listCelulares, rankCelular, rankCapacidad } from '@/lib/storage'
+import { listCelulares, rankCelular, getProductos } from '@/lib/storage'
 import { useLive } from '@/hooks/useLive'
-import { gs } from '@/utils/calculos'
-import { Button, Card } from '@/components/ui'
+import { useSesion } from '@/lib/sesion'
+import { api } from '@/lib/api/client'
+import { cotizacionFx } from '@/lib/fx'
+import { EMPRESA_DEMO } from '@/lib/demo/empresa'
+import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
+import { datosListaPrecios } from '@/lib/printing/listaPrecios'
+import { useStockDisplay } from '@/hooks/useStockDisplay'
+import { Button, Card, MoneyInput, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import BarraModulo from '@/components/shared/BarraModulo'
-import { APP_NAME } from '@/lib/brand'
-import ThemeLogo from '@/components/app/ThemeLogo'
 import SegmentosToolbar from '@/components/app/SegmentosToolbar'
+import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
+import CompartirImagen from '@/components/shared/CompartirImagen'
+import CompartirPdf from '@/components/shared/CompartirPdf'
+import { buildListaPreciosHtml } from '@/components/shared/OrderReceipt'
+import { printHtml } from '@/utils/printHtml'
 
-// Agrupa por modelo (más nuevo arriba; capacidad ascendente dentro de cada uno).
-function agrupar(celulares) {
-  const ordenados = [...celulares].sort(
-    (a, b) =>
-      rankCelular(a.modelo) - rankCelular(b.modelo) ||
-      rankCapacidad(a.capacidad) - rankCapacidad(b.capacidad),
-  )
-  const grupos = new Map()
-  ordenados.forEach((c) => {
-    if (!grupos.has(c.modelo)) grupos.set(c.modelo, [])
-    grupos.get(c.modelo).push(c)
-  })
-  return [...grupos.entries()]
-}
+// Lista por modelo (#448): el papel que la tienda comparte con sus clientes por
+// WhatsApp. Lleva la marca de la tienda (logo y nombre; MobOS solo como pie
+// chiquito), el estilo del comprobante premium (#407), modelos en dos columnas,
+// garantía de las políticas (#443), vigencia, WhatsApp, dirección y QR; precio
+// opcional en US$ y marca de «últimas unidades / sin stock». Se comparte como
+// imagen (PNG), PDF o se imprime: la misma pieza que muestra la vista previa.
 
-// Bloque de una condición (Nuevos / Semi-nuevos) con su color distintivo.
-function BloqueCondicion({ titulo, items, tema }) {
-  if (!items.length) return null
-  const grupos = agrupar(items)
+// Demo: sin políticas publicadas (#443) la lista muestra una garantía de ejemplo.
+const GARANTIA_DEMO = 'Equipos nuevos: 12 meses de garantía de fábrica.\nSemi nuevos: 3 meses de garantía de la tienda.'
+
+function Opcion({ activa, onCambiar, children, testId }) {
   return (
-    <div>
-      <div className={`rounded-lg px-3 py-1.5 font-extrabold text-sm mb-2 ${tema.encabezado}`}>
-        {titulo}
-      </div>
-      <div className="space-y-3">
-        {grupos.map(([modelo, lista]) => (
-          <div key={modelo}>
-            <div
-              className={`font-extrabold text-sm mb-1.5 border-b border-ink-600 pb-1 ${tema.modelo}`}
-            >
-              {modelo}
-            </div>
-            <div className="space-y-1">
-              {lista.map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1.5 text-mute">
-                    <span className="font-semibold">{c.capacidad}</span>
-                    {c.color && <span className="text-mute">· {c.color}</span>}
-                  </div>
-                  <div className="font-extrabold text-fore">{gs(c.precio)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-ink-600 px-3 text-xs font-semibold lg:min-h-9">
+      <input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" checked={activa} onChange={(evento) => onCambiar(evento.target.checked)} data-testid={testId} />
+      {children}
+    </label>
   )
 }
 
 export default function Celulares() {
   useLive()
   const navigate = useNavigate()
-  const ref = useRef(null)
-  const [exportando, setExportando] = useState(false)
+  const { esDemo, empresa } = useSesion()
+  const avisar = useResultado()
+  const { colores } = useStockDisplay()
+  const [mostrarStock, setMostrarStock] = useState(true)
+  const [usd, setUsd] = useState(false)
+  const [cotizacion, setCotizacion] = useState('')
+  const [tienda, setTienda] = useState(() => ({ nombre: empresa?.nombre || '', direccion: '', telefono: '' }))
+  const [garantia, setGarantia] = useState('')
+  const [html, setHtml] = useState('')
+  const [cargando, setCargando] = useState(false)
 
-  const conPrecio = listCelulares().filter((c) => c.activo && c.precio > 0)
-  const nuevos = conPrecio.filter((c) => c.estado === 'Nuevo')
-  const seminuevos = conPrecio.filter((c) => c.estado === 'Seminuevo')
-  const hoy = new Date().toLocaleDateString('es-PY', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  })
+  const celulares = listCelulares()
+  const productos = getProductos()
 
-  async function exportar() {
-    if (!ref.current || !conPrecio.length) return
-    setExportando(true)
+  // Datos de la tienda: la demo usa su empresa ficticia; una cuenta real, su perfil de negocio.
+  useEffect(() => {
+    let vivo = true
+    if (esDemo) {
+      setTienda({ nombre: EMPRESA_DEMO.nombreFantasia, direccion: EMPRESA_DEMO.direccion, telefono: EMPRESA_DEMO.telefono })
+      return undefined
+    }
+    api.get('/api/account')
+      .then((cuenta) => {
+        if (!vivo) return
+        const t = cuenta?.tenant || {}
+        setTienda({ nombre: t.name || empresa?.nombre || '', direccion: [t.address, t.city].filter(Boolean).join(', '), telefono: t.phone || '' })
+      })
+      .catch((causa) => console.error('[lista-precios] no se pudo leer el perfil de la tienda', causa))
+    return () => { vivo = false }
+  }, [esDemo, empresa?.nombre])
+
+  // Garantía de las políticas publicadas (#443): nunca bloquea la lista.
+  useEffect(() => {
+    let vivo = true
+    getPoliticasImpresion().then((politicas) => { if (vivo) setGarantia(politicas?.garantia || (esDemo ? GARANTIA_DEMO : '')) }).catch(() => {})
+    return () => { vivo = false }
+  }, [esDemo])
+
+  // Cotización del día cuando se pide el precio en dólares; siempre editable a mano.
+  useEffect(() => {
+    if (!usd || Number(cotizacion) > 0) return undefined
+    let vivo = true
+    cotizacionFx({ purpose: 'sales' }).then((info) => { if (vivo && info?.rate) setCotizacion(String(Math.round(info.rate))) }).catch(() => {})
+    return () => { vivo = false }
+  }, [usd, cotizacion])
+
+  const datos = useMemo(() => datosListaPrecios({
+    celulares,
+    productos,
+    tienda,
+    garantia,
+    cotizacion: usd ? Number(cotizacion) || 0 : 0,
+    mostrarStock,
+    rankModelo: rankCelular,
+  }), [celulares, productos, tienda, garantia, usd, cotizacion, mostrarStock])
+
+  const coloresLista = useMemo(() => ({ nuevo: colores?.colores?.['*']?.nuevo || '', semi: colores?.colores?.['*']?.semi || '' }), [colores])
+
+  useEffect(() => {
+    if (!datos.filas) { setHtml(''); return undefined }
+    let vivo = true
+    setCargando(true)
+    buildListaPreciosHtml(datos, { format: 'a4', colores: coloresLista, usd: usd && Boolean(Number(cotizacion)) })
+      .then((construido) => { if (vivo) setHtml(construido) })
+      .catch((causa) => console.error('[lista-precios] no se pudo armar la lista', causa))
+      .finally(() => { if (vivo) setCargando(false) })
+    return () => { vivo = false }
+  }, [datos, coloresLista, usd, cotizacion])
+
+  async function imprimir() {
+    if (!html) return
     try {
-      const dataUrl = await toPng(ref.current, { pixelRatio: 2, backgroundColor: '#0E1013' })
-      const blob = await (await fetch(dataUrl)).blob()
-      const file = new File([blob], 'lista-precios-mobtock.png', { type: 'image/png' })
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Lista de Precios · ${APP_NAME}`,
-          text: 'Lista de precios',
-        })
-      } else {
-        const link = document.createElement('a')
-        link.download = 'lista-precios-mobtock.png'
-        link.href = dataUrl
-        link.click()
-      }
-    } catch {
-      /* el usuario canceló o no se pudo compartir */
-    } finally {
-      setExportando(false)
+      await printHtml(html)
+    } catch (causa) {
+      avisar.fallo('imprimir', causa?.message || 'Revisá la impresora.')
     }
   }
 
+  const nombreArchivo = 'lista-de-precios'
   return (
-    <div className="space-y-4">
-      {/* #278 · composición compacta (#256): la identidad y las acciones viven
-          en la barra; la tarjeta exportable queda intacta para compartir. */}
+    <div className="space-y-3">
+      {/* #278 · composición compacta (#256): la identidad y las acciones viven en la barra. */}
       <BarraModulo titulo="Lista por modelo" testId="barra-celulares" segmentos={<SegmentosToolbar />}>
-        <Button variant="success" onClick={exportar} disabled={!conPrecio.length || exportando}>
-          <Icon name="share" className="h-4 w-4" />{exportando ? 'Generando…' : 'Compartir por WhatsApp'}
+        <CompartirImagen construirHtml={() => html} nombre={nombreArchivo} titulo={`Lista de precios · ${tienda.nombre}`} texto="Lista de precios" disabled={!html || cargando} />
+        <CompartirPdf construirHtml={() => html} nombre={nombreArchivo} titulo={`Lista de precios · ${tienda.nombre}`} texto="Lista de precios" disabled={!html || cargando} />
+        <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>
+          <Icon name="printer" className="h-4 w-4" />Imprimir
         </Button>
       </BarraModulo>
-      <p className="text-xs text-mute">Precios de nuevos y semi-nuevos por modelo y capacidad, listos para compartir con el cliente.</p>
 
-      <main className="mx-auto max-w-3xl space-y-4">
-        {!conPrecio.length && (
-          <Card className="text-center text-mute py-10">
-            <div className="text-4xl mb-2">
-              <Icon name="phone" className="h-4 w-4" />
-            </div>
-            <p className="text-sm">
-              Todavía no hay precios cargados.
-              <br />
-              Cargalos en el Centro de Control Celulares y aparecen acá.
-            </p>
-            <div className="mt-4 flex justify-center">
-              <Button variant="outline" onClick={() => navigate('/centro-control')}>Abrir Centro de Control</Button>
-            </div>
-          </Card>
-        )}
-
-        {/* Tarjeta exportable */}
-        {conPrecio.length > 0 && (
-          <div ref={ref} className="rounded-2xl bg-ink-800 overflow-hidden border border-ink-600">
-            {/* Encabezado branded */}
-            <div className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-onbrand p-5">
-            <ThemeLogo className="h-8 mb-2" variante="dark" />
-              <div className="text-lg font-extrabold">Lista de Precios</div>
-              <div className="text-xs opacity-80">Actualizado: {hoy}</div>
-            </div>
-
-            <div className="p-4 space-y-5">
-              <BloqueCondicion
-                titulo="NUEVOS"
-                items={nuevos}
-                tema={{
-                  encabezado: 'bg-ok/15 text-ok',
-                  modelo: 'text-ok border-ok/40',
-                }}
-              />
-              <BloqueCondicion
-                titulo="SEMI-NUEVOS"
-                items={seminuevos}
-                tema={{
-                  encabezado: 'bg-warn/15 text-warn',
-                  modelo: 'text-warn border-warn/40',
-                }}
-              />
-            </div>
-
-            <div className="bg-ink-700 px-4 py-3 text-center text-xs text-mute border-t border-ink-600">
-              <strong className="text-fono">{APP_NAME}</strong> · Consultá disponibilidad y
-              trade-in de tu equipo usado
-            </div>
+      {!datos.filas ? (
+        <Card className="py-10 text-center text-mute">
+          <p className="text-sm">
+            Todavía no hay precios cargados.
+            <br />
+            Cargalos en el Centro de Control Celulares y aparecen acá.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <Button variant="outline" onClick={() => navigate('/centro-control')}>Abrir Centro de Control</Button>
           </div>
-        )}
-
-        <p className="text-center text-xs text-mute">
-          Tocá <strong>Compartir por WhatsApp</strong> para enviar la imagen al cliente.
-        </p>
-      </main>
+        </Card>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2" data-testid="lista-precios-opciones">
+            <Opcion activa={mostrarStock} onCambiar={setMostrarStock} testId="lista-opcion-stock">Marcar últimas unidades y sin stock</Opcion>
+            <Opcion activa={usd} onCambiar={setUsd} testId="lista-opcion-usd">Mostrar también en US$</Opcion>
+            {usd ? (
+              <label className="inline-flex items-center gap-2 text-xs text-mute">
+                Gs por US$
+                <MoneyInput aria-label="Cotización del dólar para la lista" value={cotizacion} onValueChange={(valor) => setCotizacion(valor === '' ? '' : String(valor))} className="w-28" />
+              </label>
+            ) : null}
+            <span className="ml-auto text-xs text-mute">{datos.filas} {datos.filas === 1 ? 'precio' : 'precios'} · {datos.vigencia.replace(/, sujetos.*/, '')}</span>
+          </div>
+          <div data-testid="lista-precios-vista">
+            <VistaPreviaPapel formato="a4" contenido={html} titulo="Vista previa de la lista de precios" />
+          </div>
+        </>
+      )}
     </div>
   )
 }

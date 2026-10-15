@@ -20,6 +20,8 @@ import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, se
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
+import { ETIQUETA_AVISO } from '@/lib/printing/listaPrecios'
+import { COLORES_BASE, paletaFila } from '@/lib/stockDisplay'
 
 import { publicUrls } from '@/lib/urls'
 
@@ -212,6 +214,9 @@ export const transferReceiveUrlFor = (token) => {
   return token && base ? `${base}/remito/${encodeURIComponent(token)}` : ''
 }
 
+
+// Fondos de fábrica de los bloques de la lista de precios (#435): los mismos de las filas de stock.
+const ACENTO_BLOQUE = COLORES_BASE.claro
 
 const THERMAL_WIDTHS = { 'thermal-80': 80, 'thermal-58': 58, 'thermal-55': 55, thermal: 58 }
 const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
@@ -1091,6 +1096,57 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
     ${datos.enlace || barras ? `<div class="card"><div class="label">Panel de la compra</div>${qr ? `<img class="qr" src="${qr}" alt="QR del panel">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')}</p></div>` : ''}
     ${firmas([{ rol: 'Compró / control' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
     ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
+  </body></html>`
+}
+
+// Lista de precios por modelo (#448): el papel que la tienda comparte por
+// WhatsApp. Misma cabecera y pie que el comprobante premium (#407) pero con la
+// marca de LA TIENDA (logo o nombre) y «Hecho con MobOS» solo como pie chiquito.
+// Modelos en dos columnas (A4), precio alineado a la derecha, avisos de stock,
+// garantía de las políticas (#443), vigencia, WhatsApp, dirección y QR.
+// `datos` sale de `datosListaPrecios` (lib/printing/listaPrecios.js).
+export async function buildListaPreciosHtml(datos = {}, { format = 'a4', colores = {}, usd = false } = {}) {
+  const logo = await getLogoDataUrl()
+  let qr = ''
+  try { if (datos.tienda?.whatsapp) qr = await qrDataUrl(datos.tienda.whatsapp, { nivel: 'M', margen: 1, ancho: 280 }) } catch { /* queda sin QR */ }
+  const tono = (condicion) => {
+    const fondo = colores[condicion] || ACENTO_BLOQUE[condicion]
+    return paletaFila(fondo)
+  }
+  const aviso = (clave) => (clave ? `<span class="lp-aviso ${clave === 'sin-stock' ? 'sin' : 'ult'}">${escapeHtml(ETIQUETA_AVISO[clave])}</span>` : '')
+  const fila = (item) => `<div class="lp-fila"><span class="d">${escapeHtml([item.capacidad, item.color].filter(Boolean).join(' · '))}${aviso(item.aviso)}</span><span class="p">${escapeHtml(gs(item.precioGs))}${usd && item.precioUsd ? `<small>US$ ${escapeHtml(String(item.precioUsd).replace(/\B(?=(\d{3})+(?!\d))/g, '.'))}</small>` : ''}</span></div>`
+  const modelos = (bloque) => bloque.modelos.map((m) => `<div class="lp-modelo"><h3>${escapeHtml(m.modelo)}</h3>${m.filas.map(fila).join('')}</div>`).join('')
+  const bloques = (datos.bloques || []).map((bloque) => {
+    const t = tono(bloque.estado === 'Nuevo' ? 'nuevo' : 'semi')
+    return `<section class="lp-bloque"><div class="lp-titulo" style="background:${t.bg};color:${t.fg};border-color:${t.bd}">${escapeHtml(bloque.titulo)}<span style="color:${t.fg2}">${bloque.modelos.length} ${bloque.modelos.length === 1 ? 'modelo' : 'modelos'}</span></div><div class="lp-cols">${modelos(bloque)}</div></section>`
+  }).join('') || '<p class="muted">Todavía no hay precios cargados.</p>'
+  const tienda = datos.tienda || {}
+  const lineas = [tienda.direccion, tienda.telefono ? `WhatsApp ${tienda.telefono}` : ''].filter(Boolean)
+  const condiciones = [
+    datos.garantia ? `<strong>Garantía</strong>${escapeHtml(datos.garantia).replace(/\n/g, '<br>')}` : '',
+    `<strong style="margin-top:${datos.garantia ? '6px' : '0'}">Vigencia</strong>${escapeHtml(datos.vigencia || '')}${usd && datos.cotizacion ? `<br>US$ 1 = ${escapeHtml(gs(datos.cotizacion))}` : ''}`,
+  ].filter(Boolean).join('')
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Lista de precios')}</title><style>${styles(format)}
+    .lp-bloque{margin:12px 0 4px}
+    .lp-titulo{display:flex;justify-content:space-between;align-items:baseline;border:1px solid;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+    .lp-titulo span{font-size:9.5px;font-weight:600;letter-spacing:.04em;text-transform:none}
+    .lp-cols{column-count:${thermalWidth(format) ? 1 : 2};column-gap:24px}
+    .lp-modelo{break-inside:avoid;margin:0 0 10px}
+    .lp-modelo h3{font-size:12px;font-weight:800;margin:0 0 1px;padding-bottom:2px;border-bottom:1.5px solid var(--tinta);letter-spacing:-.005em}
+    .lp-fila{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:3px 0;border-bottom:1px solid var(--linea);font-size:10.5px}
+    .lp-fila .d{color:var(--tinta-2);min-width:0}
+    .lp-fila .p{font-weight:800;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+    .lp-fila .p small{display:block;font-size:9px;font-weight:600;color:var(--gris)}
+    .lp-aviso{display:inline-block;margin-left:6px;border:1px solid;border-radius:999px;padding:0 6px;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;vertical-align:1px}
+    .lp-aviso.ult{color:#92400e;border-color:#d97706;background:#fffbeb}
+    .lp-aviso.sin{color:#991b1b;border-color:#dc2626;background:#fef2f2}
+    .hecho{margin-top:8px;text-align:center;font-size:8.5px;color:var(--gris);letter-spacing:.04em}
+    @media print{.lp-aviso{color:#000;background:none;border-color:#000}}
+  </style></head><body>
+    ${header(datos.titulo || 'Lista de precios', `Precios al ${datos.fecha || ''}`, logo, tienda.nombre, { razon: tienda.nombre, lineas })}
+    ${bloques}
+    <div class="pie-doc"><div class="condiciones">${condiciones}</div>${qr ? `<div class="qrbox"><img class="qr" src="${qr}" alt="QR de WhatsApp"><div class="small">Escribinos por WhatsApp</div></div>` : ''}</div>
+    <div class="hecho">Hecho con ${escapeHtml(APP_NAME)}</div>
   </body></html>`
 }
 
