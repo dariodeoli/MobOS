@@ -400,7 +400,6 @@ html.app-ios .auth-ios .auth-form button[type='submit']:disabled { display: none
 html.app-ios .fixed.inset-0.z-\[70\] { place-items: start center; overflow-y: auto; }
 html.app-ios [data-testid='pantalla-bloqueada'] { padding: 1rem; margin-top: 0.5rem; }
 html.app-ios [data-testid='pantalla-bloqueada'] .lock-icono,
-html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow,
 html.app-ios [data-testid='pantalla-bloqueada'] .lock-sucursal,
 html.app-ios [data-testid='pantalla-bloqueada'] .lock-ayuda { display: none; }
 html.app-ios [data-testid='pantalla-bloqueada'] .lock-logo { height: 1.5rem; }

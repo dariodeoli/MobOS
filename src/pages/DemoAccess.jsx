@@ -99,7 +99,7 @@ export default function DemoAccess() {
         </div>
 
         {/* Ingresar otro PIN: siempre visible, sin colapsar (#235). */}
-        <div className="mt-3 rounded-xl border bg-paper/50 p-3 [border-color:var(--landing-line)]">
+        <div className="mt-3 rounded-xl border bg-paper/50 px-3 py-2 [border-color:var(--landing-line)]">
           <label htmlFor="demo-pin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-mute">
             <KeyRound size={13} className="text-fono-dark" /> Ingresar otro PIN
           </label>

@@ -65,7 +65,7 @@ export default function PantallaBloqueada({
         <span className="lock-icono mx-auto mt-4 grid [@media(max-height:760px)]:hidden h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
           <Icon name="lock" className="h-5 w-5" />
         </span>
-        <Eyebrow className="lock-eyebrow mt-4 [@media(max-height:760px)]:hidden">Pantalla bloqueada</Eyebrow>
+        <Eyebrow className="lock-eyebrow mt-2">Pantalla bloqueada</Eyebrow>
         <h2 id="lock-title" className="mt-3 flex items-center justify-center gap-2 text-xl font-bold">
           {logoEmpresa && (
             <img
