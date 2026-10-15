@@ -9,7 +9,6 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
-import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
 
 // Abastecimiento · F1 (#250/#254): panel móvil «Por comprar».
 // Consume la API de necesidades de INV: consolidado por producto + condición +
