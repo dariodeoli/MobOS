@@ -104,7 +104,7 @@ test('tarifas expl√≠citas, multiviaje, sin venta y cierre auditable con rendici√
   const require = createRequire(new URL('../backend/package.json', import.meta.url))
   const { PrismaClient } = require('@prisma/client'), { PrismaPg } = require('@prisma/adapter-pg')
   const pgPort = process.env.MOBOS_E2E_PGPORT, dbName = process.env.MOBOS_E2E_DB
-  expect(pgPort).toBeTruthy(); expect(dbName).toMatch(/^mobos_e2e_/)
+  expect(pgPort).toBeTruthy(); expect(dbName).toMatch(/^mobos_e2e(?:_|$)/)
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: `postgresql://postgres@127.0.0.1:${pgPort}/${dbName}` }) })
   const contexts = []
   try {

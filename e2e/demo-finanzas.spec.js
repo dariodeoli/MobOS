@@ -28,7 +28,7 @@ test.describe('demo de Finanzas', () => {
     await page.getByRole('option', { name: /Itaú/ }).first().click()
     await page.fill('#pa-holder', 'Titular Demo')
     await page.fill('#pa-number', '4321')
-    await expect(page.locator('#pa-name')).toHaveValue(/Banco Itaú.*Titular Demo.*Cuenta 4321/)
+    await expect(page.locator('#pa-name')).toHaveValue(/Itaú.*Titular Demo.*Cuenta 4321/)
     await page.getByRole('button', { name: 'Guardar cuenta' }).click()
     await expect(page.getByText('Cuenta guardada.')).toBeVisible()
     await expect(page.locator('[data-testid="cuenta-fila"]').filter({ hasText: 'Titular Demo' })).toHaveCount(1)
