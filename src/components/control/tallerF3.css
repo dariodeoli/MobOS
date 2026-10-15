@@ -168,15 +168,42 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* Densidad (#448): desde 1280 px la orden es UNA fila fina (≈ 46 px): código y
+   estado · equipo, cliente y técnico · falla · importes · acción. Debajo de
+   1280 siguen las cápsulas (1 o 2 por fila). */
 @media (min-width: 1280px) {
   .taller-f3-rows {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
   }
-}
-@media (min-width: 1440px) {
-  .taller-f3-rows {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .taller-f3-row {
+    grid-template-columns: 13.5rem minmax(0, 1.6fr) minmax(0, 1fr) 24rem;
+    align-items: center;
+    align-content: center;
+    column-gap: 12px;
+    padding: 6px 12px;
+    border-radius: 10px;
   }
+  .taller-f3-identity {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .taller-f3-identity > * { display: block; }
+  .taller-f3-identity b { flex: 0 1 auto; font-size: 14px; line-height: 20px; max-width: 60%; }
+  .taller-f3-identity .taller-f3-meta { flex: 1 1 0; min-width: 0; }
+  .taller-f3-foot {
+    flex-wrap: nowrap;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    gap: 16px;
+    justify-content: flex-end;
+  }
+  .taller-f3-money { display: flex; align-items: baseline; gap: 12px; }
+  .taller-f3 .taller-f3-row button { min-height: 0; min-width: 32px; }
+  .taller-f3 .taller-f3-actions button { height: 32px; }
 }
 
 .taller-f3 [data-testid='resumen-taller'] p {

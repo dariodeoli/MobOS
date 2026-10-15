@@ -9,6 +9,11 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
+import { useStockDisplay } from '@/hooks/useStockDisplay'
+import { estiloCondicion } from '@/lib/stockDisplay'
+import { familiaCondicion } from '@/lib/planilla'
+import '@/components/stock/planilla.css'
 
 // Abastecimiento · F1 (#250/#254): panel móvil «Por comprar».
 // Consume la API de necesidades de INV: consolidado por producto + condición +
@@ -76,6 +81,7 @@ const claveGrupo = (grupo) => `${grupo.productoId}::${grupo.condicion}::${grupo.
 
 export default function PorComprar() {
   const navigate = useNavigate()
+  const { colores } = useStockDisplay()
   // #450: lo recién comprado no desaparece en silencio: queda el aviso con el enlace a su compra.
   const [recienComprada, setRecienComprada] = useState(null)
   const toast = useToast()
@@ -365,78 +371,80 @@ export default function PorComprar() {
           description={filas.length || sinAsignar || vencidas ? 'Probá con otra prioridad, centro o palabra.' : VACIO_ESTADO[vista]?.[1] || 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'}
         />
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-1.5">
           {visibles.map((grupo, indice) => {
             const vence = plazo(grupo.prometidaEl)
             const clave = claveGrupo(grupo)
             const marcado = seleccion.includes(clave)
             return (
-              <Card key={`${clave}-${indice}`} className="p-3.5" data-testid="por-comprar-fila">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-start gap-2">
-                    {enPendientes && (
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 shrink-0"
-                        aria-label={`Seleccionar ${grupo.producto || 'el producto'}`}
-                        checked={marcado}
-                        onChange={() => alternarSeleccion(grupo)}
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold" title={grupo.producto}>{grupo.producto || 'Producto'}</p>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-mute">
-                        <Badge color="slate">{CONDICION[grupo.condicion] || grupo.condicion || '—'}</Badge>
-                        <Badge color={grupo.centro ? 'blue' : 'orange'}>{grupo.centro || 'Sin centro'}</Badge>
-                        {vence && <span className={vence.tono}>{vence.texto}</span>}
-                        {!vence && <span>Sin fecha prometida</span>}
-                      </p>
-                    </div>
+              <div
+                key={`${clave}-${indice}`}
+                data-testid="por-comprar-fila"
+                data-condicion={familiaCondicion({ condition: grupo.condicion })}
+                data-propio={estiloCondicion({ condition: grupo.condicion }, colores) ? 'true' : undefined}
+                style={estiloCondicion({ condition: grupo.condicion }, colores)}
+                className="cond-color grid items-center gap-x-3 gap-y-1 rounded-xl px-3 py-1.5 lg:grid-cols-[minmax(0,1fr)_5.5rem_10rem_auto]"
+              >
+                <div className="flex min-w-0 items-start gap-2">
+                  {enPendientes && (
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 min-h-0 w-4 shrink-0"
+                      aria-label={`Seleccionar ${grupo.producto || 'el producto'}`}
+                      checked={marcado}
+                      onChange={() => alternarSeleccion(grupo)}
+                    />
+                  )}
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="max-w-full truncate text-sm font-semibold" title={grupo.producto}>{grupo.producto || 'Producto'}</p>
+                    <Badge color="slate">{CONDICION[grupo.condicion] || grupo.condicion || '—'}</Badge>
+                    <Badge color={grupo.centro ? 'blue' : 'orange'}>{grupo.centro || 'Sin centro'}</Badge>
+                    {vence ? <span className={cn('whitespace-nowrap text-xs', vence.tono)}>{vence.texto}</span> : <span className="pl-sec whitespace-nowrap text-xs">Sin fecha prometida</span>}
+                    {grupo.cliente && <span className="pl-sec truncate text-xs" title={grupo.cliente}>· <b>{grupo.cliente}</b></span>}
                   </div>
-                  <Badge color={TONO_PRIORIDAD[grupo.prioridad] || 'slate'}>{PRIORIDAD[grupo.prioridad] || grupo.prioridad || 'Normal'}</Badge>
                 </div>
 
-                <p className="mt-2 text-sm">
-                  Faltan <b className="tabular-nums">{grupo.cantidad}</b> unidad{grupo.cantidad === 1 ? '' : 'es'}
-                  {grupo.costoEstimadoPyg != null && <> · costo <Money value={grupo.costoEstimadoPyg} className="text-sm" /></>}
-                  {grupo.margenEstimadoPyg != null && <> · margen <Money value={grupo.margenEstimadoPyg} className="text-sm" /></>}
+                <p className="flex items-baseline gap-1.5 whitespace-nowrap text-sm lg:justify-center" data-testid="por-comprar-faltan">
+                  <span className="pl-sec text-xs">Faltan</span>
+                  <b className="text-base tabular-nums">{grupo.cantidad}</b>
                 </p>
 
-                {grupo.cliente && <p className="mt-1 text-xs text-mute">Cliente: <b className="text-fore">{grupo.cliente}</b></p>}
+                <p className="flex flex-wrap items-baseline gap-x-2 text-sm lg:block lg:text-right">
+                  {grupo.costoEstimadoPyg != null ? <span className="block whitespace-nowrap"><span className="pl-sec text-[11px]">costo </span><Money value={grupo.costoEstimadoPyg} className="text-sm" /></span> : <span className="pl-sec text-xs">Sin costo</span>}
+                  {grupo.margenEstimadoPyg != null && <span className="block whitespace-nowrap"><span className="pl-sec text-[11px]">margen </span><Money value={grupo.margenEstimadoPyg} className="text-xs" /></span>}
+                </p>
 
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-1 lg:order-last lg:col-span-full" data-testid="por-comprar-motivos">
                   {(grupo.destinos || []).map((destino, posicion) => (
-                    <span key={`${destino.etiqueta}-${posicion}`} className="rounded-lg border border-ink-600 bg-ink-800/50 px-2 py-1 text-[11px] text-mute">
+                    <span key={`${destino.etiqueta}-${posicion}`} className="max-w-full truncate rounded-md border border-ink-600 bg-ink/60 px-1.5 py-0.5 text-[11px] text-mute" title={`${destino.cantidad} · ${DESTINO[destino.tipo] || destino.tipo}: ${destino.etiqueta}`}>
                       <b className="tabular-nums text-fore">{destino.cantidad}</b> · {DESTINO[destino.tipo] || destino.tipo}: {destino.etiqueta}
+                    </span>
+                  ))}
+                  {(grupo.origenes || []).map((origen) => (
+                    <span key={origen} className="rounded-md bg-ink-700/70 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-mute">
+                      {ORIGEN[origen] || origen}
                     </span>
                   ))}
                 </div>
 
-                {(grupo.origenes || []).length > 0 && (
-                  <p className="mt-2 flex flex-wrap gap-1.5">
-                    {grupo.origenes.map((origen) => (
-                      <span key={origen} className="rounded-md bg-ink-700/60 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-mute">
-                        {ORIGEN[origen] || origen}
-                      </span>
-                    ))}
-                  </p>
-                )}
-
-                {(vista === 'compradas' || vista === 'recibidas') && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Badge color="green">{vista === 'compradas' ? 'Comprado' : 'Recibido'}</Badge>
-                    <Button type="button" variant="outline" className="min-h-11" onClick={() => navigate(vista === 'compradas' ? '/preparacion' : '/stock/unidades')} data-testid="por-comprar-ver-compra">
-                      {vista === 'compradas' ? 'Ver en Preparar compra' : 'Ver en Stock'}
-                    </Button>
-                  </div>
-                )}
-                {enPendientes && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="outline" onClick={() => abrirAsignacion(grupo)}>Asignar comprador</Button>
-                    <Button type="button" variant="ghost" className="text-bad" onClick={() => { setCancelar(grupo); setMotivo('') }}>Cancelar</Button>
-                  </div>
-                )}
-              </Card>
+                <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                  <Badge color={TONO_PRIORIDAD[grupo.prioridad] || 'slate'}>{PRIORIDAD[grupo.prioridad] || grupo.prioridad || 'Normal'}</Badge>
+                  {(vista === 'compradas' || vista === 'recibidas') && (
+                    <>
+                      <Badge color="green">{vista === 'compradas' ? 'Comprado' : 'Recibido'}</Badge>
+                      <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs lg:!h-8 lg:!min-h-0" onClick={() => navigate(vista === 'compradas' ? '/preparacion' : '/stock/unidades')} data-testid="por-comprar-ver-compra">
+                        {vista === 'compradas' ? 'Ver en Preparar compra' : 'Ver en Stock'}
+                      </Button>
+                    </>
+                  )}
+                  {enPendientes && (
+                    <>
+                      <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs lg:!h-8 lg:!min-h-0" onClick={() => abrirAsignacion(grupo)}>Asignar comprador</Button>
+                      <Button type="button" variant="ghost" className="min-h-11 px-2.5 text-xs text-bad lg:min-h-8" onClick={() => { setCancelar(grupo); setMotivo('') }}>Cancelar</Button>
+                    </>
+                  )}
+                </div>
+              </div>
             )
           })}
         </div>
