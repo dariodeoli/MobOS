@@ -297,6 +297,8 @@ export default function App() {
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
             {/* Políticas públicas de cada empresa (#433). */}
+            <Route path="/p/:slug/politicas" element={<PoliticasPublicas />} />
+            <Route path="/p/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
             <Route path="/:slug/politicas" element={<PoliticasPublicas />} />
             <Route path="/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -334,6 +336,8 @@ export default function App() {
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          <Route path="/p/:slug/politicas" element={<PoliticasPublicas />} />
+          <Route path="/p/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
           <Route path="/:slug/politicas" element={<PoliticasPublicas />} />
           <Route path="/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
           {/* A5 (#279): el cliente aprueba la alternativa de una variante agotada. */}
