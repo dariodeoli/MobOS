@@ -1,3 +1,4 @@
+import ConciliacionDia from './ConciliacionDia'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { codigoPedido } from '@/utils/pedido'
 import { useSearchParams } from 'react-router-dom'
@@ -30,7 +31,7 @@ import './finanzasTactil.css'
 // pedido. La conciliación individual sigue en el detalle del pedido.
 
 const ETIQUETAS = {
-  PENDING: { label: 'Por conciliar', color: 'yellow' },
+  PENDING: { label: 'Por conciliar', color: 'orange' },
   VERIFIED: { label: 'Conciliado', color: 'green' },
   REJECTED: { label: 'Rechazado', color: 'red' },
 }
@@ -350,6 +351,7 @@ export default function Conciliacion() {
           etiquetaOrden="Filtrar por"
           label="Filtros del período"
           testId="conciliacion-filtros"
+          primary={<ConciliacionDia />}
           filters={<RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />}
           sort={(
             <>
@@ -500,7 +502,7 @@ export default function Conciliacion() {
               <div className="flex flex-wrap items-center gap-2">
                 <b className="text-[13px]">{lote.cuenta}</b>
                 {lote.procesadora && <span className="text-[11px] text-mute">{lote.procesadora}</span>}
-                <Badge color={lote.estado === 'REJECTED' ? 'red' : lote.estado === 'DIFFERENCE' ? 'orange' : 'green'}>{lote.estado === 'REJECTED' ? 'Rechazado' : lote.estado === 'DIFFERENCE' ? 'Con diferencia' : 'Conciliado'}</Badge>
+                <Badge color={lote.estado === 'REJECTED' ? 'red' : lote.estado === 'DIFFERENCE' ? 'red' : 'green'}>{lote.estado === 'REJECTED' ? 'Rechazado' : lote.estado === 'DIFFERENCE' ? 'Con diferencia' : 'Conciliado'}</Badge>
               </div>
               <p className="mt-0.5 text-[11px] text-mute">{fechaCorta(lote.createdAt)} · {lote.pagos} pago(s) · {lote.creadoPor ? `por ${lote.creadoPor}` : ''}{lote.note ? ` · ${lote.note}` : ''}</p>
             </div>

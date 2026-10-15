@@ -121,3 +121,25 @@ test('un lote demo no puede mezclar cuentas, como en producción', () => {
   const mezcla = [inicial.items.find((item) => item.id === 'pago-1'), inicial.items.find((item) => item.id === 'pago-3')]
   assert.throws(() => conciliarDemoLote({ items: mezcla, receivedPyg: 100 }), /misma cuenta/)
 })
+
+
+test('día demo: declaración independiente y revisiones locales, sin mutar cobros ni duplicar correcciones', async () => {
+  const { construirDemoConciliacionDia, declararDemoConciliacionDia } = await import('./demoConciliacionDia.js')
+  const branchId = 'demo-day-branch', day = '2026-10-15'
+  const ventas = [{ id: 'order-day', branchId, pagos: [{ id: 'original', method: 'CASH', monto: 100000, fecha: '2026-10-15T12:00:00Z' }] }]
+  const originalJson = JSON.stringify(ventas)
+  const input = { ventas, cuentas: [], branchId, day }
+  const before = construirDemoConciliacionDia(input)
+  assert.equal(before.state, 'PENDING'); assert.equal(before.groups[0].receivedPyg, null)
+  const declaration = { ...input, expectedVersion: 0, requestId: 'demo-request-451', note: '', declarations: [{ method: 'CASH', accountId: null, currency: 'PYG', receivedPyg: 100000 }] }
+  const saved = declararDemoConciliacionDia(declaration)
+  assert.equal(saved.state, 'VERIFIED'); assert.equal(saved.version, 1)
+  assert.equal(declararDemoConciliacionDia(declaration).version, 1)
+  assert.equal(JSON.stringify(ventas), originalJson, 'declarar no crea ni confirma pagos')
+  assert.throws(() => declararDemoConciliacionDia({ ...declaration, requestId: 'another-request' }), /actualizó/)
+  const corrected = [{ ...ventas[0], pagos: [...ventas[0].pagos, { id: 'reverse', reversalOfId: 'original', method: 'CASH', monto: -100000, fecha: '2026-10-15T13:00:00Z' }, { id: 'new', method: 'TRANSFER', monto: 100000, fecha: '2026-10-15T13:00:00Z' }, { id: 'driver', method: 'CASH', monto: 20000, status: 'PENDING', deliveryUserId: 'd', fecha: '2026-10-15T13:00:00Z' }] }]
+  const after = construirDemoConciliacionDia({ ...input, ventas: corrected })
+  assert.equal(after.expectedPyg, 100000); assert.equal(after.state, 'DIFFERENCE'); assert.equal(after.changedSinceDeclaration, true)
+  assert.equal(after.history[0].snapshot.state, 'VERIFIED')
+  assert.equal(construirDemoConciliacionDia({ ...input, branchId: 'other' }).expectedPyg, 0)
+})

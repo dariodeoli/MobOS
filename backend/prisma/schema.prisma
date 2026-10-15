@@ -7,6 +7,7 @@ datasource db {
 }
 
 model Tenant {
+  reconciliationDays ReconciliationDay[]
   deliveryTariffs DeliveryTariff[]
   deliveryTrips DeliveryTrip[]
   deliveryWeeklyCloses DeliveryWeeklyClose[]
@@ -312,6 +313,7 @@ model GeoCity {
 }
 
 model Branch {
+  reconciliationDays ReconciliationDay[]
   deliveryTrips DeliveryTrip[]
   deliveryWeeklyCloses DeliveryWeeklyClose[]
   branchUsages UserBranchUsage[]
@@ -4198,4 +4200,36 @@ model DeliveryWeeklyAdjustment {
   createdAt DateTime @default(now())
   @@unique([tenantId, idempotencyKey])
   @@index([weeklyCloseId, createdAt])
+}
+
+// Declaración diaria independiente de caja/bancos (#451); no crea ni confirma cobros.
+model ReconciliationDay {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  businessDay String @db.VarChar(10)
+  createdAt DateTime @default(now())
+  revisions ReconciliationDayRevision[]
+  @@unique([tenantId, branchId, businessDay])
+}
+
+// Revisiones inmutables; el estado actual se reevalúa contra cobros vigentes.
+model ReconciliationDayRevision {
+  id String @id @default(cuid())
+  dayId String
+  day ReconciliationDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  tenantId String
+  requestId String
+  requestHash String
+  version Int
+  declarations Json
+  snapshot Json
+  paymentSnapshot Json
+  note String?
+  createdById String
+  createdAt DateTime @default(now())
+  @@unique([tenantId, requestId])
+  @@unique([dayId, version])
 }
