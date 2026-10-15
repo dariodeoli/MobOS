@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { Aviso, Badge, Button, Card, EmptyState, FormActions, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, FormActions, FormField, Input, Label, MenuDesplegable, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
@@ -10,10 +10,11 @@ import SearchField from '@/components/shared/SearchField'
 import InspeccionEquipo from '@/components/shared/InspeccionEquipo'
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
+import MenuSecundario from '@/components/shared/MenuSecundario'
+import ChipsFiltro from '@/components/ventas/ChipsFiltro'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
-import { temaV2Activo } from '@/lib/temaV2'
 import { fechaHora } from '@/utils/fecha'
 import { ticketRecepcionServicio } from '@/lib/printing/tickets'
 import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
@@ -26,10 +27,10 @@ import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
-import SerialTexto from '@/components/shared/SerialTexto'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE, SIGUIENTE_SERVICIO as SIGUIENTE } from '@/lib/estadosServicio'
 import { advanceService, advanceSelectedServices, serviceAdvanceFeedback } from '@/lib/tallerAvance'
+import '@/components/ventas/ventasF3.css'
 import './tallerF3.css'
 import { partesDispositivo, tipoDeDispositivo } from '@/lib/dispositivos'
 import { BuscadorDispositivo, etiquetaDispositivo } from 'owncoding-ui'
@@ -44,6 +45,10 @@ const PLANTILLA_POR_ESTADO = {
   LISTO: 'reparacion_lista',
 }
 const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', partsPyg: '', laborPyg: '', otherCostPyg: '', notes: '', checklist: {}, unlockCode: '', unlockPattern: [] }
+// Campos del menú «Ordenar» (#396), en lugar del select + botón de dirección.
+const CAMPOS_ORDEN = [['recibido', 'Recibido'], ['equipo', 'Equipo'], ['cliente', 'Cliente'], ['falla', 'Falla'], ['tecnico', 'Técnico'], ['precio', 'Precio'], ['utilidad', 'Utilidad'], ['estado', 'Estado']]
+// Rótulos cortos de los chips de etapa para que la barra quepa en una fila.
+const ETIQUETA_CHIP = { ESPERANDO_REPUESTO: 'Repuesto', LISTO: 'Listo' }
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
@@ -89,6 +94,8 @@ export default function ServicioTecnico() {
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
   const [seleccionados, setSeleccionados] = useState([])
+  // Casillas de selección solo en modo selección (#396).
+  const [modoSeleccion, setModoSeleccion] = useState(false)
   const [advanceBusy, setAdvanceBusy] = useState(false)
   const [advanceFeedback, setAdvanceFeedback] = useState('')
   const [clientes, setClientes] = useState([])
@@ -176,9 +183,14 @@ export default function ServicioTecnico() {
     return base
   }, [rows])
 
-  // Vista previa v2 (#241): el flujo suma un stepper y los importes suben un
-  // escalón. Se apaga solo con el flag; sin él todo queda como estaba.
-  const v2 = temaV2Activo()
+  // Etapas como chips filtrables con su conteo; solo las que tienen órdenes
+  // (o la activa), así la fila no se llena de ceros.
+  const chipsEtapa = useMemo(() => [
+    ['activos', `Activas ${conteos.activos}`],
+    ...ESTADOS.filter(([id]) => conteos[id] > 0 || filtro === id).map(([id, label]) => [id, `${ETIQUETA_CHIP[id] || label} ${conteos[id] || 0}`]),
+    ['todos', `Todas ${rows.length}`],
+  ], [conteos, filtro, rows.length])
+  const alternarSeleccion = () => { setModoSeleccion((actual) => !actual); setSeleccionados([]) }
   const detalle = useMemo(() => rows.find((row) => row.id === detalleId) || null, [rows, detalleId])
   const tecnicos = useMemo(() => [...new Set(rows.map((row) => row.technicianName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [rows])
   const filtrosActivos = [filtros.tecnico, filtros.tipo, filtros.desde, filtros.hasta].filter(Boolean).length
@@ -569,14 +581,17 @@ export default function ServicioTecnico() {
   const hayDesgloseForm = Boolean(form && (numeroDe(form.partsPyg) + numeroDe(form.laborPyg) + numeroDe(form.otherCostPyg)) > 0)
 
   return (
-    <Card className="taller-f3 space-y-4">
-      {/* Barra de la pestaña (Toolbar): búsqueda, etapa y filtros a la izquierda;
-          Actualizar, catálogo y la acción principal a la derecha. */}
+    <Card className="taller-f3 space-y-3 p-3 sm:p-4">
+      {/* Barra única de la pestaña (#396): búsqueda + etapas como chips +
+          Ordenar/Filtros + «⋯» + Nueva orden en UNA fila (Toolbar lista). */}
       <Toolbar
         plano
+        lista
+        etiquetaBoton="Ordenar / Filtros"
         label="Acciones de Taller"
         testId="barra-taller"
         className="taller-f3-tools"
+        searchClassName="sm:min-w-[14rem] sm:max-w-[16rem] sm:basis-56"
         search={
           <SearchField
             ariaLabel="Buscar órdenes de servicio"
@@ -586,25 +601,41 @@ export default function ServicioTecnico() {
           />
         }
         filters={
+          <ChipsFiltro
+            className="min-w-0 flex-nowrap sm:flex-wrap"
+            etiqueta="Filtrar por etapa"
+            opciones={chipsEtapa}
+            valor={filtro}
+            onChange={setFiltro}
+          />
+        }
+        sort={
           <>
-            <div className="w-full sm:w-60">
-              <Select
-                aria-label="Filtrar por etapa"
-                value={filtro}
-                onChange={event => setFiltro(event.target.value)}
-              >
-                <option value="activos">Activas ({conteos.activos})</option>
-                {ESTADOS.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label} ({conteos[id] || 0})
-                  </option>
-                ))}
-                <option value="todos">Todas ({rows.length})</option>
-              </Select>
+            <div data-testid="taller-orden" data-orden={orden.key} data-dir={orden.dir}>
+              <MenuDesplegable
+                alineacion="left"
+                ariaLabel="Ordenar órdenes en pantalla"
+                trigger={
+                  <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute lg:min-h-9">
+                    Ordenar
+                    <Icon name="chevron" className="h-3.5 w-3.5" />
+                  </span>
+                }
+                items={[
+                  ...CAMPOS_ORDEN.map(([key, label]) => ({
+                    id: key,
+                    label,
+                    extra: orden.key === key ? <span aria-hidden="true">{orden.dir === 'asc' ? '↑' : '↓'}</span> : null,
+                    onClick: () => (orden.key === key ? null : ordenarPor(key)),
+                  })),
+                  { separador: true },
+                  { id: 'invertir', label: orden.dir === 'asc' ? 'Invertir: de mayor a menor' : 'Invertir: de menor a mayor', onClick: () => ordenarPor(orden.key) },
+                ]}
+              />
             </div>
             <Button
               variant="outline"
-              className="min-h-11 md:min-h-0"
+              className="min-h-11 lg:min-h-9"
               aria-expanded={filtrosOpen}
               onClick={() => setFiltrosOpen(true)}
             >
@@ -613,14 +644,17 @@ export default function ServicioTecnico() {
           </>
         }
         more={
-          <>
-            <Button variant="outline" onClick={load} disabled={loading || advanceBusy}>
-              Actualizar
-            </Button>
-            <Button variant="outline" onClick={() => setCatalogoOpen(true)}>
-              Catálogo de servicios
-            </Button>
-          </>
+          <MenuSecundario
+            direccion="abajo"
+            soloIcono
+            etiqueta="Más acciones"
+            ariaLabel="Más acciones de Taller"
+            acciones={[
+              { label: 'Actualizar', icon: 'refresh', disabled: loading || advanceBusy, onClick: load },
+              { label: 'Catálogo de servicios', icon: 'list', onClick: () => setCatalogoOpen(true) },
+              { label: modoSeleccion ? 'Salir de la selección' : 'Seleccionar órdenes', icon: 'check', onClick: alternarSeleccion },
+            ]}
+          />
         }
         primary={
           <Button
@@ -673,7 +707,6 @@ export default function ServicioTecnico() {
       {!loading && visibles.length > 0 && (
         <ResumenMetricas
           testId="resumen-taller"
-          columnas={3}
           items={[
             {
               titulo: 'Facturado',
@@ -695,14 +728,6 @@ export default function ServicioTecnico() {
           ]}
         />
       )}
-      {v2 && !loading && visibles.length > 0 && (
-        <p className="text-xs text-mute" data-testid="taller-resumen-flujo">
-          {PASOS_FLUJO.map(
-            ([paso, estados]) =>
-              `${paso}: ${estados.reduce((suma, estado) => suma + (conteos[estado] || 0), 0)}`,
-          ).join(' · ')}
-        </p>
-      )}
       <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
         <Button
           variant="outline"
@@ -715,110 +740,97 @@ export default function ServicioTecnico() {
       </BarraLote>
       {!loading && visibles.length > 0 && (
         <div className="taller-f3-list" data-testid="servicio-tabla">
-          <div className="taller-f3-list-tools">
-            <label className="taller-f3-select">
-              <input
-                type="checkbox"
-                aria-label="Seleccionar visibles"
-                checked={visibles.every(row => seleccionados.includes(row.id))}
-                onChange={seleccionarVisibles}
-                disabled={advanceBusy}
-              />
-              Seleccionar visibles
-            </label>
-            <Select
-              aria-label="Ordenar órdenes en pantalla"
-              value={orden.key}
-              onChange={event => ordenarPor(event.target.value)}
-            >
-              <option value="equipo">Equipo</option>
-              <option value="cliente">Cliente</option>
-              <option value="falla">Falla</option>
-              <option value="tecnico">Técnico</option>
-              <option value="recibido">Recibido</option>
-              <option value="precio">Precio</option>
-              <option value="utilidad">Utilidad</option>
-              <option value="estado">Estado</option>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={() => ordenarPor(orden.key)}
-              aria-label="Invertir orden"
-            >
-              {orden.dir === 'asc' ? 'Ascendente ↑' : 'Descendente ↓'}
-            </Button>
-          </div>
+          {modoSeleccion && (
+            <div className="taller-f3-list-tools">
+              <label className="taller-f3-select">
+                <input
+                  type="checkbox"
+                  aria-label="Seleccionar visibles"
+                  checked={visibles.every(row => seleccionados.includes(row.id))}
+                  onChange={seleccionarVisibles}
+                  disabled={advanceBusy}
+                />
+                Seleccionar visibles
+              </label>
+              <Button variant="ghost" onClick={alternarSeleccion}>Listo</Button>
+            </div>
+          )}
           <div className="taller-f3-rows">
             {visibles.map(row => {
               const ganancia = utilidad(row)
+              const siguiente = SIGUIENTE[row.status]
               return (
                 <article key={row.id} data-testid="servicio-fila" className="taller-f3-row">
-                  <label className="taller-f3-select">
-                    <input
-                      type="checkbox"
-                      aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`}
-                      checked={seleccionados.includes(row.id)}
-                      onChange={() => alternar(row.id)}
-                      disabled={advanceBusy}
-                    />
-                    {row.serviceNumber || 'Sin número'}
-                    {seleccionados.includes(row.id) ? ' · Seleccionada' : ''}
-                  </label>
-                  <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit">
-                    {ESTADO_LABEL[row.status] || row.status}
-                  </Badge>
+                  <div className="taller-f3-head">
+                    <span className="taller-f3-code">{row.serviceNumber || 'Sin número'}</span>
+                    <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit whitespace-nowrap">
+                      {ESTADO_LABEL[row.status] || row.status}
+                    </Badge>
+                    {modoSeleccion && (
+                      <label className="taller-f3-select ml-auto">
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`}
+                          checked={seleccionados.includes(row.id)}
+                          onChange={() => alternar(row.id)}
+                          disabled={advanceBusy}
+                        />
+                      </label>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="taller-f3-identity"
                     aria-label={`Ver detalle de ${row.device || 'servicio'}`}
+                    title={`${row.customerName || 'Sin cliente'} · ${row.technicianName || 'Sin técnico'} · ${fecha(row.receivedAt)}`}
                     onClick={() => setDetalleId(row.id)}
                   >
                     <b>{row.device || 'Equipo'}</b>
-                    <span>{row.customerName || 'Sin cliente'}</span>
+                    <span className="taller-f3-meta">
+                      {row.customerName || 'Sin cliente'} · {row.technicianName || 'Sin técnico'} · {fecha(row.receivedAt)}
+                    </span>
                   </button>
-                  <p className="taller-f3-issue">
+                  <p className="taller-f3-issue" title={row.reportedIssue || row.diagnosis || 'Sin detalle'}>
                     {row.reportedIssue || row.diagnosis || 'Sin detalle'}
                   </p>
-                  <p className="taller-f3-meta">
-                    {row.technicianName || 'Sin técnico'} · {fecha(row.receivedAt)}
-                  </p>
-                  {row.serial && (
-                    <SerialTexto serial={String(row.serial)} className="text-xs text-mute" />
-                  )}
-                  <div className="taller-f3-money">
-                    <p>
-                      Precio <b>{gs(row.pricePyg || 0)}</b>
-                    </p>
-                    <p>
-                      Utilidad{' '}
-                      <b className={ganancia >= 0 ? 'text-ok' : 'text-bad'}>
-                        {ganancia >= 0 ? '+' : ''}
-                        {gs(ganancia)}
-                      </b>
-                    </p>
-                  </div>
-                  <div className="taller-f3-actions">
-                    {row.customerPhone && (
-                      <WhatsAppMenu
-                        telefono={row.customerPhone}
-                        countryCode={row.customerCountryCode || '+595'}
-                        category="SERVICE"
-                        storageKey={ULTIMA_PLANTILLA_SERVICIO}
-                        title={row.customerName}
-                        preferKey={PLANTILLA_POR_ESTADO[row.status] || ''}
-                        contexto={contextoWhatsApp(row)}
-                      />
-                    )}
-                    {SIGUIENTE[row.status] && (
-                      <Button
-                        variant="outline"
-                        disabled={advanceBusy || loading}
-                        title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`}
-                        onClick={() => avanzar(row)}
-                      >
-                        Pasar a {ESTADO_LABEL[SIGUIENTE[row.status]]}
-                      </Button>
-                    )}
+                  <div className="taller-f3-foot">
+                    <div className="taller-f3-money">
+                      <p>
+                        <span className="sr-only">Precio </span>
+                        <b>{gs(row.pricePyg || 0)}</b>
+                      </p>
+                      <p title="Utilidad">
+                        <span className="sr-only">Utilidad </span>
+                        <b className={ganancia >= 0 ? 'text-ok' : 'text-bad'}>
+                          {ganancia >= 0 ? '+' : ''}
+                          {gs(ganancia)}
+                        </b>
+                      </p>
+                    </div>
+                    <div className="taller-f3-actions">
+                      {siguiente && (
+                        <Button
+                          variant="outline"
+                          disabled={advanceBusy || loading}
+                          aria-label={`Pasar a ${ESTADO_LABEL[siguiente]}`}
+                          title={`Pasar a ${ESTADO_LABEL[siguiente]}`}
+                          onClick={() => avanzar(row)}
+                        >
+                          <span className="truncate">{ESTADO_LABEL[siguiente]} →</span>
+                        </Button>
+                      )}
+                      {row.customerPhone && (
+                        <WhatsAppMenu
+                          telefono={row.customerPhone}
+                          countryCode={row.customerCountryCode || '+595'}
+                          category="SERVICE"
+                          storageKey={ULTIMA_PLANTILLA_SERVICIO}
+                          title={row.customerName}
+                          preferKey={PLANTILLA_POR_ESTADO[row.status] || ''}
+                          contexto={contextoWhatsApp(row)}
+                        />
+                      )}
+                    </div>
                   </div>
                 </article>
               )

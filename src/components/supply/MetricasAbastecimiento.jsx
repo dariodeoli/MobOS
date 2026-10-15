@@ -193,8 +193,7 @@ export default function MetricasAbastecimiento() {
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-semibold">Métricas de abastecimiento</h2>
-            <p className="mt-1 text-sm text-mute">
+            <p className="text-sm text-mute">
               Rendimiento por proveedor con su costo real por unidad (moneda ya convertida), tiempos de
               tránsito —CDE → Asunción incluida— y atrasos del momento. La ventana filtra compras y lotes.
             </p>

@@ -23,6 +23,14 @@
 .taller-f3 [data-testid='barra-taller'] {
   background: none;
 }
+.taller-f3 .ventas-f3-chips {
+  gap: 6px;
+}
+.taller-f3 .ventas-f3-chips > button {
+  padding: 4px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
 .taller-f3-list-tools {
   display: flex;
   flex-wrap: wrap;
@@ -49,60 +57,97 @@
 }
 .taller-f3-rows {
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
 }
+/* Cápsula de orden (#396): tarjeta con borde, radio y fondo; 1/2/3/4 columnas. */
 .taller-f3-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: 8px;
-  border-top: 1px solid rgb(var(--c-ink-600));
-  padding: 12px 0;
+  gap: 4px;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 12px;
+  background: rgb(var(--c-ink-800));
+  padding: 10px 12px;
   min-width: 0;
 }
-.taller-f3-identity {
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
+.taller-f3-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
-.taller-f3-identity b,
-.taller-f3-identity span {
+.taller-f3-code {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(var(--c-mute));
+  white-space: nowrap;
+}
+.taller-f3-identity {
+  display: block;
+  max-width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.taller-f3-identity > * {
   display: block;
 }
 .taller-f3-identity b {
-  font-size: 16px;
+  display: block;
+  font-size: 15px;
+  line-height: 24px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.taller-f3-identity span {
-  font-size: 14px;
-  margin-top: 4px;
-}
-.taller-f3-issue {
-  font-size: 14px;
-}
+.taller-f3-issue,
 .taller-f3-meta {
   font-size: 12px;
+  line-height: 18px;
   color: rgb(var(--c-mute));
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.taller-f3-money {
+.taller-f3-issue {
+  color: rgb(var(--c-fore));
+}
+.taller-f3-foot {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(var(--c-ink-600));
+}
+.taller-f3-money {
+  display: grid;
+  gap: 0;
   font-size: 12px;
+  line-height: 18px;
+  min-width: 0;
 }
 .taller-f3-money b {
-  display: block;
-  font-size: 16px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .taller-f3-actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+  margin-left: auto;
+  min-width: 0;
 }
-.taller-f3-actions button {
-  white-space: normal;
-  height: auto;
+.taller-f3-actions > button:not([aria-haspopup]) {
+  max-width: 9.5rem;
+  overflow: hidden;
+  font-size: 12px;
 }
 .taller-f3-feedback {
   padding: 12px;
@@ -114,24 +159,23 @@
   box-shadow: none;
   background: none;
 }
-.taller-f3 [data-testid='resumen-taller'] .truncate {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
 .taller-f3-detail h2,
 .taller-f3-detail p {
   overflow-wrap: anywhere;
 }
-@media (min-width: 1100px) {
+@media (min-width: 768px) {
   .taller-f3-rows {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px 32px;
   }
 }
-@media (max-width: 600px) {
-  .taller-f3 [data-testid='resumen-taller'] {
-    grid-template-columns: minmax(0, 1fr);
+@media (min-width: 1280px) {
+  .taller-f3-rows {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1440px) {
+  .taller-f3-rows {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

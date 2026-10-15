@@ -305,3 +305,39 @@ for (const [width, height, maxTop, maxHeader] of [
     await expect(page.getByTestId('record-header')).toHaveCount(0)
   })
 }
+
+// Taller (#396): cápsulas con borde, 1/2/3/4 por fila según el ancho y la
+// primera orden a la vista sin cabeceras apiladas.
+for (const [width, height, columnas] of [
+  [375, 812, 1],
+  [768, 1024, 2],
+  [1280, 900, 3],
+  [1440, 900, 4],
+]) {
+  test(`Taller en cápsulas: ${columnas} por fila a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await enterDemo(page)
+    await page.goto('/servicio')
+    const filas = page.getByTestId('servicio-fila')
+    await expect(filas.first()).toBeVisible()
+    await settle(page)
+    const cajas = await filas.evaluateAll(nodos =>
+      nodos.map(nodo => {
+        const r = nodo.getBoundingClientRect()
+        const estilo = getComputedStyle(nodo)
+        return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), borde: estilo.borderTopWidth, radio: estilo.borderTopLeftRadius }
+      }),
+    )
+    await mkdir(out, { recursive: true })
+    await page.screenshot({ path: `${out}/taller-capsulas-${width}.png` })
+    const primeraFila = cajas.filter(caja => Math.abs(caja.y - cajas[0].y) <= 2)
+    expect(primeraFila.length, 'cápsulas en la primera fila').toBe(Math.min(columnas, cajas.length))
+    expect(cajas[0].borde, 'borde visible').toBe('1px')
+    expect(parseFloat(cajas[0].radio), 'radio').toBeGreaterThan(0)
+    if (width >= 1440) expect(cajas[0].y, 'primera orden a la vista').toBeLessThanOrEqual(300)
+    // Sin código interno repetido ni casillas fuera del modo selección.
+    await expect(page.getByRole('checkbox')).toHaveCount(0)
+    await expect(filas.first()).not.toContainText('AUR-OS')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+  })
+}

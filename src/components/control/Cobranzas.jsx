@@ -67,7 +67,7 @@ export default function Cobranzas() {
   const Fila = ({ row }) => {
     const vencida = row.tipo === 'VENCIDA'
     return (
-      <article data-testid="cuota-fila" className={cn('flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')}>
+      <article data-testid="cuota-fila" className={cn('flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')}>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
           <b className="max-w-[14rem] truncate text-sm" title={row.customerName || 'Cliente'}>{row.customerName || 'Cliente'}</b>
           <span className="shrink-0 font-mono text-[11px] text-mute">{row.orderNumber || ''}</span>
@@ -79,8 +79,8 @@ export default function Cobranzas() {
             {' · '}{row.phone ? `Tel. ${telefonoVisible(row.phone, row.countryCode)}` : 'sin teléfono'}
           </span>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <b className="text-[13px] tabular-nums text-fore" data-testid="cuota-saldo">{gs(row.saldoPendientePyg)}</b>
+        <div className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+          <b className="mr-auto text-[13px] tabular-nums sm:mr-0 text-fore" data-testid="cuota-saldo">{gs(row.saldoPendientePyg)}</b>
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => setDetalle(row)}>Ver mensaje</Button>
           {row.whatsappUrl
             ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('min-h-11 rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-on-ok transition disabled:opacity-50 lg:min-h-0')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>

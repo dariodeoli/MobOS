@@ -628,8 +628,10 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // #298: una sola navegación, siempre con texto (sin colapso a iconos).
 test('Configuración usa selector accesible sin colapso ni tira horizontal móvil (#341)', () => {
   const riel = leerFuente(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
-  assert.match(riel, /import SectionTabs from '@\/components\/app\/SectionTabs'/, 'el adaptador usa las pestañas compartidas del shell')
-  assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
+  // #410: el menú de secciones vive en el shell (segunda columna); el adaptador
+  // deja el contenido y, en celular, la lista de secciones.
+  assert.match(leerFuente(join(RAIZ, 'components/control/config/MenuConfiguracion.jsx'), 'utf8'), /data-testid="config-grupos"/, 'el menú de Configuración conserva el testid de los specs')
+  assert.match(riel, /data-testid="config-grupos"/, 'conserva los testids de los specs')
   assert.ok(!riel.includes('role="tablist"'), 'el selector no simula un tablist')
   assert.ok(!/colapsado=|onToggle|useMenuConfigColapsado/.test(riel), 'la navegación no se colapsa a iconos (#298)')
   assert.ok(!existsSync(join(RAIZ, 'lib/menuConfig.js')), 'la preferencia de colapso ya no existe (#298)')
@@ -677,9 +679,9 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
   assert.match(riel, /aria-selected=\{esta\}/, 'la pestaña activa se anuncia')
   assert.match(riel, /aria-label=\{item\.label\}/, 'cada opción se anuncia con su rótulo')
   assert.ok(!/colapsado=|onToggle/.test(nav), 'el adaptador no habilita el colapso a iconos (#298)')
-  assert.match(nav, /testId="config-grupos"/, 'el adaptador conserva los testids')
+  assert.match(nav, /data-testid="config-grupos"/, 'el adaptador conserva los testids')
   const panel = leerFuente(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
-  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}>/, 'Configuración usa la navegación de los 7 grupos')
+  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/, 'Configuración usa la navegación de los 7 grupos')
   assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')
 })
 
@@ -754,11 +756,11 @@ test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle d
 // #287 (Productos y Unidades = el mismo objeto): el switch comparte la
 // definición y vive en las dos vistas, y el paso producto → unidades (y
 // vuelta) está cableado en los dos detalles.
-test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)', () => {
-  const switch_ = leerFuente(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx'), 'utf8')
-  assert.match(switch_, /data-testid="vista-productos-unidades"/, 'el switch tiene testid propio')
-  assert.match(switch_, /SegmentedField/, 'usa el control compartido de la biblioteca')
-  assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<VistaProductosUnidades/, 'Productos usa el switch compartido')
+test('Productos y Unidades se alternan por las pestañas del shell y los enlaces de contexto (#287, #396)', () => {
+  // #396: el switch Productos|Unidades dentro de la pantalla era un duplicado de las
+  // pestañas del shell; Productos ya no lo monta ni queda el componente huérfano.
+  assert.doesNotMatch(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /VistaProductosUnidades/, 'Productos no repite el switch de las pestañas')
+  assert.equal(existsSync(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx')), false, 'el switch duplicado se eliminó')
   // Rediseño 2A: en Stock, Unidades y Productos son pestañas del shell; el paso a
   // Productos con el contexto puesto (búsqueda y producto) es el enlace del chip.
   assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /Ver en Productos/, 'Unidades lleva a Productos conservando el contexto')

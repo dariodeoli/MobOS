@@ -34,14 +34,14 @@ test('taller demo: lista compacta, filtros y detalle de la reparación', async (
   // panel lateral y no empujan la página.
   const filas = page.getByTestId('servicio-fila')
   const total = await filas.count()
-  const etapa = page.getByLabel('Filtrar por etapa')
-  await expect(etapa).toBeVisible()
-  await etapa.selectOption('DIAGNOSTICO')
+  const etapas = page.getByRole('group', { name: 'Filtrar por etapa' })
+  await expect(etapas).toBeVisible()
+  await etapas.getByRole('button', { name: /^Diagnóstico \d+$/ }).click()
   const diagnosticos = await filas.count()
   expect(diagnosticos).toBeGreaterThan(0)
   expect(diagnosticos).toBeLessThan(total)
   await page.screenshot({ path: `${SHOTS}/claro-01-lista.png` })
-  await etapa.selectOption('activos')
+  await etapas.getByRole('button', { name: /^Activas \d+$/ }).click()
 
   await page.getByRole('button', { name: /^Filtros/ }).click()
   const filtros = page.getByRole('dialog', { name: 'Filtros del taller' })

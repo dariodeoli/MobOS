@@ -211,8 +211,15 @@ export const selectAnalysisSection = (page, label) =>
   selectSectionOption(page, 'Secciones de Análisis', label)
 export const selectFinanceSection = (page, label) =>
   selectSectionOption(page, 'Secciones de Finanzas', label)
-export const selectConfigSection = (page, label) =>
-  selectSectionOption(page, 'Secciones de Configuración', label)
+// Configuración (#410): en escritorio las secciones son el menú de la segunda
+// columna (siguen visibles); en celular son una lista y la sección elegida abre
+// su propia pantalla, así que la lista desaparece y el título es el de la sección.
+export async function selectConfigSection(page, label) {
+  const nav = page.getByRole('navigation', { name: 'Secciones de Configuración', exact: true })
+  await nav.waitFor({ state: 'attached' })
+  await nav.getByRole('button', { name: label, exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name: label, exact: true })).toBeVisible()
+}
 // Sections with one destination show no tabs: the catalog label is the section's.
 const SINGLE_SECTION_LABEL = {
   Inicio: 'Inicio',

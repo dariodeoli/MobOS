@@ -13,7 +13,7 @@ const NAV = [
   ['#vender', 'Vender'],
   ['#controlar', 'Controlar'],
   ['#imei', 'Verificación IMEI'],
-  ['#precio', 'Precio'],
+  ['#precio', 'Gratis'],
   ['#demo', 'Demo'],
 ]
 const stories = [
@@ -178,7 +178,7 @@ export default function Landing() {
               </a>
             </div>
             <p className="landing-hero-note">
-              Planes pendientes de confirmación
+              Hoy MobOS es gratis. Sin tarjeta, sin permanencia
               <br />
               Acceso con correo o Google
             </p>
@@ -284,11 +284,11 @@ export default function Landing() {
 
         <section id="precio" className="landing-pricing landing-container">
           <div>
-            <p className="landing-eyebrow">CONDICIONES COMERCIALES</p>
-            <h2>Planes pendientes de confirmación.</h2>
+            <p className="landing-eyebrow">GRATIS</p>
+            <h2>Hoy MobOS es gratis.</h2>
             <p>
-              Las condiciones del plan deben confirmarse antes de contratar. Puedes conocer el
-              funcionamiento de MobOS en la demo, sin registro.
+              Sin tarjeta, sin permanencia. Puedes conocer el funcionamiento de MobOS en la demo,
+              sin registro.
             </p>
           </div>
           <div className="landing-hero-actions">
