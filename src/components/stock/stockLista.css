@@ -26,9 +26,22 @@
   }
 }
 .stock-lista-fila {
-  min-height: 52px;
-  background: rgb(var(--c-ink));
   overflow-wrap: anywhere;
+}
+/* Fila fina (#448): una línea, 40 px en escritorio y 44 px (objetivo táctil) debajo de lg.
+   El color sale de la condición y el depósito (planilla.css: .pl-fila). */
+.stock-lista-fila.pl-fila {
+  min-height: 44px;
+  padding-block: 0;
+}
+@media (min-width: 1024px) {
+  .stock-lista-fila.pl-fila {
+    height: 40px;
+    min-height: 0;
+  }
+}
+.stock-lista-fila-sel {
+  box-shadow: inset 3px 0 0 rgb(var(--c-fono-text));
 }
 .stock-lista-fila:focus-visible,
 .stock-lista-fila :focus-visible,

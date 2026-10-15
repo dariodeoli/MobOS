@@ -330,7 +330,7 @@ export default function ClientesTabla({ rows, vacio = null, templates, onPerfil,
         {encabezado('deuda', 'Deuda', 'justify-end')}
         <span className={cn('text-right', ROTULO_DATO)}>Acciones</span>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1">
         {/* El aviso de «sin coincidencias» va DEBAJO del encabezado, nunca encima. */}
         {!filas.length && vacio}
         {filas.map(row => {
@@ -346,14 +346,14 @@ export default function ClientesTabla({ rows, vacio = null, templates, onPerfil,
               // El clic es un atajo (mouse/touch): los accesos accesibles por
               // teclado/lector son el ojito y el «…» con aria-label.
               onClick={() => onPerfil?.(row)}
-              className={cn(GRID, 'cursor-pointer px-3.5 py-3 transition')}
+              className={cn(GRID, 'cursor-pointer px-3.5 py-1.5 transition')}
             >
               <label className="flex h-11 w-11 -my-2 cursor-pointer items-center justify-center" onClick={(event) => event.stopPropagation()}>
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
               </label>
-              <span className="min-w-0">
-                <span className={cn('clientes-f3-identity block', CELDA_IDENTIDAD_GRANDE)} title={row.displayName || row.name}>{row.displayName || row.name || 'Sin nombre'}</span>
-                <span className={cn(CELDA_DATO, 'clientes-f3-phone block')}>
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className={cn('clientes-f3-identity min-w-0 truncate', CELDA_IDENTIDAD_GRANDE)} title={row.displayName || row.name}>{row.displayName || row.name || 'Sin nombre'}</span>
+                <span className={cn(CELDA_DATO, 'clientes-f3-phone shrink-0 whitespace-nowrap')}>
                   {telefonoMostrado || 'Sin teléfono'}
                 </span>
               </span>
