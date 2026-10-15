@@ -116,3 +116,19 @@ Límite 5 pedidos / 15 min por IP. Si Apple falla al revocar, se registra y el b
 - Botón «Borrar mi cuenta» en Mi cuenta (usa `DELETE /api/me`), pantalla de Apple/Google,
   registro del token push, chequeo de `minVersion`.
 - Página pública `/soporte` y `/privacidad` ya existen en la web.
+
+- Token de sesión en el cuerpo para clientes nativos (`X-MobOS-Client: ios/<versión>`).
+- CORS para `capacitor://localhost` e `ionic://localhost`.
+- `GET /api/config` (versión mínima, enlaces legales).
+- Sign in with Apple (JWKS, nonce, relay privado, revocación al borrar la cuenta).
+- Notificaciones APNs (`DeviceToken`, envío HTTP/2 enganchado al Web Push).
+- Botón «Borrar mi cuenta» en Mi cuenta (usa `DELETE /api/me`).
+- Variables de Coolify cuando se retome: `MOBOS_APPLE_CLIENT_IDS`,
+  `MOBOS_APPLE_TEAM_ID`, `MOBOS_APPLE_KEY_ID`, `MOBOS_APPLE_PRIVATE_KEY`,
+  `MOBOS_APNS_KEY_ID`, `MOBOS_APNS_TEAM_ID`, `MOBOS_APNS_PRIVATE_KEY`,
+  `MOBOS_APNS_TOPIC`, `MOBOS_IOS_MIN_VERSION`.
+
+## App de iPhone (Capacitor)
+
+Hecha en la rama `codex/ios-app-v2`: ver `docs/IOS-APP.md` (cómo construirla,
+firmarla, subirla a TestFlight y completar la ficha de App Store Connect).
