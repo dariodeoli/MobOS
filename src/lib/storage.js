@@ -21,6 +21,7 @@ import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import { skuDemo } from './demo/sku.js'
 import { ventasDemoLegacy } from './demo/ventas.js'
+import { CATALOGO_VENTA } from './demo/catalogoPro.js'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa.js'
 import {
   prod,
@@ -770,8 +771,8 @@ export function prepararDatosDemo() {
   const ventasDemo = ventasDemoLegacy()
     .map(item => {
       const items = (item.items || []).map(linea => ({ ...linea, productoId: productoPorId.get(linea.productoId) || linea.productoId }))
-      const costo = items.reduce((suma, linea) => suma + (Number(catalogoPorId.get(linea.productoId)?.precioCosto) || Math.round(Number(linea.totalPyg || 0) * 0.78)), 0)
-      const comision = items.reduce((suma, linea) => suma + (Number(catalogoPorId.get(linea.productoId)?.comision) || Math.round(Number(linea.totalPyg || 0) * 0.01)), 0)
+      const costo = items.reduce((suma, linea) => suma + (Number(catalogoPorId.get(linea.productoId)?.precioCosto || CATALOGO_VENTA[linea.productoId]?.costo) * (Number(linea.quantity) || 1) || Math.round(Number(linea.totalPyg || 0) * 0.78)), 0)
+      const comision = items.reduce((suma, linea) => suma + (Number(catalogoPorId.get(linea.productoId)?.comision) * (Number(linea.quantity) || 1) || Math.round(Number(linea.totalPyg || 0) * 0.01)), 0)
       return { ...item, items, precioCosto: costo, comision }
     })
     .filter(item => !cache.ventas.some(actual => actual.id === item.id))
@@ -858,12 +859,18 @@ export function prepararDatosDemo() {
       }))
     }
   }
+  if (version < 9) {
+    // #451: historial de ~120 días (idempotente por id) para sesiones que ya
+    // habían sembrado las ventas manuales.
+    const idsVentas = new Set(cache.ventas.map(actual => actual.id))
+    cache.ventas = [...ventasDemo.filter(item => !idsVentas.has(item.id)), ...cache.ventas]
+  }
   // #404: fotos de muestra y categorías de accesorio (idempotente, no depende de la versión).
   cache.productos = conFotosDemo(cache.productos, (id, nombre, categoria, precioVenta, precioCosto, stock) => ({ ...producto(id, nombre, categoria, precioVenta, precioCosto, stock, {}), branchId: 'mobos-demo-central', precioMayorista: Math.round(precioVenta * 0.93) }))
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
-    demoSeedVersion: 8,
+    demoSeedVersion: 9,
   }
   persistMirror()
   notify()

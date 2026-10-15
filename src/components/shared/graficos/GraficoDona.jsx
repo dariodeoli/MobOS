@@ -73,9 +73,9 @@ export default function GraficoDona({ items = [], etiqueta, formato = gs, maxTra
       </div>
       <ul className="m-0 flex w-full min-w-0 list-none flex-col gap-2 p-0" aria-label={`Detalle de ${(etiqueta || 'reparto').toLowerCase()}`}>
         {tramos.map((t, i) => (
-          <li key={t.clave ?? t.etiqueta} className={cn('flex min-w-0 items-center gap-2 text-sm', activo === i && 'font-medium')}>
+          <li key={t.clave ?? t.etiqueta} className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm', activo === i && 'font-medium')}>
             <i className="inline-block h-3 w-3 shrink-0 rounded-sm" style={{ background: t.color }} aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate text-fore" title={t.etiqueta}>{t.etiqueta}</span>
+            <span className="min-w-[6.5rem] flex-1 truncate text-fore" title={t.etiqueta}>{t.etiqueta}</span>
             <span className="shrink-0 text-xs tabular-nums text-mute">{pctTexto(t.pct)}</span>
             <span className="shrink-0 font-semibold tabular-nums text-fore">{formato(t.valor)}</span>
           </li>
