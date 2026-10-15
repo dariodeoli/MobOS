@@ -63,6 +63,8 @@ export default function Recepcion() {
   const [verPegado, setVerPegado] = useState(false)
   const [camara, setCamara] = useState(false)
   const [aviso, setAviso] = useState('')
+  // Código bien formado que no está en el manifiesto: se ofrece registrarlo como sobrante (no entra al stock).
+  const [sobranteSugerido, setSobranteSugerido] = useState('')
   const [codigo, setCodigo] = useState('')
   const [incidencia, setIncidencia] = useState(null)
   const [incidenciaError, setIncidenciaError] = useState('')
@@ -160,21 +162,32 @@ export default function Recepcion() {
     if (datos?.resumen) setResumen(datos.resumen)
   }
 
-  async function escanear(serialBruto) {
+  async function escanear(serialBruto, { comoSobrante = false } = {}) {
     if (!recepcion || busy) return
     const analisis = analizarSerial(serialBruto)
+    setSobranteSugerido('')
     if (!analisis.ok) {
       setAviso(`${analisis.serial || 'Código'}: ${textoMotivo(analisis.motivo)}`)
+      return
+    }
+    // Contra el manifiesto: un código que no está entre los esperados (y no hay unidades con IMEI
+    // diferido que lo puedan tomar) se rechaza con el motivo; el servidor vuelve a validar.
+    const enManifiesto = esperados.some((item) => String(item.serial || '').toUpperCase() === analisis.serial && !cubiertos.has(item.id)) || sinSerial.length > 0
+    if (!comoSobrante && !enManifiesto) {
+      setAviso(`${analisis.serial} no está en el manifiesto de este lote: no se registró. Si llegó una unidad de más, podés registrarla como sobrante (no entra al stock).`)
+      setSobranteSugerido(analisis.serial)
       return
     }
     setBusy(true)
     setAviso('')
     try {
-      const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'scan', serial: analisis.serial })
+      const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'scan', serial: analisis.serial, ...(comoSobrante ? { resultado: 'SOBRANTE' } : {}) })
       aplicar(datos)
       setEntrada('')
+      if (comoSobrante) setAviso(`${analisis.serial} quedó como sobrante: no entra al stock. Agregale una nota para explicarlo.`)
     } catch (causa) {
       setAviso(causa?.message || 'El código no se pudo registrar.')
+      if (/no está en el manifiesto/i.test(causa?.message || '')) setSobranteSugerido(analisis.serial)
     } finally {
       setBusy(false)
     }
@@ -236,7 +249,9 @@ export default function Recepcion() {
         estadoLote: datos?.estadoLote || '',
         unidadesCreadas: datos?.unidadesCreadas ?? 0,
       })
-      toast.success('Recepción confirmada', 'El stock de lo recibido ya está disponible en el depósito elegido.')
+      const creadas = datos?.unidadesCreadas ?? 0
+      if (creadas > 0) toast.success('Recepción confirmada', `${creadas} unidad(es) ya están disponibles en el depósito elegido.`)
+      else toast.info('Recepción confirmada', 'Ninguna unidad entró al stock: no había unidades recibidas contra el manifiesto.')
       setRecepcion(null)
       setResumen(null)
       setDepositos([])
@@ -345,14 +360,18 @@ export default function Recepcion() {
   // ── Recepción confirmada ────────────────────────────────────────────────
   if (confirmada) {
     const estados = confirmada.resumen || {}
-    const creadas = confirmada.unidadesCreadas ?? estados.RECIBIDO ?? 0
+    // «Entraron al stock» sale del servidor (unidades realmente creadas) y no de la cuenta de escaneos:
+    // el resumen y el stock dicen lo mismo (#461).
+    const creadas = confirmada.unidadesCreadas ?? 0
     return (
       <div className="space-y-4" data-testid="recepcion-confirmada">
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h2 className="font-semibold">Recepción confirmada · {confirmada.recepcion?.shipment?.code || ''}</h2>
             <p className="text-sm text-mute">
-              {creadas} unidad(es) entraron al stock en {confirmada.recepcion?.location?.name || 'el depósito elegido'}.
+              {creadas > 0
+                ? `${creadas} unidad(es) entraron al stock en ${confirmada.recepcion?.location?.name || 'el depósito elegido'}.`
+                : 'Ninguna unidad entró al stock: lo escaneado no coincidía con el manifiesto.'}
               {confirmada.estadoLote === 'RECEPCION_PARCIAL' ? ' El lote quedó parcial: lo faltante sigue pendiente de llegada.' : ''}
               {confirmada.estadoLote === 'CON_INCIDENCIA' ? ' El lote quedó con incidencias registradas.' : ''}
             </p>
@@ -405,7 +424,7 @@ export default function Recepcion() {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
             <Badge color="green">{estados.RECIBIDO || 0} recibidas</Badge>
-            <Badge color="slate">{Math.max(0, esperados.length - Object.values(estados).reduce((suma, valor) => suma + valor, 0))} sin escanear</Badge>
+            <Badge color="slate">{pendientes.length} sin escanear</Badge>
             {(estados.FALTANTE || 0) > 0 && <Badge color="red">{estados.FALTANTE} faltantes</Badge>}
             {(estados.DANADO || 0) > 0 && <Badge color="red">{estados.DANADO} dañadas</Badge>}
             {(estados.INCORRECTO || 0) > 0 && <Badge color="orange">{estados.INCORRECTO} incorrectas</Badge>}
@@ -454,7 +473,16 @@ export default function Recepcion() {
               </div>
             </div>
           )}
-          {aviso && <p role="status" className="text-sm text-warn">{aviso}</p>}
+          {aviso && (
+            <p role="status" className="flex flex-wrap items-center gap-2 text-sm text-warn" data-testid="recepcion-aviso">
+              <span className="min-w-0">{aviso}</span>
+              {sobranteSugerido && (
+                <Button type="button" variant="outline" disabled={busy} onClick={() => escanear(sobranteSugerido, { comoSobrante: true })} data-testid="recepcion-registrar-sobrante">
+                  Registrar como sobrante
+                </Button>
+              )}
+            </p>
+          )}
         </Card>
 
         <Card className="space-y-3 p-4 md:p-5">

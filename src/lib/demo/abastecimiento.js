@@ -481,7 +481,7 @@ export function demoSupplyReceptionDetail(params = {}) {
   const detalle = envioConDetalle(envio, state)
   const esperados = detalle.items.filter((item) => item.status !== 'RECIBIDO')
   const recibidos = (recepcion?.items || [])
-  const resumen = { RECIBIDO: recibidos.filter((item) => item.resultado === 'RECIBIDO').length, FALTANTE: 0, SOBRANTE: 0, DANADO: 0, INCORRECTO: 0 }
+  const resumen = resumenDeRecepcionDemo(recibidos)
   return {
     recepcion: recepcion ? {
       id: recepcion.id,
@@ -508,38 +508,100 @@ export function createDemoSupplyReception(data = {}) {
   return { ...demoSupplyReceptionDetail({ shipmentId: envio.id }), retomada: false }
 }
 
+const RESULTADOS_RECEPCION = ['RECIBIDO', 'FALTANTE', 'SOBRANTE', 'DANADO', 'INCORRECTO']
+const RESULTADOS_INCIDENCIA = ['SOBRANTE', 'DANADO', 'INCORRECTO']
+const serialDeEscaneo = (valor) => String(valor ?? '').trim().toUpperCase().slice(0, 64)
+
+/** Resumen por resultado de una recepción: la misma cuenta que arma el servidor. */
+export function resumenDeRecepcionDemo(items = []) {
+  const resumen = { RECIBIDO: 0, FALTANTE: 0, SOBRANTE: 0, DANADO: 0, INCORRECTO: 0 }
+  for (const item of items) if (item.resultado in resumen) resumen[item.resultado] += 1
+  return resumen
+}
+
+// Mismo criterio del servidor: con incidencias manda la incidencia; si no, parcial hasta recibir todo.
+const estadoLoteDemo = ({ unidades, recibidas, incidencias }) => (incidencias > 0 ? 'CON_INCIDENCIA' : unidades > 0 && recibidas >= unidades ? 'RECIBIDO' : 'RECEPCION_PARCIAL')
+
 export function updateDemoSupplyReception(data = {}) {
   const state = read()
   const recepcion = state.receptions.find((fila) => fila.id === data.id)
   if (!recepcion) throw new Error('Recepción no encontrada.')
-  if (data.action === 'scan' || data.action === 'item') {
-    const envio = state.shipments.find((fila) => fila.id === recepcion.shipmentId)
-    const esperado = (envio?.items || []).find((item) => item.status !== 'RECIBIDO' && String(item.serial || '').toUpperCase() === String(data.serial || '').toUpperCase())
-    const resultado = data.resultado || 'RECIBIDO'
-    recepcion.items = [...(recepcion.items || []), { id: `demo-recepcion-item-${Date.now().toString(36)}`, shipmentItemId: esperado?.id || data.shipmentItemId || null, serial: data.serial || '', productId: esperado?.productId || data.productId || null, resultado, nota: data.nota || '' }]
-    if (esperado) esperado.status = resultado === 'RECIBIDO' ? 'RECIBIDO' : esperado.status
+  const envio = state.shipments.find((fila) => fila.id === recepcion.shipmentId)
+  let extra = {}
+  if (data.action === 'scan') {
+    // Misma validación que el servidor (#461): formato, no repetir y solo lo que está en el manifiesto.
+    const serial = serialDeEscaneo(data.serial ?? data.serials)
+    if (!serial) throw new Error('Escaneá al menos un IMEI/serial.')
+    if (!/^[A-Z0-9-]{4,}$/.test(serial)) throw new Error('Formato inválido: mínimo 4 caracteres, solo letras, números o guiones.')
+    const items = recepcion.items || []
+    if (items.some((item) => String(item.serial || '').toUpperCase() === serial)) throw new Error(`El IMEI ${serial} ya se escaneó en esta recepción.`)
+    const pendientes = (envio?.items || []).filter((item) => item.status !== 'RECIBIDO')
+    const cubiertos = new Set(items.map((item) => item.shipmentItemId).filter(Boolean))
+    const esperado = pendientes.find((item) => String(item.serial || '').toUpperCase() === serial && !cubiertos.has(item.id))
+    const sinImei = pendientes.find((item) => !item.serial && !cubiertos.has(item.id))
+    const unidad = esperado || sinImei || null
+    const pedido = String(data.resultado || '').toUpperCase()
+    const resultadoPedido = RESULTADOS_RECEPCION.includes(pedido) ? pedido : 'RECIBIDO'
+    if (!unidad && resultadoPedido !== 'SOBRANTE') throw new Error(`El código ${serial} no está en el manifiesto de este lote. Si llegó una unidad de más, registrala como sobrante.`)
+    recepcion.items = [...items, {
+      id: `demo-recepcion-item-${Date.now().toString(36)}-${items.length}`,
+      shipmentItemId: unidad?.id || null,
+      serial,
+      productId: unidad?.productId || envio?.items?.[0]?.productId || null,
+      resultado: unidad ? resultadoPedido : 'SOBRANTE',
+      nota: data.note || data.nota || '',
+    }]
+  }
+  if (data.action === 'item') {
+    const item = (recepcion.items || []).find((fila) => fila.id === data.itemId)
+    if (!item) throw new Error('Unidad de la recepción no encontrada.')
+    const resultado = String(data.resultado || '').toUpperCase()
+    if (!RESULTADOS_RECEPCION.includes(resultado)) throw new Error('Resultado inválido.')
+    const nota = String(data.nota || '').trim()
+    if (RESULTADOS_INCIDENCIA.includes(resultado) && !nota) throw new Error('Una incidencia necesita una nota.')
+    item.resultado = resultado
+    item.nota = nota
   }
   if (data.action === 'cancel') recepcion.status = 'CANCELADA'
   if (data.action === 'confirm') {
     recepcion.status = 'CONFIRMADA'
     recepcion.receivedById = data.receivedById || 'demo-user'
-    const envio = state.shipments.find((fila) => fila.id === recepcion.shipmentId)
+    if (data.locationId) recepcion.locationId = data.locationId
+    const esperados = (envio?.items || []).filter((item) => item.status !== 'RECIBIDO')
+    let creadas = 0
+    // Lo recibido contra el manifiesto entra al stock de la demo con su IMEI (Stock › Unidades).
+    for (const item of recepcion.items || []) {
+      if (item.resultado !== 'RECIBIDO' || !item.serial) continue
+      const unidad = esperados.find((fila) => fila.id === item.shipmentItemId)
+      const productoId = item.productId || unidad?.productId
+      if (!unidad || !productoId) continue
+      try {
+        createDemoUnit({ productId: productoId, serial: item.serial, branchId: envio.destinationBranchId, locationId: recepcion.locationId, supplierName: '', notes: `Recibida en ${envio.code}` })
+        creadas += 1
+        unidad.status = 'RECIBIDO'
+        if (!unidad.serial) unidad.serial = item.serial
+      } catch { /* ya existía en el stock demo: no se cuenta como entrada */ }
+    }
+    // Lo esperado que no se escaneó queda faltante (no entra al stock).
+    const cubiertos = new Set((recepcion.items || []).map((item) => item.shipmentItemId).filter(Boolean))
+    for (const unidad of esperados) {
+      if (cubiertos.has(unidad.id) || unidad.status === 'RECIBIDO') continue
+      recepcion.items.push({ id: `demo-recepcion-item-f-${unidad.id}`, shipmentItemId: unidad.id, serial: unidad.serial || '', productId: unidad.productId, resultado: 'FALTANTE', nota: '' })
+      unidad.status = 'FALTANTE'
+    }
+    const resumen = resumenDeRecepcionDemo(recepcion.items)
+    extra = {
+      resumen,
+      unidadesCreadas: creadas,
+      estadoLote: estadoLoteDemo({ unidades: esperados.length, recibidas: resumen.RECIBIDO, incidencias: resumen.SOBRANTE + resumen.DANADO + resumen.INCORRECTO }),
+    }
     if (envio) { envio.status = 'RECIBIDO'; envio.arrivedAt = new Date().toISOString() }
     const need = state.needs.find((fila) => fila.status === 'ASIGNADA' || fila.status === 'ABIERTA')
-    if (need) need.status = 'RECIBIDA'
-    // #450: lo recibido entra al stock de la demo con su IMEI (visible en Stock › Unidades).
-    if (envio) {
-      for (const item of recepcion.items || []) {
-        if (item.resultado !== 'RECIBIDO' || !item.serial) continue
-        const unidad = (envio.items || []).find((fila) => fila.id === item.shipmentItemId) || null
-        const productoId = item.productId || unidad?.productId
-        if (!productoId) continue
-        try { createDemoUnit({ productId: productoId, serial: item.serial, branchId: envio.destinationBranchId, locationId: recepcion.locationId, supplierName: '', notes: `Recibida en ${envio.code}` }) } catch { /* ya existía en el stock demo */ }
-      }
-    }
+    if (need && creadas > 0) need.status = 'RECIBIDA'
   }
   write(state)
-  return { ...demoSupplyReceptionDetail({ shipmentId: recepcion.shipmentId }), ok: true }
+  const detalle = demoSupplyReceptionDetail({ shipmentId: recepcion.shipmentId })
+  return { ...detalle, ok: true, ...extra }
 }
 
 // ── Métricas y alertas ──────────────────────────────────────────────

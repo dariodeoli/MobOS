@@ -3,6 +3,7 @@
 // que lo impreso coincida con lo que se ve. `prev` lo calcula el llamador con
 // `rangoAnterior` (el módulo no conoce atajos de fecha de la UI).
 import { cobradoDeVenta, comisionDeVentas, num, ticketPromedio } from './calculos.js'
+import { cobrosPorMedio } from './mediosPago.js'
 
 const enRango = (venta, rango) => venta.fecha >= rango.desde && venta.fecha <= rango.hasta
 
@@ -61,14 +62,13 @@ export function armarResumenDia({ ventas = [], gastos = [], prods = {}, vendedor
     .map(([id, fila]) => ({ id, nombre: vendedoresById[id] || 'Sin vendedor', ...fila }))
     .sort((a, b) => b.total - a.total)
 
-  const porMedio = {}
-  act.forEach((venta) => {
-    const medio = venta.medioPago || '—'
-    porMedio[medio] = (porMedio[medio] || 0) + num(venta.precio)
-  })
-  const medios = Object.entries(porMedio)
-    .map(([medio, monto]) => ({ medio, monto, pct: total > 0 ? (monto / total) * 100 : 0 }))
-    .sort((a, b) => b.monto - a.monto)
+  // «Cómo te pagaron»: lo cobrado por medio, de los pagos reales (los mismos que
+  // suma Caja), no el precio de la venta atribuido al primer medio (#461).
+  const cobrosMedios = cobrosPorMedio(act.flatMap((venta) => (Array.isArray(venta.pagos) ? venta.pagos : [])))
+  const totalMedios = cobrosMedios.reduce((suma, fila) => suma + Math.max(0, fila.montoPyg), 0)
+  const medios = cobrosMedios
+    .filter((fila) => fila.montoPyg > 0)
+    .map((fila) => ({ medio: fila.label, method: fila.method, monto: fila.montoPyg, count: fila.count, pct: totalMedios > 0 ? (fila.montoPyg / totalMedios) * 100 : 0 }))
 
   const porDia = {}
   act.forEach((venta) => { porDia[venta.fecha] = (porDia[venta.fecha] || 0) + num(venta.precio) })

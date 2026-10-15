@@ -30,8 +30,8 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
 import { gs } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
-import { codigoPedido } from '@/utils/pedido'
-import { getVendedores, ventaDesdeApi } from '@/lib/storage'
+import { codigoPedido, pagosDelPedido, totalesPedido } from '@/utils/pedido'
+import { getVendedores, listVentas, ventaDesdeApi } from '@/lib/storage'
 import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
@@ -105,7 +105,9 @@ function nombrePago(pago, order) {
   if (pago?.user?.name) return pago.user.name
   if (pago?.createdBy?.name) return pago.createdBy.name
   if (order?.seller?.name) return order.seller.name
-  return 'Sistema'
+  // La fila del listado trae el vendedor como `sellerName` (no como objeto): sin esto salía «Sistema».
+  if (order?.sellerName) return order.sellerName
+  return ''
 }
 
 function PhotoThumb({ orderId, commentId, photo }) {
@@ -204,7 +206,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const order = detail || row
 
   const load = useCallback(async () => {
-    if (esDemo) { setDetail(row); setLoading(false); return }
+    if (esDemo) {
+      // Demo: el cobro de saldo y las correcciones escriben en la venta local; el detalle
+      // vuelve a leerla para que Pagado/Saldo no queden con la foto vieja de la fila.
+      const viva = listVentas().find(venta => venta.id === row.id)
+      setDetail(viva ? { ...row, payments: viva.pagos, pagos: viva.pagos, totalPagado: viva.totalPagado, totalPendiente: viva.totalPendiente, estadoPago: viva.estadoPago } : row)
+      setLoading(false); return
+    }
     setLoading(true); setError('')
     try {
       const [full, history] = await Promise.all([
@@ -221,10 +229,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   }, [order?.id, esDemo])
 
   const items = order.items || []
-  const payments = order.payments || []
-  const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
-  const total = Number(order.totalPyg ?? order.total ?? 0)
-  const pendiente = Math.max(0, total - paid)
+  const payments = pagosDelPedido(order)
+  // Pagado/Saldo: la misma función que el listado, la ficha del cliente y el comprobante (#461).
+  const { total, pagado: paid, pendiente } = totalesPedido(order)
   const credito = creditoLocal ?? order.creditAuthorization ?? null
   const creditoRetiene = creditoBloqueaEntrega({ creditAuthorization: credito })
   const clienteConCredito = Number(order.customer?.creditLimitPyg || 0) > 0 && Number(order.customer?.creditDays || 0) > 0
@@ -479,7 +486,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
-              {!esDemo && !anulado && pendiente > 0 && <Button onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
+              {!anulado && pendiente > 0 && <Button onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
               <Button variant="outline" onClick={imprimirNotaEntrega}>Nota de entrega</Button>
               {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
@@ -596,7 +603,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                <span className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1.5 text-[10px] text-mute"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                <span className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1.5 text-[10px] text-mute">{nombrePago(pago, order) && <><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />Atendido por {nombreActor(nombrePago(pago, order))}</>}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
               </div>)}
             </div>}
           </SeccionColapsable>
@@ -752,7 +759,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       <ComprobantePreview order={ordenComprobante} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
       {cobroAbierto && (
         <PagosPedido
-          venta={ventaDesdeApi(order)}
+          venta={esDemo ? (listVentas().find(venta => venta.id === order.id) || order) : ventaDesdeApi(order)}
           onClose={() => { setCobroAbierto(false); load(); onChanged?.() }}
         />
       )}

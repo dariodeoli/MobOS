@@ -6,7 +6,42 @@
 
 export const ESTADO_PEDIDO = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
 
-export const ESTADO_ENTREGA = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
+export const ESTADO_ENTREGA = {
+  PROCESSING: 'En preparación',
+  IN_TRANSIT: 'En camino',
+  READY_TO_SHIP: 'Listo para enviar',
+  READY_FOR_PICKUP: 'Listo para retirar',
+  DELIVERED: 'Entregado',
+  // Estados que la pantalla de gestión ya mostraba con nombre humano: el comprobante y las
+  // páginas públicas dicen lo mismo y nunca el código interno (PICKED_UP…) (#461).
+  PENDING: 'Pendiente',
+  SHIPPED: 'Enviado',
+  PICKED_UP: 'Retirado',
+  PARTIAL: 'Entrega parcial',
+  NOT_DELIVERED: 'No entregado',
+  CANCELLED: 'Cancelado',
+}
+
+// Tipo de entrega del pedido (`deliveryType`): el API guarda texto libre del POS y la demo un código.
+const TIPO_ENTREGA = { RETIRO: 'Retiro en tienda', DELIVERY: 'Delivery', ENCOMIENDA: 'Envío por encomienda' }
+
+// Un código interno en MAYÚSCULAS_CON_GUION_BAJO nunca llega a una pantalla ni a un papel.
+const humanizarCodigo = (valor) => {
+  const texto = String(valor).replace(/_/g, ' ').toLowerCase()
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
+/**
+ * Etiqueta humana de un estado o tipo de entrega: la MISMA para la pantalla, el comprobante
+ * (HTML y ticket) y el portal. Un valor desconocido en formato de código se muestra en
+ * minúsculas legibles, nunca como enum.
+ */
+export function etiquetaEntrega(valor) {
+  const crudo = String(valor ?? '').trim()
+  if (!crudo) return ''
+  const clave = crudo.toUpperCase()
+  return ESTADO_ENTREGA[crudo] || TIPO_ENTREGA[clave] || ESTADO_ENTREGA_BADGE[crudo]?.label || (/^[A-Z][A-Z0-9_]*$/.test(crudo) ? humanizarCodigo(crudo) : crudo)
+}
 
 export const ESTADO_GARANTIA = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
 

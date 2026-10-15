@@ -1,4 +1,5 @@
 import { paymentMethodLabel } from './constants.js'
+import { metodoDeMedio, metodoDePago } from '../utils/mediosPago.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { getDemoTenant } from './demoTenant.js'
 
@@ -9,33 +10,11 @@ import { getDemoTenant } from './demoTenant.js'
 
 const KEY = 'mobos:demo-conciliacion:v1'
 
-// Medio legacy de las ventas demo → código del medio como lo usa el reporte.
-// Las claves van en mayúsculas: el llamador normaliza el medio a mayúsculas.
-const METODOS_DE_MEDIO = {
-  DINERO: 'CASH',
-  'DINERO USD': 'CASH',
-  'UENO BANK': 'TRANSFER',
-  TRANSFERENCIA: 'TRANSFER',
-  'POS UENO': 'CARD',
-  TARJETA: 'CARD',
-  PIX: 'PIX',
-  'PIK ITAÚ': 'PIX',
-  'USDT - CRIPTO': 'CRYPTO',
-  USDT: 'CRYPTO',
-  CANJE: 'TRADE_IN',
-  'SALDO A FAVOR': 'STORE_CREDIT',
-  'GIFT CARD': 'GIFT_CARD',
-  DINELCO: 'CARD',
-  CONTINENTAL: 'TRANSFER',
-  FAMILIAR: 'TRANSFER',
-}
+// Código del medio a partir del nombre legacy: una sola tabla en utils/mediosPago.js (#461).
+export { metodoDeMedio }
+
 // Procesadora para los cobros con tarjeta que no traen una cuenta con procesadora.
 const PROCESADORAS_DE_MEDIO = { 'POS UENO': 'UPay', TARJETA: 'UPay', DINELCO: 'Dinelco', 'PIK ITAÚ': 'Pix' }
-
-/** Código del medio (CASH, TRANSFER…) a partir del medio legacy de la demo. */
-export function metodoDeMedio(medioLegacy) {
-  return METODOS_DE_MEDIO[String(medioLegacy || '').toUpperCase()] || 'CASH'
-}
 
 function leerEstado() {
   try {
@@ -144,7 +123,7 @@ export function construirDemoConciliacion({ ventas = [], cuentas = [], desde = '
       const fecha = pago.fecha || venta.creadoEn || venta.fecha
       if (!enRango(fecha)) continue
       const medioLegacy = String(pago.medioPago || '').toUpperCase()
-      const metodo = metodoDeMedio(medioLegacy)
+      const metodo = metodoDePago(pago)
       const cuenta = cuentaPorNombre.get(String(pago.cuenta || '').toLowerCase()) || null
       const batchId = estado.conciliados[pago.id] || null
       const lote = batchId ? estado.lotes.find((fila) => fila.id === batchId) : null

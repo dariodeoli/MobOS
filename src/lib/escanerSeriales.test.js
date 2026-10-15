@@ -19,6 +19,9 @@ test('analizarSerial clasifica vacío, Luhn y formato', () => {
   assert.equal(analizarSerial('   ').motivo, 'VACIO')
   assert.equal(analizarSerial(IMEI_ROTO).motivo, 'LUHN')
   assert.equal(analizarSerial('AB').motivo, 'FORMATO')
+  // Un número corto («999») tampoco es un IMEI ni un serial (#461).
+  assert.equal(analizarSerial('999').motivo, 'FORMATO')
+  assert.equal(analizarSerial('1234').ok, true)
   assert.deepEqual(analizarSerial(IMEI_VALIDO), { ok: true, serial: IMEI_VALIDO })
   assert.deepEqual(analizarSerial(' aur-0001 '), { ok: true, serial: 'AUR-0001' })
 })

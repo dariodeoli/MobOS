@@ -1428,6 +1428,8 @@ export default function FormularioVenta({
             clienteDireccion: clienteDemo.address,
             vendedorNombre: sesion.nombre,
             productoId: it.productoId,
+            // IMEI/serial elegido: el comprobante y la ficha del pedido lo muestran por línea (#461).
+            ...(it.serials?.length ? { seriales: it.serials } : {}),
             couponCode: it.couponCode || null,
             estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
             fecha: fechaVenta,

@@ -1,4 +1,5 @@
 import { formatGs, formatGsInput, parseGsInput, formatUsd } from './moneda.js'
+import { cuentaComoCobro, montoDePago } from './pedido.js'
 
 // ── Coerción y formato ──────────────────────────────────────────────
 export function num(v) {
@@ -170,10 +171,7 @@ export function ticketPromedio(total, cantidad) {
 export function cobradoDeVenta(v) {
   const pagos = Array.isArray(v.pagos) ? v.pagos : []
   if (pagos.length) {
-    return pagos.reduce(
-      (sum, p) => (p.status && p.status !== 'CONFIRMED' ? sum : sum + num(p.monto)),
-      0,
-    )
+    return pagos.reduce((sum, p) => (cuentaComoCobro(p) ? sum + montoDePago(p) : sum), 0)
   }
   return v.estadoPago === 'Pagado' ? num(v.totalPagado ?? v.precio) : 0
 }

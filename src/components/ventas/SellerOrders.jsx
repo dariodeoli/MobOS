@@ -5,7 +5,7 @@ import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { codigoPedido, fechaLegible } from '@/utils/pedido'
+import { codigoPedido, fechaLegible, pagosDelPedido, totalesPedido } from '@/utils/pedido'
 import { normalizarBusqueda } from '@/utils/cliente'
 import { Button, EmptyState, MenuDesplegable } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
@@ -24,9 +24,9 @@ import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
 import './ventasF3.css'
 
 export const orderFields = (row) => {
-  const pagos = row.payments || row.pagos || []
-  const pagado = pagos.filter(p => p.status === 'CONFIRMED' || p.status === undefined).reduce((sum, p) => sum + Number(p.amountPyg ?? p.monto ?? 0), 0)
-  const total = Number(row.totalPyg ?? row.total ?? (Number(row.precio || 0) + Number(row.montoDelivery || 0)))
+  const pagos = pagosDelPedido(row)
+  // Pagado/Saldo/estado salen de la misma función que el detalle, la ficha y el comprobante (#461).
+  const { total, pagado, estado: estadoDePago } = totalesPedido(row)
   const creditDays = Number(row.creditDays || 0)
   // Venta legacy del demo (una línea con producto, precio y envío): se
   // sintetiza el artículo real para que la ficha, el listado y el comprobante
@@ -48,7 +48,7 @@ export const orderFields = (row) => {
     customerId: row.customerId || row.clienteId || null,
     date: row.createdAt || row.creadoEn || row.fecha,
     status: row.status || 'REGISTERED',
-    paymentStatus: row.estadoPago || (pagado >= total && total > 0 ? 'Pagado' : pagado > 0 ? 'Parcial' : 'Pendiente'),
+    paymentStatus: estadoDePago,
     paid: pagado, pending: Math.max(0, total - pagado), creditDays,
     total, productId: row.productoId,
     products: products.join(', '),
