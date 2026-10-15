@@ -40,7 +40,7 @@ test('escanear en Preparar compra suma el IMEI, Recepción lo cuenta igual y se 
   // Duplicados y Luhn.
   assert.throws(() => demo.updateDemoSupplyPurchase({ id: compra.id, action: 'scan', lineId: antes.id, serial: imei }), /ya está cargado/)
   const malo = `${imeiDemo(502).slice(0, 14)}${(Number(imeiDemo(502)[14]) + 1) % 10}`
-  assert.throws(() => demo.updateDemoSupplyPurchase({ id: compra.id, action: 'scan', lineId: antes.id, serial: malo }), /Luhn/)
+  assert.throws(() => demo.updateDemoSupplyPurchase({ id: compra.id, action: 'scan', lineId: antes.id, serial: malo }), /dígito de control/)
   demo.updateDemoSupplyPurchase({ id: compra.id, action: 'scan', lineId: antes.id, serial: malo, forzarLuhn: true })
   // Quitar uno libera la unidad del lote.
   const tras = demo.updateDemoSupplyPurchase({ id: compra.id, action: 'removeSerial', lineId: antes.id, serial: imei })
