@@ -5,7 +5,7 @@ import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 import { numero, numeroOpcional } from '../../../../lib/montos'
 import { DRAWER_PAYMENT_WHERE, dayCorrections } from '../../../../lib/payment-net'
-import { cashExpectedBetween } from '../../../../lib/cash-expected'
+import { cashExpectedByCurrency, esperadoPorMoneda } from '../../../../lib/cash-expected'
 
 // Auditoría de efectivo (#161): lista las operaciones de caja de un rango
 // (cobros en efectivo y movimientos) con su marca de verificación, y permite
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
       prisma.payment.findMany({
         where: { tenantId: tenant, method: 'CASH', status: { in: ['CONFIRMED', 'REFUNDED'] }, paidAt: { gte: start, lt: end }, order: { branchId }, AND: [DRAWER_PAYMENT_WHERE, { OR: [{ currency: null }, { currency: 'PYG' }] }] },
         select: {
-          id: true, amountPyg: true, paidAt: true, reference: true, status: true,
+          id: true, amountPyg: true, tenderedAmount: true, paidAt: true, reference: true, status: true,
           order: { select: { orderNumber: true, customer: { select: { name: true } }, seller: { select: { name: true } } } },
           createdBy: { select: { name: true } },
         },
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
 
     const operaciones = [
       ...cobros.map((cobro) => ({
-        id: cobro.id, kind: 'PAYMENT', fecha: cobro.paidAt, direction: cobro.status === 'REFUNDED' ? 'OUT' : 'IN', montoPyg: numero(cobro.amountPyg),
+        id: cobro.id, kind: 'PAYMENT', fecha: cobro.paidAt, direction: cobro.status === 'REFUNDED' ? 'OUT' : 'IN', montoPyg: cobro.status !== 'REFUNDED' && cobro.tenderedAmount ? Number(cobro.tenderedAmount) : numero(cobro.amountPyg),
         pedido: cobro.order?.orderNumber || '', cliente: cobro.order?.customer?.name || '', vendedor: cobro.order?.seller?.name || cobro.createdBy?.name || '',
         nota: cobro.reference || '',
       })),
@@ -101,7 +101,9 @@ export async function GET(request: Request) {
     // Esperado del rango: la misma definición que el cierre de turno (lib/cash-expected.ts):
     // apertura + cobros en efectivo (Gs) + ingresos − egresos de caja del rango. Antes sumaba el
     // esperado guardado de cada sesión: los turnos abiertos contaban 0 y no cerraba con el turno en pantalla.
-    const esperadoPyg = aperturaPyg + await cashExpectedBetween(prisma, tenant, branchId, start, new Date(end.getTime() - 1))
+    const movilPorMoneda = await cashExpectedByCurrency(prisma, tenant, branchId, start, new Date(end.getTime() - 1))
+    const esperadoPorMonedaRango = esperadoPorMoneda(aperturaPyg, movilPorMoneda)
+    const esperadoPyg = esperadoPorMonedaRango.PYG
     const diferenciaPyg = sesiones.reduce((suma, sesion) => suma + (sesion.countedPyg === null ? 0 : numero(sesion.countedPyg) - numero(sesion.expectedPyg)), 0)
     const recibidoPyg = operaciones.filter((operacion) => operacion.direction === 'IN').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
     const salidasPyg = operaciones.filter((operacion) => operacion.direction === 'OUT').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
@@ -111,6 +113,7 @@ export async function GET(request: Request) {
       resumen: {
         aperturaPyg,
         esperadoPyg,
+        esperadoPorMoneda: esperadoPorMonedaRango,
         diferenciaPyg,
         recibidoPyg,
         salidasPyg,

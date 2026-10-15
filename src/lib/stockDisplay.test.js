@@ -28,7 +28,7 @@ test('cualquier color elegido da texto legible (≥ 4.5:1), incluso los medios',
 })
 
 test('normalizarConfig descarta lo inválido', () => {
-  assert.deepEqual(normalizarConfig(null), { tipoPrimero: '', condicionPrimero: '', colores: {} })
+  assert.deepEqual(normalizarConfig(null), { tipoPrimero: '', condicionPrimero: '', colores: {}, planilla: {} })
   const c = normalizarConfig({ tipoPrimero: 'EQUIPO', condicionPrimero: 'usado', colores: { '*': { nuevo: '#ABCDEF', semi: 'rojo' }, x: {} } })
   assert.equal(c.tipoPrimero, 'EQUIPO')
   assert.equal(c.condicionPrimero, '')

@@ -15,6 +15,7 @@ const KINDS: Record<string, string> = {
   CHEQUE: 'Cheque',
   OWNER_WITHDRAWAL: 'Retiro del dueño',
   ADJUSTMENT: 'Ajuste',
+  CHANGE: 'Vuelto',
 }
 
 const ACCIONES: Record<string, string> = {

@@ -49,6 +49,10 @@ function itemDeUnidad(unit, eliminada) {
     reservationCustomer: unit.reservationCustomer || null,
     verifiedBy: unit.verifiedByCode || unit.lastVerifiedBy?.name || null,
     lastVerifiedAt: unit.lastVerifiedAt || null,
+    verifiedById: unit.lastVerifiedBy?.id || null,
+    verifiedByName: unit.lastVerifiedBy?.name || null,
+    soldOrderNumber: unit.sale?.orderNumber || null,
+    soldDelivered: unit.sale ? ['DELIVERED', 'PICKED_UP'].includes(unit.sale.fulfillmentStatus) : null,
     locationCode: unit.location?.code || null,
     locationIcon: unit.location?.icon || null,
     locationColor: unit.location?.color || null,
@@ -60,7 +64,7 @@ function itemDeUnidad(unit, eliminada) {
     locationId: unit.locationId || null,
     locationName: unit.location?.name || null,
     createdAt: unit.createdAt || null,
-    soldAt: unit.soldAt || (unit.status === 'SOLD' ? unit.updatedAt || unit.createdAt || null : null),
+    soldAt: unit.soldAt || unit.sale?.soldAt || (unit.status === 'SOLD' ? unit.updatedAt || unit.createdAt || null : null),
   }
 }
 
@@ -91,6 +95,10 @@ function itemDeProducto(producto, sucursales) {
     reservationCustomer: null,
     verifiedBy: null,
     lastVerifiedAt: null,
+    verifiedById: null,
+    verifiedByName: null,
+    soldOrderNumber: null,
+    soldDelivered: null,
     locationCode: null,
     locationIcon: null,
     locationColor: null,
@@ -105,6 +113,8 @@ function itemDeProducto(producto, sucursales) {
     soldAt: null,
   }
 }
+
+const mismoDia = (valor) => Boolean(valor) && new Date(valor).toDateString() === new Date().toDateString()
 
 const coincideTexto = (item, q) => {
   const buscar = sinAcentos(q).trim()
@@ -158,6 +168,8 @@ export function listarStockItemsDemo(consulta, { units = [], removed = [], produ
   }
   filas = filas.filter((item) => {
     if (estado && estado !== 'eliminado' && item.status !== estado) return false
+    // Sin estado elegido (#466): lo vendido sale solo el día de la venta; después queda en «Vendidos».
+    if (!estado && item.kind === 'unit' && item.status === 'vendido' && !mismoDia(item.soldAt)) return false
     if (tipo && item.stockKind !== tipo) return false
     if (filaTipo && item.kind !== filaTipo) return false
     if (sucursal && item.branchId !== sucursal) return false

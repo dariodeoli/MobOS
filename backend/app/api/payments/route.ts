@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
-import { InputError, matchesPayment, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
+import { InputError, matchesPayment, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       }
       const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey, createdById: session.user.id, userId: session.user.id } })
       await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+      await registrarVuelto(tx, { tenantId: tenant, userId: session.user.id, order: { id: order.id, branchId: order.branchId, orderNumber: order.orderNumber }, payment })
       await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
       if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
       if (status === 'CONFIRMED' && confirmed + amount === totalVenta) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })

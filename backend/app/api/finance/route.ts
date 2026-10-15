@@ -52,7 +52,7 @@ export async function GET(request: Request) {
   const tenantId = ctx.session.user.tenantId
   const branchFilter = ctx.branchId ? { branchId: ctx.branchId } : {}
   const [movements, accounts, orders, purchases, salePayments, reconciliations, supplierPayablesRows, workshopPartRows] = await Promise.all([
-    prisma.cashMovement.findMany({ where: { tenantId, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
+    prisma.cashMovement.findMany({ where: { tenantId, kind: { not: 'CHANGE' }, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
     prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),

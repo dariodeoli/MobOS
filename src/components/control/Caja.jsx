@@ -3,7 +3,7 @@ import { codigoPedido } from '@/utils/pedido'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs, formatGsInput, errorMonto, parseGsInput } from '@/utils/moneda'
-import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
+import { getDemoCash, getDemoCashExpectedByCurrency, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
 import { fechaHora } from '@/utils/fecha'
 import {
@@ -54,6 +54,9 @@ import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 import './finanzasTactil.css'
+
+const FORMATO_USD = new Intl.NumberFormat('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const formatoUsd = (valor) => FORMATO_USD.format(Number(valor) || 0)
 
 // Repuestos/proveedores y taller: listados responsivos (`ListaDensa`: tabla
 // desde lg, tarjeta debajo) con acciones de 44px bajo lg.
@@ -411,6 +414,7 @@ export default function Caja() {
   const [turnoAjeno, setTurnoAjeno] = useState(null)
   const [arqueoAjeno, setArqueoAjeno] = useState({})
   const [contadoAjeno, setContadoAjeno] = useState('')
+  const [contadoUsd, setContadoUsd] = useState('')
   const [notasAjeno, setNotasAjeno] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -537,29 +541,14 @@ export default function Caja() {
       ? usuarioSesion?.nombre || 'Vos'
       : cash?.openSessions?.find(open => open.id === shift?.id)?.openedByName || 'Otra persona'
 
-  const expected = useMemo(() => {
-    if (!esDemo) return Number(turno?.expectedPyg ?? turno?.openingPyg ?? 0)
-    // Adaptar al helper histórico sin cambiar los pagos persistidos.
-    const sales = listVentas().map(sale => ({
-      ...sale,
-      pagos: (sale.pagos || [])
-        .filter(payment => {
-          const method =
-            payment.method ?? (payment.medioPago === 'DINERO' ? 'CASH' : payment.medioPago)
-          const currency =
-            payment.currency ??
-            payment.accountSnapshot?.currency ??
-            (payment.accountId ? null : 'PYG')
-          return method === 'CASH' && currency === 'PYG'
-        })
-        .map(payment => ({
-          ...payment,
-          medioPago: 'DINERO',
-          monto: payment.amountPyg ?? payment.monto,
-        })),
-    }))
-    return getDemoCashExpected(turno || undefined, new Date(), sales)
+  // Esperado por moneda (#455): guaraníes y dólares con la misma fórmula con signo. En producción lo
+  // calcula el servidor; la demo lo arma con las ventas locales.
+  const esperadoPorMoneda = useMemo(() => {
+    if (!esDemo) return turno?.expectedByCurrency || { PYG: Number(turno?.expectedPyg ?? turno?.openingPyg ?? 0), USD: 0 }
+    return getDemoCashExpectedByCurrency(turno || undefined, new Date(), listVentas())
   }, [esDemo, turno])
+  const expected = Number(esperadoPorMoneda.PYG ?? 0)
+  const expectedUsd = Number(esperadoPorMoneda.USD ?? 0)
 
   // #311: el monto que vale sale del modo activo del cierre guiado. El resumen
   // fijo del cajón y la tarjeta de la página usan el mismo número.
@@ -640,11 +629,13 @@ export default function Caja() {
         await api.post(`/api/cash?branchId=${encodeURIComponent(sucursal?.id || '')}`, {
           action: 'close',
           ...(desglose ? { countedBreakdown: desglose } : { countedPyg: parseGsInput(counted) }),
+          ...(contadoUsd !== '' ? { countedByCurrency: { USD: Number(String(contadoUsd).replace(',', '.')) } } : {}),
           notes,
         })
       // Cierre guiado: al confirmar, el cajón se cierra y el conteo se limpia.
       setConteoOpen(false)
       setCounted('')
+      setContadoUsd('')
       setArqueo({})
       setNotes('')
       await load({ silencioso: true })
@@ -813,7 +804,7 @@ export default function Caja() {
               : 'Sin apertura'
           }
         />
-        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub="Apertura + efectivo en Gs ± movimientos del turno" />
+        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub={expectedUsd !== 0 ? `Gs ± movimientos · US$ ${formatoUsd(expectedUsd)} en dólares` : 'Apertura + efectivo en Gs ± movimientos del turno'} />
         <Stat
           compact
           label="Diferencia"
@@ -993,7 +984,7 @@ export default function Caja() {
               <h3 className="font-bold">Cerrar caja</h3>
               <p className="mt-1 text-sm text-mute">
                 El cierre es guiado: contá el efectivo —total rápido o por denominación—, compará
-                con el esperado y confirmá. No incluyas dólares, transferencias ni tarjetas.
+                con el esperado y confirmá. Los dólares se cuentan aparte; no incluyas transferencias ni tarjetas.
               </p>
               <p className="mt-2 text-xs text-mute">
                 Abierto {fechaHora(turno?.openedAt)} · esperado{' '}
@@ -1247,6 +1238,12 @@ export default function Caja() {
           onTotalRapido={setCounted}
           esperado={expected}
         />
+        {expectedUsd !== 0 && (
+          <div className="mt-4">
+            <Label htmlFor="counted-usd">Dólares contados (US$)</Label>
+            <Input id="counted-usd" inputMode="decimal" value={contadoUsd} onChange={e => setContadoUsd(e.target.value)} placeholder={`Esperado US$ ${formatoUsd(expectedUsd)}`} />
+          </div>
+        )}
         <div className="mt-4">
           <Label htmlFor="close-notes">Nota de cierre (opcional)</Label>
           <Input

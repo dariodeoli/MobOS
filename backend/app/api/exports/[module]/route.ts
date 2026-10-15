@@ -33,7 +33,7 @@ const ESTADOS_UNIDAD: Record<string, string> = { AVAILABLE: 'Disponible', RESERV
 const CONDICIONES_UNIDAD: Record<string, string> = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const ESTADOS_COMPRA: Record<string, string> = { DRAFT: 'Borrador', RECEIVED: 'Recibida' }
 const ESTADOS_GARANTIA: Record<string, string> = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo para retirar', DELIVERED: 'Entregado' }
-const TIPOS_MOVIMIENTO: Record<string, string> = { EXPENSE: 'Gasto', TRANSFER: 'Transferencia', SUPPLIER_ADVANCE: 'Adelanto a proveedor', CHEQUE: 'Cheque', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
+const TIPOS_MOVIMIENTO: Record<string, string> = { EXPENSE: 'Gasto', TRANSFER: 'Transferencia', SUPPLIER_ADVANCE: 'Adelanto a proveedor', CHEQUE: 'Cheque', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste', CHANGE: 'Vuelto' }
 const ESTADOS_MOVIMIENTO: Record<string, string> = { PENDING: 'Pendiente', CLEARED: 'Cobrado', VOID: 'Anulado' }
 const DIRECCIONES_MOVIMIENTO: Record<string, string> = { IN: 'Ingreso', OUT: 'Salida' }
 

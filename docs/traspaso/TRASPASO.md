@@ -1,46 +1,30 @@
-# Traspaso MobOS — 14-10-2026
+# Traspaso MobOS — 15-10-2026 06:00 (hora de Paraguay)
 
-Para seguir en otra computadora. Todo el código está en GitHub (`main`); no queda trabajo solo en la compu anterior.
+## Cómo trabajamos
+- El integrador (sesión con Dario) delega: escritores Sonnet en worktrees `codex/*`, QA Sonnet (plata/permisos/DB) o Haiku (pantalla), mapeador Haiku, arquitecto Opus solo para temas grandes. Reglas en `docs/traspaso/agents-shared.md` (copiar a `.claude/agents-shared.md`, excluido de git) — incluye el **plan de ahorro de tokens**.
+- Máx. 3 agentes en archivos distintos. Una QA por tanda. Agente > 300k tokens → uno nuevo con brief de 10 líneas. Nunca `git checkout` en el checkout principal.
+- Integración en **tandas**: rama `codex/tanda-N` que junta PRs, un CI (~20 min), `gh pr merge --merge --match-head-commit`, nunca `--admin`.
+- Deploy: `npm run release:build-current` → `MOBOS_INTEGRATOR=1 npm run release:publish` → verificar web (hash del bundle) y API (una ruta nueva deja de dar 404) → `MOBOS_API_URL=https://api.moboss.online npm run release:smoke`. La API aplica migraciones al arrancar (`backend/Dockerfile`). Credenciales de deploy en el llavero (webhook a los dos UUID de Coolify + token).
+- Horas siempre en hora de Paraguay. Commits sin atribución de IA. Reportes cortos en castellano.
 
-## Arranque en la compu nueva
+## Estado de producción
+- Versión 1.0.226, actualizada por tandas. Main `e6c370a5` (tanda 4) publicado 05:47. Todas las migraciones hasta `20270125000000_datos_caja_recepcion` aplicadas.
+- Coolify (proyecto MobOS): `mobos-api`, `mobos-db`, `mobos-production`. Supabase viejo borrado. `MOBOS_PLATFORM_OWNER_EMAIL=dariodeoli@gmail.com`; variables Apple (team F65VS7VHB9, key Y232HM59NN) cargadas; las claves .p8 las pegó Dario.
 
-```bash
-gh repo clone dariodeoli/MobOS && cd MobOS
-npm ci && (cd backend && npm ci)
-```
+## En curso
+- #466 planilla de Unidades apretada (`codex/planilla-v2`).
+- #455 vuelto registrado y caja por moneda (`codex/caja-moneda`) → requiere QA.
 
-- Reglas de agentes, roles y modelos: `docs/traspaso/agents-shared.md`. Copiarlo a `.claude/agents-shared.md` y excluirlo en `.git/info/exclude`.
-- Planes: `mobos-redesign-plan.md`, `mobos-redesign-audit.md`, `mobos-multiempresa-plan.md` (esta carpeta).
-- Sala de agentes: https://claude.ai/artifact/NvU6kwMEAoTv4cUqw4KLHx#mobos. Escribir solo en `apps/mobos/{agents,events,releases,meta}` y actualizar `apps/mobos.ultimaActividad` en cada hito.
-- Si Xcode git falla al hacer merge ("stash failed"), usar `/Library/Developer/CommandLineTools/usr/bin/git`.
+## Pendiente
+- Conciliación automática por día/sucursal con colores (#451, plata → QA).
+- Créditos de verificación IMEI: plan del arquitecto listo; faltan precios, cupo mensual, tope de acumulación, si PagaYa permite cobros únicos.
+- Caja: diferencia con esperado guardado vs en vivo; borde de milisegundo entre turnos (QA tanda 4, bajos).
+- Reembolso como saldo a favor no baja «Pagado»; tope de cobros tras reembolso parcial.
+- App iOS (Capacitor) en pausa: hecho lo fácil (eliminar cuenta, /soporte, privacidad). `docs/IOS.md`.
+- Release 1.0.227 con NOVEDADES completas de todo lo publicado desde 1.0.225.
+- #448 restos: seña en reserva, Taller que entre en «Todo», barra de Stock en una fila. #461 restos menores.
 
-## Producción
-
-- 14-10 12:55Z: v1.0.225 con #379 (gráficos, login, animaciones, códigos, campos, header) verificada con smoke y health.
-- #380 multiempresa (#377) mergeado. Publicación en curso al escribir esto. Al arrancar, comprobar que `checkedAt` de `https://api.moboss.online/api/health` sea posterior a 13:00Z. La migración `20270104000000_tenant_membership` corre al arrancar el backend.
-- Publicar: `npm run release:build-current` y luego `MOBOS_INTEGRATOR=1 npm run release:publish`, después `npm run release:smoke`. Verificar el deploy de `mobos-api` en Coolify.
-
-## PRs abiertos
-
-- #381 e2e global-setup (#364) y #382 POS paginado en servidor + badges (#354, #357). Rama actualizada con main; mergear cuando el CI esté verde (`gh pr merge N --merge --match-head-commit <sha>`, sin `--admin`).
-
-## Issues
-
-Implementados pero sin cerrar: verificar en prod y cerrar.
-#351 #352 #355 #356 (parcial: compactar shell para que la primera unidad quede a ≤200 px) #358 #359 #360 #365 #371 #372 #373 #374 #375 #376 #377.
-
-Pendientes reales, en orden:
-1. #367 versión 1.0.226 y fecha en NOVEDADES (después de #381/#382).
-2. #370 análisis UX/responsive completo (360/390 px).
-3. #361 presencia del equipo en línea.
-4. #362 #363 componentes owncoding-ui (RUC compacto, BuscadorProveedor, BancoCombobox).
-5. #366 / #17 cola CUPS e impresión física (requiere la impresora).
-6. #350 demo completa (Dario: dejar para el final).
-7. #353 Analytics del POS: decisión de Dario pendiente (¿mover a Análisis?).
-8. Anteriores: #345 #344 #343 #342 #341 #87 #85 #74 #3.
-
-## Decisiones vigentes
-
-- Por defecto el vendedor ve costos; el admin lo cambia en Configuración > Permisos.
-- Multiempresa: el PIN se salta solo si el vendedor actual es el usuario vinculado de la cuenta. Cada empresa tiene su propio plan. Los MEMBER ven el selector solo si tienen 2 o más empresas.
-- Máximo 3 agentes en paralelo, mobile primero, un writer por rama.
+## Preguntas abiertas para Dario
+1. En computadora, «¿El cliente ya se llevó el producto?»: ¿en el detalle del pedido (hoy) o en el POS?
+2. Créditos IMEI: precios, verificaciones por mes, tope de acumulación.
+3. Menú de fila del stock a 28 px en escritorio: ¿ok o más grande?

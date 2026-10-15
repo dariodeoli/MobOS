@@ -35,7 +35,7 @@ export async function PUT(request: Request) {
       await tx.auditLog.create({
         data: {
           tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_STOCK_DISPLAY_UPDATED', entity: 'Tenant', entityId: session.user.tenantId,
-          metadata: { tipoPrimero: stockDisplay.tipoPrimero, condicionPrimero: stockDisplay.condicionPrimero, depositosConColor: Object.keys(stockDisplay.colores).length },
+          metadata: { tipoPrimero: stockDisplay.tipoPrimero, condicionPrimero: stockDisplay.condicionPrimero, depositosConColor: Object.keys(stockDisplay.colores).length, planilla: Object.keys(stockDisplay.planilla).length },
         },
       })
     })

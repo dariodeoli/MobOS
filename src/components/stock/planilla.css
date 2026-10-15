@@ -2,9 +2,10 @@
    - El color de la fila sale de la condición (tokens --cond-* de index.css) y la
      ubicación suma su variante mezclando el 12 % de su color propio.
    - El estado (reservado, préstamo, vendido…) es un chip aparte: no pisa el color.
-   - Las columnas llegan por --pl-cols / --pl-cols-compacta (las mismas en el
-     encabezado y en cada fila). Bajo 64 rem de contenedor se ocultan Ingreso y
-     Garantía. Debajo de lg la fila mide ≥ 44 px (objetivo táctil). */
+   - Las columnas llegan por --pl-cols (la misma plantilla en el encabezado y en cada
+     fila, con anchos fijos); el componente suelta las menos importantes si el ancho
+     no alcanza (#466). Escritorio: fila de 34 px. Debajo de lg la fila mide ≥ 44 px
+     (objetivo táctil). */
 .planilla {
   container: planilla / inline-size;
   min-width: 0;
@@ -12,7 +13,7 @@
 .pl-grid {
   display: grid;
   grid-template-columns: var(--pl-cols);
-  column-gap: 8px;
+  column-gap: 6px;
   align-items: center;
   min-width: 0;
 }
@@ -39,7 +40,7 @@
   font-size: 12px;
 }
 @media (min-width: 1024px) {
-  .pl-grupo { min-height: 34px; }
+  .pl-grupo { min-height: 30px; }
 }
 .pl-grupo:focus-visible,
 .pl-fila:focus-visible {
@@ -60,7 +61,7 @@
   min-width: 0;
 }
 @media (min-width: 1024px) {
-  .pl-fila { height: 38px; min-height: 0; }
+  .pl-fila { height: 34px; min-height: 0; }
 }
 .pl-fila[data-condicion='used'] {
   --pl-bg: var(--cond-used-bg);
@@ -124,7 +125,7 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  padding: 1px 6px;
+  padding: 0 5px;
   border-radius: 999px;
   border: 1px solid currentColor;
   background: rgb(var(--c-ink));
@@ -133,18 +134,40 @@
   line-height: 1.3;
   white-space: nowrap;
 }
+.pl-chip { flex: none; }
 .pl-chip > span { overflow: hidden; text-overflow: ellipsis; }
+.pl-chip[data-tono='ok'] { color: rgb(var(--c-ok-text, var(--c-ok))); }
 .pl-chip[data-tono='pass'] { color: rgb(var(--c-reserved-text, var(--c-reserved))); }
 .pl-chip[data-tono='bad'] { color: rgb(var(--cond-bad)); }
 .pl-chip[data-tono='warn'] { color: rgb(var(--cond-warn)); }
 .pl-chip[data-tono='info'] { color: rgb(var(--c-info-text)); }
 .pl-garantia[data-tono='warn'] { color: rgb(var(--cond-warn)); font-weight: 700; }
 .pl-garantia[data-tono='bad'] { color: rgb(var(--cond-bad)); font-weight: 700; }
-@container planilla (max-width: 64rem) {
-  .pl-grid { grid-template-columns: var(--pl-cols-compacta); }
-  .pl-c-ingreso,
-  .pl-c-garantia { display: none; }
+/* Nota de venta (#466): número del pedido + ✓ o «sin entregar» al lado del chip Vendido. */
+.pl-venta {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  white-space: nowrap;
 }
+.pl-venta[data-entregado='true'] { color: rgb(var(--c-ok-text, var(--c-ok))); }
+.pl-sin-entregar { color: rgb(var(--cond-warn)); font-weight: 600; }
+/* Verificación (#466): botón compacto dentro de la celda (el objetivo táctil real es la fila en celular). */
+.pl-verificar {
+  display: inline-flex;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: 999px;
+  color: rgb(var(--c-ok-text, var(--c-ok)));
+}
+.pl-verificar:hover { background: rgb(var(--c-ink)); }
+.pl-verificar:disabled { opacity: .4; }
 .pl-movil {
   display: grid;
   gap: 2px;

@@ -35,6 +35,18 @@ export const decimal = (value) => {
   return /^\d+(\.\d+)?$/.test(text) ? Number(text) : NaN
 }
 
+// Monto entregado en la moneda de la cuenta si fue mayor a lo aplicado; '' si no hubo vuelto.
+function entregaEfectivo(payment, account, originalAmount, amountPyg) {
+  if (account.kind !== 'CASH') return ''
+  if (account.currency === 'PYG') {
+    const recibido = Math.round(Number(payment.recibido) || 0)
+    const aplicado = Number(String(payment.monto ?? '').replace(/\D/g, '')) || amountPyg
+    return recibido > aplicado && payment.montoRecibido === aplicado ? String(recibido) : ''
+  }
+  const entregado = decimal(payment.tenderedAmount)
+  return Number.isFinite(entregado) && entregado > originalAmount ? String(payment.tenderedAmount).trim().replace(',', '.') : ''
+}
+
 export function accountPayment(payment, accounts) {
   const account = accounts.find((a) => a.id === payment.accountId && a.isActive)
   if (!account) throw new Error('Elegí una cuenta activa para cada pago.')
@@ -61,7 +73,11 @@ export function accountPayment(payment, accounts) {
   if (tradeIn && (!tradeIn.serial || !tradeIn.model || !tradeIn.conditionNotes)) throw new Error('El canje requiere serial, modelo y condición del equipo recibido.')
   // #401: el origen (fuente o manual) viaja informativo; el valor que cuenta es exchangeRatePyg.
   const exchangeRateOrigin = FOREIGN(account.currency) ? origenParaServidor(payment.rateOrigin) : undefined
-  return { accountId: account.id, originalAmount, exchangeRatePyg, amountPyg, method: account.kind, status: 'CONFIRMED', ...(tradeIn ? { tradeIn } : {}), ...(exchangeRateOrigin ? { exchangeRateOrigin } : {}) }
+  // Entrega real en efectivo (#455): lo que el cliente puso en la mano cuando fue más de lo aplicado
+  // (dólares: `tenderedAmount` que deja pagosSinVuelto; guaraníes: `recibido` del teclado del celular).
+  // El vuelto en Gs lo registra el servidor como egreso de caja.
+  const tenderedAmount = entregaEfectivo(payment, account, originalAmount, amountPyg)
+  return { accountId: account.id, originalAmount, exchangeRatePyg, amountPyg, method: account.kind, status: 'CONFIRMED', ...(tenderedAmount ? { tenderedAmount } : {}), ...(tradeIn ? { tradeIn } : {}), ...(exchangeRateOrigin ? { exchangeRateOrigin } : {}) }
 }
 
 // El campo legacy monto siempre representa guaraníes, incluso al ingresar USD/BRL.
@@ -153,7 +169,8 @@ export function pagosSinVuelto(pagos, cuentas, totalGeneral) {
     if (!original) { residuo += aplicado; salida.splice(i, 1); continue }
     const exacto = convertirAPyg(original.replace(',', '.'), String(p.exchangeRatePyg))
     residuo += aplicado - exacto
-    salida[i] = { ...p, originalAmount: original, monto: String(exacto) }
+    // La entrega real (ej. US$ 150) viaja aparte: el servidor registra el vuelto en Gs como egreso de caja.
+    salida[i] = { ...p, originalAmount: original, monto: String(exacto), tenderedAmount: String(p.originalAmount ?? '').trim() }
   }
   if (residuo > 0) {
     const efectivo = cuentaEfectivoPyg(cuentas)

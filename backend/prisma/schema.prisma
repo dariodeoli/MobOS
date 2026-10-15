@@ -1814,6 +1814,10 @@ model Payment {
   currency        PaymentCurrency?
   originalAmount  Decimal?         @db.Decimal(18, 2)
   exchangeRatePyg Decimal?         @db.Decimal(18, 6)
+  // Efectivo realmente entregado por el cliente en la moneda del pago cuando fue
+  // más de lo aplicado (#455). Null = se entregó justo lo aplicado. El vuelto en
+  // guaraníes vive como CashMovement CHANGE ligado al pedido.
+  tenderedAmount  Decimal?         @db.Decimal(18, 2)
   tradeInDevice   TradeInDevice?
   id              String           @id @default(cuid())
   tenantId        String
@@ -2565,6 +2569,9 @@ model CashSession {
   // Arqueo por denominación del turno: {"100000": 3, "50000": 1, ...}. El total
   // contado se deriva de acá cuando está presente.
   countedBreakdown Json?
+  // Esperado y contado por moneda ({"PYG": n, "USD": n}) para el arqueo multi-moneda (#455).
+  expectedByCurrency Json?
+  countedByCurrency  Json?
   status      String    @default("OPEN")
   notes       String?
 
@@ -2595,12 +2602,18 @@ model CashMovement {
   status          CashMovementStatus @default(PENDING)
   dueAt           DateTime?
   clearedAt       DateTime?
+  // Vuelto (#455): pedido y turno a los que pertenece; la clave evita duplicarlo en un reintento.
+  orderId         String?
+  cashSessionId   String?
+  idempotencyKey  String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, status, dueAt])
   @@index([accountId, createdAt])
+  @@index([orderId])
+  @@unique([tenantId, idempotencyKey])
 }
 
 /// Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83). La condición
@@ -2651,6 +2664,7 @@ enum CashMovementKind {
   CHEQUE
   OWNER_WITHDRAWAL
   ADJUSTMENT
+  CHANGE
 }
 
 enum CashDirection {

@@ -13,7 +13,7 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { ESTADOS_STOCK, TIPOS_STOCK, ordenesStockVisibles } from '@/lib/stockItems'
-import { hayFiltrosStock } from './stockFiltros'
+import { SUCURSAL_TODAS, hayFiltrosStock } from './stockFiltros'
 
 const PERIODOS = [['', 'Todos'], ['hoy', 'Hoy'], ['ayer', 'Ayer'], ['rango', 'Rango']]
 // «Vendido» como estado es la vista Vendidos (con su período y fecha de venta).
@@ -24,10 +24,10 @@ const OPCIONES_ESTADO = [
 ]
 const textoDe = (opciones, valor) => opciones.find(([id]) => id === valor)?.[1] || ''
 
-function Opciones({ etiqueta, testId, valor, opciones, onElegir, vertical = false }) {
+function Opciones({ etiqueta, testId, valor, opciones, onElegir, vertical = false, textoTodos = 'Todos' }) {
   return (
     <div role="group" aria-label={etiqueta} data-testid={testId} className={cn('flex gap-1.5', vertical ? 'flex-col' : 'flex-wrap items-center')}>
-      {[['', 'Todos'], ...opciones].map(([id, texto]) => {
+      {[['', textoTodos], ...opciones].map(([id, texto]) => {
         const activo = valor === id
         return (
           <button
@@ -123,7 +123,7 @@ export default function FiltrosStock({
   const grupos = [
     { id: 'tipo', etiqueta: 'Tipo', valor: filtros.tipo, opciones: TIPOS_STOCK, texto: textoDe(TIPOS_STOCK, filtros.tipo), elegir: (tipo) => onCambio({ tipo }) },
     { id: 'estado', etiqueta: 'Estado', valor: estado, opciones: OPCIONES_ESTADO, texto: textoEstado, elegir: (siguiente) => onEstado(siguiente) },
-    { id: 'sucursal', etiqueta: 'Sucursal', valor: filtros.sucursal, opciones: opcionesSucursal, texto: textoDe(opcionesSucursal, filtros.sucursal), elegir: (sucursal) => onCambio({ sucursal }) },
+    { id: 'sucursal', etiqueta: 'Sucursal', valor: filtros.sucursal, opciones: opcionesSucursal, texto: textoDe(opcionesSucursal, filtros.sucursal), elegir: (sucursal) => onCambio({ sucursal: sucursal || SUCURSAL_TODAS }), textoTodos: 'Todas' },
     ...(verProveedor ? [{ id: 'proveedor', etiqueta: 'Proveedor', valor: filtros.proveedor, opciones: opcionesProveedor, texto: textoDe(opcionesProveedor, filtros.proveedor), elegir: (proveedor) => onCambio({ proveedor }) }] : []),
   ]
   const periodoTexto = vista === 'vendidos' && filtros.periodo ? textoDe(PERIODOS, filtros.periodo) : ''
@@ -182,7 +182,7 @@ export default function FiltrosStock({
             {grupos.map((grupo) => (
               <div key={grupo.id} className="space-y-1.5">
                 <p className={ROTULO_DATO}>{grupo.etiqueta}</p>
-                <Opciones etiqueta={grupo.etiqueta} testId={grupo.id} valor={grupo.valor} opciones={grupo.opciones} onElegir={grupo.elegir} />
+                <Opciones etiqueta={grupo.etiqueta} testId={grupo.id} valor={grupo.valor} opciones={grupo.opciones} textoTodos={grupo.textoTodos} onElegir={grupo.elegir} />
               </div>
             ))}
             {selectorOrden ? (
@@ -211,7 +211,7 @@ export default function FiltrosStock({
     <div data-testid="filtros-stock" className="flex flex-wrap items-center gap-2">
       {grupos.map((grupo) => (
         <ChipFiltro key={grupo.id} etiqueta={grupo.etiqueta} testId={grupo.id} valorTexto={grupo.texto}>
-          {(cerrar) => <Opciones etiqueta={grupo.etiqueta} testId={grupo.id} valor={grupo.valor} opciones={grupo.opciones} vertical onElegir={(id) => { grupo.elegir(id); cerrar() }} />}
+          {(cerrar) => <Opciones etiqueta={grupo.etiqueta} testId={grupo.id} valor={grupo.valor} opciones={grupo.opciones} textoTodos={grupo.textoTodos} vertical onElegir={(id) => { grupo.elegir(id); cerrar() }} />}
         </ChipFiltro>
       ))}
       {vista === 'vendidos' ? (

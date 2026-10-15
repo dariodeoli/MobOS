@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
 import { error, json, tenantId } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
+import { cashExpectedByCurrency } from '../../../../lib/cash-expected'
 import { dayCorrections, sqlCountableDrawer, sqlDrawer } from '../../../../lib/payment-net'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
@@ -57,5 +58,7 @@ export async function GET(request: Request) {
   }
   // Correcciones de pagos de turnos cerrados: no tocan el efectivo del día pero se informan.
   const corrections = await dayCorrections(prisma, tenant, branchId, start, endDay)
-  return json({ date: dateParam, branchId, window: { start: start.toISOString(), end: endDay.toISOString(), offset: OFFSET }, methods, totals, corrections })
+  // Efectivo del día por moneda (#455): lo realmente entregado menos reembolsos y vuelto, sin apertura.
+  const cashByCurrency = await cashExpectedByCurrency(prisma, tenant, branchId, start, new Date(endDay.getTime() - 1))
+  return json({ date: dateParam, branchId, window: { start: start.toISOString(), end: endDay.toISOString(), offset: OFFSET }, methods, totals, corrections, cashByCurrency })
 }
