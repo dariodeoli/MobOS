@@ -49,21 +49,28 @@ assert.ok(pagoId, 'el cobro quedó registrado')
 sql(`UPDATE "Payment" SET "paidAt" = '${hoy}T03:30:00.000Z' WHERE "id" = '${pagoId}';`)
 assert.equal(sql(`SELECT COUNT(*) FROM "Payment" WHERE "id" = '${pagoId}' AND "paidAt" = '${hoy}T03:30:00.000Z'`), '1', 'el cobro quedó a las 00:30 de Paraguay')
 
-// Expectativa independiente: misma semántica de día paraguayo (-03). Desde #393-B
-// el efectivo del día no incluye los pagos de correcciones de turnos ya cerrados
-// (drawerImpact=false: se informan como «Ajustes por corrección») y el conteo no
-// incluye las reversiones ni los originales revertidos.
-const sinAjusteDeCaja = `NOT EXISTS (SELECT 1 FROM "PaymentCorrection" pc WHERE pc."id" = p."correctionId" AND pc."drawerImpact" = false)`
+// Expectativa independiente: mismo día paraguayo (-03). Los ajustes tardíos
+// aplican al efectivo de hoy, pero no representan un cobro nuevo ni descuentan
+// el conteo histórico del original. Se excluyen solo ajustes legacy sin cajón.
 function esperadoDe(dia) {
   const desde = inicioParaguay(dia)
   const hasta = new Date(Date.parse(desde) + 86400000).toISOString()
-  const [confirmado, cantidad, reembolsado] = sql(`SELECT
-    COALESCE(SUM(p."amountPyg") FILTER (WHERE p."status" = 'CONFIRMED' AND ${sinAjusteDeCaja}), 0),
-    COUNT(*) FILTER (WHERE p."status" = 'CONFIRMED' AND ${sinAjusteDeCaja} AND p."reversalOfId" IS NULL AND NOT EXISTS (SELECT 1 FROM "Payment" rv LEFT JOIN "PaymentCorrection" rc ON rc."id" = rv."correctionId" WHERE rv."reversalOfId" = p."id" AND COALESCE(rc."drawerImpact", true))),
-    COALESCE(SUM(p."amountPyg") FILTER (WHERE p."status" = 'REFUNDED'), 0)
+  // Filas crudas de todo el historial: la reversión puede ocurrir en otro día.
+  // La selección/conteo se resuelve en JS sin importar predicados de producción.
+  const filas = JSON.parse(sql(`SELECT COALESCE(json_agg(json_build_object(
+    'id', p."id", 'method', p."method", 'status', p."status", 'amount', p."amountPyg",
+    'paidAt', to_char(p."paidAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+    'reversalOfId', p."reversalOfId", 'drawerImpact', c."drawerImpact", 'late', c."originSessionClosed"
+  )), '[]'::json)
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId" AND o."tenantId" = p."tenantId"
-    WHERE p."tenantId" = '${TENANT}' AND o."branchId" = '${rama}' AND p."method" = 'CASH'
-      AND p."paidAt" >= '${desde}' AND p."paidAt" < '${hasta}'`).split('|').map(Number)
+    LEFT JOIN "PaymentCorrection" c ON c."id" = p."correctionId"
+    WHERE p."tenantId" = '${TENANT}' AND o."branchId" = '${rama}'`))
+  const efectivoDelDia = filas.filter(fila => fila.method === 'CASH' && fila.paidAt >= desde && fila.paidAt < hasta)
+  const confirmadas = efectivoDelDia.filter(fila => fila.status === 'CONFIRMED' && fila.drawerImpact !== false)
+  const reemplazadosEnTurno = new Set(filas.filter(fila => fila.reversalOfId && fila.drawerImpact !== false && !fila.late).map(fila => fila.reversalOfId))
+  const confirmado = confirmadas.reduce((total, fila) => total + Number(fila.amount), 0)
+  const cantidad = confirmadas.filter(fila => !fila.reversalOfId && !fila.late && !reemplazadosEnTurno.has(fila.id)).length
+  const reembolsado = efectivoDelDia.filter(fila => fila.status === 'REFUNDED').reduce((total, fila) => total + Number(fila.amount), 0)
   return { confirmado, cantidad, reembolsado, desde, hasta }
 }
 
