@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
+import PreferenciaMedicion from '@/components/app/PreferenciaMedicion'
 import { publicUrls } from '@/lib/urls'
 
 // Páginas públicas de Privacidad y Términos (#322): información breve y
@@ -14,6 +15,10 @@ const CONTENIDO = {
       ['Qué datos guardamos', 'Los datos necesarios para operar la tienda: ventas, pedidos, clientes, stock, pagos, equipo y la configuración de la empresa.'],
       ['Quién los ve', 'Cada tienda ve solo sus datos. Los permisos del equipo limitan qué puede ver y hacer cada persona, y el servidor aplica ese recorte en cada acción.'],
       ['Para qué se usan', 'Para operar el servicio, hacer respaldos y mejorar el producto. No se venden a terceros.'],
+      ['Métricas anónimas del sitio y de la demo', 'Para saber qué mejorar medimos, sin datos personales, cuánta gente visita moboss.online y la demo: páginas vistas, hasta dónde se baja, cuánto tiempo se queda, qué módulos de la demo se abren y si se toca «Crear mi tienda». Guardamos un identificador al azar en tu navegador (localStorage) solo para no contar dos veces a la misma persona.'],
+      ['Lo que no medimos', 'No guardamos tu IP, el navegador ni el dispositivo, ni tu nombre, correo, teléfono o ubicación. No hay cookies de publicidad ni se comparte nada con terceros. No se mide lo que cargás dentro de tu tienda con tu cuenta.'],
+      ['Cuánto se guarda', 'Los eventos anónimos se conservan 90 días y después se eliminan.'],
+      ['Cómo no ser medido', 'Se respeta «No rastrear» (DNT) y Global Privacy Control de tu navegador, sin que hagas nada más. También podés usar el interruptor «No medir» de abajo; vale solo en este navegador.'],
       ['Tus controles', 'Desde Configuración podés exportar tus datos y archivar o eliminar la empresa; la eliminación borra el historial y se explica antes de confirmar.'],
       ['Consultas', 'Escribinos a soporte@moboss.online.'],
     ],
@@ -59,6 +64,7 @@ export default function LegalPublica() {
             </section>
           ))}
         </div>
+        {pathname === '/privacidad' && <PreferenciaMedicion />}
         <p className="mt-10 rounded-xl border border-ink-600 bg-ink-800/40 p-4 text-xs text-mute">
           Este resumen es informativo y puede actualizarse; ante una consulta concreta, escribinos a soporte@moboss.online.
         </p>

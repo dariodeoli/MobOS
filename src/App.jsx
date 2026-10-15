@@ -12,6 +12,7 @@ import { applyPageMetadata } from '@/lib/seo'
 import { isDemoRuntime } from '@/lib/demoMode'
 import DemoAccess from '@/pages/DemoAccess'
 import { DESTINO_LEGADO } from '@/lib/rutas'
+import AvisoMetricas from '@/components/app/AvisoMetricas'
 import TraficoSitio from '@/components/app/TraficoSitio'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
@@ -270,7 +271,7 @@ export default function App() {
   // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
   // en dev/local se abre la página acá mismo (#197).
   const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
-  if (landing) return <><MetadatosPagina publicPage /><TraficoSitio kind="landing" /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
+  if (landing) return <><MetadatosPagina publicPage /><TraficoSitio kind="landing" /><AvisoMetricas /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
 
   const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
   const clientPortal = ['clientes.moboss.online', 'www.clientes.moboss.online'].includes(host) || clientPortalPreview
@@ -302,6 +303,7 @@ export default function App() {
       <ToastProvider demo={isDemoRuntime}>
         <MetadatosPagina />
         <TraficoSitio kind="demo" />
+        <AvisoMetricas soloDemo />
         <AvisoVersion />
         <Suspense fallback={<PaginaCargando />}>
         <Routes>

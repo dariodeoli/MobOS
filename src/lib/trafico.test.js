@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
-import { MODULOS_DEMO, esEnlaceDeRegistro, moduloDeRuta, noMedir, nuevoId, scrollMaximoPct, utmDeBusqueda } from './trafico.js'
+import { CLAVE_NO_MEDIR, MODULOS_DEMO, fijarNoMedir, optOutActivo, esEnlaceDeRegistro, moduloDeRuta, noMedir, nuevoId, scrollMaximoPct, utmDeBusqueda } from './trafico.js'
 
 test('moduloDeRuta: primer tramo limpio; raíz = inicio', () => {
   assert.equal(moduloDeRuta('/pos'), 'pos')
@@ -34,4 +34,33 @@ test('la lista de módulos coincide con la del servidor (backend/lib/site-events
   const fuente = readFileSync(new URL('../../backend/lib/site-events.ts', import.meta.url), 'utf8')
   const bloque = fuente.match(/MODULOS_DEMO = \[([\s\S]*?)\] as const/)[1]
   assert.deepEqual([...bloque.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1]), MODULOS_DEMO)
+})
+
+function storageFalso(inicial = {}) {
+  const datos = { ...inicial }
+  return {
+    getItem: k => (k in datos ? datos[k] : null),
+    setItem: (k, v) => { datos[k] = String(v) },
+    removeItem: k => { delete datos[k] },
+    datos,
+  }
+}
+
+test('«No medir»: se guarda la preferencia, se olvida el id y se puede revertir', () => {
+  const st = storageFalso({ 'mobos:vid': 'a'.repeat(32) })
+  assert.equal(optOutActivo(st), false)
+  fijarNoMedir(true, st)
+  assert.equal(st.datos[CLAVE_NO_MEDIR], '1')
+  assert.equal(st.datos['mobos:vid'], undefined)
+  assert.equal(optOutActivo(st), true)
+  fijarNoMedir(false, st)
+  assert.equal(optOutActivo(st), false)
+})
+
+test('«No medir» no rompe sin storage', () => {
+  assert.equal(optOutActivo(null), false)
+  assert.doesNotThrow(() => fijarNoMedir(true, null))
+  const roto = { getItem() { throw new Error('bloqueado') }, setItem() { throw new Error('bloqueado') }, removeItem() {} }
+  assert.equal(optOutActivo(roto), false)
+  assert.doesNotThrow(() => fijarNoMedir(true, roto))
 })

@@ -28,6 +28,7 @@ export default defineConfig({
     'clientes-lista.frontend.spec.js',
     'pestanas-iconos.frontend.spec.js',
     'superadmin.frontend.spec.js',
+    'aviso-privacidad.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,
