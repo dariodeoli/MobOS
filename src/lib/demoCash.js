@@ -137,26 +137,53 @@ export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}
   }
   return sesiones
 }
-export function getDemoCashExpected(cash = read(), until = new Date(), sales = []) {
+// Efectivo del turno POR MONEDA (#455), espejo de cashExpectedByCurrency() del servidor: un cobro
+// suma lo realmente entregado en su moneda (tenderedAmount) y el vuelto sale como egreso en Gs.
+export const esEfectivoDemo = (pago) => String(pago.medioPago || '').toUpperCase() === 'DINERO' || pago.method === 'CASH' || pago.accountSnapshot?.kind === 'CASH'
+export function getDemoCashMovilPorMoneda(cash = read(), until = new Date(), sales = []) {
   const openedAt = new Date(cash.openedAt || 0).getTime()
   const end = new Date(until).getTime()
   const payments = sales.flatMap(sale => (sale.vendedorId === 'demo-user' ? sale.pagos || [] : []))
-  const cashTotal = payments.reduce((sum, payment) => {
+  const porMoneda = { PYG: 0, USD: 0 }
+  for (const payment of payments) {
     const paidAt = new Date(payment.fecha || 0).getTime()
-    const isCash = String(payment.medioPago || '').toUpperCase() === 'DINERO'
-    if (!isCash || paidAt < openedAt || paidAt > end) return sum
-    if (payment.status === 'REFUNDED') return sum - Math.abs(Number(payment.monto) || 0)
-    return !payment.status || payment.status === 'CONFIRMED' ? sum + (Number(payment.monto) || 0) : sum
-  }, 0)
+    if (!esEfectivoDemo(payment) || paidAt < openedAt || paidAt > end) continue
+    const moneda = payment.currency || 'PYG'
+    const monto = Number(payment.amountPyg ?? payment.monto) || 0
+    // Reembolso en efectivo: resta del cajón (igual que cashExpectedByCurrency() del servidor).
+    if (payment.status === 'REFUNDED') { porMoneda.PYG -= Math.abs(monto); continue }
+    if (payment.status && payment.status !== 'CONFIRMED') continue
+    const aplicado = moneda === 'PYG' ? monto : Number(payment.originalAmount) || 0
+    const entregado = Number(String(payment.tenderedAmount ?? '').replace(',', '.')) || 0
+    const cobrado = entregado > aplicado ? entregado : aplicado
+    porMoneda[moneda] = (porMoneda[moneda] || 0) + cobrado
+    if (entregado > aplicado) {
+      const rate = moneda === 'PYG' ? 1 : Number(payment.exchangeRatePyg) || 0
+      porMoneda.PYG -= Math.max(0, Math.round(entregado * rate) - monto)
+    }
+  }
   // Ingresos y egresos de caja del turno (aportes, retiros, gastos): suman o restan igual que en el servidor.
-  const movimientos = (cash.movements || []).reduce((suma, movimiento) => {
+  for (const movimiento of cash.movements || []) {
     const cuando = new Date(movimiento.createdAt || cash.openedAt || 0).getTime()
-    if (cuando < openedAt || cuando > end) return suma
-    return suma + (movimiento.kind === 'INGRESO' ? 1 : -1) * (Number(movimiento.amountPyg) || 0)
-  }, 0)
+    if (cuando < openedAt || cuando > end) continue
+    porMoneda.PYG += (movimiento.kind === 'INGRESO' ? 1 : -1) * (Number(movimiento.amountPyg) || 0)
+  }
+  for (const moneda of Object.keys(porMoneda)) porMoneda[moneda] = moneda === 'PYG' ? Math.round(porMoneda[moneda]) : Math.round(porMoneda[moneda] * 100) / 100
+  return porMoneda
+}
+// Esperado por moneda: la misma fórmula con signo (esperadoCaja) para cada moneda; la apertura es solo en Gs.
+export function getDemoCashExpectedByCurrency(cash = read(), until = new Date(), sales = []) {
+  const movil = getDemoCashMovilPorMoneda(cash, until, sales)
+  const salida = {}
+  for (const moneda of new Set(['PYG', 'USD', ...Object.keys(movil)])) {
+    salida[moneda] = esperadoCaja(moneda === 'PYG' ? Number(cash.openingPyg) || 0 : 0, movil[moneda] || 0)
+  }
+  return salida
+}
+export function getDemoCashExpected(cash = read(), until = new Date(), sales = []) {
   // Misma definición que el cierre real (backend/lib/cash-expected.ts, esperadoCaja): apertura + cobros en
   // efectivo − reembolsos ± movimientos, con signo y sin recortar en cero.
-  return esperadoCaja(Number(cash.openingPyg) || 0, cashTotal + movimientos)
+  return getDemoCashExpectedByCurrency(cash, until, sales).PYG
 }
 export function openDemoCash(openingPyg = DEFAULT.openingPyg, notes = '') {
   const next = {

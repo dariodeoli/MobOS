@@ -20,7 +20,7 @@ import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { CLAVES_FIN, MONEDAS_DE_GASTO, cuentaDeGastoValida } from '@/lib/finUltimoUsado'
 
 const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
-const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
+const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste', CHANGE: 'Vuelto' }
 const DEFAULT_EXPENSE_LIMIT_PYG = 1000000
 // #209: el alta arranca con el tipo y la moneda del último movimiento, siempre
 // cambiables. La cuenta recordada se aplica cuando llegan las cuentas y sigue

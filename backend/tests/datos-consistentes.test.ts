@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { displayOrderNumber, formatOrderNumber, orderNumberLookupCandidates } from '../lib/order-number'
-import { esperadoCaja } from '../lib/cash-expected-pure'
+import { esperadoCaja, esperadoPorMoneda, vueltoPyg } from '../lib/cash-expected-pure'
 import { netPaid } from '../lib/payment-net-pure'
 import { subCentResidue, residueMessage } from '../lib/payment-residue'
 import { warrantyDaysOfItem } from '../lib/order-warranty'
@@ -72,6 +72,25 @@ test('esperadoCaja: neto con signo, sin recortar antes de sumar la apertura (ret
   assert.equal(esperadoCaja(500000, 250000 - 100000 + 300000 - 150000), 800000)
   // Retirar más de lo que hay deja un esperado NEGATIVO: es una señal real, no se esconde.
   assert.equal(esperadoCaja(500000, -700000), -200000)
+})
+
+test('esperadoPorMoneda (#455): la misma fórmula con signo en cada moneda; la apertura es solo en Gs', () => {
+  // US$ 150 entregados por Gs 1.000.000: USD +150; Gs = apertura + residuo 46 − vuelto 95.046.
+  const vuelto = vueltoPyg(150, 7300, 999954)
+  assert.equal(vuelto, 95046)
+  assert.deepEqual(esperadoPorMoneda(2000000, { PYG: 46 - vuelto, USD: 150 }), { PYG: 2000000 + 46 - 95046, USD: 150 })
+  // Sin movimiento en dólares igual aparece USD en cero; un retiro en USD da negativo (sin recorte).
+  assert.deepEqual(esperadoPorMoneda(100000, {}), { PYG: 100000, USD: 0 })
+  assert.equal(esperadoPorMoneda(0, { USD: -20.5 }).USD, -20.5)
+  // Redondeo: Gs enteros, dólares a centavos.
+  assert.equal(esperadoPorMoneda(0, { PYG: 10.4, USD: 1.005 + 1.005 }).PYG, 10)
+})
+
+test('vueltoPyg (#455): entrega en su moneda menos lo aplicado, HALF_UP y nunca negativo', () => {
+  assert.equal(vueltoPyg(1200000, 1, 1000000), 200000)
+  assert.equal(vueltoPyg(150, 7300, 1095000), 0)
+  assert.equal(vueltoPyg(100, 7300, 1095000), 0)
+  assert.equal(vueltoPyg(150.01, 7300.5, 1000000), Math.round(150.01 * 7300.5) - 1000000)
 })
 
 test('netPaid: pagado neto = confirmado (con reversiones) − reembolsado', () => {

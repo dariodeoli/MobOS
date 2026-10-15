@@ -1,7 +1,7 @@
 import { metodoDeMedio } from './demoConciliacion.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { getDemoTenant } from './demoTenant.js'
-import { esperadoCaja } from './demoCash.js'
+import { esperadoCaja, esEfectivoDemo } from './demoCash.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
 // `/api/cash/audit` y `/api/cash/audit-operations` con las ventas demo y la
@@ -58,17 +58,33 @@ export function construirDemoAuditoriaMedios({ ventas = [], fecha = '' } = {}) {
  */
 export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde = '', hasta = '', marcas = {} } = {}) {
   const operaciones = []
+  const efectivoExtranjero = {}
   for (const [indice, venta] of ventas.entries()) {
     for (const pago of Array.isArray(venta?.pagos) ? venta.pagos : []) {
-      if (String(pago.medioPago || '').toUpperCase() !== 'DINERO') continue
+      if (!esEfectivoDemo(pago)) continue
       if (!enRango(pago.fecha || venta.creadoEn || venta.fecha, desde, hasta)) continue
+      const fechaPago = pago.fecha || venta.creadoEn || venta.fecha
+      const moneda = pago.currency || 'PYG'
+      const entregado = Number(String(pago.tenderedAmount ?? '').replace(',', '.')) || 0
+      if (moneda !== 'PYG') {
+        // Efectivo en otra moneda (#455): no entra en la lista en Gs; cuenta en su moneda con lo realmente entregado.
+        const aplicado = Number(pago.originalAmount) || 0
+        efectivoExtranjero[moneda] = (efectivoExtranjero[moneda] || 0) + (entregado > aplicado ? entregado : aplicado)
+      }
+      // Vuelto: egreso en Gs ligado al pedido, igual que el servidor.
+      const vueltoGs = entregado > 0 ? Math.max(0, Math.round(entregado * (moneda === 'PYG' ? 1 : Number(pago.exchangeRatePyg) || 0)) - (Number(pago.monto) || 0)) : 0
+      if (vueltoGs > 0) {
+        const marcaVuelto = marcas[claveDeMarca('MOVEMENT', `vuelto-${pago.id}`)]
+        operaciones.push({ id: `vuelto-${pago.id}`, kind: 'MOVEMENT', fecha: fechaPago, direction: 'OUT', montoPyg: vueltoGs, pedido: '', cliente: venta.cliente || '', vendedor: 'Hernán Acosta', nota: 'Vuelto', status: marcaVuelto?.status || 'PENDING', notaAuditoria: marcaVuelto?.note || '', auditadoPor: marcaVuelto?.auditadoPor || '', auditadoAt: marcaVuelto?.auditedAt || null })
+      }
+      if (moneda !== 'PYG') continue
       const marca = marcas[claveDeMarca('PAYMENT', pago.id)]
       operaciones.push({
         id: pago.id,
         kind: 'PAYMENT',
-        fecha: pago.fecha || venta.creadoEn || venta.fecha,
+        fecha: fechaPago,
         direction: 'IN',
-        montoPyg: Number(pago.monto) || 0,
+        montoPyg: entregado > (Number(pago.monto) || 0) ? entregado : Number(pago.monto) || 0,
         pedido: `${getDemoTenant().orderPrefix || 'AUR'}-${String(indice + 1).padStart(4, '0')}`,
         cliente: venta.cliente || '',
         vendedor: 'Hernán Acosta',
@@ -113,6 +129,7 @@ export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde
     resumen: {
       aperturaPyg,
       esperadoPyg,
+      esperadoPorMoneda: { PYG: esperadoPyg, USD: 0, ...efectivoExtranjero },
       diferenciaPyg,
       recibidoPyg,
       salidasPyg,

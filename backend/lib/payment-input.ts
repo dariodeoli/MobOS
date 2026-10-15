@@ -25,6 +25,8 @@ type NormalizedPayment = {
   method: PaymentMethod; status: PaymentStatus; amountPyg: number; reference: string | null;
   accountId?: string; accountSnapshot?: Prisma.InputJsonObject; currency?: 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT';
   originalAmount?: Prisma.Decimal; exchangeRatePyg?: Prisma.Decimal;
+  // Efectivo realmente entregado (> originalAmount) cuando hubo vuelto (#455).
+  tenderedAmount?: Prisma.Decimal;
   settlesAt?: Date;
   dueAt?: Date;
   tradeIn?: TradeInInput;
@@ -86,6 +88,15 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     if (converted.lt(1) || converted.gt(LIMITE_MONTO_VENTAS)) throw new InputError(`El monto convertido supera el máximo que el sistema puede guardar (Gs ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')}).`)
     result = { accountId, accountSnapshot: snapshot, currency, originalAmount, exchangeRatePyg, method,
       amountPyg: converted.toNumber(), status: status as PaymentStatus, reference }
+    // Entrega real en efectivo (#455): solo cobro CASH confirmado, mayor a lo aplicado, en la moneda de la cuenta.
+    if (input.tenderedAmount !== undefined && input.tenderedAmount !== null && input.tenderedAmount !== '') {
+      if (method !== 'CASH' || status !== 'CONFIRMED') throw new InputError('La entrega con vuelto solo aplica a un cobro en efectivo confirmado.')
+      const tendered = decimalInput(input.tenderedAmount, 'tenderedAmount', 2)
+      if (currency === 'PYG' && !tendered.isInteger()) throw new InputError('La entrega en guaraníes debe ser un entero.')
+      if (tendered.lt(originalAmount)) throw new InputError('La entrega no puede ser menor a lo aplicado al pago.')
+      if (tendered.mul(exchangeRatePyg).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP).gt(LIMITE_MONTO_VENTAS)) throw new InputError(`La entrega supera el máximo que el sistema puede guardar (Gs ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')}).`)
+      if (tendered.gt(originalAmount)) result.tenderedAmount = tendered
+    }
   } else {
     if (input.originalAmount !== undefined || input.exchangeRatePyg !== undefined || input.currency !== undefined) throw new InputError('Los campos de moneda requieren accountId.')
     const amountPyg = Number(input.amountPyg)
@@ -131,6 +142,7 @@ export function matchesPayment(previous: Payment, next: NormalizedPayment, order
     && (previous.originalAmount == null ? next.originalAmount === undefined : next.originalAmount !== undefined && previous.originalAmount.eq(next.originalAmount))
     && (previous.exchangeRatePyg == null ? next.exchangeRatePyg === undefined : next.exchangeRatePyg !== undefined && previous.exchangeRatePyg.eq(next.exchangeRatePyg))
     && (previous.dueAt?.getTime() ?? null) === (next.dueAt?.getTime() ?? null)
+    && (previous.tenderedAmount == null ? next.tenderedAmount === undefined : next.tenderedAmount !== undefined && previous.tenderedAmount.eq(next.tenderedAmount))
 }
 
 export async function receiveTradeIn(tx: Prisma.TransactionClient, input: TradeInInput | undefined, payment: { id: string; amountPyg: bigint | number }, order: { id: string; branchId: string | null }, tenantId: string, userId: string) {
@@ -139,4 +151,32 @@ export async function receiveTradeIn(tx: Prisma.TransactionClient, input: TradeI
   const device = await tx.tradeInDevice.create({ data: { ...input, tenantId, branchId: order.branchId, orderId: order.id, paymentId: payment.id, valuePyg } })
   await tx.auditLog.create({ data: { tenantId, userId, action: 'TRADE_IN_RECEIVED', entity: 'TradeInDevice', entityId: device.id,
     metadata: { orderId: order.id, paymentId: payment.id, serial: input.serial, valuePyg, status: 'RECEIVED' } } })
+}
+
+/**
+ * Vuelto (#455): si el cobro en efectivo trae una entrega mayor a lo aplicado, registra un egreso de caja
+ * «Vuelto» en guaraníes ligado al pedido y al turno abierto de quien cobra. Idempotente: la clave
+ * `vuelto:<paymentId>` es única por empresa, así que un reintento del mismo cobro no lo duplica.
+ */
+export async function registrarVuelto(tx: Prisma.TransactionClient, input: {
+  tenantId: string; userId: string; order: { id: string; branchId: string | null; orderNumber: string }
+  payment: { id: string; method: string; status: string; amountPyg: bigint | number; exchangeRatePyg: Prisma.Decimal | null; tenderedAmount: Prisma.Decimal | null }
+}) {
+  const { payment, order } = input
+  if (payment.method !== 'CASH' || payment.status !== 'CONFIRMED' || !payment.tenderedAmount) return null
+  const rate = payment.exchangeRatePyg ?? new Prisma.Decimal(1)
+  const cambio = payment.tenderedAmount.mul(rate).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP).minus(numero(payment.amountPyg))
+  if (!cambio.gt(0)) return null
+  const idempotencyKey = `vuelto:${payment.id}`
+  const existente = await tx.cashMovement.findUnique({ where: { tenantId_idempotencyKey: { tenantId: input.tenantId, idempotencyKey } } })
+  if (existente) return existente
+  const turno = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "CashSession" WHERE "tenantId" = ${input.tenantId} AND "openedById" = ${input.userId} AND "status" = 'OPEN' ${order.branchId ? Prisma.sql`AND "branchId" = ${order.branchId}` : Prisma.empty} ORDER BY "openedAt" DESC LIMIT 1`
+  const amountPyg = cambio.toNumber()
+  const movimiento = await tx.cashMovement.create({ data: {
+    tenantId: input.tenantId, branchId: order.branchId, createdById: input.userId, kind: 'CHANGE', direction: 'OUT', currency: 'PYG',
+    originalAmount: amountPyg, exchangeRatePyg: 1, amountPyg, description: `Vuelto del pedido ${order.orderNumber}`, reference: order.orderNumber,
+    status: 'CLEARED', clearedAt: new Date(), orderId: order.id, cashSessionId: turno[0]?.id ?? null, idempotencyKey,
+  } })
+  await tx.auditLog.create({ data: { tenantId: input.tenantId, userId: input.userId, action: 'CASH_CHANGE_RECORDED', entity: 'CashMovement', entityId: movimiento.id, metadata: { orderId: order.id, paymentId: payment.id, amountPyg, tendered: payment.tenderedAmount.toString() } } })
+  return movimiento
 }

@@ -8,11 +8,28 @@ import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movem
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 import { dayCorrections, sqlCountableDrawer, sqlDrawer } from '../../../lib/payment-net'
-import { cashExpectedBetween as expected, esperadoCaja } from '../../../lib/cash-expected'
+import { cashExpectedByCurrency, esperadoCaja, esperadoPorMoneda, type PorMoneda } from '../../../lib/cash-expected'
 
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
 const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= LIMITE_MONTO_GENERAL
 const note = (value: unknown) => value == null ? null : typeof value === 'string' && value.trim().length <= 500 ? value.trim() || null : undefined
+
+// Esperado en guaraníes (parte móvil con signo) a partir del desglose por moneda.
+const movilPyg = (porMoneda: PorMoneda) => porMoneda.PYG ?? 0
+
+// Contado por moneda extranjera del cierre (#455): { USD: 150.5 }. `undefined` = inválido.
+function countedByCurrencyInput(value: unknown): PorMoneda | undefined {
+  if (value === null || value === undefined || value === '') return {}
+  if (typeof value !== 'object' || Array.isArray(value)) return undefined
+  const salida: PorMoneda = {}
+  for (const [moneda, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!['USD', 'BRL', 'EUR', 'USDT'].includes(moneda)) return undefined
+    const monto = Number(raw)
+    if (!Number.isFinite(monto) || monto < 0 || monto > 1e9 || Math.round(monto * 100) / 100 !== monto) return undefined
+    salida[moneda] = monto
+  }
+  return salida
+}
 
 async function context(request: Request) {
   const session = await requireSession(request)
@@ -68,7 +85,7 @@ function rangoDeSesiones(params: URLSearchParams) {
 // que quedó auditado al cerrar; el del turno abierto se calcula en vivo.
 async function sesionesResumen(tenant: string, branchId: string, start: Date, end: Date, ahora = new Date()) {
   const filas = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT s."id", s."openedAt", s."closedAt", s."status", s."openingPyg", s."countedPyg", s."expectedPyg", s."notes",
+    SELECT s."id", s."openedAt", s."closedAt", s."status", s."openingPyg", s."countedPyg", s."expectedPyg", s."expectedByCurrency", s."countedByCurrency", s."openedById", s."notes",
            u."name" AS "openedByName",
            COALESCE(ef."efectivoPyg", 0)::bigint AS "efectivoPyg",
            COALESCE(ef."pagos", 0)::int AS "pagosEfectivo",
@@ -78,7 +95,7 @@ async function sesionesResumen(tenant: string, branchId: string, start: Date, en
     FROM "CashSession" s
     JOIN "User" u ON u."id" = s."openedById"
     LEFT JOIN LATERAL (
-      SELECT SUM(CASE WHEN p."status" = 'REFUNDED' THEN -p."amountPyg" ELSE p."amountPyg" END) AS "efectivoPyg", COUNT(*) FILTER (WHERE p."status" = 'CONFIRMED' AND ${sqlCountableDrawer('p')}) AS "pagos"
+      SELECT SUM(CASE WHEN p."status" = 'REFUNDED' THEN -p."amountPyg"::numeric ELSE COALESCE(p."tenderedAmount", p."amountPyg"::numeric) END) AS "efectivoPyg", COUNT(*) FILTER (WHERE p."status" = 'CONFIRMED' AND ${sqlCountableDrawer('p')}) AS "pagos"
       FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
       WHERE p."tenantId" = s."tenantId" AND p."method" = 'CASH' AND p."status" IN ('CONFIRMED', 'REFUNDED')
         AND ${sqlDrawer('p')}
@@ -107,7 +124,7 @@ async function sesionesResumen(tenant: string, branchId: string, start: Date, en
       AND s."openedAt" >= ${start} AND s."openedAt" < ${end}
     ORDER BY s."openedAt" DESC
     LIMIT 100`
-  return filas.map((fila) => {
+  return Promise.all(filas.map(async (fila) => {
     const openingPyg = Number(fila.openingPyg || 0)
     const efectivoPyg = Number(fila.efectivoPyg || 0)
     const movimientosPyg = Number(fila.movimientosPyg || 0)
@@ -116,7 +133,15 @@ async function sesionesResumen(tenant: string, branchId: string, start: Date, en
       ? esperadoCaja(openingPyg, efectivoPyg + movimientosPyg)
       : Number(fila.expectedPyg)
     const contadoPyg = fila.countedPyg === null || fila.countedPyg === undefined ? null : Number(fila.countedPyg)
+    // Esperado por moneda (#455): el guardado al cerrar o, en vivo, la misma fórmula por moneda.
+    const guardado = fila.expectedByCurrency && typeof fila.expectedByCurrency === 'object' ? fila.expectedByCurrency as PorMoneda : null
+    const esperadoPorMonedaFila = !abierta && guardado
+      ? guardado
+      : esperadoPorMoneda(openingPyg, await cashExpectedByCurrency(prisma, tenant, branchId, fila.openedAt as Date, (fila.closedAt as Date | null) ?? ahora, String(fila.openedById)))
+    const contadoPorMoneda = fila.countedByCurrency && typeof fila.countedByCurrency === 'object' ? fila.countedByCurrency as PorMoneda : null
     return {
+      esperadoPorMoneda: esperadoPorMonedaFila,
+      contadoPorMoneda,
       id: String(fila.id),
       openedByName: String(fila.openedByName || ''),
       openedAt: fila.openedAt,
@@ -133,7 +158,7 @@ async function sesionesResumen(tenant: string, branchId: string, start: Date, en
       diferenciaPyg: contadoPyg === null ? null : contadoPyg - esperadoPyg,
       notes: fila.notes === null || fila.notes === undefined ? '' : String(fila.notes),
     }
-  })
+  }))
 }
 
 export async function GET(request: Request) {
@@ -167,9 +192,11 @@ export async function GET(request: Request) {
   if (!row[0]) return json({ session: null, openSessions, movements, corrections })
   const session = row[0]
   if (session.status === 'OPEN') {
-    const expectedPyg = esperadoCaja(Number(session.openingPyg), await expected(prisma, tenant, ctx.branchId, session.openedAt instanceof Date ? session.openedAt : new Date(String(session.openedAt)), new Date(), String(session.openedById)))
+    const porMoneda = await cashExpectedByCurrency(prisma, tenant, ctx.branchId, session.openedAt instanceof Date ? session.openedAt : new Date(String(session.openedAt)), new Date(), String(session.openedById))
+    const expectedPyg = esperadoCaja(Number(session.openingPyg), movilPyg(porMoneda))
     if (!Number.isSafeInteger(expectedPyg) || Math.abs(expectedPyg) > LIMITE_MONTO_GENERAL) return error('El total esperado excede el rango permitido.', 422)
     session.expectedPyg = expectedPyg
+    session.expectedByCurrency = esperadoPorMoneda(Number(session.openingPyg), porMoneda)
   }
   return json({ ...session, session, openSessions, movements, corrections })
 }
@@ -200,6 +227,8 @@ export async function POST(request: Request) {
     // él se mantiene el total manual de siempre.
     const countedPyg = arqueo.breakdown ? arqueo.countedPyg : Number(body.countedPyg)
     if (!int(countedPyg)) return error(`El efectivo contado debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
+    const contadoMonedas = countedByCurrencyInput(body.countedByCurrency)
+    if (!contadoMonedas) return error('El efectivo contado por moneda es inválido.')
     const requestedSessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : null
     const result = await prisma.$transaction(async (tx) => {
       const open = requestedSessionId
@@ -210,14 +239,23 @@ export async function POST(request: Request) {
       if (open[0].openedById !== ctx.session.user.id && !['ADMIN', 'GERENTE'].includes(ctx.session.user.role)) throw new Error('Solo administración o gerencia pueden cerrar el turno de otra persona.')
       // Un solo instante de corte: el esperado y el closedAt guardado usan el mismo `cierre`.
       const cierre = new Date()
-      const expectedPyg = esperadoCaja(Number(open[0].openingPyg), await expected(tx, ctx.session.user.tenantId, ctx.branchId, open[0].openedAt, cierre, open[0].openedById))
+      const porMoneda = await cashExpectedByCurrency(tx, ctx.session.user.tenantId, ctx.branchId, open[0].openedAt, cierre, open[0].openedById)
+      const expectedByCurrency = esperadoPorMoneda(Number(open[0].openingPyg), porMoneda)
+      const expectedPyg = esperadoCaja(Number(open[0].openingPyg), movilPyg(porMoneda))
       if (!Number.isSafeInteger(expectedPyg) || Math.abs(expectedPyg) > LIMITE_MONTO_GENERAL) throw new Error('El total esperado excede el rango permitido.')
-      const row = await tx.$queryRaw<Array<Record<string, unknown>>>`UPDATE "CashSession" SET "closedById" = ${ctx.session.user.id}, "closedAt" = ${cierre}, "countedPyg" = ${countedPyg}, "expectedPyg" = ${expectedPyg}, "status" = 'CLOSED', "notes" = ${notes}, "countedBreakdown" = ${arqueo.breakdown ? JSON.stringify(arqueo.breakdown) : null}::jsonb WHERE "id" = ${open[0].id} RETURNING *`
-      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_CLOSED', 'CashSession', ${open[0].id}, ${JSON.stringify({ branchId: ctx.branchId, countedPyg, expectedPyg, differencePyg: countedPyg - expectedPyg, openedById: open[0].openedById, closedById: ctx.session.user.id, arqueo: Boolean(arqueo.breakdown) })}::jsonb)`
-      return { row: row[0], expectedPyg }
+      const row = await tx.$queryRaw<Array<Record<string, unknown>>>`UPDATE "CashSession" SET "closedById" = ${ctx.session.user.id}, "closedAt" = ${cierre}, "countedPyg" = ${countedPyg}, "expectedPyg" = ${expectedPyg}, "status" = 'CLOSED', "notes" = ${notes}, "countedBreakdown" = ${arqueo.breakdown ? JSON.stringify(arqueo.breakdown) : null}::jsonb, "expectedByCurrency" = ${JSON.stringify(expectedByCurrency)}::jsonb, "countedByCurrency" = ${JSON.stringify({ PYG: countedPyg, ...contadoMonedas })}::jsonb WHERE "id" = ${open[0].id} RETURNING *`
+      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_CLOSED', 'CashSession', ${open[0].id}, ${JSON.stringify({ branchId: ctx.branchId, countedPyg, expectedPyg, differencePyg: countedPyg - expectedPyg, expectedByCurrency, countedByCurrency: { PYG: countedPyg, ...contadoMonedas }, openedById: open[0].openedById, closedById: ctx.session.user.id, arqueo: Boolean(arqueo.breakdown) })}::jsonb)`
+      return { row: row[0], expectedPyg, expectedByCurrency }
     })
     if (!result) return error('No hay un turno de caja abierto para cerrar.', 409)
-    return json({ ...result.row, differencePyg: countedPyg - result.expectedPyg })
+    // Diferencia por moneda: lo contado (guaraníes + las monedas informadas) contra el esperado de cada una.
+    const contadoTotal: PorMoneda = { PYG: countedPyg, ...contadoMonedas }
+    const differenceByCurrency: PorMoneda = {}
+    for (const moneda of Object.keys(result.expectedByCurrency)) {
+      if (moneda !== 'PYG' && contadoTotal[moneda] === undefined) continue
+      differenceByCurrency[moneda] = Math.round(((contadoTotal[moneda] ?? 0) - result.expectedByCurrency[moneda]) * 100) / 100
+    }
+    return json({ ...result.row, differencePyg: countedPyg - result.expectedPyg, differenceByCurrency })
   }
   if (action === 'movement') {
     const kind = body.kind; const direction = body.direction; const currency = body.currency ?? 'PYG'

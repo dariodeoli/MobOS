@@ -5,7 +5,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { loadTenantPreferences, PREPARED_FULFILLMENT } from '../../../lib/tenant-preferences'
-import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
+import { InputError, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
@@ -733,6 +733,7 @@ export async function POST(request: Request) {
       for (const { tradeIn, giftCard, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id, userId: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+        await registrarVuelto(tx, { tenantId: tenant, userId: session.user.id, order, payment })
         if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
       }
       // Comprobante congelado al emitir: queda guardado con los ítems, los pagos
