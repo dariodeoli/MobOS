@@ -1,9 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { readFileSync } from 'node:fs'
+
+const paquete = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 export default defineConfig({
   plugins: [react()],
+  // Versión del paquete para el encabezado `X-MobOS-Client` de la app de iPhone
+  // (la versión de la tienda la lee lib/nativo/arranque.js del bundle nativo).
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VITE_APP_VERSION || paquete.version),
+  },
   // host: true expone el dev server a la red local (otras compus/celulares en
   // el mismo WiFi pueden entrar por http://<IP-de-esta-compu>:5175).
   server: {

@@ -17,6 +17,11 @@ import { ConfirmDialog, Modal, PinInput, Select, Skeleton, useToast } from '@/co
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
+import { vibrar } from '@/lib/nativo/haptics'
+import { isNativeIOS, moduloDisponible } from '@/lib/plataforma'
+import ProximamenteIOS from '@/components/nativo/ProximamenteIOS'
+import { alPasarASegundoPlano, marcarPinVigente, pinVigente } from '@/lib/nativo/bloqueo'
+import { faceIdAlAbrir, tipoBiometria, verificarBiometria } from '@/lib/nativo/biometria'
 import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import ComandosAtajos from '@/components/control/ComandosAtajos'
@@ -303,6 +308,9 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
   Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
 )
 
+// Vistas de precios/pagos: la app nunca enlaza a su versión web.
+const SIN_ENLACE_WEB = ['precios', 'celulares', 'comparador', 'centro-control', 'creditos', 'finanzas', 'cuotas', 'comisiones']
+
 const LABELS = {
   clientes: 'Clientes',
   campanas: 'Campañas',
@@ -449,6 +457,8 @@ export default function PanelVendedor() {
   const [sidebarCollapsed, recordarSidebar] = useUltimoUsado('shell:menu-plegado', false)
   const [locked, setLocked] = useState(() => {
     // El bloqueo sobrevive a la recarga (#204): sin esto, F5 lo saltaba.
+    // App de iPhone: arranque en frío = PIN siempre (equipos compartidos).
+    if (isNativeIOS() && !esDemo && !pinVigente()) return true
     try { return sessionStorage.getItem(LOCK_FLAG_KEY) === '1' } catch { return false }
   })
   const [lockPin, setLockPin] = useState('')
@@ -472,9 +482,13 @@ export default function PanelVendedor() {
   const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const navActual = useMemo(() => {
     const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
-    if (puedeCampanas) return base
-    return base.map(group => ({ ...group, items: group.items.filter(([id]) => id !== 'campanas') }))
+    // App de iPhone v1: solo Vender, Pedidos, Clientes y Configuración.
+    return base
+      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id)) }))
+      .filter(group => group.items.length)
   }, [esOwner, esTecnico, puedeCampanas])
+  const vistaRequerida = subpadre ? SUBPAGINAS[subpadre].vista : vista
+  const proximamenteIOS = !moduloDisponible(vistaRequerida)
   const idsDelMenu = useMemo(() => new Set(navActual.flatMap(group => group.items.map(([id]) => id))), [navActual])
   const accesibles = useMemo(() => {
     const base = navActual.flatMap(group => group.items).map(([id]) => id)
@@ -544,6 +558,10 @@ export default function PanelVendedor() {
       navigate(rutaDeVista(primera) || '/pos', { replace: true })
     }
   }, [subpadre, accesibles, vista, navigate])
+  // App de iPhone: el inicio no existe; la app abre directo en Vender.
+  useEffect(() => {
+    if (!subpadre && vista === 'resumen' && !moduloDisponible('resumen')) navigate('/pos', { replace: true })
+  }, [subpadre, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
   useEffect(() => {
     if (subpadre) {
@@ -654,7 +672,7 @@ export default function PanelVendedor() {
   })
 
   const intentarDesbloqueo = useCallback(
-    async pinIntento => {
+    async (pinIntento) => {
       if (lockEnCurso.current) return
       lockEnCurso.current = true
       setLockBusy(true)
@@ -669,7 +687,8 @@ export default function PanelVendedor() {
         setLocked(false)
         setLockPin('')
         marcarBloqueo(false)
-        try { navigator.vibrate?.(40) } catch { /* sin soporte de vibración */ }
+        vibrar('exito')
+        marcarPinVigente(true)
       } catch (err) {
         setLockError(err?.message || 'PIN inválido. Probá de nuevo.')
         setLockPin('')
@@ -681,6 +700,31 @@ export default function PanelVendedor() {
     [esDemo, esOwner, sesion?.vendedorId, usuario?.pin],
   )
 
+  // Face ID opcional (Configuración, solo dueño/admin): se pide ANTES del PIN,
+  // nunca en su lugar. Con el respaldo del código del iPhone que da el sistema.
+  const [faceIdPendiente, setFaceIdPendiente] = useState(false)
+  const faceIdIntentado = useRef(false)
+  const pedirFaceId = useCallback(async () => {
+    if (await verificarBiometria('Abrí MobOS')) setFaceIdPendiente(false)
+  }, [])
+  useEffect(() => {
+    if (!locked || !isNativeIOS() || esDemo || !faceIdAlAbrir()) { faceIdIntentado.current = false; setFaceIdPendiente(false); return undefined }
+    if (faceIdIntentado.current) return undefined
+    faceIdIntentado.current = true
+    let vivo = true
+    tipoBiometria().then((tipo) => { if (vivo && tipo) { setFaceIdPendiente(true); pedirFaceId() } })
+    return () => { vivo = false }
+  }, [locked, esDemo, pedirFaceId])
+
+  // App de iPhone: al pasar a segundo plano se bloquea; al volver pide el PIN.
+  useEffect(() => {
+    if (!isNativeIOS() || esDemo || !sesion?.vendedorId) return undefined
+    let quitar = () => {}
+    let vivo = true
+    alPasarASegundoPlano(() => { marcarPinVigente(false); pedirBloqueo() }).then((fn) => { if (vivo) quitar = fn; else fn() })
+    return () => { vivo = false; quitar() }
+  }, [esDemo, sesion?.vendedorId])
+
   useEffect(() => {
     if (locked && lockPin.length === pinLength) intentarDesbloqueo(lockPin)
   }, [locked, lockPin, pinLength, intentarDesbloqueo])
@@ -689,6 +733,7 @@ export default function PanelVendedor() {
     setSaliendo(true)
     marcarBloqueo(false)
     try {
+      marcarPinVigente(false)
       await salir()
     } finally {
       setSaliendo(false)
@@ -857,6 +902,7 @@ export default function PanelVendedor() {
         <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-4">
           <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
+          {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (<>
           {posMontado && (
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
             {tradeIn?.identidad === identidad && (
@@ -985,6 +1031,7 @@ export default function PanelVendedor() {
               )}
             </div>
           )}
+          </>)}
           </Suspense>
           </VistaErrorBoundary>
         </main>
@@ -1069,6 +1116,7 @@ export default function PanelVendedor() {
           setPin('')
         }}
         onSalir={() => setSalirAbierto(true)}
+        faceId={faceIdPendiente ? { onReintentar: pedirFaceId } : null}
       />
 
       <Modal

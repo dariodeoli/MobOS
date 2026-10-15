@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { isNativeIOS } from '@/lib/plataforma'
+import { iniciarEscaneoNativo } from '@/lib/nativo/escaner'
 import { Button } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
@@ -18,10 +20,27 @@ export default function CameraScan({ onDetected, onClose, continuous = false, cl
   alCerrar.current = onClose
   const [message, setMessage] = useState('Preparando cámara…')
 
+  // Los callbacks viajan por ref: si el padre los recrea en cada render, el
+  // escáner nativo no se reabre.
+  const callbacks = useRef({ onDetected, onClose })
+  callbacks.current = { onDetected, onClose }
+  useEffect(() => {
+    if (!isNativeIOS()) return undefined
+    setMessage('Abriendo la cámara…')
+    return iniciarEscaneoNativo({
+      continuous,
+      onDetected: (valor) => callbacks.current.onDetected(valor),
+      onClose: () => callbacks.current.onClose?.(),
+      setMessage,
+    })
+  }, [continuous])
+
   useEffect(() => {
     let stream
     let timer
     let stopped = false
+    // App de iPhone: lo resuelve el efecto del escáner nativo (ML Kit).
+    if (isNativeIOS()) return undefined
     async function start() {
       if (!navigator.mediaDevices?.getUserMedia || !window.BarcodeDetector) {
         setMessage('Este navegador no admite escaneo por cámara. Usá un lector Bluetooth/USB o pegá los códigos.')

@@ -1,6 +1,8 @@
 import { ApiError } from './errors'
 import { CACHE_GET_MS, cacheDeConsultas } from './requestCache'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { guardarTokens, opcionesDeSesion } from './nativo'
+import { isNativeIOS } from '../plataforma'
 
 // La variable del Hub tiene prioridad, salvo el host legado: un build con la
 // URL anterior provoca un redirect entre orígenes y el navegador bloquea el
@@ -98,16 +100,19 @@ export function request(path, options = {}) {
 async function ejecutarConsulta({ path, init, body, headers, metodo, clave, ventana, signal, timeoutMs }) {
   const espera = controlDeEspera(signal, timeoutMs)
   const multipart = typeof FormData !== 'undefined' && body instanceof FormData
+  const sesion = opcionesDeSesion(path)
   let response
   try {
     response = await fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, {
       ...init,
       signal: espera.signal,
-      // La sesión vive en cookies HttpOnly del API. Nunca persistimos ni
-      // reconstruimos tokens de acceso desde JavaScript.
-      credentials: 'include',
+      // Web: la sesión vive en cookies HttpOnly del API y JavaScript nunca ve
+      // un token. App de iPhone: sin cookies, Bearer desde el Keychain y el
+      // encabezado `X-MobOS-Client` (ver lib/api/nativo.js).
+      credentials: sesion.credentials,
       headers: {
         Accept: 'application/json',
+        ...sesion.headers,
         ...(body !== undefined && !multipart ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       },
@@ -143,6 +148,9 @@ async function ejecutarConsulta({ path, init, body, headers, metodo, clave, vent
   }
   // Una consulta se guarda unos segundos; una mutación invalida todo lo
   // consultado porque cualquier lectura previa pudo quedar desactualizada.
+  // El API devuelve `{ token, sellerToken?, expiresAt }` en login/PIN/Google/
+  // Apple solo a los clientes nativos: van al Keychain, no al estado de React.
+  if (isNativeIOS() && payload && typeof payload === 'object' && (payload.token || payload.sellerToken)) await guardarTokens(payload)
   if (metodo === 'GET') cacheDeConsultas.guardar(clave, payload, ventana)
   else cacheDeConsultas.invalidarTodo()
   return payload
@@ -165,7 +173,12 @@ export async function apiFetch(path, options = {}) {
   if (!API_URL) {
     throw new ApiError('VITE_API_URL no está configurada.', { code: 'API_NOT_CONFIGURED' })
   }
-  return fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, { credentials: 'include', ...options })
+  const sesion = opcionesDeSesion(path)
+  return fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, {
+    credentials: sesion.credentials,
+    ...options,
+    headers: { ...sesion.headers, ...(options.headers || {}) },
+  })
 }
 
 export { API_URL }

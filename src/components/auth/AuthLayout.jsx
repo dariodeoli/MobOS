@@ -3,6 +3,7 @@ import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
 import { publicUrls } from '@/lib/urls'
 import { cn } from '@/lib/utils'
+import { isNativeIOS } from '@/lib/plataforma'
 import { Boxes, CircleCheckBig, Smartphone, WalletCards } from 'lucide-react'
 
 // Propuesta de valor del lado izquierdo (escritorio): mismas ideas que la landing.
@@ -24,7 +25,7 @@ export default function AuthLayout({
   className,
 }) {
   return (
-    <main className="auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore">
+    <main className={cn('auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore', isNativeIOS() && 'auth-ios')}>
       <div className="absolute right-4 top-4 z-20">
         <ThemeToggle />
       </div>
@@ -58,7 +59,7 @@ export default function AuthLayout({
         </section>
         {children}
       </div>
-      <ProductFooter className="shrink-0" />
+      {!isNativeIOS() && <ProductFooter className="shrink-0" />}
     </main>
   )
 }
@@ -74,6 +75,9 @@ export function AuthPanel({ children, className }) {
 
 /** Encabezado del panel: volver + logo + subtítulo (misma jerarquía siempre). */
 export function AuthPanelHeader({ volver = publicUrls.landing, volverLabel = 'Volver al inicio', subtitulo = 'Sistema de ventas para tiendas' }) {
+  // App de iPhone: sin landing a la que volver y con el logo chico para que el
+  // ingreso entre en una sola pantalla (iPhone SE incluido).
+  if (isNativeIOS()) return <ThemeLogo className="mb-3 w-32" />
   return (
     <>
       <a href={volver} className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← {volverLabel}</a>

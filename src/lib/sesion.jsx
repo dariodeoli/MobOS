@@ -8,6 +8,7 @@ import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { consumirPinTrasCambio } from '@/lib/api/session'
+import { marcarPinVigente } from '@/lib/nativo/bloqueo'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { usarTenantImpresoras, usarSucursalImpresoras } from '@/lib/printing/agent'
@@ -128,10 +129,10 @@ export function SesionProvider({ children }) {
   useEffect(() => { fijarEmpresaImpresion({ branch: sucursal }) }, [sucursal])
   usarSucursalImpresoras(sucursal?.id)
   async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
-  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
-  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
+  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
+  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
   async function entrar(session) { if (!session?.user) throw new Error('Usá el flujo de autenticación de MobOS.'); await activarSesion(session.user) }
-  async function salir() { limpiarAvatarCache(); if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setPerfilEmpresa(null); setEstado('fuera'); window.location.assign('/login') }
+  async function salir() { limpiarAvatarCache(); marcarPinVigente(false); if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setPerfilEmpresa(null); setEstado('fuera'); window.location.assign('/login') }
   async function cambiarSucursal(sucursalId) {
     const destino = sucursales.find((s) => s.id === sucursalId)
     if (!destino) return

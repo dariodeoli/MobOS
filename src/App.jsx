@@ -14,6 +14,8 @@ import DemoAccess from '@/pages/DemoAccess'
 import { DESTINO_LEGADO } from '@/lib/rutas'
 import AvisoMetricas from '@/components/app/AvisoMetricas'
 import TraficoSitio from '@/components/app/TraficoSitio'
+import { isNativeIOS } from '@/lib/plataforma'
+import PuertaNativa from '@/components/nativo/PuertaNativa'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -309,7 +311,8 @@ export default function App() {
         <MetadatosPagina />
         <TraficoSitio kind="demo" />
         <AvisoMetricas soloDemo />
-        <AvisoVersion />
+        {/* App de iPhone: la UI viaja empaquetada, no hay «versión nueva» web. */}
+        {isNativeIOS() ? <PuertaNativa /> : <AvisoVersion />}
         <Suspense fallback={<PaginaCargando />}>
         <Routes>
           <Route path="/demo" element={<DemoAccess />} />

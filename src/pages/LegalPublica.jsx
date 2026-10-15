@@ -3,6 +3,7 @@ import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import PreferenciaMedicion from '@/components/app/PreferenciaMedicion'
 import { publicUrls } from '@/lib/urls'
+import { isNativeIOS } from '@/lib/plataforma'
 
 // Páginas públicas de Privacidad y Términos (#322): información breve y
 // factual del servicio, enlazada desde el pie de la landing. No son páginas
@@ -31,7 +32,7 @@ const CONTENIDO = {
     titulo: 'Términos',
     intro: 'Condiciones básicas del servicio.',
     bloques: [
-      ['Servicio', 'MobOS es un sistema de gestión para tiendas, gratuito por ahora, con actualizaciones y soporte incluidos. Si en el futuro se introducen planes de pago, se anunciarán con anticipación y nunca se cobrará sin la aceptación explícita del cliente.'],
+      ['Servicio', 'MobOS es un sistema de gestión para tiendas, de uso gratuito, con actualizaciones y soporte incluidos.'],
       ['Tu responsabilidad', 'Cada tienda responde por los datos que carga y por el uso que hace su equipo; las credenciales y los PIN son personales.'],
       ['Documentos', 'Los comprobantes y reportes de MobOS son documentos no fiscales: no reemplazan la facturación electrónica de tu país.'],
       ['Disponibilidad', 'El estado de los servicios se publica en moboss.online/status. Podés dejar el servicio cuando quieras y exportar tus datos.'],
@@ -54,10 +55,11 @@ const CONTENIDO = {
 export default function LegalPublica() {
   const { pathname } = useLocation()
   const pagina = CONTENIDO[pathname] || CONTENIDO['/privacidad']
-  const volver = import.meta.env.DEV ? '/landing-preview' : publicUrls.landing
+  // En la app de iPhone no existe la landing: «Volver» regresa al ingreso.
+  const volver = isNativeIOS() ? '/login' : import.meta.env.DEV ? '/landing-preview' : publicUrls.landing
   return (
     <div className="flex min-h-dvh flex-col bg-paper text-fore">
-      <header className="border-b border-fore/[.07]">
+      <header className="border-b border-fore/[.07]" style={{ paddingTop: "env(safe-area-inset-top)" }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3.5">
           <a href={volver} aria-label="MobOS · volver a la landing" className="toque-44 inline-flex items-center">
             <ThemeLogo className="h-8" />

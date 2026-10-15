@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState } from 'react'
-import { API_URL, api } from '@/lib/api'
+import { api, apiFetch } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, ConfirmDialog, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -51,7 +51,7 @@ export default function AttachmentList({ entity, entityId, puedeSubir = false, t
   async function descargar(item) {
     setError('')
     try {
-      const response = await fetch(`${API_URL}/api/attachments/${encodeURIComponent(item.id)}/download`, { credentials: 'include' })
+      const response = await apiFetch(`/api/attachments/${encodeURIComponent(item.id)}/download`)
       if (!response.ok) throw new Error('No se pudo descargar el adjunto.')
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
