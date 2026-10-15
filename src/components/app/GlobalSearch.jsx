@@ -9,6 +9,7 @@ import { listarClientesDemo } from '@/lib/demoClientes'
 import { listDemoQuotes } from '@/lib/demo/cotizaciones'
 import { listDemoSuppliers, listDemoUnits } from '@/lib/demoInventory'
 import { loadDemoPurchases } from '@/lib/demoPurchases'
+import { buscarAjustes, destinoAjuste, migasAjuste } from '@/lib/configIndice'
 import { clasificarFallo, estadoBusqueda, filtrarLocal, mensajeDeEstado } from '@/lib/busquedaGlobal'
 
 const MAX_POR_GRUPO = 5
@@ -43,6 +44,10 @@ const ACCESOS = [
 ]
 ETIQUETAS_TIPO.accesos = 'Accesos'
 ICONOS_TIPO.accesos = 'search'
+// #410: los ajustes de Configuración salen de su propio índice (con sinónimos y
+// filtrado por rol), en un grupo propio con el camino hasta el ajuste.
+ETIQUETAS_TIPO.configuracion = 'Configuración'
+ICONOS_TIPO.configuracion = 'settings'
 
 const proyectarCliente = row => ({
   id: row.id,
@@ -139,7 +144,7 @@ const PROYECTORES = {
 // compras, proveedores y unidades filtran en el servidor; productos y pedidos
 // se traen completos y se filtran acá para conservar el comportamiento previo.
 // El atajo lo maneja el shell (PanelVendedor), por eso `conAtajo={false}`.
-export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
+export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwner = false }) {
   // La paleta (v0.62.0) muestra `mensajeError`, no el mensaje del throw: el
   // estado del último fallo se refleja en ese prop para distinguir servicio de
   // conexión. Cambiar el prop reejecuta la consulta una vez y deja el mensaje
@@ -188,8 +193,19 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
         datos: { vista: acceso.vista },
       }))
 
+    const ajustes = buscarAjustes(q, { esOwner, limite: MAX_POR_GRUPO }).map(entrada => {
+      const destino = destinoAjuste(entrada, { esOwner })
+      return {
+        id: `configuracion:${entrada.id}`,
+        tipo: 'configuracion',
+        titulo: entrada.label,
+        detalle: migasAjuste(entrada).join(' › '),
+        datos: { vista: destino.vista, params: destino.opciones },
+      }
+    })
+
     // Demo (#296): la búsqueda nunca depende del backend; el catálogo local alcanza.
-    if (isDemoRuntime) return [...accesos, ...filasLocales(q, ids)]
+    if (isDemoRuntime) return [...accesos, ...ajustes, ...filasLocales(q, ids)]
 
     const busquedas = {
       clientes: api
@@ -231,7 +247,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
     }
     const settled = await Promise.allSettled(ids.map(id => busquedas[id]))
     const fallos = []
-    const resultados = [...accesos]
+    const resultados = [...accesos, ...ajustes]
     settled.forEach((resultado, indice) => {
       const id = ids[indice]
       if (resultado.status === 'fulfilled') {
@@ -252,7 +268,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
     const locales = filasLocales(q, ids)
     if (locales.length) {
       if (estadoError) setEstadoError('')
-      return [...accesos, ...locales]
+      return [...accesos, ...ajustes, ...locales]
     }
     setEstadoError(estado)
     throw new Error(mensajeDeEstado(estado))
@@ -265,7 +281,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
       conAtajo={false}
       titulo="Búsqueda global"
       ariaLabel="Buscar en toda la tienda"
-      placeholder="Buscar clientes, pedidos, cotizaciones, compras…"
+      placeholder="Buscar clientes, pedidos, compras, ajustes…"
       buscar={buscar}
       onElegir={(resultado) => onNavigate(resultado.datos.vista, resultado.datos.params)}
       etiquetasTipo={ETIQUETAS_TIPO}

@@ -64,10 +64,12 @@ test('#298 · una sola navegación de Configuración, siempre con texto', async 
   await capturar(page, '01-navegacion-escritorio')
 
   // Mobile: la misma navegación como tira de pestañas, con el rótulo actual y sin desborde.
+  // #410: en celular /configuracion es la lista de las siete secciones con rótulo.
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.reload()
+  await page.goto('/configuracion')
   await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible()
-  await expect(page.locator(NAV).locator('[aria-current="page"]')).toHaveText('Organización')
+  await expect(page.locator(NAV).locator('[data-tab-id]')).toHaveCount(ETIQUETAS.length)
+  await expect(page.locator(NAV).locator('[data-tab-id="organizacion"]')).toHaveAttribute('aria-label', 'Organización')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '02-navegacion-mobile')
 })

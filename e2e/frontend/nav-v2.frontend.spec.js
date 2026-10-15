@@ -213,7 +213,7 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
   const profile = page.getByRole('dialog', { name: 'Perfil y preferencias' })
   await openProfile()
   await profile.getByRole('button', { name: 'Configuración', exact: true }).click()
-  await expect(page).toHaveURL(/\/configuracion\//)
+  await expect(page).toHaveURL(/\/configuracion(\/|$)/)
   await expect(page.getByTestId('config-grupos')).toBeVisible()
   await expect(page.getByTestId('config-grupos').getByRole('combobox')).toHaveCount(0)
   await openProfile()
