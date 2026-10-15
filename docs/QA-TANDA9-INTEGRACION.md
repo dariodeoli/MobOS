@@ -11,7 +11,7 @@ Auditoría inicial de navegación, POS, ventas y clientes: 227 escenarios, 188 a
 
 QA independiente aprobó las matrices de Stock claro/oscuro y las filas de Productos, Compras y Taller (≤48px con controles44px). El último fallo de fechas de vendidos en oscuro se corrigió con el color secundario adaptativo existente y pasó en375/768/1280/1440. Se conservan las pruebas existentes de contraste≥4.5 y geometría; no se relajaron umbrales.
 
-Cobro móvil: siete escenarios de envío real o fallido aprobados; regresión determinista adicional verifica que a349ms la acción siga deshabilitada, a350ms esté disponible y el primer toque produzca exactamente un envío.
+Cobro móvil: siete escenarios de envío real o fallido aprobados; dos regresiones deterministas a320/390px verifican con teclado que a349ms la acción siga deshabilitada, a350ms esté disponible y la primera activación produzca exactamente un envío. El árbol accesible expone el botón y su estado disabled; no sustituye una prueba física con VoiceOver.
 
 Puertas locales anteriores a integrar backend393/433:1485 unitarios frontend aprobados;330 backend aprobados y1salto condicional SQL; builds y Prisma aprobados; lint sin errores, una advertencia previa en DeliveryOperations. Harness HTTP completo aprobado. Los cambios posteriores de backend requieren volver a ejecutar sus puertas antes de publicar.
 
@@ -32,3 +32,7 @@ Se ejecutó de forma aislada `node --test backend/tests/billing-identity-default
 
 ## Publicación
 Builds frontend/backend y Prisma aprobados; 1488 unitarios frontend y 330 backend aprobados (un salto condicional de SQL). Smoke conjunto: 19 aprobados al primer intento. Pendiente CI protegido, deploy y smoke de producción. Este informe no afirma todavía producción229 ni un nuevo build de TestFlight.
+
+## Criterios finales antes del merge
+#489: teclado y árbol accesible a320/390px aprobados (2 escenarios, reloj349/350ms, un solo envío). Se conserva el ensayo físico con VoiceOver como límite de la evidencia automatizada.
+#433: se agregan alias /p/:slug/politicas y detalle en ambas ramas de rutas, manteniendo la vista y enlaces canónicos. La prueba de app cubre360/1440; el ensayo exploratorio de hostname portal falló en el proxy Vite antes de cargar React y no se cuenta como aprobación de ese hostname. Los cuatro Route comparten PoliticasPublicas y fueron revisados.
