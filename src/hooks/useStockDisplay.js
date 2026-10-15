@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { CONFIG_VACIA, normalizarConfig, preferenciaEfectiva } from '@/lib/stockDisplay'
+import { normalizarPlanilla, planillaEfectiva } from '@/lib/planillaPrefs'
 
 // Presentación del Stock (#448): colores por condición/depósito y orden por
 // defecto. La empresa guarda la suya (GET/PUT /api/tenant/stock-display; en la
@@ -75,5 +76,16 @@ export function useStockDisplay() {
     setPropia(limpio)
   }, [usuarioId])
 
-  return { empresa, propia, preferencia, colores: empresa, guardarEmpresa, guardarPropia, cargado: Boolean(cache.empresa) }
+  // Planilla de Unidades (#466): fábrica < default de la empresa < lo que eligió este usuario.
+  const planilla = useMemo(() => planillaEfectiva(empresa.planilla, propia.planilla), [empresa, propia])
+  /** Cambia solo lo de este usuario; un valor `undefined` vuelve a «como la empresa». */
+  const guardarPlanillaPropia = useCallback((parche) => {
+    const siguiente = { ...(propia.planilla || {}), ...parche }
+    for (const clave of Object.keys(siguiente)) if (siguiente[clave] === undefined) delete siguiente[clave]
+    guardarPropia({ ...propia, planilla: normalizarPlanilla(siguiente) })
+  }, [propia, guardarPropia])
+  /** Cambia el default de la empresa (el servidor solo lo deja al dueño o gerente). */
+  const guardarPlanillaEmpresa = useCallback((parche) => guardarEmpresa({ ...empresa, planilla: normalizarPlanilla({ ...(empresa.planilla || {}), ...parche }) }), [empresa, guardarEmpresa])
+
+  return { empresa, propia, preferencia, planilla, colores: empresa, guardarEmpresa, guardarPropia, guardarPlanillaPropia, guardarPlanillaEmpresa, cargado: Boolean(cache.empresa) }
 }

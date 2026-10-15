@@ -1,12 +1,15 @@
 // Filtros de la lista de Stock (U3): viven en la URL (?tipo=&estado=&sucursal=
 // &proveedor=…) para que se puedan compartir, recargar y volver con «Atrás».
 // Funciones puras: sin React ni red.
-import { ESTADOS_STOCK, TIPOS_STOCK } from '@/lib/stockItems'
+import { ESTADOS_STOCK, TIPOS_STOCK } from '../../lib/stockItems.js'
 
 const TIPOS = TIPOS_STOCK.map(([id]) => id)
 const ESTADOS = ESTADOS_STOCK.map(([id]) => id)
 const PERIODOS = ['hoy', 'ayer', 'rango']
 const CLAVES_FILTRO = ['tipo', 'estado', 'sucursal', 'proveedor']
+
+/** Valor de ?sucursal= que pide ver todas las sucursales (sin él, Unidades arranca en la activa, #466). */
+export const SUCURSAL_TODAS = 'todas'
 
 const id = (valor) => String(valor || '').trim().slice(0, 128)
 const fechaDia = (valor) => (/^\d{4}-\d{2}-\d{2}$/.test(String(valor || '')) ? String(valor) : '')
@@ -40,7 +43,18 @@ export function conFiltroStock(searchParams, cambios = {}) {
 }
 
 /** Hay algún chip activo (tipo, estado, sucursal o proveedor). */
-export const hayFiltrosStock = (filtros) => CLAVES_FILTRO.some((clave) => Boolean(filtros?.[clave]))
+export const hayFiltrosStock = (filtros) => CLAVES_FILTRO.some((clave) => (clave === 'sucursal' && filtros?.sucursalPorDefecto ? false : Boolean(filtros?.[clave])))
+
+/**
+ * Filtros efectivos de Unidades (#466): la sucursal de la URL manda; `todas` muestra todas; sin nada
+ * se usa la sucursal activa del selector (solo si la empresa tiene más de una y no hay un producto acotado).
+ */
+export function conSucursalActiva(filtros, { aplica = false, sucursalActivaId = '' } = {}) {
+  if (filtros.sucursal === SUCURSAL_TODAS) return { ...filtros, sucursal: '', sucursalPorDefecto: false }
+  if (filtros.sucursal) return { ...filtros, sucursalPorDefecto: false }
+  if (aplica && sucursalActivaId && !filtros.producto) return { ...filtros, sucursal: sucursalActivaId, sucursalPorDefecto: true }
+  return { ...filtros, sucursalPorDefecto: false }
+}
 
 /** Quita los chips (la búsqueda y el producto que acota la vista se conservan). */
 export function sinFiltrosStock(searchParams) {

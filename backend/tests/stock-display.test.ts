@@ -34,3 +34,9 @@ assert.equal(Object.keys(sanitizeStockDisplay({ colores: muchos }).colores).leng
 // Lectura desde Tenant.settings: forma estable aunque falte la clave.
 assert.deepEqual(stockDisplayFrom({}), emptyStockDisplay())
 assert.equal(stockDisplayFrom({ stockDisplay: { tipoPrimero: 'ACCESORIO' } }).tipoPrimero, 'ACCESORIO')
+
+// Planilla de Unidades (#466): solo opciones conocidas; columnas únicas y válidas.
+const planilla = sanitizeStockDisplay({ planilla: { proveedor: 'nombre', ubicacion: 'icono', imei: 'ultimos4', estado: 'completo', columnas: ['imei', 'imei', 'hack', 'nota'], costo: false } }).planilla
+assert.deepEqual(planilla, { proveedor: 'nombre', ubicacion: 'icono', imei: 'ultimos4', estado: 'completo', columnas: ['imei', 'nota'], costo: false })
+assert.deepEqual(sanitizeStockDisplay({ planilla: { proveedor: '<b>', imei: 4, costo: 'si', columnas: 'x' } }).planilla, {})
+assert.deepEqual(stockDisplayFrom({}).planilla, {})

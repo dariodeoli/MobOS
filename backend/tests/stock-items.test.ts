@@ -204,6 +204,19 @@ test('planilla (#400): la fila de unidad trae ciclos, garantía, nota, reserva y
   assert.deepEqual([fila.supplierName, fila.supplierIcon, fila.supplierColor, fila.batteryCycles, fila.notes], ['ABC', 'TRUCK', '#112233', 212, 'garantía enero 2027'])
 })
 
+test('planilla v2 (#466): quién verificó y la nota de venta con su entrega salen en la fila', () => {
+  const base = { id: 'u', kind: 'unit', stockKind: 'EQUIPO', productId: 'p', sku: 'S', model: 'm', name: 'n', serial: 'I', status: 'vendido', quantity: 1, createdAt: new Date() }
+  const vendida = mapStockRow({ ...base, verifiedById: 'usr1', verifiedByName: 'Ana Gómez', soldOrderNumber: 'MOB-0042', soldDelivered: true }, false, false)
+  assert.deepEqual([vendida.verifiedById, vendida.verifiedByName, vendida.soldOrderNumber, vendida.soldDelivered], ['usr1', 'Ana Gómez', 'MOB-0042', true])
+  assert.equal(mapStockRow({ ...base, soldOrderNumber: 'MOB-0043', soldDelivered: false }, false, false).soldDelivered, false)
+  const libre = mapStockRow(base, false, false)
+  assert.deepEqual([libre.soldOrderNumber, libre.soldDelivered, libre.verifiedById], [null, null, null])
+  const sql = sqlOf(buildStockItemsPageSql(filtersOf(''), scope(), null)!)
+  assert.match(sql, /"soldOrderNumber"/)
+  assert.match(sql, /"soldOrderItemId"/)
+  assert.match(sql, /so\."tenantId" = u\."tenantId"/)
+})
+
 test('filtros sin estado ni tipo usan los defaults esperados', () => {
   const filters: StockItemsFilters = filtersOf()
   assert.deepEqual([filters.rowKind, filters.stockKind, filters.status, filters.q], [null, null, null, ''])

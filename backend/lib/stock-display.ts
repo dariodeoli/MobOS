@@ -9,7 +9,26 @@ export const STOCK_CONDICIONES_PRIMERO = ['', 'nuevo', 'semi'] as const
 export type StockTipoPrimero = (typeof STOCK_TIPOS_PRIMERO)[number]
 export type StockCondicionPrimero = (typeof STOCK_CONDICIONES_PRIMERO)[number]
 export type StockColorCondicion = { nuevo?: string; semi?: string }
+/** Cómo se dibuja la planilla de Unidades (#466). Cada campo es opcional: el que falta lo pone el default de la empresa o el de fábrica. */
+export const PLANILLA_OPCIONES = {
+  proveedor: ['sigla', 'nombre'],
+  ubicacion: ['abrev', 'nombre', 'icono'],
+  imei: ['completo', 'ultimos4'],
+  estado: ['abrev', 'completo'],
+} as const
+export const PLANILLA_COLUMNAS = ['condicion', 'ingreso', 'imei', 'ubicacion', 'proveedor', 'costo', 'estado', 'verificado', 'garantia', 'nota'] as const
+export type StockPlanilla = {
+  proveedor?: string
+  ubicacion?: string
+  imei?: string
+  estado?: string
+  /** Columnas visibles, en orden. */
+  columnas?: string[]
+  /** false oculta el costo en la planilla; el permiso real (Permisos) sigue mandando. */
+  costo?: boolean
+}
 export type StockDisplay = {
+  planilla: StockPlanilla
   tipoPrimero: StockTipoPrimero
   condicionPrimero: StockCondicionPrimero
   /** Clave: id del depósito, o «*» para todos. Valor: color de fondo por condición. */
@@ -24,7 +43,23 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 export function emptyStockDisplay(): StockDisplay {
-  return { tipoPrimero: '', condicionPrimero: '', colores: {} }
+  return { tipoPrimero: '', condicionPrimero: '', colores: {}, planilla: {} }
+}
+
+export function sanitizePlanilla(input: unknown): StockPlanilla {
+  const raw = asRecord(input)
+  const out: StockPlanilla = {}
+  for (const [clave, validos] of Object.entries(PLANILLA_OPCIONES)) {
+    const valor = raw[clave]
+    if (typeof valor === 'string' && (validos as readonly string[]).includes(valor)) (out as Record<string, unknown>)[clave] = valor
+  }
+  if (Array.isArray(raw.columnas)) {
+    const vistas = new Set<string>()
+    for (const columna of raw.columnas) if (typeof columna === 'string' && (PLANILLA_COLUMNAS as readonly string[]).includes(columna)) vistas.add(columna)
+    out.columnas = [...vistas]
+  }
+  if (typeof raw.costo === 'boolean') out.costo = raw.costo
+  return out
 }
 
 export function sanitizeStockDisplay(input: unknown): StockDisplay {
@@ -41,7 +76,7 @@ export function sanitizeStockDisplay(input: unknown): StockDisplay {
     if (typeof item.semi === 'string' && HEX.test(item.semi)) limpio.semi = item.semi.toLowerCase()
     if (limpio.nuevo || limpio.semi) colores[clave] = limpio
   }
-  return { tipoPrimero: tipo, condicionPrimero: condicion, colores }
+  return { tipoPrimero: tipo, condicionPrimero: condicion, colores, planilla: sanitizePlanilla(raw.planilla) }
 }
 
 /** Lee la preferencia de Tenant.settings con forma estable. */

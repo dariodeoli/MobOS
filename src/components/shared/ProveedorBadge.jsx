@@ -20,9 +20,10 @@ export const ICONOS_PROVEEDOR = Object.freeze({
 const HEX = /^#[0-9a-fA-F]{6}$/
 
 /**
- * @param {{ sigla?: string|null, icono?: string|null, color?: string|null, nombre?: string|null, className?: string }} props
+ * @param {{ sigla?: string|null, icono?: string|null, color?: string|null, nombre?: string|null, modo?: 'sigla'|'nombre', className?: string }} props
+ *   `modo="nombre"` (#466) muestra el nombre completo si el rol lo tiene; si no, la sigla.
  */
-export default function ProveedorBadge({ sigla = '', icono = null, color = null, nombre = null, className }) {
+export default function ProveedorBadge({ sigla = '', icono = null, color = null, nombre = null, modo = 'sigla', className }) {
   const texto = String(sigla || '').trim()
   if (!texto) return <span className={cn('text-xs text-mute', className)} title="Sin proveedor">—</span>
   const nombreIcono = ICONOS_PROVEEDOR[String(icono || '').toUpperCase()]
@@ -33,7 +34,7 @@ export default function ProveedorBadge({ sigla = '', icono = null, color = null,
       {nombreIcono
         ? <Icon name={nombreIcono} className="h-3 w-3 shrink-0" aria-hidden="true" style={propio ? { color: propio } : undefined} />
         : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-sm" style={{ background: propio || 'currentColor' }} />}
-      <span className="truncate">{texto}</span>
+      <span className="truncate">{modo === 'nombre' && nombre ? nombre : texto}</span>
     </span>
   )
 }

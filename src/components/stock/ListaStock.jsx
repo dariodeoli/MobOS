@@ -86,7 +86,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
     rolVeCosto, abrirDetalleItem, requestReason, navigate, query, orden, vistaUnidades, setError,
   } = ctx
   const angosta = usePantallaAngosta('(min-width: 768px)')
-  const { colores, preferencia } = useStockDisplay()
+  const { colores, preferencia, planilla, propia, guardarPlanillaPropia, guardarPlanillaEmpresa } = useStockDisplay()
   // El orden por defecto (tipo y condición primero, #448) solo rige mientras el usuario no eligió otro orden.
   const conPreferencia = (!orden || orden === 'recientes') && hayPreferenciaDeOrden(preferencia)
   const items = useMemo(() => {
@@ -159,6 +159,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
           onAbrir={abrir}
           accionesDe={(item) => accionesDeItem(item, ctx)}
           onGuardarNota={guardarNota}
+          personalizacion={{ planilla, propia: propia.planilla || {}, guardarPropia: guardarPlanillaPropia, guardarEmpresa: guardarPlanillaEmpresa }}
         />
       ) : angosta ? (
         <div className="space-y-1.5" data-testid="inventario-tarjetas">
