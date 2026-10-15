@@ -13,6 +13,38 @@ mkdirSync(DIR, { recursive: true })
 const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ganadores-${nombre}.png`) })
 
 test.describe('análisis', () => {
+  test('Ventas del día recupera el tablero del POS en Análisis, también en celular (#353)', async ({ page }) => {
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/analisis/ventas-dia')
+      const tablero = page.getByTestId('ventas-del-dia')
+      await expect(tablero.getByText('Ventas de hoy', { exact: true })).toBeVisible()
+      await expect(tablero.getByText('Items por pedido', { exact: true })).toBeVisible()
+      await expect(tablero.getByRole('heading', { name: 'Top productos', exact: true })).toBeVisible()
+      await expect(tablero.getByRole('heading', { name: 'Cobros netos por cuenta', exact: true })).toBeVisible()
+      await expect(tablero.getByRole('heading', { name: 'Cobros netos por sucursal', exact: true })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    }
+  })
+
+  test('el shell muestra otras personas presentes y descarta presencias vencidas (#361)', async ({ page }) => {
+    await page.route('**/api/presence', route => route.fulfill({ json: { people: [
+      { id: 'otra-persona-online', name: 'Ana Presente', scope: 'pedidos/ejemplo', lastSeenAt: new Date().toISOString() },
+      { id: 'persona-ausente', name: 'Persona ausente', lastSeenAt: new Date(Date.now() - 120_000).toISOString() },
+    ] } }))
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/analisis/ventas-dia')
+    const boton = page.getByTestId('shell-equipo-online-mobile')
+    await expect(boton).toHaveAccessibleName('Equipo en línea: 1 persona')
+    await boton.click()
+    const dialogo = page.getByRole('dialog', { name: 'Equipo en línea' })
+    await expect(dialogo.getByText('Ana Presente', { exact: true })).toBeVisible()
+    await expect(dialogo.getByText('Persona ausente', { exact: true })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toBeHidden()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+
   test('la vista extendida abre en Reportes y comparte el período con Ganancias', async ({ page }) => {
     await page.goto('/analisis')
     await expect(page).toHaveURL(/\/analisis\/reportes$/)
