@@ -106,7 +106,7 @@ async function armarCobro(page, sufijo) {
     await filaUno.getByLabel('Monto original').fill('25000')
     await expect(filaUno.getByLabel('Monto original')).toHaveValue('25.000', { timeout: 2500 })
   }).toPass({ timeout: 20_000 })
-  await page.getByRole('button', { name: /^Dividir saldo/ }).click()
+  await filaUno.getByRole('button', { name: /^Dividir pago/ }).click()
   const filaDos = pagos.getByTestId('pago-fila-1')
   await expect(filaDos).toBeVisible()
   await elegirCuenta(page, filaDos, new RegExp(usd))
@@ -116,7 +116,7 @@ async function armarCobro(page, sufijo) {
   await expect(async () => {
     await filaDos.getByLabel(/^Cotización/).fill('5500')
     await filaDos.getByLabel('Monto original').fill('10')
-    await expect(filaDos.getByText('Equivalente: Gs 55.000')).toBeVisible({ timeout: 2500 })
+    await expect(filaDos.locator('b', { hasText: 'Gs 55.000' })).toBeVisible({ timeout: 2500 })
   }).toPass({ timeout: 20_000 })
   // El chip de estado se clickea hasta que el otro estado aparece (la fila
   // termina de asentarse tras los fills).

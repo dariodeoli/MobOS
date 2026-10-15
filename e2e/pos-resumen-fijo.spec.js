@@ -13,15 +13,9 @@ import { SEED } from './helpers/seed-data.js'
 const ALTO_ENCABEZADO = 0
 const MARGEN_SUPERIOR_MAX = 180
 
-// La columna carrito + cobro solo tiene recorrido para pegarse cuando el catálogo
-// (columna izquierda) es más alto que ella: el seed del arnés tiene 6 productos,
-// así que se le da al catálogo el alto de uno real.
-const ALTO_CATALOGO_REAL = 2400
-
 async function agregarProducto(page) {
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
-  await page.addStyleTag({ content: `@media (min-width: 1024px) { .pos-layout > :first-child { min-height: ${ALTO_CATALOGO_REAL}px } }` })
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   const producto = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })
   await expect(producto).toBeVisible()
@@ -63,19 +57,15 @@ function medicion(page) {
   })
 }
 
-async function desplazar(page, top) {
+// Intenta deslizar la ventana: la columna debe quedar en el mismo lugar (fija).
+async function esperarFija(page, top = 700) {
+  const antes = (await medicion(page)).columna_venta
   await page.evaluate(y => window.scrollTo(0, y), top)
-  // La página se clampa al final del documento: alcanza con que haya bajado.
-  await expect
-    .poll(async () => (await medicion(page)).scrollY, { timeout: 5000 })
-    .toBeGreaterThan(0)
-  return medicion(page)
-}
-
-async function esperarSticky(page, clave) {
-  await expect
-    .poll(async () => (await medicion(page))[clave]?.position, { timeout: 5000 })
-    .toBe('sticky')
+  const despues = await medicion(page)
+  expect(['sticky', 'static', 'relative']).toContain(despues.columna_venta.position)
+  expect(despues.scrollY, 'POS de una pantalla: la página no se desplaza, las listas sí').toBe(0)
+  expect(despues.columna_venta.y, 'la columna no se mueve al deslizar').toBe(antes.y)
+  return despues
 }
 
 async function esperarArriba(page, clave) {
@@ -99,15 +89,18 @@ test.describe('desktop', () => {
   test('la columna lateral se mantiene fija al deslizar', async ({ page }) => {
     await agregarProducto(page)
 
-    const primera = await desplazar(page, 300)
-    await esperarSticky(page, 'columna_venta')
+    const primera = await medicion(page)
+    // POS de una sola pantalla: la grilla mide el alto de la ventana y se
+    // desplazan las listas por dentro, así que la columna queda fija sea por
+    // `sticky` o porque la página no se mueve.
+    await esperarFija(page)
     await esperarArriba(page, 'columna_venta')
     expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
 
-    const segunda = await desplazar(page, 700)
+    const segunda = await esperarFija(page)
     await esperarArriba(page, 'columna_venta')
     // Ya pegada al borde superior, seguir deslizando no lo mueve.
-    const tercera = await desplazar(page, 1000)
+    const tercera = await esperarFija(page, 1000)
     expect(tercera.columna_venta.y).toBe(segunda.columna_venta.y)
   })
 })
@@ -118,15 +111,18 @@ test.describe('notebook 1152', () => {
   test('debajo de 1200px el resumen sigue fijo en su columna', async ({ page }) => {
     await agregarProducto(page)
 
-    const primera = await desplazar(page, 300)
-    await esperarSticky(page, 'columna_venta')
+    const primera = await medicion(page)
+    // POS de una sola pantalla: la grilla mide el alto de la ventana y se
+    // desplazan las listas por dentro, así que la columna queda fija sea por
+    // `sticky` o porque la página no se mueve.
+    await esperarFija(page)
     await esperarArriba(page, 'columna_venta')
     expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
 
-    const segunda = await desplazar(page, 700)
+    const segunda = await esperarFija(page)
     await esperarArriba(page, 'columna_venta')
     // Ya pegada al borde superior, seguir deslizando no lo mueve.
-    const tercera = await desplazar(page, 1000)
+    const tercera = await esperarFija(page, 1000)
     expect(tercera.columna_venta.y).toBe(segunda.columna_venta.y)
   })
 })

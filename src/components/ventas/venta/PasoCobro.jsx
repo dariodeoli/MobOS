@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Aviso, Button, ConfirmDialog, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
 import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
@@ -15,8 +15,7 @@ import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
-import { updateAccountPayment } from '@/utils/pagoCuenta'
-import EncabezadoBloque from './EncabezadoBloque'
+import { cuentaEfectivoPyg, FOREIGN, residuoSubCentavo, updateAccountPayment } from '@/utils/pagoCuenta'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -51,6 +50,7 @@ export default function PasoCobro({
   totalGeneral,
   totalPagado,
   pendiente,
+  vuelto = 0,
   f,
   setF,
   valido,
@@ -71,7 +71,18 @@ export default function PasoCobro({
   const pagaAlRecibir = pagaAlRecibirVigente(pagaAlRecibirActivo, pagos)
   const direccionesGuardadas = (customer?.addresses || []).filter(d => d?.id)
   const [confirmarPaga, setConfirmarPaga] = useState(false)
+  const [notaAbierta, setNotaAbierta] = useState(() => Boolean(f.observacion))
+  // Si entra una observación desde afuera (borrador, reserva) el campo se abre.
+  useEffect(() => { if (f.observacion) setNotaAbierta(true) }, [f.observacion])
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
+  // Pagos paso a paso: la fila vigente (la última) debe tener monto para sumar otra.
+  const ultimoPago = pagos[pagos.length - 1]
+  const cuentaUltimo = usaCuentas && ultimoPago && ultimoPago.giftCardCode === undefined ? (cuentas || []).find(c => c.id === ultimoPago.accountId) : null
+  const sinCuentaOCotizacion = Boolean(usaCuentas && ultimoPago && ultimoPago.giftCardCode === undefined) && (!cuentaUltimo || (FOREIGN(cuentaUltimo.currency) && !(Number(ultimoPago.exchangeRatePyg) > 0)))
+  const pagoIncompleto = Boolean(ultimoPago) && (sinCuentaOCotizacion || !(Number(String(ultimoPago.monto || '').replace(/\D/g, '')) > 0))
+  // Saldo menor a un centavo de dólar: no se cobra en USD; se cierra en Gs con un clic.
+  const residuoGs = usaCuentas ? residuoSubCentavo(pendiente, ultimoPago, cuentas) : 0
+  const efectivoGs = cuentaEfectivoPyg(cuentas)
   const sinPago = totalPagado <= 0
   // Segundo renglón del botón: productos e importe (#148 §5/§11).
   const detalleBoton = [
@@ -105,7 +116,7 @@ export default function PasoCobro({
           : 'Crear pedido'
   // Primary action remains neutral in every payment state (#341); status
   // meaning is preserved in the label and the payment summary.
-  const clasesBoton = 'h-auto min-h-14 min-w-0 px-5 py-3'
+  const clasesBoton = 'h-auto min-h-14 min-w-0 px-5 py-3 lg:min-h-12 lg:py-1.5'
   // Un solo botón para los dos lugares (escritorio y barra fija del celular).
   function BotonGuardar({ className }) {
     return (
@@ -116,10 +127,10 @@ export default function PasoCobro({
         disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
         title={motivos[0] || undefined}
       >
-        <span className="flex min-w-0 flex-col items-center gap-0.5 leading-tight">
+        <span className="flex min-w-0 flex-col items-center gap-0.5 leading-tight lg:flex-row lg:gap-2">
           <span className="text-[15px] font-bold">{etiquetaBoton}</span>
-          {detalleBoton && <span className="flex flex-col items-center text-xs font-semibold tabular-nums opacity-95">
-            {cantTotal > 1 && <span>{cantTotal} productos</span>}
+          {detalleBoton && <span className="flex flex-col items-center text-xs font-semibold tabular-nums opacity-95 lg:flex-row lg:gap-2 lg:text-[15px]">
+            {cantTotal > 1 && <span className="lg:hidden">{cantTotal} productos</span>}
             {totalGeneral > 0 && <span className="pos-money-value">{gs(totalGeneral)}</span>}
           </span>}
         </span>
@@ -130,65 +141,18 @@ export default function PasoCobro({
     <section
       data-testid="pos-cobro"
       className={cn(
-        'space-y-3 rounded-2xl border border-ink-600 bg-ink-800 p-3 shadow-card',
+        'pos-cobro flex min-h-0 flex-col gap-2 rounded-2xl border border-ink-600 bg-ink-800 p-2.5 shadow-card',
         // Lenguaje v2 (#241, paso 5): el bloque de cobro detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <EncabezadoBloque compacto titulo="Cobro y entrega" />
-
-      {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
-      {Number(customer.creditLimitPyg || 0) > 0 && (
-        <div data-testid="pos-credito" className="rounded-xl border border-fono/25 bg-fono/5 px-3 py-2">
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm md:min-h-0">
-            <input
-              type="checkbox"
-              role="switch"
-              className="h-4 w-4 shrink-0 accent-fono"
-              checked={venderACredito && !customer.blocked}
-              disabled={Boolean(customer.blocked)}
-              onChange={e => setVenderACredito(e.target.checked)}
-            />
-            <span className="min-w-0">
-              <span className="font-semibold">Vender a crédito</span>
-              <span className="ml-2 text-xs text-mute">
-                límite {gs(Number(customer.creditLimitPyg))}
-                {customer.creditDays ? ` · plazo ${customer.creditDays} días` : ''}
-              </span>
-              {customer.blocked ? <span className="ml-2 text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
-            </span>
-          </label>
-          {venderACredito && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Label htmlFor="plazo-en-dias" className="mb-0">Plazo en días</Label>
-              <Input
-                id="plazo-en-dias"
-                aria-label="Días de crédito"
-                inputMode="numeric"
-                className="w-24"
-                value={creditoDias}
-                onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))}
-                placeholder={String(customer.creditDays ?? 30)}
-              />
-              <p className="text-xs text-mute">
-                Vence{' '}
-                {new Date(
-                  Date.now() +
-                    (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000,
-                ).toLocaleDateString('es-PY')}
-                . Podés igualmente registrar un adelanto abajo.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Entrega primero (#230): el costo del envío se ve antes de cobrar. */}
-      {/* Entrega + monto: el monto aparece solo con Delivery o encomienda. */}
-      <div className="pos-fila-doble items-end" data-testid="pos-entrega">
-        <div>
-          <Label htmlFor="entrega">Entrega</Label>
-          <Select id="entrega" value={f.entrega} onChange={event => {
+      {/* Entrega, crédito, nota y «paga al recibir» en un bloque compacto: la
+          entrega y «Vender a crédito» comparten renglón; la nota es un casillero
+          que despliega su campo debajo. */}
+      <div data-testid="pos-entrega" className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="entrega" className="mb-0 shrink-0">Entrega</Label>
+          <Select id="entrega" className="h-9 w-48" value={f.entrega} onChange={event => {
             const entrega = event.target.value
             // Sin envío a cobrar se limpia el monto para que el total y el
             // cobro no arrastren un delivery viejo (#187).
@@ -202,8 +166,8 @@ export default function PasoCobro({
           </Select>
         </div>
         {(f.entrega === 'Delivery' || f.entrega === 'Encomienda') && (
-          <div>
-            <Label htmlFor="monto-entrega">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="monto-entrega" className="mb-0 shrink-0">
               {f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Costo del envío (₲)'}
             </Label>
             <MoneyInput
@@ -212,9 +176,83 @@ export default function PasoCobro({
               value={f.montoDelivery}
               onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
               placeholder="0"
-              className="w-full"
+              className="h-9 w-32"
             />
           </div>
+        )}
+        {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
+        {Number(customer.creditLimitPyg || 0) > 0 && (
+          <div data-testid="pos-credito" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-fono/25 bg-fono/5 px-2.5 py-1">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-8">
+              <input
+                type="checkbox"
+                role="switch"
+                className="h-4 w-4 shrink-0 accent-fono"
+                checked={venderACredito && !customer.blocked}
+                disabled={Boolean(customer.blocked)}
+                onChange={e => setVenderACredito(e.target.checked)}
+              />
+              <span className="font-semibold">Vender a crédito</span>
+              <span className="text-xs text-mute">
+                límite {gs(Number(customer.creditLimitPyg))}
+                {customer.creditDays ? ` · ${customer.creditDays} días` : ''}
+              </span>
+              {customer.blocked ? <span className="text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
+            </label>
+            {venderACredito && (
+              <span className="flex flex-wrap items-center gap-2">
+                <Label htmlFor="plazo-en-dias" className="mb-0">Plazo en días</Label>
+                <Input
+                  id="plazo-en-dias"
+                  aria-label="Días de crédito"
+                  inputMode="numeric"
+                  className="h-8 w-20"
+                  value={creditoDias}
+                  onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))}
+                  placeholder={String(customer.creditDays ?? 30)}
+                />
+                <span className="text-xs text-mute">
+                  Vence{' '}
+                  {new Date(
+                    Date.now() +
+                      (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000,
+                  ).toLocaleDateString('es-PY')}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-nota-casillero">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-fono"
+            checked={notaAbierta}
+            onChange={e => {
+              setNotaAbierta(e.target.checked)
+              if (!e.target.checked) setF(current => ({ ...current, observacion: '' }))
+            }}
+          />
+          Agregar nota
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-paga-al-recibir">
+          <input
+            type="checkbox"
+            role="switch"
+            className="h-4 w-4 accent-fono"
+            checked={pagaAlRecibir}
+            disabled={guardando}
+            onChange={e => {
+              // Con pagos cargados (gift card consultada, canje) no se descartan en silencio.
+              if (e.target.checked && pagos.length > 0) { setConfirmarPaga(true); return }
+              setPagaAlRecibir(e.target.checked)
+            }}
+          />
+          Paga al recibir
+        </label>
+        {pagaAlRecibir && (
+          <p role="status" data-testid="cobro-paga-al-recibir" className="min-w-0 flex-1 text-xs text-mute">
+            No se elige el medio de pago ahora: el pedido queda pendiente y se cobra desde Pedidos.
+          </p>
         )}
       </div>
 
@@ -261,21 +299,22 @@ export default function PasoCobro({
         </div>
       )}
 
-      {/* La nota sigue editable detrás de un enlace. */}
-      <details className="inicio-disclosure">
-        <summary>Agregar nota</summary>
-        <Label htmlFor="observacion">Observación</Label>
-        <Textarea
-          id="observacion"
-          rows={1}
-          value={f.observacion}
-          onChange={event =>
-            setF(current => ({ ...current, observacion: capitalizarPrimera(event.target.value) }))
-          }
-          placeholder="Notas, color, envío vía encomienda, etc."
-          autoCapitalize="sentences"
-        />
-      </details>
+      {notaAbierta && (
+        <div>
+          <Label htmlFor="observacion" className="sr-only">Observación</Label>
+          <Textarea
+            id="observacion"
+            rows={2}
+            autoFocus={!f.observacion}
+            value={f.observacion}
+            onChange={event =>
+              setF(current => ({ ...current, observacion: capitalizarPrimera(event.target.value) }))
+            }
+            placeholder="Notas, color, envío vía encomienda, etc."
+            autoCapitalize="sentences"
+          />
+        </div>
+      )}
 
 {/* Medio de pago */}
       {cuentas?.length === 0 && (
@@ -292,33 +331,11 @@ export default function PasoCobro({
       {/* Pagos parciales y combinados */}
       {/* #281 · identidad de color: pagos = violeta (reserved), distintas del
           carrito (verde) y del catálogo (marca). */}
-      <div data-testid="pos-bloque-pagos" className="space-y-3 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="block text-[11px] font-medium uppercase tracking-wider text-reserved">
+      <div data-testid="pos-bloque-pagos" className="pos-bloque-pagos space-y-3 [&>*]:!mt-0 flex min-h-0 flex-1 flex-col gap-2 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-2.5">
+        <div className={cn('flex flex-wrap items-center gap-2', pagaAlRecibir && 'hidden')}>
+          <p className="mr-auto block text-[11px] font-medium uppercase tracking-wider text-reserved">
             Pagos de esta venta
           </p>
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-semibold text-fono-light md:min-h-0" data-testid="pos-paga-al-recibir">
-            <input
-              type="checkbox"
-              role="switch"
-              className="h-4 w-4 accent-fono"
-              checked={pagaAlRecibir}
-              disabled={guardando}
-              onChange={e => {
-                // Con pagos cargados (gift card consultada, canje) no se descartan en silencio.
-                if (e.target.checked && pagos.length > 0) { setConfirmarPaga(true); return }
-                setPagaAlRecibir(e.target.checked)
-              }}
-            />
-            Paga al recibir
-          </label>
-        </div>
-        {pagaAlRecibir && (
-          <p role="status" data-testid="cobro-paga-al-recibir" className="text-xs text-mute">
-            No se elige el medio de pago ahora: el pedido queda pendiente y se cobra desde Pedidos.
-          </p>
-        )}
-        <div className={cn('flex flex-wrap items-center gap-2', pagaAlRecibir && 'hidden')}>
           {descuentoMedioPct > 0 && subtotal > 0 && (
             puedeDescontar ? (
               <button
@@ -334,34 +351,28 @@ export default function PasoCobro({
               </Aviso>
             )
           )}
+          {/* Pasos: el siguiente pago se habilita cuando el actual tiene cuenta
+              y monto; la fila nueva propone lo que falta cobrar. */}
           <Button
             type="button"
             variant="outline"
+            className="h-11 md:h-9"
             onClick={() => onAgregarPago()}
-            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal}
-            title={sinProductos || sinTotal ? motivoPago : undefined}
+            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal || pagoIncompleto}
+            title={sinProductos || sinTotal ? motivoPago : pagoIncompleto ? 'Completá la cuenta y el monto del pago actual para agregar otro.' : undefined}
           >
-            + Agregar pago
+            {pagos.length === 0 ? '+ Agregar pago' : '+ Agregar otro pago'}
           </Button>
           <Button
             type="button"
             variant="outline"
+            className="h-11 md:h-9"
             onClick={() => onAgregarGiftCard?.()}
-            disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear}
+            disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear || pagoIncompleto}
             title={!puedeCanjear ? motivoGiftCard : undefined}
           >
             + Canjear gift card
           </Button>
-          {pagos.length > 0 && pendiente > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onAgregarPago({ monto: pendiente })}
-              disabled={!cuentas || guardando || guardadoIncompleto || sinProductos}
-            >
-              Dividir saldo ({gs(pendiente)})
-            </Button>
-          )}
         </div>
         {sinProductos && !pagaAlRecibir && (
           <p role="status" data-testid="cobro-sin-productos" className="text-xs text-mute">
@@ -397,21 +408,10 @@ export default function PasoCobro({
               No hay cuentas activas en USD o PYG para recibir pagos.
             </p>
           )}
-        {!pagaAlRecibir && pagos.map((p, i) => (
-          <div
-            key={i}
-            data-testid={`pago-fila-${i}`}
-            data-estado={p.noPagado ? 'no-pagado' : 'pagado'}
-            className={cn(
-              'mobos-aparece grid grid-cols-1 items-end gap-2 border-l-2 pl-2 sm:grid-cols-[1.2fr_1fr_1fr_auto]',
-              p.noPagado ? 'border-l-warn/70' : 'border-l-ok/60',
-              !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3',
-            )}
-          >
-            {/* Estado del bloque (#148 §11): un pago marcado «No pagado» no suma
-                al cobrado y deja ese saldo pendiente en la venta. */}
-            <div className="col-span-full flex flex-wrap items-center gap-2">
-              {pagos.length > 1 && <span className="text-[11px] font-semibold uppercase tracking-wider text-mute">Pago {i + 1}</span>}
+        {!pagaAlRecibir && pagos.length > 0 && <div data-testid="pos-pagos-lista" className="pos-pagos-lista flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">{pagos.map((p, i) => {
+          const enTarjeta = usaCuentas && p.giftCardCode === undefined
+          const controles = (
+            <>
               <button
                 type="button"
                 aria-pressed={!p.noPagado}
@@ -431,7 +431,7 @@ export default function PasoCobro({
                   con el mismo comportamiento y tooltip. */}
               <button
                 type="button"
-                className="ml-auto grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
+                className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
                 title="Eliminar pago"
                 aria-label={`Eliminar pago ${i + 1}`}
                 disabled={guardando}
@@ -439,7 +439,20 @@ export default function PasoCobro({
               >
                 <Icon name="trash" className="h-4 w-4" />
               </button>
-            </div>
+            </>
+          )
+          return (
+          <div
+            key={i}
+            data-testid={`pago-fila-${i}`}
+            data-estado={p.noPagado ? 'no-pagado' : 'pagado'}
+            className={cn(
+              'mobos-aparece grid grid-cols-1 items-end gap-2 border-l-2 pl-2 sm:grid-cols-[1.2fr_1fr_1fr_auto]',
+              p.noPagado ? 'border-l-warn/70' : 'border-l-ok/60',
+              !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3',
+            )}
+          >
+            {!enTarjeta && <div className="col-span-full flex flex-wrap items-center gap-2">{controles}</div>}
             {p.giftCardCode !== undefined ? (
               <>
                 <div className="sm:col-span-2">
@@ -483,6 +496,8 @@ export default function PasoCobro({
                 payment={p}
                 accounts={cuentas}
                 pendientePyg={pendiente}
+                acciones={controles}
+                onDividir={() => onAgregarPago({ monto: pendiente })}
                 onChange={change =>
                   setPagos(a =>
                     a.map((x, j) => (j === i ? updateAccountPayment(x, change, cuentas) : x)),
@@ -537,34 +552,8 @@ export default function PasoCobro({
               </>
             )}
           </div>
-        ))}
-        {/* #281 · tiles con identidad propia: Pagado (ok) · Pendiente (warn).
-            El Total vive una sola vez, en el pie del carrito. */}
-        <div data-testid="pos-tiles-resumen" className="pos-tiles grid grid-cols-1 gap-1.5 border-t border-reserved/20 pt-2 text-xs text-mute">
-          <span className="flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-1.5 text-ok" data-testid="cobro-pagado">
-            <span className="inline-flex items-center gap-1"><Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado</span>
-            <strong className="pos-money-value v2-numero block whitespace-nowrap text-base tabular-nums text-ok">
-              {gs(totalPagado)}
-            </strong>
-          </span>
-          <span
-            data-testid="cobro-pendiente"
-            className={cn(
-              'flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border px-3 py-1.5',
-              pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok',
-            )}
-          >
-            <span className="inline-flex items-center gap-1"><Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente</span>
-            <strong
-              className={cn(
-                'pos-money-value v2-numero block whitespace-nowrap text-base tabular-nums',
-                pendiente ? 'text-warn' : 'text-ok',
-              )}
-            >
-              {gs(pendiente)}
-            </strong>
-          </span>
-        </div>
+          )
+        })}</div>}
       </div>
 
       {/* Guía inline (#148 §11): qué falta y cómo resolverlo, sin adivinar. */}
@@ -616,18 +605,64 @@ export default function PasoCobro({
           Falta: {motivosVisibles.join(' · ')}
         </p>
       )}
-      {/* Escritorio: la acción vive al pie del bloque de cobro. */}
-      <div className={cn('sticky bottom-0 z-10 -mx-3 -mb-3 items-center gap-3 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-3 pb-3 pt-2', modoMovil ? 'flex' : 'hidden lg:flex')}>
-        <BotonGuardar className="flex-1" />
-        {ok && (
-          <span
-            role="status"
-            aria-live="polite"
-            className="inline-flex items-center gap-1.5 rounded-full border border-ok/30 bg-ok/10 px-3 py-2 text-ok font-bold text-sm whitespace-nowrap"
-          >
-            <Icon name="receipt" className="h-4 w-4" /> Recibo confirmado
+      {/* Pie del cobro: Pagado / Pendiente y la acción, siempre a la vista
+          (pegado abajo). #281 · tiles con identidad propia: Pagado (ok) ·
+          Pendiente (warn). El Total vive una sola vez, en el pie del carrito. */}
+      <div data-testid="pos-pie-cobro" className="sticky bottom-0 z-10 -mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
+        <div data-testid="pos-tiles-resumen" className="pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
+          <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">
+            <span className="inline-flex items-center gap-1"><Icon name="check" className="inline h-3 w-3" aria-hidden="true" />Pagado</span>
+            <strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums text-ok">
+              {gs(totalPagado)}
+            </strong>
           </span>
-        )}
+          {vuelto > 0 && (
+            <span data-testid="cobro-vuelto" className="flex items-baseline gap-2 rounded-lg border border-fono/35 bg-fono/[.08] px-2.5 py-1 text-fono-light">
+              <span>Vuelto</span>
+              <strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums">{gs(vuelto)}</strong>
+            </span>
+          )}
+          <span
+            data-testid="cobro-pendiente"
+            className={cn(
+              'flex items-baseline gap-2 rounded-lg border px-2.5 py-1',
+              pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok',
+            )}
+          >
+            <span className="inline-flex items-center gap-1"><Icon name={pendiente ? 'alert' : 'check'} className="inline h-3 w-3" aria-hidden="true" />Pendiente</span>
+            <strong
+              className={cn(
+                'pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums',
+                pendiente ? 'text-warn' : 'text-ok',
+              )}
+            >
+              {gs(pendiente)}
+            </strong>
+          </span>
+          {residuoGs > 0 && efectivoGs && (
+            <button
+              type="button"
+              data-testid="cobro-completar-gs"
+              className="toque-44 inline-flex min-h-11 items-center rounded-lg border border-fono/40 px-2.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-8"
+              onClick={() => onAgregarPago({ monto: residuoGs, cuenta: efectivoGs })}
+              title="El saldo es menor a un centavo de dólar: se cobra en guaraníes en efectivo"
+            >
+              Completar en Gs ({gs(residuoGs)})
+            </button>
+          )}
+        </div>
+        <div className={cn('min-w-0 flex-1 items-center gap-3 basis-48', modoMovil ? 'flex' : 'hidden lg:flex')}>
+          <BotonGuardar className="flex-1" />
+          {ok && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ok/30 bg-ok/10 px-3 py-2 text-ok font-bold text-sm whitespace-nowrap"
+            >
+              <Icon name="receipt" className="h-4 w-4" /> Recibo confirmado
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Celular: Total y acción principal fijos abajo, arriba de la barra del

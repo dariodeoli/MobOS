@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, errorMonto, limiteMonto, LIMITE_MONTO_ALMACENABLE, LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
+import { valorNormalizado, borradorDecimal, formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, errorMonto, limiteMonto, LIMITE_MONTO_ALMACENABLE, LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
 import { gs, gsInput } from './calculos.js'
 
 test('formatea guaraníes con separadores locales', () => {
@@ -85,4 +85,58 @@ test('el tope real de almacenamiento ya no recorta los topes de producto', () =>
   assert.equal(errorMonto(10_000_000_001), 'El monto supera el máximo que el sistema puede guardar (Gs 10.000.000.000).')
   assert.equal(errorMonto(100_000_000, LIMITE_MONTO_VENTAS), '', 'las ventas admiten hasta 99B')
   assert.equal(errorMonto(99_000_000_001, LIMITE_MONTO_VENTAS), 'El monto supera el máximo que el sistema puede guardar (Gs 99.000.000.000).')
+})
+
+test('borrador decimal: se pueden escribir 100, 300 y centavos dígito a dígito (USD)', () => {
+  // Antes cada tecla se reformateaba como «1,00» y solo entraba 1 dígito.
+  let texto = ''
+  const escribir = (tecla) => { texto = borradorDecimal(texto + tecla).texto; return texto }
+  assert.equal(escribir('3'), '3')
+  assert.equal(escribir('0'), '30')
+  assert.equal(escribir('0'), '300')
+  assert.equal(borradorDecimal('300').valor, '300')
+  assert.equal(borradorDecimal('300,').texto, '300,')
+  assert.equal(borradorDecimal('300,5').valor, '300.5')
+  assert.equal(borradorDecimal('300,567').texto, '300,56', 'máximo 2 decimales')
+  assert.equal(borradorDecimal('1250').texto, '1.250')
+  assert.equal(borradorDecimal('1.250,50').valor, '1250.5')
+  assert.equal(borradorDecimal(',5').texto, '0,5')
+  assert.equal(borradorDecimal('').valor, '')
+  assert.equal(borradorDecimal('abc').texto, '')
+})
+
+test('formatUsdInput acepta decimal con coma (precarga del POS) y con punto', () => {
+  assert.equal(formatUsdInput('12,50'), '12,50')
+  assert.equal(formatUsdInput('1.234,5'), '1.234,50')
+  assert.equal(formatUsdInput('300'), '300,00')
+  assert.equal(formatUsdInput('300.5'), '300,50')
+})
+
+test('guaraníes: miles al escribir y valor numérico entero', () => {
+  assert.equal(formatGsInput('7350'), '7.350')
+  assert.equal(formatGsInput('1234567'), '1.234.567')
+  assert.equal(parseGsInput('7.350'), 7350)
+})
+
+test('MoneyInput: el borrador sobrevive a cada tecla, también con «0» inicial (0,50 / 0,99)', () => {
+  // Simula el campo: cada tecla recalcula borrador y valor; el borrador solo se
+  // muestra si coincide con el valor guardado (borradorVigente).
+  const tipear = (secuencia) => {
+    let texto = ''
+    let valor = ''
+    for (const tecla of secuencia) {
+      const b = borradorDecimal(texto + tecla)
+      texto = b.texto
+      valor = b.valor
+      assert.equal(borradorDecimal(texto).valor === valorNormalizado(valor), true, `borrador vigente tras «${texto}»`)
+    }
+    return texto
+  }
+  assert.equal(tipear('0,50'), '0,50')
+  assert.equal(tipear('0,99'), '0,99')
+  assert.equal(tipear('10,5'), '10,5')
+  assert.equal(tipear('300'), '300')
+  assert.equal(tipear('1250,75'), '1.250,75')
+  assert.equal(valorNormalizado('0'), '0')
+  assert.equal(valorNormalizado(''), '')
 })

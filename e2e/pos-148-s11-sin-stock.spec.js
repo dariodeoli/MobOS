@@ -135,7 +135,7 @@ test('con unidad disponible, la guía manda a elegir el IMEI exacto (#148 §11)'
     await expect(page.getByText('Elegir IMEI de esta venta')).toBeVisible()
     await expect(page.getByTitle(imei)).toBeVisible()
     // Sin decisión el modal no se cierra con «Listo» (#308): se cancela.
-    await expect(page.getByRole('button', { name: 'Listo' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Listo', exact: true })).toBeDisabled()
     await page.keyboard.press('Escape')
 
     // Sin elegir la unidad, el aviso es claro y accionable (no el genérico).
@@ -205,7 +205,7 @@ test('la venta serializada cierra aunque haya 500 unidades con el mismo texto (#
     await expect(page.getByTitle(imei)).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Reservar este' }).click()
     await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible({ timeout: 15_000 })
-    await page.getByRole('button', { name: 'Listo' }).click()
+    await page.getByRole('button', { name: 'Listo', exact: true }).click()
 
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
     // #275: al confirmar, la app va sola al detalle del pedido creado.
