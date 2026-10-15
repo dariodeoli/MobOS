@@ -64,7 +64,12 @@ test.describe('sistema visual (#320)', () => {
 
         // La barra de módulo (cuando existe) no repite el título visible:
         // agrupa contexto y acciones.
-        if (barra) {
+        // #429: en celular el POS no tiene barra de módulo: sus acciones son el mosaico del inicio
+        // (región «Nueva venta») y la barra del carrito; el título sigue siendo el del shell.
+        if (nombre === 'pos' && etiqueta !== 'desktop') {
+          await expect(page.getByTestId('pos-acciones-movil'), `${nombre}: acciones del inicio`).toBeVisible()
+          await expect(page.getByRole('region', { name: 'Nueva venta' }).getByRole('heading', { name: 'Vender' }), `${nombre}: el mosaico no repite el título`).toHaveCount(0)
+        } else if (barra) {
           const barraLocator = page.locator(`[data-testid="${barra}"]:visible`)
           await expect(barraLocator, `${nombre}: barra de módulo`).toBeVisible({ timeout: 20_000 })
           await expect(barraLocator.getByRole('heading'), `${nombre}: la barra no repite el título`).toHaveCount(0)

@@ -9,10 +9,17 @@ import { SEED } from './helpers/seed-data.js'
 
 const cliente = () => `Cliente cobro UX ${Date.now().toString(36).toUpperCase()}`
 
+// #429: debajo de 768 px el POS es el de celular (cliente y carrito en hojas, cobro paso a paso).
+const movil = (page) => page.viewportSize().width < 768
+
 async function armarVenta(page, { productos = [SEED.products.cable.name], veces = 1, clienteNombre } = {}) {
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(clienteNombre)
+  if (movil(page)) {
+    await page.getByTestId('accion-cliente').click()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(clienteNombre)
+    await page.getByTestId('hoja-cliente').getByRole('button', { name: 'Listo' }).click()
+  } else await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(clienteNombre)
   const buscar = page.getByPlaceholder('Buscar producto…')
   for (const producto of productos) {
     await buscar.fill(producto)
@@ -20,10 +27,17 @@ async function armarVenta(page, { productos = [SEED.products.cable.name], veces 
     await expect(tarjeta).toBeVisible({ timeout: 15_000 })
     for (let i = 0; i < veces; i += 1) await tarjeta.click()
   }
+  // En celular el carrito está en la hoja que abre la barra fija.
+  if (movil(page)) await page.getByTestId('pos-barra-carrito-abrir').click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 }
 
 async function agregarPago(page) {
+  // Celular: el formulario completo de pagos vive en «Otros medios y entrega» del cobro.
+  if (movil(page)) {
+    await page.getByTestId('carrito-cobrar').click()
+    await page.getByTestId('medio-otros').click()
+  }
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const fila = page.getByTestId('pago-fila-0')
   await expect(fila).toBeVisible()
@@ -175,32 +189,26 @@ test('el botón principal crece, ordena etiqueta/importe y mantiene un color neu
   expect(await colorBoton(sinPago)).toBe(neutro)
 })
 
-test('mobile: el resumen «Total de esta venta» es sólido y queda debajo del botón (#148 §5/§11)', async ({ page }) => {
+test('mobile: el total de la venta queda fijo abajo y el carrito muestra el descuento (#148 §5/§11, #429)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await armarVenta(page, { clienteNombre: cliente(), productos: [SEED.products.cable.name, SEED.products.funda.name] })
-  await page.locator('#pos-resumen-venta').getByLabel(/^Descuento extra/).fill('5000')
+  const carrito = page.locator('#pos-resumen-venta')
+  await carrito.getByLabel(/^Descuento extra/).fill('5000')
+  await expect(carrito).toContainText('Descuento')
+  await expect(carrito).toContainText('Gs 5.000')
+  await expect(carrito.getByTestId('carrito-total')).toHaveText('Gs 120.000')
+
+  // #429: en el celular el Total y la acción «Cobrar» quedan fijos abajo: la barra
+  // del carrito (detrás de la hoja) y el pie de la hoja.
+  const barra = page.getByTestId('pos-barra-carrito')
+  await expect(barra.getByTestId('barra-total')).toHaveText('Gs 120.000')
+  expect(await barra.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
+  await expect(page.getByTestId('carrito-cobrar')).toBeVisible()
+  await expect(page.getByTestId('carrito-cobrar')).toContainText('Gs 120.000')
+
+  // El cobro paso a paso arranca con el total completo y medios a ancho completo.
   const fila = await agregarPago(page)
   await elegirCuenta(page, fila, 'Caja E2E')
   await fila.getByLabel('Monto original').fill('20000')
-
-  const resumen = page.getByTestId('resumen-compra')
-  await expect(resumen).toContainText('Esta venta')
-  await expect(resumen).toContainText('2 productos')
-  await expect(resumen).toContainText('2 unidades')
-  await expect(resumen).toContainText('Descuento − Gs 5.000')
-
-  // Fondo sólido: sin degradado y con alfa 1 (no se ve la página detrás).
-  const estilo = await resumen.evaluate((el) => ({ fondo: getComputedStyle(el).backgroundColor, imagen: getComputedStyle(el).backgroundImage }))
-  expect(estilo.imagen).toBe('none')
-  const alfa = estilo.fondo.startsWith('rgba') ? Number(estilo.fondo.match(/,\s*([\d.]+)\)/)?.[1] ?? 1) : 1
-  expect(alfa).toBe(1)
-
-  // #309: en el celular el Total y la acción principal quedan fijos abajo (la
-  // franja dejó de repetir el total).
-  const barra = page.getByTestId('pos-barra-accion')
-  await expect(barra).toBeVisible()
-  await expect(barra.getByTestId('barra-total')).toHaveText('Gs 120.000')
-  expect(await barra.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
-  await expect(barra.getByRole('button', { name: /^(Crear pedido|Confirmar venta)/ })).toBeVisible()
-  await expect(resumen).not.toContainText('Gs 120.000')
+  await expect(page.getByTestId('cobro-pendiente')).toContainText('Gs 100.000')
 })

@@ -1,7 +1,7 @@
 import '../control/inicioPosF2.css'
 import './posCobro.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -73,6 +73,12 @@ import PasoCobro from './venta/PasoCobro'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import { useMediaQuery } from '@/components/shared/useMediaQuery'
+import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
+import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
+import CobroMovil from './movil/CobroMovil'
+import { vueltoDePagos } from './movil/posMovil'
+import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -290,11 +296,22 @@ export default function FormularioVenta({
   resumenDia,
   tradeInDraft,
   onTradeInConsumed,
+  onBloquear,
+  onIr,
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
   const columnaVentaRef = useRef(null)
   useColumnaPegada(columnaVentaRef)
+  // POS en celular (#429): <768 px cambia solo la presentación (acciones,
+  // barra del carrito y hojas). Es la misma venta: el estado, el guardado y
+  // las reglas siguen siendo los de abajo.
+  const esMovil = useMediaQuery(CONSULTA_MOVIL)
+  const esMovilRef = useRef(esMovil)
+  esMovilRef.current = esMovil
+  const [hoja, setHoja] = useState(null) // carrito | cliente | envio | nota | sinstock | cobro | exito
+  // Vuelto de la venta recién confirmada (se congela al guardar; los pagos se vacían).
+  const [vueltoExito, setVueltoExito] = useState(0)
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -949,6 +966,7 @@ export default function FormularioVenta({
 
   // #309: la barra fija del celular vuelve al carrito sin buscar el bloque.
   function irAlCarrito() {
+    if (esMovil) { setHoja('carrito'); return }
     document.getElementById('pos-resumen-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -1400,6 +1418,7 @@ export default function FormularioVenta({
       setItems([])
       setDescuento('')
       setAuthDescuento(null)
+      setVueltoExito(vueltoDePagos(pagos))
       setPagos([])
       setPagaAlRecibir(false)
       setVenderACredito(false)
@@ -1414,7 +1433,8 @@ export default function FormularioVenta({
       // —también en la demo—. Aplica a venta completa, parcial y a crédito; la
       // espera deja ver la animación de confirmación con el número del pedido.
       const pedidoId = completedOrder?.id
-      if (pedidoId) {
+      // En celular la confirmación es una hoja con recibo y «Listo»: no se navega sola.
+      if (pedidoId && !esMovilRef.current) {
         if (irAlDetalleRef.current) clearTimeout(irAlDetalleRef.current)
         irAlDetalleRef.current = setTimeout(() => {
           irAlDetalleRef.current = null
@@ -1442,6 +1462,7 @@ export default function FormularioVenta({
           setItems([])
           setDescuento('')
           setAuthDescuento(null)
+          setVueltoExito(0)
           setPagos([])
           setPagaAlRecibir(false)
           setVenderACredito(false)
@@ -1587,6 +1608,7 @@ export default function FormularioVenta({
     setItems([])
     setDescuento('')
     setPagos([])
+    setVueltoExito(0)
     setPagaAlRecibir(false)
     setAuthDescuento(null)
     setAuthPrecio(null)
@@ -1898,9 +1920,69 @@ export default function FormularioVenta({
       </BarraModulo>
   )
 
+  // ── POS en celular (#429) ───────────────────────────────────────────
+  // El bloque de escritorio de abajo pasa cada pieza por `pos(...)`: en
+  // pantallas anchas la devuelve tal cual; en celular la guarda acá para
+  // montarla dentro de una hoja (con sus mismas props y reglas) y no dibuja nada
+  // en la grilla de escritorio.
+  const elementosPos = {}
+  const pos = (nombre, elemento) => {
+    elementosPos[nombre] = elemento
+    return esMovil ? null : elemento
+  }
+  // Mismo criterio que «Sobre pedido» del cobro de escritorio: cualquier vendedor.
+  const puedeVenderSinStock = true
+  const pendientesMovil = pendientesVenta.map(p => ({
+    ...p,
+    stock: num(productos.find(prod => prod.id === items.find(it => it.key === p.key)?.productoId)?.stock),
+  }))
+  // «Cobrar» desde el carrito: si hay líneas sin stock o sin IMEI, primero se
+  // resuelve en la hoja «El artículo no tiene stock»; si no, se abre el cobro.
+  function cobrarMovil() {
+    setHoja(pendientesVenta.length ? 'sinstock' : 'cobro')
+  }
+  function venderIgualMovil() {
+    // Solo líneas sin stock (nunca IMEI) y solo con permiso: ver clasificarPendientes.
+    if (!puedeVenderSinStock) return
+    for (const p of pendientesVenta) {
+      if (p.motivo === 'stock') editarItem(p.key, { sobrePedido: true, serials: [], reservado: false })
+    }
+    setHoja(pendientesVenta.some(p => p.motivo === 'imei') ? 'sinstock' : 'cobro')
+  }
+  const etiquetaConfirmarMovil = etiquetaConfirmar({
+    guardando,
+    valido: Boolean(valido),
+    totalGeneral,
+    totalPagado,
+    venderACredito,
+    pagaAlRecibir: pagaAlRecibirVigente(pagaAlRecibir, pagos),
+  })
+  const accionesMovil = [
+    { id: 'cliente', icono: 'user', titulo: customer.name || 'Agregar cliente', detalle: customer.name ? 'Cliente' : '', onClick: () => setHoja('cliente') },
+    { id: 'personalizada', icono: 'plus', titulo: 'Venta personalizada', detalle: 'Producto nuevo', disabled: !puedeCrearProducto,
+      onClick: () => { setNuevoProd(true); requestAnimationFrame(() => document.querySelector('[data-testid="pos-bloque-productos"]')?.scrollIntoView({ block: 'start' })) } },
+    { id: 'envio', icono: 'truck', titulo: 'Agregar envío', detalle: f.entrega && f.entrega !== ENTREGA[0] ? f.entrega : '', onClick: () => setHoja('envio') },
+    { id: 'cotizacion', icono: 'report', titulo: 'Crear cotización', disabled: !onIr, onClick: () => onIr?.('cotizaciones') },
+    ...(items.length > 0 ? [{ id: 'suspender', icono: 'save', titulo: 'Suspender venta', onClick: abrirSuspender, disabled: guardando }] : []),
+    { id: 'suspendidas', testId: 'pos-suspendidas', icono: 'clock', titulo: 'Ventas suspendidas', onClick: abrirSuspendidas },
+    { id: 'bloquear', icono: 'lock', titulo: 'Bloquear', disabled: !onBloquear, onClick: () => onBloquear?.() },
+    { id: 'nota', icono: 'edit', titulo: 'Agregar nota', detalle: f.observacion ? 'Con nota' : '', onClick: () => setHoja('nota') },
+    { id: 'giftcards', testId: 'pos-gift-cards', icono: 'card', titulo: 'Gift cards', onClick: () => setGiftCardsOpen(true) },
+  ]
+  // Si el carrito queda vacío (venta guardada, cola sin conexión o vaciado),
+  // las hojas del carrito y del cobro se cierran. Va antes del efecto de abajo
+  // para que, al confirmar, gane la hoja de recibo.
+  useEffect(() => {
+    if (items.length === 0) setHoja(actual => (actual === 'carrito' || actual === 'cobro' || actual === 'sinstock' ? null : actual))
+  }, [items.length])
+  // Al confirmarse una venta en celular se abre la hoja con el recibo.
+  useEffect(() => {
+    if (esMovilRef.current && lastOrder) setHoja('exito')
+  }, [lastOrder])
+
   return (
     <Card className="p-3 md:p-4">
-      {ok && (
+      {ok && !esMovil && (
         <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <CheckAnimado size={36} className="shrink-0" />
           <span className="min-w-0">
@@ -1992,12 +2074,15 @@ export default function FormularioVenta({
         </p>
       )}
       <form
+        id="pos-venta-form"
         onSubmit={guardar}
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return
           const target = event.target
           if (!(target instanceof HTMLElement)) return
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
+          // Celular: Enter en un campo nunca guarda la venta; solo el botón explícito.
+          if (esMovilRef.current && target.tagName === 'INPUT') event.preventDefault()
         }}
         className="pos-f2 flex flex-col gap-4"
       >
@@ -2013,7 +2098,7 @@ export default function FormularioVenta({
             pantallas angostas (ahí la barra superior es el acceso rápido). */}
         <div
           data-testid="resumen-columna"
-          className="order-last"
+          className={esMovil ? 'order-last hidden' : 'order-last'}
         >
           <details className="inicio-disclosure"><summary>Detalles de la venta y del día</summary>
           <p className="mb-2 text-xs text-mute">Fecha: {fechaClave().split('-').reverse().join('/')}</p>
@@ -2028,13 +2113,15 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2">
+        <div className={`pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}>
           <div className="flex min-w-0 flex-col gap-4">
             {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
+            {pos('cliente',
             <PosCustomer
               sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
               billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
-            />
+            />)}
+            {pos('productos',
             <PasoProductos
               sesion={sesion}
               esDemo={esDemo}
@@ -2074,7 +2161,7 @@ export default function FormularioVenta({
               onElegirVariante={(familia, opciones) => elegirVariante(familia, opciones)}
               onCerrarVariante={() => setVariantePara(null)}
               acciones={barraPos}
-            />
+            />)}
 
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
             <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
@@ -2093,6 +2180,7 @@ export default function FormularioVenta({
             data-testid="pos-columna-venta"
             className="pos-columna-venta flex min-w-0 flex-col gap-4 [&>*]:shrink-0"
           >
+            {pos('carrito',
             <PasoCarrito
               items={items}
               productos={productos}
@@ -2118,8 +2206,9 @@ export default function FormularioVenta({
               productoBajoId={productoBajoId}
               onAuthPrecio={setAuthPrecio}
               tieneCupon={tieneCupon}
-            />
+            />)}
 
+            {pos('cobro',
             <PasoCobro
               customer={customer}
               pagaAlRecibir={pagaAlRecibir}
@@ -2159,9 +2248,85 @@ export default function FormularioVenta({
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
-            />
+            />)}
           </div>
         </div>
+
+        {/* POS en celular (#429): mismos elementos de arriba (capturados con
+            `pos`), repartidos en acciones, barra del carrito y hojas. */}
+        {esMovil && (
+          <div data-testid="pos-movil" role="region" aria-label="Nueva venta" className="flex flex-col gap-3 pb-[calc(56px+5rem+env(safe-area-inset-bottom,0px))]">
+            <AccionesInicio acciones={accionesMovil} />
+            {elementosPos.productos && cloneElement(elementosPos.productos, { acciones: null })}
+          </div>
+        )}
+        {esMovil && <BarraCarrito cantidad={cantTotal} total={totalGeneral} onAbrir={() => setHoja('carrito')} />}
+        {esMovil && (
+          <>
+            <HojaCarrito
+              open={hoja === 'carrito'}
+              onClose={() => setHoja(null)}
+              cliente={customer.name}
+              onCliente={() => setHoja('cliente')}
+              total={totalGeneral}
+              cantidad={cantTotal}
+              onCobrar={cobrarMovil}
+            >
+              {elementosPos.carrito}
+            </HojaCarrito>
+            <HojaCliente open={hoja === 'cliente'} onClose={() => setHoja(null)}>{elementosPos.cliente}</HojaCliente>
+            <HojaEnvio open={hoja === 'envio'} onClose={() => setHoja(null)} f={f} setF={setF} />
+            <HojaNota open={hoja === 'nota'} onClose={() => setHoja(null)} f={f} setF={setF} />
+            <HojaSinStock
+              open={hoja === 'sinstock'}
+              onClose={() => setHoja('carrito')}
+              pendientes={pendientesMovil}
+              permiso={puedeVenderSinStock}
+              onVenderIgual={venderIgualMovil}
+              onElegirUnidad={key => { setHoja('carrito'); setImeiPara(key) }}
+            />
+            {hoja === 'cobro' && (
+              <CobroMovil
+                open
+                onClose={() => setHoja(null)}
+                cuentas={cuentas}
+                usaCuentas={usaCuentas}
+                errorCuentas={errorCuentas}
+                onReintentarCuentas={() => setIntentoCuentas(n => n + 1)}
+                pagos={pagos}
+                setPagos={setPagos}
+                totalGeneral={totalGeneral}
+                totalPagado={totalPagado}
+                pendiente={pendiente}
+                cantTotal={cantTotal}
+                customer={customer}
+                pagaAlRecibir={pagaAlRecibir}
+                setPagaAlRecibir={setPagaAlRecibir}
+                venderACredito={venderACredito}
+                setVenderACredito={setVenderACredito}
+                guardando={guardando}
+                guardadoIncompleto={guardadoIncompleto}
+                valido={Boolean(valido)}
+                motivos={motivosBloqueo}
+                errorVenta={errorVenta}
+                etiquetaConfirmar={etiquetaConfirmarMovil}
+                completo={totalGeneral > 0 && totalPagado >= totalGeneral}
+                masContenido={elementosPos.cobro && cloneElement(elementosPos.cobro, { modoMovil: true })}
+              />
+            )}
+            <HojaExito
+              open={hoja === 'exito' && Boolean(lastOrder)}
+              onClose={() => { setHoja(null); setVueltoExito(0) }}
+              titulo={lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : ''}
+              total={Number(lastOrder?.totalPyg) || 0}
+              vuelto={vueltoExito}
+              whatsapp={lastOrder ? whatsappTrackingLink(lastOrder) : ''}
+              onImprimir={() => { toast.info('Comprobante abierto', 'Revisalo y confirmá la impresión.'); setComprobante(true) }}
+              onVerPedido={() => { setHoja(null); setVueltoExito(0); navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`) }}
+              esDemo={esDemo}
+            />
+          </>
+        )}
       </form>
 
       <Modal
