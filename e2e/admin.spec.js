@@ -811,8 +811,11 @@ test.describe('mini CRM de clientes', () => {
     const ficha = page.getByRole('dialog')
     await expect(ficha.getByRole('heading', { name: nombre })).toBeVisible()
 
-    // Resumen: cliente desde con fecha/hora y usuario que lo creó.
-    await expect(ficha.getByText(/Cliente desde .* · Creado por/)).toBeVisible()
+    // Resumen: cronología compacta (#448): cliente desde con su fecha y quién lo creó, primer y último pedido.
+    const cronologia = ficha.getByTestId('perfil-cronologia-cliente')
+    await expect(cronologia).toContainText('Cliente desde')
+    await expect(cronologia).toContainText('Creado por')
+    await expect(cronologia).toContainText('Primer pedido')
     // Deuda desglosada por pedido: el saldo vive en su fila.
     const deuda = ficha.getByTestId('perfil-deuda-fila').filter({ hasText: numeroPedido })
     await expect(deuda).toBeVisible()
