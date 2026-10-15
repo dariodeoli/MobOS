@@ -91,7 +91,7 @@ test('el pago arranca sin cuenta, al elegirla queda la cápsula y la lista no ta
   await expect(datos).toContainText('Banco E2E')
 
   // Otro pago: vuelve a arrancar sin cuenta (no se arrastra la anterior).
-  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  await page.getByRole('button', { name: /^\+ Agregar (otro )?pago$/ }).click()
   await expect(page.getByTestId('pago-fila-1').getByLabel('Cuenta de cobro')).toHaveValue('')
 })
 
@@ -161,7 +161,8 @@ test('el botón principal crece, ordena etiqueta/importe y mantiene un color neu
   const boton = page.getByRole('button', { name: /^Crear pedido/ })
   await expect(boton).toBeVisible()
   const caja = await boton.boundingBox()
-  expect(Math.round(caja.height)).toBeGreaterThanOrEqual(52)
+  // Cobro de una sola pantalla: en escritorio el botón es de 48 px con etiqueta e importe en un renglón.
+  expect(Math.round(caja.height)).toBeGreaterThanOrEqual(48)
   const neutro = await colorBoton(boton)
   for (const variable of ['--c-warn', '--c-ok', '--c-bad']) {
     expect(neutro, `el parcial no usa ${variable}`).not.toBe(`rgb(${await colorTema(page, variable)})`)
@@ -172,9 +173,10 @@ test('el botón principal crece, ordena etiqueta/importe y mantiene un color neu
   await expect(etiquetaBoton).toHaveText('Crear pedido')
   await expect(detalleBoton).toContainText('2 productos')
   await expect(detalleBoton).toContainText(/Gs 125\.000/)
-  const yEtiqueta = (await etiquetaBoton.boundingBox()).y
-  const yDetalle = (await detalleBoton.boundingBox()).y
-  expect(yEtiqueta).toBeLessThan(yDetalle)
+  const cajaEtiqueta = await etiquetaBoton.boundingBox()
+  const cajaDetalle = await detalleBoton.boundingBox()
+  // La etiqueta va primero (arriba en celular, a la izquierda en escritorio).
+  expect(cajaEtiqueta.y < cajaDetalle.y || cajaEtiqueta.x < cajaDetalle.x).toBe(true)
 
   // Completo: mismo color neutro, ahora con la etiqueta «Confirmar venta».
   await fila.getByLabel('Monto original').fill('125000')

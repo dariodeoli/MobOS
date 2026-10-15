@@ -1,0 +1,90 @@
+/* POS en una sola pantalla (≥1024 px).
+   La grilla mide exactamente lo que queda de pantalla (--pos-alto, la fija
+   FormularioVenta): sin scroll de página. Solo se desplazan las listas por
+   dentro: catálogo, productos de la venta y pagos. Se carga después de
+   posCobro.css e inicioPosF2.css y gana por especificidad. */
+.pos-f2 .pos-layout {
+  --pos-izq: 0.55;
+}
+@media (min-width: 1280px) {
+  .pos-f2 .pos-layout {
+    --pos-izq: 0.5;
+  }
+}
+@media (min-width: 1024px) {
+  .pos-f2 .pos-layout {
+    grid-template-columns: minmax(0, calc((100% - 12px) * var(--pos-izq))) minmax(0, 1fr);
+    height: var(--pos-alto, auto);
+    min-height: 0;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .pos-f2 .pos-col-izq {
+    min-height: 0;
+    height: 100%;
+    gap: 8px;
+  }
+  .pos-f2 .pos-col-izq > * {
+    flex: none;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .pos-f2 .pos-columna-venta {
+    height: 100%;
+    min-height: 0;
+  }
+  .pos-f2 .pos-carrito {
+    flex: 1 1 0;
+    min-height: 150px;
+  }
+  .pos-f2 .pos-carrito.pos-carrito-colapsado {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .pos-f2 .pos-cobro {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  .pos-f2 .pos-carrito.pos-carrito-colapsado + .pos-cobro {
+    flex: 1 1 0;
+  }
+  /* Densidad: cliente y catálogo con menos relleno. */
+  .pos-f2 [data-testid='pos-bloque-cliente'] {
+    padding: 8px 10px;
+  }
+  .pos-f2 [data-testid='pos-bloque-productos'] {
+    padding: 10px;
+  }
+  /* Divisor arrastrable entre catálogo y venta. */
+  .pos-divisor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc((100% - 12px) * var(--pos-izq) + 6px - 5px);
+    width: 10px;
+    z-index: 5;
+    cursor: col-resize;
+    border-radius: 6px;
+    touch-action: none;
+    color: rgb(var(--c-mute, 120 120 130));
+  }
+  .pos-divisor::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 38%;
+    bottom: 38%;
+    width: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    opacity: 0.3;
+  }
+  .pos-divisor:hover::after,
+  .pos-divisor:focus-visible::after {
+    opacity: 0.8;
+  }
+}

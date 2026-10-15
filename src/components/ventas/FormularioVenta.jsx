@@ -1,5 +1,6 @@
 import '../control/inicioPosF2.css'
 import './posCobro.css'
+import './posUnaPantalla.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -58,7 +59,7 @@ import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
-import { accountPayment } from '@/utils/pagoCuenta'
+import { accountPayment, pagosSinVuelto, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import GiftCardsPos from './venta/GiftCardsPos'
@@ -80,7 +81,7 @@ import { useMediaQuery } from '@/components/shared/useMediaQuery'
 import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
 import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
 import CobroMovil from './movil/CobroMovil'
-import { vueltoDePagos } from './movil/posMovil'
+import { pagoDeMedio, vueltoDePagos } from './movil/posMovil'
 import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
@@ -266,10 +267,11 @@ function ResumenVenta({ items, unidades, montoDescuento, montoDelivery, dia }) {
   )
 }
 
-// Columna lateral del POS en escritorio: queda pegada arriba (sticky) y su alto
-// máximo es lo que entra en pantalla desde donde está hasta el borde inferior,
-// así «Cobrar» se alcanza sin deslizar la página.
-function useColumnaPegada(ref) {
+// POS en escritorio (≥1024 px): todo el POS cabe en UNA pantalla, sin deslizar
+// la página. El alto de la grilla es el que queda desde donde empieza hasta el
+// borde inferior (menos lo que haya debajo); dentro, solo las listas
+// (catálogo, productos de la venta, pagos) se desplazan.
+function useAlturaPos(ref) {
   useEffect(() => {
     const el = ref.current
     if (!el || typeof window === 'undefined') return undefined
@@ -277,20 +279,68 @@ function useColumnaPegada(ref) {
     let raf = 0
     const medir = () => {
       raf = 0
-      if (!escritorio.matches) { el.style.removeProperty('--pos-col-max'); return }
-      const arriba = Math.max(16, el.getBoundingClientRect().top)
-      el.style.setProperty('--pos-col-max', `${Math.max(320, Math.floor(window.innerHeight - arriba - 16))}px`)
+      if (!escritorio.matches) { el.style.removeProperty('--pos-alto'); return }
+      // Con la grilla "infinita" lo que sobra en el documento es exactamente lo
+      // que hay debajo de ella (resumen, márgenes del shell).
+      const PRUEBA = 9000
+      el.style.setProperty('--pos-alto', `${PRUEBA}px`)
+      const arriba = el.getBoundingClientRect().top + window.scrollY
+      const debajo = document.documentElement.scrollHeight - arriba - PRUEBA
+      const alto = Math.max(420, Math.floor(window.innerHeight - arriba - Math.max(0, debajo)))
+      el.style.setProperty('--pos-alto', `${alto}px`)
     }
     const pedir = () => { if (!raf) raf = requestAnimationFrame(medir) }
     medir()
-    window.addEventListener('scroll', pedir, { passive: true })
+    // Re-mide cuando el contenido de la página cambia de alto (fuentes, avisos,
+    // resumen) en vez de esperar un tiempo fijo.
+    const observador = typeof ResizeObserver === 'function' ? new ResizeObserver(pedir) : null
+    observador?.observe(document.body)
     window.addEventListener('resize', pedir)
+    document.addEventListener('toggle', pedir, true)
     return () => {
-      window.removeEventListener('scroll', pedir)
+      observador?.disconnect()
       window.removeEventListener('resize', pedir)
+      document.removeEventListener('toggle', pedir, true)
       if (raf) cancelAnimationFrame(raf)
     }
   }, [ref])
+}
+
+// Divisor arrastrable entre el catálogo y la venta: la proporción se guarda por
+// persona en este dispositivo. Doble clic la restablece; con el teclado, ← →.
+const LIMITE_DIVISOR = [0.3, 0.7]
+function leerDivisor(clave) {
+  try {
+    const v = Number(localStorage.getItem(clave))
+    return v >= LIMITE_DIVISOR[0] && v <= LIMITE_DIVISOR[1] ? v : null
+  } catch { return null }
+}
+function useDivisorPos(layoutRef, clave) {
+  const [izq, setIzq] = useState(() => leerDivisor(clave))
+  useEffect(() => { setIzq(leerDivisor(clave)) }, [clave])
+  const guardar = (valor) => {
+    try { if (valor == null) localStorage.removeItem(clave); else localStorage.setItem(clave, String(valor)) } catch { /* sin almacenamiento */ }
+  }
+  const limitar = (v) => Math.min(LIMITE_DIVISOR[1], Math.max(LIMITE_DIVISOR[0], v))
+  const desdePuntero = (e) => {
+    const r = layoutRef.current?.getBoundingClientRect()
+    if (!r) return null
+    return limitar(Number(((e.clientX - r.left - 8) / (r.width - 16)).toFixed(3)))
+  }
+  const props = {
+    onPointerDown: (e) => { e.currentTarget.setPointerCapture?.(e.pointerId); e.preventDefault() },
+    onPointerMove: (e) => { if (e.currentTarget.hasPointerCapture?.(e.pointerId)) { const v = desdePuntero(e); if (v != null) setIzq(v) } },
+    onPointerUp: (e) => { e.currentTarget.releasePointerCapture?.(e.pointerId); const v = desdePuntero(e); if (v != null) { setIzq(v); guardar(v) } },
+    onDoubleClick: () => { setIzq(null); guardar(null) },
+    onKeyDown: (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      e.preventDefault()
+      const base = izq ?? (window.innerWidth >= 1280 ? 0.5 : 0.55)
+      const v = limitar(Number((base + (e.key === 'ArrowLeft' ? -0.02 : 0.02)).toFixed(3)))
+      setIzq(v); guardar(v)
+    },
+  }
+  return { izq, props }
 }
 
 export default function FormularioVenta({
@@ -304,8 +354,11 @@ export default function FormularioVenta({
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
-  const columnaVentaRef = useRef(null)
-  useColumnaPegada(columnaVentaRef)
+  const layoutRef = useRef(null)
+  useAlturaPos(layoutRef)
+  // «Listo, ir a cobrar»: el carrito se resume y el cobro gana la altura.
+  const [modoCobro, setModoCobro] = useState(false)
+  const divisor = useDivisorPos(layoutRef, `mobos:pos-divisor:${contextoActual().userId || 'anon'}`)
   // POS en celular (#429): <768 px cambia solo la presentación (acciones,
   // barra del carrito y hojas). Es la misma venta: el estado, el guardado y
   // las reglas siguen siendo los de abajo.
@@ -831,6 +884,9 @@ export default function FormularioVenta({
   const evaluacionCredito = venderACredito && customer?.id
     ? evaluarCredito({ limite: customer.creditLimitPyg, deuda: deudaCliente, saldo: pendiente })
     : null
+  // Efectivo en dólares: se puede entregar de más y se devuelve el vuelto en Gs.
+  const vueltoExtranjero = usaCuentas ? vueltoEfectivoExtranjero(pagos, cuentas, totalGeneral) : { exceso: 0, vuelto: 0, permitido: true }
+  const excedePagos = totalPagado > totalGeneral && !vueltoExtranjero.permitido
 
   // Guía inline (#148 §11): líneas que hoy bloquean el guardado — sin IMEI
   // elegido o sin stock y sin marcar «sobre pedido» — con su acción para
@@ -856,10 +912,10 @@ export default function FormularioVenta({
   const motivosBloqueo = [
     !sesion?.vendedorId && 'Ingresá con tu PIN para vender.',
     cantTotal === 0 && 'Agregá al menos un producto.',
-    totalPagado > totalGeneral && 'Los pagos superan el total de la venta.',
+    excedePagos && 'Los pagos superan el total de la venta.',
     gsNum(descuento) > subtotal && 'El descuento supera el subtotal.',
   ].filter(Boolean)
-  const valido = sesion?.vendedorId && cantTotal > 0 && totalPagado <= totalGeneral && gsNum(descuento) <= subtotal
+  const valido = sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
   // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
@@ -992,7 +1048,7 @@ export default function FormularioVenta({
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
     const lista = [...items]
     if (!sesion?.vendedorId || lista.length === 0) return
-    if (totalPagado > totalGeneral) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
+    if (excedePagos) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
     if (gsNum(descuento) > subtotal) { setErrorVenta('El descuento supera el subtotal de la venta.'); return }
     const orderItems = lista.map(it => {
       const pct = parsePercent(it.descuentoPct) ?? 0
@@ -1149,8 +1205,11 @@ export default function FormularioVenta({
       // Los campos de moneda (originalAmount/currency/exchangeRatePyg) se
       // rechazan sin accountId.
       // «No pagado» (#148 §11): el bloque queda PENDING y no cuenta como cobrado.
+      // Vuelto en dólares: al servidor viaja solo lo aplicado a la venta.
+      const pagosParaServidor = usaCuentas && vueltoExtranjero.exceso > 0 ? pagosSinVuelto(pagos, cuentas, totalGeneral) : pagos
+      if (!pagosParaServidor) throw new Error('Para dar vuelto en dólares hace falta una cuenta de efectivo en guaraníes.')
       payments = usaCuentas
-        ? pagos.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
+        ? pagosParaServidor.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
         : pagos.map(p => (p.giftCardCode !== undefined
           ? pagoGiftCard(p)
           : {
@@ -1457,7 +1516,7 @@ export default function FormularioVenta({
       setItems([])
       setDescuento('')
       setAuthDescuento(null)
-      setVueltoExito(vueltoDePagos(pagos))
+      setVueltoExito(vueltoDePagos(pagos) + vueltoExtranjero.vuelto)
       setPagos([])
       setPagaAlRecibir(false)
       setVenderACredito(false)
@@ -1549,7 +1608,11 @@ export default function FormularioVenta({
         // #283: el pago arranca SIN cuenta (la predeterminada de #272 se
         // elimina) y el monto se edita en `originalAmount` (moneda de la
         // cuenta): al elegirla se propone el saldo que falta.
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
+        // «Dividir pago» / «Completar en Gs»: la fila nueva sale con el saldo
+        // que falta (o con la cuenta indicada ya elegida).
+        ? (prefill.cuenta && prefill.monto > 0
+          ? pagoDeMedio(prefill.cuenta, prefill.monto)
+          : { ...PAGO_VACIO, accountId: '', originalAmount: prefill.monto > 0 ? String(Math.round(prefill.monto)) : '', exchangeRatePyg: '' })
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
@@ -2166,8 +2229,26 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className={`pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}>
-          <div className="flex min-w-0 flex-col gap-4">
+        <div
+          ref={layoutRef}
+          data-testid="pos-layout"
+          style={divisor.izq != null ? { '--pos-izq': divisor.izq } : undefined}
+          className={`pos-layout relative grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}
+        >
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ajustar ancho del catálogo y de la venta"
+            aria-valuemin={30}
+            aria-valuemax={70}
+            aria-valuenow={Math.round((divisor.izq ?? 0.5) * 100)}
+            tabIndex={0}
+            data-testid="pos-divisor"
+            title="Arrastrá para cambiar el ancho (doble clic: restablecer)"
+            className="pos-divisor hidden lg:block"
+            {...divisor.props}
+          />
+          <div className="pos-col-izq flex min-w-0 flex-col gap-3">
             {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
             {pos('cliente',
             <PosCustomer
@@ -2229,9 +2310,8 @@ export default function FormularioVenta({
               bloque al deslizar el catálogo; si es más alta que la pantalla se
               desplaza por dentro y «Cobrar» queda fijo al pie. */}
           <div
-            ref={columnaVentaRef}
             data-testid="pos-columna-venta"
-            className="pos-columna-venta flex min-w-0 flex-col gap-4 [&>*]:shrink-0"
+            className="pos-columna-venta flex min-w-0 flex-col gap-2"
           >
             {pos('carrito',
             <PasoCarrito
@@ -2259,6 +2339,9 @@ export default function FormularioVenta({
               productoBajoId={productoBajoId}
               onAuthPrecio={setAuthPrecio}
               tieneCupon={tieneCupon}
+              modoCobro={modoCobro && !esMovil && items.length > 0}
+              onListo={() => setModoCobro(true)}
+              onEditar={() => setModoCobro(false)}
             />)}
 
             {pos('cobro',
@@ -2295,6 +2378,7 @@ export default function FormularioVenta({
               totalGeneral={totalGeneral}
               totalPagado={totalPagado}
               pendiente={pendiente}
+              vuelto={vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0}
               f={f}
               setF={setF}
               set={set}

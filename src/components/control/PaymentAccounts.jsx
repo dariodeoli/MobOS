@@ -28,7 +28,8 @@ import StatusChip from '@/components/shared/StatusChip'
 // acreditación y descuento. El banco o la procesadora se muestra UNA vez: logo
 // + nombre en la primera celda (nunca otra vez en «Datos»).
 
-const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
+const ALIAS_TIPOS = [['RUC', 'RUC'], ['EMAIL', 'Correo'], ['PHONE', 'Teléfono'], ['OTHER', 'Otro']]
+const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', aliasType: '', aliasValue: '', reference: '', currencyLabel: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 
 // Cada medio tiene su modelo (#142): qué campos muestra, con qué moneda y qué
 // comportamiento aplica. La moneda fija se guarda sola (Pix en reales, Cripto
@@ -172,7 +173,7 @@ function AccountManager() {
   function openForm(account = null) {    // Los opcionales vacíos llegan null desde la API: el formulario trabaja
     // siempre con texto (evita inputs sin control y el error de validación).
     const values = { ...EMPTY, ...account }
-    for (const key of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']) {
+    for (const key of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'aliasType', 'aliasValue', 'reference', 'currencyLabel', 'holderId', 'companyId']) {
       if (values[key] == null) values[key] = ''
     }
     setEditingId(account?.id ?? null)
@@ -341,6 +342,16 @@ function AccountManager() {
             />
           </div>}
           {medio.cuenta && <div className="sm:col-span-2"><Label htmlFor="pa-number">Número de cuenta {!transferNuevo && '(opcional)'}</Label><Input id="pa-number" type="text" required={transferNuevo} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>}
+          {medio.cuenta && <div className="sm:col-span-6" data-testid="pa-alias">
+            <Label htmlFor="pa-alias-value">Alias (opcional)</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select id="pa-alias-type" aria-label="Tipo de alias" className="w-36" value={form.aliasType} onChange={event => change('aliasType', event.target.value)}>
+                <option value="">Tipo…</option>
+                {ALIAS_TIPOS.map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
+              </Select>
+              <Input id="pa-alias-value" aria-label="Alias" className="w-full max-w-xs" maxLength={200} value={form.aliasValue} onChange={event => setForm(current => ({ ...current, aliasValue: event.target.value, aliasType: current.aliasType || (event.target.value ? 'OTHER' : '') }))} placeholder="RUC, correo, teléfono…" />
+            </div>
+          </div>}
           {medio.pixKey && <div className="sm:col-span-3"><Label htmlFor="pa-pix-key">Llave Pix</Label><Input id="pa-pix-key" maxLength={200} value={form.pixKey} onChange={event => change('pixKey', event.target.value)} placeholder="CPF/CNPJ, correo, teléfono o aleatoria" /></div>}
           {medio.referencia && <div className="sm:col-span-3"><Label htmlFor="pa-reference">{form.kind === 'CRYPTO' ? 'Referencia de la billetera' : form.kind === 'TRADE_IN' ? 'Valor de canje' : 'Referencia'}</Label><Input id="pa-reference" maxLength={200} value={form.reference} onChange={event => change('reference', event.target.value)} placeholder={form.kind === 'CRYPTO' ? 'Ej. TRC20 · TQn9…' : form.kind === 'TRADE_IN' ? 'Ej. equipo recibido, valor acordado' : 'Referencia'} /></div>}
         </fieldset>
