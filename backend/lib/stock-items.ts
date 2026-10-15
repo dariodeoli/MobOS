@@ -64,6 +64,20 @@ export type StockItem = {
   supplierName: string | null
   supplierCode: string | null
   consignorName: string | null
+  // Planilla de Unidades (#400). Solo en filas de unidad; null en productos.
+  supplierIcon: string | null
+  supplierColor: string | null
+  batteryCycles: number | null
+  warrantyUntil: Date | string | null
+  notes: string | null
+  reservedUntil: Date | string | null
+  reservationCustomer: string | null
+  // Quién verificó: código de verificación física (VPC…) o, si falta, el nombre del usuario.
+  verifiedBy: string | null
+  lastVerifiedAt: Date | string | null
+  locationCode: string | null
+  locationIcon: string | null
+  locationColor: string | null
   costPyg: number | null
   status: StockItemStatus
   quantity: number
@@ -187,7 +201,7 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     const serialLike = `%${likeEscape(normalized || raw)}%`
     // Código interno (MOV-0042): coincide por el correlativo de la empresa.
     const unitCode = parseUnitCode(raw)
-    where.push(Prisma.sql`(u."serial" ILIKE ${serialLike} OR p."sku" ILIKE ${rawLike} OR p."sku" ILIKE ${serialLike} OR p."name" ILIKE ${rawLike}${unitCode ? Prisma.sql` OR u."internalSeq" = ${unitCode.seq}` : Prisma.empty})`)
+    where.push(Prisma.sql`(u."serial" ILIKE ${serialLike} OR p."sku" ILIKE ${rawLike} OR p."sku" ILIKE ${serialLike} OR p."name" ILIKE ${rawLike} OR u."notes" ILIKE ${rawLike} OR EXISTS (SELECT 1 FROM "Supplier" sq WHERE sq."id" = u."supplierId" AND sq."code" ILIKE ${rawLike})${unitCode ? Prisma.sql` OR u."internalSeq" = ${unitCode.seq}` : Prisma.empty})`)
   }
   if (filters.from) where.push(Prisma.sql`${sortKey} >= ${filters.from.toISOString()}::timestamp`)
   if (filters.toExclusive) where.push(Prisma.sql`${sortKey} < ${filters.toExclusive.toISOString()}::timestamp`)
@@ -206,6 +220,10 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
       ${scope.canSeeSupplier ? Prisma.sql`COALESCE(s."name", u."supplierName")` : Prisma.sql`NULL::text`} AS "supplierName",
       CASE WHEN u."supplierId" IS NULL AND u."supplierName" IS NULL THEN NULL ELSE COALESCE(NULLIF(btrim(s."code"), ''), 'S/S') END AS "supplierCode",
       ${cost ? Prisma.sql`u."consignorName"` : Prisma.sql`NULL::text`} AS "consignorName",
+      s."icon" AS "supplierIcon", s."color" AS "supplierColor", u."batteryCycles" AS "batteryCycles", u."warrantyUntil" AS "warrantyUntil", u."notes" AS "notes",
+      u."reservedUntil" AS "reservedUntil", u."reservationCustomer" AS "reservationCustomer",
+      COALESCE(NULLIF(btrim(u."verifiedByCode"), ''), vu."name") AS "verifiedBy", u."lastVerifiedAt" AS "lastVerifiedAt",
+      l."code" AS "locationCode", l."icon" AS "locationIcon", l."color" AS "locationColor",
       ${cost ? Prisma.sql`u."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr} AS "status", 1 AS "quantity",
       u."branchId" AS "branchId", b."name" AS "branchName", u."locationId" AS "locationId", l."name" AS "locationName",
@@ -215,6 +233,7 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     LEFT JOIN "Branch" b ON b."id" = u."branchId"
     LEFT JOIN "StockLocation" l ON l."id" = u."locationId"
     LEFT JOIN "Supplier" s ON s."id" = u."supplierId"
+    LEFT JOIN "User" vu ON vu."id" = u."lastVerifiedById"
     WHERE ${whereSql}
     ORDER BY "sortKey" DESC, "id" DESC LIMIT ${filters.limit + 1})`
 }
@@ -271,6 +290,9 @@ function productsBranch(filters: StockItemsFilters, scope: StockItemsScope, curs
   return Prisma.sql`(SELECT 'product'::text AS "kind", p."id" AS "id", ${productStockKind} AS "stockKind", p."id" AS "productId", p."sku" AS "sku",
       NULLIF(btrim(concat_ws(' ', p."model", p."capacity", p."color")), '') AS "model", p."name" AS "name",
       NULL::text AS "serial", NULL::text AS "condition", NULL::int AS "batteryHealth", NULL::text AS "supplierId", NULL::text AS "supplierName", NULL::text AS "supplierCode", NULL::text AS "consignorName",
+      NULL::text AS "supplierIcon", NULL::text AS "supplierColor", NULL::int AS "batteryCycles", NULL::timestamp(3) AS "warrantyUntil", NULL::text AS "notes",
+      NULL::timestamp(3) AS "reservedUntil", NULL::text AS "reservationCustomer", NULL::text AS "verifiedBy", NULL::timestamp(3) AS "lastVerifiedAt",
+      NULL::text AS "locationCode", NULL::text AS "locationIcon", NULL::text AS "locationColor",
       ${scope.canSeeCost ? Prisma.sql`p."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr}::text AS "status", ${vendido ? Prisma.sql`sold."qty"` : Prisma.sql`GREATEST(p."stock", 0)`}::int AS "quantity",
       p."branchId" AS "branchId", b."name" AS "branchName", NULL::text AS "locationId", NULL::text AS "locationName",
@@ -322,6 +344,11 @@ export function mapStockRow(row: RawRow, canSeeCost: boolean, canSeeSupplier: bo
     serial: (row.serial as string | null) ?? null, condition: (row.condition as string | null) ?? null, batteryHealth: toNumber(row.batteryHealth),
     supplierId: (row.supplierId as string | null) ?? null, supplierName: (row.supplierName as string | null) ?? null, supplierCode: (row.supplierCode as string | null) ?? null,
     consignorName: (row.consignorName as string | null) ?? null,
+    supplierIcon: (row.supplierIcon as string | null) ?? null, supplierColor: (row.supplierColor as string | null) ?? null,
+    batteryCycles: toNumber(row.batteryCycles), warrantyUntil: (row.warrantyUntil as Date | string | null) ?? null, notes: (row.notes as string | null) ?? null,
+    reservedUntil: (row.reservedUntil as Date | string | null) ?? null, reservationCustomer: (row.reservationCustomer as string | null) ?? null,
+    verifiedBy: (row.verifiedBy as string | null) ?? null, lastVerifiedAt: (row.lastVerifiedAt as Date | string | null) ?? null,
+    locationCode: (row.locationCode as string | null) ?? null, locationIcon: (row.locationIcon as string | null) ?? null, locationColor: (row.locationColor as string | null) ?? null,
     costPyg: toNumber(row.costPyg), status: row.status as StockItemStatus, quantity: Number(row.quantity),
     branchId: (row.branchId as string | null) ?? null, branchName: (row.branchName as string | null) ?? null,
     locationId: (row.locationId as string | null) ?? null, locationName: (row.locationName as string | null) ?? null,

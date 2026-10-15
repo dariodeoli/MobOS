@@ -1,0 +1,154 @@
+/* Planilla de Unidades (#400): una fila por unidad (36–40 px), agrupada por modelo.
+   - El color de la fila sale de la condición (tokens --cond-* de index.css) y la
+     ubicación suma su variante mezclando el 12 % de su color propio.
+   - El estado (reservado, préstamo, vendido…) es un chip aparte: no pisa el color.
+   - Las columnas llegan por --pl-cols / --pl-cols-compacta (las mismas en el
+     encabezado y en cada fila). Bajo 64 rem de contenedor se ocultan Ingreso y
+     Garantía. Debajo de lg la fila mide ≥ 44 px (objetivo táctil). */
+.planilla {
+  container: planilla / inline-size;
+  min-width: 0;
+}
+.pl-grid {
+  display: grid;
+  grid-template-columns: var(--pl-cols);
+  column-gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.pl-encabezado {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(var(--c-ink));
+}
+@media (max-width: 1023px) {
+  .pl-encabezado { top: 3rem; }
+}
+.pl-grupo {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  text-align: left;
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+  background: rgb(var(--c-ink-800));
+  border-radius: 8px;
+  font-size: 12px;
+}
+@media (min-width: 1024px) {
+  .pl-grupo { min-height: 34px; }
+}
+.pl-grupo:focus-visible,
+.pl-fila:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 1px;
+}
+.pl-fila {
+  --pl-bg: var(--cond-new-bg);
+  --pl-bd: var(--cond-new-bd);
+  background: rgb(var(--pl-bg));
+  border: 1px solid rgb(var(--pl-bd));
+  border-radius: 6px;
+  color: rgb(var(--c-fore));
+  font-size: 12px;
+  min-height: 44px;
+  padding: 0 8px;
+  cursor: pointer;
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .pl-fila { height: 38px; min-height: 0; }
+}
+.pl-fila[data-condicion='used'] {
+  --pl-bg: var(--cond-used-bg);
+  --pl-bd: var(--cond-used-bd);
+}
+/* Variante por ubicación: el color propio de la depósito tiñe el fondo de su familia. */
+.pl-fila[data-tono] {
+  background: color-mix(in srgb, rgb(var(--pl-bg)) 88%, var(--pl-tono) 12%);
+}
+.pl-fila:hover {
+  border-color: rgb(var(--c-fono-text));
+}
+.pl-fila[data-sel='true'] {
+  box-shadow: inset 3px 0 0 rgb(var(--c-fono-text));
+}
+.pl-sec {
+  color: rgb(var(--cond-fg-2));
+}
+.pl-fila .stock-f4-menu > button {
+  background: rgb(var(--c-ink));
+}
+@media (min-width: 1024px) {
+  .pl-fila .stock-f4-menu > button { width: 28px; height: 28px; }
+}
+.pl-celda {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pl-nota {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+@media (min-width: 1024px) {
+  .pl-nota { min-height: 0; height: 100%; }
+}
+.pl-nota-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgb(var(--c-fono-text));
+  background: rgb(var(--c-ink));
+  color: rgb(var(--c-fore));
+  font-size: 12px;
+}
+@media (min-width: 1024px) {
+  .pl-nota-input { min-height: 0; height: 26px; }
+}
+.pl-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: rgb(var(--c-ink));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.pl-chip > span { overflow: hidden; text-overflow: ellipsis; }
+.pl-chip[data-tono='pass'] { color: rgb(var(--c-reserved-text, var(--c-reserved))); }
+.pl-chip[data-tono='bad'] { color: rgb(var(--cond-bad)); }
+.pl-chip[data-tono='warn'] { color: rgb(var(--cond-warn)); }
+.pl-chip[data-tono='info'] { color: rgb(var(--c-info-text)); }
+.pl-garantia[data-tono='warn'] { color: rgb(var(--cond-warn)); font-weight: 700; }
+.pl-garantia[data-tono='bad'] { color: rgb(var(--cond-bad)); font-weight: 700; }
+@container planilla (max-width: 64rem) {
+  .pl-grid { grid-template-columns: var(--pl-cols-compacta); }
+  .pl-c-ingreso,
+  .pl-c-garantia { display: none; }
+}
+.pl-movil {
+  display: grid;
+  gap: 2px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  min-height: 52px;
+}

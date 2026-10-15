@@ -21,10 +21,12 @@ const SUCURSALES = [
 ]
 
 const UBICACIONES = [
-  { id: 'demo-ubic-deposito-1', branchId: DEMO_BRANCH, name: 'Depósito 1', code: 'D1', color: '#60a5fa', isActive: true },
-  { id: 'demo-ubic-deposito-2', branchId: DEMO_BRANCH, name: 'Depósito 2', code: 'D2', color: '#a78bfa', isActive: true },
-  { id: 'demo-ubic-piso', branchId: DEMO_BRANCH, name: 'Piso de venta', code: 'PV', color: '#34d399', isActive: true },
-  { id: 'demo-ubic-vm-deposito', branchId: DEMO_BRANCH_2, name: 'Depósito Villa Morra', code: 'VM', color: '#38bdf8', isActive: true },
+  { id: 'demo-ubic-deposito-1', branchId: DEMO_BRANCH, name: 'Depósito 1', code: 'D1', color: '#60a5fa', icon: 'DEPOSITO', isActive: true },
+  { id: 'demo-ubic-deposito-2', branchId: DEMO_BRANCH, name: 'Depósito 2', code: 'D2', color: '#a78bfa', icon: 'DEPOSITO', isActive: true },
+  { id: 'demo-ubic-piso', branchId: DEMO_BRANCH, name: 'Piso de venta', code: 'PV', color: '#34d399', icon: 'VITRINA', isActive: true },
+  { id: 'demo-ubic-vm-deposito', branchId: DEMO_BRANCH_2, name: 'Depósito Villa Morra', code: 'VM', color: '#38bdf8', icon: 'DEPOSITO', isActive: true },
+  // #400: unidades prestadas (la planilla las marca con el chip «Préstamo»).
+  { id: 'demo-ubic-prestamo', branchId: DEMO_BRANCH_2, name: 'Préstamo', code: 'PRE', color: '#fb923c', icon: 'PRESTAMO', isActive: true },
 ]
 
 const PROVEEDORES = PROVEEDORES_DEMO
@@ -46,7 +48,7 @@ const ESTADOS = [
 ]
 const UBICACION_POR_INDICE = [
   'demo-ubic-deposito-1', 'demo-ubic-deposito-1', 'demo-ubic-deposito-1', 'demo-ubic-deposito-1', 'demo-ubic-deposito-1', 'demo-ubic-deposito-1',
-  'demo-ubic-deposito-2', 'demo-ubic-deposito-2', 'demo-ubic-deposito-2', 'demo-ubic-deposito-2', 'demo-ubic-deposito-2',
+  'demo-ubic-deposito-2', 'demo-ubic-prestamo', 'demo-ubic-deposito-2', 'demo-ubic-deposito-2', 'demo-ubic-deposito-2',
   'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso', 'demo-ubic-piso',
   'demo-ubic-vm-deposito', 'demo-ubic-vm-deposito', 'demo-ubic-vm-deposito',
 ]
@@ -59,6 +61,10 @@ function hace(dias, hora = 10) {
   return fecha.toISOString()
 }
 
+// #400: lo que Dario anota en la columna Nota de su planilla.
+const NOTAS_DEMO = { 3: '#MOB-0041 · Lucía F.', 6: 'Ingresó con caja abierta', 9: 'garantía enero 2027', 12: 'cliente pidió factura', 14: '#MOB-0043 · vendedor Hernán', 16: 'reservado Edgar', 18: 'pantalla con rayón leve', 15: 'garantía octubre 2026' }
+const primerDiaDeMes = (meses) => { const ahora = new Date(); return new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() + meses, 1)).toISOString() }
+
 function unidad(producto, indice) {
   const estado = ESTADOS[indice - 1]
   const condicion = indice % 5 === 0 ? 'USED' : indice % 7 === 0 ? 'REFURBISHED' : 'NEW'
@@ -70,13 +76,16 @@ function unidad(producto, indice) {
     status: estado,
     condition: condicion,
     batteryHealth: condicion === 'NEW' ? 100 : 80 + (indice % 16),
+    // #400: ciclos de carga y fin de garantía (mes completo): nuevos a 12 meses; los semi nuevos, vencida, por vencer o a 3 meses.
+    batteryCycles: condicion === 'NEW' ? null : 90 + indice * 11,
+    warrantyUntil: indice === 15 ? primerDiaDeMes(0) : condicion === 'NEW' ? primerDiaDeMes(11) : indice % 3 === 0 ? primerDiaDeMes(-2) : primerDiaDeMes(3),
     productId: producto.id,
     product: { id: producto.id, name: producto.nombre, nombre: producto.nombre, capacity: producto.atributos?.capacidad || '', sku: producto.sku || producto.id.toUpperCase().slice(0, 16), pricePyg: producto.precioVenta },
     branchId: indice % 8 === 0 ? DEMO_BRANCH_2 : DEMO_BRANCH,
     locationId: UBICACION_POR_INDICE[indice - 1] || 'demo-ubic-deposito-1',
     supplierName: PROVEEDORES[indice % PROVEEDORES.length].name,
     supplier: PROVEEDORES[indice % PROVEEDORES.length],
-    notes: indice % 6 === 0 ? 'Ingresó con caja abierta .' : '',
+    notes: NOTAS_DEMO[indice] || '',
     createdAt: hace(30 - indice),
     lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
     // #219: la demo espeja la forma real (`lastVerifiedAt` es lo que leen la
@@ -210,6 +219,7 @@ export function updateDemoUnit(data = {}) {
     unit.costPyg = data.costPyg === undefined ? unit.costPyg : data.costPyg
     unit.originalCost = data.originalCost === undefined ? unit.originalCost : data.originalCost
     unit.exchangeRatePyg = data.exchangeRatePyg === undefined ? unit.exchangeRatePyg : data.exchangeRatePyg
+    if (data.notes !== undefined) unit.notes = String(data.notes || '').slice(0, 500)
   }
   write(state)
   return snapshot(state, unit)
