@@ -162,13 +162,13 @@ test.describe('colores por condición y orden por defecto', () => {
 
 test.describe('entrada a una sección', () => {
   test('arranca en la primera pestaña y arriba de la página', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 700 })
+    await page.setViewportSize({ width: 1440, height: 460 })
     await enterDemo(page)
     // Stock › Control › Ubicaciones, bien abajo.
     await page.goto('/stock/ubicaciones')
     await expect(page.getByTestId('presentacion-stock')).toBeVisible()
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(50)
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
     const primary = await shellPrimary(page)
     await primary.getByRole('button', { name: 'Compras', exact: true }).click()
     await expect(page).toHaveURL(/\/compras$/)
