@@ -146,7 +146,7 @@ export default function ComprasCentro() {
       ) : !filtradas.length ? (
         <EmptyState icon="store" title="No hay compras para mostrar." description="Cuando el Centro registre una compra, aparece acá." />
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-1.5">
           {filtradas.map((compra) => {
             const unidades = (compra.lines || []).reduce((suma, fila) => suma + Number(fila.quantity || 0), 0)
             const libres = (compra.lines || []).reduce((suma, fila) => suma + Number(fila.libreQuantity || 0), 0)
@@ -154,36 +154,33 @@ export default function ComprasCentro() {
             const activa = compra.status === 'COMPRADA'
             const cancelable = ['COMPRADA', 'PREPARANDO', 'EN_TRANSITO'].includes(compra.status)
             return (
-              <Card key={compra.id} className="p-3.5" data-testid="compra-centro-fila">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">
+              <Card key={compra.id} className="px-3 py-1.5" data-testid="compra-centro-fila">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <div className="min-w-[14rem] flex-1">
+                    <p className="truncate text-sm font-semibold" title={`${compra.code} · ${compra.supplierName || compra.supplier?.name || 'Sin proveedor'}`}>
                       {compra.code}
                       <span className="font-normal text-mute"> · {compra.supplierName || compra.supplier?.name || 'Sin proveedor'}</span>
-                    </p>
-                    <p className="mt-1 text-xs text-mute">
-                      {unidades} unidad(es) · {compra.branch?.name || 'Sin sucursal'}
-                      {compra.currency && compra.currency !== 'PYG' ? ` · ${compra.currency} ${compra.originalCost ?? '—'}` : compra.originalCost ? ` · ${gs(Number(compra.originalCost))}` : ''}
-                      {libres > 0 ? ` · ${libres} libre(s)` : ''}
+                      <span className="text-xs font-normal text-mute">
+                        {' · '}{unidades} unidad(es) · {compra.branch?.name || 'Sin sucursal'}
+                        {compra.currency && compra.currency !== 'PYG' ? ` · ${compra.currency} ${compra.originalCost ?? '—'}` : compra.originalCost ? ` · ${gs(Number(compra.originalCost))}` : ''}
+                        {libres > 0 ? ` · ${libres} libre(s)` : ''}
+                      </span>
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge color={tonoCompra(compra.status) === 'ok' ? 'green' : tonoCompra(compra.status) === 'warn' ? 'orange' : tonoCompra(compra.status) === 'mute' ? 'slate' : 'blue'}>{etiquetaCompra(compra.status)}</Badge>
+                  <Badge color={tonoCompra(compra.status) === 'ok' ? 'green' : tonoCompra(compra.status) === 'warn' ? 'orange' : tonoCompra(compra.status) === 'mute' ? 'slate' : 'blue'}>{etiquetaCompra(compra.status)}</Badge>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Button type="button" variant={expandida ? 'outline' : 'primary'} className="px-2.5 text-xs lg:!h-8 lg:!min-h-0" onClick={() => setAbierta(expandida ? '' : compra.id)}>
+                      {expandida ? 'Cerrar' : 'Ver líneas'}
+                    </Button>
+                    <Button type="button" variant="outline" className="px-2.5 text-xs lg:!h-8 lg:!min-h-0" onClick={() => setAdjuntosDe(compra)}>Adjuntos</Button>
+                    {/* #278 · el impreso de §11 ya existía sin llamador: acá se
+                        adopta (térmica directa, PDF o imagen para el proveedor). */}
+                    <Button type="button" variant="outline" className="px-2.5 text-xs lg:!h-8 lg:!min-h-0" disabled={!(compra.lines || []).length} onClick={() => setListaDe(compra)} data-testid="compra-lista-imprimir">
+                      <Icon name="printer" className="h-4 w-4" />Lista de compra
+                    </Button>
+                    {activa && <Button type="button" variant="outline" className="px-2.5 text-xs lg:!h-8 lg:!min-h-0" onClick={() => abrirAgregar(compra)}>+ Agregar líneas</Button>}
+                    {cancelable && <Button type="button" variant="ghost" className="px-2.5 text-xs text-bad lg:!h-8 lg:!min-h-0" onClick={() => { setCancelar(compra); setMotivo('') }}>Cancelar</Button>}
                   </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => setAbierta(expandida ? '' : compra.id)}>
-                    {expandida ? 'Cerrar' : 'Ver líneas'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setAdjuntosDe(compra)}>Adjuntos</Button>
-                  {/* #278 · el impreso de §11 ya existía sin llamador: acá se
-                      adopta (térmica directa, PDF o imagen para el proveedor). */}
-                  <Button type="button" variant="outline" disabled={!(compra.lines || []).length} onClick={() => setListaDe(compra)} data-testid="compra-lista-imprimir">
-                    <Icon name="printer" className="h-4 w-4" />Lista de compra
-                  </Button>
-                  {activa && <Button type="button" variant="outline" onClick={() => abrirAgregar(compra)}>+ Agregar líneas</Button>}
-                  {cancelable && <Button type="button" variant="ghost" className="text-bad" onClick={() => { setCancelar(compra); setMotivo('') }}>Cancelar</Button>}
                 </div>
 
                 {expandida && (
