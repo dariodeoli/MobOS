@@ -1,17 +1,7 @@
 # Novedades para el dueño
 
 Registro acumulativo de lo que sale a producción, contado en lenguaje de negocio
-(sin jerga técnica). Cada release agrega su sección `## v1.0.229 — 2026-10-15
-
-### Celular, tablet y escritorio
-
-- Taller muestra las órdenes antes y reúne las vistas alternativas en «Más acciones»; al volver a entrar abre Servicio desde arriba.
-- Productos cabe en tablet, mantiene los datos de precios y permite seleccionar con el teclado sin abrir la ficha; Comparador tiene controles más cómodos para condición y color.
-- Compras agrupa los filtros en una hoja del celular y conserva el paso actual visible; los controles de recepción y preparación tienen un área táctil de 44 px.
-- Clientes conserva filas compactas con botones de tamaño completo y menús legibles.
-- Cobrar indica cuándo sus botones están listos durante el cambio de paso: se evita ignorar silenciosamente el primer toque y se conserva la protección contra dobles cobros.
-
-## vX — fecha` y los cambios
+(sin jerga técnica). Cada release agrega su sección `## vX — fecha` y los cambios
 se agrupan por módulo: **Pedidos · Ventas · Clientes · Inventario · Impresión ·
 Finanzas · Portal · Otros**.
 
@@ -20,6 +10,16 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 `Novedades para el dueño` (2-5 bullets) con el resumen de lo entregado.
 
 ---
+
+## v1.0.229 — 2026-10-15
+
+### Celular, tablet y escritorio
+
+- Taller muestra las órdenes antes y reúne las vistas alternativas en «Más acciones»; al volver a entrar abre Servicio desde arriba.
+- Productos cabe en tablet, mantiene los datos de precios y permite seleccionar con el teclado sin abrir la ficha; Comparador tiene controles más cómodos para condición y color.
+- Compras agrupa los filtros en una hoja del celular y conserva el paso actual visible; los controles de recepción y preparación tienen un área táctil de 44 px.
+- Clientes conserva filas compactas con botones de tamaño completo y menús legibles.
+- Cobrar indica cuándo sus botones están listos durante el cambio de paso: se evita ignorar silenciosamente el primer toque y se conserva la protección contra dobles cobros.
 
 ## v1.0.228 — 2026-10-15
 

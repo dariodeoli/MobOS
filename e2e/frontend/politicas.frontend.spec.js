@@ -43,7 +43,7 @@ function medir(page) {
   })
 }
 
-for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
+for (const [ancho, alto] of [[360, 740], [390, 844], [1440, 900]]) {
   for (const esquema of ['light', 'dark']) {
     test(`página pública de políticas ${ancho}px ${esquema}: índice y detalle sin desborde ni HTML inyectado`, async ({ page }) => {
       await page.setViewportSize({ width: ancho, height: alto })
@@ -100,7 +100,7 @@ async function entrarDemo(page) {
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
-for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
+for (const [ancho, alto] of [[360, 740], [390, 844], [1440, 900]]) {
   test(`Configuración › Políticas ${ancho}px: filas con «›», estado, plantilla y publicar`, async ({ page }) => {
     await page.setViewportSize({ width: ancho, height: alto })
     await entrarDemo(page)
