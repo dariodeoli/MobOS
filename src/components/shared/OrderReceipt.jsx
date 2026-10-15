@@ -1101,6 +1101,7 @@ export async function buildListaPreciosHtml(datos = {}, { format = 'a4', colores
     `<strong style="margin-top:${datos.garantia ? '6px' : '0'}">Vigencia</strong>${escapeHtml(datos.vigencia || '')}${usd && datos.cotizacion ? `<br>US$ 1 = ${escapeHtml(gs(datos.cotizacion))}` : ''}`,
   ].filter(Boolean).join('')
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Lista de precios')}</title><style>${styles(format)}
+    body{padding-top:18px}
     .lp-bloque{margin:12px 0 4px}
     .lp-titulo{display:flex;justify-content:space-between;align-items:baseline;border:1px solid;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
     .lp-titulo span{font-size:9.5px;font-weight:600;letter-spacing:.04em;text-transform:none}
