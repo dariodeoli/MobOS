@@ -100,7 +100,7 @@ test('Clientes explicitly separates unavailable tenant summary from loaded page 
     'controller.abort()',
     'controller.signal.aborted',
     'resumenV2.porCobrar',
-    "alcance: 'En pantalla'",
+    "pista={!esDemo",
     'Resumen de tienda no disponible',
   ])
     assert.ok(seller.includes(contract), contract)
@@ -129,4 +129,12 @@ test('Clientes scoped presentation supports readable full amounts and keyboard m
     assert.ok(table.includes(contract), contract)
   assert.ok(!css.includes('.shell-'))
   assert.ok(!css.includes('perfil-'))
+})
+
+test('Clientes: el vacío vive debajo del encabezado y sin filtros es una tarjeta con «Crear cliente»', () => {
+  const despues = table.indexOf("encabezado('deuda'")
+  assert.ok(despues > 0 && table.indexOf('{!filas.length && vacio}', despues) > despues, 'el aviso va tras el encabezado')
+  assert.ok(seller.includes('data-testid="clientes-vacio"'))
+  assert.ok(seller.includes('Ningún cliente coincide') && seller.includes('Limpiar filtros'))
+  assert.ok(!seller.includes('<SellerFeedback {...data} empty={!rows.length} />'), 'sin «No hay resultados.» flotando sobre la tabla')
 })

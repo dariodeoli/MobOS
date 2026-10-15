@@ -236,7 +236,7 @@ function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, on
   )
 }
 
-export default function ClientesTabla({ rows, templates, onPerfil, onResumen, onUnificar }) {
+export default function ClientesTabla({ rows, vacio = null, templates, onPerfil, onResumen, onUnificar }) {
   // Vista previa v2 (#241 lote B): números de consola y chips pill en la fila.
   const v2 = temaV2Activo()
   // #313: en móvil la lista se muestra como tarjetas (no tabla comprimida).
@@ -300,6 +300,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
           <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
           Seleccionar visibles
         </label>
+        {!filas.length && vacio}
         {filas.map(row => (
           <TarjetaCliente
             key={row.id}
@@ -330,6 +331,8 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
         <span className={cn('text-right', ROTULO_DATO)}>Acciones</span>
       </div>
       <div className="space-y-2">
+        {/* El aviso de «sin coincidencias» va DEBAJO del encabezado, nunca encima. */}
+        {!filas.length && vacio}
         {filas.map(row => {
           const telefono = row.phones?.[0] || row.phone || ''
           const telefonoMostrado = telefonoVisible(telefono, row.countryCode)

@@ -261,7 +261,7 @@ export default function SellerCatalog() {
       <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={() => setPreviewPrecios(true)} data-testid="copiar-precios">Copiar precios</button>
       <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={exportarSeleccionados}>Exportar CSV</button>
     </BarraLote>
-    {!data.loading && !data.error && vista === 'list' && <div className="overflow-x-auto" data-testid="catalogo-tabla">
+    {!data.loading && !data.error && rows.length > 0 && vista === 'list' && <div className="overflow-x-auto" data-testid="catalogo-tabla">
       <div className={cn(GRID_CATALOGO, 'px-3.5 pb-2 pt-1')}>
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={ordenadas.length > 0 && seleccionados.length === ordenadas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(ordenadas, actuales))} />
         {encabezado('producto', 'Producto')}

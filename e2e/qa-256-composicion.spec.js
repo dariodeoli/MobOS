@@ -44,11 +44,11 @@ test.describe('composición compacta', () => {
     const resumen = page.getByTestId('resumen-clientes')
     await expect(resumen).toBeVisible()
     await expect(resumen.locator('> div')).toHaveCount(4)
-    // Los totales del negocio y los de la pantalla no se mezclan: cada tile
-    // declara su alcance.
-    await expect(resumen.getByText('Tienda', { exact: true })).toHaveCount(2)
-    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(2)
-    await expect(resumen.getByText(/en pantalla$/)).toHaveCount(1)
+    // #441: una sola línea de KPIs sin subtextos repetidos; el alcance solo se
+    // avisa (pista) cuando el listado está filtrado o paginado.
+    await expect(resumen.getByText('Tienda', { exact: true })).toHaveCount(0)
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(0)
+    await expect(resumen.getByText(/en pantalla$/)).toHaveCount(0)
   })
 
   test('Inventario: barra única con buscador, filtros y acciones agrupadas', async ({ page }) => {
