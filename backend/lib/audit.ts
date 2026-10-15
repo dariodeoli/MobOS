@@ -9,6 +9,14 @@ export const ROLES_AUDITORIA = ['ADMIN', 'GERENTE'] as const
 export const MAX_AUDIT_LIMIT = 200
 
 export const ACCIONES_AUDITORIA: Record<string, string> = {
+  DELIVERY_TARIFF_CREATED: 'Tarifa del repartidor guardada',
+  DELIVERY_TARIFF_DEACTIVATED: 'Tarifa del repartidor desactivada',
+  DELIVERY_TRIP_RECORDED: 'Viajes de reparto registrados',
+  DELIVERY_TRIP_LINKED: 'Viaje vinculado a un pedido',
+  DELIVERY_TRIP_DISCARDED: 'Viaje sin venta descartado',
+  DELIVERY_WEEK_CLOSED: 'Semana del repartidor cerrada',
+  DELIVERY_WEEK_ADJUSTED: 'Saldo del repartidor ajustado',
+
   ORDER_CREATED: 'Venta registrada',
   ORDER_DISCOUNT_APPROVED: 'Descuento aprobado',
   PAYMENT_RECORDED: 'Cobro registrado',
@@ -186,6 +194,9 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
 
 // Área legible por entidad: el nombre técnico no dice nada en la pantalla.
 export const AREAS_AUDITORIA: Record<string, string> = {
+  DeliveryTariff: 'Reparto',
+  DeliveryTrip: 'Reparto',
+  DeliveryWeeklyClose: 'Reparto',
   Order: 'Pedidos',
   InventoryUnit: 'Inventario · unidades',
   ImeiCheckQuery: 'IMEI',
