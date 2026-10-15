@@ -94,7 +94,9 @@ async function abrirDocumento(page, imei, { titulo = 'Informe del dispositivo', 
   const fila = page.getByTestId('inventario-fila').filter({ hasText: imei }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.click()
-  await page.getByRole('dialog').getByRole('button', { name: boton, exact: true }).click()
+  // #400: Informe, Certificado y Constancia viven en «Más acciones» de la ficha.
+  await page.getByRole('dialog').getByRole('button', { name: 'Más acciones' }).click()
+  await page.getByRole('menuitem', { name: boton, exact: true }).click()
   const modal = page.getByRole('dialog').filter({ hasText: titulo })
   return { fila, modal }
 }

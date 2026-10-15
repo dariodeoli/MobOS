@@ -72,6 +72,8 @@ function unidad(producto, indice) {
   const costoPyg = enUsd ? null : Math.round(Number(producto.precioCosto) * 0.94 / 1000) * 1000
   const base = {
     id: `demo-unit-${indice}`,
+    // #400: código interno MOV-0001 (solo se muestra en la ficha, bloque «Interno»).
+    internalCode: `MOV-${String(indice).padStart(4, '0')}`,
     serial: IMEIS_DEMO_FICTICIOS[indice - 1] || serialDemo(indice),
     status: estado,
     condition: condicion,
@@ -346,7 +348,7 @@ export function listDemoSuppliers(q = '') {
 // #307: el alta/edición de proveedores del demo guarda los campos del mismo
 // formulario que la cuenta real (teléfono, código, ciudad…), no solo el
 // nombre; así el modal de Proveedores no se contradice con lo que se cargó.
-const CAMPOS_PROVEEDOR = ['name', 'contact', 'code', 'document', 'phone', 'email', 'address', 'city', 'department', 'contactName', 'paymentTerms', 'notes']
+const CAMPOS_PROVEEDOR = ['name', 'contact', 'code', 'document', 'phone', 'email', 'address', 'city', 'department', 'contactName', 'paymentTerms', 'notes', 'icon', 'color', 'displayMode']
 
 export function saveDemoSupplier(data = {}) {
   const state = read()
