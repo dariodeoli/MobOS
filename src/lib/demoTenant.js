@@ -1,4 +1,5 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { VENTAS_DEMO } from './demo/ventas.js'
 // Ajustes ficticios de la empresa en modo demo (#194): se guardan solo en este
 // navegador y alimentan la simulación de Finanzas sin tocar la API real. Mismos
 // nombres de campos que el tenant real para que las pantallas no distingan.
@@ -54,12 +55,31 @@ export function setDemoLimits(limits = {}) {
   return next
 }
 
-/** Próximo número de pedido de la demo (AUR-#0001) y lo deja consumido. */
+// Números ya usados por las ventas guardadas en el navegador: `storage.js` registra
+// quién los lista (este módulo no puede importar storage sin un ciclo).
+let proveedorNumerosUsados = () => []
+export function registrarNumerosUsadosDemo(proveedor) {
+  proveedorNumerosUsados = typeof proveedor === 'function' ? proveedor : () => []
+}
+
+const secuenciaDe = (numero, prefijo) => {
+  const coincide = String(numero ?? '').trim().match(/^([A-Z]{2,3})[- ]?#?(\d+)$/)
+  return coincide && coincide[1] === prefijo ? Number(coincide[2]) : 0
+}
+
+/**
+ * Próximo número de pedido de la demo y lo deja consumido. Nunca repite uno ya usado:
+ * salta por encima de las ventas sembradas y de las guardadas en este navegador, y
+ * la conversión de una cotización toma uno nuevo igual que el POS (#461).
+ * Se guarda sin «#» (AUR-0003); la pantalla muestra siempre `codigoPedido()`.
+ */
 export function tomarNumeroPedidoDemo() {
   const actual = read()
-  const numero = `${actual.orderPrefix}-${String(actual.orderNextNumber).padStart(4, '0')}`
-  write({ ...actual, orderNextNumber: actual.orderNextNumber + 1 })
-  return numero
+  const usados = [...VENTAS_DEMO.map((venta) => venta.numero), ...proveedorNumerosUsados()]
+  const maximo = usados.reduce((mayor, numero) => Math.max(mayor, secuenciaDe(numero, actual.orderPrefix)), 0)
+  const secuencia = Math.max(Number(actual.orderNextNumber) || 1, maximo + 1)
+  write({ ...actual, orderNextNumber: secuencia + 1 })
+  return `${actual.orderPrefix}-${String(secuencia).padStart(4, '0')}`
 }
 
 export function setDemoNumeracion({ prefix, start } = {}) {

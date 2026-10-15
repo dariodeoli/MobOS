@@ -1,4 +1,5 @@
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { codigoPedido } from '@/utils/pedido'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Skeleton } from '@/components/ui'
@@ -169,7 +170,7 @@ export default function InformePublico() {
         <section className={GRILLA_DOS_COLUMNAS}>
           {sale && <div className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
             <p className={ROTULO_SECCION}>Compra</p>
-            <div className="mt-1">{dato('Pedido', sale.orderNumber || '—')}{dato('Fecha', sale.date ? fechaCorta(sale.date) : '—')}{sale.branch && dato('Sucursal', sale.branch)}</div>
+            <div className="mt-1">{dato('Pedido', codigoPedido(sale.orderNumber) || '—')}{dato('Fecha', sale.date ? fechaCorta(sale.date) : '—')}{sale.branch && dato('Sucursal', sale.branch)}</div>
           </div>}
           {warranty && <div className="rounded-2xl border border-ok/30 bg-ok/5 p-4 text-sm">
             <p className={ROTULO_SECCION}>Garantía</p>

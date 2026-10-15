@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { codigoPedido } from '@/utils/pedido'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
@@ -456,7 +457,7 @@ export default function Conciliacion() {
             const marcado = seleccion.includes(item.id)
             return (
               <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'conciliacion-f5-payment border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
-                <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${item.orderNumber || item.id}`} onChange={() => alternar(item.id)} />
+                <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${codigoPedido(item.orderNumber) || item.id}`} onChange={() => alternar(item.id)} />
                 <span className="conciliacion-f5-meta">
                   <span data-label="Fecha" className={CELDA_DATO} title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
                   <span data-label="Procesadora" className={CELDA_DATO}>{item.procesadora || '—'}</span>
@@ -467,7 +468,7 @@ export default function Conciliacion() {
                   </span>
                 </span>
                 <span data-label="Pedido / cliente" className="min-w-0">
-                  <b className="block truncate text-[13px]">{item.orderNumber || 'Cobro directo'}</b>
+                  <b className="block truncate text-[13px]">{codigoPedido(item.orderNumber) || 'Cobro directo'}</b>
                   <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.cliente, item.vendedor].filter(Boolean).join(' · ') || '—'}</span>
                 </span>
                 <span data-label="Cuenta / titular" className="min-w-0">

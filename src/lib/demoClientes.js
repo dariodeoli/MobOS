@@ -1,6 +1,6 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { formatGs } from '../utils/moneda.js'
-import { codigoPedido } from '../utils/pedido.js'
+import { codigoPedido, totalesPedido } from '../utils/pedido.js'
 import { etiquetaServicio } from './estadosServicio.js'
 import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
 import { pedidosDemoDeCliente } from './demo/ventas.js'
@@ -765,6 +765,30 @@ export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
   demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
   return pedido
+}
+
+/**
+ * Alinea los pedidos de la ficha del cliente con la venta local (#461): Pagado y
+ * Saldo salen de los pagos de la venta (`totalesPedido`), la misma cuenta del
+ * detalle del pedido y de las transacciones. Se llama al cobrar un saldo, al
+ * corregir un pago y al arrancar la demo (los seeds viven en memoria y la venta
+ * guardada en el navegador puede tener más cobros que el seed).
+ */
+export function sincronizarPedidoDemoConVenta(venta = {}) {
+  const clienteId = venta.clienteId || venta.customer?.id
+  const numero = venta.orderNumber || venta.numero
+  if (!clienteId || !numero) return false
+  const cliente = buscarClienteDemo(clienteId)
+  const pedido = (cliente?.demoProfile?.orders || []).find((row) => row.orderNumber === numero)
+  if (!pedido) return false
+  const { pagado } = totalesPedido(venta)
+  const cobrado = Math.max(0, Math.min(Number(pedido.totalPyg) || 0, pagado))
+  if (pedido.collectedPyg === cobrado) return false
+  pedido.collectedPyg = cobrado
+  pedido.pendingPyg = Math.max(0, (Number(pedido.totalPyg) || 0) - cobrado)
+  if (pedido.status !== 'CANCELLED') pedido.status = pedido.pendingPyg > 0 ? 'PENDING' : 'COMPLETED'
+  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  return true
 }
 
 /**

@@ -37,6 +37,7 @@ export default defineConfig({
     'compras-escaneo.frontend.spec.js',
     'demo-reportes.frontend.spec.js',
     'densidad.frontend.spec.js',
+    'datos-consistentes.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

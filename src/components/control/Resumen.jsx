@@ -43,7 +43,6 @@ import {
   KpiTile,
   TarjetaGrafico,
   etiquetaFecha,
-  nombreMedio,
   serieContinua,
   tendenciaDiaria,
   unidadesDeVenta,
@@ -403,7 +402,7 @@ export default function Resumen() {
   const topProductos = metricas
     ? metricas.topProductos
     : [...base.topProductos].sort((a, b) => b.montoPyg - a.montoPyg).map((p) => ({ id: p.nombre, nombre: p.nombre, cantidad: p.cantidad, monto: p.montoPyg }))
-  const itemsMedios = d.medios.map((m) => ({ clave: m.medio, etiqueta: nombreMedio(m.medio), valor: m.monto }))
+  const itemsMedios = d.medios.map((m) => ({ clave: m.method || m.medio, etiqueta: m.medio, valor: m.monto }))
 
   // Applies the "Pendientes" filter on the sales list and brings it into view.
   function irAPendientes() {

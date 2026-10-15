@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { codigoPedido } from '@/utils/pedido'
 import { Aviso, Button, ConfirmDialog, Input, Label, Modal, MoneyInput, Select, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { resources } from '@/lib/api'
@@ -222,7 +223,7 @@ export default function GiftCardsPos({ open, onClose, cuentas = [], customer = n
                                 <span>
                                   <b className={movimiento.kind === 'REDEEM' ? 'text-fore' : 'text-fono-light'}>{MOVIMIENTOS[movimiento.kind] || movimiento.kind}</b>
                                   {' · '}{fechaCorta(movimiento.createdAt)}
-                                  {movimiento.order?.orderNumber ? ` · Pedido ${movimiento.order.orderNumber}` : ''}
+                                  {movimiento.order?.orderNumber ? ` · Pedido ${codigoPedido(movimiento.order.orderNumber)}` : ''}
                                   {movimiento.accountSnapshot?.name ? ` · ${movimiento.accountSnapshot.name}` : ''}
                                 </span>
                                 <span className="tabular-nums">{gs(Number(movimiento.amountPyg))} → {gs(Number(movimiento.balanceAfterPyg))}</span>

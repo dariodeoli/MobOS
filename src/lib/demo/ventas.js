@@ -61,6 +61,13 @@ const linea = (productoId, cantidad, precioUnitario, seriales = []) => {
   const articulo = ARTICULOS[productoId] || CATALOGO_VENTA[productoId] || { descripcion: productoId, modelo: '', categoria: '' }
   return { productoId, ...articulo, cantidad, precioUnitario, totalPyg: cantidad * precioUnitario, seriales }
 }
+/** Días de garantía de la demo por categoría (el comprobante imprime los días de cada línea). */
+export const garantiaDiasDemo = (categoria = '', estado = 'Nuevo') => {
+  if (categoria === 'Celulares') return /nuevo|sellado/i.test(estado) ? 365 : 90
+  if (categoria === 'Audio') return 180
+  if (categoria === 'Accesorios' || categoria === 'Protectores') return 30
+  return 0
+}
 const pago = (id, medioPago, cuenta, monto, hora) => ({ id, medioPago, cuenta, monto, hora })
 
 // ── Semillas canónicas (ids estables para no duplicar al re-sembrar) ──
@@ -236,6 +243,7 @@ export function ventasDemoLegacy() {
         unitPricePyg: Number(item.precioUnitario) || 0,
         totalPyg: Number(item.totalPyg) || 0,
         serials: item.seriales || [],
+        ...(garantiaDiasDemo(item.categoria || articulo.categoria) ? { warrantyDays: garantiaDiasDemo(item.categoria || articulo.categoria) } : {}),
       }
     })
     const pagos = (venta.pagos || []).map((item, indice) => cuponDePago(venta, item, indice))

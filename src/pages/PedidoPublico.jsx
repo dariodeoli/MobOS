@@ -10,7 +10,7 @@ import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { Aviso, CeldaMoneda } from '@/components/ui'
 import { CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
-import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPedido'
+import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, etiquetaEntrega as nombreEntrega } from '@/lib/estadosPedido'
 import { temaV2Activo } from '@/lib/temaV2'
 import ProductFooter from '@/components/app/ProductFooter'
 import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, EnlacePoliticas, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
@@ -38,7 +38,7 @@ export default function PedidoPublico() {
   const aCredito = Boolean(order?.credit)
   const entregadoConSaldo = ['DELIVERED', 'PICKED_UP'].includes(order?.fulfillmentStatus) && pendiente > 0
   const tracking = order?.tracking
-  const etiquetaSeguimiento = tracking?.estadoLabel || ESTADO_ENTREGA[order?.fulfillmentStatus] || order?.fulfillmentStatus
+  const etiquetaSeguimiento = tracking?.estadoLabel || nombreEntrega(order?.fulfillmentStatus)
   const encabezadoSeguimiento = tracking?.encabezado || 'Seguimiento de pedido'
   const etiquetaEntrega = entregadoConSaldo
     ? `${etiquetaSeguimiento} · ${aCredito ? 'a crédito' : 'pagado parcialmente'}`
@@ -218,7 +218,7 @@ export default function PedidoPublico() {
                         <p className="mt-0.5">
                           {evento.type === 'created' && 'Pedido creado'}
                           {evento.type === 'payment' && `Pago recibido: ${gs(evento.amountPyg)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}${evento.account ? ` · ${evento.account}` : ''}`}
-                          {evento.type === 'fulfillment' && `Entrega: ${ESTADO_ENTREGA[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`}
+                          {evento.type === 'fulfillment' && `Entrega: ${nombreEntrega(evento.metadata?.current) || 'actualizada'}`}
                         </p>
                       </div>
                     </li>

@@ -30,7 +30,7 @@ test('el pago vencido va primero y con tono de alerta', () => {
   assert.equal(avisos.length, 3)
   assert.equal(avisos[0].tipo, 'pago_vencido')
   assert.equal(avisos[0].tono, 'bad')
-  assert.match(avisos[0].titulo, /MOB-#0001/)
+  assert.match(avisos[0].titulo, /MOB-0001/)
   assert.match(avisos[0].detalle, /Venció el/)
   assert.match(avisos[0].detalle, /150\.000/)
   assert.equal(avisos[1].tipo, 'pago_por_vencer')
@@ -58,7 +58,7 @@ test('el taller y los pedidos listos para retirar avisan con atajo a su sección
   assert.equal(avisos[0].destino, '#servicio-tecnico')
   assert.match(avisos[0].titulo, /iPhone 12/)
   assert.equal(avisos[1].destino, '#pedidos')
-  assert.match(avisos[1].titulo, /MOB-#0004/)
+  assert.match(avisos[1].titulo, /MOB-0004/)
 })
 
 test('la reserva por vencer entra como aviso accionable', () => {

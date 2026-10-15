@@ -140,7 +140,14 @@ export function getDemoCashExpected(cash = read(), until = new Date(), sales = [
     const isCash = String(payment.medioPago || '').toUpperCase() === 'DINERO'
     return isCash && paidAt >= openedAt && paidAt <= end ? sum + (Number(payment.monto) || 0) : sum
   }, 0)
-  return (Number(cash.openingPyg) || 0) + cashTotal
+  // Ingresos y egresos de caja del turno (aportes, retiros, gastos): suman o restan igual que en el servidor.
+  const movimientos = (cash.movements || []).reduce((suma, movimiento) => {
+    const cuando = new Date(movimiento.createdAt || cash.openedAt || 0).getTime()
+    if (cuando < openedAt || cuando > end) return suma
+    return suma + (movimiento.kind === 'INGRESO' ? 1 : -1) * (Number(movimiento.amountPyg) || 0)
+  }, 0)
+  // Misma definición que el cierre real (backend/lib/cash-expected.ts): apertura + cobros en efectivo ± movimientos.
+  return Math.max(0, (Number(cash.openingPyg) || 0) + cashTotal + movimientos)
 }
 export function openDemoCash(openingPyg = DEFAULT.openingPyg, notes = '') {
   const next = {

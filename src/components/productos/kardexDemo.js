@@ -6,6 +6,8 @@
 // El stock del demo es el de las unidades disponibles (el mismo que sincroniza
 // el catálogo, #257): por eso las unidades reservadas, en revisión o en tránsito
 // dejan su ajuste para que el saldo corrido cierre contra ese stock.
+import { codigoPedido } from '../../utils/pedido.js'
+
 
 const nombreDe = (producto) => producto?.name || producto?.nombre || ''
 const serialDe = (unidad) => String(unidad?.serial || '').trim().toUpperCase()
@@ -110,7 +112,7 @@ export function eventosDemo({ producto, unidades = [], transferencias = [] } = {
         id: `demo-venta-${unidad.id}`,
         at: fecha,
         kind: 'VENTA',
-        label: venta.orderNumber ? `Venta ${venta.orderNumber}` : 'Venta',
+        label: venta.orderNumber ? `Venta ${codigoPedido(venta.orderNumber)}` : 'Venta',
         detail: [referencia, venta.customerName].filter(Boolean).join(' · '),
         reference: venta.orderNumber || null,
         user: null,

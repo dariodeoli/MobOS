@@ -30,8 +30,8 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
 import { gs } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
-import { codigoPedido, fechaLegible } from '@/utils/pedido'
-import { getVendedores, ventaDesdeApi } from '@/lib/storage'
+import { codigoPedido, fechaLegible, pagosDelPedido, totalesPedido } from '@/utils/pedido'
+import { getVendedores, listVentas, ventaDesdeApi } from '@/lib/storage'
 import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
@@ -117,7 +117,9 @@ function nombrePago(pago, order) {
   if (pago?.user?.name) return pago.user.name
   if (pago?.createdBy?.name) return pago.createdBy.name
   if (order?.seller?.name) return order.seller.name
-  return 'Sistema'
+  // La fila del listado trae el vendedor como `sellerName` (no como objeto): sin esto salía «Sistema».
+  if (order?.sellerName) return order.sellerName
+  return ''
 }
 
 function PhotoThumb({ orderId, commentId, photo }) {
@@ -216,7 +218,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const order = detail || row
 
   const load = useCallback(async () => {
-    if (esDemo) { setDetail(row); setLoading(false); return }
+    if (esDemo) {
+      // Demo: el cobro de saldo y las correcciones escriben en la venta local; el detalle
+      // vuelve a leerla para que Pagado/Saldo no queden con la foto vieja de la fila.
+      const viva = listVentas().find(venta => venta.id === row.id)
+      setDetail(viva ? { ...row, payments: viva.pagos, pagos: viva.pagos, totalPagado: viva.totalPagado, totalPendiente: viva.totalPendiente, estadoPago: viva.estadoPago } : row)
+      setLoading(false); return
+    }
     setLoading(true); setError('')
     try {
       const [full, history] = await Promise.all([
@@ -235,11 +243,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const items = order.items || []
   const itemsCantidad = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
   const nombreCliente = order.customer?.name || (typeof order.customer === 'string' ? order.customer : '') || 'Consumidor final'
-  const payments = useMemo(() => (order.payments || order.pagos || []).map(normalizarPago), [order.payments, order.pagos])
+  const payments = useMemo(() => pagosDelPedido(order).map(normalizarPago), [order])
   const pagosPorVerificar = payments.filter(pago => pago.status === 'PENDING')
-  const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
-  const total = Number(order.totalPyg ?? order.total ?? 0)
-  const pendiente = Math.max(0, total - paid)
+  // Pagado/Saldo: la misma función que el listado, la ficha del cliente y el comprobante (#461).
+  const { total, pagado: paid, pendiente } = totalesPedido(order)
   const credito = creditoLocal ?? order.creditAuthorization ?? null
   const creditoRetiene = creditoBloqueaEntrega({ creditAuthorization: credito })
   const clienteConCredito = Number(order.customer?.creditLimitPyg || 0) > 0 && Number(order.customer?.creditDays || 0) > 0
@@ -521,7 +528,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                   <div><dt>{pendiente > 0 && Number(order.creditDays || 0) > 0 ? `Saldo · plazo ${order.creditDays} días` : 'Saldo'}</dt><dd className={cn('ventas-f3-money', pendiente > 0 && 'text-warn')}>{gs(pendiente)}</dd></div>
                 </dl>
                 {pendiente > 0 && order.dueAt && <p className="text-xs text-mute">Vence {new Date(order.dueAt).toLocaleDateString('es-PY')}</p>}
-                {!esDemo && !anulado && pendiente > 0 && <Button className="mt-1 w-full sm:w-auto" onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
+                {!anulado && pendiente > 0 && <Button className="mt-1 w-full sm:w-auto" onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
               </div>
               {payments.length > 0 && <div className="space-y-2 border-t border-ink-600 px-3 py-3">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
@@ -534,7 +541,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-ink-600 text-mute" aria-hidden="true"><Icon name={ICONO_MEDIO[pago.method] || 'money'} className="h-3.5 w-3.5" /></span>
                         <span className="min-w-0">
                           <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-fore">{medio}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                          <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-mute">{cuando && <span>{cuando}</span>}<span className="flex items-center gap-1"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />{nombreActor(nombrePago(pago, order))}</span>{pago.settlesAt && <span>acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                          <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-mute">{cuando && <span>{cuando}</span>}{nombrePago(pago, order) && <span className="flex items-center gap-1"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />{nombreActor(nombrePago(pago, order))}</span>}{pago.settlesAt && <span>acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
                         </span>
                       </span>
                       <Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status || 'Confirmado'}</Badge>
@@ -788,7 +795,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       <ComprobantePreview order={ordenComprobante} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
       {cobroAbierto && (
         <PagosPedido
-          venta={ventaDesdeApi(order)}
+          venta={esDemo ? (listVentas().find(venta => venta.id === order.id) || order) : ventaDesdeApi(order)}
           onClose={() => { setCobroAbierto(false); load(); onChanged?.() }}
         />
       )}
