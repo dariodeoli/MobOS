@@ -17,8 +17,8 @@ const demo = await import('./demoInventory.js')
 test('el seed demo tiene 24 unidades con seriales ficticios y estados variados', () => {
   const state = demo.demoInventorySeed()
   assert.equal(state.units.length, 24)
-  assert.ok(state.units.every(unit => unit.serial.startsWith('AUR')), 'los seriales llevan prefijo ficticio AUR')
-  assert.ok(state.units.every(unit => !/^\d{15}$/.test(unit.serial)), 'nunca un IMEI real')
+  assert.ok(state.units.every(unit => /^35\d{13}$/.test(unit.serial)), 'IMEI de aspecto real: 15 dígitos con prefijo 35')
+  assert.equal(new Set(state.units.map(unit => unit.serial)).size, 24, 'IMEI únicos')
   const estados = new Set(state.units.map(unit => unit.status))
   for (const esperado of ['AVAILABLE', 'RESERVED', 'SOLD', 'DEFECTIVE', 'IN_TRANSIT']) assert.ok(estados.has(esperado), esperado)
   assert.equal(state.locations.filter(location => location.branchId === demo.DEMO_BRANCH).length, 3)
@@ -29,7 +29,7 @@ test('el seed demo tiene 24 unidades con seriales ficticios y estados variados',
 
 test('listar filtra por búsqueda y la vista de eliminados arranca vacía', () => {
   assert.equal(demo.listDemoUnits().length, 24)
-  const encontradas = demo.listDemoUnits('AUR0002')
+  const encontradas = demo.listDemoUnits(demo.demoInventorySeed().units[1].serial)
   assert.equal(encontradas.length, 1)
   assert.equal(demo.listDemoUnits('', 'removed').length, 0)
 })

@@ -5,6 +5,7 @@ import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal
 import CameraScan from '@/components/shared/CameraScan'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Icon from '@/components/shared/Icon'
+import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 import { configImpresora } from '@/lib/printing/agent'
 import { datosComprobanteRecepcion } from '@/lib/printing/comprobanteRecepcion'
@@ -104,6 +105,8 @@ export default function Recepcion() {
   const cubiertos = useMemo(() => new Set((recepcion?.items || []).map((item) => item.shipmentItemId).filter(Boolean)), [recepcion])
   const pendientes = useMemo(() => esperados.filter((item) => !cubiertos.has(item.id)), [esperados, cubiertos])
   const sinSerial = useMemo(() => pendientes.filter((item) => !item.serial), [pendientes])
+  const compraCodigo = recepcion?.shipment?.purchase?.code || ''
+  const loteCodigo = recepcion?.shipment?.code || ''
   const incidenciasCargadas = useMemo(() => (recepcion?.items || []).filter((item) => item.resultado && item.resultado !== 'RECIBIDO'), [recepcion])
 
   async function abrir(llegada) {
@@ -464,7 +467,9 @@ export default function Recepcion() {
           {sinSerial.length > 0 && (
             <p className="text-xs text-warn">
               {sinSerial.length} unidad(es) con IMEI por completar: para recibir todo el lote primero cargá los IMEI.{' '}
-              <button type="button" className="underline" onClick={() => navigate('/preparacion')}>Ir a Preparar compra</button>
+              {/* #450: el enlace lleva a la compra y al lote de ESTA recepción, no a la lista general. */}
+              <button type="button" className="min-h-11 underline" data-testid="recepcion-ir-preparar" onClick={() => navigate(compraCodigo ? `/preparacion?compra=${encodeURIComponent(compraCodigo)}` : '/preparacion')}>Ir a Preparar compra</button>
+              {loteCodigo && <>{' · '}<button type="button" className="min-h-11 underline" data-testid="recepcion-ir-lote" onClick={() => navigate(`/preparar-lote?lote=${encodeURIComponent(loteCodigo)}`)}>Ir a Preparar lote</button></>}
             </p>
           )}
         </Card>
@@ -551,12 +556,7 @@ export default function Recepcion() {
     <div className="space-y-4" data-testid="recepcion">
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="mt-1 text-sm text-mute">
-              Lotes en camino: escaneá contra el manifiesto, marcá incidencias con nota y elegí el depósito.
-              El stock entra recién al confirmar; lo que no llegó queda faltante.
-            </p>
-          </div>
+          <EncabezadoFlujo className="min-w-0 flex-1" paso="recepcion" onIr={(paso) => navigate(paso.ruta)} />
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" onClick={() => setNuevaLlegada(true)} data-testid="recepcion-nueva-llegada">
               <Icon name="plus" className="h-3.5 w-3.5" />Nueva llegada

@@ -187,7 +187,7 @@ export async function PATCH(request: Request) {
   if (accion === 'serials' || accion === 'scan') {
     if (['CANCELADO', 'RECIBIDO'].includes(envio.status)) return error('El envío ya está cerrado.', 409)
     const escaneo = accion === 'scan'
-    const normalizados = normalizarSeriales(escaneo ? [body?.serial] : body?.serials)
+    const normalizados = normalizarSeriales(escaneo ? [body?.serial] : body?.serials, { sinLuhn: escaneo && body?.forzarLuhn === true })
     if (!normalizados.ok) return error(normalizados.error)
     const seriales = normalizados.seriales
     if (!seriales.length) return error('Escaneá o pegá al menos un IMEI/serial.')
