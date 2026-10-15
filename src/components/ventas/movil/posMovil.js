@@ -3,6 +3,7 @@
 // presentación del flujo paso a paso (medios, división, vuelto, sin stock).
 import { updateAccountPayment } from '../../../utils/pagoCuenta.js'
 import { MEDIOS_PAGO } from '../../../lib/catalog.js'
+import { metodoDeMedio } from '../../../utils/mediosPago.js'
 import { LIMITE_MONTO_VENTAS } from '../../../utils/moneda.js'
 
 export const CONSULTA_MOVIL = '(max-width: 767px)'
@@ -29,8 +30,8 @@ export function cuentasRapidas(cuentas) {
 
 export const esEfectivo = cuenta => cuenta?.kind === 'CASH'
 
-// Medios sin cuentas configuradas (cobro legacy): los de siempre.
-export const mediosLegacy = () => MEDIOS_PAGO.map(nombre => ({ id: nombre, name: nombre, kind: nombre === 'DINERO' ? 'CASH' : 'TRANSFER', legacy: true }))
+// Sin cuentas configuradas se ofrecen medios genéricos, nunca bancos de ejemplo.
+export const mediosLegacy = () => MEDIOS_PAGO.map(nombre => ({ id: nombre, name: nombre, kind: metodoDeMedio(nombre), legacy: true }))
 
 // Fila de pago lista para `setPagos`, con la misma forma que arma el cobro de
 // escritorio (cuenta + monto en guaraníes). `monto` entra en guaraníes enteros.

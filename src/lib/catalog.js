@@ -98,15 +98,8 @@ export const CATEGORIAS_GASTO = [
 ]
 
 // ── Constantes de dominio ───────────────────────────────────────────
-export const MEDIOS_PAGO = [
-  'UENO BANK',
-  'POS UENO',
-  'PIK ITAÚ',
-  'DINELCO',
-  'DINERO',
-  'CONTINENTAL',
-  'FAMILIAR',
-]
+// Medios genéricos sin cuentas configuradas; las marcas históricas siguen legibles.
+export const MEDIOS_PAGO = ['DINERO', 'TRANSFERENCIA', 'TARJETA']
 
 export const ESTADOS_PAGO = ['Pagado', 'No pagado']
 

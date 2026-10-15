@@ -124,3 +124,9 @@ test('«Vender igual» ya no depende de un permiso extra: mismas reglas que «So
   const c = clasificarPendientes([{ motivo: 'stock' }, { motivo: 'imei', unidades: 0 }], true)
   assert.equal(c.puedeVenderIgual, false)
 })
+
+// #486: una empresa sin cuentas no recibe bancos ni tipos de medio incorrectos.
+test('medios genéricos sin bancos de ejemplo', async () => {
+ const { mediosLegacy } = await import('./posMovil.js')
+ assert.deepEqual(mediosLegacy().map(({name,kind}) => ({name,kind})), [{name:'DINERO',kind:'CASH'},{name:'TRANSFERENCIA',kind:'TRANSFER'},{name:'TARJETA',kind:'CARD'}])
+})
