@@ -52,3 +52,8 @@ El último shard del CI anterior detectó otros 15 recorridos que abrían Taller
 ### PIN y diálogos de sesión (#493)
 
 La QA nativa detectó que Cerrar sesión y Cambiar de usuario desmontaban el fondo opaco del bloqueo y dejaban ver ventas detrás del modal. Se agrega un contenedor opaco pasivo para cada diálogo mientras la sesión está bloqueada, sin duplicar foco ni formulario PIN. Regresión browser: 2/2 PASS en 390px claro y 1440px oscuro, cobertura completa sin transparencia, foco dentro, Escape restaura PIN y Salir termina sesión. Revisión independiente APPROVE. Pendiente CI del nuevo SHA y confirmación nativa; no bypass interactivo demostrado.
+
+
+### Revisión completa de íconos de Productos (#492)
+
+Inspección de lista/tarjetas, foto/fallback, chips de categorías, acciones y navegación. Sin ocultación específica de iOS: cabecera decorativa se omite bajo640px y selector lista/tarjetas bajo768px por diseño responsive; las acciones de texto son iguales en web/móvil. Matriz browser390/1440 claro/oscuro: 4/4 PASS, SVG con trazos/dimensiones, chips+Actualizar+navegación móvil y miniaturas por producto visibles, sin desborde. El único fallback omitido confirmado era Vender, ya corregido. Pendiente informe nativo final y publicación del nuevo build.

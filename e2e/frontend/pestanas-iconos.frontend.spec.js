@@ -112,3 +112,40 @@ for (const [width, height] of VIEWPORTS) {
     }
   })
 }
+
+for (const [width, height] of [[390, 844], [1440, 900]]) {
+  for (const dark of [false, true]) {
+    test(`Productos: íconos y acciones visibles ${width}px ${dark ? 'oscuro' : 'claro'}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.addInitScript(value => localStorage.setItem('mobos:theme', value), dark ? 'dark' : 'light')
+      await enterDemo(page)
+      await openShellDestination(page, 'Productos')
+      const catalog = page.getByTestId('catalogo-productos')
+      await expect(catalog).toBeVisible()
+      await expect(catalog.getByRole('button', { name: 'Actualizar', exact: true }).locator('svg')).toBeVisible()
+      const chips = catalog.getByTestId('chips-accesorio').getByRole('button')
+      expect(await chips.count()).toBeGreaterThan(1)
+      for (let i = 0; i < await chips.count(); i++) await expect(chips.nth(i).locator('svg')).toBeVisible()
+      // Cada producto conserva una foto o fallback, no solo los chips.
+      const photos = catalog.getByTestId('foto-producto')
+      expect(await photos.count()).toBeGreaterThan(0)
+      for (let i = 0; i < await photos.count(); i++) await expect(photos.nth(i).locator('svg, img')).toBeVisible()
+      if (width < 1024) {
+        const nav = page.getByTestId('shell-bottom-nav').getByRole('button')
+        for (let i = 0; i < await nav.count(); i++) await expect(nav.nth(i).locator('svg')).toBeVisible()
+      }
+      const icons = await catalog.locator('svg').evaluateAll(elements => elements.map(el => {
+        const box = el.getBoundingClientRect(), style = getComputedStyle(el)
+        return { width: box.width, height: box.height, display: style.display, visibility: style.visibility, strokes: el.querySelectorAll('path,rect,circle,line,polyline,polygon,ellipse').length }
+      }).filter(item => item.display !== 'none' && item.visibility !== 'hidden' && item.width > 0))
+      expect(icons.length).toBeGreaterThan(5)
+      for (const icon of icons) {
+        expect(icon.height).toBeGreaterThan(0)
+        expect(icon.strokes).toBeGreaterThan(0)
+      }
+      expect(await sinDesborde(page)).toBe(true)
+      await mkdir(out, { recursive: true })
+      await page.screenshot({ path: `${out}/productos-iconos-${width}-${dark ? 'oscuro' : 'claro'}.png` })
+    })
+  }
+}
