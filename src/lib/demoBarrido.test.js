@@ -26,7 +26,7 @@ test('equipo, catálogo, empresa y sucursales demo no dicen "demo"', () => {
   assert.deepEqual(sucios(IPHONES_DEMO), [], 'catálogo')
   assert.deepEqual(sucios(EMPRESA_DEMO), [], 'empresa')
   assert.deepEqual(sucios(SUCURSALES_DEMO), [], 'sucursales')
-  assert.ok(IMEIS_DEMO_FICTICIOS.every(serial => serial.startsWith('AUR')), 'seriales ficticios AUR')
+  assert.ok(IMEIS_DEMO_FICTICIOS.every(serial => /^35\d{13}$/.test(serial)), 'IMEI de aspecto real (35…) y ficticios')
 })
 
 test('clientes, inventario y ajustes demo no dicen "demo"', () => {

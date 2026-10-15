@@ -23,7 +23,7 @@ globalThis.window = {
 
 const { ventasDemoLegacy, pedidosDemoDeCliente } = await import('./ventas.js')
 const { PROVEEDORES_DEMO } = await import('./proveedores.js')
-const { EQUIPO_DEMO, IPHONES_DEMO } = await import('./iphones.js')
+const { EQUIPO_DEMO, IPHONES_DEMO, serialDemo } = await import('./iphones.js')
 const { PERFILES_DEMO, perfilDemo, perfilDemoPorPin } = await import('./equipo.js')
 const { ROLE_ORDER } = await import('../roles.js')
 const { demoSessionRole, saveDemoSession } = await import('../demoMode.js')
@@ -233,7 +233,7 @@ test('#324 · abastecimiento demo: necesidades, compras, lotes y alertas se corr
   const performance = demoSupplyPerformance({})
   assert.equal(performance.proveedores.length, 3)
   assert.ok(performance.rutas.length >= 2)
-  assert.ok(demoSupplySerial('AUR0101000000000').compra?.code, 'el serial del lote se encuentra en la cadena')
+  assert.ok(demoSupplySerial(serialDemo(101)).compra?.code, 'el serial del lote se encuentra en la cadena')
 })
 
 test('#324 · sistema, reparto y cronologías tienen datos y no terminan en error simulado', () => {
