@@ -117,7 +117,7 @@ test.describe('owner panel', () => {
     await expect(modal.getByLabel('Duración en horas')).toHaveValue('2')
     await expect(modal.getByText('horas', { exact: true })).toBeVisible()
     await modal.getByRole('button', { name: 'Reservar', exact: true }).click()
-    await expect(page.getByText(/Reserva creada por 2 horas/)).toBeVisible()
+    await expect(page.getByText(/reservada sin cliente hasta .+ \(2 horas\)\. Se libera sola al vencer/)).toBeVisible()
 
     // Sigue en Stock, con su estado y el atajo para cerrar la venta en el menú de la fila.
     const reservada = fila()

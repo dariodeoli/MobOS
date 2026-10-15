@@ -158,7 +158,7 @@ test('la reserva desde el detalle usa la ficha existente y deja la cronología',
     await expect(modal.getByText(/Reserva a nombre de la ficha del cliente/)).toBeVisible()
     await modal.getByLabel('Duración en horas').fill('1')
     await modal.getByRole('button', { name: 'Reservar', exact: true }).click()
-    await expect(page.getByText(/Reserva creada por 1 hora/)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText(/reservada para .+ hasta .+ \(1 hora\)\. Se libera sola al vencer/)).toBeVisible({ timeout: 15_000 })
     await expect(modal).toHaveCount(0)
 
     // La cronología de la unidad muestra la reserva con el cliente de la ficha.

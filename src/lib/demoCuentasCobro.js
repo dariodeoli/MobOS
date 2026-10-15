@@ -6,7 +6,7 @@
 export const CUENTAS_DEMO = [
   { id: 'demo-cash-pyg', name: 'Caja · Guaraníes', kind: 'CASH', currency: 'PYG', reference: 'Caja chica mostrador' },
   { id: 'demo-cash-usd', name: 'Caja · Dólares', kind: 'CASH', currency: 'USD', reference: 'Caja chica dólares' },
-  { id: 'demo-transfer-itau', name: 'Itaú · Cuenta corriente', kind: 'TRANSFER', currency: 'PYG', bank: 'Itaú', holder: 'Aurora Móviles', accountNumber: '001-2456789', document: '80012345-0', reference: 'Depósitos y transferencias' },
+  { id: 'demo-transfer-itau', name: 'Itaú · Cuenta corriente', kind: 'TRANSFER', currency: 'PYG', bank: 'Itaú', holder: 'Aurora Móviles', accountNumber: '001-2456789', document: '80012345-0', aliasType: 'RUC', aliasValue: '80012345-0', reference: 'Depósitos y transferencias' },
   { id: 'demo-transfer-continental', name: 'Continental · Cuenta corriente', kind: 'TRANSFER', currency: 'PYG', bank: 'Continental', holder: 'Aurora Móviles', accountNumber: '002-9876543', document: '80012345-0' },
   { id: 'demo-card-ueno', name: 'ueno · Tarjeta', kind: 'CARD', currency: 'PYG', bank: 'ueno', processor: 'UPay', holder: 'Aurora Móviles', feePercent: 3, settlementDays: 2 },
   { id: 'demo-card-dinelco', name: 'Dinelco · Tarjeta', kind: 'CARD', currency: 'PYG', processor: 'Dinelco', holder: 'Aurora Móviles', feePercent: 3, settlementDays: 1 },
@@ -17,4 +17,4 @@ export const CUENTAS_DEMO = [
 
 // Campos visibles del listado y los selectores: la prueba de #190 verifica que
 // ninguno lleve la palabra «demo».
-export const CAMPOS_VISIBLES_CUENTA = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel']
+export const CAMPOS_VISIBLES_CUENTA = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'aliasValue', 'reference', 'currencyLabel']

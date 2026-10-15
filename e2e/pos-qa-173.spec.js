@@ -50,7 +50,7 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
 
   const pagosSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   for (const [indice, pago] of pagos.entries()) {
-    await page.getByRole('button', { name: '+ Agregar pago' }).click()
+    await page.getByRole('button', { name: /^\+ Agregar (otro )?pago$/ }).click()
     // Cada fila se busca por su test id: «Cuenta de cobro», «Monto original» y
     // «Cotización» se repiten en todas las filas, así que el índice del pago no
     // alcanza para ubicar el campo correcto (el hallazgo 173-A nació así).
@@ -66,7 +66,7 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
       // reintenta con el equivalente como condición.
       await expect(async () => {
         await fila.getByLabel('Cotización').fill(pago.cotizacion)
-        await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible({ timeout: 3000 })
+        await expect(fila.locator('b', { hasText: pago.equivalente }).first()).toBeVisible({ timeout: 3000 })
       }).toPass({ timeout: 20_000 })
     } else if (pago.equivalente) {
       // #391: las cuentas en guaraníes no muestran «Equivalente».
@@ -267,7 +267,7 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     // Dos bloques: 40.000 cobrados y 60.000 que no se cobran.
     const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
     for (const [indice, monto] of [['0', '40000'], ['1', '60000']]) {
-      await page.getByRole('button', { name: '+ Agregar pago' }).click()
+      await page.getByRole('button', { name: /^\+ Agregar (otro )?pago$/ }).click()
       const fila = pagos.getByTestId(`pago-fila-${indice}`)
       await fila.getByLabel('Cuenta de cobro').click()
       await page.getByRole('option', { name: /Caja E2E/ }).first().click()
@@ -280,8 +280,8 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     await expect(chip).toHaveAttribute('aria-pressed', 'true')
     await chip.click()
     await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible()
-    await expect(pagos.getByTestId('cobro-pendiente')).toContainText('Gs 60.000')
-    await expect(pagos.getByTestId('cobro-pagado')).toContainText('Gs 40.000')
+    await expect(page.getByTestId('cobro-pendiente')).toContainText('Gs 60.000')
+    await expect(page.getByTestId('cobro-pagado')).toContainText('Gs 40.000')
     // #355: Pagado/Pendiente viven una sola vez (tiles del cobro); el pie del carrito solo tiene el Total.
     const carrito = page.locator('#pos-resumen-venta')
     await expect(carrito.getByTestId('carrito-pagado')).toHaveCount(0)
