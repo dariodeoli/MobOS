@@ -1,0 +1,8 @@
+/* Hoja inferior (#429): entra deslizándose y respeta «reducir movimiento». */
+@keyframes bottom-sheet-entra { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes bottom-sheet-fondo { from { opacity: 0; } to { opacity: 1; } }
+.bottom-sheet { animation: bottom-sheet-entra 220ms cubic-bezier(.2, .8, .2, 1); transition: transform 160ms ease-out; }
+.bottom-sheet-fondo { animation: bottom-sheet-fondo 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet, .bottom-sheet-fondo { animation: none; transition: none; }
+}

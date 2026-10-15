@@ -44,6 +44,11 @@ async function cuentaUsd(page) {
 
 // El catálogo del POS hidrata async (más de 200 productos): se reintenta la
 // búsqueda hasta ver la tarjeta, acotado y sin timeouts globales.
+// #429: debajo de 768 px el cliente y el carrito viven en hojas y el cobro es paso a paso;
+// el formulario completo de pagos está en «Otros medios y entrega».
+const movil = (page) => page.viewportSize().width < 768
+const abrirCarritoMovil = (page) => page.getByTestId('pos-barra-carrito-abrir').click()
+
 async function agregarProducto(page) {
   const buscar = page.getByPlaceholder('Buscar producto…')
   await expect(buscar).toBeVisible()
@@ -53,6 +58,10 @@ async function agregarProducto(page) {
     await expect(tarjeta).toBeVisible({ timeout: 3000 })
   }).toPass({ timeout: 45_000 })
   await tarjeta.click()
+  if (movil(page)) {
+    await expect(page.getByTestId('pos-barra-carrito')).toBeVisible()
+    return
+  }
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
   await expect(page.getByRole('button', { name: /^Ver detalle de / }).first()).toBeVisible()
 }
@@ -72,8 +81,17 @@ async function armarCobro(page, sufijo) {
   const usd = await cuentaUsd(page)
   await page.reload()
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente V2 ${sufijo}`)
+  if (movil(page)) {
+    await page.getByTestId('accion-cliente').click()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente V2 ${sufijo}`)
+    await page.getByTestId('hoja-cliente').getByRole('button', { name: 'Listo' }).click()
+  } else await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente V2 ${sufijo}`)
   await agregarProducto(page)
+  if (movil(page)) {
+    await abrirCarritoMovil(page)
+    await page.getByTestId('carrito-cobrar').click()
+    await page.getByTestId('medio-otros').click()
+  }
 
   // Split: 25.000 cobrados y 10 USD @ 5.500 (55.000) que cubren la funda de
   // 80.000; el bloque en dólares se marca «No pagado».
@@ -111,6 +129,14 @@ async function armarCobro(page, sufijo) {
 }
 
 async function vaciarCarrito(page) {
+  if (movil(page)) {
+    // El carrito está en su hoja: se abre, se vacía (la hoja se cierra sola) y la barra desaparece.
+    if (!(await page.getByTestId('pos-barra-carrito').isVisible().catch(() => false))) return
+    await abrirCarritoMovil(page)
+    await page.getByRole('button', { name: 'Vaciar carrito' }).click()
+    await expect(page.getByTestId('pos-barra-carrito')).toHaveCount(0)
+    return
+  }
   const vaciar = page.getByRole('button', { name: 'Vaciar carrito' })
   if (await vaciar.isVisible().catch(() => false)) {
     await vaciar.click()
@@ -157,6 +183,11 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         // Confirmación compartida (ConfirmDialog al eliminar una línea con
         // descuento): se informa su contraste, no se exige (el botón y el modal
         // son de la biblioteca, dominio CMP).
+        if (movil(page)) {
+          // Se cierra la hoja del cobro y se abre la del carrito.
+          await page.keyboard.press('Escape')
+          await abrirCarritoMovil(page)
+        }
         const carrito = page.locator('#pos-resumen-venta')
         await carrito.getByRole('button', { name: /^Ver detalle de / }).first().click()
         await carrito.getByLabel(/^Descuento % de /).first().fill('10')
@@ -171,6 +202,8 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         informar(`pos-${sufijo}-modal-confirmacion`, contrasteConfirmacion)
         await page.keyboard.press('Escape')
         await expect(confirmacion).toBeHidden()
+        // Celular: se cierra la hoja del carrito para usar las acciones del inicio.
+        if (movil(page)) await page.keyboard.press('Escape')
 
         // Modal «Suspender venta» (y la lista de suspendidas con el borrador).
         const abrirSuspender = page.getByRole('button', { name: 'Suspender venta' })

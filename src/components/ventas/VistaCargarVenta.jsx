@@ -15,7 +15,7 @@ import { useAlmacenRevision } from '@/hooks/useAlmacenRevision'
 // Pantalla de carga de venta: una sola página con el flujo completo. Acá se
 // calculan los datos del día (contexto del vendedor) y el formulario se lleva
 // la venta: cliente, productos, carrito y cobro con el resumen fijo.
-export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, activo = true }) {
+export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, activo = true, onBloquear, onIr }) {
   const { sesion } = useSesion()
   // #257: repinta cuando el espejo local se actualiza (hidratación en segundo
   // plano o mutaciones) y refresca el catálogo al volver a la venta, así lo
@@ -67,6 +67,8 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, acti
         resumenDia={resumenDia}
         tradeInDraft={tradeInDraft}
         onTradeInConsumed={onTradeInConsumed}
+        onBloquear={onBloquear}
+        onIr={onIr}
       />
     </div>
   )
