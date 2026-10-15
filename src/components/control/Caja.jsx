@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { codigoPedido } from '@/utils/pedido'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs, formatGsInput, errorMonto, parseGsInput } from '@/utils/moneda'
@@ -812,7 +813,7 @@ export default function Caja() {
               : 'Sin apertura'
           }
         />
-        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub="Apertura + efectivo confirmado" />
+        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub="Apertura + efectivo en Gs ± movimientos del turno" />
         <Stat
           compact
           label="Diferencia"
@@ -1109,7 +1110,7 @@ export default function Caja() {
                           >
                             <div className="min-w-0">
                               <p className="text-sm">
-                                {match.orderNumber} · {match.customerName || 'Sin cliente'}
+                                {codigoPedido(match.orderNumber)} · {match.customerName || 'Sin cliente'}
                               </p>
                               <p className="text-xs text-mute">
                                 {fechaCorta(fechaPagoLocal(match.paidAt))}

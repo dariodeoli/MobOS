@@ -80,5 +80,7 @@ test('Stat tiene variante compact y StatGrid es una tira de una línea con scrol
   assert.match(grilla, /flex min-w-0 items-stretch overflow-x-auto/, 'tira de una línea')
   assert.doesNotMatch(grilla, /grid-cols-2/, 'ya no apila 2×2 en celular')
   assert.match(ui, /text-base font-semibold leading-6 tabular-nums/, 'cifra compacta de 16px semibold tabular')
-  assert.match(ui, /min-h-10 shrink-0 items-center gap-2 whitespace-nowrap/, 'etiqueta + cifra en una línea (≤ 64px)')
+  // #461: etiqueta + cifra en una línea; si no entra, la cifra baja (no se pisa con la métrica vecina).
+  assert.match(ui, /min-h-10 shrink-0 flex-wrap items-center gap-x-2/, 'etiqueta + cifra en una línea y sin superposición')
+  assert.match(ui, /whitespace-nowrap text-base font-semibold leading-6 tabular-nums/, 'la cifra nunca se parte')
 })

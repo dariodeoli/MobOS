@@ -44,6 +44,31 @@ function Buscador({ ctx, placeholder, ariaLabel = 'Buscar en inventario' }) {
   )
 }
 
+// #400: Tarjetas / Planilla. Desde 640 px va en la barra; en celular, en «Más», para
+// no robarle ancho al buscador.
+const VISTAS_UNIDADES = [['tarjetas', 'Tarjetas', 'grid'], ['planilla', 'Planilla', 'list']]
+function VistaUnidades({ valor, onCambiar }) {
+  return (
+    <div role="radiogroup" aria-label="Vista de unidades" data-testid="vista-unidades" className="inline-flex shrink-0 rounded-lg border border-ink-600 p-0.5">
+      {VISTAS_UNIDADES.map(([id, etiqueta, icono]) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={valor === id}
+          data-testid={`vista-unidades-${id}`}
+          title={`Ver las unidades como ${etiqueta.toLowerCase()}`}
+          onClick={() => onCambiar(id)}
+          className={cn('inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2.5 text-xs font-semibold transition lg:min-h-8 lg:min-w-9', valor === id ? 'bg-fono/15 text-fore' : 'text-mute hover:text-fore')}
+        >
+          <Icon name={icono} className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span className="sr-only 2xl:not-sr-only">{etiqueta}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function ContextoProducto({ ctx }) {
   const { productoFiltro, setSearchParams } = ctx
   if (!productoFiltro) return null
@@ -59,6 +84,9 @@ function ContextoProducto({ ctx }) {
 
 function BarraUnidades({ ctx, elegirEstado, limpiar }) {
   const angosta = usePantallaAngosta('(min-width: 1024px)')
+  const celular = usePantallaAngosta('(min-width: 640px)')
+  const { vistaUnidades, recordarVistaUnidades } = ctx
+  const conVista = ctx.tab === 'unidades'
   const { tab, filtros, cambiarFiltros, branches, proveedores, rolVeCosto, abrirReceive, setScannerOpen, startCount, setGondolaOpen, setReserveOpen, setTransferOpen, exportando, busy, exportarUnidades, orden, recordarOrden } = ctx
   return (
     <Toolbar
@@ -86,6 +114,7 @@ function BarraUnidades({ ctx, elegirEstado, limpiar }) {
           />
         </>
       )}
+      display={conVista && !celular ? <VistaUnidades valor={vistaUnidades} onCambiar={recordarVistaUnidades} /> : undefined}
       primary={(
         <Button className={cn(TOQUE, 'max-sm:min-w-11 max-sm:px-0')} onClick={abrirReceive}>
           <span aria-hidden="true" className="text-xl leading-none sm:hidden">+</span>
@@ -101,6 +130,7 @@ function BarraUnidades({ ctx, elegirEstado, limpiar }) {
             etiqueta="Más"
             ariaLabel="Más acciones de inventario"
             acciones={[
+              ...(conVista && celular ? [{ icon: vistaUnidades === 'planilla' ? 'grid' : 'list', label: vistaUnidades === 'planilla' ? 'Ver como tarjetas' : 'Ver como planilla', onClick: () => recordarVistaUnidades(vistaUnidades === 'planilla' ? 'tarjetas' : 'planilla') }, { separador: true }] : []),
               { icon: 'search', label: 'Escanear', onClick: () => setScannerOpen(true) },
               { icon: 'check', label: 'Conteo rápido', onClick: startCount },
               { icon: 'tag', label: 'Etiquetas de góndola', onClick: () => setGondolaOpen(true) },

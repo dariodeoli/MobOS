@@ -38,7 +38,8 @@ export function analizarSerial(valor) {
   if (!serial) return { ok: false, serial, motivo: 'VACIO' }
   const soloDigitos = /^\d+$/.test(serial)
   if (soloDigitos && serial.length === 15 && !luhnValido(serial)) return { ok: false, serial, motivo: 'LUHN' }
-  if (!soloDigitos && !/^[A-Z0-9-]{4,}$/.test(serial)) return { ok: false, serial, motivo: 'FORMATO' }
+  // Mínimo 4 caracteres también si son solo dígitos: «999» no es un IMEI ni un serial (#461).
+  if (!/^[A-Z0-9-]{4,}$/.test(serial)) return { ok: false, serial, motivo: 'FORMATO' }
   return { ok: true, serial }
 }
 

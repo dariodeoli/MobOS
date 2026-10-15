@@ -66,7 +66,7 @@ async function capturarPedidos(page, prefijo, { movil = false } = {}) {
   const tabla = page.getByTestId('pedidos-tabla')
   // Código humano: nunca el id interno de la demo.
   await expect(tabla).not.toContainText('demo-venta')
-  await expect(tabla).toContainText(/AUR-#\d{4}/)
+  await expect(tabla).toContainText(/AUR-#?\d{4}/)
   await page.screenshot({ path: `${SHOTS}/${prefijo}-04-pedidos.png` })
 
   // Vista rápida: resumen + acceso al detalle, sin las secciones largas.
@@ -135,7 +135,7 @@ test('listas: tarjetas en móvil sin scroll horizontal', async ({ page }) => {
   await capturarClientes(page, 'movil', { movil: true })
 
   await abrirPedidos(page)
-  await expect(page.getByTestId('pedido-fila').first()).toContainText(/AUR-#\d{4}/)
+  await expect(page.getByTestId('pedido-fila').first()).toContainText(/AUR-#?\d{4}/)
   const scrollPedidos = await page.getByTestId('pedidos-tabla').evaluate((nodo) => nodo.scrollWidth - nodo.clientWidth)
   expect(scrollPedidos, 'la lista de pedidos no debe scrollear en horizontal').toBeLessThanOrEqual(0)
   const scrollDocumento = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

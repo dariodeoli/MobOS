@@ -1,7 +1,7 @@
 import { metodoDeMedio } from './demoConciliacion.js'
-import { getDemoCashExpected } from './demoCash.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { getDemoTenant } from './demoTenant.js'
+import { esperadoCaja } from './demoCash.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
 // `/api/cash/audit` y `/api/cash/audit-operations` con las ventas demo y la
@@ -80,12 +80,34 @@ export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde
       })
     }
   }
+  // Aportes y retiros de la caja demo: cuentan igual que en el servidor (ingresos suman, egresos restan).
+  for (const movimiento of Array.isArray(cash?.movements) ? cash.movements : []) {
+    const fecha = movimiento.createdAt || cash?.openedAt
+    if (!fecha || !enRango(fecha, desde, hasta)) continue
+    const marca = marcas[claveDeMarca('MOVEMENT', movimiento.id)]
+    operaciones.push({
+      id: movimiento.id,
+      kind: 'MOVEMENT',
+      fecha,
+      direction: movimiento.kind === 'INGRESO' ? 'IN' : 'OUT',
+      montoPyg: Number(movimiento.amountPyg) || 0,
+      pedido: '',
+      cliente: '',
+      vendedor: movimiento.user || 'Hernán Acosta',
+      nota: movimiento.concept || '',
+      status: marca?.status || 'PENDING',
+      notaAuditoria: marca?.note || '',
+      auditadoPor: marca?.auditadoPor || '',
+      auditadoAt: marca?.auditedAt || null,
+    })
+  }
   operaciones.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
   const aperturaPyg = Number(cash?.openingPyg) || 0
-  const hastaFin = hasta ? new Date(`${hasta}T23:59:59`) : new Date()
-  const esperadoPyg = getDemoCashExpected(cash || {}, hastaFin, ventas)
   const recibidoPyg = operaciones.filter((operacion) => operacion.direction === 'IN').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
+  const salidasPyg = operaciones.filter((operacion) => operacion.direction === 'OUT').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
+  // Esperado del rango: apertura + recibido − salidas (la misma cuenta del servidor y de Caja).
+  const esperadoPyg = esperadoCaja(aperturaPyg, recibidoPyg - salidasPyg)
   const diferenciaPyg = cash?.status === 'CLOSED' ? (Number(cash.countedPyg) || 0) - esperadoPyg : 0
   return {
     resumen: {
@@ -93,6 +115,7 @@ export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde
       esperadoPyg,
       diferenciaPyg,
       recibidoPyg,
+      salidasPyg,
       operaciones: operaciones.length,
       verificadas: operaciones.filter((operacion) => operacion.status === 'VERIFIED').length,
       pendientes: operaciones.filter((operacion) => operacion.status === 'PENDING').length,

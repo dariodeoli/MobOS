@@ -9,7 +9,7 @@ test('valida el IMEI con Luhn antes de simular', () => {
   assert.equal(validarImeiDemo('123').ok, false)
   assert.match(validarImeiDemo('123').error, /15 dígitos/)
   assert.equal(validarImeiDemo('490154203237519').ok, false, 'Luhn inválido')
-  assert.match(validarImeiDemo('490154203237519').error, /Luhn/)
+  assert.match(validarImeiDemo('490154203237519').error, /dígito de control/)
 })
 
 test('el resultado simulado queda marcado y sin costo', () => {

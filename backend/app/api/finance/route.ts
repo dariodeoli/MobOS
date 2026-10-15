@@ -11,7 +11,7 @@ import { deudaRepuesto, resumenRepuestos } from '../../../lib/workshop-parts'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 import { numero } from '../../../lib/montos'
-import { signedOriginalAmount } from '../../../lib/payment-net'
+import { signedOriginalAmount, netPaid } from '../../../lib/payment-net'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       take: 1000,
     }),
   ])
-  const receivables = orders.map(order => ({ id: order.id, totalPyg: numero(order.totalPyg), paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + numero(payment.amountPyg), 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
+  const receivables = orders.map(order => ({ id: order.id, totalPyg: numero(order.totalPyg), paidPyg: netPaid(order.payments) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
   // Nombre real del proveedor solo para administración/gerencia; CAJERA recibe la sigla (#400).
   const directorio = canSeeSupplierName(ctx.session.user.role) ? null : await loadSupplierDirectory(tenantId)
   const payables = purchases.map(purchase => ({ ...purchasePayable(purchase), ...(directorio ? { supplierName: supplierCodeFor(directorio, purchase.supplierId) } : {}) })).filter(row => row.pendingPyg > 0)

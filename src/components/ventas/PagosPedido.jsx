@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { codigoPedido, pagadoNeto, totalesPedido } from '@/utils/pedido'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { Aviso, Badge, BarraProgreso, Button, Input, Modal, MoneyInput, Select } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
@@ -45,7 +46,7 @@ export function whatsappTrackingLink(order, extra = '', template = null) {
         total: '', seguimiento: tracking,
       })
     : ''
-  const message = mensajePlantilla || `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
+  const message = mensajePlantilla || `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${codigoPedido(order?.codigo || order?.orderNumber)} acá: ${tracking}${extra ? `\n${extra}` : ''}`
   return whatsappUrl(order?.customer?.phone || order?.clienteTelefono, message, order?.customer?.countryCode)
 }
 
@@ -96,7 +97,8 @@ export default function PagosPedido({ venta, onClose }) {
   const attempt = useRef(null)
   const [needsRefresh, setNeedsRefresh] = useState(false)
   const payments = useMemo(() => order.pagos || [], [order])
-  const pending = num(order.totalPendiente)
+  // Pagado/Saldo: la misma cuenta que el detalle, el listado y la ficha del cliente (#461).
+  const { pagado: pagadoPedido, pendiente: pending } = totalesPedido(order)
   const canReconcile = esDemo || ['ADMIN', 'GERENTE', 'CAJERA'].includes(usuario?.role)
   const canReturn = esDemo || ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const [postventaOpen, setPostventaOpen] = useState(false)
@@ -174,7 +176,7 @@ export default function PagosPedido({ venta, onClose }) {
   const [postventaBusy, setPostventaBusy] = useState(false)
   // Última devolución/cambio registrado: habilita imprimir su recibo (#426).
   const [reciboPostventa, setReciboPostventa] = useState(null)
-  const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
+  const cobrado = pagadoNeto(payments) // neto de reembolsos; monto en guaraníes (amountPyg ?? monto)
 
   // Elegir una cuota prepara el cobro: monto fijo, cuota seleccionada y aviso.
   function cobrarCuota(pago) {
@@ -267,6 +269,12 @@ export default function PagosPedido({ venta, onClose }) {
     if (!Number.isFinite(originalAmount) || !Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) { setError('Completá el monto y la cotización.'); return }
     const value = Math.round(originalAmount * exchangeRatePyg)
     if (!Number.isSafeInteger(value) || value <= 0 || value > pending) { setError('El monto debe ser positivo y no superar el saldo pendiente.'); return }
+    // Saldo menor a un centavo de la moneda cobrada (Gs 7 por redondeo): no se deja escondido (#461).
+    const restante = pending - value
+    if (FOREIGN(account?.currency) && restante > 0 && restante < exchangeRatePyg / 100) {
+      setError(`Con este monto quedarían ${gs(restante)} sin cobrar (menos de un centavo de ${account.currency}). Cobrá el saldo completo o completá esa parte en guaraníes.`)
+      return
+    }
     if (cuotaPago && value !== num(cuotaPago.monto)) { setError(`El monto debe ser exactamente el de la cuota (${gs(cuotaPago.monto)}).`); return }
     if (!account && method === 'STORE_CREDIT') {
       const disponible = num(saldoFavor?.availablePyg)
@@ -281,13 +289,13 @@ export default function PagosPedido({ venta, onClose }) {
       if (esDemo) {
         if (cuotaPago) {
           const updatedPayments = payments.map(p => p.id !== cuotaPago.id ? p : { ...p, status: 'CONFIRMED', fecha: new Date().toISOString() })
-          const paid = num(order.totalPagado) + value
+          const paid = pagadoPedido + value
           updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
         } else {
           const newPayment = { id: crypto.randomUUID(), ...details, method: account?.kind || method, medioPago: account?.name || ETIQUETAS_MEDIO_PAGO[method], monto: value, amountPyg: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }
           await validateDemoTradeIns([newPayment])
           const updatedPayments = [...payments, newPayment]
-          const paid = num(order.totalPagado) + value
+          const paid = pagadoPedido + value
           updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
           try { await recordDemoTradeIns(order, [newPayment]) } catch (error) {
             setNeedsRefresh(true)
@@ -377,7 +385,7 @@ export default function PagosPedido({ venta, onClose }) {
     if (!resultado.dialogo) setError(resultado.error || 'No se pudo imprimir el recibo interno.')
   }
 
-  return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${order.codigo || order.cliente || 'Pedido'}`} size="amplio">
+  return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${codigoPedido(order.codigo || order.orderNumber) || order.cliente || 'Pedido'}`} size="amplio">
     <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
     {trackingUrlFor(order) && !esDemo && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
@@ -394,10 +402,10 @@ export default function PagosPedido({ venta, onClose }) {
       </div>
     )}
     <div className="mb-5 grid grid-cols-2 gap-3">
-      <div className="rounded-2xl border border-ok/25 bg-gradient-to-br from-ok/10 to-transparent p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl tabular-nums text-ok">{gs(order.totalPagado)}</strong></div>
+      <div className="rounded-2xl border border-ok/25 bg-gradient-to-br from-ok/10 to-transparent p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl tabular-nums text-ok">{gs(pagadoPedido)}</strong></div>
       <div className={`rounded-2xl border p-4 ${pending > 0 ? 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent' : 'border-ink-600'}`}><p className="text-xs text-mute">Pendiente</p><strong className={`mt-1 block text-xl tabular-nums ${pending > 0 ? 'text-warn' : ''}`}>{gs(pending)}</strong></div>
       <BarraProgreso
-        valor={Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((Number(order.totalPagado || 0) / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}
+        valor={Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((pagadoPedido / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}
         tono="ok"
         etiqueta="Progreso de pago del pedido"
         className="col-span-2 bg-ink-700"

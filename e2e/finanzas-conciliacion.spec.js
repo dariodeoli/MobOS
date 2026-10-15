@@ -35,7 +35,7 @@ test.describe('finanzas · conciliación', () => {
     const sufijo = Date.now().toString(36).toUpperCase()
     const pago = await crearCuentaYPago(page, { sufijo, kind: 'CARD', processor: 'Bancard', amount: 250000 })
     expect(pago.status).toBe(201)
-    const numero = pago.orden.orderNumber
+    const numero = pago.orden.orderNumber.replace('#', '') // #461: se muestra sin «#»
 
     await page.goto('/finanzas/conciliacion?rango=hoy')
     await expect(page.getByRole('heading', { name: 'Conciliación', exact: true })).toBeVisible()
@@ -84,8 +84,8 @@ test.describe('finanzas · conciliación', () => {
     expect(dos.status, JSON.stringify({ producto: dos.productoStatus, cuenta: dos.cuentaStatus, orden: dos.orden })).toBe(201)
 
     await page.goto('/finanzas/conciliacion?rango=hoy')
-    const filaUno = page.getByTestId('conciliacion-fila').filter({ hasText: uno.orden.orderNumber })
-    const filaDos = page.getByTestId('conciliacion-fila').filter({ hasText: dos.orden.orderNumber })
+    const filaUno = page.getByTestId('conciliacion-fila').filter({ hasText: uno.orden.orderNumber.replace('#', '') })
+    const filaDos = page.getByTestId('conciliacion-fila').filter({ hasText: dos.orden.orderNumber.replace('#', '') })
     await expect(filaUno).toBeVisible()
     await expect(filaDos).toBeVisible()
     await filaUno.getByRole('checkbox').check()

@@ -192,6 +192,18 @@ test('paginación y totales: limit+1 decide hasMore y el cursor sale de la últi
   assert.deepEqual(totals, { total: 11, byStatus: { disponible: 9, vendido: 2 }, byKind: { EQUIPO: 6, ACCESORIO: 5 }, byRowKind: { unit: 6, product: 5 } })
 })
 
+test('planilla (#400): la fila de unidad trae ciclos, garantía, nota, reserva y badges; q busca por sigla del proveedor y nota', () => {
+  const sql = sqlOf(buildStockItemsPageSql(filtersOf('q=ABC'), scope(), null)!)
+  for (const columna of ['batteryCycles', 'warrantyUntil', 'notes', 'reservedUntil', 'reservationCustomer', 'verifiedBy', 'locationCode', 'locationIcon', 'locationColor', 'supplierIcon', 'supplierColor']) assert.match(sql, new RegExp(`AS "${columna}"`), columna)
+  assert.match(sql, /u\."notes" ILIKE/)
+  assert.match(sql, /sq\."code" ILIKE/)
+  // Rama de productos: mismas columnas en el mismo orden (UNION ALL), todas nulas.
+  const mixto = sqlOf(buildStockItemsPageSql(filtersOf(''), scope(), null)!)
+  assert.equal((mixto.match(/AS "batteryCycles"/g) || []).length, 2)
+  const fila = mapStockRow({ id: 'u', kind: 'unit', stockKind: 'EQUIPO', productId: 'p', sku: 'S', model: 'm', name: 'n', serial: 'I', supplierCode: 'ABC', supplierName: 'Mayorista Real', supplierIcon: 'TRUCK', supplierColor: '#112233', batteryCycles: 212, notes: 'garantía enero 2027', status: 'disponible', quantity: 1, createdAt: new Date() }, false, false)
+  assert.deepEqual([fila.supplierName, fila.supplierIcon, fila.supplierColor, fila.batteryCycles, fila.notes], ['ABC', 'TRUCK', '#112233', 212, 'garantía enero 2027'])
+})
+
 test('filtros sin estado ni tipo usan los defaults esperados', () => {
   const filters: StockItemsFilters = filtersOf()
   assert.deepEqual([filters.rowKind, filters.stockKind, filters.status, filters.q], [null, null, null, ''])

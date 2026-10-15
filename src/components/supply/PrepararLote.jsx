@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { estadoEnvioTexto, metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resources } from '@/lib/api'
 import { Badge, Button, Card, EmptyState, Skeleton, useToast } from '@/components/ui'
@@ -149,7 +150,7 @@ export default function PrepararLote() {
                     </p>
                     <p className="mt-1 text-xs text-mute">
                       {envio.purchase?.code ? `Compra ${envio.purchase.code} · ` : ''}{envio.unidades || 0} unidad(es) · destino {envio.destinationBranch?.name || '—'}
-                      {envio.method ? ` · ${envio.method}` : ''}{envio.status ? ` · ${envio.status}` : ''}
+                      {envio.method ? ` · ${metodoEnvioTexto(envio.method)}` : ''}{envio.status ? ` · ${estadoEnvioTexto(envio.status)}` : ''}
                     </p>
                   </div>
                   <Badge color="orange">{envio.pendientes} IMEI pendiente{envio.pendientes === 1 ? '' : 's'}</Badge>

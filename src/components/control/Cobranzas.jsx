@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { codigoPedido } from '@/utils/pedido'
 import { api } from '@/lib/api/client'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
@@ -70,7 +71,7 @@ export default function Cobranzas() {
       <article data-testid="cuota-fila" className={cn('flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')}>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
           <b className="max-w-[14rem] truncate text-sm" title={row.customerName || 'Cliente'}>{row.customerName || 'Cliente'}</b>
-          <span className="shrink-0 font-mono text-[11px] text-mute">{row.orderNumber || ''}</span>
+          <span className="shrink-0 font-mono text-[11px] text-mute">{codigoPedido(row.orderNumber)}</span>
           <Badge color={vencida ? 'red' : 'orange'}>{vencida ? `Vencida · ${diasDeAtraso(row.dueAt)}d` : 'Próxima'}</Badge>
           {row.avisadoEn && <Badge color="green">Avisado {fecha(row.avisadoEn)}</Badge>}
           <span className="min-w-0 truncate text-xs text-mute" title={`${row.reference || 'Cuota'} · vence ${fecha(row.dueAt)}`}>

@@ -137,19 +137,19 @@ export function Stat({ label, valor, delta, sub, destacado = false, compact = fa
         title={typeof sub === 'string' ? `${label}: ${sub}` : undefined}
         {...resto}
         className={cn(
-          'flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap border-r px-3 py-1.5 last:border-r-0 sm:min-w-0 sm:flex-1',
+          'flex min-h-10 shrink-0 flex-wrap items-center gap-x-2 border-r px-3 py-1.5 last:border-r-0 sm:min-w-0 sm:flex-1',
           destacado ? 'border-fono/30 bg-gradient-to-br from-fono-dark via-fono to-fono' : 'border-ink-600',
           className,
         )}
       >
-        <span className={cn('text-xs font-medium leading-4', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</span>
-        <span className={cn('text-base font-semibold leading-6 tabular-nums v2-numero', destacado ? 'text-onbrand' : 'text-fore', valorClassName)}>
+        <span className={cn('whitespace-nowrap text-xs font-medium leading-4', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</span>
+        <span className={cn('whitespace-nowrap text-base font-semibold leading-6 tabular-nums v2-numero', destacado ? 'text-onbrand' : 'text-fore', valorClassName)}>
           {valor}
         </span>
         {typeof delta === 'number' && (
           <span className={cn('shrink-0 text-xs font-medium leading-4', sube ? 'text-ok-text' : 'text-bad-text')}>{Math.abs(delta).toFixed(1)}%</span>
         )}
-        {sub && <span className={cn('text-xs leading-4', destacado ? 'text-onbrand/75' : 'text-mute')}>{sub}</span>}
+        {sub && <span className={cn('whitespace-nowrap text-xs leading-4', destacado ? 'text-onbrand/75' : 'text-mute')}>{sub}</span>}
       </div>
     )
   }

@@ -5,6 +5,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
 import { numero } from '../../../../../lib/montos'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
+import { displayOrderNumber } from '../../../../../lib/order-number'
 
 // Plantilla sugerida según el estado de entrega del pedido.
 const TEMPLATE_BY_STATUS: Record<string, string> = {
@@ -43,8 +44,8 @@ function variablesDe(order: OrderForMessage) {
     cliente,
     nombre: cliente,
     customer_name: cliente,
-    pedido: order.orderNumber || '',
-    order_number: order.orderNumber || '',
+    pedido: displayOrderNumber(order.orderNumber),
+    order_number: displayOrderNumber(order.orderNumber),
     total: importe(numero(order.totalPyg)),
     saldo_pendiente: importe(pending),
     sucursal,

@@ -8,8 +8,11 @@
 import './stockLista.css'
 import { useMemo } from 'react'
 import { Aviso, Button, EmptyState, Skeleton } from '@/components/ui'
+import { resources } from '@/lib/api'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { useStockDisplay } from '@/hooks/useStockDisplay'
+import { hayPreferenciaDeOrden, ordenarPorPreferencia } from '@/lib/stockDisplay'
 import { columnaCostoVisible, ordenarItemsStock, textoMostrandoStock, unidadDeItem } from '@/lib/stockItems'
 import { cn } from '@/lib/utils'
 import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
@@ -17,6 +20,7 @@ import { accionesDeItem } from './AccionesUnidad'
 import { FilaStock, columnasStock, estiloColumnas } from './FilaStock'
 import { TarjetaStockMovil } from './TarjetaStockMovil'
 import { hayFiltrosStock } from './stockFiltros'
+import PlanillaUnidades from './PlanillaUnidades'
 
 const VACIO = {
   unidades: 'No hay stock con esos filtros todavía.',
@@ -79,11 +83,17 @@ function FilasCargandoStock({ columnas, angosta }) {
 export default function ListaStock({ ctx, vista = 'unidades' }) {
   const {
     stock, filtros, seleccionados, setSeleccionados, busy, products,
-    rolVeCosto, abrirDetalleItem, requestReason, navigate, query, orden,
+    rolVeCosto, abrirDetalleItem, requestReason, navigate, query, orden, vistaUnidades, setError,
   } = ctx
   const angosta = usePantallaAngosta('(min-width: 768px)')
-  const items = useMemo(() => ordenarItemsStock(stock.items, orden, { rolVeCosto }), [stock.items, orden, rolVeCosto])
-  const ordenLocal = orden && orden !== 'recientes' && stock.hasMore
+  const { colores, preferencia } = useStockDisplay()
+  // El orden por defecto (tipo y condición primero, #448) solo rige mientras el usuario no eligió otro orden.
+  const conPreferencia = (!orden || orden === 'recientes') && hayPreferenciaDeOrden(preferencia)
+  const items = useMemo(() => {
+    const ordenados = ordenarItemsStock(stock.items, orden, { rolVeCosto })
+    return conPreferencia ? ordenarPorPreferencia(ordenados, preferencia) : ordenados
+  }, [stock.items, orden, rolVeCosto, conPreferencia, preferencia])
+  const ordenLocal = (orden && orden !== 'recientes' && stock.hasMore) || (conPreferencia && stock.hasMore)
   const verCosto = columnaCostoVisible({ rolVeCosto, items })
   const columnas = columnasStock({ verCosto, vista })
   const abrir = (item) => {
@@ -91,6 +101,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
     else abrirDetalleItem(item)
   }
   const propsFila = (item) => ({
+    colores,
     item,
     vista,
     verCosto,
@@ -101,6 +112,19 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
     acciones: accionesDeItem(item, ctx),
     onRestaurar: item.status === 'eliminado' && item.kind === 'unit' ? () => requestReason('restore', unidadDeItem(item, products)) : undefined,
   })
+  // #400: la planilla (agrupada por modelo) solo existe en Unidades; Vendidos y Eliminados siguen en lista.
+  const enPlanilla = vista === 'unidades' && vistaUnidades === 'planilla'
+  const guardarNota = async (item, notes) => {
+    try {
+      await resources.inventoryUnits.update({ id: item.id, action: 'details', notes })
+      await stock.recargar()
+      return true
+    } catch (causa) {
+      console.error('[stock] no se pudo guardar la nota', causa)
+      setError?.(causa?.message || 'No se pudo guardar la nota.')
+      return false
+    }
+  }
   const filtrado = Boolean(query) || hayFiltrosStock(filtros) || Boolean(filtros.periodo)
   const todosMarcados = items.length > 0 && items.every((item) => seleccionados.includes(item.id))
 
@@ -121,6 +145,21 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
         <div data-testid="unidades-vacio">
           <EmptyState compact icon="box" title={filtrado ? 'Ningún artículo coincide con la búsqueda o los filtros.' : VACIO[vista]} />
         </div>
+      ) : enPlanilla ? (
+        <PlanillaUnidades
+          colores={colores}
+          items={items}
+          angosta={angosta}
+          verCosto={verCosto}
+          rolVeCosto={Boolean(rolVeCosto)}
+          busy={busy}
+          seleccionados={seleccionados}
+          onAlternar={(id) => setSeleccionados((actuales) => alternarId(actuales, id))}
+          onMarcarTodos={() => setSeleccionados((actuales) => seleccionarTodos(items, actuales))}
+          onAbrir={abrir}
+          accionesDe={(item) => accionesDeItem(item, ctx)}
+          onGuardarNota={guardarNota}
+        />
       ) : angosta ? (
         <div className="space-y-1.5" data-testid="inventario-tarjetas">
           {items.map((item) => <TarjetaStockMovil key={item.id} {...propsFila(item)} />)}

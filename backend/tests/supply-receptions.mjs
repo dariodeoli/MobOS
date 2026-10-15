@@ -30,6 +30,7 @@ const base14 = `4901542${String(Date.now()).slice(-7)}`
 const imeiA = imeiValido(base14)
 const imeiB = imeiValido(String(Number(base14) + 1).padStart(14, '0'))
 const imeiExtra = imeiValido(String(Number(base14) + 2).padStart(14, '0'))
+const imeiExtra2 = imeiValido(String(Number(base14) + 3).padStart(14, '0'))
 
 async function prepararLote(cantidad, seriales) {
   const producto = await req('/api/products', 'POST', { name: `Recepción ${sufijo} ${cantidad}`, sku: `REC-${sufijo}-${cantidad}`, pricePyg: 2000000, costPyg: 1500000, stock: 0, branchId: rama }, 201)
@@ -78,10 +79,31 @@ const stockAntes = await req(`/api/stock?branchId=${rama}`)
 assert.equal(Number((Array.isArray(stockAntes) ? stockAntes : stockAntes.productos || []).find((item) => item.id === uno.producto.id)?.stock ?? 0), 0, 'el escaneo no mueve stock')
 
 // 4) Sobrante e incidencias con nota.
-const conSobrante = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra }, 201, admin)
+// Un IMEI que no está en el manifiesto se rechaza con el motivo (#461)...
+const rechazado = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra }, 409, admin)
+assert.match(rechazado.message, /no está en el manifiesto/)
+// ...y recién registrándolo como sobrante queda en la recepción (sin entrar al stock).
+// Un sobrante exige nota desde el escaneo (#461 QA).
+await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra, resultado: 'SOBRANTE' }, 400, admin)
+const conSobrante = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra, resultado: 'SOBRANTE', note: 'Equipo de más en la caja' }, 201, admin)
 assert.equal(conSobrante.resumen.SOBRANTE, 1)
 const sobrante = conSobrante.recepcion.items.find((item) => item.resultado === 'SOBRANTE')
 await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'item', itemId: sobrante.id, resultado: 'SOBRANTE' }, 400, admin)
+// Un sobrante nunca se convierte en RECIBIDO (entraría al stock sin estar en el manifiesto).
+const aRecibido = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'item', itemId: sobrante.id, resultado: 'RECIBIDO' }, 409, admin)
+assert.match(aRecibido.message, /sobrante/i)
+// Escaneos simultáneos del mismo IMEI: queda una sola fila (índice único receptionId + serial).
+const carrera = await Promise.all(Array.from({ length: 5 }, () => fetch(`${base}/api/supply/receptions`, {
+  method: 'PATCH',
+  headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ id: recepcionId, action: 'scan', serial: imeiExtra2, resultado: 'SOBRANTE', note: 'Escaneo simultáneo' }),
+}).then((respuesta) => respuesta.status)))
+assert.equal(carrera.filter((estado) => estado === 201).length, 1, `un solo escaneo gana: ${carrera}`)
+assert.ok(carrera.every((estado) => estado === 201 || estado === 409 || estado === 400), `los demás se rechazan: ${carrera}`)
+checks++
+const trasCarrera = await req(`/api/supply/receptions?id=${recepcionId}`)
+const filasCarrera = (trasCarrera.recepcion?.items || trasCarrera.items || []).filter((item) => item.serial === imeiExtra2)
+assert.equal(filasCarrera.length, 1, 'el IMEI escaneado en paralelo quedó una sola vez')
 const conNota = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'item', itemId: sobrante.id, resultado: 'SOBRANTE', nota: 'Llegó un equipo que no figuraba en el manifiesto' })
 assert.equal(conNota.item.nota.length > 0, true)
 await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiA }, 400, admin)
@@ -92,7 +114,7 @@ assert.equal(confirmada.recepcion.status, 'CONFIRMADA')
 assert.equal(confirmada.unidadesCreadas, 2, 'solo las dos unidades recibidas entran al stock')
 assert.equal(confirmada.estadoLote, 'CON_INCIDENCIA', 'el sobrante deja el lote con incidencia')
 assert.equal(confirmada.resumen.RECIBIDO, 2)
-assert.equal(confirmada.resumen.SOBRANTE, 1)
+assert.equal(confirmada.resumen.SOBRANTE, 2)
 
 const unidades = await req(`/api/inventory-units?q=${imeiA}`)
 const lista = Array.isArray(unidades) ? unidades : unidades.units || []

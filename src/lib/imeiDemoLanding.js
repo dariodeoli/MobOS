@@ -19,7 +19,7 @@ export function validarImeiDemo(valor) {
   const imei = String(valor ?? '').replace(/\D/g, '')
   if (!imei) return { ok: false, error: 'Falta el IMEI.' }
   if (imei.length !== 15) return { ok: false, error: 'El IMEI debe tener 15 dígitos.' }
-  if (!imeiValido(imei)) return { ok: false, error: 'El IMEI no pasa la verificación de dígito control (Luhn).' }
+  if (!imeiValido(imei)) return { ok: false, error: 'El IMEI no tiene un dígito de control válido: revisá que esté bien escrito.' }
   return { ok: true, imei }
 }
 

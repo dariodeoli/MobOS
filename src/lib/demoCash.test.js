@@ -69,3 +69,15 @@ test('el corte por caja de la demo arma las sesiones del período', () => {
   }
   assert.notEqual(cerradas[0].diferenciaPyg, cerradas[1].diferenciaPyg, 'las cajas cerradas muestran diferencias distintas')
 })
+
+test('el esperado demo es el neto con signo: retiro sin ventas, reembolso en efectivo y sin recorte', () => {
+  const fin = new Date('2030-01-01T12:00:00Z')
+  const caja = (extra) => ({ openedAt: '2030-01-01T08:00:00Z', openingPyg: 500000, movements: [], ...extra })
+  const venta = (monto, status) => ({ vendedorId: 'demo-user', pagos: [{ medioPago: 'DINERO', monto, status, fecha: '2030-01-01T09:00:00Z' }] })
+  const egreso = (monto) => ({ kind: 'EGRESO', amountPyg: monto, createdAt: '2030-01-01T10:00:00Z' })
+  assert.equal(getDemoCashExpected(caja({ movements: [egreso(200000)] }), fin, []), 300000, 'apertura 500.000 − retiro 200.000')
+  assert.equal(getDemoCashExpected(caja({ movements: [{ kind: 'INGRESO', amountPyg: 100000, createdAt: '2030-01-01T10:00:00Z' }] }), fin, []), 600000)
+  assert.equal(getDemoCashExpected(caja(), fin, []), 500000)
+  assert.equal(getDemoCashExpected(caja({ movements: [egreso(150000)] }), fin, [venta(250000), venta(100000, 'REFUNDED')]), 500000 + 250000 - 100000 - 150000)
+  assert.equal(getDemoCashExpected(caja({ movements: [egreso(900000)] }), fin, []), -400000, 'negativo: no se recorta')
+})

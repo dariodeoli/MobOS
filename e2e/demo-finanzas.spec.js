@@ -64,7 +64,7 @@ test.describe('demo de Finanzas', () => {
     // Cuentas de cobro: todos los medios nuevos con datos verosímiles.
     await page.goto('/finanzas/bancos')
     const filas = page.getByTestId('cuenta-fila')
-    for (const nombre of ['Caja · Guaraníes', 'Itaú · Cuenta corriente', 'ueno · Tarjeta', 'Pix · Itaú', 'USDT · Binance', 'Canje · Equipos']) {
+    for (const nombre of ['Caja · Guaraníes', 'Itaú · Cuenta corriente', 'Ueno · Tarjeta', 'Pix · Itaú', 'USDT · Binance', 'Canje · Equipos']) {
       await expect(filas.filter({ hasText: nombre })).toHaveCount(1)
     }
     for (const texto of await filas.allInnerTexts()) {

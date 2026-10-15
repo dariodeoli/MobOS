@@ -73,8 +73,8 @@ assert.deepEqual(anuladoSinSerial.map(movimiento => movimiento.delta), [])
 const adjuntos = new Map([['i3', [{ itemId: 'i3', at: fecha('2026-09-04'), cantidad: 1, user: 'Vera' }]]])
 const entregado = eventosDeVentas([pedido({ id: 'i3', quantity: 2, serials: ['CCC'], serialsPending: 0 })], adjuntos, new Map())
 assert.deepEqual(entregado.map(movimiento => [movimiento.label, movimiento.delta, movimiento.at.toISOString().slice(0, 10)]), [
-  ['Venta P-1', -1, '2026-09-02'],
-  ['Entrega de IMEI · P-1', -1, '2026-09-04'],
+  ['Venta P-0001', -1, '2026-09-02'],
+  ['Entrega de IMEI · P-0001', -1, '2026-09-04'],
 ])
 
 // Anulación: la venta queda y la restitución la compensa.

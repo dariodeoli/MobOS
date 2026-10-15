@@ -80,8 +80,12 @@ test('escritorio 1440: la fila sigue compacta', async ({ page }) => {
   const nombre = await caja(fila.locator('b').first())
   medidas['nombre del modelo'] = `${nombre.w}x${nombre.h}`
   expect(nombre.w, `nombre ${nombre.w} px < ${MINIMO_NOMBRE}`).toBeGreaterThanOrEqual(MINIMO_NOMBRE)
-  // El menú de acciones de la fila mantiene su zona táctil de 44 px.
-  await exigirToque(fila.getByLabel(/^Acciones de/), 'menú Acciones de la fila')
+  // Planilla densa de escritorio (≥1024 px, puntero fino): el menú de la fila mide 28 px
+  // (planilla.css); la zona táctil de 44 px rige en mobile/tablet y está auditada arriba.
+  const menu = await caja(fila.getByLabel(/^Acciones de/))
+  medidas['menú Acciones de la fila'] = `${menu.w}x${menu.h}`
+  expect(menu.h, `menú Acciones de la fila alto ${menu.h} < 28`).toBeGreaterThanOrEqual(28)
+  expect(menu.w, `menú Acciones de la fila ancho ${menu.w} < 28`).toBeGreaterThanOrEqual(28)
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/03-escritorio-768.png`, fullPage: true })
 })

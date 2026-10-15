@@ -183,10 +183,24 @@ export async function PATCH(request: Request) {
       const esperado = pendientesDeRecibir(recepcion.shipment.items).find((item) => String(item.serial || '').toUpperCase() === serial && !cubiertos.has(item.id))
       const pendiente = pendientesDeRecibir(recepcion.shipment.items).find((item) => !item.serial && !cubiertos.has(item.id))
       const item = esperado || pendiente || null
+      // Un código que no figura en el manifiesto no se acepta por inercia (#461): se rechaza con el
+      // motivo. Si de verdad llegó una unidad de más se registra pidiéndolo (resultado SOBRANTE),
+      // queda como sobrante con nota y no entra al stock.
+      if (!item && resultadoPedido !== 'SOBRANTE') return error(`El código ${serial} no está en el manifiesto de este lote. Si llegó una unidad de más, registrala como sobrante.`, 409)
       const resultado = item ? resultadoPedido : 'SOBRANTE'
-      const fila = await prisma.supplyReceptionItem.create({
-        data: { tenantId: tenant, receptionId: recepcion.id, shipmentItemId: item?.id || null, serial, productId: item?.productId || recepcion.shipment.items[0]?.productId || '', resultado, nota: typeof body?.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 300) : null },
-      })
+      const notaEscaneo = typeof body?.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 300) : null
+      // Un sobrante (no figura en el manifiesto) exige una nota: es una incidencia, no stock.
+      if (resultado === 'SOBRANTE' && !notaEscaneo) return error(`El código ${serial} es un sobrante: indicá una nota (de dónde salió o qué se hizo).`, 400)
+      let fila
+      try {
+        fila = await prisma.supplyReceptionItem.create({
+          data: { tenantId: tenant, receptionId: recepcion.id, shipmentItemId: item?.id || null, serial, productId: item?.productId || recepcion.shipment.items[0]?.productId || '', resultado, nota: notaEscaneo },
+        })
+      } catch (cause) {
+        // Dos escaneos simultáneos del mismo IMEI: el índice único (receptionId, serial) deja pasar uno solo.
+        if ((cause as { code?: string })?.code === 'P2002') return error(`El IMEI ${serial} ya se escaneó en esta recepción.`, 409)
+        throw cause
+      }
       if (item) cubiertos.add(item.id)
       yaEscaneados.add(serial)
       registrados.push(fila)
@@ -204,6 +218,8 @@ export async function PATCH(request: Request) {
     if (!(RESULTADOS_RECEPCION as readonly string[]).includes(resultado)) return error('Resultado inválido.')
     const nota = typeof body?.nota === 'string' && body.nota.trim() ? body.nota.trim().slice(0, 300) : null
     if (RESULTADOS_INCIDENCIA.includes(resultado as never) && !nota) return error('Una incidencia necesita una nota.')
+    // Solo una unidad del manifiesto puede quedar RECIBIDA: un sobrante (sin shipmentItemId) nunca entra al stock.
+    if (resultado === 'RECIBIDO' && !item.shipmentItemId) return error('Un sobrante no se puede marcar como recibido: no figura en el manifiesto y no entra al stock.', 409)
     const actualizado = await prisma.supplyReceptionItem.update({ where: { id: item.id }, data: { resultado, nota } })
     if (RESULTADOS_INCIDENCIA.includes(resultado as never)) {
       await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_RECEPTION_INCIDENT', entity: 'SupplyReception', entityId: recepcion.id, metadata: { envio: recepcion.shipment.code, serial: item.serial, resultado, nota } } })
@@ -223,6 +239,7 @@ export async function PATCH(request: Request) {
   const unidadesCompra = recepcion.shipment.purchase.lines.reduce((suma, linea) => suma + linea.quantity, 0)
   const confirmada = await prisma.$transaction(async (tx) => {
     const creadas: string[] = []
+    const porProducto = new Map<string, number>()
     for (const item of recepcion.items) {
       if (item.resultado !== 'RECIBIDO') continue
       const esperado = esperados.find((fila) => fila.id === item.shipmentItemId)
@@ -254,6 +271,7 @@ export async function PATCH(request: Request) {
         },
       })
       creadas.push(unidad.id)
+      porProducto.set(item.productId, (porProducto.get(item.productId) || 0) + 1)
       await promoteToEquipo(tx, tenant, item.productId)
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: unidad.id, metadata: { serial: item.serial, productId: item.productId, branchId: recepcion.shipment.destinationBranchId, locationId: deposito.id, envio: recepcion.shipment.code } } })
       await tx.supplyShipmentItem.update({ where: { id: esperado.id }, data: { status: 'RECIBIDO' } })
@@ -265,11 +283,8 @@ export async function PATCH(request: Request) {
       await tx.supplyReceptionItem.create({ data: { tenantId: tenant, receptionId: recepcion.id, shipmentItemId: esperado.id, serial: esperado.serial, productId: esperado.productId, resultado: 'FALTANTE' } })
       await tx.supplyShipmentItem.update({ where: { id: esperado.id }, data: { status: 'FALTANTE' } })
     }
-    if (creadas.length) {
-      const porProducto = new Map<string, number>()
-      for (const item of recepcion.items.filter((fila) => fila.resultado === 'RECIBIDO')) porProducto.set(item.productId, (porProducto.get(item.productId) || 0) + 1)
-      for (const [productId, cantidad] of porProducto) await changeStock(tx, { tenantId: tenant, productId, delta: cantidad })
-    }
+    // Solo las unidades realmente creadas suman al contador (un RECIBIDO sin manifiesto no cuenta).
+    for (const [productId, cantidad] of porProducto) await changeStock(tx, { tenantId: tenant, productId, delta: cantidad })
     const items = await tx.supplyReceptionItem.findMany({ where: { receptionId: recepcion.id }, select: { resultado: true } })
     const resumen = resumenRecepcion(items)
     const estado = estadoLoteRecepcion({ unidades: esperados.length, recibidas: resumen.RECIBIDO, incidencias: resumen.SOBRANTE + resumen.DANADO + resumen.INCORRECTO })

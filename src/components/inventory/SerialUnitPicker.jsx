@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { resources } from '@/lib/api'
-import { Badge, Button, Skeleton } from '@/components/ui'
+import { Badge, Button, Input, Skeleton } from '@/components/ui'
+import CameraScan from '@/components/shared/CameraScan'
+import Icon from '@/components/shared/Icon'
+import { RESERVA_HORAS_DEFECTO } from '@/utils/reserva'
 import SerialTexto from '@/components/shared/SerialTexto'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { serialEnmascarado } from '@/utils/serial'
@@ -26,6 +29,9 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   const [busySerial, setBusySerial] = useState('')
   const [error, setError] = useState('')
   const [sinSucursal, setSinSucursal] = useState(false)
+  // Buscar o escanear el IMEI entre las unidades del modelo (#461).
+  const [busqueda, setBusqueda] = useState('')
+  const [camara, setCamara] = useState(false)
   const seleccionadosRef = useRef(selectedSerials)
   useEffect(() => { seleccionadosRef.current = selectedSerials }, [selectedSerials])
 
@@ -69,7 +75,8 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
         if (!customerName?.trim()) throw new Error('Indicá primero el cliente para reservar este equipo.')
         if (unit.status !== 'AVAILABLE') throw new Error('Ese equipo ya no está disponible.')
         // `minutes` manda en el API real; `hours` lo usa el store de la demo.
-        await resources.inventoryReservations.create({ customerName: customerName.trim(), minutes: 60, hours: 1, serials: [serial] })
+        // La misma duración que la reserva desde Stock (RESERVA_HORAS_DEFECTO).
+        await resources.inventoryReservations.create({ customerName: customerName.trim(), minutes: RESERVA_HORAS_DEFECTO * 60, hours: RESERVA_HORAS_DEFECTO, serials: [serial] })
         // Una línea representa una unidad; para vender otra, agregala como nueva línea.
         onChange([serial])
       }
@@ -86,12 +93,22 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   </div>
   if (!units.length && !error) return <p className="mt-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3 py-2 text-xs text-mute">No hay unidades disponibles de este modelo en tu sucursal. Si el cliente la espera, marcala como «sobre pedido»: el IMEI se asigna al entregar.</p>
 
+  const consulta = normalize(busqueda)
+  const visibles = consulta ? units.filter(unit => normalize(unit.serial).includes(consulta) || String(unit.supplierName || '').toLowerCase().includes(busqueda.trim().toLowerCase())) : units
   return <section className="mt-3 rounded-2xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí y reservá la unidad exacta. La reserva dura 60 minutos.</p></div>
+      <div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí y reservá la unidad exacta. La reserva dura {RESERVA_HORAS_DEFECTO} horas, igual que desde Stock.</p></div>
       <Badge color={selectedSerials.length ? 'green' : 'orange'}>{selectedSerials.length ? `IMEI ${serialEnmascarado(selectedSerials[0])}` : 'Requerido'}</Badge>
     </div>
-    <div className="mt-3 space-y-1.5">{units.map(unit => {
+    {units.length > 1 && (
+      <div className="mt-3 flex items-center gap-2" data-testid="picker-busqueda">
+        <Input aria-label="Buscar o escanear IMEI" inputMode="search" autoComplete="off" value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar o escanear IMEI, últimos 4 o proveedor" className="min-w-0 flex-1" />
+        <Button type="button" variant="outline" className="shrink-0" aria-label="Escanear IMEI con la cámara" title="Escanear con la cámara" onClick={() => setCamara(abierta => !abierta)}><Icon name="camera" className="h-4 w-4" /></Button>
+      </div>
+    )}
+    {camara && <div className="mt-2"><CameraScan titulo="Enfocá el código del IMEI" onDetected={valor => { setBusqueda(String(valor || '').trim()); setCamara(false) }} onClose={() => setCamara(false)} /></div>}
+    {consulta && !visibles.length && <p className="mt-2 text-xs text-mute" role="status">Ninguna unidad coincide con «{busqueda.trim()}». Revisá el IMEI o borrá la búsqueda.</p>}
+    <div className="mt-3 space-y-1.5">{visibles.map(unit => {
       const selected = selectedSerials.includes(normalize(unit.serial))
       const available = unit.status === 'AVAILABLE' || selected
       return <div key={unit.id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition ${selected ? 'border-ok/40 bg-ok/10' : 'border-ink-600 hover:border-fono/30'}`}>
@@ -101,6 +118,7 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
             <Badge color={unit.condition === 'USED' ? 'orange' : 'green'}>{unit.condition === 'USED' ? 'Seminuevo' : 'Nuevo'}</Badge>
             {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}
             {unit.location?.name ? <span>· {unit.location.name}</span> : null}
+            {unit.supplierName ? <span data-testid="picker-proveedor" title="Proveedor">· {unit.supplierName}</span> : null}
             {!available && !selected ? <span className="font-semibold text-bad">No disponible</span> : null}
           </span>
         </span>

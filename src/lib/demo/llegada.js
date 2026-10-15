@@ -73,7 +73,7 @@ function hallazgos(linea, todas, productos) {
   } else if (linea.serial) {
     if (/^\d{15}$/.test(linea.serial)) {
       if (/0{3}$/.test(linea.serial) && !linea.imeiConfirmado) error('IMEI_EXCEL', 'IMEI perdido por Excel, corregir (termina en ceros)')
-      else if (!luhnOk(linea.serial)) error('IMEI_INVALIDO', `IMEI inválido (no pasa Luhn): ${linea.serial}`)
+      else if (!luhnOk(linea.serial)) error('IMEI_INVALIDO', `IMEI inválido (dígito de control incorrecto): ${linea.serial}`)
       else if (linea.imeiConfirmado) aviso('IMEI_CONFIRMADO', `IMEI ${linea.serial} termina en 000: confirmado por el operador`)
     }
     if (todas.filter((otra) => otra.serial === linea.serial && otra.match !== 'NO_LLEGO').length > 1) error('DUPLICADO_EN_LOTE', `IMEI/serie repetido en la llegada (${linea.serial})`)

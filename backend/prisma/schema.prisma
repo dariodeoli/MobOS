@@ -3004,6 +3004,7 @@ model SupplyReceptionItem {
   nota           String?
   createdAt      DateTime         @default(now())
 
+  @@unique([receptionId, serial])
   @@index([tenantId, receptionId])
   @@index([tenantId, shipmentItemId])
 }

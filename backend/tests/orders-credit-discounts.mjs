@@ -380,7 +380,7 @@ result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PAT
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
-assert.ok(result.payload.message.includes(creditOrder.orderNumber), 'El mensaje debe citar el pedido.')
+assert.ok(result.payload.message.includes(creditOrder.orderNumber.replace('#', '')), 'El mensaje debe citar el pedido.')
 assert.ok(result.payload.whatsappUrl.startsWith('https://wa.me/'), 'Debe generar el enlace de WhatsApp.')
 result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { action: 'markNotified' })
 assert.equal(result.response.status, 200)
@@ -580,7 +580,7 @@ assert.equal(result.payload.preview, 'TST-#0007')
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 800000 }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 assert.equal(result.payload.orderNumber, 'TST-#0007', `La empresa con prefijo propio debe seguir su contador, recibido ${result.payload.orderNumber}.`)
-assert.equal(codigoPedido(result.payload.orderNumber), 'TST-#0007')
+assert.equal(codigoPedido(result.payload.orderNumber), 'TST-0007')
 console.log('orders-credit-discounts · check numeración TST-#0007 y display: OK')
 // Se restaura el prefijo por defecto sin retroceder el contador (GREATEST con
 // el máximo histórico): el resto de la suite sigue viendo MOB-#NNNN.

@@ -1,4 +1,5 @@
 import { prisma } from '../../../../../lib/prisma'
+import { loadTenantPreferences } from '../../../../../lib/tenant-preferences'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { buscarPorTokenPublico, hashTokenPublico } from '../../../../../lib/public-token'
@@ -88,6 +89,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       : Promise.resolve([]),
   ])
 
+  const mostrarSaldoFavor = (await loadTenantPreferences(portal.tenantId)).portal.showStoreCredit
+
   // Seguimiento de la entrega (#240 → portal): los pasos del método con sus
   // fechas, con el mismo armado que la cuenta y la página pública del pedido.
   const eventosEntrega = pedidos.length
@@ -116,7 +119,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       ...(portal.customer?.publicNote ? { notaPublica: portal.customer.publicNote } : {}),
     },
     contacto: await contactoPublicoDePortal(prisma, portal.tenantId, portal.customerId),
-    saldoFavorPyg: Number(saldoFavor._sum.remainingPyg || 0),
+    // #422: la empresa puede ocultar el saldo a favor en el portal.
+    saldoFavorPyg: mostrarSaldoFavor ? Number(saldoFavor._sum.remainingPyg || 0) : 0,
     // 1 punto = 1 Gs. canjeable; la empresa lo apaga con loyaltyPct = 0.
     puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),
     pedidos: pedidos.map((pedido) => {

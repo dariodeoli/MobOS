@@ -1,4 +1,5 @@
 import { customerIdentityInput, serializeCustomer } from '../../../../lib/customer-identity'
+import { netPaid } from '../../../../lib/payment-net-pure'
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
@@ -43,8 +44,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
   const orderRows = orders.map(order => {
     const totalPyg = numero(order.totalPyg)
-    const collectedPyg = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
-    const pendingPyg = Math.max(0, totalPyg - collectedPyg)
+    const collectedPyg = netPaid(order.payments)
+    const pendingPyg = order.status === 'CANCELLED' ? 0 : Math.max(0, totalPyg - collectedPyg)
     const serials = [...new Set(order.items.flatMap(item => (Array.isArray(item.serials) ? item.serials as string[] : [])))]
     return {
       id: order.id,

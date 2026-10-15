@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { contextoActual, getProductos, modoDatosActual, refrescar, refrescarCatalogo, updateProducto } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
+import { vistaUnidadesValida } from '@/lib/planilla'
 import { useToast } from '@/components/ui'
 import { etiquetaCondicionUnidad, nombreProducto, sigueEnInventario, sinCostoUnitario } from '@/utils/inventario'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -22,7 +23,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { ultimos4 } from '@/utils/serial'
-import { mensajeReserva } from '@/utils/reserva'
+import { RESERVA_HORAS_DEFECTO, mensajeReserva } from '@/utils/reserva'
 import { transferReceiveUrlFor } from '@/components/shared/OrderReceipt'
 import { qrDataUrl } from '@/lib/qr'
 import { gs } from '@/utils/calculos'
@@ -54,6 +55,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const canManageVisibility = Boolean(sesion?.esPropietario)
   // Costo y proveedor: la API los devuelve null a quien no los ve (VENDEDOR/CAJERA).
   const rolVeCosto = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE' || usuario?.role === 'ADMIN' || usuario?.role === 'GERENTE')
+  // #400: Tarjetas o Planilla en Unidades; se recuerda por usuario (storage con try/catch en `ultimoUsado`).
+  const [vistaUnidades, recordarVistaUnidades] = useUltimoUsado(`inventario:vista-unidades:${usuario?.id || sesion?.usuarioId || 'anon'}`, 'tarjetas', { valido: vistaUnidadesValida })
   const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) && (tabProp !== 'autorizaciones' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, recordarOrden] = useUltimoUsado('inventario:orden', 'recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
   // #331: autorizaciones de stock (retiro/ajuste y transferencia) para la
@@ -145,7 +148,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [proveedores, setProveedores] = useState([])
   const [recientesProveedores, setRecientesProveedores] = useState(() => leerProveedoresRecientes(contextoActual().empresaId))
   const [cotizacion, setCotizacion] = useState(null)
-  const [reserve, setReserve] = useState({ serials: '', customerName: '', customerId: '', hours: '2' })
+  const [reserve, setReserve] = useState({ serials: '', customerName: '', customerId: '', hours: String(RESERVA_HORAS_DEFECTO) })
   const [reserveMatches, setReserveMatches] = useState([])
   const reserveTimer = useRef(null)
   const [guiaPara, setGuiaPara] = useState(null)
@@ -459,7 +462,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
         customerName: reserve.customerName.trim(),
         minutes: horas * 60,
       })
-      setReserve({ serials: '', customerName: '', customerId: '', hours: '2' }); setReserveMatches([]); setReserveOpen(false)
+      setReserve({ serials: '', customerName: '', customerId: '', hours: String(RESERVA_HORAS_DEFECTO) }); setReserveMatches([]); setReserveOpen(false)
     }, mensajeReserva({ serials, cliente: reserve.customerName.trim(), horas }))
   }
   async function releaseReservation(serial) { await setAndRefresh(() => resources.inventoryReservations.release([serial]), 'Reserva liberada y unidad disponible.') }
@@ -625,7 +628,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   function openReserveFor(unit) {
     // La reserva se abre sobre el inventario, no detrás del detalle de la unidad.
     setDetalleUnidad(null)
-    setReserve({ serials: unit.serial, customerName: '', customerId: '', hours: '2' })
+    setReserve({ serials: unit.serial, customerName: '', customerId: '', hours: String(RESERVA_HORAS_DEFECTO) })
     setReserveMatches([])
     setReserveOpen(true)
   }
@@ -991,6 +994,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setNotice,
     orden,
     recordarOrden,
+    vistaUnidades,
+    recordarVistaUnidades,
     exportando,
     setExportando,
     stockAlerts,

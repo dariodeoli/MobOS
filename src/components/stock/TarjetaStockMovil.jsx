@@ -6,6 +6,9 @@ import { etiquetaDeCategoria } from '@/lib/categorias'
 import IconoCategoria from '@/components/shared/IconoCategoria'
 import { Badge, Button } from '@/components/ui'
 import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
+import { estiloCondicion } from '@/lib/stockDisplay'
+import { colorUbicacion, familiaCondicion } from '@/lib/planilla'
+import './planilla.css'
 import { BateriaStock, ConsignadoStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
@@ -258,7 +261,7 @@ export function TarjetaUnidad({ unit, onClick }) {
 // Modelo, IMEI/serie, batería y estado a la vista; proveedor y costo (solo si
 // el rol los ve) van en la fila del estado y bajo el modelo, sin detalle plegado (#396). Todos los destinos táctiles
 // miden 44 px y el IMEI va completo, sin recortar.
-export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
+export function TarjetaStockMovil({ colores, item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
   const { nombre, variante } = modeloDeItem(item)
   const identificador = identificadorDeItem(item)
   const ubicacion = [item.branchName, item.locationName].filter(Boolean).join(' · ')
@@ -267,7 +270,12 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
       data-testid="inventario-tarjeta-movil"
       data-kind={item.kind}
       data-estado={item.status}
-      className={cn('stock-tarjeta rounded-xl border p-2 transition', seleccionado ? 'border-fono/50 bg-fono/5' : 'border-ink-600 bg-ink')}
+      data-condicion={familiaCondicion(item)}
+      data-tono={colorUbicacion(item) ? 'ubicacion' : undefined}
+      data-propio={estiloCondicion(item, colores) ? 'true' : undefined}
+      data-sel={seleccionado ? 'true' : undefined}
+      style={estiloCondicion(item, colores) || (colorUbicacion(item) ? { '--pl-tono': colorUbicacion(item) } : undefined)}
+      className="stock-tarjeta cond-color rounded-xl p-2 transition"
     >
       <div className="flex items-start gap-1">
         <label className="flex h-11 w-11 shrink-0 items-center justify-center">
@@ -287,21 +295,21 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
         >
           <b data-testid="unidad-modelo" className="block text-[13px] leading-tight">
             {nombre}
-            {variante ? <span className="font-normal text-mute"> · {variante}</span> : null}
+            {variante ? <span className="font-normal pl-sec"> · {variante}</span> : null}
           </b>
-          <span data-testid="unidad-imei" className={cn('mt-0.5 block break-all text-[11px] tabular-nums text-mute', item.kind === 'unit' && 'font-mono')}>
+          <span data-testid="unidad-imei" className={cn('mt-0.5 block break-all text-[11px] tabular-nums pl-sec', item.kind === 'unit' && 'font-mono')}>
             {identificador || '—'}
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-2">
             <EstadoStock item={item} />
             <BateriaStock item={item} />
             <ConsignadoStock item={item} />
-            {verCosto ? <span data-testid="unidad-costo" className="ml-auto text-xs tabular-nums text-mute" title="Costo"><CostoStock item={item} /></span> : null}
+            {verCosto ? <span data-testid="unidad-costo" className="ml-auto text-xs tabular-nums pl-sec" title="Costo"><CostoStock item={item} /></span> : null}
           </span>
-          {verCosto && item.supplierName ? <span className="mt-1 block truncate text-[11px] text-mute" title={`Proveedor: ${item.supplierName}`}>Proveedor: {item.supplierName}</span> : null}
-          {ubicacion ? <span className="mt-1 block truncate text-[11px] text-mute" title={ubicacion}>{ubicacion}</span> : null}
-          {vista === 'vendidos' ? <span className="mt-1 block text-[11px] text-mute">Vendido el {fechaVentaStock(item)}</span> : null}
-          {vista === 'eliminados' ? <span className="mt-1 block text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
+          {verCosto && item.supplierName ? <span className="mt-1 block truncate text-[11px] pl-sec" title={`Proveedor: ${item.supplierName}`}>Proveedor: {item.supplierName}</span> : null}
+          {ubicacion ? <span className="mt-1 block truncate text-[11px] pl-sec" title={ubicacion}>{ubicacion}</span> : null}
+          {vista === 'vendidos' ? <span className="mt-1 block text-[11px] pl-sec">Vendido el {fechaVentaStock(item)}</span> : null}
+          {vista === 'eliminados' ? <span className="mt-1 block text-[11px] pl-sec">Conserva su historial de auditoría</span> : null}
         </button>
         <span className="flex shrink-0 items-center">
           <MenuAcciones unit={{ serial: identificador || nombre }} busy={busy} acciones={acciones} />

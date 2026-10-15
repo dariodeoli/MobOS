@@ -1,6 +1,9 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
 const KEY = 'mobos:demo-cash:v1'
 
+// Espejo de esperadoCaja() de backend/lib/cash-expected-pure.ts: apertura + parte móvil, sin recorte.
+export const esperadoCaja = (aperturaPyg, movilPyg) => Number(aperturaPyg) + Number(movilPyg)
+
 const DEFAULT = {
   id: 'demo-cash-session',
   tenantId: 'mobos-demo',
@@ -92,6 +95,9 @@ export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}
     fila.ventasPyg += Number(venta.precio) || 0
     for (const pago of Array.isArray(venta.pagos) ? venta.pagos : []) {
       if (String(pago.medioPago || '').toUpperCase() !== 'DINERO') continue
+      // Reembolso en efectivo: resta del cajón (igual que cashExpectedBetween() del servidor).
+      if (pago.status === 'REFUNDED') { fila.efectivoPyg -= Math.abs(Number(pago.monto) || 0); continue }
+      if (pago.status && pago.status !== 'CONFIRMED') continue
       fila.efectivoPyg += Number(pago.monto) || 0
       fila.pagosEfectivo += 1
     }
@@ -109,7 +115,7 @@ export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}
     const abiertaEn = i === 0 && cash?.openedAt ? new Date(cash.openedAt) : fecha
     const openingPyg = i === 0 ? Number(cash?.openingPyg ?? 500000) : 500000
     const movimientos = i === 0 ? movimientosPyg : 0
-    const esperadoPyg = openingPyg + dia.efectivoPyg + movimientos
+    const esperadoPyg = esperadoCaja(openingPyg, dia.efectivoPyg + movimientos)
     const contadoPyg = abierta ? null : esperadoPyg + diferencias[i % diferencias.length]
     sesiones.push({
       id: abierta ? (cash?.id || 'demo-cash-session') : `demo-cash-${claveDeDia(fecha)}`,
@@ -138,9 +144,19 @@ export function getDemoCashExpected(cash = read(), until = new Date(), sales = [
   const cashTotal = payments.reduce((sum, payment) => {
     const paidAt = new Date(payment.fecha || 0).getTime()
     const isCash = String(payment.medioPago || '').toUpperCase() === 'DINERO'
-    return isCash && paidAt >= openedAt && paidAt <= end ? sum + (Number(payment.monto) || 0) : sum
+    if (!isCash || paidAt < openedAt || paidAt > end) return sum
+    if (payment.status === 'REFUNDED') return sum - Math.abs(Number(payment.monto) || 0)
+    return !payment.status || payment.status === 'CONFIRMED' ? sum + (Number(payment.monto) || 0) : sum
   }, 0)
-  return (Number(cash.openingPyg) || 0) + cashTotal
+  // Ingresos y egresos de caja del turno (aportes, retiros, gastos): suman o restan igual que en el servidor.
+  const movimientos = (cash.movements || []).reduce((suma, movimiento) => {
+    const cuando = new Date(movimiento.createdAt || cash.openedAt || 0).getTime()
+    if (cuando < openedAt || cuando > end) return suma
+    return suma + (movimiento.kind === 'INGRESO' ? 1 : -1) * (Number(movimiento.amountPyg) || 0)
+  }, 0)
+  // Misma definición que el cierre real (backend/lib/cash-expected.ts, esperadoCaja): apertura + cobros en
+  // efectivo − reembolsos ± movimientos, con signo y sin recortar en cero.
+  return esperadoCaja(Number(cash.openingPyg) || 0, cashTotal + movimientos)
 }
 export function openDemoCash(openingPyg = DEFAULT.openingPyg, notes = '') {
   const next = {

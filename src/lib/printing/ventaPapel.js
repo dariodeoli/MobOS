@@ -2,6 +2,8 @@
 // cliente y nada más. Nunca costos ni datos internos (código MOV, proveedor
 // real). Una sola resolución para el HTML (A4/58/80) y el ticket ESC/POS.
 
+import { cuentaComoCobro, pagosDelPedido, totalesPedido } from '../../utils/pedido.js'
+
 const texto = (valor) => String(valor ?? '').trim()
 const numero = (valor) => {
   const n = Number(valor)
@@ -67,13 +69,41 @@ export function garantiaDeVenta(order = {}) {
   return 'Garantía según las condiciones de la tienda. Conservá este comprobante.'
 }
 
+// Garantía de una línea en días (del producto o de la política): «Garantía de 365 días».
+// Sin dato no se imprime nada (no se inventa garantía).
+export function garantiaDeItem(item = {}) {
+  const dias = numero(item.warrantyDays)
+  return dias > 0 ? `Garantía de ${dias} ${dias === 1 ? 'día' : 'días'}` : ''
+}
+
+// Pago en moneda extranjera: el importe original, la cotización y los guaraníes
+// («USD 100,00 × Gs 7.350»). Los pagos en guaraníes no llevan nada extra.
+export function pagoEnMonedaOriginal(pago = {}) {
+  const moneda = texto(pago.currency || pago.accountSnapshot?.currency).toUpperCase()
+  const original = Math.abs(Number(pago.originalAmount))
+  const cotizacion = Number(pago.exchangeRatePyg)
+  if (!moneda || moneda === 'PYG' || !(original > 0) || !(cotizacion > 0)) return ''
+  const fmt = (valor, max) => valor.toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: max })
+  const decimales = Number.isInteger(original) ? 0 : 2
+  const importe = original.toLocaleString('es-PY', { minimumFractionDigits: decimales, maximumFractionDigits: 2 })
+  return `${moneda} ${importe} × Gs ${fmt(cotizacion, 6)}`
+}
+
+// Pagos que se imprimen: los confirmados sin las reversiones de una corrección ni los
+// originales que revirtieron (el par sale; queda el pago nuevo). Los importes del pie
+// (Pagado/Saldo) siguen saliendo de `totalesPedido`, que suma firmado: ambas cuentas coinciden.
+export function pagosParaPapel(order = {}) {
+  const confirmados = pagosDelPedido(order).filter(cuentaComoCobro)
+  const revertidos = new Set(confirmados.map((pago) => pago.reversalOfId).filter(Boolean))
+  return confirmados.filter((pago) => !pago.reversalOfId && !(pago.id && revertidos.has(pago.id)))
+}
+
 // Importes del pie: subtotal, descuento, envío, pagado y saldo solo cuando
 // aplican. `pagado` ignora los pagos no confirmados.
 export function desgloseVenta(order = {}) {
-  const pagos = Array.isArray(order.payments) ? order.payments : order.pagos || []
-  const confirmados = pagos.filter((pago) => pago.status === 'CONFIRMED' || pago.status === undefined)
-  const total = numero(order.totalPyg ?? order.total)
-  const pagado = confirmados.reduce((suma, pago) => suma + numero(pago.amountPyg ?? pago.monto), 0) || numero(order.totalPagado)
+  const confirmados = pagosParaPapel(order)
+  // Pagado/Saldo: la misma cuenta que el detalle, el listado y la ficha (#461).
+  const { total, pagado } = totalesPedido(order)
   const descuento = numero(order.discountPyg ?? order.descuento)
   const envio = numero(order.deliveryPyg ?? order.montoDelivery)
   const subtotal = numero(order.subtotalPyg) || total

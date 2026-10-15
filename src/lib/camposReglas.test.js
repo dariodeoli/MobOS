@@ -40,9 +40,9 @@ test('el extractor de RUC vive dentro del input y se ve en todos los lugares, ta
   const usos = archivosFuente().filter((archivo) => /<RucField/.test(archivo.contenido))
   const esperados = [
     'components/control/Compras.jsx',
-    'components/control/Config.jsx',
     'components/control/DatosPrivados.jsx',
     'components/control/PaymentAccounts.jsx',
+    'components/control/config/IdentidadCuenta.jsx',
     'components/customers/CustomerProfile.jsx',
     'components/ventas/CheckoutCustomer.jsx',
     'components/ventas/SellerCustomers.jsx',

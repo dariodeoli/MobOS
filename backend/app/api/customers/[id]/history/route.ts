@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { countablePayments } from '../../../../../lib/payment-net'
+import { displayOrderNumber } from '../../../../../lib/order-number'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -78,7 +79,7 @@ export async function GET(request: Request, context: RouteContext) {
     { type: 'created', at: customer.createdAt, id: `customer-${customer.id}`, actor: null, detail: 'Cliente creado' },
     ...orders.map(order => ({
       type: 'order', at: order.createdAt, id: `order-${order.id}`, actor: null,
-      detail: `Pedido ${order.orderNumber || ''}`.trim(), amountPyg: order.totalPyg, orderNumber: order.orderNumber,
+      detail: `Pedido ${displayOrderNumber(order.orderNumber)}`.trim(), amountPyg: order.totalPyg, orderNumber: order.orderNumber,
     })),
     ...orders.flatMap(order => countablePayments(order.payments).filter(payment => payment.status === 'CONFIRMED').map(payment => ({
       type: 'payment', at: payment.paidAt || payment.createdAt, id: `payment-${payment.id}`,

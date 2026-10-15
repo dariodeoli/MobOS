@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { displayOrderNumber } from '../../../../../lib/order-number'
 
 type RouteContext = { params: { id: string } }
 
@@ -100,7 +101,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: 'Conversión a pedido',
       createdAt: quote.updatedAt,
       user: quote.seller,
-      detail: `Pedido ${quote.order.orderNumber}`,
+      detail: `Pedido ${displayOrderNumber(quote.order.orderNumber)}`,
     }] : []),
     ...eventosAuditoria.map(audit => ({
       id: `audit-${audit.id}`,

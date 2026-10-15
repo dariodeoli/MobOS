@@ -9,7 +9,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
-import { empresasRecientes, pagaAlRecibirVigente } from '@/utils/cobroPos'
+import { detalleCredito, empresasRecientes, pagaAlRecibirVigente, puedeOfrecerCredito } from '@/utils/cobroPos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
@@ -26,6 +26,7 @@ const cuerpoGiftCard = (codigo) => limpiarCodigo(codigo, 'crockford', 'GC')
 
 export default function PasoCobro({
   customer,
+  repartidores = [],
   pagaAlRecibir: pagaAlRecibirActivo = false,
   setPagaAlRecibir,
   venderACredito,
@@ -187,8 +188,9 @@ export default function PasoCobro({
             />
           </div>
         )}
-        {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
-        {Boolean(customer.id) && (
+        {/* Venta a crédito / fiado: interruptor compacto con cualquier cliente de la ficha;
+            el límite y la autorización del dueño los resuelve el servidor. */}
+        {puedeOfrecerCredito(customer) && (
           <div data-testid="pos-credito" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-fono/25 bg-fono/5 px-2.5 py-1">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-8">
               <input
@@ -199,11 +201,8 @@ export default function PasoCobro({
                 disabled={Boolean(customer.blocked)}
                 onChange={e => setVenderACredito(e.target.checked)}
               />
-              <span className="font-semibold">Vender a crédito</span>
-              <span className="text-xs text-mute">
-                {Number(customer.creditLimitPyg || 0) > 0 ? `límite ${gs(Number(customer.creditLimitPyg))}` : 'sin crédito habilitado · requiere autorización'}
-                {customer.creditDays ? ` · ${customer.creditDays} días` : ''}
-              </span>
+              <span className="font-semibold">Vender a crédito / fiado</span>
+              <span className="text-xs text-mute">{detalleCredito(customer, n => gs(n))}</span>
               {customer.blocked ? <span className="text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
             </label>
             {venderACredito && (
@@ -273,6 +272,46 @@ export default function PasoCobro({
           </p>
         )}
       </div>
+
+      {/* Delivery (#461): a dónde se entrega y quién lo lleva (o se asigna después). */}
+      {f.entrega === 'Delivery' && (
+        <div data-testid="pos-delivery" className="flex flex-wrap items-end gap-3">
+          <div className="w-full md:w-72">
+            <Label htmlFor="entrega-direccion">Dirección de entrega</Label>
+            {direccionesGuardadas.length > 0 && (
+              <Select
+                id="entrega-direccion-guardada"
+                aria-label="Dirección guardada del cliente"
+                className="mb-1"
+                value={f.entregaDireccionId || ''}
+                onChange={e => setF(s => ({ ...s, entregaDireccionId: e.target.value, entregaDireccion: e.target.value ? '' : s.entregaDireccion }))}
+              >
+                <option value="">Otra dirección…</option>
+                {direccionesGuardadas.map(d => (
+                  <option key={d.id} value={d.id}>{[d.label, d.address, d.city].filter(Boolean).join(' · ')}</option>
+                ))}
+              </Select>
+            )}
+            {!f.entregaDireccionId && (
+              <Input
+                id="entrega-direccion"
+                maxLength={300}
+                autoComplete="street-address"
+                value={f.entregaDireccion || ''}
+                onChange={e => setF(s => ({ ...s, entregaDireccion: e.target.value }))}
+                placeholder="Calle, número, barrio y referencia"
+              />
+            )}
+          </div>
+          <div className="w-full md:w-56">
+            <Label htmlFor="entrega-repartidor">Repartidor</Label>
+            <Select id="entrega-repartidor" value={f.repartidorId || ''} onChange={e => setF(s => ({ ...s, repartidorId: e.target.value }))}>
+              <option value="">Asignar después</option>
+              {repartidores.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </div>
+        </div>
+      )}
 
       {/* Encomienda (#399): empresa, sucursal de destino y dirección del cliente. */}
       {f.entrega === 'Encomienda' && (

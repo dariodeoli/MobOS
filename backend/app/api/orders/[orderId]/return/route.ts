@@ -5,7 +5,8 @@ import { InputError, objectInput } from '../../../../../lib/payment-input'
 import { changeStock, recomputeStock, UNLINK_SOLD } from '../../../../../lib/stock'
 import { canAccessOrder, canProcessOrderReturn, returnRequest } from '../../../../../lib/orders'
 import { numero } from '../../../../../lib/montos'
-import { countablePayments } from '../../../../../lib/payment-net'
+import { countablePayments, netPaid } from '../../../../../lib/payment-net'
+import { orderNumberLookupCandidates } from '../../../../../lib/order-number'
 
 // La devolución financiera se conserva en la orden original. La reposición de
 // stock es una decisión explícita del mostrador: puede volver a la venta,
@@ -26,7 +27,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       if (order.status === 'CANCELLED') throw new InputError('Este pedido ya fue devuelto o cancelado.', 409)
       let replacementOrderId = requestData.replacementOrderId
       if (!replacementOrderId && requestData.replacementOrderNumber) {
-        const replacement = await tx.order.findFirst({ where: { tenantId: tenant, orderNumber: requestData.replacementOrderNumber }, select: { id: true } })
+        const replacement = await tx.order.findFirst({ where: { tenantId: tenant, orderNumber: { in: orderNumberLookupCandidates(requestData.replacementOrderNumber) } }, select: { id: true } })
         if (!replacement) throw new InputError('El número de pedido de cambio no pertenece a esta empresa.', 404)
         replacementOrderId = replacement.id
       }
@@ -34,7 +35,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         const replacement = await tx.order.findFirst({ where: { id: replacementOrderId, tenantId: tenant }, select: { id: true } })
         if (!replacement) throw new InputError('El pedido de cambio no pertenece a esta empresa.', 404)
       }
-      const confirmed = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
+      // Cobrado neto: confirmado menos lo ya reembolsado (varias devoluciones parciales no pueden superar lo cobrado).
+      const confirmed = netPaid(order.payments)
       // Reembolso total por defecto en devoluciones y cancelaciones; parcial
       // permitido (0..confirmado). El cobro neto baja porque el pago queda
       // registrado como REFUNDED y no suma a lo confirmado.
@@ -50,7 +52,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STORE_CREDIT_ISSUED', entity: 'StoreCredit', entityId: credit.id, metadata: { orderId: order.id, customerId: order.customerId, amountPyg: refundPyg, origin: requestData.operation } } })
       } else if (refundPyg > 0) {
         const metodo = countablePayments(order.payments).find(payment => payment.status === 'CONFIRMED')?.method ?? 'CASH'
-        await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: metodo, status: 'REFUNDED', amountPyg: refundPyg, reference: `Reembolso ${requestData.operation === 'CANCEL' ? 'por cancelación' : 'por devolución'}: ${requestData.reason.slice(0, 120)}`, paidAt: new Date(), createdAt: new Date() } })
+        await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: metodo, status: 'REFUNDED', amountPyg: refundPyg, userId: session.user.id, createdById: session.user.id, reference: `Reembolso ${requestData.operation === 'CANCEL' ? 'por cancelación' : 'por devolución'}: ${requestData.reason.slice(0, 120)}`, paidAt: new Date(), createdAt: new Date() } })
       }
       // Reposición de stock: devolver unidades al inventario (o dejarlas en
       // revisión) según la decisión del mostrador, con recálculo del contador.

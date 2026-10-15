@@ -42,7 +42,7 @@ test('la consulta de ejemplo nunca miente: sin verificar no dice "Limpio"', () =
   assert.equal(fallido.estado, 'fallido')
   assert.equal(fallido.etiqueta, 'No verificado')
   assert.equal(fallido.campos.length, 0)
-  assert.match(fallido.error, /Luhn/)
+  assert.match(fallido.error, /dígito de control/)
 })
 
 test('el IMEI usa la máscara canónica (#203) y la nota cita fuente y fecha', () => {

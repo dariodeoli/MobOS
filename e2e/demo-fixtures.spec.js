@@ -39,7 +39,7 @@ test('#324 · dueño: pedidos con artículos, transacciones y comprobante de Aur
   const fila = page.getByTestId('pedido-fila').filter({ hasText: /AUR-#?0002/ }).first()
   await fila.waitFor({ state: 'visible', timeout: 25_000 })
   await fila.click()
-  await expect(page.getByRole('heading', { name: 'AUR-#0002' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'AUR-0002' })).toBeVisible()
   // Artículos y pago están siempre visibles: se audita que el pedido trae sus
   // artículos y que la transacción no está en Gs 0.
   await expect(page.getByText('Funda MagSafe Transparente')).toBeVisible()

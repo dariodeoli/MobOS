@@ -685,6 +685,8 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
   const fila = () => page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
   await fila().click()
   const detalle = page.getByRole('dialog', { name: /iPhone/ })
+  // #400: «Consignación de terceros» viene plegada en la ficha.
+  await detalle.getByTestId('unidad-consignacion').locator('summary').click()
   await detalle.getByLabel('Consignador', { exact: true }).fill(tercero)
   await detalle.getByLabel('Teléfono del consignador').fill('0981123456')
   await detalle.getByLabel('Monto a pagar al consignador').fill('1500000')
@@ -706,6 +708,7 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
   // La lista de Stock no lleva la etiqueta de consignación: el dato vive en la
   // ficha, que vuelve a abrirse con el consignador guardado.
   await fila().click()
+  await page.getByRole('dialog', { name: /iPhone/ }).getByTestId('unidad-consignacion').locator('summary').click()
   await expect(page.getByRole('dialog', { name: /iPhone/ }).getByLabel('Consignador', { exact: true })).toHaveValue(tercero)
   await page.keyboard.press('Escape')
 
@@ -724,6 +727,7 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
   }, { api: API, serial: SEED.products.iphone.imei })
   await page.reload()
   await fila().click()
+  await page.getByRole('dialog', { name: /iPhone/ }).getByTestId('unidad-consignacion').locator('summary').click()
   await expect(page.getByRole('dialog', { name: /iPhone/ }).getByLabel('Consignador', { exact: true })).toHaveValue('')
   await page.keyboard.press('Escape')
 })
@@ -807,8 +811,11 @@ test.describe('mini CRM de clientes', () => {
     const ficha = page.getByRole('dialog')
     await expect(ficha.getByRole('heading', { name: nombre })).toBeVisible()
 
-    // Resumen: cliente desde con fecha/hora y usuario que lo creó.
-    await expect(ficha.getByText(/Cliente desde .* · Creado por/)).toBeVisible()
+    // Resumen: cronología compacta (#448): cliente desde con su fecha y quién lo creó, primer y último pedido.
+    const cronologia = ficha.getByTestId('perfil-cronologia-cliente')
+    await expect(cronologia).toContainText('Cliente desde')
+    await expect(cronologia).toContainText('Creado por')
+    await expect(cronologia).toContainText('Primer pedido')
     // Deuda desglosada por pedido: el saldo vive en su fila.
     const deuda = ficha.getByTestId('perfil-deuda-fila').filter({ hasText: numeroPedido })
     await expect(deuda).toBeVisible()

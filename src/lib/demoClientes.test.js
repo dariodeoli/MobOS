@@ -43,7 +43,7 @@ test('la venta demo deja el evento en la cronología del cliente', () => {
   const cliente = buscarClienteDemo(LUCIA)
   const evento = (cliente.demoProfile.timeline || []).find((item) => /Pedido creado/.test(item.action))
   assert.ok(evento, 'el pedido nuevo suma un evento a la cronología')
-  assert.match(evento.detail, /AUR-#0099/)
+  assert.match(evento.detail, /AUR-0099/)
 })
 
 test('un cliente inexistente no registra nada', () => {

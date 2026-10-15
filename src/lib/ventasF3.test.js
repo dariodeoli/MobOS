@@ -77,9 +77,9 @@ test('F3 retains list data/tenant scope, pagination, URL context and handlers', 
 test('F3 order detail keeps real totals, guards and operational controls', () => {
   const detail = source('PedidoDetalle.jsx')
   for (const text of [
-    "payments.filter(pago => pago.status === 'CONFIRMED')",
-    'Math.max(0, total - paid)',
-    '!esDemo && !anulado && pendiente > 0',
+    'totalesPedido(order)',
+    // «Cobrar saldo» también en la demo (#461): sin `!esDemo`.
+    '!anulado && pendiente > 0',
     'opcionesDeEntrega(',
     'cambiarEntrega(',
     'confirmarAnular',

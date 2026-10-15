@@ -2,10 +2,10 @@ import { gs } from '@/utils/calculos'
 import { qrDataUrl } from '@/lib/qr'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
-import { ESTADO_ENTREGA } from '@/lib/estadosPedido'
+import { etiquetaEntrega } from '@/lib/estadosPedido'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
-import { totalesPedido } from '@/utils/pedido'
+import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
 import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiquetaLote'
@@ -16,10 +16,12 @@ import { garantiaConPolitica } from '@/lib/politicas'
 import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { CONDICIONES, pieDocumentoHtml } from '@/lib/printing/bloquesDocumento'
 import { datosEncabezado } from '@/lib/printing/empresaImpresion'
-import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
+import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeItem, garantiaDeVenta, pagoEnMonedaOriginal, pagosParaPapel, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
+import { ETIQUETA_AVISO } from '@/lib/printing/listaPrecios'
+import { COLORES_BASE, paletaFila } from '@/lib/stockDisplay'
 
 import { publicUrls } from '@/lib/urls'
 
@@ -212,6 +214,9 @@ export const transferReceiveUrlFor = (token) => {
   return token && base ? `${base}/remito/${encodeURIComponent(token)}` : ''
 }
 
+
+// Fondos de fábrica de los bloques de la lista de precios (#435): los mismos de las filas de stock.
+const ACENTO_BLOQUE = COLORES_BASE.claro
 
 const THERMAL_WIDTHS = { 'thermal-80': 80, 'thermal-58': 58, 'thermal-55': 55, thermal: 58 }
 const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
@@ -409,13 +414,20 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   // #318: una sola fuente de verdad. La orden puede llegar completa (API), como
   // fila del listado o como venta demo: acá se resuelven empresa, cliente,
   // número, artículos y totales reales antes de armar el papel.
+  // La garantía por línea (días) la calcula el servidor al leer el pedido: un comprobante congelado
+  // antes de que existiera el dato la toma del pedido vivo, por línea.
+  const conGarantiaViva = (items) => (Array.isArray(items) ? items : []).map(item => {
+    const viva = (ordenViva?.items || []).find(linea => linea?.id && linea.id === item?.id)
+    return item?.warrantyDays || !viva?.warrantyDays ? item : { ...item, warrantyDays: viva.warrantyDays }
+  })
   const order = documentoComprobante(
-    congelado && typeof congelado === 'object' ? { ...ordenViva, ...congelado } : ordenViva,
+    congelado && typeof congelado === 'object'
+      ? { ...ordenViva, ...congelado, ...(Array.isArray(congelado.items) ? { items: conGarantiaViva(congelado.items) } : {}) }
+      : ordenViva,
     contexto,
   )
   const items = Array.isArray(order.items) ? order.items : []
-  const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
-  const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
+  const pagosConfirmados = pagosParaPapel(order)
   const { total, pagado: paid, pendiente: pendienteBruto } = totalesPedido(order)
   const when = order.createdAt || order.creadoEn || order.fecha
   const politica = await getPoliticasImpresion()
@@ -431,7 +443,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const modelo = modeloComprobante(level)
   const completo = modelo.pagos
   const detallado = modelo.cronologia
-  const textoEvento = (evento) => evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${ESTADO_ENTREGA[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`
+  const textoEvento = (evento) => evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${etiquetaEntrega(evento.metadata?.current) || 'actualizada'}`
 
   const termico = Boolean(thermalWidth(format))
   const desglose = desgloseVenta(order)
@@ -440,6 +452,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const acento = acentoDeEmpresa(order.tenant)
   const nombreItem = (item) => escapeHtml(item.description || item.nombre || 'Producto')
   const seriales = (item) => serialesDeItem(item).map(serie => `<span class="imei">IMEI/Serie ${escapeHtml(serie)}</span>`).join('')
+    + (garantiaDeItem(item) ? `<span class="imei">${escapeHtml(garantiaDeItem(item))}</span>` : '')
   const itemsRows = items.map(item => {
     const { ahorro } = ahorroDeLinea(item)
     const cantidad = Number(item.quantity || 1)
@@ -459,11 +472,11 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ...(modelo.clienteContacto ? direccionCliente : []),
   ].filter(Boolean)
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${lineasCliente.map(linea => `<br>${escapeHtml(linea)}`).join('')}</div></div>`
-  const estadoPedido = ESTADO_ENTREGA[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación'
+  const estadoPedido = etiquetaEntrega(order.fulfillmentStatus) || etiquetaEntrega(order.deliveryType) || etiquetaEntrega(order.entrega) || 'En preparación'
   const lineasPedido = [
     order.billingName ? `Factura a: ${order.billingName}${order.billingDocument ? ` · RUC ${order.billingDocument}` : ''}` : '',
-    modelo.pagos && order.seller?.name ? `Vendedor: ${order.seller.name}` : '',
-    modelo.pagos && (order.deliveryType || order.deliveryNotes) ? `Entrega: ${order.deliveryType || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}` : '',
+    modelo.pagos && order.seller?.name ? `Atendido por ${order.seller.name}` : '',
+    modelo.pagos && (order.deliveryType || order.deliveryNotes) ? `Entrega: ${etiquetaEntrega(order.deliveryType) || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}` : '',
   ].filter(Boolean)
   const pedidoCard = `<div class="card"><div class="label">Pedido</div><div><strong>${escapeHtml(estadoPedido)}</strong>${lineasPedido.map(linea => `<br>${escapeHtml(linea)}`).join('')}</div></div>`
   // Encabezado: razón social, RUC, sucursal y contacto en un solo bloque.
@@ -481,7 +494,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const cuando = when ? new Date(when).toLocaleString('es-PY') : ''
   const metodoPago = [...new Set(desglose.confirmados.map(payment => ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'))].join(' · ')
   const pagosRows = modelo.pagos && pagosConfirmados.length
-    ? `<div class="card"><div class="label">Pago</div><table class="pagos">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
+    ? `<div class="card"><div class="label">Pago</div><table class="pagos">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${pagoEnMonedaOriginal(payment) ? `<br><span class="muted">${escapeHtml(pagoEnMonedaOriginal(payment))}</span>` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
     : ''
   const credito = modelo.credito && Number(order.creditDays || 0) > 0
     ? `<p><span class="tag">A crédito · ${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></p>`
@@ -494,8 +507,8 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const fila = (rotulo, valor, clase = '') => `<tr${clase ? ` class="${clase}"` : ''}><td>${escapeHtml(rotulo)}</td><td class="num">${valor}</td></tr>`
   const columnas = termico ? '' : '<thead><tr><th>Producto</th><th class="cant">Cant.</th><th class="num">Precio</th><th class="num">Total</th></tr></thead>'
 
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format, acento)}</style></head><body class="${termico ? `rollo t${thermalWidth(format)}` : 'hoja a4'}">
-    ${header('Comprobante de compra', cuando, logo, empresa, { razon: empresa || APP_NAME, numero: order.orderNumber || order.codigo || 'Pedido', lineas: lineasEmpresa })}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(format, acento)}</style></head><body class="${termico ? `rollo t${thermalWidth(format)}` : 'hoja a4'}">
+    ${header('Comprobante de compra', cuando, logo, empresa, { razon: empresa || APP_NAME, numero: codigoPedido(order.orderNumber || order.codigo) || 'Pedido', lineas: lineasEmpresa })}
     <div class="cols">${clienteCard}${pedidoCard}</div>
     <table>${columnas}<tbody>${itemsRows || `<tr><td colspan="${termico ? 2 : 4}" class="muted">Sin artículos detallados.</td></tr>`}</tbody></table>
     <table class="totals venta">
@@ -537,7 +550,7 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const logo = await getLogoDataUrl()
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format)}</style></head><body>
-    ${header('Recibo de pago', new Date(fecha).toLocaleString('es-PY'), logo, '', { numero: order?.orderNumber || order?.codigo || 'Pedido' })}
+    ${header('Recibo de pago', new Date(fecha).toLocaleString('es-PY'), logo, '', { numero: codigoPedido(order?.orderNumber || order?.codigo) || 'Pedido' })}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
       <tr><td>Método</td><td class="num">${escapeHtml(metodo)}</td></tr>
@@ -623,8 +636,8 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
   const direccion = order.deliveryAddress ? [order.deliveryAddress.address, order.deliveryAddress.city, order.deliveryAddress.department].filter(Boolean).join(', ') : (cliente?.addresses?.[0] ? [cliente.addresses[0].address, cliente.addresses[0].city, cliente.addresses[0].department].filter(Boolean).join(', ') : '')
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${cliente?.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente?.phone ? `<br>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}` : ''}${direccion ? `<br>${escapeHtml(direccion)}` : ''}</div></div>`
   const entregaNotas = order.deliveryType || order.deliveryNotes ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>` : ''
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Nota de entrega', when ? new Date(when).toLocaleString('es-PY') : '', logo, '', { numero: order.orderNumber || order.codigo || 'Pedido' })}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(format)}</style></head><body>
+    ${header('Nota de entrega', when ? new Date(when).toLocaleString('es-PY') : '', logo, '', { numero: codigoPedido(order.orderNumber || order.codigo) || 'Pedido' })}
     ${avisoNoFiscal()}
     ${empresaCard}
     ${clienteCard}
@@ -678,7 +691,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
   const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
   const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
   const when = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
-  const pedido = order?.orderNumber || order?.codigo || 'Pedido'
+  const pedido = codigoPedido(order?.orderNumber || order?.codigo) || 'Pedido'
   const numero = payment.receiptNumber || payment.number || `${pedido}-${String(payment.id || '').slice(-4).toUpperCase() || 'R'}`
   const logo = await getLogoDataUrl()
   const empresa = order?.tenant?.name || order?.empresaNombre || ''
@@ -1091,6 +1104,58 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
     ${datos.enlace || barras ? `<div class="card"><div class="label">Panel de la compra</div>${qr ? `<img class="qr" src="${qr}" alt="QR del panel">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')}</p></div>` : ''}
     ${firmas([{ rol: 'Compró / control' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
     ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
+  </body></html>`
+}
+
+// Lista de precios por modelo (#448): el papel que la tienda comparte por
+// WhatsApp. Misma cabecera y pie que el comprobante premium (#407) pero con la
+// marca de LA TIENDA (logo o nombre) y «Hecho con MobOS» solo como pie chiquito.
+// Modelos en dos columnas (A4), precio alineado a la derecha, avisos de stock,
+// garantía de las políticas (#443), vigencia, WhatsApp, dirección y QR.
+// `datos` sale de `datosListaPrecios` (lib/printing/listaPrecios.js).
+export async function buildListaPreciosHtml(datos = {}, { format = 'a4', colores = {}, usd = false } = {}) {
+  const logo = await getLogoDataUrl()
+  let qr = ''
+  try { if (datos.tienda?.whatsapp) qr = await qrDataUrl(datos.tienda.whatsapp, { nivel: 'M', margen: 1, ancho: 280 }) } catch { /* queda sin QR */ }
+  const tono = (condicion) => {
+    const fondo = colores[condicion] || ACENTO_BLOQUE[condicion]
+    return paletaFila(fondo)
+  }
+  const aviso = (clave) => (clave ? `<span class="lp-aviso ${clave === 'sin-stock' ? 'sin' : 'ult'}">${escapeHtml(ETIQUETA_AVISO[clave])}</span>` : '')
+  const fila = (item) => `<div class="lp-fila"><span class="d">${escapeHtml([item.capacidad, item.color].filter(Boolean).join(' · '))}${aviso(item.aviso)}</span><span class="p">${escapeHtml(gs(item.precioGs))}${usd && item.precioUsd ? `<small>US$ ${escapeHtml(String(item.precioUsd).replace(/\B(?=(\d{3})+(?!\d))/g, '.'))}</small>` : ''}</span></div>`
+  const modelos = (bloque) => bloque.modelos.map((m) => `<div class="lp-modelo"><h3>${escapeHtml(m.modelo)}</h3>${m.filas.map(fila).join('')}</div>`).join('')
+  const bloques = (datos.bloques || []).map((bloque) => {
+    const t = tono(bloque.estado === 'Nuevo' ? 'nuevo' : 'semi')
+    return `<section class="lp-bloque"><div class="lp-titulo" style="background:${t.bg};color:${t.fg};border-color:${t.bd}">${escapeHtml(bloque.titulo)}<span style="color:${t.fg2}">${bloque.modelos.length} ${bloque.modelos.length === 1 ? 'modelo' : 'modelos'}</span></div><div class="lp-cols">${modelos(bloque)}</div></section>`
+  }).join('') || '<p class="muted">Todavía no hay precios cargados.</p>'
+  const tienda = datos.tienda || {}
+  const lineas = [tienda.direccion, tienda.telefono ? `WhatsApp ${tienda.telefono}` : ''].filter(Boolean)
+  const condiciones = [
+    datos.garantia ? `<strong>Garantía</strong>${escapeHtml(datos.garantia).replace(/\n/g, '<br>')}` : '',
+    `<strong style="margin-top:${datos.garantia ? '6px' : '0'}">Vigencia</strong>${escapeHtml(datos.vigencia || '')}${usd && datos.cotizacion ? `<br>US$ 1 = ${escapeHtml(gs(datos.cotizacion))}` : ''}`,
+  ].filter(Boolean).join('')
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Lista de precios')}</title><style>${styles(format)}
+    body{padding-top:18px}
+    .lp-bloque{margin:12px 0 4px}
+    .lp-titulo{display:flex;justify-content:space-between;align-items:baseline;border:1px solid;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+    .lp-titulo span{font-size:9.5px;font-weight:600;letter-spacing:.04em;text-transform:none}
+    .lp-cols{column-count:${thermalWidth(format) ? 1 : 2};column-gap:24px}
+    .lp-modelo{break-inside:avoid;margin:0 0 10px}
+    .lp-modelo h3{font-size:12px;font-weight:800;margin:0 0 1px;padding-bottom:2px;border-bottom:1.5px solid var(--tinta);letter-spacing:-.005em}
+    .lp-fila{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:3px 0;border-bottom:1px solid var(--linea);font-size:10.5px}
+    .lp-fila .d{color:var(--tinta-2);min-width:0}
+    .lp-fila .p{font-weight:800;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+    .lp-fila .p small{display:block;font-size:9px;font-weight:600;color:var(--gris)}
+    .lp-aviso{display:inline-block;margin-left:6px;border:1px solid;border-radius:999px;padding:0 6px;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;vertical-align:1px}
+    .lp-aviso.ult{color:#92400e;border-color:#d97706;background:#fffbeb}
+    .lp-aviso.sin{color:#991b1b;border-color:#dc2626;background:#fef2f2}
+    .hecho{margin-top:8px;text-align:center;font-size:8.5px;color:var(--gris);letter-spacing:.04em}
+    @media print{.lp-aviso{color:#000;background:none;border-color:#000}}
+  </style></head><body>
+    ${header(datos.titulo || 'Lista de precios', `Precios al ${datos.fecha || ''}`, logo, tienda.nombre, { razon: tienda.nombre, lineas })}
+    ${bloques}
+    <div class="pie-doc"><div class="condiciones">${condiciones}</div>${qr ? `<div class="qrbox"><img class="qr" src="${qr}" alt="QR de WhatsApp"><div class="small">Escribinos por WhatsApp</div></div>` : ''}</div>
+    <div class="hecho">Hecho con ${escapeHtml(APP_NAME)}</div>
   </body></html>`
 }
 

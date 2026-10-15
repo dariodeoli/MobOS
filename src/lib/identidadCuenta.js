@@ -6,7 +6,7 @@
 // guardado solo aparece con diferencias reales) y el payload del API. El
 // teléfono se compara compuesto, como viaja al backend, así reformatearlo no
 // cuenta como cambio. Puro y testeable.
-import { componerTelefono, parseTelefono } from 'owncoding-ui'
+import { componerTelefono, parseTelefono } from './telefonoCampo.js'
 
 const texto = (valor) => String(valor ?? '').trim()
 const soloDigitos = (valor) => String(valor ?? '').replace(/\D/g, '')

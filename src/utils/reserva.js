@@ -1,3 +1,6 @@
+// Duración de una reserva de unidad: la misma desde el POS y desde Stock (#461).
+export const RESERVA_HORAS_DEFECTO = 2
+
 /**
  * Mensaje de confirmación de una reserva: qué se reservó, para quién y hasta
  * cuándo (hora de Paraguay). `ahora` es inyectable para los tests.

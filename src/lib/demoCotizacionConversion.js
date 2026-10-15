@@ -29,22 +29,36 @@ export function convertirDemoCotizacion(id, { vendedorId, vendedorNombre } = {})
     nombre: vendedorNombre || cotizacion.seller?.name || cotizacion.sellerName || 'Equipo demo',
   }
   const orderNumber = tomarNumeroPedidoDemo()
-  for (const item of cotizacion.items || []) {
-    addVenta({
-      orderNumber,
-      vendedorId: vendedor.id,
-      vendedorNombre: vendedor.nombre,
-      cliente: cotizacion.customerName || 'Consumidor final',
-      clienteId: cotizacion.customerId || null,
+  // Un pedido = una fila con todas sus líneas: antes se creaba una venta por línea con
+  // el mismo número y el listado mostraba el pedido duplicado (#461).
+  const lineas = (cotizacion.items || []).map((item, indice) => {
+    const cantidad = Number(item.quantity) || 1
+    const total = Number(item.totalPyg || cantidad * Number(item.unitPricePyg) || 0)
+    return {
+      id: `${orderNumber}-item-${indice + 1}`,
       productoId: item.productId || null,
-      productoNombre: item.description,
-      precio: Number(item.totalPyg || Number(item.quantity) * Number(item.unitPricePyg) || 0),
-      fecha: fechaHoy(),
-      entrega: 'Retiro en tienda',
-      estadoPago: 'Pendiente',
-      pagos: [],
-    })
-  }
+      description: item.description,
+      quantity: cantidad,
+      unitPricePyg: Math.round(total / cantidad),
+      totalPyg: total,
+      serials: [],
+    }
+  })
+  addVenta({
+    orderNumber,
+    vendedorId: vendedor.id,
+    vendedorNombre: vendedor.nombre,
+    cliente: cotizacion.customerName || 'Consumidor final',
+    clienteId: cotizacion.customerId || null,
+    productoId: lineas[0]?.productoId || null,
+    productoNombre: lineas.map((linea) => linea.description).filter(Boolean).join(', '),
+    items: lineas,
+    precio: lineas.reduce((suma, linea) => suma + linea.totalPyg, 0),
+    fecha: fechaHoy(),
+    entrega: 'Retiro en tienda',
+    estadoPago: 'Pendiente',
+    pagos: [],
+  })
   // La ficha y el portal del cliente leen sus pedidos de `demoProfile`.
   if (cotizacion.customerId) {
     registrarPedidoDemoDeVenta(cotizacion.customerId, {

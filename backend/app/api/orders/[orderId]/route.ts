@@ -1,4 +1,5 @@
 import { prisma } from '../../../../lib/prisma'
+import { netPaid } from '../../../../lib/payment-net-pure'
 import { attachSerialsToOrderItem } from '../../../../lib/order-serials'
 import { Prisma } from '@prisma/client'
 import { error, json, tenantId } from '../../../../lib/http'
@@ -8,6 +9,7 @@ import { canAccessOrder, validateFulfillmentTransition, canApproveOrderDiscount 
 import { consumeAuthorization, usableAuthorization } from '../../../../lib/authorizations'
 import { serialKey } from '../../../../lib/validation'
 import { numero } from '../../../../lib/montos'
+import { withItemWarranty } from '../../../../lib/order-warranty'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
 
@@ -33,7 +35,8 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const { orderId } = await context.params
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
-  return json(await withCreditAuthorization(prisma, tenant, redactOrderCosts(order, (await canSeeCostForSession(session)))))
+  // `warrantyDays` por línea: el comprobante imprime la garantía de cada equipo (#461).
+  return json(await withCreditAuthorization(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session))))))
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
@@ -177,7 +180,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       // administrador o gerente la autorice (ni siquiera lo salta un admin).
       entregando = true
       await assertCreditCleared(prisma, tenant, existing.id) // chequeo temprano; el definitivo va en la transacción
-      const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
+      const pagado = netPaid(existing.payments)
       pendingDeliveryPyg = Math.max(0, numero(existing.totalPyg) - pagado)
       if (pendingDeliveryPyg > 0) {
         const credito = existing.customer && numero(existing.customer.creditLimitPyg) > 0 && Number(existing.customer.creditDays || 0) > 0

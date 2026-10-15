@@ -74,7 +74,8 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   // El demo ya trae el catálogo ficticio: la pantalla no está vacía.
   await page.goto('/celulares')
   await expect(page.getByText('Todavía no hay precios cargados')).toHaveCount(0)
-  await expect(page.getByText('iPhone 15 Pro', { exact: true }).first()).toBeVisible()
+  // La lista por modelo es ahora el documento premium en una vista previa (iframe).
+  await expect(page.frameLocator('iframe').getByText('iPhone 15 Pro', { exact: true }).first()).toBeVisible()
   await page.screenshot({ path: join(DIR, 'lista-por-modelo-1280-light.png') })
 
   await page.goto('/comparador')
@@ -91,7 +92,7 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   await page.getByTestId('guardar-precios').click()
   await expect(page.getByText(/1 precio\(s\) guardados/).last()).toBeVisible()
   await openShellDestination(page, 'Lista por modelo')
-  await expect(page.getByText('Gs 2.999.000').first()).toBeVisible()
+  await expect(page.frameLocator('iframe').getByText('Gs 2.999.000').first()).toBeVisible()
 
   // El lineup agrega los modelos que faltan (sin precio); al completarlo,
   // aparecen en la lista que ve el cliente.
@@ -104,8 +105,8 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   await page.getByTestId('guardar-precios').click()
   await expect(page.getByText(/1 precio\(s\) guardados/).last()).toBeVisible()
   await openShellDestination(page, 'Lista por modelo')
-  await expect(page.getByText('iPhone 17 Pro Max', { exact: true }).first()).toBeVisible()
-  await expect(page.getByText('Gs 9.999.000').first()).toBeVisible()
+  await expect(page.frameLocator('iframe').getByText('iPhone 17 Pro Max', { exact: true }).first()).toBeVisible()
+  await expect(page.frameLocator('iframe').getByText('Gs 9.999.000').first()).toBeVisible()
 })
 
 test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ page }) => {

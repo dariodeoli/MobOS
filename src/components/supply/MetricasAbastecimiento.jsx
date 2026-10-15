@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { resources } from '@/lib/api'
 import { Badge, Button, Card, CeldaMoneda, DataTable, ErrorState, FilaDato, Select, Skeleton, Stat, Subtabs } from '@/components/ui'
 import StatGrid from '@/components/shared/StatGrid'
@@ -123,7 +124,7 @@ export default function MetricasAbastecimiento() {
         </span>
       ),
     },
-    { key: 'metodo', label: 'Método', render: (fila) => <Badge color="slate">{fila.metodo}</Badge> },
+    { key: 'metodo', label: 'Método', render: (fila) => <Badge color="slate">{metodoEnvioTexto(fila.metodo)}</Badge> },
     {
       key: 'diasPromedio',
       label: 'Días promedio',
@@ -153,7 +154,7 @@ export default function MetricasAbastecimiento() {
     { key: 'code', label: 'Lote', render: (fila) => <span className="font-medium text-fore">{fila.code}</span> },
     { key: 'compra', label: 'Compra', render: (fila) => <span className="text-mute">{fila.compra || '—'}</span> },
     { key: 'ruta', label: 'Ruta', render: (fila) => <span className="text-mute" title={`${fila.origen || '—'} → ${fila.destino || '—'}`}>{fila.origen || '—'} → {fila.destino || '—'}</span> },
-    { key: 'metodo', label: 'Método', render: (fila) => <Badge color="slate">{fila.metodo || '—'}</Badge> },
+    { key: 'metodo', label: 'Método', render: (fila) => <Badge color="slate">{fila.metodo ? metodoEnvioTexto(fila.metodo) : '—'}</Badge> },
     { key: 'estado', label: 'Estado', render: (fila) => <span className="text-mute">{ESTADO_ENVIO[fila.estado] || fila.estado || '—'}</span> },
     { key: 'eta', label: 'ETA', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{fechaCorta(fila.eta)}</span> },
     {
@@ -293,7 +294,7 @@ export default function MetricasAbastecimiento() {
                     <Card className="p-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 truncate font-semibold" title={fila.ruta}>{fila.ruta}</p>
-                        <Badge color="slate">{fila.metodo}</Badge>
+                        <Badge color="slate">{metodoEnvioTexto(fila.metodo)}</Badge>
                       </div>
                       <div className="mt-2 space-y-1 text-xs">
                         <FilaDato etiqueta="Días promedio" valor={diasTexto(fila.diasPromedio)} />
@@ -330,7 +331,7 @@ export default function MetricasAbastecimiento() {
                         <div className="mt-2 space-y-1 text-xs">
                           <FilaDato etiqueta="Compra" valor={fila.compra || '—'} />
                           <FilaDato etiqueta="Ruta" valor={`${fila.origen || '—'} → ${fila.destino || '—'}`} />
-                          <FilaDato etiqueta="Método" valor={fila.metodo || '—'} />
+                          <FilaDato etiqueta="Método" valor={fila.metodo ? metodoEnvioTexto(fila.metodo) : '—'} />
                           <FilaDato etiqueta="ETA" valor={fechaHora(fila.eta)} />
                         </div>
                       </Card>

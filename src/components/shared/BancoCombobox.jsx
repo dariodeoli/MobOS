@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { BANCOS_PARAGUAY } from '@/lib/bancos-paraguay'
 import { normalizarBanco } from '@/lib/bancosLogos'
+import { nombreBanco } from '@/lib/etiquetasLogistica'
 import { Input } from '@/components/ui'
 import BancoLogo from '@/components/shared/BancoLogo'
 import { cn } from '@/lib/utils'
@@ -76,7 +77,12 @@ export default function BancoCombobox({ id, value = '', onChange, required = fal
         placeholder={placeholder}
         onChange={(event) => { onChange(event.target.value); setAbierto(true); setResaltado(0) }}
         onFocus={() => setAbierto(true)}
-        onBlur={() => setTimeout(() => setAbierto(false), 120)}
+        onBlur={() => {
+          // El nombre queda con mayúscula inicial: «continental» → «Continental» (#461).
+          const limpio = nombreBanco(value)
+          if (limpio && limpio !== value) onChange(limpio)
+          setTimeout(() => setAbierto(false), 120)
+        }}
         onKeyDown={alTeclear}
       />
       {abierto && sugerencias.length > 0 && (

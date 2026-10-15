@@ -46,3 +46,26 @@ export async function nextOrderNumber(tx: Prisma.TransactionClient, tenant: stri
 // rechaza la segunda y el POST se reintenta con el siguiente.
 export const esCodigoDuplicado = (e: unknown) => (e as { code?: string })?.code === 'P2002'
   && JSON.stringify((e as { meta?: unknown })?.meta ?? {}).includes('orderNumber')
+
+// Formato de pantalla (#461): `AUR-0003`, sin «#», igual que `codigoPedido()` del frontend. El valor
+// guardado (`AUR-#0003`) no cambia; esta función es solo para mensajes, correos y papeles.
+// El prefijo puede tener cualquier largo (letras): la misma regla en frontend y backend.
+const ORDER_NUMBER_PARSE = /^([A-Za-z]+)[- ]?#?(\d+)$/
+export const displayOrderNumber = (orderNumber: string | null | undefined) => {
+  const value = String(orderNumber ?? '').trim()
+  const match = value.match(ORDER_NUMBER_PARSE)
+  return match ? `${match[1].toUpperCase()}-${match[2].padStart(4, '0')}` : value
+}
+
+// Búsqueda por número escrito por una persona: acepta `AUR-0003`, `AUR-#0003`, `aur 3`, `AUR#3`.
+// Devuelve los valores guardados posibles (`PREFIX-#0003`, `PREFIX-#3`, `PREFIX-0003`); un texto que no
+// es un número de pedido (p. ej. `E2E-SEED-001`) se devuelve tal cual. Usar con `orderNumber: { in: ... }`.
+export const orderNumberLookupCandidates = (input: string | null | undefined) => {
+  const value = String(input ?? '').trim()
+  const match = value.match(ORDER_NUMBER_PARSE)
+  if (!match) return value ? [value] : []
+  const prefix = match[1].toUpperCase()
+  const digits = match[2]
+  const sinCeros = digits.replace(/^0+(?=\d)/, '')
+  return [...new Set([value, `${prefix}-#${digits.padStart(4, '0')}`, `${prefix}-#${sinCeros}`, `${prefix}-#${digits}`, `${prefix}-${digits.padStart(4, '0')}`])]
+}

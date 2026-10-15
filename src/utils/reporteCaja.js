@@ -3,6 +3,7 @@
 // con lo que se ve. Sin dependencias del navegador para poder testearlo.
 import { ETIQUETAS_MEDIO_PAGO } from '../lib/constants.js'
 import { num } from './calculos.js'
+import { cobrosPorMedio } from './mediosPago.js'
 
 const etiquetaMedio = (method) => ETIQUETAS_MEDIO_PAGO[method] || method || 'Otro'
 
@@ -20,20 +21,10 @@ export function cobrosDeAuditoria(methods = []) {
     .sort((a, b) => b.montoPyg - a.montoPyg)
 }
 
-// Cobros por medio de pago de ventas locales/demo (pagos con medioPago/monto).
+// Cobros por medio de pago de ventas locales/demo: la misma agrupación que usa
+// Inicio («Cómo te pagaron») y la conciliación (utils/mediosPago.js).
 export function cobrosDePagos(pagos = []) {
-  const porMedio = new Map()
-  for (const pago of Array.isArray(pagos) ? pagos : []) {
-    const crudo = pago?.method || pago?.medioPago || ''
-    const method = String(crudo).toUpperCase() === 'DINERO' ? 'CASH' : String(crudo || 'OTRO')
-    const fila = porMedio.get(method) || { method, label: etiquetaMedio(method), montoPyg: 0, count: 0 }
-    fila.montoPyg += num(pago?.amountPyg ?? pago?.monto)
-    fila.count += 1
-    porMedio.set(method, fila)
-  }
-  return [...porMedio.values()]
-    .filter((fila) => fila.montoPyg > 0 || fila.count > 0)
-    .sort((a, b) => b.montoPyg - a.montoPyg)
+  return cobrosPorMedio(pagos)
 }
 
 // Normaliza un movimiento de caja para el papel.

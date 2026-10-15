@@ -12,7 +12,7 @@ import { obligatorio } from 'owncoding-ui'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Subtabs, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
@@ -51,6 +51,8 @@ export default function TiendasSucursales({ account }) {
   const [errorSucursales, setErrorSucursales] = useState('')
   const [busy, setBusy] = useState(false)
   const [dialogo, setDialogo] = useState(null) // 'abandonar'
+  // #422: filtro de la lista de sucursales (Todas · Activas · Inactivas).
+  const [filtroSucursales, setFiltroSucursales] = useState('todas')
   const [errorTiendas, setErrorTiendas] = useState('')
   const formVacio = () => ({ id: null, name: '', address: '', city: '', department: '', countryCode: '+595', phone: '', instagram: '' })
   const [form, setForm] = useState(formVacio)
@@ -201,6 +203,10 @@ export default function TiendasSucursales({ account }) {
     </section>
   )
 
+  const activas = (branches || []).filter(branch => branch.isActive).length
+  const inactivas = (branches || []).length - activas
+  const sucursalesVisibles = (branches || []).filter(branch => filtroSucursales === 'todas' || (filtroSucursales === 'activas' ? branch.isActive : !branch.isActive))
+
   const bloqueSucursales = (
     <section className="space-y-3" data-testid="sucursales-bloque">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -210,6 +216,20 @@ export default function TiendasSucursales({ account }) {
         </div>
         {!esDemo && <Button type="button" onClick={() => { pedirAbrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>}
       </div>
+      {!esDemo && branches !== null && branches.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2" data-config-anchor="sucursales-uso">
+          {/* El plan todavía no define un máximo de sucursales (no hay límite en el
+              backend): se informa el uso real, sin inventar un «de M». */}
+          <p data-testid="sucursales-uso" className="text-sm text-mute">Usando <b className="text-fore">{activas}</b> {activas === 1 ? 'sucursal activa' : 'sucursales activas'}{inactivas > 0 ? ` · ${inactivas} ${inactivas === 1 ? 'inactiva' : 'inactivas'}` : ''}</p>
+          <Subtabs
+            value={filtroSucursales}
+            onChange={setFiltroSucursales}
+            items={[['todas', 'Todas', branches.length], ['activas', 'Activas', activas], ['inactivas', 'Inactivas', inactivas]]}
+            ariaLabel="Filtrar sucursales"
+            className="[&>button]:min-h-11 md:[&>button]:min-h-9"
+          />
+        </div>
+      )}
       {esDemo ? (
         <EmptyState
           icon="store"
@@ -219,7 +239,8 @@ export default function TiendasSucursales({ account }) {
         />
       ) : branches === null ? <p className="text-sm text-mute">Cargando sucursales…</p> : branches.length === 0 ? <p className="text-sm text-mute">Todavía no hay sucursales. Creá la primera.</p> : (
         <div className="space-y-2">
-          {branches.map(branch => (
+          {sucursalesVisibles.length === 0 && <p className="text-sm text-mute">No hay sucursales en este filtro.</p>}
+          {sucursalesVisibles.map(branch => (
             <article key={branch.id} className="rounded-xl border border-ink-600 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">

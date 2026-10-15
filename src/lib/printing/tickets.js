@@ -1,5 +1,6 @@
 // Tickets ESC/POS: mismo contenido que los comprobantes HTML, pero en comandos
 // para la térmica (58/80 mm). El agente local solo transporta los bytes.
+import { codigoPedido } from '../../utils/pedido.js'
 import { gs } from '../../utils/calculos.js'
 import { APP_NAME } from '../brand.js'
 import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
@@ -15,11 +16,11 @@ import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.j
 import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 import { documentoComprobante } from './ventaComprobante.js'
-import { desgloseVenta, garantiaDeVenta, serialesDeItem } from './ventaPapel.js'
+import { desgloseVenta, garantiaDeItem, garantiaDeVenta, pagoEnMonedaOriginal, serialesDeItem } from './ventaPapel.js'
+import { etiquetaEntrega } from '../estadosPedido.js'
 import { garantiaConPolitica } from '../politicas.js'
 import { TIPOS_PRUEBA, paginaDePrueba } from 'owncoding-ui'
 
-const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '')
 
@@ -76,9 +77,9 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   if (contacto) t.centrado(`Tel. ${contacto}`)
   t.linea('=')
   t.negrita().centrado('COMPROBANTE DE COMPRA').negrita(false)
-  t.doble().centrado(order.orderNumber || order.codigo || 'Pedido').doble(false)
+  t.doble().centrado(codigoPedido(order.orderNumber || order.codigo) || 'Pedido').doble(false)
   if (cuando) t.centrado(cuando)
-  if (completo && order.seller?.name) t.centrado(`Vendedor: ${order.seller.name}`)
+  if (completo && order.seller?.name) t.centrado(`Atendido por ${order.seller.name}`)
   t.linea()
 
   // Cliente.
@@ -103,6 +104,7 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
     if (detalleLinea.length + gs(lineaTotal).length + 1 <= t.columnas) t.par(detalleLinea, gs(lineaTotal))
     else { t.texto(detalleLinea); t.par('', gs(lineaTotal)) }
     for (const serie of serialesDeItem(item)) t.texto(`  IMEI/Serie ${serie}`)
+    if (garantiaDeItem(item)) t.texto(`  ${garantiaDeItem(item)}`)
   }
   t.linea()
 
@@ -137,6 +139,7 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
       const metodo = ETIQUETAS_MEDIO_PAGO[pago.method] || pago.medioPago || 'Pago'
       const referencia = pago.reference || pago.cuenta || pago.accountSnapshot?.name || ''
       t.par(`${metodo}${referencia ? ` · ${referencia}` : ''}`, gs(pago.amountPyg ?? pago.monto ?? 0))
+      if (pagoEnMonedaOriginal(pago)) t.texto(`  ${pagoEnMonedaOriginal(pago)}`)
       if (detallado && (pago.paidAt || pago.createdAt)) t.texto(`  ${fecha(pago.paidAt || pago.createdAt)}`)
     }
   }
@@ -147,7 +150,7 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   }
 
   if (completo && (order.deliveryType || order.deliveryNotes)) {
-    t.texto(`Entrega: ${order.deliveryType || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}`)
+    t.texto(`Entrega: ${etiquetaEntrega(order.deliveryType) || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}`)
   }
 
   if (detallado && Array.isArray(order.timeline) && order.timeline.length) {
@@ -158,7 +161,7 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
         ? 'Pedido creado'
         : evento.type === 'payment'
           ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}`
-          : `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`
+          : `Entrega: ${etiquetaEntrega(evento.metadata?.current) || 'actualizada'}`
       t.par(texto, fecha(evento.at))
     }
   }
@@ -166,7 +169,7 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   // Garantía y estado, luego el QR del pedido.
   t.linea()
   if (completo) t.texto(garantiaConPolitica(garantiaDeVenta(order), politica))
-  t.centrado(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')
+  t.centrado(etiquetaEntrega(order.fulfillmentStatus) || etiquetaEntrega(order.deliveryType) || etiquetaEntrega(order.entrega) || 'En preparación')
   if (link) {
     t.avanza(1)
     // Sin enlace del pedido, el QR lleva a las políticas públicas de la tienda (#433).
@@ -462,14 +465,14 @@ export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
   const sucursal = order.branch || null
   const cliente = order.customer || null
   encabezadoTicket(t, 'Nota de entrega', { cerrar: false, empresa: empresa })
-  t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
+  t.centrado(`${codigoPedido(order.orderNumber || order.codigo) || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
   t.linea()
   if (sucursal?.name) t.texto(sucursal.name)
   t.par('Cliente', cliente?.name || order.cliente || 'Consumidor final')
   if (cliente?.document) t.par('Documento', cliente.document)
   const direccion = [order.deliveryAddress?.address, order.deliveryAddress?.city, order.deliveryAddress?.department].filter(Boolean).join(', ')
   if (direccion) t.texto(`Dirección: ${direccion}`)
-  if (order.deliveryType || order.deliveryNotes) t.texto(`Entrega: ${order.deliveryType || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}`)
+  if (order.deliveryType || order.deliveryNotes) t.texto(`Entrega: ${etiquetaEntrega(order.deliveryType) || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}`)
   t.linea()
   let unidades = 0
   for (const item of items) {
@@ -711,7 +714,7 @@ export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {
   const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
   const referencia = payment.reference || payment.cuenta || payment.accountSnapshot?.name || ''
   const cuando = payment.paidAt || payment.createdAt || payment.fecha || new Date().toISOString()
-  const pedido = order.orderNumber || order.codigo || 'Pedido'
+  const pedido = codigoPedido(order.orderNumber || order.codigo) || 'Pedido'
   const numero = payment.receiptNumber || payment.number || `${pedido}-${String(payment.id || '').slice(-4).toUpperCase() || 'R'}`
   encabezadoTicket(t, 'Recibo interno', { numero, fecha: cuando })
   t.par('Recibí de', order.customer?.name || order.cliente || 'Consumidor final')
@@ -775,7 +778,7 @@ export function ticketLiquidacionComision(settlement = {}, { ancho = 80, link = 
   t.par('Estado', estado)
   t.linea()
   for (const line of lines) {
-    t.texto(`${line.orderNumber || 'Venta'}${line.date ? ` · ${line.date}` : ''}`)
+    t.texto(`${codigoPedido(line.orderNumber) || 'Venta'}${line.date ? ` · ${line.date}` : ''}`)
     t.par(`  Base ${gs(line.basePyg || 0)}`, gs(line.commissionPyg || 0))
   }
   t.linea()

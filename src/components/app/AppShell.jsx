@@ -82,18 +82,25 @@ export default function AppShell({
   const [recordActivo, setRecordActivo] = useState(false)
   const recordCtx = useMemo(() => ({ slot: recordSlot, setActivo: setRecordActivo }), [recordSlot])
   const [comoFunciona, setComoFunciona] = useState(false)
-  // La guía de la demo se abre sola la primera vez por pestaña (#201).
+  // La guía de la demo aparece sola la primera vez por pestaña (#201), pero como
+  // un aviso que se cierra (#461): nunca una ventana que tape la primera pantalla.
+  const [avisoGuiaDemo, setAvisoGuiaDemo] = useState(false)
   useEffect(() => {
     if (!esDemo) return
     try {
       if (sessionStorage.getItem('mobos:demo-guia-vista') !== '1') {
         sessionStorage.setItem('mobos:demo-guia-vista', '1')
-        setComoFunciona(true)
+        setAvisoGuiaDemo(true)
       }
     } catch {
-      /* sin storage: no se abre sola */
+      /* sin storage: no se muestra solo */
     }
   }, [esDemo])
+  // #448: entrar a una sección o cambiar de pestaña arranca siempre arriba de la
+  // página, nunca en el scroll que dejó la pantalla anterior.
+  useEffect(() => {
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) } catch { /* entorno sin scroll */ }
+  }, [active])
   const { usuario: usuarioSesion } = useSesion()
   const usuarioActual = usuario || usuarioSesion
   const [preferencias] = usePreferencias(usuarioActual?.id)
@@ -454,6 +461,13 @@ export default function AppShell({
           {tabsNode}
           {!enToolbar && segmentsNode}
         </PageHeader>
+        {esDemo && avisoGuiaDemo && (
+          <div role="status" data-testid="demo-guia-aviso" className="mx-4 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-info/30 bg-info/10 px-3 py-1.5 text-xs text-fore md:mx-6">
+            <span className="min-w-0 flex-1">Es una tienda ficticia: probá lo que quieras, nada se guarda y se descarta al recargar.</span>
+            <button type="button" className="min-h-9 font-semibold text-fono-light underline" onClick={() => { setAvisoGuiaDemo(false); setComoFunciona(true) }}>Ver cómo funciona</button>
+            <button type="button" aria-label="Cerrar aviso de la demo" className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-mute hover:bg-ink-700 hover:text-fore" onClick={() => setAvisoGuiaDemo(false)}>×</button>
+          </div>
+        )}
         <RecordSlotContext.Provider value={recordCtx}>
         <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
           {loading ? (

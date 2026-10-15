@@ -14,13 +14,14 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
-import { tomarNumeroPedidoDemo } from './demoTenant.js'
+import { tomarNumeroPedidoDemo, registrarNumerosUsadosDemo } from './demoTenant.js'
 import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
 import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import { skuDemo } from './demo/sku.js'
-import { ventasDemoLegacy } from './demo/ventas.js'
+import { garantiaDiasDemo, ventasDemoLegacy } from './demo/ventas.js'
+import { sincronizarPedidoDemoConVenta } from './demoClientes.js'
 import { CATALOGO_VENTA } from './demo/catalogoPro.js'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa.js'
 import {
@@ -119,6 +120,9 @@ const cache = {
   config: { nombreTienda: APP_NAME },
   comparadorImg: [], // 1 registro por imagen: { id, modelo, color, img } (colección)
 }
+
+// La numeración de la demo salta por encima de los pedidos ya guardados (#461).
+registrarNumerosUsadosDemo(() => cache.ventas.map(venta => venta.orderNumber || venta.numero))
 
 // Deja la caché en blanco (al entrar a otra empresa o al cerrar sesión).
 function vaciarCache() {
@@ -872,6 +876,8 @@ export function prepararDatosDemo() {
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
     demoSeedVersion: 9,
   }
+  // #461: la ficha del cliente muestra lo mismo que la venta guardada (cobros posteriores al seed).
+  for (const venta of cache.ventas) sincronizarPedidoDemoConVenta(venta)
   persistMirror()
   notify()
 }
@@ -960,6 +966,7 @@ function enriquecerVentaDemo(venta, prod) {
       unitPricePyg: num(venta.precio),
       totalPyg: num(venta.precio),
       serials: Array.isArray(seriales) ? seriales : [],
+      ...(garantiaDiasDemo(prod?.categoria, prod?.atributos?.estado) ? { warrantyDays: garantiaDiasDemo(prod?.categoria, prod?.atributos?.estado) } : {}),
     }]
   }
 }
@@ -1023,6 +1030,7 @@ export function updateVenta(id, cambios) {
     }
   })
   entUpsert('ventas', merged)
+  if (isDemoRuntime && ('pagos' in cambios || 'totalPagado' in cambios)) sincronizarPedidoDemoConVenta(merged)
   logAuditoria('editar', merged, difs)
 }
 export function deleteVenta(id) {
