@@ -16,6 +16,7 @@ export default defineConfig({
     'ventana-detalle.frontend.spec.js',
     'finanzas-layout.frontend.spec.js',
     'config-layout.frontend.spec.js',
+    'config-nav.frontend.spec.js',
     'campos-ancho.frontend.spec.js',
     'stock-layout.frontend.spec.js',
     'graficos.frontend.spec.js',

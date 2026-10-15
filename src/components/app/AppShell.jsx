@@ -51,8 +51,9 @@ export default function AppShell({
   nav = [],
   active,
   onNavigate,
-  collapsed = false,
+  collapsed: plegadoPreferido = false,
   onToggleCollapsed,
+  configMenu,
   children,
   headerActions,
   loading = false,
@@ -133,6 +134,11 @@ export default function AppShell({
   const badgesPestanas = useBadgesPestanas()
   const currentGroup = contextGroups.find(group => group.items.some(([id]) => id === active))
   const currentId = currentSection?.id
+  // #410: dentro de Configuración el menú principal se pliega a su columna de
+  // íconos y el menú de Configuración ocupa la segunda columna. La preferencia
+  // del usuario (`plegadoPreferido`) no se toca: al salir vuelve tal cual.
+  const enConfigMenu = Boolean(configMenu) && currentId === 'configuracion'
+  const collapsed = plegadoPreferido || enConfigMenu
   const segments = shellSegments(currentGroup)
   const { bottom: bottomSections, more: moreSections } = shellBottomNav(sections)
   const showBottomNav = sections.length > 1
@@ -281,6 +287,16 @@ export default function AppShell({
     </button>
   )
 
+  const botonLateral = section =>
+    sectionButton(section, {
+      className: cn(
+        'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+        collapsed ? 'w-11 justify-center px-0' : 'lg:min-h-9',
+        currentId === section.id && 'bg-ink-700 font-semibold text-fore',
+      ),
+      children: !collapsed && section.label,
+    })
+
   const groupTabs = pageTabs ? null : contextGroups.length > 1 ? contextGroups : null
   const tabsNode = pageTabs ? (
     <SectionTabs
@@ -338,7 +354,7 @@ export default function AppShell({
               <p className={CELDA_DATO}>{empresa?.nombre}</p>
             </div>
           )}
-          {onToggleCollapsed && (
+          {onToggleCollapsed && !enConfigMenu && (
             <button
               type="button"
               aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
@@ -352,19 +368,18 @@ export default function AppShell({
           )}
         </div>
         {searchButton()}
-        <nav aria-label="Navegación principal" className={cn('flex flex-col gap-0.5 overflow-y-auto', collapsed && 'w-full items-center')}>
-          {sections.map(section =>
-            sectionButton(section, {
-              className: cn(
-                'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
-                collapsed ? 'w-11 justify-center px-0' : 'lg:min-h-9',
-                currentId === section.id && 'bg-ink-700 font-semibold text-fore',
-              ),
-              children: !collapsed && section.label,
-            }),
-          )}
+        <nav aria-label="Navegación principal" className={cn('flex min-h-0 flex-1 flex-col', collapsed && 'w-full items-center')}>
+          <div className={cn('flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto', collapsed && 'w-full items-center')}>
+            {sections.filter(section => section.id !== 'configuracion').map(section => botonLateral(section))}
+          </div>
+          {/* Configuración va abajo, separada: ahí se cambian ajustes, no se opera. */}
+          {sections.filter(section => section.id === 'configuracion').map(section => (
+            <div key={section.id} data-testid="shell-config-pie" className={cn('mt-1 flex shrink-0 flex-col gap-0.5 border-t border-ink-600 pt-1', collapsed && 'w-full items-center')}>
+              {botonLateral(section)}
+            </div>
+          ))}
         </nav>
-        <div className={cn('mt-auto flex min-w-0 flex-col gap-0.5 border-t border-ink-600 pt-2', collapsed && 'w-full items-center')}>
+        <div className={cn('flex min-w-0 shrink-0 flex-col gap-0.5 border-t border-ink-600 pt-2', collapsed && 'w-full items-center')}>
           {offlineButton('shell-cola-offline', { compacto: collapsed })}
           {profileButton(false, { lateral: true })}
           {[configDestination, helpDestination].filter(Boolean).map(([id, label, icon]) => (
@@ -386,6 +401,15 @@ export default function AppShell({
           ))}
         </div>
       </aside>
+      {enConfigMenu && !angosta && (
+        <aside
+          data-testid="shell-config-menu"
+          aria-label="Menú de Configuración"
+          className="hidden w-[216px] shrink-0 flex-col border-r border-ink-600 bg-ink lg:sticky lg:top-0 lg:flex lg:h-dvh"
+        >
+          {configMenu}
+        </aside>
+      )}
       <div className="shell-body flex min-w-0 flex-1 flex-col" data-registro={recordActivo ? '1' : undefined}>
         <header
           data-testid="shell-mobile-header"

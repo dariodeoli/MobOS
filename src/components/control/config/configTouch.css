@@ -17,3 +17,12 @@
     justify-content: center;
   }
 }
+
+/* #410 · «Zona de peligro»: la pestaña va en rojo, también seleccionada. */
+.shell-nav-v2 [role='tab']:has(.config-tab-peligro) {
+  color: rgb(var(--c-bad));
+}
+.shell-nav-v2 [role='tab'][aria-selected='true']:has(.config-tab-peligro) {
+  background: rgb(var(--c-bad));
+  color: rgb(var(--c-on-bad));
+}

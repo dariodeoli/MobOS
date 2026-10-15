@@ -162,7 +162,8 @@ test.describe('Configuración IA', () => {
       for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]]) {
         await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
         await page.setViewportSize({ width: ancho, height: alto })
-        await page.goto('/configuracion/dispositivos')
+        // #410: en celular /configuracion es la lista de secciones; la sección abierta no la repite.
+        await page.goto(vista === 'desktop' ? '/configuracion/dispositivos' : '/configuracion')
         await expect(page.getByTestId('config-grupos')).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/config-secciones-${tema}-${vista}.png` })
         await page.goto('/ayuda/ayuda')
