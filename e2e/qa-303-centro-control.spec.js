@@ -47,7 +47,7 @@ test('#303 · el Centro de Control se llega desde el menú, la búsqueda y las d
   await expect(page).toHaveURL(/\/comparador$/)
   await page.locator('[data-slot="view"] [data-tab-id="centro-control"]').first().click()
   await expect(page).toHaveURL(/\/centro-control$/)
-  await page.getByRole('button', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Imágenes' }).click()
   await expect(page).toHaveURL(/\/centro-control\?seccion=imagenes$/)
   await expect(page.getByTestId('centro-imagenes')).toBeVisible()
   await page.screenshot({ path: join(DIR, 'centro-imagenes-1280-light.png') })
