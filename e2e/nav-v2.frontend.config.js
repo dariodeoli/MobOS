@@ -21,6 +21,7 @@ export default defineConfig({
     'config-nav.frontend.spec.js',
     'campos-ancho.frontend.spec.js',
     'stock-layout.frontend.spec.js',
+    'ficha-unidad.frontend.spec.js',
     'graficos.frontend.spec.js',
     'login-codigos.frontend.spec.js',
     'multiempresa.frontend.spec.js',
