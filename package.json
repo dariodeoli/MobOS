@@ -31,7 +31,8 @@
     "test:release": "node --test scripts/release.test.mjs",
     "build:ios": "VITE_PLATFORM=ios VITE_API_URL=https://api.moboss.online vite build && cap sync ios",
     "build:ios:dev": "VITE_PLATFORM=ios VITE_PUSH_ENV=sandbox VITE_API_URL=https://api.moboss.online vite build && cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "prebuild": "node scripts/preparar-novedades.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^9.1.2",
