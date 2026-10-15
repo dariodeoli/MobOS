@@ -347,6 +347,9 @@ for (const [width, height, columnas] of [
     await expect(page.getByRole('checkbox')).toHaveCount(0)
     await expect(filas.first()).not.toContainText('AUR-OS')
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+  })
+}
+
 // #387 · Pedidos densos: tira de KPI con período y mini-gráficos; página de
 // pedido en dos columnas (lateral ≤ 360px) en escritorio y una en celular.
 test('Pedidos: KPI de una línea con período «Hoy», cinco métricas y mini-gráficos a 1440', async ({ page }) => {
