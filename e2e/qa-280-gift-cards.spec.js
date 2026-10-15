@@ -93,7 +93,7 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
   const historial = page.getByTestId('gift-card-historial')
   await expect(historial).toContainText('Emitida')
   await expect(historial).toContainText('Canjeada')
-  await expect(historial).toContainText(orden.orderNumber)
+  await expect(historial).toContainText(orden.orderNumber.replace('#', ''))
   await captura(page, 'gift-cards-historial')
 
   // 5) Auditoría: el canje queda con su rastro.
