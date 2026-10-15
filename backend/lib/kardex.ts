@@ -1,3 +1,4 @@
+import { displayOrderNumber } from './order-number'
 // Kardex por producto: arma el saldo corrido desde los documentos que mueven
 // stock (compras, ventas, transferencias, devoluciones y altas/bajas de
 // unidades) y lo cierra contra el stock actual del producto.
@@ -195,7 +196,7 @@ export function eventosDeVentas(items: VentaKardex[], adjuntosPorItem: Map<strin
     if (inicial > 0) {
       eventos.push({
         id: `venta-${item.id}`, at: item.order.createdAt, kind: 'VENTA',
-        label: `Venta ${item.order.orderNumber}`,
+        label: `Venta ${displayOrderNumber(item.order.orderNumber)}`,
         detail: unir(cliente, unid(inicial), opciones.precios ? gs(item.unitPricePyg) : null, item.order.seller?.name ? `vendió ${item.order.seller.name}` : null),
         reference: item.order.id, user: item.order.seller?.name ?? null, delta: -inicial,
       })
@@ -204,7 +205,7 @@ export function eventosDeVentas(items: VentaKardex[], adjuntosPorItem: Map<strin
       if (!adjunto.cantidad) continue
       eventos.push({
         id: `entrega-${item.id}-${adjunto.at.getTime()}-${adjunto.cantidad}`, at: adjunto.at, kind: 'VENTA',
-        label: `Entrega de IMEI · ${item.order.orderNumber}`,
+        label: `Entrega de IMEI · ${displayOrderNumber(item.order.orderNumber)}`,
         detail: unir(cliente, unid(adjunto.cantidad)),
         reference: item.order.id, user: adjunto.user, delta: -adjunto.cantidad,
       })
@@ -215,7 +216,7 @@ export function eventosDeVentas(items: VentaKardex[], adjuntosPorItem: Map<strin
       if (!delta) continue
       eventos.push({
         id: `devolucion-${item.id}-${restitucion.at.getTime()}`, at: restitucion.at, kind: 'DEVOLUCION',
-        label: anulacion ? `Anulación de pedido ${item.order.orderNumber}` : `Devolución de ${item.order.orderNumber}`,
+        label: anulacion ? `Anulación de pedido ${displayOrderNumber(item.order.orderNumber)}` : `Devolución de ${displayOrderNumber(item.order.orderNumber)}`,
         detail: unir(cliente, unid(delta), anulacion ? null : 'restituido al stock'),
         reference: restitucion.reference ?? item.order.id, user: restitucion.user, delta, estimated: true,
       })

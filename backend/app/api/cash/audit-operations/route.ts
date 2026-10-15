@@ -5,6 +5,7 @@ import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 import { numero, numeroOpcional } from '../../../../lib/montos'
 import { DRAWER_PAYMENT_WHERE, dayCorrections } from '../../../../lib/payment-net'
+import { cashExpectedBetween } from '../../../../lib/cash-expected'
 
 // Auditoría de efectivo (#161): lista las operaciones de caja de un rango
 // (cobros en efectivo y movimientos) con su marca de verificación, y permite
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
         orderBy: { openedAt: 'desc' },
       }),
       prisma.payment.findMany({
-        where: { tenantId: tenant, method: 'CASH', status: 'CONFIRMED', paidAt: { gte: start, lt: end }, order: { branchId }, AND: [DRAWER_PAYMENT_WHERE] },
+        where: { tenantId: tenant, method: 'CASH', status: 'CONFIRMED', paidAt: { gte: start, lt: end }, order: { branchId }, AND: [DRAWER_PAYMENT_WHERE, { OR: [{ currency: null }, { currency: 'PYG' }] }] },
         select: {
           id: true, amountPyg: true, paidAt: true, reference: true,
           order: { select: { orderNumber: true, customer: { select: { name: true } }, seller: { select: { name: true } } } },
@@ -60,7 +61,8 @@ export async function GET(request: Request) {
         take: 2000,
       }),
       prisma.cashMovement.findMany({
-        where: { tenantId: tenant, branchId, createdAt: { gte: start, lt: end } },
+        // Solo lo que cuenta en el efectivo esperado: movimientos cobrados/pagados, en guaraníes y de caja.
+        where: { tenantId: tenant, branchId, currency: 'PYG', status: 'CLEARED', OR: [{ accountId: null }, { account: { kind: 'CASH' } }], createdAt: { gte: start, lt: end } },
         select: { id: true, kind: true, direction: true, amountPyg: true, description: true, counterparty: true, reference: true, status: true, createdAt: true, createdById: true },
         orderBy: { createdAt: 'desc' },
         take: 2000,
@@ -96,9 +98,13 @@ export async function GET(request: Request) {
 
     const corrections = await dayCorrections(prisma, tenant, branchId, start, end)
     const aperturaPyg = sesiones.reduce((suma, sesion) => suma + numero(sesion.openingPyg), 0)
-    const esperadoPyg = sesiones.reduce((suma, sesion) => suma + numero(sesion.expectedPyg), 0)
+    // Esperado del rango: la misma definición que el cierre de turno (lib/cash-expected.ts):
+    // apertura + cobros en efectivo (Gs) + ingresos − egresos de caja del rango. Antes sumaba el
+    // esperado guardado de cada sesión: los turnos abiertos contaban 0 y no cerraba con el turno en pantalla.
+    const esperadoPyg = aperturaPyg + await cashExpectedBetween(prisma, tenant, branchId, start, new Date(end.getTime() - 1))
     const diferenciaPyg = sesiones.reduce((suma, sesion) => suma + (sesion.countedPyg === null ? 0 : numero(sesion.countedPyg) - numero(sesion.expectedPyg)), 0)
     const recibidoPyg = operaciones.filter((operacion) => operacion.direction === 'IN').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
+    const salidasPyg = operaciones.filter((operacion) => operacion.direction === 'OUT').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
     return json({
       rango: { from, to, branchId },
       corrections,
@@ -107,6 +113,7 @@ export async function GET(request: Request) {
         esperadoPyg,
         diferenciaPyg,
         recibidoPyg,
+        salidasPyg,
         operaciones: operaciones.length,
         verificadas: operaciones.filter((operacion) => operacion.status === 'VERIFIED').length,
         pendientes: operaciones.filter((operacion) => operacion.status === 'PENDING').length,

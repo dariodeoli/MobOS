@@ -8,6 +8,7 @@ import { canAccessOrder, validateFulfillmentTransition, canApproveOrderDiscount 
 import { consumeAuthorization, usableAuthorization } from '../../../../lib/authorizations'
 import { serialKey } from '../../../../lib/validation'
 import { numero } from '../../../../lib/montos'
+import { withItemWarranty } from '../../../../lib/order-warranty'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
 
@@ -33,7 +34,8 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const { orderId } = await context.params
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
-  return json(await withCreditAuthorization(prisma, tenant, redactOrderCosts(order, (await canSeeCostForSession(session)))))
+  // `warrantyDays` por línea: el comprobante imprime la garantía de cada equipo (#461).
+  return json(await withCreditAuthorization(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session))))))
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {

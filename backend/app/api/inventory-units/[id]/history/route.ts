@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { canSeeSupplierName, redactAuditMetadata } from '../../../../../lib/cost-visibility'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { displayOrderNumber } from '../../../../../lib/order-number'
 import {
   INVENTORY_PHYSICALLY_VERIFIED,
   INVENTORY_RESERVATION_EXPIRED,
@@ -213,7 +214,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       label: row.status === 'CANCELLED' ? 'Venta anulada' : 'Venta',
       createdAt: row.createdAt,
       user: row.sellerName ? { id: '', name: row.sellerName } : null,
-      detail: `Venta ${row.orderNumber}${row.customerName ? ` · ${row.customerName}` : ''}${ENTREGA_ES[row.fulfillmentStatus] ? ` · ${ENTREGA_ES[row.fulfillmentStatus]}` : ''}`,
+      detail: `Venta ${displayOrderNumber(row.orderNumber)}${row.customerName ? ` · ${row.customerName}` : ''}${ENTREGA_ES[row.fulfillmentStatus] ? ` · ${ENTREGA_ES[row.fulfillmentStatus]}` : ''}`,
     })),
     ...commentRows.map(comment => ({
       id: comment.id,

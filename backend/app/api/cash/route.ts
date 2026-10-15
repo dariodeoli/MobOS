@@ -8,6 +8,7 @@ import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movem
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 import { dayCorrections, sqlCountableDrawer, sqlDrawer } from '../../../lib/payment-net'
+import { cashExpectedBetween as expected } from '../../../lib/cash-expected'
 
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
 const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= LIMITE_MONTO_GENERAL
@@ -44,33 +45,6 @@ function countedBreakdownInput(value: unknown): { breakdown: Record<string, numb
     if (total > LIMITE_MONTO_GENERAL) return undefined
   }
   return { breakdown, countedPyg: total }
-}
-
-async function expected(db: QueryDb, tenantId: string, branchId: string, openedAt: Date, until = new Date(), userId?: string) {
-  const rows = await db.$queryRaw<Array<{ total: bigint }>>`
-    SELECT COALESCE(SUM(p."amountPyg"), 0)::bigint AS total
-    FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
-    WHERE p."tenantId" = ${tenantId} AND p."method" = 'CASH' AND p."status" = 'CONFIRMED'
-      AND ${sqlDrawer('p')}
-      AND COALESCE(p."currency"::text, 'PYG') = 'PYG'
-      AND o."tenantId" = ${tenantId} AND o."branchId" = ${branchId}
-      AND p."paidAt" >= ${openedAt} AND p."paidAt" <= ${until}
-      ${userId ? Prisma.sql`AND (p."userId" = ${userId} OR p."createdById" = ${userId})` : Prisma.empty}`
-  const total = Number(rows[0]?.total || 0n)
-  if (!int(total)) throw new Error('El total de efectivo excede el rango permitido.')
-  // Movimientos de caja del turno (gastos, retiros, adelantos): suman o restan
-  // del efectivo esperado solo cuando ya están cobrados/pagados.
-  const movementRows = await db.$queryRaw<Array<{ total: bigint }>>`
-    SELECT COALESCE(SUM(CASE WHEN m."direction" = 'IN' THEN m."amountPyg" ELSE -m."amountPyg" END), 0)::bigint AS total
-    FROM "CashMovement" m
-    WHERE m."tenantId" = ${tenantId} AND m."branchId" = ${branchId}
-      AND COALESCE(m."currency"::text, 'PYG') = 'PYG' AND m."status" = 'CLEARED'
-      AND (m."accountId" IS NULL OR EXISTS (SELECT 1 FROM "PaymentAccount" a WHERE a."id" = m."accountId" AND a."kind" = 'CASH'))
-      AND m."createdAt" >= ${openedAt} AND m."createdAt" <= ${until}
-      ${userId ? Prisma.sql`AND m."createdById" = ${userId}` : Prisma.empty}`
-  const movements = Number(movementRows[0]?.total || 0n)
-  if (!Number.isSafeInteger(movements)) throw new Error('El total de movimientos excede el rango permitido.')
-  return Math.max(0, total + movements)
 }
 
 // Rango de sesiones del panel «Ventas por caja» (#148 §18): fechas locales de
@@ -193,7 +167,7 @@ export async function GET(request: Request) {
   if (!row[0]) return json({ session: null, openSessions, movements, corrections })
   const session = row[0]
   if (session.status === 'OPEN') {
-    const expectedPyg = Number(session.openingPyg) + await expected(prisma, tenant, ctx.branchId, new Date(String(session.openedAt)), new Date(), String(session.openedById))
+    const expectedPyg = Number(session.openingPyg) + await expected(prisma, tenant, ctx.branchId, session.openedAt instanceof Date ? session.openedAt : new Date(String(session.openedAt)), new Date(), String(session.openedById))
     if (!int(expectedPyg)) return error('El total esperado excede el rango permitido.', 422)
     session.expectedPyg = expectedPyg
   }

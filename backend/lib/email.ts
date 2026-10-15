@@ -1,5 +1,6 @@
 import { MOBOS_IDENTITY } from './identity'
 import { emailOutboxEncryptionConfigured } from './email-outbox-crypto'
+import { displayOrderNumber } from './order-number'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const relayProject = 'mobos'
@@ -192,9 +193,9 @@ export function receiptEmail(input: { to: string; customerName: string; orderNum
   const linesHtml = input.lines.map((line) => `<tr><td class="email-muted" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.muted};font-size:14px;line-height:1.45">${escapeHtml(String(line.quantity))} × ${escapeHtml(line.description)}</td><td class="email-text" align="right" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.ink};font-size:14px;font-weight:700;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:break-word">${escapeHtml(formatPyg(line.totalPyg))}</td></tr>`).join('')
   const linesText = input.lines.map((line) => `${line.quantity} × ${line.description} — ${formatPyg(line.totalPyg)}`).join('\n')
   const contentHtml = `<table role="table" aria-label="Detalle del comprobante" width="100%" cellpadding="0" cellspacing="0" class="receipt-table email-detail" style="margin:20px 0 0;background:${COLOR.surface};border:1px solid ${COLOR.border};border-radius:12px;border-collapse:separate;overflow:hidden"><thead><tr><th scope="col" class="email-table-heading" align="left" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Detalle</th><th scope="col" class="email-table-heading" align="right" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Importe</th></tr></thead><tbody>${linesHtml}<tr><th scope="row" align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:14px;line-height:1.45">Total</th><td align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:17px;font-weight:800;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:break-word">${escapeHtml(formatPyg(input.totalPyg))}</td></tr></tbody></table>`
-  const contentText = `Pedido: ${input.orderNumber}\n${linesText}\nTotal: ${formatPyg(input.totalPyg)}`
-  const content = template({ eyebrow: 'Comprobante de compra', title: `Comprobante ${input.orderNumber}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Gracias por tu compra en ${company}.`, contentHtml, contentText, action: { label: 'Seguí tu pedido', url: input.trackingUrl }, footer: 'Conservá este comprobante para consultar los datos de tu compra.', tone: 'success' })
-  return { to: input.to, subject: `Comprobante ${input.orderNumber}`, ...content }
+  const contentText = `Pedido: ${displayOrderNumber(input.orderNumber)}\n${linesText}\nTotal: ${formatPyg(input.totalPyg)}`
+  const content = template({ eyebrow: 'Comprobante de compra', title: `Comprobante ${displayOrderNumber(input.orderNumber)}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Gracias por tu compra en ${company}.`, contentHtml, contentText, action: { label: 'Seguí tu pedido', url: input.trackingUrl }, footer: 'Conservá este comprobante para consultar los datos de tu compra.', tone: 'success' })
+  return { to: input.to, subject: `Comprobante ${displayOrderNumber(input.orderNumber)}`, ...content }
 }
 
 // Informe de dispositivo (#240 ítem 3): el link público y su respaldo visible.
@@ -226,7 +227,7 @@ export function paymentDueReminderEmail(input: { to: string; customerName: strin
   const store = input.storeName.trim() || 'MobOS'
   const details = detailCard([{ label: 'Pedido', value: input.orderNumber }, { label: 'Vencimiento', value: formatDateEsPy(input.dueAt) }, { label: 'Importe', value: formatPyg(input.amountPyg) }, { label: 'Comercio', value: store }], 'Detalle de la cuota', 'warning')
   const content = template({ eyebrow: 'Cuota por vencer', title: 'Tu cuota vence pronto', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: 'Te recordamos los datos de tu próxima cuota.', contentHtml: details.html, contentText: details.text, footer: 'Pagá antes del vencimiento para mantener tu plan al día.', tone: 'warning' })
-  return { to: input.to, subject: `Tu cuota del pedido ${input.orderNumber} vence pronto`, ...content }
+  return { to: input.to, subject: `Tu cuota del pedido ${displayOrderNumber(input.orderNumber)} vence pronto`, ...content }
 }
 
 export function paymentOverdueEmail(input: { to: string; customerName: string; orderNumber: string; dueAt: Date; amountPyg: number; storeName: string }) {
@@ -234,7 +235,7 @@ export function paymentOverdueEmail(input: { to: string; customerName: string; o
   const store = input.storeName.trim() || 'MobOS'
   const details = detailCard([{ label: 'Pedido', value: input.orderNumber }, { label: 'Venció', value: formatDateEsPy(input.dueAt) }, { label: 'Importe', value: formatPyg(input.amountPyg) }, { label: 'Comercio', value: store }], 'Detalle de la cuota vencida', 'danger')
   const content = template({ eyebrow: 'Cuota vencida', title: 'Tu cuota está vencida', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: 'Esta cuota figura pendiente de regularización.', contentHtml: details.html, contentText: details.text, footer: `Acercate a ${store} o respondé este correo para regularizarla.`, tone: 'danger' })
-  return { to: input.to, subject: `Tu cuota del pedido ${input.orderNumber} está vencida`, ...content }
+  return { to: input.to, subject: `Tu cuota del pedido ${displayOrderNumber(input.orderNumber)} está vencida`, ...content }
 }
 
 export function warrantyStatusEmail(input: { to: string; customerName: string; serial: string; storeName: string; statusLabel: string; trackingUrl?: string }) {

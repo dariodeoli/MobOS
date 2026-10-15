@@ -4,6 +4,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { detalleAperturaInforme, serialEnmascarado } from '../../../../../lib/device-report'
 import { etiquetaServicio } from '../../../../../lib/service-order'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
+import { displayOrderNumber } from '../../../../../lib/order-number'
 
 type RouteContext = { params: { id: string } }
 
@@ -227,7 +228,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       const pagado = order.payments.reduce((sum, payment) => sum + Number(payment.amountPyg || 0), 0)
       const saldo = Math.max(0, Number(order.totalPyg || 0) - pagado)
       const detalle = [
-        `Pedido ${order.orderNumber} · ${formatoGs(order.totalPyg)} · ${ESTADO_PEDIDO[order.status] || order.status}`,
+        `Pedido ${displayOrderNumber(order.orderNumber)} · ${formatoGs(order.totalPyg)} · ${ESTADO_PEDIDO[order.status] || order.status}`,
         ENTREGA_PEDIDO[order.fulfillmentStatus] ? `Entrega: ${ENTREGA_PEDIDO[order.fulfillmentStatus]}` : '',
         saldo > 0 ? `Saldo pendiente ${formatoGs(saldo)}` : '',
       ].filter(Boolean).join(' · ')
@@ -245,7 +246,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         action: 'Pago confirmado',
         createdAt: payment.paidAt || payment.createdAt,
         user: null,
-        detail: `Pedido ${order.orderNumber} · ${formatoGs(payment.amountPyg)} · ${payment.method}`,
+        detail: `Pedido ${displayOrderNumber(order.orderNumber)} · ${formatoGs(payment.amountPyg)} · ${payment.method}`,
       }))
       return [pedido, ...pagos]
     }),
