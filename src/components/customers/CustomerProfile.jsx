@@ -16,7 +16,6 @@ import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
 import EstadoBadge from '@/components/shared/EstadoBadge'
 import { ESTADO_ENTREGA_BADGE, ESTADO_GARANTIA_BADGE, ESTADO_PEDIDO_BADGE } from '@/lib/estadosPedido'
 import { ESTADO_SERVICIO_LABEL, ESTADO_SERVICIO_TONO } from '@/lib/estadosServicio'
-import { temaV2Activo } from '@/lib/temaV2'
 import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -26,6 +25,7 @@ import ImeiVerificacionModal from './ImeiVerificacionModal'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_CUSTOMER_TEMPLATES, ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
@@ -151,6 +151,41 @@ function Senales({ titulo, items, primario, secundario }) {
         ))}
       </ul>
     </div>
+  )
+}
+
+// Cronología compacta del cliente (#448): cliente desde → primer pedido → último
+// pedido → historial. Una línea en escritorio; apilada en celular.
+function CronologiaCliente({ desde, creadoPor, pedidos, total, onHistorial }) {
+  const validos = (pedidos || []).filter((pedido) => pedido.createdAt && pedido.status !== 'CANCELLED').sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+  const primero = validos[0]
+  const ultimo = validos[validos.length - 1]
+  const corta = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—')
+  const detalle = (pedido) => `${corta(pedido.createdAt)}${pedido.orderNumber ? ` · ${pedido.orderNumber}` : ''}`
+  const hito = (clave, titulo, texto, tono, extra = '') => (
+    <li key={clave} className="flex min-w-0 items-start gap-2 sm:flex-none">
+      <span aria-hidden="true" className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', tono)} />
+      <span className="min-w-0">
+        <span className="block text-[11px] font-medium text-mute">{titulo}</span>
+        <span className="block whitespace-nowrap text-sm font-semibold text-fore" title={texto}>{texto}{extra ? <span className="sr-only"> · {extra}</span> : null}</span>
+      </span>
+    </li>
+  )
+  return (
+    <ol data-testid="perfil-cronologia-cliente" aria-label="Cronología del cliente" title={`Creado por ${creadoPor}`} className="flex flex-col gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 sm:flex-row sm:items-start sm:gap-6">
+      {hito('desde', 'Cliente desde', corta(desde), 'bg-fono', `Creado por ${creadoPor}`)}
+      {hito('primero', 'Primer pedido', primero ? detalle(primero) : 'Todavía sin pedidos', 'bg-ok')}
+      {hito('ultimo', 'Último pedido', ultimo ? (ultimo === primero ? 'Es el único' : detalle(ultimo)) : '—', 'bg-ok')}
+      <li className="flex min-w-0 items-start gap-2 sm:flex-1">
+        <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ink-500" />
+        <span className="min-w-0">
+          <span className="block text-[11px] font-medium text-mute">Historial</span>
+          <button type="button" onClick={onHistorial} className="block max-w-full truncate text-left text-sm font-semibold text-fono-light hover:underline">
+            {validos.length} {validos.length === 1 ? 'pedido' : 'pedidos'} · {formatGs(total)} ›
+          </button>
+        </span>
+      </li>
+    </ol>
   )
 }
 
@@ -838,8 +873,6 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // Seguimiento del informe compartido (#240 ítem 3): fila por serial con el
   // último envío y las aperturas del link público.
   const seguimientoInforme = new Map((profile?.deviceReportShares || []).map((fila) => [String(fila.serial || '').trim().toUpperCase(), fila]))
-  // Vista previa v2 (#241 lote B): tiles de cliente y números de consola.
-  const v2Ficha = temaV2Activo()
   // Servicio técnico (#240 §4): órdenes del taller del cliente.
   const servicios = profile?.serviceOrders || []
   // Mensajes de la tienda al cliente (#240 → portal).
@@ -1198,9 +1231,6 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
                 {ciudadCliente && <span className="truncate">{ciudadCliente}</span>}
               </p>
-              <p className="mt-1 text-xs text-mute">
-                Cliente desde {profile.customer?.createdAt ? fechaHora(profile.customer.createdAt) : '—'} · Creado por {profile.customer?.createdBy?.name || 'Sistema'}
-              </p>
               {(profile.customer?.billingName || profile.customer?.billingDocument) && (
                 <p className="mt-1 text-xs text-mute">
                   Factura a: <b className="text-fore">{profile.customer.billingName || 'Sin razón social'}</b>
@@ -1285,37 +1315,26 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
           {tab === 'resumen' && (
           <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <div className={cn('rounded-xl border p-3', v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total gastado</p>
-              <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{formatGs(totalComprado)}</p>
-            </div>
-            <div className={cn('rounded-xl border p-3', deuda > 0 ? 'border-warn/40 bg-warn/5' : v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Saldo pendiente</p>
-              <div className="mt-1 flex items-center gap-2">
-                <p className={cn('text-lg font-semibold', deuda > 0 ? 'text-warn' : 'text-fore', v2Ficha && 'v2-numero')}>{formatGs(deuda)}</p>
-                <Badge color={deuda > 0 ? 'red' : 'green'}>{deuda > 0 ? 'Deuda' : 'Al día'}</Badge>
-              </div>
-            </div>
-            <div className={cn('rounded-xl border p-3', ordenesActivas > 0 ? 'border-fono/40 bg-fono/5' : v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes activas</p>
-              <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{ordenesActivas}</p>
-            </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Pedidos</p>
-              <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{orders.length}</p>
-            </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Última compra</p>
-              <p className="mt-1 text-sm font-semibold text-fore">{ultimaCompra ? fecha(ultimaCompra) : 'Sin compras'}</p>
-            </div>
-            {warranties.length > 0 && (
-              <div className={cn('rounded-xl border p-3', garantiasActivas > 0 ? 'border-fono/40 bg-fono/5' : v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
-                <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{garantiasActivas}</p>
-              </div>
-            )}
-          </div>
+          {/* #448: KPI en UNA tira que no se pisa (cada métrica baja la cifra si no entra)
+              y la cronología del cliente: desde cuándo es cliente, su primer y último pedido. */}
+          <ResumenMetricas
+            testId="perfil-kpis"
+            items={[
+              { titulo: 'Total gastado', valor: formatGs(totalComprado) },
+              { titulo: 'Saldo pendiente', valor: formatGs(deuda), tono: deuda > 0 ? 'text-warn' : '', nota: deuda > 0 ? 'Deuda' : 'Al día' },
+              { titulo: 'Órdenes activas', valor: ordenesActivas },
+              { titulo: 'Pedidos', valor: orders.length },
+              { titulo: 'Última compra', valor: ultimaCompra ? fecha(ultimaCompra) : 'Sin compras' },
+              ...(warranties.length > 0 ? [{ titulo: 'Garantías activas', valor: garantiasActivas }] : []),
+            ]}
+          />
+          <CronologiaCliente
+            desde={profile.customer?.createdAt}
+            creadoPor={profile.customer?.createdBy?.name || 'Sistema'}
+            pedidos={orders}
+            total={totalComprado}
+            onHistorial={() => setTab('pedidos')}
+          />
 
           {/* Avisos internos (#240 → seguimiento): informe/mensajes que el
               cliente todavía no abrió, con el detalle para hacer el seguimiento. */}
