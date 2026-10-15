@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
-import { countFlags, countablePayments, signedOriginalAmount, sumConfirmed, PAYMENT_NET_FIELDS } from './payment-net-pure'
+import { countFlags, countablePayments, signedOriginalAmount, sumConfirmed, netPaid, PAYMENT_NET_FIELDS } from './payment-net-pure'
 
-export { countFlags, countablePayments, signedOriginalAmount, sumConfirmed, PAYMENT_NET_FIELDS }
+export { countFlags, countablePayments, signedOriginalAmount, sumConfirmed, netPaid, PAYMENT_NET_FIELDS }
 
 // Neteo de correcciones de pago (#393). Una corrección deja el pago original
 // intacto, agrega una reversión (Payment.reversalOfId, amountPyg NEGATIVO y

@@ -51,9 +51,9 @@ export async function GET(request: Request) {
         orderBy: { openedAt: 'desc' },
       }),
       prisma.payment.findMany({
-        where: { tenantId: tenant, method: 'CASH', status: 'CONFIRMED', paidAt: { gte: start, lt: end }, order: { branchId }, AND: [DRAWER_PAYMENT_WHERE, { OR: [{ currency: null }, { currency: 'PYG' }] }] },
+        where: { tenantId: tenant, method: 'CASH', status: { in: ['CONFIRMED', 'REFUNDED'] }, paidAt: { gte: start, lt: end }, order: { branchId }, AND: [DRAWER_PAYMENT_WHERE, { OR: [{ currency: null }, { currency: 'PYG' }] }] },
         select: {
-          id: true, amountPyg: true, paidAt: true, reference: true,
+          id: true, amountPyg: true, paidAt: true, reference: true, status: true,
           order: { select: { orderNumber: true, customer: { select: { name: true } }, seller: { select: { name: true } } } },
           createdBy: { select: { name: true } },
         },
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
 
     const operaciones = [
       ...cobros.map((cobro) => ({
-        id: cobro.id, kind: 'PAYMENT', fecha: cobro.paidAt, direction: 'IN', montoPyg: numero(cobro.amountPyg),
+        id: cobro.id, kind: 'PAYMENT', fecha: cobro.paidAt, direction: cobro.status === 'REFUNDED' ? 'OUT' : 'IN', montoPyg: numero(cobro.amountPyg),
         pedido: cobro.order?.orderNumber || '', cliente: cobro.order?.customer?.name || '', vendedor: cobro.order?.seller?.name || cobro.createdBy?.name || '',
         nota: cobro.reference || '',
       })),

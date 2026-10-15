@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { codigoPedido, fechaCompacta, fechaLegible, totalesPedido } from './pedido.js'
+import { codigoPedido, fechaCompacta, fechaLegible, pagadoNeto, totalesPedido } from './pedido.js'
 
 test('muestra los códigos como PREFIX-NNNN (sin «#») con padding a 4 dígitos (#461)', () => {
   // El servidor guarda `AUR-#0003` y la demo `AUR-0003`: en pantalla es siempre `AUR-0003`.
@@ -76,4 +76,18 @@ test('Pagado/Saldo: una sola cuenta para la forma API y la legacy de la demo (#4
   assert.deepEqual(totalesPedido(corregido), { total: 100000, pagado: 100000, pendiente: 0, estado: 'Pagado' })
   // Pago pendiente del repartidor: no cuenta hasta confirmarse.
   assert.equal(totalesPedido({ totalPyg: 100000, pagos: [{ status: 'PENDING', monto: 100000 }] }).pagado, 0)
+})
+
+test('codigoPedido acepta prefijos de cualquier largo igual que el backend', () => {
+  assert.equal(codigoPedido('A-#7'), 'A-0007')
+  assert.equal(codigoPedido('MOBOS-#0012'), 'MOBOS-0012')
+  assert.equal(codigoPedido('mobos 12'), 'MOBOS-0012')
+})
+
+test('totalesPedido: un reembolso parcial baja el pagado y sube el saldo; cancelado no debe nada', () => {
+  const pedido = { totalPyg: 250000, payments: [{ status: 'CONFIRMED', amountPyg: 250000 }, { status: 'REFUNDED', amountPyg: 100000 }] }
+  assert.deepEqual(totalesPedido(pedido), { total: 250000, pagado: 150000, pendiente: 100000, estado: 'Parcial' })
+  assert.equal(pagadoNeto([{ monto: 80000 }, { status: 'REFUNDED', monto: 30000 }]), 50000)
+  const devuelto = { totalPyg: 250000, status: 'CANCELLED', payments: [{ status: 'CONFIRMED', amountPyg: 250000 }, { status: 'REFUNDED', amountPyg: 250000 }] }
+  assert.deepEqual(totalesPedido(devuelto), { total: 250000, pagado: 0, pendiente: 0, estado: 'Pendiente' })
 })

@@ -1,4 +1,5 @@
 import { prisma } from '../../../../lib/prisma'
+import { netPaid } from '../../../../lib/payment-net-pure'
 import { attachSerialsToOrderItem } from '../../../../lib/order-serials'
 import { Prisma } from '@prisma/client'
 import { error, json, tenantId } from '../../../../lib/http'
@@ -179,7 +180,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       // administrador o gerente la autorice (ni siquiera lo salta un admin).
       entregando = true
       await assertCreditCleared(prisma, tenant, existing.id) // chequeo temprano; el definitivo va en la transacción
-      const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
+      const pagado = netPaid(existing.payments)
       pendingDeliveryPyg = Math.max(0, numero(existing.totalPyg) - pagado)
       if (pendingDeliveryPyg > 0) {
         const credito = existing.customer && numero(existing.customer.creditLimitPyg) > 0 && Number(existing.customer.creditDays || 0) > 0
