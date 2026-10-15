@@ -36,7 +36,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     ],
     [
       '    <Modal open={crearAbierto}',
-      '    </>}',
+      '    </>\n    </div>\n  </SellerSection>',
       'c09a990549c6c4401e6d6c13312d19853fd67b42914c069f977e89468c9c21ad',
     ],
   ])
@@ -61,10 +61,9 @@ test('Clientes preserves reviewed fiscal profile and unchanged summary/communica
     "['ADMIN', 'GERENTE'].includes(usuario?.role)",
   ])
     assert.ok(seller.includes(contract), contract)
-  assert.ok(
-    seller.indexOf('aria-label="Secciones de clientes"') <
-      seller.indexOf("seccion === 'campanas' ?"),
-  )
+  // Campañas es una pestaña de la fila única de Clientes (no una segunda fila).
+  assert.ok(!seller.includes('aria-label="Secciones de clientes"'))
+  assert.ok(seller.includes('export function CampanasVista'))
 })
 
 test('Clientes preserves bulk export/copy/merge, page sorting and server pagination', () => {
