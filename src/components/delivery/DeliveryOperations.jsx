@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { Aviso, Badge, Button, ConfirmDialog, FormField, Input, Modal, Money, MoneyInput, Select, Textarea, useToast } from '@/components/ui'
@@ -25,49 +25,80 @@ export default function DeliveryOperations() {
   const [query, setQuery] = useState({ branchId: sucursal?.id || '', driverId: '', weekStart: previousMonday() }), [weekly, setWeekly] = useState(null)
   const [unresolved, setUnresolved] = useState(false)
   const weeklyRequest = useRef(null)
-  const load = useCallback(async (signal) => {
-    if (esDemo) return
+  const loadRequest = useRef(null)
+  const scopeKey = JSON.stringify([empresa?.id, usuario?.id, sucursal?.id, esDemo, unresolved])
+  const scope = useRef({ key: scopeKey, epoch: 0, mounted: false, loadId: 0, mutationId: 0, mutating: false })
+  // Invalidar en el commit, antes de pintar el contexto nuevo. No alcanza con
+  // abortar el efecto inicial: Actualizar y las mutaciones también tienen tareas pendientes.
+  useLayoutEffect(() => {
+    const epoch = ++scope.current.epoch
+    scope.current.key = scopeKey; scope.current.mounted = true; scope.current.mutating = false
+    setRows([]); setTariffs([]); setTeam([]); setOrders([]); setOwner(false); setWeekly(null)
+    setLoading(false); setBusy(false); setError(''); setTab('viajes')
+    setTrip(null); setTariff(null); setResolution(null); setDeactivate(null); setAdjustment(null); setConfirmClose(false)
+    setQuery({ branchId: sucursal?.id || '', driverId: '', weekStart: previousMonday() })
+    return () => {
+      if (scope.current.epoch === epoch) {
+        scope.current.mounted = false; scope.current.epoch++; scope.current.mutating = false
+        loadRequest.current?.abort(); weeklyRequest.current?.abort()
+      }
+    }
+  }, [scopeKey, sucursal?.id])
+  const load = useCallback(async () => {
+    if (esDemo || !scope.current.mounted || scope.current.key !== scopeKey) return
+    loadRequest.current?.abort()
+    const controller = new AbortController(), { signal } = controller
+    loadRequest.current = controller
+    const epoch = scope.current.epoch, loadId = ++scope.current.loadId
+    const current = () => scope.current.mounted && scope.current.key === scopeKey && scope.current.epoch === epoch && scope.current.loadId === loadId && !signal.aborted
     setLoading(true); setError('')
     try {
       const [trips, rates, drivers, pedidos] = await Promise.all([
         api.get(`/api/delivery/trips${unresolved ? '?unresolved=true' : ''}`, { cacheMs: 0, signal }), api.get('/api/delivery/tariffs', { cacheMs: 0, signal }),
         api.get('/api/delivery/team', { cacheMs: 0, signal }), api.get('/api/delivery/orders?estado=todos&limit=500', { cacheMs: 0, signal }),
       ])
-      if (signal?.aborted) return
+      if (!current()) return
       setRows(trips.rows); setOwner(trips.owner); setTariffs(rates.rows); setTeam(drivers); setOrders(pedidos)
     } catch (cause) {
-      if (!signal?.aborted) { console.error('[delivery-operations]', cause); setError(cause.message || 'No se pudieron cargar los viajes.') }
-    } finally { if (!signal?.aborted) setLoading(false) }
-  }, [esDemo, unresolved])
-  useEffect(() => {
-    const controller = new AbortController()
-    weeklyRequest.current?.abort()
-    setRows([]); setTariffs([]); setTeam([]); setOrders([]); setOwner(false); setWeekly(null)
-    setTrip(null); setTariff(null); setResolution(null); setDeactivate(null); setAdjustment(null); setConfirmClose(false)
-    setQuery({ branchId: sucursal?.id || '', driverId: '', weekStart: previousMonday() })
-    load(controller.signal)
-    return () => { controller.abort(); weeklyRequest.current?.abort() }
-  }, [load, empresa?.id, usuario?.id, sucursal?.id])
+      if (!signal.aborted) console.error('[delivery-operations]', cause)
+      if (current()) setError(cause.message || 'No se pudieron cargar los viajes.')
+    } finally { if (current()) setLoading(false) }
+  }, [esDemo, unresolved, scopeKey])
+  useEffect(() => { load() }, [load])
 
   async function run(action, message, finish) {
-    if (busy) return
+    if (scope.current.mutating || !scope.current.mounted || scope.current.key !== scopeKey) return
+    scope.current.mutating = true
+    const epoch = scope.current.epoch, mutationId = ++scope.current.mutationId
+    const current = () => scope.current.mounted && scope.current.key === scopeKey && scope.current.epoch === epoch && scope.current.mutationId === mutationId
     setBusy(true); setError('')
-    try { await action(); finish?.(); toast.success(message); await load() }
-    catch (cause) { console.error('[delivery-operations]', cause); setError(cause.message || 'No se pudo guardar.'); toast.error('No se pudo guardar', cause.message) }
-    finally { setBusy(false) }
+    try {
+      await action()
+      if (!current()) return
+      finish?.()
+      if (!current()) return
+      toast.success(message)
+      await load()
+    } catch (cause) {
+      console.error('[delivery-operations]', cause)
+      if (current()) { setError(cause.message || 'No se pudo guardar.'); toast.error('No se pudo guardar', cause.message) }
+    } finally { if (current()) { scope.current.mutating = false; setBusy(false) } }
   }
   async function loadWeek() {
+    if (!scope.current.mounted || scope.current.key !== scopeKey) return
     if (!query.branchId || !query.driverId || !query.weekStart) { setError('Elegí sucursal, repartidor y lunes de la semana.'); return }
     weeklyRequest.current?.abort()
-    const controller = new AbortController()
+    const controller = new AbortController(), epoch = scope.current.epoch
     weeklyRequest.current = controller
+    const current = () => scope.current.mounted && scope.current.key === scopeKey && scope.current.epoch === epoch && weeklyRequest.current === controller && !controller.signal.aborted
     setLoading(true); setError(''); setWeekly(null)
     try {
       const result = await api.get(`/api/delivery/weekly?${new URLSearchParams(query)}`, { cacheMs: 0, signal: controller.signal })
-      if (!controller.signal.aborted) setWeekly(result)
+      if (current()) setWeekly(result)
     } catch (cause) {
-      if (!controller.signal.aborted) { console.error('[delivery-weekly]', cause); setError(cause.message) }
-    } finally { if (!controller.signal.aborted) setLoading(false) }
+      if (!controller.signal.aborted) console.error('[delivery-weekly]', cause)
+      if (current()) setError(cause.message)
+    } finally { if (current()) setLoading(false) }
   }
   const changeQuery = (key, value) => { weeklyRequest.current?.abort(); setLoading(false); setQuery(current => ({ ...current, [key]: value })); setWeekly(null) }
   const initialBranch = sucursal?.id || sucursales[0]?.id || ''

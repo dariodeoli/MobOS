@@ -28,6 +28,7 @@ export default defineConfig({
     'graficos.frontend.spec.js',
     'login-codigos.frontend.spec.js',
     'multiempresa.frontend.spec.js',
+    'delivery-scope.frontend.spec.js',
     'publicas-layout.frontend.spec.js',
     'corregir-pago.frontend.spec.js',
     'clientes-lista.frontend.spec.js',

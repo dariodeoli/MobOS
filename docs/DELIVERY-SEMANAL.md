@@ -73,9 +73,19 @@ multiviaje/cobro único, permisos, tenancy/sucursal, vínculo/descarte sin venta
 concurrencia e idempotencia, foto inmutable, rendición/rechazo posterior y ajuste.
 Usar las variables aisladas `MOBOS_E2E_*` al correrlo desde worktrees.
 
+`e2e/frontend/delivery-scope.frontend.spec.js`, con
+`--config=e2e/nav-v2.frontend.config.js`, mantiene montada la instancia y demora
+un refresh manual antes de cambiar empresa, usuario o sucursal. Comprueba que
+filas, tarifas, pedidos, equipo y permisos anteriores no vuelven al contexto
+nuevo. También demora una mutación de la empresa anterior, con éxito o error,
+mientras guarda la nueva: no debe cerrar su modal, mostrar avisos, disparar
+refresh ni alterar su bloqueo. Todas las cargas y finalizaciones se ligan a
+una generación invalidada al cambiar contexto y al desmontar.
+
 ## Novedades para el dueño
 
 - Podés guardar los honorarios de delivery por distancia y vigencia, sin precios inventados.
 - Registrás varios viajes de una misma ruta y ves cuánto corresponde al repartidor.
 - Cerrás cada semana con sus cobros y deudas, conservando la foto original y el saldo actualizado.
 - Corregís saldos y resolvés viajes sin venta con un motivo que queda registrado.
+- Al cambiar de empresa, sucursal o usuario, las respuestas anteriores no mezclan sus datos ni interrumpen lo que estás guardando.
