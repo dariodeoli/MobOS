@@ -1112,7 +1112,7 @@ export default function Impresoras() {
 
       {panel === 'impresoras' && (impresoras.length === 0 ? (
         <Card>
-          <EmptyState icon="receipt" title="Todavía no hay impresoras." description="Agregá la térmica con “Agregar impresora” y probala para dejarla lista." action={<Button type="button" onClick={() => abrirFormulario(null)}>Agregar impresora</Button>} />
+          <EmptyState icon="receipt" title="Todavía no hay impresoras." description="Agregá la térmica con “Agregar impresora” y probala para dejarla lista." />
         </Card>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
