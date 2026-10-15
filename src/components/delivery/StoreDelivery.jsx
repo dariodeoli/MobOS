@@ -1,4 +1,5 @@
 import './entregasF3.css'
+import DeliveryOperations from './DeliveryOperations'
 import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import Toolbar from '@/components/shared/Toolbar'
@@ -358,7 +359,7 @@ export default function StoreDelivery() {
         className="entregas-f3-toolbar"
         lead={
           <p className="min-w-0 flex-1 basis-64 text-sm text-mute">
-            Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá.
+            {tab === 'operacion' ? 'Registrá los viajes realizados y revisá honorarios, cobros y saldo semanal del repartidor.' : 'Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá.'}
           </p>
         }
       />
@@ -369,9 +370,10 @@ export default function StoreDelivery() {
         items={[
           ['repartos', 'Repartos'],
           ['rendiciones', 'Rendiciones'],
+          ['operacion', 'Viajes y cierres'],
         ]}
       />
-      {tab === 'repartos' ? <Asignaciones /> : <Rendiciones />}
+      {tab === 'repartos' ? <Asignaciones /> : tab === 'rendiciones' ? <Rendiciones /> : <DeliveryOperations />}
     </section>
   )
 }

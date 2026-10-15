@@ -14,6 +14,14 @@ import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Etiqueta humana por acción. Lo que no está en el mapa se muestra tal cual
 // (el código crudo), que sigue siendo mejor que ocultarlo.
 const ACCIONES = {
+  DELIVERY_TARIFF_CREATED: ['Tarifa del repartidor guardada', 'blue'],
+  DELIVERY_TARIFF_DEACTIVATED: ['Tarifa del repartidor desactivada', 'blue'],
+  DELIVERY_TRIP_RECORDED: ['Viajes de reparto registrados', 'blue'],
+  DELIVERY_TRIP_LINKED: ['Viaje vinculado a un pedido', 'blue'],
+  DELIVERY_TRIP_DISCARDED: ['Viaje sin venta descartado', 'blue'],
+  DELIVERY_WEEK_CLOSED: ['Semana del repartidor cerrada', 'blue'],
+  DELIVERY_WEEK_ADJUSTED: ['Saldo del repartidor ajustado', 'blue'],
+
   ORDER_CREATED: ['Venta registrada', 'green'],
   ORDER_DISCOUNT_APPROVED: ['Descuento aprobado', 'orange'],
   PAYMENT_RECORDED: ['Cobro registrado', 'green'],
