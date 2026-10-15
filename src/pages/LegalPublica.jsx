@@ -14,7 +14,10 @@ const CONTENIDO = {
       ['Qué datos guardamos', 'Los datos necesarios para operar la tienda: ventas, pedidos, clientes, stock, pagos, equipo y la configuración de la empresa.'],
       ['Quién los ve', 'Cada tienda ve solo sus datos. Los permisos del equipo limitan qué puede ver y hacer cada persona, y el servidor aplica ese recorte en cada acción.'],
       ['Para qué se usan', 'Para operar el servicio, hacer respaldos y mejorar el producto. No se venden a terceros.'],
+      ['Servicios de terceros', 'Para funcionar usamos: un servicio de envío de correo (Resend) para los mensajes de acceso, invitaciones y avisos; Google, solo si elegís entrar con tu cuenta de Google (recibimos tu nombre, correo y foto); un proveedor de consulta de IMEI, al que se envía únicamente el IMEI que consultás; Cambios Chaco, de donde leemos la cotización del dólar (no se le envían datos tuyos); y nuestra medición anónima de visitas al sitio, sin datos personales ni seguimiento publicitario.'],
+      ['Cuánto tiempo los guardamos', 'Mientras tu tienda esté activa. Si la archivás, se conserva por un plazo de recuperación y después podés pedir su eliminación definitiva. Los respaldos se renuevan y los registros técnicos se purgan periódicamente.'],
       ['Tus controles', 'Desde Configuración podés exportar tus datos y archivar o eliminar la empresa; la eliminación borra el historial y se explica antes de confirmar.'],
+      ['Borrar tu cuenta', 'Cada integrante puede pedir que se borre su cuenta: se cierran sus sesiones y se anonimiza su nombre y correo. Las ventas y registros del negocio se conservan con el nombre anonimizado. Si sos dueño de la tienda, primero tenés que transferirla o eliminarla.'],
       ['Consultas', 'Escribinos a soporte@moboss.online.'],
     ],
   },
@@ -27,6 +30,17 @@ const CONTENIDO = {
       ['Documentos', 'Los comprobantes y reportes de MobOS son documentos no fiscales: no reemplazan la facturación electrónica de tu país.'],
       ['Disponibilidad', 'El estado de los servicios se publica en moboss.online/status. Podés dejar el servicio cuando quieras y exportar tus datos.'],
       ['Consultas', 'Escribinos a soporte@moboss.online.'],
+    ],
+  },
+  '/soporte': {
+    titulo: 'Soporte',
+    intro: 'Cómo conseguir ayuda con MobOS.',
+    bloques: [
+      ['Escribinos', 'Mandanos un correo a soporte@moboss.online contando qué pasó, desde qué pantalla y en qué dispositivo. Respondemos en días hábiles.'],
+      ['Para acelerar la respuesta', 'Indicá el nombre de tu tienda, tu usuario (no tu PIN ni tu contraseña, nunca los pidas ni los compartas) y, si podés, una captura de pantalla.'],
+      ['Estado del servicio', 'Si algo no carga, mirá primero moboss.online/status: ahí se publica el estado de los servicios.'],
+      ['Tu cuenta y tus datos', 'Podés pedir el borrado de tu cuenta (se anonimizan tu nombre y tu correo). Si sos dueño de una tienda, primero tenés que transferirla o eliminarla desde Configuración. Para exportar o eliminar los datos de la tienda, escribinos.'],
+      ['Privacidad y términos', 'Leé cómo tratamos los datos en moboss.online/privacidad y las condiciones del servicio en moboss.online/terminos.'],
     ],
   },
 }

@@ -258,7 +258,7 @@ export default function App() {
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview || statusPreview
   const status = typeof window !== 'undefined' && (window.location.pathname === '/status' || statusPreview)
   // Privacidad y Términos viven en el host público (#322) junto a la landing.
-  const legal = typeof window !== 'undefined' && ['/privacidad', '/terminos'].includes(window.location.pathname)
+  const legal = typeof window !== 'undefined' && ['/privacidad', '/terminos', '/soporte'].includes(window.location.pathname)
   // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
   // en dev/local se abre la página acá mismo (#197).
   const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
@@ -301,6 +301,7 @@ export default function App() {
           {/* Públicas informativas de la landing (#322). */}
           <Route path="/privacidad" element={<LegalPublica />} />
           <Route path="/terminos" element={<LegalPublica />} />
+          <Route path="/soporte" element={<LegalPublica />} />
           <Route path="/restablecer-contrasena/:token?" element={<RecuperarContrasena />} />
           <Route path="/recuperar-empresa" element={<RecuperarEmpresa />} />
           <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
