@@ -64,10 +64,12 @@ test('#298 · una sola navegación de Configuración, siempre con texto', async 
   await capturar(page, '01-navegacion-escritorio')
 
   // Mobile: la misma navegación como tira de pestañas, con el rótulo actual y sin desborde.
+  // #410: en celular /configuracion es la lista de las siete secciones con rótulo.
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.reload()
+  await page.goto('/configuracion')
   await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible()
-  await expect(page.locator(NAV).locator('[aria-current="page"]')).toHaveText('Organización')
+  await expect(page.locator(NAV).locator('[data-tab-id]')).toHaveCount(ETIQUETAS.length)
+  await expect(page.locator(NAV).locator('[data-tab-id="organizacion"]')).toHaveAttribute('aria-label', 'Organización')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '02-navegacion-mobile')
 })
@@ -87,10 +89,14 @@ test('#298 · Datos de la tienda: una sola tarjeta con Editar y sin resumen dupl
   await expect(page.getByTestId('datos-tienda-form')).toBeVisible()
   await expect(page.getByTestId('datos-tienda-lectura')).toHaveCount(0)
 
-  // Formulario en 2 columnas; la dirección ocupa el ancho completo.
+  // Formulario en 2 columnas (#389): nombre y dirección comparten el ancho de columna
+  // y la dirección comparte fila con la ciudad, debajo de la fila de nombre y RUC.
   const nombre = await page.locator('#edit-nombre').boundingBox()
   const direccion = await page.locator('#edit-direccion').boundingBox()
-  expect(direccion.width).toBeGreaterThan(nombre.width * 1.6)
+  const ruc = await page.locator('#edit-ruc').boundingBox()
+  expect(Math.abs(direccion.width - nombre.width)).toBeLessThan(2)
+  expect(Math.abs(ruc.y - nombre.y)).toBeLessThan(2)
+  expect(direccion.x).toBeGreaterThan(nombre.x + 10)
   expect(direccion.y).toBeGreaterThan(nombre.y + 10)
   // Sin diferencias no hay barra de guardado.
   await expect(page.getByTestId('datos-tienda-barra')).toHaveCount(0)

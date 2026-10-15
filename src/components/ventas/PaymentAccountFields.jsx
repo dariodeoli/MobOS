@@ -4,50 +4,62 @@ import CuentaCobroCombobox from './CuentaCobroCombobox'
 import CapsulaCuentaCobro from './CapsulaCuentaCobro'
 import { gs } from '@/utils/calculos'
 import SerialField from '@/components/shared/SerialField'
-import { api } from '@/lib/api/client'
+import { cotizacionFx } from '@/lib/fx'
+import { useSesion } from '@/lib/sesion'
+import { etiquetaOrigen, origenAutomatico, origenManual } from '@/utils/cotizacion'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { cambiarCuentaPago, FOREIGN } from '@/utils/pagoCuenta'
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
 
-// Cotización referencial del dólar (misma fuente que Pagos): se pide una sola
-// vez y se reutiliza; si el servicio no responde, la cotización queda manual.
-let cotizacionEnCurso = null
-export function cotizacionReferencial() {
+// Cotización del día para cobros (#401): fuente y lado de Configuración →
+// Comercial (por defecto Cambios Chaco · venta). Se pide con el caché de
+// `lib/fx`; si el servicio no responde, la cotización queda manual.
+export function cotizacionReferencial(currency = 'USD', opciones = {}) {
   // Demo (#194): cotización ficticia fija, sin llamar al API real.
-  if (isDemoRuntime) return Promise.resolve(7300)
-  if (!cotizacionEnCurso) {
-    cotizacionEnCurso = api
-      .get('/api/fx')
-      .then((data) => Number(data?.referencialDiario || data?.venta) || null)
-      .catch(() => null)
-  }
-  return cotizacionEnCurso
+  if (isDemoRuntime) return Promise.resolve({ rate: 7300, source: 'demo', sourceLabel: 'Demo', side: 'venta', updatedAt: null, fetchedAt: null, stale: false })
+  return cotizacionFx({ purpose: 'sales', currency, ...opciones })
 }
 export default function PaymentAccountFields({ payment, accounts, onChange, pendientePyg = 0 }) {
   const account = accounts.find((a) => a.id === payment.accountId)
   const onChangeRef = useRef(onChange)
   useEffect(() => { onChangeRef.current = onChange })
+  const { sesion } = useSesion() || {}
+  const [sinCotizacion, setSinCotizacion] = useState(false)
+  const [actualizando, setActualizando] = useState(false)
   // Cotización automática para cuentas en USD: se pide una vez (con caché de la
   // API) y queda editable: es la sugerencia, no una obligación. Viaja marcada
   // como `automatico` para no pisar una cotización cargada a mano mientras la
   // consulta estaba en vuelo.
   useEffect(() => {
-    if (account?.currency !== 'USD' || Number(payment.exchangeRatePyg) > 0) return undefined
+    if (!FOREIGN(account?.currency) || Number(payment.exchangeRatePyg) > 0) return undefined
     let vivo = true
-    cotizacionReferencial().then((rate) => {
-      if (vivo && rate > 0) {
-        const proponer = proponerAlLlegarCotizacion.current && String(montoRef.current || '') === '' && pendienteRef.current > 0
-        proponerAlLlegarCotizacion.current = false
-        onChangeRef.current({
-          exchangeRatePyg: String(rate),
-          automatico: true,
-          ...(proponer ? { originalAmount: (pendienteRef.current / rate).toFixed(2).replace('.', ',') } : {}),
-        })
-      }
+    cotizacionReferencial(account.currency).then((info) => {
+      if (!vivo) return
+      if (!info || !(info.rate > 0)) { setSinCotizacion(true); return }
+      setSinCotizacion(false)
+      const proponer = proponerAlLlegarCotizacion.current && String(montoRef.current || '') === '' && pendienteRef.current > 0
+      proponerAlLlegarCotizacion.current = false
+      onChangeRef.current({
+        exchangeRatePyg: String(info.rate),
+        automatico: true,
+        rateOrigin: origenAutomatico(info),
+        ...(proponer ? { originalAmount: (pendienteRef.current / info.rate).toFixed(2).replace('.', ',') } : {}),
+      })
     })
     return () => { vivo = false }
   }, [account?.currency, payment.exchangeRatePyg])
+  // «Usar la del día»: acción explícita de la persona (sí reemplaza una cotización
+  // manual); la consulta automática de arriba nunca lo hace.
+  async function usarCotizacionDelDia() {
+    if (actualizando || !account) return
+    setActualizando(true)
+    const info = await cotizacionReferencial(account.currency, { forzar: true })
+    setActualizando(false)
+    if (!info || !(info.rate > 0)) { setSinCotizacion(true); return }
+    setSinCotizacion(false)
+    onChangeRef.current({ exchangeRatePyg: String(info.rate), rateOrigin: origenAutomatico(info) })
+  }
   const [cambiando, setCambiando] = useState(false)
   const proponerAlLlegarCotizacion = useRef(false)
   const pendienteRef = useRef(pendientePyg)
@@ -99,7 +111,15 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
       )}
     </div>
     <div><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" className="w-full" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={extranjera ? '0,00' : '0'} /></div>
-    {extranjera && <div><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
+    {extranjera && <div>
+      <Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency})</Label>
+      <MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v, rateOrigin: v === '' || v == null ? undefined : origenManual(sesion?.nombre) })} placeholder="Ingresar cotización" />
+      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-mute" data-testid="cotizacion-origen">
+        {payment.rateOrigin && <span className={payment.rateOrigin.stale ? 'text-warn' : undefined}>{etiquetaOrigen(payment.rateOrigin)}</span>}
+        {!payment.rateOrigin && sinCotizacion && <span>Sin cotización automática: cargala a mano.</span>}
+        {(payment.rateOrigin?.manual || sinCotizacion) && <button type="button" data-testid="cotizacion-usar-del-dia" disabled={actualizando} onClick={usarCotizacionDelDia} className="toque-44 font-semibold text-fono-light hover:underline disabled:opacity-40 md:min-h-0">{actualizando ? 'Consultando…' : 'Usar la del día'}</button>}
+      </p>
+    </div>}
     {/* El equivalente solo aporta cuando la cuenta no es en guaraníes. */}
     {extranjera && <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-1.5 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>}
     {account?.kind === 'TRADE_IN' && <>

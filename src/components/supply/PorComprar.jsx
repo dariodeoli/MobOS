@@ -269,15 +269,8 @@ export default function PorComprar() {
   return (
     <div className="space-y-4" data-testid="por-comprar">
       <Card className="p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-semibold">Por comprar</h2>
-            <p className="mt-1 text-sm text-mute">
-              Lo que falta comprar, consolidado por producto, condición y centro de compra (conserva pedidos, reservas y reposición).
-              El stock se suma recién al recibir la compra.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
               <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
             </Button>
@@ -296,15 +289,17 @@ export default function PorComprar() {
       </Card>
 
       <div className="space-y-2">
-        <Subtabs
-          value={vista}
-          onChange={setVista}
-          className="mb-0 w-full"
-          items={ESTADOS.map(([id, label]) => {
-            const conteo = conteoEstado(id)
-            return [id, conteo == null ? label : `${label} (${conteo})`]
-          })}
-        />
+        <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <Subtabs
+            value={vista}
+            onChange={setVista}
+            className="mb-0 w-max min-w-full flex-nowrap"
+            items={ESTADOS.map(([id, label]) => {
+              const conteo = conteoEstado(id)
+              return [id, conteo == null ? label : `${label} (${conteo})`]
+            })}
+          />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {chipsCola.map(([id, label, activo, alternar]) => (
             <button
@@ -312,7 +307,7 @@ export default function PorComprar() {
               type="button"
               aria-pressed={activo}
               onClick={alternar}
-              className={`min-h-9 rounded-lg border px-2.5 text-xs font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
+              className={`min-h-11 rounded-lg border px-3 text-xs lg:min-h-9 lg:px-2.5 font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
             >
               {label}
             </button>

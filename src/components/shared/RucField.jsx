@@ -4,6 +4,8 @@ import { Badge, Input } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { consultarRucDemo } from '@/lib/demoRuc'
 import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
+import { cn } from '@/lib/utils'
+import { ANCHO_CAMPO } from './anchoCampos'
 import { admitRucResponse, createRucRequestGuard, formatRucInput, lookupDemoRuc, parseRucInput } from './rucLookup.js'
 
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -81,7 +83,7 @@ export default function RucField({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className="relative">
+      <div className={cn('relative w-full', ANCHO_CAMPO.documento)}>
         <Input {...inputProps} id={inputId} aria-label={ariaLabel}
           aria-describedby={[inputProps['aria-describedby'], mostrarExtractor && textoAyuda ? `${inputId}-ayuda` : null, error ? `${inputId}-error` : null].filter(Boolean).join(' ') || undefined}
           aria-invalid={inputProps['aria-invalid'] ?? (error ? true : undefined)}
@@ -95,7 +97,7 @@ export default function RucField({
           etiquetaOcupada="Consultando…" ocupado={loading}
           disabled={disabled || consultarDisabled || !query} onClick={extract} />}
       </div>
-      {mostrarExtractor && textoAyuda && <span id={`${inputId}-ayuda`} className="block text-xs text-mute">{textoAyuda}</span>}
+      {mostrarExtractor && textoAyuda && <span id={`${inputId}-ayuda`} className={cn('block text-xs text-mute', ANCHO_CAMPO.documento)}>{textoAyuda}</span>}
       {suggestion && <div role="status" className="space-y-2 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm">
         <p className="break-words"><b>{suggestion.result.nameOfficial}</b></p>
         <p className="text-mute">RUC {suggestion.result.fullRuc}</p>

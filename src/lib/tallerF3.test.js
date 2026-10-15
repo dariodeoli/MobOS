@@ -149,7 +149,8 @@ test('Taller scoped responsive presentation retains full identities, sort, detai
   assert.ok(!source.includes('min-w-[65rem]'))
   for (const text of [
     'Ordenar órdenes en pantalla',
-    'Invertir orden',
+    'Invertir: de mayor a menor',
+    'Seleccionar órdenes',
     'Catálogo de servicios',
     'Cargar catálogo sugerido',
     'role="status"',
@@ -163,6 +164,8 @@ test('Taller scoped responsive presentation retains full identities, sort, detai
     'overflow-wrap: anywhere',
     'white-space: nowrap',
     'repeat(2, minmax(0, 1fr))',
+    'repeat(3, minmax(0, 1fr))',
+    'repeat(4, minmax(0, 1fr))',
   ])
     assert.ok(css.includes(text), text)
   assert.ok(!css.includes('.shell-'))

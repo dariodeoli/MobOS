@@ -1,3 +1,4 @@
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
@@ -48,7 +49,7 @@ function DetallePedido({ order }) {
         <div className="mt-2 space-y-3" data-testid="pedido-detalle">
           {items.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">Qué compraste</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Qué compraste</p>
               <ul className="mt-1.5 space-y-1">
                 {items.map((item, indice) => (
                   <li key={`${item.description}-${indice}`} className="flex items-start justify-between gap-3 text-xs text-mute">
@@ -61,7 +62,7 @@ function DetallePedido({ order }) {
           )}
           {pagos.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">Tus pagos de este pedido</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Tus pagos de este pedido</p>
               <ul className="mt-1.5 space-y-1">
                 {pagos.map((pago, indice) => (
                   <li key={`${pago.paidAt}-${indice}`} className="flex items-start justify-between gap-3 text-xs text-mute">
@@ -141,7 +142,7 @@ export default function CuentaPublica() {
           logoAlt={cuenta?.company?.name ? `Logo de ${cuenta.company.name}` : 'Logo'}
           onLogoError={() => setLogoOk(false)}
         />
-        {cuenta?.level && <p className="-mt-2 text-center text-[11px] uppercase tracking-wider text-mute sm:-mt-3">{NIVELES_PORTAL[cuenta.level] || cuenta.level}</p>}
+        {cuenta?.level && <p className="-mt-2 text-center text-xs uppercase tracking-wider text-mute sm:-mt-3">{NIVELES_PORTAL[cuenta.level] || cuenta.level}</p>}
 
         {error && <PortalFallo mensaje={error} />}
         {!cuenta && !error && <PortalCargando />}
@@ -150,7 +151,7 @@ export default function CuentaPublica() {
           <div className="space-y-3 sm:space-y-4">
             {/* Saldo pendiente: lo primero que el cliente necesita ver. */}
             <section className={`rounded-2xl border p-4 text-center sm:p-5 ${alDia ? 'border-ok/30 bg-ok/5' : 'border-warn/40 bg-warn/5'}`}>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Saldo pendiente</p>
+              <p className={ROTULO_SECCION}>Saldo pendiente</p>
               {alDia ? (
                 <>
                   <p className="mt-1.5 text-3xl font-bold tracking-tight text-ok">Al día</p>
@@ -196,7 +197,7 @@ export default function CuentaPublica() {
                         <p className="min-w-0 whitespace-pre-wrap break-words">{mensaje.content}</p>
                         {mensaje.nuevo && <PortalEstado tono="info">Nuevo</PortalEstado>}
                       </div>
-                      <p className="mt-1 text-[11px] text-mute">{fechaHora(mensaje.createdAt)}</p>
+                      <p className="mt-1 text-xs text-mute">{fechaHora(mensaje.createdAt)}</p>
                     </article>
                   ))}
                 </div>
@@ -209,14 +210,14 @@ export default function CuentaPublica() {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {Number(cuenta.saldoFavorPyg || 0) > 0 && (
                     <div className="rounded-xl bg-ink-800/60 px-3 py-2.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Saldo a favor</p>
+                      <p className={ROTULO_SECCION}>Saldo a favor</p>
                       <p className="mt-1 text-lg font-bold tabular-nums text-ok">{gs(cuenta.saldoFavorPyg)}</p>
                       <p className="mt-0.5 text-xs text-mute">Podés usarlo en tu próxima compra.</p>
                     </div>
                   )}
                   {Number(cuenta.puntosPyg || 0) > 0 && (
                     <div className="rounded-xl bg-ink-800/60 px-3 py-2.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Puntos</p>
+                      <p className={ROTULO_SECCION}>Puntos</p>
                       <p className="mt-1 text-lg font-bold tabular-nums text-fono-light">{gs(cuenta.puntosPyg)}</p>
                       <p className="mt-0.5 text-xs text-mute">Acumulados en tus compras (1 punto = Gs 1).</p>
                     </div>
@@ -462,7 +463,7 @@ export default function CuentaPublica() {
                           <span className="min-w-0 truncate">{warranty.description || 'Equipo'}</span>
                           <PortalEstado tono={tonoGarantia(warranty.status)}>{ESTADO_GARANTIA[warranty.status] || warranty.status}</PortalEstado>
                         </div>
-                        <p className="mt-1 font-mono text-[11px] text-mute">{warranty.serial}</p>
+                        <p className="mt-1 font-mono text-xs text-mute">{warranty.serial}</p>
                         <p className="mt-0.5 text-xs text-mute">
                           {warranty.expiresAt ? `Vence ${fecha(warranty.expiresAt)}${warranty.daysRemaining != null ? ` · ${warranty.daysRemaining} días restantes` : ''}` : 'Sin vencimiento registrado'}
                         </p>

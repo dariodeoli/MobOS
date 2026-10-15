@@ -416,3 +416,47 @@ test('Precios y Compras: acciones de 44px debajo de lg (#20)', async ({ page }) 
     }
   }
 })
+
+// Productos (#396): sin el switch Productos|Unidades repetido (ya son pestañas del
+// shell), tarjetas en celular y tabla en escritorio, sin scroll horizontal.
+for (const [width, esperaTabla] of [
+  [375, false],
+  [1440, true],
+]) {
+  test(`Productos: ${esperaTabla ? 'tabla' : 'tarjetas'} sin switch repetido a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page)
+    await openShellDestination(page, 'Productos')
+    await settle(page)
+    await expect(page.getByTestId('barra-productos')).toBeVisible()
+    await expect(page.getByTestId('vista-productos-unidades')).toHaveCount(0)
+    await expect(page.getByTestId('catalogo-tabla')).toHaveCount(esperaTabla ? 1 : 0)
+    if (!esperaTabla) {
+      const tarjeta = page.getByRole('button', { name: /en stock/ }).first()
+      await expect(tarjeta).toBeVisible()
+      expect((await tarjeta.boundingBox()).height, 'tarjeta tocable').toBeGreaterThanOrEqual(44)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+  })
+}
+
+// Abastecimiento (#396): el título de la pantalla vive una sola vez (el H1 del shell);
+// ninguna tarjeta repite el mismo texto como H2.
+for (const destino of ['Por comprar', 'Preparar compra', 'Preparar lote', 'Recepción', 'Métricas de abastecimiento']) {
+  test(`${destino}: sin H1/H2 duplicados a 1440px (#396)`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await enterDemo(page)
+    await openShellDestination(page, destino)
+    await settle(page)
+    const titulos = await page.evaluate(() =>
+      [...document.querySelectorAll('main h1, main h2')].map(el => `${el.tagName}:${(el.textContent || '').trim().toLowerCase()}`),
+    )
+    const textos = titulos.map(t => t.split(':')[1])
+    const repetidos = textos.filter((t, i) => textos.indexOf(t) !== i)
+    expect(repetidos, `títulos repetidos: ${JSON.stringify(titulos)}`).toEqual([])
+    const h1 = await page.locator('h1').first().innerText()
+    for (const h2 of await page.locator('main h2').allInnerTexts()) {
+      expect(h2.trim().toLowerCase(), 'H2 igual al H1').not.toBe(h1.trim().toLowerCase())
+    }
+  })
+}

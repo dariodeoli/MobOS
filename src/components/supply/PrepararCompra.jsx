@@ -152,8 +152,7 @@ export default function PrepararCompra() {
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-semibold">Preparar compra</h2>
-            <p className="mt-1 text-sm text-mute">
+            <p className="text-sm text-mute">
               Compras con IMEI por completar: escaneá de a uno (lector Bluetooth/USB o cámara) o pegá varios.
               Los IMEI se validan con Luhn y no se aceptan repetidos.
             </p>

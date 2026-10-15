@@ -155,6 +155,7 @@ SQL
   RUC_PILOT_OWNER_EMAIL=dariodeoli@gmail.com RUC_API_KEY='' RUC_SUN_API_KEY='' \
   RUC_ACCOUNT_HOURLY_LIMIT=12 RUC_INSTALLATION_MONTHLY_LIMIT=90 \
   NODE_ENV=test MOBOS_APP_URL=https://app.moboss.online MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" \
+    MOBOS_STORAGE_DIR="$RUN_ROOT/storage" \
     MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" \
     MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID="it-v1" \
     MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON='{"it-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}' \
@@ -536,6 +537,16 @@ out="$(response_file)"; request PUT /api/tenant/cost-visibility 200 '{"sellerSee
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_product_cost_hidden "$out" prod-a-order-it || { echo "Apagado el permiso, el vendedor volvió a ver el costo." >&2; exit 1; }
 echo "4c/13 Permiso de costos para vendedores (encendido/apagado, solo dueño) OK..."
+# Fuente de cotización por empresa (#401): lectura para cualquier sesión, cambio solo del dueño, con auditoría.
+out="$(response_file)"; request GET /api/tenant/fx-settings 200 '' "$out" "$TOKEN_A" tenant-a-it
+node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));if(r.sales.source!=='cambioschaco'||r.sales.side!=='compra'||r.costs.source!=='cambioschaco'||r.costs.side!=='venta'||!r.sources.length)process.exit(1)" "$out" || { echo "La cotización no arrancó en Cambios Chaco (cobros: compra, costos: venta).">&2; exit 1; }
+FX_BODY='{"sales":{"source":"bcp","side":"compra"},"costs":{"source":"cambioschaco","side":"venta"}}'
+out="$(response_file)"; request PUT /api/tenant/fx-settings 403 "$FX_BODY" "$out" "$TOKEN_A" tenant-a-it
+out="$(response_file)"; request PUT /api/tenant/fx-settings 400 '{"sales":{"source":"inventada","side":"venta"},"costs":{"source":"bcp","side":"venta"}}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request PUT /api/tenant/fx-settings 200 "$FX_BODY" "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/tenant/fx-settings 200 '' "$out" "$TOKEN_A" tenant-a-it
+node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));if(r.sales.source!=='bcp'||r.sales.side!=='compra'||r.costs.source!=='cambioschaco')process.exit(1)" "$out" || { echo "La fuente de cotización guardada no se leyó." >&2; exit 1; }
+echo "4c/13 bis Fuente de cotización por empresa (solo dueño) OK..."
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$ADMIN_TOKEN" tenant-a-it
@@ -566,10 +577,14 @@ node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "
 node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" branch-a-it "$RUC_PILOT_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+echo "Lib de traslado y de seriales en pedidos dentro de una transacción (#408)..."
+(cd "$BACKEND_ROOT" && node tests/lib-traslado-seriales.cjs)
 node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/stock-unificado.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 # #400 (A): código interno de unidad (trigger), ciclos/garantía, íconos y sigla.
 node "$BACKEND_ROOT/tests/unit-code.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
+echo "Consulta de IMEI: requestId por empresa y una sola llamada al proveedor (#193)..."
+node "$BACKEND_ROOT/tests/imei-request-id.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 
 echo "Sucursal efectiva: un vendedor sin sucursal ve catálogo, unidades y vende (#286)..."
 node "$BACKEND_ROOT/tests/sucursal-efectiva.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
@@ -622,6 +637,8 @@ echo "Conciliación por cuenta/procesadora: lote recibido vs esperado, diferenci
 node "$BACKEND_ROOT/tests/reconciliation-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/attachments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
+echo "Fotos de producto: alta por magic bytes, orden, principal, baja lógica y aislamiento por empresa (#404)..."
+node "$BACKEND_ROOT/tests/product-images.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$ADMIN_TOKEN_C" "$RUN_ROOT/storage"
 node "$BACKEND_ROOT/tests/history-timelines.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 echo "Seguimiento del informe compartido: envío, visto/no visto y apertura desde el portal..."
 node "$BACKEND_ROOT/tests/device-report-tracking.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
@@ -806,6 +823,12 @@ node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" 
 # Después de las suites de repuestos (cuentan los suyos) y antes del logout de las sesiones.
 echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
 node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
+
+echo "Llegada de mercadería: pegado, conciliación y confirmación por destino (#408)..."
+node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
+
+echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
+node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"

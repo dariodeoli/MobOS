@@ -30,14 +30,7 @@ function SinApi() {
   const navigate = useNavigate()
   return (
     <div className="space-y-4">
-      <BarraModulo
-        icono="settings"
-        titulo="Centro de Control"
-        descripcion="Cargá la lista de precios por modelo y las fotos reales del comparador."
-        testId="barra-centro-control"
-      >
-        <SegmentosToolbar />
-      </BarraModulo>
+      <BarraModulo titulo="Centro de Control" testId="barra-centro-control" segmentos={<SegmentosToolbar />} />
       <Card className="mx-auto max-w-2xl p-5" data-testid="centro-control-sin-api">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-fono/10 text-fono-light">
           <Icon name="info" className="h-5 w-5" />
@@ -353,14 +346,7 @@ export default function CentroControl() {
 
   return (
     <div className="space-y-4">
-      <BarraModulo
-        icono="settings"
-        titulo="Centro de Control"
-        descripcion="La lista de precios por modelo y las fotos reales que alimentan Lista por modelo y Comparador."
-        testId="barra-centro-control"
-      >
-        <SegmentosToolbar />
-      </BarraModulo>
+      <BarraModulo titulo="Centro de Control" testId="barra-centro-control" segmentos={<SegmentosToolbar />} />
       <Subtabs
         value={seccion}
         onChange={(id) => setParams(id === 'imagenes' ? { seccion: 'imagenes' } : {}, { replace: true })}

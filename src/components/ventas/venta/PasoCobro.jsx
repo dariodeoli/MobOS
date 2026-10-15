@@ -9,7 +9,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
-import { pagaAlRecibirVigente } from '@/utils/cobroPos'
+import { empresasRecientes, pagaAlRecibirVigente } from '@/utils/cobroPos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
@@ -69,6 +69,7 @@ export default function PasoCobro({
   // «Paga al recibir» (#390): no se pide el medio todavía; el pedido queda
   // pendiente y se cobra después desde la lista de pedidos.
   const pagaAlRecibir = pagaAlRecibirVigente(pagaAlRecibirActivo, pagos)
+  const direccionesGuardadas = (customer?.addresses || []).filter(d => d?.id)
   const [confirmarPaga, setConfirmarPaga] = useState(false)
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
   const sinPago = totalPagado <= 0
@@ -144,7 +145,8 @@ export default function PasoCobro({
               type="checkbox"
               role="switch"
               className="h-4 w-4 shrink-0 accent-fono"
-              checked={venderACredito}
+              checked={venderACredito && !customer.blocked}
+              disabled={Boolean(customer.blocked)}
               onChange={e => setVenderACredito(e.target.checked)}
             />
             <span className="min-w-0">
@@ -153,6 +155,7 @@ export default function PasoCobro({
                 límite {gs(Number(customer.creditLimitPyg))}
                 {customer.creditDays ? ` · plazo ${customer.creditDays} días` : ''}
               </span>
+              {customer.blocked ? <span className="ml-2 text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
             </span>
           </label>
           {venderACredito && (
@@ -214,6 +217,49 @@ export default function PasoCobro({
           </div>
         )}
       </div>
+
+      {/* Encomienda (#399): empresa, sucursal de destino y dirección del cliente. */}
+      {f.entrega === 'Encomienda' && (
+        <div data-testid="pos-encomienda" className="flex flex-wrap items-end gap-3">
+          <div className="w-full md:w-56">
+            <Label htmlFor="enc-empresa">Empresa</Label>
+            <Input
+              id="enc-empresa"
+              list="enc-empresas"
+              maxLength={120}
+              autoComplete="off"
+              value={f.encEmpresa || ''}
+              onChange={e => setF(s => ({ ...s, encEmpresa: e.target.value }))}
+              placeholder="Ej. Nuestra Señora"
+            />
+            <datalist id="enc-empresas">
+              {empresasRecientes().map(nombre => <option key={nombre} value={nombre} />)}
+            </datalist>
+          </div>
+          <div className="w-full md:w-56">
+            <Label htmlFor="enc-sucursal">Sucursal destino</Label>
+            <Input
+              id="enc-sucursal"
+              maxLength={200}
+              autoComplete="off"
+              value={f.encSucursal || ''}
+              onChange={e => setF(s => ({ ...s, encSucursal: e.target.value }))}
+              placeholder="Ej. Ciudad del Este"
+            />
+          </div>
+          {direccionesGuardadas.length > 0 && (
+            <div className="w-full md:w-72">
+              <Label htmlFor="enc-direccion">Dirección</Label>
+              <Select id="enc-direccion" value={f.encDireccionId || ''} onChange={e => setF(s => ({ ...s, encDireccionId: e.target.value }))}>
+                <option value="">Sin dirección</option>
+                {direccionesGuardadas.map(d => (
+                  <option key={d.id} value={d.id}>{[d.label, d.address, d.city].filter(Boolean).join(' · ')}</option>
+                ))}
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* La nota sigue editable detrás de un enlace. */}
       <details className="inicio-disclosure">

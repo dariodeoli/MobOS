@@ -13,6 +13,8 @@ const between = (text, start, end) => text.slice(text.indexOf(start), text.index
 test('Clientes preserves create/import/export payloads, validation and original form', () => {
   // Intentional fiscal-identity additions are covered by customerIdentity tests.
   // Keep fingerprints for unchanged import/export and reviewed create/profile blocks.
+  // #389: the create modal markup (Identidad/Contacto/Direcciones, CountrySelect, widths)
+  // was restructured on purpose; the create/export/import handlers keep their fingerprints.
   const originalHandlers = seller
     .replace('; setResumenRevision((value) => value + 1)', '')
     .replace('      setResumenRevision((value) => value + 1)\n', '')
@@ -34,8 +36,8 @@ test('Clientes preserves create/import/export payloads, validation and original 
     ],
     [
       '    <Modal open={crearAbierto}',
-      '    </>}',
-      '89bea545805bc6d12f2c6af605d4e98266828c83ce05cb502d0d2d8cac64768c',
+      '    </>\n    </div>\n  </SellerSection>',
+      'c09a990549c6c4401e6d6c13312d19853fd67b42914c069f977e89468c9c21ad',
     ],
   ])
     assert.equal(digest(between(originalHandlers, start, end)), expected)
@@ -43,7 +45,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
 
 test('Clientes preserves reviewed fiscal profile and unchanged summary/communication engines', () => {
   for (const [file, expected] of [
-    ['CustomerProfile.jsx', '1428ef73f92153b9f543f0265a23891bae5fd4eb980f38c6766603ca1ea56364'],
+    ['CustomerProfile.jsx', 'a48efa99634260cd62678de5f3d89ee8dda7da953db478f379c1ebaa2fe1c5ad'],
     ['ClienteResumenPopup.jsx', 'a12e1ed5afa6d281167d0f105f573f3eac7b9d3054e64371a3eb09193163c98a'],
     [
       'CustomerCommunicationCard.jsx',
@@ -59,10 +61,9 @@ test('Clientes preserves reviewed fiscal profile and unchanged summary/communica
     "['ADMIN', 'GERENTE'].includes(usuario?.role)",
   ])
     assert.ok(seller.includes(contract), contract)
-  assert.ok(
-    seller.indexOf('aria-label="Secciones de clientes"') <
-      seller.indexOf("seccion === 'campanas' ?"),
-  )
+  // Campañas es una pestaña de la fila única de Clientes (no una segunda fila).
+  assert.ok(!seller.includes('aria-label="Secciones de clientes"'))
+  assert.ok(seller.includes('export function CampanasVista'))
 })
 
 test('Clientes preserves bulk export/copy/merge, page sorting and server pagination', () => {
@@ -99,7 +100,7 @@ test('Clientes explicitly separates unavailable tenant summary from loaded page 
     'controller.abort()',
     'controller.signal.aborted',
     'resumenV2.porCobrar',
-    "alcance: 'En pantalla'",
+    "pista={!esDemo",
     'Resumen de tienda no disponible',
   ])
     assert.ok(seller.includes(contract), contract)
@@ -128,4 +129,12 @@ test('Clientes scoped presentation supports readable full amounts and keyboard m
     assert.ok(table.includes(contract), contract)
   assert.ok(!css.includes('.shell-'))
   assert.ok(!css.includes('perfil-'))
+})
+
+test('Clientes: el vacío vive debajo del encabezado y sin filtros es una tarjeta con «Crear cliente»', () => {
+  const despues = table.indexOf("encabezado('deuda'")
+  assert.ok(despues > 0 && table.indexOf('{!filas.length && vacio}', despues) > despues, 'el aviso va tras el encabezado')
+  assert.ok(seller.includes('data-testid="clientes-vacio"'))
+  assert.ok(seller.includes('Ningún cliente coincide') && seller.includes('Limpiar filtros'))
+  assert.ok(!seller.includes('<SellerFeedback {...data} empty={!rows.length} />'), 'sin «No hay resultados.» flotando sobre la tabla')
 })

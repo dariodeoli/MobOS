@@ -13,6 +13,7 @@ import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketComprobanteRecepcion, ticketManifiesto } from '@/lib/printing/tickets'
 import { buildManifiestoHtml, printComprobanteRecepcion } from '@/components/shared/OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
+import LlegadaLote from './LlegadaLote'
 
 // Abastecimiento · F5 (#250 §11): UI de recepción.
 // Llegadas pendientes → abrir (o retomar) por lote / código / token del QR →
@@ -70,6 +71,8 @@ export default function Recepcion() {
   const [imprimiendo, setImprimiendo] = useState(false)
   const [manifiestoBusy, setManifiestoBusy] = useState(false)
   const [busy, setBusy] = useState(false)
+  // #408 G: llegada de mercadería pegada desde la planilla.
+  const [nuevaLlegada, setNuevaLlegada] = useState(false)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -345,7 +348,7 @@ export default function Recepcion() {
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h2 className="font-semibold">Recepción confirmada · {confirmada.recepcion?.shipment?.code || ''}</h2>
-            <p className="mt-1 text-sm text-mute">
+            <p className="text-sm text-mute">
               {creadas} unidad(es) entraron al stock en {confirmada.recepcion?.location?.name || 'el depósito elegido'}.
               {confirmada.estadoLote === 'RECEPCION_PARCIAL' ? ' El lote quedó parcial: lo faltante sigue pendiente de llegada.' : ''}
               {confirmada.estadoLote === 'CON_INCIDENCIA' ? ' El lote quedó con incidencias registradas.' : ''}
@@ -540,19 +543,24 @@ export default function Recepcion() {
     )
   }
 
+  // ── Nueva llegada (pegado de la planilla) ───────────────────────────────
+  if (nuevaLlegada) return <LlegadaLote onVolver={() => { setNuevaLlegada(false); cargar() }} />
+
   // ── Llegadas pendientes ─────────────────────────────────────────────────
   return (
     <div className="space-y-4" data-testid="recepcion">
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-semibold">Recepción de compras</h2>
             <p className="mt-1 text-sm text-mute">
               Lotes en camino: escaneá contra el manifiesto, marcá incidencias con nota y elegí el depósito.
               El stock entra recién al confirmar; lo que no llegó queda faltante.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={() => setNuevaLlegada(true)} data-testid="recepcion-nueva-llegada">
+              <Icon name="plus" className="h-3.5 w-3.5" />Nueva llegada
+            </Button>
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
               <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
             </Button>

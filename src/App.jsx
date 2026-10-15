@@ -343,6 +343,7 @@ export default function App() {
           <Route path="/clientes" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/productos" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/promociones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          <Route path="/campanas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/precios" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           {/* Abastecimiento F1 (#254): panel «Por comprar» (dueño/gerencia). */}
           <Route path="/abastecimiento" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />

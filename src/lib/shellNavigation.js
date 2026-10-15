@@ -41,6 +41,7 @@ export const PRIMARY_SECTIONS = [
     icon: 'users',
     groups: [
       ['clientes', null, ['clientes']],
+      ['campanas', 'Campañas', ['campanas']],
       ['promociones', null, ['promociones']],
       ['plantillas', null, ['plantillas']],
     ],

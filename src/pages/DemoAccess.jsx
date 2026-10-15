@@ -90,7 +90,7 @@ export default function DemoAccess() {
             >
               <span className="flex items-center justify-between gap-1">
                 <span className="truncate text-sm font-bold leading-5 text-fore">{profile.nombre}</span>
-                <span className="shrink-0 rounded-md bg-fono-dark/10 px-1.5 py-px font-mono text-[11px] font-bold tracking-widest text-fono-dark">{profile.pin}</span>
+                <span className="shrink-0 rounded-md bg-fono-dark/10 px-1.5 py-px font-mono text-xs font-bold tracking-widest text-fore">{profile.pin}</span>
               </span>
               <span className="mt-0.5 block text-xs font-medium leading-4 text-mute">{profile.description}</span>
               <span className="block truncate text-xs leading-4 text-mute">{profile.persona}</span>

@@ -92,7 +92,9 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
   // El control nativo del navegador muestra "No file chosen" en inglés: la
   // unica aparicion de un input de archivo debe ser la del objeto compartido,
   // que lo esconde y ofrece un boton propio en espanol.
-  const permitidos = new Set(['components/shared/AttachmentInput.jsx'])
+  // La galería de fotos de producto (#404) necesita varios archivos, cámara y
+  // soltar archivos: el input también está oculto y con botones en español.
+  const permitidos = new Set(['components/shared/AttachmentInput.jsx', 'components/productos/GaleriaFotosProducto.jsx'])
   const culpables = archivosFuente()
     .filter((archivo) => /type="file"/.test(archivo.contenido) && !permitidos.has(archivo.ruta))
     .map((archivo) => archivo.ruta)
@@ -112,7 +114,7 @@ const DEUDA_BIBLIOTECA = new Set([
 // Adaptadores (#253): la UI es de la biblioteca y la app solo aporta la capa de
 // datos o la normalización propia. No son puentes (tienen lógica), pero no
 // reimplementan la interfaz.
-const ADAPTADORES = new Set(['RucField', 'CityAutocomplete', 'SerialField', 'Cronologia'])
+const ADAPTADORES = new Set(['RucField', 'CityAutocomplete', 'SerialField', 'Cronologia', 'EmailField', 'PhoneField'])
 
 const LIB_COMPONENTES = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
 const LIB_INDEX = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/index.js', import.meta.url))
@@ -139,10 +141,10 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
   // y lote 35 los 15 objetos idénticos: campos, chips, QR y vista previa).
   const puentes = [
     'BarraLote', 'BotonDentroCampo', 'ChipEstado', 'ChipsLocks', 'CodigoQr',
-    'CurrencySelect', 'EmailField', 'EstadoBadge', 'FichaCertificado',
+    'CurrencySelect', 'EstadoBadge', 'FichaCertificado',
     'GradoBadge', 'Icon', 'IconoCategoria', 'InstagramField', 'ListGridToggle',
     'MedidorBateria', 'NumericKeypad', 'PanelDerecho', 'PegarEnlaceToken',
-    'PercentField', 'PeriodoTabs', 'PhoneField', 'ProductCombobox',
+    'PercentField', 'PeriodoTabs', 'ProductCombobox',
     'SearchField', 'SeccionColapsable', 'SegmentedField', 'SemaforoItem',
     'SerialTexto', 'Switch', 'VistaPreviaPapel',
   ]
@@ -156,6 +158,9 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
 test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
   const adaptadores = {
     CityAutocomplete: { propio: /api\.get\(`\/api\/geo\/cities/, prohibido: /<Input\b|<ul\b/ },
+    // #389: el ancho de campo vive en el componente compartido (docs/CAMPOS.md §2.1).
+    EmailField: { propio: /ANCHO_CAMPO\.correo/, prohibido: /<Input\b|<ul\b/ },
+    PhoneField: { propio: /ANCHO_CAMPO\.telefono/, prohibido: /<Input\b|<ul\b/ },
     SerialField: { propio: /leerEtiqueta/, prohibido: /<Input\b/ },
     Cronologia: { propio: /api\s*\n?\s*\.get\(endpoint\)/, prohibido: /<Skeleton\b|<EmptyState\b|<ol\b/ },
   }

@@ -88,7 +88,11 @@ test('los accesos del pedido respetan el nivel y se pueden regenerar', async ({ 
   // La vista pública del nivel abre con el token nuevo.
   await page.goto(`/p/${rotado.body.token}`)
   await expect(page.getByText('Comprobante rápido')).toBeVisible()
-  await expect(page.getByText('Pendiente', { exact: true })).toBeVisible()
+  // El saldo del nivel rápido vive en el resumen de totales: «Saldo pendiente …»
+  // o «Pagado por completo», según el pendiente que informa el payload base.
+  const resumen = page.getByTestId('resumen-totales')
+  await expect(resumen).toBeVisible()
+  await expect(resumen).toContainText(publicoRapido.body.pendingPyg > 0 ? 'Saldo pendiente' : 'Pagado por completo')
 
   // El nivel rápido también informa el crédito (saldo, plazo y vencimiento) en
   // la vista digital: el campo viaja en el payload base.

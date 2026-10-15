@@ -107,25 +107,12 @@ export default function Celulares() {
     <div className="space-y-4">
       {/* #278 · composición compacta (#256): la identidad y las acciones viven
           en la barra; la tarjeta exportable queda intacta para compartir. */}
-      <BarraModulo
-        icono="tag"
-        titulo="Lista por modelo"
-        descripcion="Precios de nuevos y semi-nuevos por modelo y capacidad, listos para compartir con el cliente."
-        testId="barra-celulares"
-      >
-        <SegmentosToolbar />
+      <BarraModulo titulo="Lista por modelo" testId="barra-celulares" segmentos={<SegmentosToolbar />}>
         <Button variant="success" onClick={exportar} disabled={!conPrecio.length || exportando}>
           <Icon name="share" className="h-4 w-4" />{exportando ? 'Generando…' : 'Compartir por WhatsApp'}
         </Button>
-        <Button variant="outline" onClick={() => navigate('/comparador')}>
-          <Icon name="report" className="h-4 w-4" />Comparar
-        </Button>
-        {/* #303: el Centro de Control es la fuente de esta lista y se llega
-            desde acá, además del menú y la búsqueda. */}
-        <Button variant="outline" onClick={() => navigate('/centro-control')} data-testid="ir-centro-control">
-          <Icon name="settings" className="h-4 w-4" />Centro de Control
-        </Button>
       </BarraModulo>
+      <p className="text-xs text-mute">Precios de nuevos y semi-nuevos por modelo y capacidad, listos para compartir con el cliente.</p>
 
       <main className="mx-auto max-w-3xl space-y-4">
         {!conPrecio.length && (

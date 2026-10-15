@@ -14,7 +14,7 @@ export const POS_DEBOUNCE_MS = 300
 
 const enLinea = () => typeof navigator === 'undefined' || navigator.onLine !== false
 
-export function usePosCatalogoServidor({ q = '', habilitado = true, tamano = POS_TAMANO_PAGINA, debounceMs = POS_DEBOUNCE_MS } = {}) {
+export function usePosCatalogoServidor({ q = '', accesorio = '', habilitado = true, tamano = POS_TAMANO_PAGINA, debounceMs = POS_DEBOUNCE_MS } = {}) {
   const revision = useAlmacenRevision()
   const [consulta, setConsulta] = useState(() => q.trim())
   const [pagina, setPagina] = useState(1)
@@ -51,7 +51,7 @@ export function usePosCatalogoServidor({ q = '', habilitado = true, tamano = POS
     const id = ++pedido.current
     setCargando(true)
     resources.products
-      .page({ q: consulta, page: pagina, pageSize: tamano })
+      .page({ q: consulta, page: pagina, pageSize: tamano, accessoryCategory: accesorio })
       .then(res => {
         if (id !== pedido.current) return
         const items = Array.isArray(res?.items) ? res.items.map(mapProductoApi) : []
@@ -67,7 +67,10 @@ export function usePosCatalogoServidor({ q = '', habilitado = true, tamano = POS
     return () => {
       pedido.current += 1
     }
-  }, [habilitado, conexion, consulta, pagina, tamano, revision])
+  }, [habilitado, conexion, consulta, pagina, tamano, revision, accesorio])
+
+  // Cambiar de categoría vuelve a la primera página.
+  useEffect(() => { setPagina(1) }, [accesorio])
 
   // Si la página pedida quedó vacía (se borraron productos), vuelve a la primera.
   useEffect(() => {

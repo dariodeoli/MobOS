@@ -4,7 +4,9 @@ import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Aviso, Button, Input, Modal, MoneyInput, SaveActions, Select, Textarea, useResultado } from '@/components/ui'
+import { Aviso, Button, ConfirmDialog, EmptyState, IconAction, Input, Modal, MoneyInput, SaveActions, Select, Textarea, useResultado } from '@/components/ui'
+import CountrySelect from '@/components/shared/CountrySelect'
+import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
 import PhoneField from '@/components/shared/PhoneField'
@@ -101,10 +103,7 @@ export function readDemoCustomers() {
 }
 
 export default function SellerCustomers() {
-  const { esDemo, usuario, empresa, sucursal, sesion } = useSesion()
-  // Campañas: solo administración/gerencia y solo con datos reales.
-  const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
-  const [seccion, setSeccion] = useState('clientes')
+  const { esDemo } = useSesion()
   // La búsqueda global abre la sección con ?q= y, si eligió un cliente puntual,
   // con ?cliente=<id> para abrir su ficha directo.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -115,6 +114,7 @@ export default function SellerCustomers() {
   const busquedaDiferida = useBusquedaDiferida(query)
   const [form, setForm] = useState(emptyCustomer)
   const [saving, setSaving] = useState(false)
+  const [quitarDireccion, setQuitarDireccion] = useState(null)
   const savingRef = useRef(false)
   const [saveError, setSaveError] = useState('')
   const avisar = useResultado()
@@ -279,6 +279,22 @@ export default function SellerCustomers() {
   }
 
   const filasImportadas = filasParaImportar(importTexto)
+  // Vacío (Shopify): sin filtros ni búsqueda es una tarjeta con «Crear cliente»
+  // y sin encabezado; con filtros, el encabezado queda y el aviso va debajo.
+  const hayFiltro = Boolean(search) || filtro !== 'todos'
+  const sinClientes = !data.loading && !data.error && !rows.length && !hayFiltro
+  const limpiarFiltros = () => { setSearch(''); setQuery(''); setFiltro('todos') }
+  const vacioFiltrado = !rows.length && hayFiltro ? (
+    <div data-testid="clientes-sin-coincidencias">
+      <EmptyState
+        compact
+        icon="search"
+        title="Ningún cliente coincide"
+        description="Probá con otro nombre, teléfono o RUC."
+        action={<Button type="button" variant="outline" onClick={limpiarFiltros}>Limpiar filtros</Button>}
+      />
+    </div>
+  ) : null
   const resumenMostrar = esDemo ? { total: rows.length, wholesalers: rows.filter((row) => row.wholesale).length, retail: rows.filter((row) => !row.wholesale).length } : resumen
   // Vista previa v2 (#241): resumen de la lista en tiles —clientes listados,
   // con deuda y saldo por cobrar— con los números de consola.
@@ -322,10 +338,7 @@ export default function SellerCustomers() {
 
   return <SellerSection title="Clientes">
     <div className="clientes-f3">
-    {puedeCampanas && <nav aria-label="Secciones de clientes" className="clientes-f3-secciones">
-      {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)}>{label}</button>)}
-    </nav>}
-    {puedeCampanas && seccion === 'campanas' ? <CampanasClientes templates={plantillasClientes} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} /> : <>
+    <>
     {' '}
     <Toolbar
       plano
@@ -395,21 +408,12 @@ export default function SellerCustomers() {
       <ResumenMetricas
         testId="resumen-clientes"
         className="clientes-f3-summary"
+        pista={!esDemo && (data.hayMas || hayFiltro || Number(resumenMostrar?.total) > rows.length) ? 'Deuda: clientes en pantalla' : undefined}
         items={[
-          {
-            titulo: 'Clientes',
-            valor: resumenMostrar?.total ?? '—',
-            alcance: esDemo ? 'En pantalla' : 'Tienda',
-            nota: esDemo ? undefined : `${rows.length} en pantalla`,
-          },
-          {
-            titulo: 'Mayoristas',
-            valor: resumenMostrar?.wholesalers ?? '—',
-            alcance: esDemo ? 'En pantalla' : 'Tienda',
-            nota: resumenMostrar ? undefined : resumenCargando ? 'Cargando…' : 'No disponible',
-          },
-          { titulo: 'Con deuda', valor: resumenV2.conDeuda, alcance: 'En pantalla' },
-          { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar), alcance: 'En pantalla' },
+          { titulo: 'Clientes', valor: resumenMostrar?.total ?? '—' },
+          { titulo: 'Mayoristas', valor: resumenMostrar?.wholesalers ?? '—' },
+          { titulo: 'Con deuda', valor: resumenV2.conDeuda },
+          { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar) },
         ].map((item) => ({ ...item, tono: 'clientes-f3-value' }))}
       />
     </div>
@@ -418,7 +422,7 @@ export default function SellerCustomers() {
         Resumen de tienda no disponible. Los importes corresponden solo a los clientes en pantalla.
       </p>
     )}
-    <SellerFeedback {...data} empty={!rows.length} />
+    <SellerFeedback {...data} empty={false} />
     {seguimientos.length > 0 && (
       <section className="clientes-f3-followups rounded-xl border border-warn/25 bg-warn/5 p-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-warn">Seguimientos para hoy ({seguimientos.length})</h3>
@@ -433,8 +437,19 @@ export default function SellerCustomers() {
         ))}</div>
       </section>
     )}
+    {sinClientes && (
+      <div data-testid="clientes-vacio" className="rounded-xl border border-ink-600 bg-ink-800">
+        <EmptyState
+          icon="users"
+          title="Todavía no tenés clientes"
+          description="Creá tu primer cliente o importá tu lista para vender a crédito y seguir sus compras."
+          action={<Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>}
+        />
+      </div>
+    )}
+    {!data.loading && !data.error && !sinClientes && vista === 'grid' && !rows.length && vacioFiltrado}
     {!data.loading && !data.error && vista === 'grid' && <ul className={cn(GRILLA_DOS_COLUMNAS, 'clientes-f3-grid')}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
+    {!data.loading && !data.error && !sinClientes && vista === 'list' && <ClientesTabla vacio={vacioFiltrado} rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
     {!data.loading && !data.error && data.hayMas && <div className="clientes-f3-pagination flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} />
     {/* Unificar duplicados (#268) desde la selección de la lista: dos fichas. */}
@@ -470,7 +485,7 @@ export default function SellerCustomers() {
           <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required={!form.nameOfficial} autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
           <label className="block space-y-2"><span>Segundo nombre <small className="text-mute">(opcional)</small></span><Input maxLength={120} disabled={saving} value={form.secondName} onChange={(event) => setForm({ ...form, secondName: event.target.value })} /></label>
         </div>
-        <div className={GRILLA_DOS_COLUMNAS}><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => setForm((actual) => acceptedCustomerIdentity(actual, datos))} esDemo={esDemo} /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
+        <fieldset className="space-y-2"><legend className={ROTULO_SECCION}>Identidad</legend><GrillaCampos><Campo como="div" rotulo={<>RUC o CI <small className="text-mute">(opcional)</small></>}><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => setForm((actual) => acceptedCustomerIdentity(actual, datos))} esDemo={esDemo} /></Campo></GrillaCampos></fieldset>
         {form.nameOfficial !== undefined && <p className="whitespace-pre-wrap rounded-xl border border-fore/10 p-3 text-sm"><b>Nombre fiscal aceptado:</b> {form.nameOfficial}</p>}
         <label className="block space-y-2"><span>Tipo de identidad (revisión manual)</span><Select disabled={saving} value={form.identityKind} onChange={(event) => setForm({ ...form, identityKind: event.target.value, givenNames: '', surnames: '', personConfirmed: false })}><option value="">Sin confirmar</option><option value="COMPANY">Empresa</option><option value="PERSON">Persona: revisar nombres y apellidos</option></Select></label>
         {form.identityKind === 'PERSON' && <fieldset className="space-y-3 rounded-xl border border-fore/10 p-3">
@@ -500,8 +515,8 @@ export default function SellerCustomers() {
           <label className="block space-y-2"><span>Límite de crédito (Gs)</span><MoneyInput disabled={saving} value={form.creditLimitPyg} onValueChange={(value) => setForm({ ...form, creditLimitPyg: value })} placeholder="0 = sin crédito" /></label>
           <label className="block space-y-2"><span>Plazo de crédito (días)</span><Input inputMode="numeric" disabled={saving} value={form.creditDays} onChange={(event) => setForm({ ...form, creditDays: event.target.value.replace(/\D/g, '') })} placeholder="Ej. 30" /></label>
         </div>
-        <fieldset className="space-y-2"><legend>Teléfonos</legend>{form.phones.map((phone, index) => <div className="flex gap-2" key={`phone-${index}`}><PhoneField className="min-w-0 flex-1" countryCode={form.countryCode || '+595'} phone={phone} disabled={saving} placeholder={index === 0 ? '0981 123 456' : 'Otro teléfono'} phoneAriaLabel={index === 0 ? 'Teléfono' : 'Otro teléfono'} onCountryCodeChange={(countryCode) => setForm({ ...form, countryCode })} onChange={(value) => setForm({ ...form, phones: form.phones.map((item, itemIndex) => itemIndex === index ? value : item) })} />{form.phones.length > 1 && <button type="button" className="rounded-xl border border-fore/15 px-3 text-sm" onClick={() => setForm({ ...form, phones: form.phones.filter((_, itemIndex) => itemIndex !== index) })}>Quitar</button>}</div>)}{form.phones.length < 5 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, phones: [...form.phones, ''] })}>+ Añadir teléfono</button>}</fieldset>
-        <fieldset className="space-y-3"><legend>Direcciones</legend>{form.addresses.map((address, index) => <div className="grid gap-2 rounded-xl border border-fore/10 p-3 sm:grid-cols-2" key={`address-${index}`}><div className="flex gap-2"><Input maxLength={80} disabled={saving} value={address.label} placeholder="Etiqueta: Casa, oficina…" onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} /><Input maxLength={100} disabled={saving} autoCapitalize="words" value={address.country ?? 'Paraguay'} placeholder="País" aria-label="País" onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, country: capitalizarPrimera(event.target.value) } : item) })} /></div><div className="space-y-1"><CityAutocomplete esDemo={esDemo} disabled={saving} value={address.city || ''} onSelect={(city, department) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, city, department } : item) })} />{address.department && <p className="px-1 text-xs text-fono-light">Departamento: {address.department}</p>}</div><Input maxLength={400} className="sm:col-span-2" disabled={saving} autoCapitalize="sentences" value={address.address} placeholder={esDemo ? 'Dirección de prueba' : 'Dirección completa'} onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, address: capitalizarPrimera(event.target.value) } : item) })} />{form.addresses.length > 1 && <button type="button" className="text-left text-sm text-bad" onClick={() => setForm({ ...form, addresses: form.addresses.filter((_, itemIndex) => itemIndex !== index) })}>Quitar dirección</button>}</div>)}{form.addresses.length < 10 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, addresses: [...form.addresses, { label: '', address: '', city: '', department: '', country: 'Paraguay' }] })}>+ Añadir dirección</button>}</fieldset>
+        <fieldset className="space-y-2"><legend className={ROTULO_SECCION}>Contacto</legend><GrillaCampos>{form.phones.map((phone, index) => <Campo como="div" ancho="telefono" key={`phone-${index}`} rotulo={<span className="flex items-center justify-between gap-2"><span>{index === 0 ? 'Teléfono' : 'Otro teléfono'}</span>{form.phones.length > 1 && <button type="button" className="min-h-11 px-1 text-xs font-semibold text-bad md:min-h-0" onClick={() => setForm({ ...form, phones: form.phones.filter((_, itemIndex) => itemIndex !== index) })}>Quitar</button>}</span>}><PhoneField countryCode={form.countryCode || '+595'} phone={phone} disabled={saving} placeholder={index === 0 ? '0981 123 456' : 'Otro teléfono'} phoneAriaLabel={index === 0 ? 'Teléfono' : 'Otro teléfono'} onCountryCodeChange={(countryCode) => setForm({ ...form, countryCode })} onChange={(value) => setForm({ ...form, phones: form.phones.map((item, itemIndex) => itemIndex === index ? value : item) })} /></Campo>)}<Campo ancho="correo" rotulo={<>Correo <small className="text-mute">(opcional)</small></>}><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></Campo></GrillaCampos>{form.phones.length < 5 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, phones: [...form.phones, ''] })}>+ Añadir teléfono</button>}</fieldset>
+        <fieldset className="space-y-3"><legend className={ROTULO_SECCION}>Direcciones</legend>{form.addresses.map((address, index) => <div className="space-y-3 rounded-xl border border-fore/10 p-3" key={`address-${index}`}><GrillaCampos><Campo ancho="etiqueta" rotulo="Etiqueta"><Input maxLength={80} disabled={saving} value={address.label} placeholder="Casa, oficina…" onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} /></Campo><Campo como="div" ancho="pais" rotulo="País"><CountrySelect disabled={saving} value={address.country ?? 'Paraguay'} onChange={(country) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, country: country } : item) })} /></Campo><Campo como="div" ancho="ciudad" rotulo="Ciudad"><CityAutocomplete esDemo={esDemo} disabled={saving} value={address.city || ''} onSelect={(city, department) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, city, department } : item) })} />{address.department && address.department.trim().toLowerCase() !== String(address.city || '').trim().toLowerCase() && <p className="px-1 pt-1 text-xs text-fono-light">Departamento: {address.department}</p>}</Campo></GrillaCampos><div className="flex flex-col gap-2 md:flex-row md:items-end"><GrillaCampos className="min-w-0 flex-1"><Campo ancho="flexible" rotulo="Dirección"><Input maxLength={400} disabled={saving} autoCapitalize="sentences" value={address.address} placeholder={esDemo ? 'Dirección de prueba' : 'Dirección completa'} onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, address: capitalizarPrimera(event.target.value) } : item) })} /></Campo></GrillaCampos>{form.addresses.length > 1 && <div className="self-end"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => (address.address || address.city || address.notes ? setQuitarDireccion(index) : setForm({ ...form, addresses: form.addresses.filter((_, itemIndex) => itemIndex !== index) }))} /></div>}</div></div>)}{form.addresses.length < 10 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, addresses: [...form.addresses, { label: '', address: '', city: '', department: '', country: 'Paraguay' }] })}>+ Añadir dirección</button>}<ConfirmDialog open={quitarDireccion !== null} title="¿Quitar esta dirección?" description="Se elimina de la ficha cuando guardes el cliente." confirmLabel="Quitar dirección" variant="danger" onCancel={() => setQuitarDireccion(null)} onConfirm={() => { setForm({ ...form, addresses: form.addresses.filter((_, itemIndex) => itemIndex !== quitarDireccion) }); setQuitarDireccion(null) }} /></fieldset>
         <div className="grid gap-3 rounded-xl border border-fore/10 p-3 sm:grid-cols-2">
           <fieldset className="space-y-1.5"><legend className={ROTULO_SECCION}>Marketing (solo si acepta)</legend>{[['acceptsWhatsappMarketing', 'WhatsApp'], ['acceptsSmsMarketing', 'SMS'], ['acceptsEmailMarketing', 'Email']].map(([key, label]) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.checked })} />{label}</label>)}</fieldset>
           <div className="space-y-3"><label className="block space-y-2"><span>Tipo de cliente</span><Select disabled={saving} value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Cliente final</option><option value="WHOLESALE">Mayorista (precio mayorista en el POS)</option></Select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.taxExempt} onChange={(event) => setForm({ ...form, taxExempt: event.target.checked })} />Exento de impuestos</label><label className="block space-y-2"><span>Etiquetas <small className="text-mute">(separadas por coma)</small></span><Input maxLength={200} disabled={saving} value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="Ej: mayorista, prioridad" /></label></div>
@@ -510,7 +525,21 @@ export default function SellerCustomers() {
         {saveError && <p role="alert" className="text-bad">{saveError}</p>}
       </form>
     </Modal>
-    </>}
+    </>
+    </div>
+  </SellerSection>
+}
+
+// Campañas de recompra: pestaña propia de la fila única de Clientes (solo
+// administración/gerencia y solo con datos reales; la ruta es /campanas).
+export function CampanasVista() {
+  const { esDemo, usuario, empresa, sucursal, sesion } = useSesion()
+  const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
+  if (esDemo || !['ADMIN', 'GERENTE'].includes(usuario?.role)) return null
+  const plantillas = templateData.rows.filter((item) => !item.category || item.category === 'CUSTOMERS')
+  return <SellerSection title="Campañas">
+    <div className="clientes-f3">
+      <CampanasClientes templates={plantillas} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} />
     </div>
   </SellerSection>
 }

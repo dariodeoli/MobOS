@@ -11,7 +11,9 @@ import { cn } from '@/lib/utils'
 // mezclan, cada métrica lo lleva como sufijo. `nota` solo se pasa cuando aporta
 // un dato distinto (p. ej. «50 en pantalla» junto al total de la tienda). En
 // celular la tira se desplaza horizontalmente en vez de apilar filas.
-export default function ResumenMetricas({ items = [], testId = 'resumen-metricas', className }) {
+// `pista` (opcional): UNA sola aclaración de alcance al final de la tira, para
+// cuando las métricas no comparten alcance y repetirlo en cada una sería ruido.
+export default function ResumenMetricas({ items = [], testId = 'resumen-metricas', className, pista }) {
   if (!items.length) return null
   const alcances = new Set(items.map((item) => item.alcance || ''))
   const alcanceUnico = alcances.size === 1 && items[0].alcance ? items[0].alcance : ''
@@ -31,6 +33,11 @@ export default function ResumenMetricas({ items = [], testId = 'resumen-metricas
           {alcance && !alcanceUnico && <span className="text-xs font-semibold leading-4 text-mute">{alcance}</span>}
         </div>
       ))}
+      {pista && !alcanceUnico && (
+        <p className="flex shrink-0 items-center justify-end whitespace-nowrap px-3 text-xs font-semibold leading-4 text-mute">
+          {pista}
+        </p>
+      )}
       {alcanceUnico && (
         <p className="flex shrink-0 items-center justify-end whitespace-nowrap px-3 text-xs font-semibold leading-4 text-mute">
           {alcanceUnico}

@@ -229,7 +229,7 @@ test('la landing: identidad por tema, vistas ilustrativas y verificador de IMEI 
   const preview = leer('components/landing/CommercialPreview.jsx')
   assert.match(preview, /Vista ilustrativa · datos de ejemplo/, 'the presentation is honestly labelled')
   assert.doesNotMatch(landing, /\/landing\/(panel|portal)\.png|Captura real/, 'illustrations are not described as product captures')
-  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Planes pendientes de confirmación']) {
+  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Hoy MobOS es gratis']) {
     assert.ok(landing.includes(text), `the landing preserves ${text}`)
   }
   // Menú móvil y pie legal (#322).
@@ -274,7 +274,8 @@ test('la identidad de usuario tiene un solo objeto y la biblioteca suma tres obj
   assert.match(leer('components/ventas/PresenciaPedido.jsx'), /PersonaChip[\s\S]{0,160}nombreCorto/, 'la presencia del pedido usa PersonaChip con primer nombre')
   assert.match(leer('components/ventas/PresenciaPedido.jsx'), /persona\.id !== miId/, 'la presencia no se cuenta a sí misma')
   assert.doesNotMatch(leer('components/ventas/PresenciaPedido.jsx'), /está viendo este pedido[\s\S]{0,40}\{otros\[0\]\.name\}/, 'no arma la identidad a mano')
-  assert.match(leer('pages/PedidoPublico.jsx'), /<FilaDato/, 'los totales del seguimiento usan FilaDato')
+  assert.match(leer('pages/PedidoPublico.jsx'), /<ResumenTotales/, 'los totales del seguimiento usan el resumen público')
+  assert.match(leer('components/publico/KitPublico.jsx'), /<FilaDato/, 'el resumen público usa FilaDato')
   assert.match(leer('pages/PedidoPublico.jsx'), /<CeldaMoneda/, 'los importes del seguimiento usan CeldaMoneda')
   assert.match(leer('components/landing/ImeiVerificador.jsx'), /<BarraProgreso/, 'la barra del escaneo es la compartida')
   assert.ok(!/function Barra\(/.test(leer('components/landing/CapturaModulo.jsx')), 'las capturas no redefinen la barra')

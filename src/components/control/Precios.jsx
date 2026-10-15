@@ -8,9 +8,10 @@ import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, M
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
-import Toolbar from '@/components/shared/Toolbar'
+import BarraModulo from '@/components/shared/BarraModulo'
 import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import FieldRow from '@/components/shared/FieldRow'
+import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import '@/components/stock/stockToque.css'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
@@ -244,14 +245,10 @@ export default function Precios() {
   return <div className="space-y-4">
     {/* Una barra por pestaña (docs/PANTALLAS.md regla 7): la acción de la pestaña; la
         descripción vive en el tooltip de ayuda, no como texto fijo. */}
-    <Toolbar
-      plano
-      testId="barra-precios"
-      label="Acciones de precios"
-      view={<SegmentosToolbar />}
-      more={<span role="img" aria-label={AYUDA_PRECIOS} title={AYUDA_PRECIOS} className="hidden h-8 w-8 place-items-center text-mute sm:inline-grid"><Icon name="info" className="h-4 w-4" /></span>}
-      primary={<Button type="button" className="min-h-11 lg:min-h-0" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>}
-    />
+    <BarraModulo titulo="Precios" testId="barra-precios" segmentos={<SegmentosToolbar />}>
+      <span role="img" aria-label={AYUDA_PRECIOS} title={AYUDA_PRECIOS} className="hidden h-8 w-8 place-items-center text-mute sm:inline-grid"><Icon name="info" className="h-4 w-4" /></span>
+      <Button type="button" className="min-h-11 lg:min-h-0" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>
+    </BarraModulo>
 
     <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
     <Card className="space-y-3">
@@ -281,7 +278,7 @@ export default function Precios() {
         <h2 className="font-semibold">Precios por cantidad</h2>
         <p className="mt-1 text-xs text-mute">Desde la cantidad mínima, el precio unitario de la línea es el del escalón. Cargá el escalón más alto y el resto se resuelve solo.</p>
       </div>
-      <div className="max-w-[640px]"><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onQueryChange={buscarProductos} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
+      <div className={`w-full ${ANCHO_CAMPO.busqueda}`}><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onQueryChange={buscarProductos} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
       {productoTier && <form onSubmit={guardarTiers} className="space-y-3">
         {filasTier.map((fila, index) => <div key={index} className="flex max-w-[640px] items-end gap-2">
           <FieldRow label="Desde" htmlFor={`tier-${index}-min`} className="w-28 shrink-0">

@@ -7,6 +7,7 @@ datasource db {
 }
 
 model Tenant {
+  productImages       ProductImage[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
   webPushEnvios      WebPushEnvio[]
@@ -47,6 +48,7 @@ model Tenant {
   // Sin valor se usa orderPrefix y, si tampoco hay, las iniciales del nombre.
   unitCodePrefix      String?
   tenantSequences     TenantSequence[]
+  stockArrivals       StockArrival[]
   // Umbrales de autorización: gasto y compra a crédito sin autorización de
   // gerencia para los roles operativos. Null usa el default de la aplicación.
   expenseLimitPyg        BigInt?
@@ -305,6 +307,7 @@ model Branch {
   warrantyCases  WarrantyCase[]
   cashMovements  CashMovement[]
   supplierPayables SupplierPayable[]
+  stockArrivals  StockArrival[]
   id             String          @id @default(cuid())
   tenantId       String
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -553,6 +556,11 @@ enum StockKind {
 model Product {
   stockKind     StockKind?
   tradeInDevice TradeInDevice?
+  // #404: categoría de accesorio (LAMINA|CASE|CABLE|CARGADOR|AUDIO|OTRO) separada
+  // de `category` (texto libre / política de seguro) y modelos compatibles.
+  accessoryCategory String?
+  compatibleModels  String[]           @default([])
+  images            ProductImage[]
   destination   ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
   purchaseReturnLines PurchaseReturnLine[]
@@ -929,6 +937,11 @@ model Customer {
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
+  // Cliente bloqueado (#399): no se le vende a crédito. Lo gestionan
+  // administración/gerencia y queda auditado.
+  blocked       Boolean   @default(false)
+  blockedReason String?
+  blockedAt     DateTime?
   // Exact fiscal name and explicitly reviewed person parts; no legacy backfill.
   nameOfficial String?
   identityKind String?
@@ -1448,6 +1461,15 @@ model Order {
   deliveryPyg       BigInt            @default(0)
   deliveryType      String?
   deliveryNotes     String?
+  // «Paga al recibir» (#399): pedido sin pago cargado que se cobra después
+  // desde la lista de pedidos.
+  paymentOnDelivery Boolean           @default(false)
+  // Envío por encomienda (#399): empresa, sucursal de destino y dirección
+  // (id de la dirección guardada del cliente + copia del texto al vender).
+  shippingCarrier   String?
+  shippingBranch    String?
+  shippingAddressId String?
+  shippingAddress   String?
   // Factura a otro titular (esposo/a, padre, empresa): nombre y RUC.
   billingName       String?
   billingDocument   String?
@@ -1919,6 +1941,33 @@ model Attachment {
   createdAt   DateTime @default(now())
 
   @@index([tenantId, entity, entityId])
+}
+
+// #404: fotos de producto. Los bytes viven en MOBOS_STORAGE_DIR (storagePath /
+// thumbPath, por empresa) y, si no hay volumen, en `data` / `thumbData`.
+// Borrar = ocultar (deletedAt). Una sola principal activa por producto.
+model ProductImage {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantKey  String?
+  position    Int       @default(0)
+  isPrimary   Boolean   @default(false)
+  storagePath String?
+  thumbPath   String?
+  data        Bytes?    @db.ByteA
+  thumbData   Bytes?    @db.ByteA
+  width       Int
+  height      Int
+  contentType String
+  sizeBytes   Int
+  createdById String?
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  @@index([tenantId, productId, position])
 }
 
 // Tombstone de adjuntos: un archivo eliminado no vuelve solo si un cliente
@@ -3668,6 +3717,7 @@ model ImeiCheckQuery {
   requestedAt DateTime  @default(now())
   resolvedAt  DateTime?
 
+  @@unique([tenantId, requestId])
   @@index([tenantId, imei, requestedAt])
   @@index([tenantId, requestedAt])
   conciliatedAt     DateTime?
@@ -3742,4 +3792,110 @@ model TenantSequence {
   next     BigInt @default(1)
 
   @@id([tenantId, key])
+}
+
+// Llegada de mercadería como la planilla (#408, unidad C): un lote pegado se
+// concilia contra lo pedido y recién al confirmar crea unidades, traslados y
+// ajustes. BORRADOR no toca stock. Código LLG-ASU-0001 desde TenantSequence
+// key 'arrival'.
+enum StockArrivalStatus {
+  BORRADOR
+  CONFIRMADA
+  CANCELADA
+}
+
+enum StockArrivalSource {
+  PEGADO
+  IMPORT_INICIAL
+}
+
+enum ArrivalSerialKind {
+  IMEI
+  SERIE
+  NINGUNO
+}
+
+enum ArrivalMatch {
+  EXACTO
+  POR_MODELO
+  SOBRANTE
+  NO_LLEGO
+}
+
+enum ArrivalDestination {
+  STOCK
+  OTRA_SUCURSAL
+  DEVOLVER
+  FALTA_IMEI
+  TECNICO
+}
+
+model StockArrival {
+  id              String             @id @default(cuid())
+  tenantId        String
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  code            String
+  arrivedAt       DateTime
+  status          StockArrivalStatus @default(BORRADOR)
+  source          StockArrivalSource @default(PEGADO)
+  currency        PaymentCurrency    @default(USD)
+  exchangeRatePyg Decimal?           @db.Decimal(14, 4)
+  purchaseIds     Json?
+  // Alcance de la conciliación (unidad E): envío esperado y proveedores del lote.
+  shipmentId      String?
+  supplierIds     Json?
+  idempotencyKey  String
+  summary         Json?
+  createdById     String
+  confirmedById   String?
+  confirmedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  lines           StockArrivalLine[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, branchId, status, arrivedAt])
+}
+
+model StockArrivalLine {
+  id                  String             @id @default(cuid())
+  tenantId            String
+  arrivalId           String
+  arrival             StockArrival       @relation(fields: [arrivalId], references: [id], onDelete: Cascade)
+  rowIndex            Int
+  // Fila tal como se pegó (celdas + bloque de fecha) para auditar y reparsear.
+  raw                 Json
+  productId           String?
+  serial              String?
+  serialKind          ArrivalSerialKind  @default(NINGUNO)
+  condition           ProductCondition?
+  batteryPct          Int?
+  batteryCycles       Int?
+  warrantyUntil       DateTime?
+  supplierId          String?
+  originalCost        Decimal?           @db.Decimal(14, 2)
+  costPyg             BigInt?
+  note                String?
+  match               ArrivalMatch       @default(SOBRANTE)
+  destination         ArrivalDestination @default(STOCK)
+  destinationBranchId String?
+  issues              Json               @default("[]")
+  purchaseLineId      String?
+  shipmentItemId      String?
+  needId              String?
+  orderId             String?
+  orderItemId         String?
+  customerId          String?
+  // Lo creado al confirmar (idempotencia y trazabilidad).
+  unitId              String?
+  transferId          String?
+  payableAdjustmentId String?
+  createdAt           DateTime           @default(now())
+
+  @@unique([arrivalId, rowIndex])
+  @@index([tenantId, serial])
+  @@index([tenantId, destination, unitId])
 }

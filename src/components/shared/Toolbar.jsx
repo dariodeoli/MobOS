@@ -4,8 +4,8 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 // Barra de herramientas de una pestaña (docs/PANTALLAS.md regla 7). Envuelve el
-// `ActionToolbar` de owncoding-ui y ordena sus huecos: búsqueda · filtros ·
-// orden · vista (L2 segmentado) · lista/cuadrícula · [hijos libres] · Más +
+// `ActionToolbar` de owncoding-ui y ordena sus huecos: vista (L2 segmentado, siempre
+// primera, posición fija) · búsqueda · filtros · orden · lista/cuadrícula · [hijos libres] · Más +
 // acción principal a la derecha. Un hueco vacío no deja contenedor. `lead` es la
 // identidad compacta que aún usa `BarraModulo`. `plano` quita caja y fondo
 // (barra embebida en otra caja). `searchClassName` ajusta el ancho del hueco de
@@ -70,12 +70,14 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
         )}
       >
         {lead}
+        {/* El segundo nivel va SIEMPRE primero: no se mueve entre vistas aunque otra traiga búsqueda. */}
+        {view && <div data-slot="view" className="flex min-w-0 items-center">{view}</div>}
         {search && (
           <div
             data-slot="search"
             className={cn(
               'min-w-0 basis-full sm:min-w-[14rem] sm:flex-1 sm:basis-64',
-              lista && 'max-sm:order-[-5] max-sm:flex-1 max-sm:basis-40 sm:min-w-[20rem] sm:max-w-[26.25rem] sm:basis-80',
+              lista && 'max-sm:order-[-5] max-sm:flex-1 max-sm:basis-40 sm:min-w-[14rem] sm:max-w-[20rem] sm:basis-64',
               searchClassName,
             )}
           >
@@ -132,7 +134,6 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
             {huecoVista}
           </>
         )}
-        {view && <div data-slot="view" className="flex min-w-0 items-center">{view}</div>}
         {children}
         {derecha && (
           <div data-slot="actions" className={cn('ml-auto flex max-w-full flex-wrap items-center justify-end gap-2', lista && 'max-sm:order-[-4]')}>

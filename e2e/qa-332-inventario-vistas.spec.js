@@ -20,11 +20,12 @@ test('#332 · el dueño conmuta entre Unidades (IMEI) y Productos (stock), con d
   await expect(page).toHaveURL(/\/productos$/)
   await expect(page.getByTestId('barra-productos')).toBeVisible()
   await expect(page.getByTestId('producto-fila').first()).toBeVisible({ timeout: 20_000 })
-  const enProductos = page.getByTestId('vista-productos-unidades')
-  await expect(enProductos.getByRole('button', { name: 'Productos' })).toHaveAttribute('aria-pressed', 'true')
+  // #396: sin switch repetido en la pantalla; la pestaña activa es Productos.
+  await expect(page.getByTestId('vista-productos-unidades')).toHaveCount(0)
+  await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="productos"]')).toHaveAttribute('aria-current', 'page')
 
   // Y volver a las unidades.
-  await enProductos.getByRole('button', { name: 'Unidades' }).click()
+  await clickShellTab(page, 'shell-contexto', 'unidades')
   await expect(page).toHaveURL(/\/stock\/unidades$/)
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
