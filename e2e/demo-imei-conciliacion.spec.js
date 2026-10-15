@@ -10,7 +10,7 @@ import { cerrarGuiaDemo } from './helpers/demo.js'
 // Capturas del QA: viven en test-results para no ensuciar el árbol del release.
 const SALIDA = 'test-results/imei-conciliacion'
 
-test('la demo permite conciliar una consulta desde el registro', async ({ page }) => {
+test('la demo permite reportar un problema de una consulta desde el registro', async ({ page }) => {
   const serial = serialDemo(1)
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).first().click()
@@ -40,23 +40,19 @@ test('la demo permite conciliar una consulta desde el registro', async ({ page }
   await ventana.getByTestId('imei-consultas-buscar').click()
   const registro = ventana.getByTestId('imei-consultas-lista').locator('article').first()
   await expect(registro).toBeVisible({ timeout: 15_000 })
-  // La ventana ya no es de solo lectura: el registro ofrece Conciliar.
-  await expect(registro.getByRole('button', { name: 'Conciliar' })).toBeVisible()
+  // El registro ofrece «Reportar problema» (la conciliación es de la plataforma).
+  await expect(registro.getByRole('button', { name: 'Reportar problema' })).toBeVisible()
 
-  await registro.getByRole('button', { name: 'Conciliar' }).click()
-  const modal = page.getByRole('dialog', { name: 'Conciliar consulta IMEI' })
+  await registro.getByRole('button', { name: 'Reportar problema' }).click()
+  const modal = page.getByRole('dialog', { name: 'Reportar problema de la consulta' })
   await expect(modal).toBeVisible()
-  await expect(modal.getByText('iCloud/US Block clean ≠ blacklist mundial', { exact: true })).toBeVisible()
-  await expect(modal.getByLabel('Nota de conciliación')).toHaveValue(/iCloud\/US Block clean ≠ blacklist mundial/)
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/03-demo-modal-conciliar.png`, fullPage: true })
 
-  await modal.getByLabel('Costo real USD').fill('0.06')
-  await modal.getByLabel('Orden del proveedor').fill('ORD-233-DEMO')
+  await modal.getByLabel('Qué pasó').fill('No coincide con el panel del proveedor.')
   await page.getByTestId('imei-conciliar-guardar').click()
-  await expect(page.getByText('Consulta conciliada.')).toBeVisible({ timeout: 15_000 })
-  await expect(registro.getByText(/Conciliada el/)).toBeVisible()
-  await expect(registro.getByText(/ORD-233-DEMO/)).toBeVisible()
+  await expect(page.getByText('Problema reportado.', { exact: false })).toBeVisible({ timeout: 15_000 })
+  await expect(registro.getByText(/Revisada el/)).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/04-demo-consulta-conciliada.png`, fullPage: true })
 })
 

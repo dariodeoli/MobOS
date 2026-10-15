@@ -46,15 +46,11 @@ export async function GET(request: Request) {
       serviceName: fila.serviceName,
       status: fila.status,
       etiqueta: etiquetaEstado(fila.status as never),
-      costUsd: Number(fila.costUsd),
-      externalId: fila.externalId,
       error: fila.error,
       normalized: fila.normalized,
       requestedAt: fila.requestedAt,
       resolvedAt: fila.resolvedAt,
-      // #233: la conciliación queda a la vista en el registro (fecha y nota).
       conciliatedAt: fila.conciliatedAt,
-      conciliationNote: fila.conciliationNote,
       ...(verCrudo ? { responseRaw: fila.responseRaw } : {}),
     })),
   })
@@ -67,38 +63,21 @@ export async function POST(request: Request) {
   const tenant = session.user.tenantId
   let body: any
   try { body = await request.json() } catch { return error('Cuerpo inválido.') }
-  const accion = body?.action === 'precheck' ? 'precheck' : body?.action === 'checks' ? 'checks' : body?.action === 'conciliar' ? 'conciliar' : null
-  if (!accion) return error('Acción inválida: usá precheck, checks o conciliar.')
-  // #233: conciliación manual (admin/gerente) de una consulta ambigua: asocia la
-  // orden del proveedor y corrige estado/costo real sin repetir la consulta.
-  if (accion === 'conciliar') {
-    if (!ROLES_VER_CRUDO.includes(session.user.role)) return error('Solo administración puede conciliar consultas.', 403)
+  const accion = body?.action === 'precheck' ? 'precheck' : body?.action === 'checks' ? 'checks' : body?.action === 'reportar' ? 'reportar' : null
+  if (!accion) return error('Acción inválida: usá precheck, checks o reportar.')
+  // «Reportar problema»: el inquilino solo avisa. No cambia estado, costo ni saldo:
+  // la conciliación y el reembolso los decide la plataforma (/superadmin) con los
+  // datos del proveedor.
+  if (accion === 'reportar') {
     const requestId = typeof body?.requestId === 'string' ? body.requestId.trim() : ''
     const id = typeof body?.id === 'string' ? body.id.trim() : ''
-    if (!requestId && !id) return error('Indicá requestId o id de la consulta a conciliar.')
+    if (!requestId && !id) return error('Indicá requestId o id de la consulta.')
+    const nota = typeof body?.note === 'string' ? body.note.trim().slice(0, 500) : ''
+    if (!nota) return error('Contanos qué pasó con la consulta.')
     const registro = await prisma.imeiCheckQuery.findFirst({ where: { tenantId: tenant, ...(id ? { id } : { requestId }) } })
-    if (!registro) return error('No se encontró la consulta a conciliar.', 404)
-    const estados = ['verificado', 'parcial', 'conciliar', 'pendiente', 'fallido']
-    const status = typeof body?.status === 'string' && estados.includes(body.status) ? body.status : registro.status
-    const costUsd = body?.costUsd === undefined ? Number(registro.costUsd) : Number(body.costUsd)
-    if (!Number.isFinite(costUsd) || costUsd < 0) return error('Costo inválido para conciliar.')
-    const actualizado = await prisma.imeiCheckQuery.update({
-      where: { id: registro.id },
-      data: {
-        status,
-        costUsd: String(costUsd.toFixed(2)),
-        externalId: typeof body?.externalId === 'string' && body.externalId.trim() ? body.externalId.trim().slice(0, 128) : registro.externalId,
-        conciliatedAt: new Date(),
-        conciliationNote: typeof body?.note === 'string' ? body.note.trim().slice(0, 500) : registro.conciliationNote,
-        resolvedAt: typeof body?.resolvedAt === 'string' && !Number.isNaN(new Date(body.resolvedAt).getTime()) ? new Date(body.resolvedAt) : new Date(),
-        normalized: Array.isArray(body?.normalized) ? body.normalized : registro.normalized,
-        error: status === 'conciliar' ? registro.error : null,
-      },
-    })
-    // «Conciliar» mantiene el crédito hasta resolver: recién acá, si quedó fallida sin cobro, se devuelve.
-    if (correspondeReembolso(status, costUsd)) await reembolsarConsulta(tenant, registro.id)
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIATED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
-    return json(expectativa(actualizado, true))
+    if (!registro) return error('No se encontró la consulta.', 404)
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_REPORTED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, nota } } })
+    return json({ ok: true, ...expectativa(registro, false) })
   }
   const clave = typeof body?.servicio === 'string' && SERVICIOS[body.servicio] ? body.servicio : 'APPLE_BASIC'
   const servicio = SERVICIOS[clave]
@@ -116,7 +95,7 @@ export async function POST(request: Request) {
     const reciente = await prisma.imeiCheckQuery.findFirst({
       where: { tenantId: tenant, imei: validacion.imei, serviceKey: clave, requestedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
       orderBy: { requestedAt: 'desc' },
-      select: { id: true, status: true, costUsd: true, requestedAt: true },
+      select: { id: true, status: true, requestedAt: true },
     })
     const estado = await estadoCreditos(tenant)
     const requeridos = creditosDeServicio(clave)
@@ -219,15 +198,11 @@ function expectativa(fila: any, verCrudo: boolean) {
     serviceName: fila.serviceName,
     status: fila.status,
     etiqueta: etiquetaEstado(fila.status),
-    costUsd: Number(fila.costUsd),
-    externalId: fila.externalId,
     error: fila.error,
     normalized: fila.normalized,
     requestedAt: fila.requestedAt,
     resolvedAt: fila.resolvedAt,
-    // #233: lo que se muestra en el registro una vez conciliada.
     conciliatedAt: fila.conciliatedAt,
-    conciliationNote: fila.conciliationNote,
     ...(verCrudo ? { responseRaw: fila.responseRaw } : {}),
   }
 }

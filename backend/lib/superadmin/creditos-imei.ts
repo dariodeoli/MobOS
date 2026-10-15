@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
 import { logError } from '../log'
-import { ErrorCreditos, agregarVerificaciones, ajustarVerificaciones, fijarCupoMensual } from '../imei-credits'
+import { ErrorCreditos, agregarVerificaciones, correspondeReembolso, reembolsarConsulta, ajustarVerificaciones, fijarCupoMensual } from '../imei-credits'
 import { filtroSinDemo } from './filtro-demo'
 import { PAGINA, num, patronBusqueda, type ParamsLista } from './consultas'
 
@@ -67,12 +67,45 @@ export async function aplicarAccionCreditos(tenantId: string, dueno: Dueno, cuer
       await registrar(tenantId, dueno, 'IMEI_CREDITS_ADJUSTED', { cantidad: r.cantidad, nota: r.nota })
       return { status: 200, cuerpo: { ok: true, saldo: r.saldo } }
     }
-    return { status: 400, cuerpo: { message: 'Acción inválida: usá agregar, cupo o ajuste.' } }
+    if (accion === 'conciliar') return await conciliarConsulta(tenantId, dueno, cuerpo)
+    return { status: 400, cuerpo: { message: 'Acción inválida: usá agregar, cupo, ajuste o conciliar.' } }
   } catch (error) {
     if (error instanceof ErrorCreditos) return { status: 400, cuerpo: { message: error.message } }
     logError('superadmin_creditos_error', { reason: error instanceof Error ? error.message : String(error) })
     throw error
   }
+}
+
+/**
+ * Conciliación de una consulta IMEI contra el panel del proveedor. Solo la
+ * plataforma: el estado y el costo real salen de sus datos y, si la consulta
+ * quedó fallida sin cobro, recién acá se devuelve el crédito (una sola vez).
+ */
+async function conciliarConsulta(tenantId: string, dueno: Dueno, cuerpo: any): Promise<Resultado> {
+  const requestId = typeof cuerpo?.requestId === 'string' ? cuerpo.requestId.trim() : ''
+  const id = typeof cuerpo?.id === 'string' ? cuerpo.id.trim() : ''
+  if (!requestId && !id) return { status: 400, cuerpo: { message: 'Indicá requestId o id de la consulta a conciliar.' } }
+  const registro = await prisma.imeiCheckQuery.findFirst({ where: { tenantId, ...(id ? { id } : { requestId }) } })
+  if (!registro) return { status: 404, cuerpo: { message: 'No se encontró la consulta a conciliar.' } }
+  const estados = ['verificado', 'parcial', 'conciliar', 'pendiente', 'fallido']
+  const status = typeof cuerpo?.status === 'string' && estados.includes(cuerpo.status) ? cuerpo.status : registro.status
+  const costUsd = cuerpo?.costUsd === undefined ? Number(registro.costUsd) : Number(cuerpo.costUsd)
+  if (!Number.isFinite(costUsd) || costUsd < 0) return { status: 400, cuerpo: { message: 'Costo inválido para conciliar.' } }
+  const actualizado = await prisma.imeiCheckQuery.update({
+    where: { id: registro.id },
+    data: {
+      status,
+      costUsd: String(costUsd.toFixed(2)),
+      externalId: typeof cuerpo?.externalId === 'string' && cuerpo.externalId.trim() ? cuerpo.externalId.trim().slice(0, 128) : registro.externalId,
+      conciliatedAt: new Date(),
+      conciliationNote: typeof cuerpo?.note === 'string' ? cuerpo.note.trim().slice(0, 500) : registro.conciliationNote,
+      resolvedAt: typeof cuerpo?.resolvedAt === 'string' && !Number.isNaN(new Date(cuerpo.resolvedAt).getTime()) ? new Date(cuerpo.resolvedAt) : new Date(),
+      error: status === 'conciliar' ? registro.error : null,
+    },
+  })
+  const devueltos = correspondeReembolso(status, costUsd) ? await reembolsarConsulta(tenantId, registro.id) : 0
+  await registrar(tenantId, dueno, 'IMEI_QUERY_CONCILIATED', { queryId: registro.id, requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId, devueltos })
+  return { status: 200, cuerpo: { ok: true, id: registro.id, status, devueltos } }
 }
 
 async function registrar(tenantId: string, dueno: Dueno, action: string, metadata: Record<string, unknown>) {

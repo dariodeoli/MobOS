@@ -76,11 +76,19 @@ assert.equal(await saldoA(), 3, 'repetir no devuelve dos veces')
 const ambigua = await consultar({ requestId: `cr-timeout-${marca}`, escenario: 'timeout' })
 assert.equal(ambigua.payload.status, 'conciliar')
 assert.equal(await saldoA(), 2, 'a conciliar mantiene el crédito')
-const conciliada = await llamar('/api/imei', adminToken, 'POST', { action: 'conciliar', requestId: `cr-timeout-${marca}`, status: 'fallido', costUsd: 0, note: 'sin orden en el proveedor' })
-assert.equal(conciliada.status, 200)
-assert.equal(await saldoA(), 3, 'al conciliar como fallida sin cobro se devuelve')
-await llamar('/api/imei', adminToken, 'POST', { action: 'conciliar', requestId: `cr-timeout-${marca}`, status: 'fallido', costUsd: 0 })
-assert.equal(await saldoA(), 3, 'conciliar dos veces no devuelve dos veces')
+// La empresa NO concilia ni reembolsa: «conciliar» no existe en su API; «reportar» solo deja constancia.
+const intento = await llamar('/api/imei', adminToken, 'POST', { action: 'conciliar', requestId: `cr-timeout-${marca}`, status: 'fallido', costUsd: 0, note: 'me devuelvo el crédito' })
+assert.equal(intento.status, 400)
+assert.equal(await saldoA(), 2, 'la empresa no puede reembolsarse')
+assert.equal(contar(`SELECT count(*) FROM "ImeiCheckQuery" WHERE "requestId" = 'cr-timeout-${marca}' AND "status" = 'conciliar' AND "conciliatedAt" IS NULL`), 1, 'estado y costo intactos')
+const reporte = await llamar('/api/imei', adminToken, 'POST', { action: 'reportar', requestId: `cr-timeout-${marca}`, note: 'no respondió' })
+assert.equal(reporte.status, 200)
+assert.equal((await llamar('/api/imei', adminToken, 'POST', { action: 'reportar', requestId: `cr-timeout-${marca}` })).status, 400, 'el reporte exige nota')
+assert.equal(await saldoA(), 2)
+assert.equal(contar(`SELECT count(*) FROM "AuditLog" WHERE "tenantId" = '${A}' AND "action" = 'IMEI_QUERY_REPORTED'`), 1)
+// Sin precios ni USD hacia la empresa (listado, alta, repetición y reporte).
+const lista0 = await llamar(`/api/imei`, adminToken)
+for (const r of [lista0, ambigua, f1, f2, reporte]) assert.ok(!/costUsd|costoUsd|US\$/i.test(JSON.stringify(r.payload)), 'la app de la empresa no muestra USD')
 
 // ── Superadmin: solo el dueño de la plataforma ─────────────────────────────
 // Dueño sintético: cuenta de Google verificada con el correo del entorno del arnés.
@@ -100,6 +108,17 @@ for (const token of [adminToken, '', 'token-inventado']) {
   assert.equal((await llamar('/api/superadmin/imei-creditos', token)).status, 404, 'lista denegada')
 }
 assert.equal(contar(`SELECT count(*) FROM "ImeiCreditEntry" WHERE "tenantId" = '${C}' AND "type" <> 'GRANT'`), 0, 'el rechazo no tocó nada')
+
+// Conciliación: solo la plataforma. Fallido sin cobro devuelve el crédito, una sola vez.
+const rutaA = `/api/superadmin/imei-creditos/${A}`
+assert.equal((await llamar(rutaA, adminToken, 'POST', { action: 'conciliar', requestId: `cr-timeout-${marca}`, status: 'fallido', costUsd: 0 })).status, 404, 'la empresa no concilia por la vía de la plataforma')
+assert.equal(await saldoA(), 2)
+const conciliada = await llamar(rutaA, tokenDueno, 'POST', { action: 'conciliar', requestId: `cr-timeout-${marca}`, status: 'fallido', costUsd: 0, note: 'sin orden en el proveedor' })
+assert.equal(conciliada.status, 200, JSON.stringify(conciliada.payload))
+assert.equal(await saldoA(), 3, 'al conciliar la plataforma como fallida sin cobro se devuelve')
+await llamar(rutaA, tokenDueno, 'POST', { action: 'conciliar', requestId: `cr-timeout-${marca}`, status: 'fallido', costUsd: 0 })
+assert.equal(await saldoA(), 3, 'conciliar dos veces no devuelve dos veces')
+assert.equal((await llamar(rutaA, tokenDueno, 'POST', { action: 'conciliar', requestId: 'no-existe' })).status, 404)
 
 // Verificación gratis: toda empresa (también las existentes) arranca con 1.
 const inicial = await llamar(ruta, tokenDueno)
@@ -125,9 +144,21 @@ assert.equal((await llamar(ruta, tokenDueno, 'POST', { action: 'ajuste', cantida
 assert.equal((await llamar(ruta, tokenDueno, 'POST', { action: 'agregar', cantidad: 1, venceEl: '2001-01-01' })).status, 400, 'vencimiento pasado')
 assert.equal(contar(`SELECT count(*) FROM "AuditLog" WHERE "tenantId" = '${C}' AND "action" IN ('IMEI_CREDITS_GRANTED','IMEI_CREDITS_ADJUSTED')`), 3, 'todo queda auditado')
 assert.equal(contar(`SELECT count(*) FROM "ImeiCreditLot" WHERE "tenantId" = '${C}' AND "remaining" < 0`), 0)
+// El id del lote incluye la empresa: el mismo opId en dos empresas acredita en ambas.
+assert.equal(contar(`SELECT count(*) FROM "ImeiCreditLot" WHERE "id" = 'ilg_${C}_${op}'`), 1, 'id del lote con empresa')
+const otraEmpresa = await llamar(`/api/superadmin/imei-creditos/tenant-b-it`, tokenDueno, 'POST', { action: 'agregar', cantidad: 4, nota: 'mismo opId', opId: op })
+assert.equal(otraEmpresa.status, 201, JSON.stringify(otraEmpresa.payload))
+assert.equal(contar(`SELECT count(*) FROM "ImeiCreditLot" WHERE "tenantId" = 'tenant-b-it' AND "id" = 'ilg_tenant-b-it_${op}' AND "remaining" = 4`), 1, 'el lote de la otra empresa existe con su propio id')
+psql(`DELETE FROM "ImeiCreditLot" WHERE "id" = 'ilg_tenant-b-it_${op}'`) // no ensucia el saldo de la prueba de cupo
+// opId con comodines LIKE: un ajuste «a%» no se confunde con «abc».
+const saldoAntes = (await llamar(ruta, tokenDueno)).payload.saldo
+assert.equal((await llamar(ruta, tokenDueno, 'POST', { action: 'ajuste', cantidad: -1, nota: 'x', opId: `abc-${marca}` })).payload.saldo, saldoAntes - 1)
+const comodin = await llamar(ruta, tokenDueno, 'POST', { action: 'ajuste', cantidad: -1, nota: 'x', opId: 'a%' })
+assert.ok(!comodin.payload.repetido && comodin.payload.saldo === saldoAntes - 2, `el comodín no cuenta como repetido: ${JSON.stringify(comodin.payload)}`)
 
 // Libro solo de agregado.
 assert.throws(() => psql(`UPDATE "ImeiCreditEntry" SET "amount" = 0 WHERE "tenantId" = '${C}'`), /solo de agregado/)
+assert.throws(() => psql(`DELETE FROM "ImeiCreditEntry" WHERE "tenantId" = '${C}'`), /solo de agregado/, 'tampoco se borra')
 
 // ── Cupo mensual: perezoso, idempotente, tope de arrastre y vencimiento a 12 meses ──
 const D = 'tenant-b-it'
@@ -146,14 +177,15 @@ assert.equal(contar(`SELECT count(*) FROM "ImeiCreditEntry" WHERE "tenantId" = '
 // Arrastre: 100 sin usar de meses viejos + 3 meses por acreditar ⇒ el sobrante de más de 3 cupos vence.
 psql(`UPDATE "ImeiCreditSetting" SET "since" = now() - interval '6 months' WHERE "tenantId" = '${D}'`)
 psql(`DELETE FROM "ImeiCreditLot" WHERE "tenantId" = '${D}' AND "source" = 'MONTHLY'`)
-psql(`DELETE FROM "ImeiCreditEntry" WHERE "tenantId" = '${D}' AND "sourceRef" LIKE 'sub:%'`)
+// El libro no admite DELETE: el arnés lo suspende solo para reiniciar el escenario.
+psql(`ALTER TABLE "ImeiCreditEntry" DISABLE TRIGGER "ImeiCreditEntry_append_only"; DELETE FROM "ImeiCreditEntry" WHERE "tenantId" = '${D}' AND "sourceRef" LIKE 'sub:%'; ALTER TABLE "ImeiCreditEntry" ENABLE TRIGGER "ImeiCreditEntry_append_only"`)
 psql(`INSERT INTO "ImeiCreditLot" ("id","tenantId","source","granted","remaining","expiresAt","sourceRef") VALUES ('it-viejo-${marca}','${D}','MONTHLY',100,100, now() + interval '6 months','sub:viejo')`)
 const arrastre = await llamar(rutaD, tokenDueno)
 assert.equal(arrastre.status, 200)
-// Cada mes recorta el arrastre a 3 cupos (30) y suma el cupo (10): tope = 4 cupos.
-assert.equal(arrastre.payload.saldo, 41, `saldo con tope (40 mensuales + 1 gratis): ${arrastre.payload.saldo}`)
+// Cada mes recorta el arrastre a 2 cupos y suma el cupo nuevo: tope = 3 cupos (30), no 4.
+assert.equal(arrastre.payload.saldo, 31, `saldo con tope (30 mensuales + 1 gratis): ${arrastre.payload.saldo}`)
 assert.ok(contar(`SELECT count(*) FROM "ImeiCreditEntry" WHERE "tenantId" = '${D}' AND "type" = 'EXPIRE' AND "sourceRef" LIKE 'cap:%'`) >= 1)
-assert.equal((await llamar(rutaD, tokenDueno)).payload.saldo, 41, 'releer no cambia el saldo')
+assert.equal((await llamar(rutaD, tokenDueno)).payload.saldo, 31, 'releer no cambia el saldo')
 
 // Lista y detalle de la plataforma: saldo, consumo y costo del proveedor.
 const lista = await llamar('/api/superadmin/imei-creditos', tokenDueno)

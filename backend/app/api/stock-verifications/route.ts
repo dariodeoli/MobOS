@@ -4,7 +4,6 @@ import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { expectedUnits } from '../../../lib/stock-verification-db'
 
-const ROLES_DE_SUCURSAL = ['VENDEDOR', 'CAJERA']
 
 // Verificación de stock («¿está físicamente?»): la puede usar cualquier usuario
 // autenticado. Quien tiene sucursal asignada solo verifica la suya; el resto elige.
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   const params = new URL(request.url).searchParams
-  const asignada = ROLES_DE_SUCURSAL.includes(session.user.role) ? session.user.branchId : null
+  const asignada = ['ADMIN', 'GERENTE'].includes(session.user.role) ? null : session.user.branchId || null
   const branchId = asignada || params.get('branchId') || null
   const sessions = await prisma.stockVerification.findMany({
     where: { tenantId: tenant, ...(branchId ? { branchId } : {}) },

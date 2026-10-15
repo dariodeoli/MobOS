@@ -815,7 +815,7 @@ echo "Centro de Abastecimiento F2: compra rápida, IMEI y stock adicional (#250)
 node "$BACKEND_ROOT/tests/supply-purchases.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
 echo "Centro de Abastecimiento F3: IMEI y preparación (escaneo, lote y etiquetas) (#250)..."
-node "$BACKEND_ROOT/tests/supply-preparation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+node "$BACKEND_ROOT/tests/supply-preparation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 
 echo "Centro de Abastecimiento F4: lotes, tránsito y manifiesto (#250)..."
 node "$BACKEND_ROOT/tests/supply-shipments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"

@@ -55,7 +55,7 @@ export async function postDemoImei(body = {}) {
       imei: enmascarar(validacion.imei), servicio: { ...SERVICIO }, requiereConfirmacion: true,
       creditosRequeridos: 1, saldo: saldoDemoImei(), disponible: saldoDemoImei() >= 1,
       advertencia: reciente ? 'Ya hay una consulta de este servicio para el mismo IMEI en la última jornada (demo).' : null,
-      reciente: reciente ? { id: reciente.id, status: reciente.status, costUsd: reciente.costUsd, requestedAt: reciente.requestedAt } : null,
+      reciente: reciente ? { id: reciente.id, status: reciente.status, requestedAt: reciente.requestedAt } : null,
       simulado: true, esMock: true,
     }
   }
@@ -82,17 +82,11 @@ export function consultasDemoImei(imei = '') {
   return imei ? filas.filter((fila) => fila.imei === String(imei).toUpperCase()) : filas
 }
 
-/** Conciliación demo (#233): mismo contrato que la acción admin. */
-export function conciliarDemoImei({ requestId, id, status = 'verificado', costUsd = 0.06, resolvedAt = null, externalId = '', normalized = null, note = '' } = {}) {
+/** Reporte de problema demo (#233): el inquilino solo avisa; no cambia estado ni costo. */
+export function conciliarDemoImei({ requestId, id, note = '' } = {}) {
   const filas = leer()
   const fila = filas.find(item => (requestId && item.requestId === requestId) || (id && item.id === id))
-  if (!fila) throw Object.assign(new Error('No se encontró la consulta a conciliar.'), { status: 404 })
-  fila.status = status
-  fila.etiqueta = status === 'verificado' ? 'Verificado' : status === 'parcial' ? 'Parcial' : 'No verificado'
-  fila.costUsd = Number(costUsd) || 0
-  if (resolvedAt) fila.resolvedAt = new Date(resolvedAt).toISOString()
-  if (externalId) fila.externalId = externalId
-  if (Array.isArray(normalized)) fila.normalized = normalized
+  if (!fila) throw Object.assign(new Error('No se encontró la consulta.'), { status: 404 })
   fila.conciliatedAt = new Date().toISOString()
   fila.conciliationNote = note
   guardar(filas.map(item => (item.id === fila.id ? fila : item)))

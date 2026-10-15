@@ -119,6 +119,51 @@ try {
   assert.notEqual(detallePropia.branch?.id, 'otra-sucursal-inexistente')
   await req(`/api/stock-verifications/${propia.id}`, 'PATCH', { action: 'cancel' }, 200, seller)
 
+  // ── Deshacer un check de fila también deshace su escaneo en una sesión ABIERTA.
+  const abierta2 = await req('/api/stock-verifications', 'POST', { branchId: BRANCH }, 201, seller)
+  const escaneado = await req(`/api/stock-verifications/${abierta2.id}`, 'PATCH', { action: 'scan', serial: series[0] }, 200, seller)
+  assert.equal(escaneado.outcome, 'VERIFIED')
+  assert.equal((await one('SELECT count(*)::int AS n FROM "StockVerificationScan" WHERE "verificationId" = $1', [abierta2.id])).n, 1)
+  await req('/api/inventory-units/verify', 'DELETE', { serial: series[0] }, 200, seller)
+  assert.equal((await one('SELECT count(*)::int AS n FROM "StockVerificationScan" WHERE "verificationId" = $1', [abierta2.id])).n, 0, 'el deshacer borra el escaneo de la sesión abierta')
+  const trasUndo = await req(`/api/stock-verifications/${abierta2.id}`, 'GET', undefined, 200, seller)
+  assert.ok(trasUndo.pending.some(fila => fila.serial === series[0]), 'vuelve a pendiente')
+
+  // ── Escaneos paralelos del mismo serial: uno nuevo y el resto «duplicado»; nunca error.
+  const paralelos = await Promise.all(Array.from({ length: 6 }, () => req(`/api/stock-verifications/${abierta2.id}`, 'PATCH', { action: 'scan', serial: series[2] }, 200, seller)))
+  assert.equal(paralelos.filter(r => !r.duplicate).length, 1)
+  assert.equal(paralelos.filter(r => r.duplicate).length, 5)
+  assert.equal((await one('SELECT "verificationCount" AS n FROM "InventoryUnit" WHERE "serial" = $1', [series[2]])).n, 2, 'la unidad se verifica una sola vez más')
+
+  // ── Cerrar vs escanear: tras terminar, escanear da 409 y no deja filas nuevas.
+  const antesCierre = (await one('SELECT count(*)::int AS n FROM "StockVerificationScan" WHERE "verificationId" = $1', [abierta2.id])).n
+  const [cierre, tarde] = await Promise.all([
+    req(`/api/stock-verifications/${abierta2.id}`, 'PATCH', { action: 'finish' }, 200, seller),
+    fetch(base + `/api/stock-verifications/${abierta2.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${seller}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'scan', serial: series[1] }) }),
+  ])
+  assert.equal(cierre.status, 'FINISHED')
+  const despues = (await one('SELECT count(*)::int AS n FROM "StockVerificationScan" WHERE "verificationId" = $1', [abierta2.id])).n
+  const guardado = await one('SELECT "verifiedCount" + "unexpectedCount" AS n FROM "StockVerification" WHERE "id" = $1', [abierta2.id])
+  assert.equal(guardado.n, despues, `el resumen guardado coincide con los escaneos (${tarde.status})`)
+  assert.ok(despues >= antesCierre)
+  await req(`/api/stock-verifications/${abierta2.id}`, 'PATCH', { action: 'scan', serial: series[1] }, 409, seller)
+
+  // ── Cualquier rol con sucursal asignada (no solo vendedor/cajera) queda limitado a ella.
+  const ajena = `vf-ajena-${tag}`
+  await db.query('INSERT INTO "StockVerification" ("id","tenantId","branchId","status","startedById") VALUES ($1, \'tenant-a-it\', \'branch-a2-it\', \'OPEN\', $2)', [ajena, vendedorId])
+  const rolOriginal = (await one('SELECT "role" FROM "User" WHERE "id" = $1', [vendedorId])).role
+  try {
+    await db.query('UPDATE "User" SET "role" = \'TECNICO\' WHERE "id" = $1', [vendedorId])
+    await req(`/api/stock-verifications/${ajena}`, 'GET', undefined, 404, seller)
+    await req(`/api/stock-verifications/${ajena}`, 'PATCH', { action: 'scan', serial: series[0] }, 404, seller)
+    const lista = await req('/api/stock-verifications', 'GET', undefined, 200, seller)
+    assert.ok(!lista.some(item => item.id === ajena), 'el listado queda limitado a su sucursal')
+    await req(`/api/stock-verifications/${ajena}`, 'GET', undefined, 200, gerente) // administración/gerencia sí opera entre sucursales
+  } finally {
+    await db.query('UPDATE "User" SET "role" = $2 WHERE "id" = $1', [vendedorId, rolOriginal])
+    await db.query('DELETE FROM "StockVerification" WHERE "id" = $1', [ajena])
+  }
+
   console.log(`stock-verification-http: ${checks} checks OK`)
 } finally {
   await db.end()

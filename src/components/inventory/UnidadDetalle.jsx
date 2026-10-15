@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fechaHora, paraInputFechaHora } from '@/utils/fecha'
+import { fechaHora } from '@/utils/fecha'
 import { serialEnmascarado } from '@/utils/serial'
 import { qrDataUrl } from '@/lib/qr'
 import { Aviso, Badge, Button, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
@@ -36,7 +36,6 @@ import { etiquetaEnvio, etiquetaMetodoEnvio, etiquetaNecesidad, etiquetaOrigen }
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 // #233: aclaración que acompaña toda conciliación (el panel del proveedor no
 // certifica el estado global del equipo con esos dos indicadores).
-const NOTA_CONCILIACION = 'Conciliado con el panel del proveedor. iCloud/US Block clean ≠ blacklist mundial: no certifican el estado global del equipo.'
 
 const money = (value, currency) => {
   const amount = Number(value)
@@ -317,35 +316,21 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // la aclaración obligatoria en la nota (iCloud/US Block clean no son blacklist).
   function abrirConciliacion(fila) {
     setConsultaError('')
-    setConciliando({
-      ...fila,
-      status: ['verificado', 'parcial', 'fallido'].includes(fila.status) ? fila.status : 'verificado',
-      costUsd: fila.costUsd ?? 0.06,
-      resolvedAt: paraInputFechaHora(fila.resolvedAt || new Date()),
-      externalId: fila.externalId || '',
-      note: fila.conciliationNote || NOTA_CONCILIACION,
-    })
+    setConciliando({ ...fila, note: '' })
   }
+  // El inquilino solo reporta el problema; la plataforma decide el reembolso.
   async function guardarConciliacion(event) {
     event.preventDefault()
     if (!conciliando) return
+    if (!conciliando.note.trim()) { setConsultaError('Contanos qué pasó con la consulta.'); return }
     setConsultaBusy(true); setConsultaError('')
     try {
-      const cuerpo = {
-        action: 'conciliar',
-        ...(conciliando.requestId ? { requestId: conciliando.requestId } : { id: conciliando.id }),
-        status: conciliando.status,
-        costUsd: Number(conciliando.costUsd) || 0,
-        ...(conciliando.resolvedAt ? { resolvedAt: new Date(conciliando.resolvedAt).toISOString() } : {}),
-        ...(conciliando.externalId ? { externalId: conciliando.externalId } : {}),
-        ...(Array.isArray(conciliando.normalized) ? { normalized: conciliando.normalized } : {}),
-        note: conciliando.note,
-      }
+      const cuerpo = { action: 'reportar', ...(conciliando.requestId ? { requestId: conciliando.requestId } : { id: conciliando.id }), note: conciliando.note }
       const actualizada = esDemo ? conciliarDemoImei(cuerpo) : await api.post('/api/imei', cuerpo)
       setConsultasFilas(filas => filas.map(fila => (fila.id === actualizada.id ? { ...fila, ...actualizada } : fila)))
       setConciliando(null)
-      toast.success('Consulta conciliada.')
-    } catch (cause) { setConsultaError(cause?.message || 'No se pudo conciliar la consulta.') } finally { setConsultaBusy(false) }
+      toast.success('Problema reportado. Lo revisamos y te avisamos.')
+    } catch (cause) { setConsultaError(cause?.message || 'No se pudo reportar el problema.') } finally { setConsultaBusy(false) }
   }
 
   // Precheck: valida el IMEI y muestra servicio, campos y COSTO antes de ejecutar.
@@ -759,31 +744,25 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           <div className="mt-3 space-y-2" data-testid="imei-consultas-lista">
             {consultasFilas.map(fila => <article key={fila.id} className="rounded-xl border border-ink-600 p-2 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-2"><Badge color={fila.status === 'verificado' ? 'green' : fila.status === 'conciliar' ? 'orange' : 'slate'}>{fila.etiqueta || fila.status}</Badge><span className="text-mute">{fila.imei || ''} · US$ {Number(fila.costUsd || 0).toFixed(2)} · {fila.requestedAt ? new Date(fila.requestedAt).toLocaleString('es-PY') : ''}</span></span>
-                {puedeConciliar && <Button type="button" className="px-2 text-xs" title="Conciliar la consulta con el panel del proveedor (queda auditada)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Conciliar</Button>}
+                <span className="flex items-center gap-2"><Badge color={fila.status === 'verificado' ? 'green' : fila.status === 'conciliar' ? 'orange' : 'slate'}>{fila.etiqueta || fila.status}</Badge><span className="text-mute">{fila.imei || ''} · {fila.requestedAt ? new Date(fila.requestedAt).toLocaleString('es-PY') : ''}</span></span>
+                {puedeConciliar && <Button type="button" className="px-2 text-xs" title="Avisarnos que esta consulta falló o no coincide (queda registrado)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Reportar problema</Button>}
               </div>
               {fila.status === 'conciliar' && fila.error ? <p className="mt-1 text-[11px] text-warn">{fila.error}</p> : null}
-              {fila.conciliatedAt ? <p className="mt-1 text-[11px] text-mute">Conciliada el {fechaHora(fila.conciliatedAt)}{fila.externalId ? ` · orden ${fila.externalId}` : ''}</p> : null}
+              {fila.conciliatedAt ? <p className="mt-1 text-[11px] text-mute">Revisada el {fechaHora(fila.conciliatedAt)}</p> : null}
             </article>)}
           </div>
         </Modal>
 
         {/* #233: conciliación de una consulta IMEI (acción auditada de admin/gerencia) */}
-        <Modal open={Boolean(conciliando)} onClose={() => { if (!consultaBusy) setConciliando(null) }} title="Conciliar consulta IMEI" size="formulario">
+        <Modal open={Boolean(conciliando)} onClose={() => { if (!consultaBusy) setConciliando(null) }} title="Reportar problema de la consulta" size="formulario">
           {conciliando && <form onSubmit={guardarConciliacion} className="space-y-3">
             <p className="text-xs text-mute">IMEI {conciliando.imeiMasked || serialEnmascarado(conciliando.imei)} · {conciliando.serviceName || 'Apple Basic'} · registrada el {fechaHora(conciliando.requestedAt)}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Select aria-label="Estado conciliado" value={conciliando.status} onChange={event => setConciliando(actual => ({ ...actual, status: event.target.value }))}><option value="verificado">Verificado</option><option value="parcial">Parcial</option><option value="fallido">Fallido</option></Select>
-              <Input aria-label="Costo real USD" inputMode="decimal" value={conciliando.costUsd} onChange={event => setConciliando(actual => ({ ...actual, costUsd: event.target.value.replace(/[^0-9.]/g, '') }))} placeholder="Costo real US$" />
-              <Input aria-label="Fecha del panel" type="datetime-local" value={conciliando.resolvedAt} onChange={event => setConciliando(actual => ({ ...actual, resolvedAt: event.target.value }))} />
-              <Input aria-label="Orden del proveedor" value={conciliando.externalId} onChange={event => setConciliando(actual => ({ ...actual, externalId: event.target.value }))} placeholder="Orden del proveedor (opcional)" />
-            </div>
-            <Textarea aria-label="Nota de conciliación" rows={3} maxLength={500} value={conciliando.note} onChange={event => setConciliando(actual => ({ ...actual, note: event.target.value }))} placeholder="Nota de la conciliación" />
-            <p className="text-[11px] text-mute">La nota incluye la aclaración obligatoria: <b className="text-fore">iCloud/US Block clean ≠ blacklist mundial</b>. Son señales parciales del panel y no certifican el estado global del equipo.</p>
+            <Textarea aria-label="Qué pasó" rows={3} maxLength={500} value={conciliando.note} onChange={event => setConciliando(actual => ({ ...actual, note: event.target.value }))} placeholder="Contanos qué pasó con la consulta" />
+            <p className="text-[11px] text-mute">Nuestro equipo revisa el caso y, si corresponde, devuelve la verificación a tu saldo.</p>
             {consultaError && <Aviso tono="error" compact>{consultaError}</Aviso>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" disabled={consultaBusy} onClick={() => setConciliando(null)}>Cancelar</Button>
-              <Button type="submit" disabled={consultaBusy} data-testid="imei-conciliar-guardar">{consultaBusy ? 'Guardando…' : 'Guardar conciliación'}</Button>
+              <Button type="submit" disabled={consultaBusy} data-testid="imei-conciliar-guardar">{consultaBusy ? 'Enviando…' : 'Enviar reporte'}</Button>
             </div>
           </form>}
         </Modal>

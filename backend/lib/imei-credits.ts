@@ -103,7 +103,8 @@ async function asegurar(tx: Tx, tenantId: string, ahora: Date) {
     if (ya.length) continue
     // Tope de arrastre: lo que sobra de meses anteriores no pasa de 3 cupos.
     const mensuales = (await lotesVigentes(tx, tenantId, ahora)).filter(l => l.source === 'MONTHLY')
-    let exceso = mensuales.reduce((suma, l) => suma + l.remaining, 0) - MESES_ARRASTRE * cupo
+    // El cupo que se acredita ahora cuenta: tras acreditarlo, el total no pasa de 3 cupos.
+    let exceso = mensuales.reduce((suma, l) => suma + l.remaining, 0) - (MESES_ARRASTRE - 1) * cupo
     for (const lote of mensuales) {
       if (exceso <= 0) break
       const quita = Math.min(exceso, lote.remaining)
@@ -234,8 +235,8 @@ export async function agregarVerificaciones(input: { tenantId: string; actorId: 
   const opId = texto(input.opId, 80) || randomUUID()
   return prisma.$transaction(async tx => {
     await candado(tx, input.tenantId)
-    const nuevo = await insertarEntrada(tx, { tenantId: input.tenantId, lotId: `ilg_${opId}`, type: 'GRANT', amount: cantidad, sourceRef: `grant:${opId}`, note: nota || null, actorId: input.actorId })
-    if (nuevo) await insertarLote(tx, { id: `ilg_${opId}`, tenantId: input.tenantId, source: 'GRANT', granted: cantidad, expiresAt, sourceRef: `grant:${opId}`, note: nota || null, createdById: input.actorId })
+    const nuevo = await insertarEntrada(tx, { tenantId: input.tenantId, lotId: `ilg_${input.tenantId}_${opId}`, type: 'GRANT', amount: cantidad, sourceRef: `grant:${opId}`, note: nota || null, actorId: input.actorId })
+    if (nuevo) await insertarLote(tx, { id: `ilg_${input.tenantId}_${opId}`, tenantId: input.tenantId, source: 'GRANT', granted: cantidad, expiresAt, sourceRef: `grant:${opId}`, note: nota || null, createdById: input.actorId })
     await asegurar(tx, input.tenantId, new Date())
     return { aplicado: nuevo, saldo: await saldoEn(tx, input.tenantId, new Date()), cantidad, expiresAt, nota }
   })
@@ -271,10 +272,10 @@ export async function ajustarVerificaciones(input: { tenantId: string; actorId: 
     await asegurar(tx, input.tenantId, ahora)
     let aplicado = true
     if (n > 0) {
-      aplicado = await insertarEntrada(tx, { tenantId: input.tenantId, lotId: `ila_${opId}`, type: 'ADJUST', amount: n, sourceRef: `adj:${opId}`, note: nota, actorId: input.actorId })
-      if (aplicado) await insertarLote(tx, { id: `ila_${opId}`, tenantId: input.tenantId, source: 'ADJUST', granted: n, sourceRef: `adj:${opId}`, note: nota, createdById: input.actorId })
+      aplicado = await insertarEntrada(tx, { tenantId: input.tenantId, lotId: `ila_${input.tenantId}_${opId}`, type: 'ADJUST', amount: n, sourceRef: `adj:${opId}`, note: nota, actorId: input.actorId })
+      if (aplicado) await insertarLote(tx, { id: `ila_${input.tenantId}_${opId}`, tenantId: input.tenantId, source: 'ADJUST', granted: n, sourceRef: `adj:${opId}`, note: nota, createdById: input.actorId })
     } else {
-      const yaAplicado = await tx.$queryRaw<{ n: number }[]>`SELECT 1 AS n FROM "ImeiCreditEntry" WHERE "tenantId" = ${input.tenantId} AND "type" = 'ADJUST' AND "sourceRef" LIKE ${'adj:' + opId + ':%'}`
+      const yaAplicado = await tx.$queryRaw<{ n: number }[]>`SELECT 1 AS n FROM "ImeiCreditEntry" WHERE "tenantId" = ${input.tenantId} AND "type" = 'ADJUST' AND "sourceRef" LIKE ${'adj:' + opId.replace(/[\\%_]/g, '\\$&') + ':%'} ESCAPE '\\'`
       if (yaAplicado.length) aplicado = false
       else {
         if ((await saldoEn(tx, input.tenantId, ahora)) < -n) throw new ErrorCreditos('El ajuste deja el saldo en negativo.')

@@ -7,7 +7,8 @@ import { INVENTORY_PHYSICALLY_VERIFIED } from '../../../../lib/inventory'
 import { canUndoVerification } from '../../../../lib/stock-verification'
 import { reservaDeAsignacion, vincularAsignacionAlRecibir } from '../../../../lib/transit'
 
-const branchAllowed = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
+// Todo rol con sucursal asignada queda limitado a ella; solo administración/gerencia opera entre sucursales.
+const branchAllowed = (role: string, assigned: string | null, branchId: string | null) => ['ADMIN', 'GERENTE'].includes(role) || !assigned || assigned === branchId
 const text = (value: unknown, max = 128) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
 
 // La verificación deja evidencia de quién confirmó físicamente cada unidad.
@@ -115,6 +116,10 @@ export async function DELETE(request: Request) {
       if (!evento || meta.receivedInTransit || !meta.previous) throw new Error('Esta verificación no se puede deshacer.')
       if (!canUndoVerification({ verifiedAt: unit.lastVerifiedAt, verifiedById: unit.lastVerifiedById, userId: session.user.id, auditAt: meta.verifiedAt ?? null })) throw new Error('Solo se puede deshacer tu verificación durante el primer minuto.')
       await tx.inventoryUnit.update({ where: { id: unit.id }, data: { lastVerifiedAt: meta.previous.at ? new Date(meta.previous.at) : null, lastVerifiedById: meta.previous.byId, verificationCount: Math.max(0, meta.previous.count ?? 0) } })
+      // La misma verificación en una sesión ABIERTA de «Verificar stock» se deshace en la misma transacción
+      // (si no, la sesión seguiría contando como verificada una unidad sin check).
+      const abiertas = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "StockVerification" WHERE "tenantId" = ${tenant} AND "status" = 'OPEN' FOR UPDATE`
+      if (abiertas.length) await tx.stockVerificationScan.deleteMany({ where: { tenantId: tenant, serial, outcome: 'VERIFIED', scannedById: session.user.id, verificationId: { in: abiertas.map(fila => fila.id) } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_VERIFICATION_UNDONE', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial, undoneAt: new Date().toISOString() } } })
       return { undone: true, serial, lastVerifiedAt: meta.previous.at, lastVerifiedById: meta.previous.byId }
     })

@@ -45,7 +45,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS "ImeiCreditEntry_append_only" ON "ImeiCreditEntry";
-CREATE TRIGGER "ImeiCreditEntry_append_only" BEFORE UPDATE ON "ImeiCreditEntry" FOR EACH ROW EXECUTE FUNCTION "imei_credit_entry_append_only"();
+CREATE TRIGGER "ImeiCreditEntry_append_only" BEFORE UPDATE OR DELETE ON "ImeiCreditEntry" FOR EACH ROW EXECUTE FUNCTION "imei_credit_entry_append_only"();
 
 CREATE TABLE IF NOT EXISTS "ImeiCreditSetting" (
   "tenantId" TEXT NOT NULL,
@@ -67,4 +67,5 @@ ON CONFLICT ("id") DO NOTHING;
 INSERT INTO "ImeiCreditEntry" ("id","tenantId","lotId","type","amount","sourceRef","note")
 SELECT 'ice_free_' || t."id", t."id", 'ilf_' || t."id", 'GRANT', 1, 'free', 'Verificación de bienvenida'
 FROM "Tenant" t
-ON CONFLICT ("id") DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM "ImeiCreditEntry" e WHERE e."tenantId" = t."id" AND e."type" = 'GRANT' AND e."sourceRef" = 'free')
+ON CONFLICT DO NOTHING;
