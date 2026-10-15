@@ -198,7 +198,9 @@ export function marcaDeMedio(medio) {
 export default function MedioPago({ medio, className, alto = 'h-5', conNombre = false }) {
   const clave = marcaDeMedio(medio)
   if (!clave) {
-    return <span className={cn('text-sm text-mute', className)}>{medio || '—'}</span>
+    // Sin marca (Transferencia, QR…): texto en una línea que no invade la celda vecina.
+    const texto = medio && medio === medio.toUpperCase() && medio.length > 3 ? medio.charAt(0) + medio.slice(1).toLowerCase() : medio
+    return <span className={cn('block max-w-full truncate text-sm text-mute', className)} title={medio || undefined}>{texto || '—'}</span>
   }
   const Logo = MARCAS_MEDIO_PAGO[clave]
   const logo = (

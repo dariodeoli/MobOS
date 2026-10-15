@@ -249,3 +249,9 @@
   background: rgb(var(--c-ink-700));
   border-color: rgb(var(--c-ink-600));
 }
+
+/* #451: el contenido del desplegable cerrado no ocupa caja: sus botones no
+   deben contar como controles visibles superpuestos con la lista de abajo. */
+.inicio-disclosure:not([open]) > :not(summary) {
+  display: none;
+}
