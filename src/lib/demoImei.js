@@ -18,7 +18,7 @@ export function validarImeiDemo(valor) {
   if (imei.length !== 15) return { ok: false, error: 'El IMEI debe tener 15 dígitos.' }
   let suma = 0
   for (let i = 0; i < 15; i += 1) { let d = Number(imei[14 - i]); if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9 } suma += d }
-  if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no pasa la verificación de dígito control (Luhn).' }
+  if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no tiene un dígito de control válido: revisá que esté bien escrito.' }
   return { ok: true, imei, ficticio: false }
 }
 

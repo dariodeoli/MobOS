@@ -17,7 +17,7 @@ test('valida igual que el backend y acepta los seriales ficticios del demo', () 
   assert.equal(validarImeiDemo('490154203237518').ok, true)
   assert.equal(validarImeiDemo(SERIAL).ok, true)
   assert.equal(validarImeiDemo('123').ok, false)
-  assert.match(String(validarImeiDemo('490154203237519').error), /Luhn/)
+  assert.match(String(validarImeiDemo('490154203237519').error), /dígito de control/)
 })
 
 test('precheck no registra la consulta y muestra el costo', async () => {

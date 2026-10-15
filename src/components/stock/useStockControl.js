@@ -23,7 +23,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { ultimos4 } from '@/utils/serial'
-import { mensajeReserva } from '@/utils/reserva'
+import { RESERVA_HORAS_DEFECTO, mensajeReserva } from '@/utils/reserva'
 import { transferReceiveUrlFor } from '@/components/shared/OrderReceipt'
 import { qrDataUrl } from '@/lib/qr'
 import { gs } from '@/utils/calculos'
@@ -148,7 +148,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [proveedores, setProveedores] = useState([])
   const [recientesProveedores, setRecientesProveedores] = useState(() => leerProveedoresRecientes(contextoActual().empresaId))
   const [cotizacion, setCotizacion] = useState(null)
-  const [reserve, setReserve] = useState({ serials: '', customerName: '', customerId: '', hours: '2' })
+  const [reserve, setReserve] = useState({ serials: '', customerName: '', customerId: '', hours: String(RESERVA_HORAS_DEFECTO) })
   const [reserveMatches, setReserveMatches] = useState([])
   const reserveTimer = useRef(null)
   const [guiaPara, setGuiaPara] = useState(null)
@@ -462,7 +462,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
         customerName: reserve.customerName.trim(),
         minutes: horas * 60,
       })
-      setReserve({ serials: '', customerName: '', customerId: '', hours: '2' }); setReserveMatches([]); setReserveOpen(false)
+      setReserve({ serials: '', customerName: '', customerId: '', hours: String(RESERVA_HORAS_DEFECTO) }); setReserveMatches([]); setReserveOpen(false)
     }, mensajeReserva({ serials, cliente: reserve.customerName.trim(), horas }))
   }
   async function releaseReservation(serial) { await setAndRefresh(() => resources.inventoryReservations.release([serial]), 'Reserva liberada y unidad disponible.') }
@@ -628,7 +628,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   function openReserveFor(unit) {
     // La reserva se abre sobre el inventario, no detrás del detalle de la unidad.
     setDetalleUnidad(null)
-    setReserve({ serials: unit.serial, customerName: '', customerId: '', hours: '2' })
+    setReserve({ serials: unit.serial, customerName: '', customerId: '', hours: String(RESERVA_HORAS_DEFECTO) })
     setReserveMatches([])
     setReserveOpen(true)
   }

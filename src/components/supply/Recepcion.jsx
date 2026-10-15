@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { useNavigate } from 'react-router-dom'
 import { api, resources } from '@/lib/api'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, SaveActions, Select, Skeleton, Textarea, useResultado, useToast } from '@/components/ui'
@@ -588,7 +589,7 @@ export default function Recepcion() {
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{llegada.code} <span className="font-normal text-mute">· compra {llegada.compra || '—'}</span></p>
                   <p className="mt-1 text-xs text-mute">
-                    {llegada.origen || '—'} → {llegada.destino || '—'} · {llegada.empresa || llegada.metodo || '—'} · llegada {fecha(llegada.eta)}
+                    {llegada.origen || '—'} → {llegada.destino || '—'} · {llegada.empresa || (llegada.metodo ? metodoEnvioTexto(llegada.metodo) : '—')} · llegada {fecha(llegada.eta)}
                   </p>
                 </div>
                 <Badge color={llegada.porRecibir > 0 ? 'orange' : 'blue'}>{llegada.porRecibir < llegada.unidades ? `${llegada.porRecibir} de ${llegada.unidades} por recibir` : `${llegada.unidades} unidad${llegada.unidades === 1 ? '' : 'es'}`}</Badge>

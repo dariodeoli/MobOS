@@ -93,7 +93,7 @@ const seed = () => ({
         { id: 'demo-item-5', lineId: 'demo-spl-1', productId: 'demo-airpods-pro-2-usbc', serial: serialDemo(103), status: 'EN_TRANSITO' },
         ...Array.from({ length: 5 }, (_, i) => ({ id: `demo-item-${6 + i}`, lineId: 'demo-spl-1', productId: 'demo-airpods-pro-2-usbc', serial: null, status: 'PENDIENTE' })),
       ] },
-    { id: 'demo-env-3', code: 'LOTE-AUR-0000', status: 'RECIBIDO', origin: 'CDE', method: 'LOCAL', company: 'Moto propia', driver: 'Marcos Aquino', guide: '', purchaseId: 'demo-sp-3', destinationBranchId: BRANCH, responsibleId: 'demo-user', etaAt: hace(130), sentAt: hace(135), arrivedAt: hace(120), notes: '', publicToken: 'demo-remito-3', createdAt: hace(140),
+    { id: 'demo-env-3', code: 'LOTE-AUR-0003', status: 'RECIBIDO', origin: 'CDE', method: 'LOCAL', company: 'Moto propia', driver: 'Marcos Aquino', guide: '', purchaseId: 'demo-sp-3', destinationBranchId: BRANCH, responsibleId: 'demo-user', etaAt: hace(130), sentAt: hace(135), arrivedAt: hace(120), notes: '', publicToken: 'demo-remito-3', createdAt: hace(140),
       items: Array.from({ length: 8 }, (_, i) => ({ id: `demo-item-r${i + 1}`, lineId: 'demo-spl-3', productId: 'demo-cargador-usbc-20w', serial: '', status: 'RECIBIDO' })) },
   ],
   receptions: [
@@ -302,7 +302,7 @@ export function updateDemoSupplyPurchase(data = {}) {
       const serial = String(crudo || '').trim().toUpperCase()
       if (!serial) continue
       if (/^\d{15}$/.test(serial)) {
-        if (!luhnValido(serial) && !(data.action === 'scan' && data.forzarLuhn === true)) throw new Error(`El IMEI ${serial} no pasa la verificación de dígito control (Luhn).`)
+        if (!luhnValido(serial) && !(data.action === 'scan' && data.forzarLuhn === true)) throw new Error(`El IMEI ${serial} no tiene un dígito de control válido: revisá que esté bien escrito.`)
       } else if (!/^[A-Z0-9-]{4,}$/.test(serial)) {
         throw new Error(`El serial ${serial} no parece válido.`)
       }
@@ -399,7 +399,7 @@ export function updateDemoSupplyShipment(data = {}) {
     const nuevos = data.action === 'scan' ? [data.serial] : (data.serials || [])
     const compra = state.purchases.find((fila) => fila.id === envio.purchaseId)
     for (const serial of nuevos.map((valor) => String(valor || '').trim().toUpperCase()).filter(Boolean)) {
-      if (/^\d{15}$/.test(serial) && !luhnValido(serial) && !(data.action === 'scan' && data.forzarLuhn === true)) throw new Error(`El IMEI ${serial} no pasa la verificación de dígito control (Luhn).`)
+      if (/^\d{15}$/.test(serial) && !luhnValido(serial) && !(data.action === 'scan' && data.forzarLuhn === true)) throw new Error(`El IMEI ${serial} no tiene un dígito de control válido: revisá que esté bien escrito.`)
       if (state.shipments.some((otro) => (otro.items || []).some((fila) => fila.serial === serial))) throw new Error(`El IMEI ${serial} ya está cargado en un lote.`)
       const item = (envio.items || []).find((fila) => fila.lineId === data.lineId && !fila.serial)
       if (!item) throw new Error('El lote no tiene unidades con IMEI pendiente.')
