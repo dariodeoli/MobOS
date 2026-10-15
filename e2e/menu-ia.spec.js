@@ -1,4 +1,4 @@
-import { openShellDestination, shellCatalog } from './helpers/shell-navigation.js'
+import { openShellDestination, shellCatalog, openTallerTabs } from './helpers/shell-navigation.js'
 // IA del menú (#251): ocho grupos por flujo de trabajo (Inicio · Vender ·
 // Clientes · Inventario · Operación · Finanzas · Análisis · Configuración), las
 // herramientas adentro de su sección (Promociones/Plantillas en Vender, Precios
@@ -50,7 +50,7 @@ test('«Taller» es una sola sección con pestañas y /garantias abre la suya (#
   await openShellDestination(page, 'Taller y garantías')
   await expect(page).toHaveURL(/\/servicio$/)
   await expect(page.locator('h1')).toHaveText('Taller')
-  const pestanas = page.getByRole('group', { name: 'Ver taller o garantías' })
+  const pestanas = await openTallerTabs(page)
   for (const label of ['Todo', 'Tablero', 'Servicio', 'Garantías']) {
     await expect(pestanas.getByRole('button', { name: label, exact: true })).toBeVisible()
   }

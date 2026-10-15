@@ -1,4 +1,4 @@
-import { openShellDestination, shellCatalog, shellPrimary, openShellProfile, selectConfigSection } from './helpers/shell-navigation.js'
+import { openShellDestination, shellCatalog, shellPrimary, openShellProfile, selectConfigSection, openTallerTabs } from './helpers/shell-navigation.js'
 // Owner views (admin storageState): resumen KPIs, inventario unit intake,
 // equipo → Vendedores roster + creation, and finanzas → Caja opening.
 
@@ -346,7 +346,9 @@ test.describe('owner panel', () => {
     await page.goto('/servicio')
     // Sección unificada (#224): el taller es una de sus solapas.
     await expect(page.getByRole('heading', { name: 'Taller', level: 1 })).toBeVisible()
-    await expect(page.getByRole('group', { name: 'Ver taller o garantías' }).getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
+    const tabs = await openTallerTabs(page)
+    await expect(tabs.getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
+    await tabs.getByRole('button', { name: 'Servicio', exact: true }).click()
 
     const stamp = Date.now().toString(36)
     const cliente = `Taller ${stamp}`
@@ -1268,7 +1270,7 @@ test('servicio y garantías: la garantía pasa al taller con su historial', asyn
   const garantiaId = Array.isArray(garantia.body) ? garantia.body[0]?.id : garantia.body?.id
 
   // Una sola sección con pestañas: Todo | Servicio | Garantías.
-  const tabs = page.getByRole('group', { name: /Ver taller o garantías/ })
+  const tabs = await openTallerTabs(page)
   await expect(tabs).toBeVisible()
   await tabs.getByRole('button', { name: 'Todo', exact: true }).click()
 
