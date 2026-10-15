@@ -830,6 +830,9 @@ node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_
 echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
 node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"
 
+echo "Crédito sobre el límite: pendiente de autorización, aprobación del admin/gerente, auditoría y concurrencia..."
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credito-autorizacion.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
+
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''

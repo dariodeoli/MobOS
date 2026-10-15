@@ -10,6 +10,7 @@ import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
+import { createCreditHold, evaluateCreditSale, isCreditResolverRole, lockCustomerCredit, notifyCreditHold, recordCreditApproval, verifyApproverPin, withCreditAuthorization, withCreditAuthorizations, type CreditApprover, type CreditEvaluation } from '../../../lib/credit-authorization'
 import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } from '../../../lib/authorizations'
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
@@ -182,7 +183,7 @@ export async function GET(request: Request) {
   const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
   const porId = new Map(rows.map((row) => [row.id, row]))
   const verCosto = await canSeeCostForSession(session)
-  return json(ids.map((row) => porId.get(row.id)).filter(Boolean).map((order) => redactOrderCosts(order!, verCosto)))
+  return json(await withCreditAuthorizations(prisma, tenant, ids.map((row) => porId.get(row.id)).filter(Boolean).map((order) => redactOrderCosts(order!, verCosto))))
 }
 
 export async function POST(request: Request) {
@@ -201,7 +202,7 @@ export async function POST(request: Request) {
   // volver a descontar stock ni duplicar pagos.
   if (idempotencyKey) {
     const previous = await prisma.order.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } }, include: orderDetail })
-    if (previous) return json(redactOrderCosts(previous, await canSeeCostForSession(session)))
+    if (previous) return json(await withCreditAuthorization(prisma, tenant, redactOrderCosts(previous, await canSeeCostForSession(session))))
   }
   let payload: unknown
   try { payload = await request.json() } catch { throw new InputError('JSON inválido.') }
@@ -298,7 +299,26 @@ export async function POST(request: Request) {
     }
   }
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
+  // Autorización de crédito en el mostrador: el PIN de un administrador o
+  // gerente (o el propio dueño/gerente que vende, confirmando a propósito) deja
+  // la venta aprobada de entrada. Se verifica acá, fuera de la transacción
+  // (bcrypt es lento). Sin esto, una venta que supera el crédito queda
+  // «Pendiente de autorización de crédito» y no se entrega.
+  let creditApprover: CreditApprover | null = null
+  let creditApprovalVia: 'PIN' | 'POS' = 'PIN'
+  if (body.creditApprovalPin !== undefined && body.creditApprovalPin !== null && body.creditApprovalPin !== '') {
+    creditApprover = await verifyApproverPin({ tenantId: tenant, requesterId: session.user.id, pin: body.creditApprovalPin })
+  } else if (body.creditSelfApproval !== undefined) {
+    if (body.creditSelfApproval !== true) throw new InputError('creditSelfApproval debe ser verdadero.')
+    if (!isCreditResolverRole(session.user.role)) throw new InputError('Solo administración o gerencia pueden autorizar el crédito.', 403)
+    creditApprover = { id: session.user.id, name: session.user.name, role: session.user.role }
+    creditApprovalVia = 'POS'
+  }
+  // Lo que dejó la transacción (la última, si se reintenta): para avisar a
+  // administración recién cuando la venta quedó confirmada.
+  let creditHeld: { authorizationId: string; orderId: string; branchId: string | null } | null = null
     const crearPedido = () => prisma.$transaction(async tx => {
+      creditHeld = null
       // #286: sin sucursal asignada la venta opera con la efectiva (última usada → primera creada).
       const branchId = await sucursalEfectiva(session)
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
@@ -602,12 +622,13 @@ export async function POST(request: Request) {
         if (!direccion) throw new InputError('La dirección de envío no pertenece al cliente.')
         shippingAddress = [direccion.address, direccion.city, direccion.department].filter(Boolean).join(', ').slice(0, 600)
       }
-      // Venta a crédito: plazo y límite del cliente (control de mora).
-      let dueAt: Date | null = null; let creditDays: number | null = null; let creditLimit: number | null = null
-      if (body.creditDays !== undefined || body.dueAt !== undefined) {
-        const customerRow = customerId ? await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { creditLimitPyg: true, creditDays: true } }) : null
-        if (!customerRow?.creditLimitPyg) throw new InputError('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
-        creditLimit = numero(customerRow.creditLimitPyg)
+      // Venta a crédito: plazo del cliente. El límite se controla más abajo,
+      // con la ficha bloqueada, junto con la deuda abierta.
+      let dueAt: Date | null = null; let creditDays: number | null = null
+      if (aCredito) {
+        if (!customerId) throw new InputError('Elegí un cliente para vender a crédito.')
+        const customerRow = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { creditDays: true } })
+        if (!customerRow) throw new InputError('Cliente no encontrado.', 404)
         const requestedDays = body.creditDays !== undefined ? Number(body.creditDays) : (customerRow.creditDays ?? undefined)
         if (requestedDays !== undefined && (!safeInt(requestedDays) || requestedDays > 365)) throw new InputError('El plazo de crédito debe estar entre 0 y 365 días.')
         creditDays = requestedDays ?? null
@@ -622,15 +643,18 @@ export async function POST(request: Request) {
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
-      // Límite de crédito: pendiente histórico + lo nuevo a crédito ≤ límite.
-      if (creditLimit !== null && customerId) {
-        const outstanding = await tx.$queryRaw<Array<{ total: bigint }>>`
-          SELECT COALESCE(SUM(o."totalPyg" - COALESCE(p.confirmed, 0)), 0)::bigint AS total
-          FROM "Order" o
-          LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS confirmed FROM "Payment" WHERE "tenantId" = ${tenant} AND status = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
-          WHERE o."tenantId" = ${tenant} AND o."customerId" = ${customerId} AND o."status" = 'PENDING'`
-        const pendingTotal = numero(outstanding[0]?.total)
-        if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
+      // Límite de crédito (autoridad del servidor, dentro de la misma
+      // transacción): deuda abierta del cliente + lo que esta venta deja sin
+      // cobrar ≤ límite. Sin límite configurado el disponible es 0. La ficha
+      // queda bloqueada (FOR UPDATE) hasta confirmar: dos ventas simultáneas
+      // del mismo cliente no pueden pasar ambas el límite. Si lo supera, la
+      // venta se crea igual (el stock queda reservado) pero «Pendiente de
+      // autorización de crédito»: no se entrega hasta que la apruebe un
+      // administrador o gerente.
+      let creditCheck: CreditEvaluation | null = null
+      if (aCredito && customerId && total - confirmed > 0) {
+        const position = await lockCustomerCredit(tx, tenant, customerId)
+        creditCheck = evaluateCreditSale({ limitPyg: position.limitPyg, debtPyg: position.debtPyg, unpaidPyg: total - confirmed })
       }
       // Identificador comercial de la empresa (`PREFIX-#0001`) con el contador
       // transaccional del tenant; un número explícito del cliente manda.
@@ -651,6 +675,14 @@ export async function POST(request: Request) {
       }
       await tx.orderAccessToken.create({ data: { orderId: order.id, tenantId: tenant, level: 'rapido', token: publicToken, createdBy: session.user.id } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(offlineSale ? { offline: true } : {}) } } })
+      if (creditCheck?.requiresAuthorization && customerId) {
+        if (creditApprover) {
+          await recordCreditApproval(tx, { tenantId: tenant, orderId: order.id, orderNumber: order.orderNumber, customerId, requestedById: session.user.id, evaluation: creditCheck, approver: creditApprover, via: creditApprovalVia })
+        } else {
+          const authorizationId = await createCreditHold(tx, { tenantId: tenant, orderId: order.id, orderNumber: order.orderNumber, customerId, requestedById: session.user.id, evaluation: creditCheck })
+          creditHeld = { authorizationId, orderId: order.id, branchId }
+        }
+      }
       // POS offline: la venta llegó de la cola local. Queda el rastro de lo que
       // se relajó (stock faltante y equipos sin IMEI) para que se revise.
       if (offlineSale) {
@@ -743,14 +775,16 @@ export async function POST(request: Request) {
     }
     // El enlace de seguimiento viaja en la respuesta de creación (y queda como
     // enlace de nivel rápido del pedido, listable y rotable desde el panel).
-    return json({ ...redactOrderCosts(result, await canSeeCostForSession(session)), publicToken }, { status: 201 })
+    const held = creditHeld as { authorizationId: string; orderId: string; branchId: string | null } | null
+    if (held) await notifyCreditHold({ tenantId: tenant, orderId: held.orderId, authorizationId: held.authorizationId, branchId: held.branchId })
+    return json({ ...await withCreditAuthorization(prisma, tenant, redactOrderCosts(result, await canSeeCostForSession(session))), publicToken }, { status: 201 })
   } catch (e) {
     // Dos reintentos concurrentes con la misma clave: el segundo choca con el
     // índice único; se devuelve entonces la orden que ganó la carrera.
     if (idempotencyKey && (e as { code?: string })?.code === 'P2002') {
       try {
         const previous = await prisma.order.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } }, include: orderDetail })
-        if (previous) return json(redactOrderCosts(previous, await canSeeCostForSession(session)))
+        if (previous) return json(await withCreditAuthorization(prisma, tenant, redactOrderCosts(previous, await canSeeCostForSession(session))))
       } catch { /* cae al error genérico */ }
     }
     // Un error de precios es de datos (4xx) y se muestra tal cual: la venta no

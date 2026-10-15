@@ -20,6 +20,8 @@ export const AUTHORIZATION_KINDS = [
   'EXPENSE_OVER_LIMIT',
   'TRANSFER',
   'PURCHASE_CREDIT',
+  // Venta a crédito que supera el crédito disponible: bloquea la entrega.
+  'ORDER_CREDIT_OVER',
 ] as const
 export type AuthorizationKind = typeof AUTHORIZATION_KINDS[number]
 

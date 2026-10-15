@@ -44,6 +44,7 @@ const KINDS = {
   EXPENSE_OVER_LIMIT: 'Gasto sobre límite',
   TRANSFER: 'Transferencia',
   PURCHASE_CREDIT: 'Compra a crédito',
+  ORDER_CREDIT_OVER: 'Crédito sobre el límite',
 }
 
 const SUJETOS = {
@@ -84,6 +85,7 @@ function resumenValor(kind, value) {
   const data = value && typeof value === 'object' ? value : {}
   if (kind === 'WHOLESALE') return 'Pasar a precio mayorista'
   if (kind === 'ORDER_VOID') return 'Anulación total del pedido'
+  if (kind === 'ORDER_CREDIT_OVER') return [`Supera el crédito en ${data.overPyg !== undefined ? formatGs(data.overPyg) : '—'}`, data.orderNumber, data.limitPyg !== undefined ? `límite ${formatGs(data.limitPyg)}` : ''].filter(Boolean).join(' · ')
   if (kind === 'ORDER_DELIVER_UNPAID') return data.reason ? `Entrega con saldo · ${data.reason}` : 'Entrega con saldo pendiente'
   if (kind === 'STOCK_ADJUST') return `${data.action === 'remove' ? 'Retirar unidad' : 'Ajustar unidad'}${data.reason ? ` · ${data.reason}` : ''}`
   if (kind === 'EXPENSE_OVER_LIMIT') return [`Gasto ${data.amountPyg !== undefined ? formatGs(data.amountPyg) : ''}`.trim(), data.description].filter(Boolean).join(' · ') || '—'

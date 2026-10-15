@@ -936,7 +936,8 @@ function enriquecerVentaDemo(venta, prod) {
   const sucursal = SUCURSALES_DEMO.find(s => s.id === ctx.sucursalId) || SUCURSALES_DEMO[0]
   venta.branch = venta.branch || { id: sucursal.id, name: sucursal.name, address: sucursal.address, city: sucursal.city }
   venta.deliveryType = venta.deliveryType || (String(venta.entrega || '').toLowerCase().includes('delivery') ? 'DELIVERY' : 'RETIRO')
-  venta.fulfillmentStatus = venta.fulfillmentStatus || (venta.deliveryType === 'DELIVERY' ? 'PROCESSING' : 'PICKED_UP')
+  // Nunca se marca retirada/entregada sola: el vendedor lo confirma («¿ya se llevó el producto?»).
+  venta.fulfillmentStatus = venta.fulfillmentStatus || 'PROCESSING'
   venta.subtotalPyg = venta.subtotalPyg ?? num(venta.precio)
   venta.totalPyg = venta.totalPyg ?? num(venta.precio) + num(venta.montoDelivery)
   venta.seller = venta.seller || { id: venta.vendedorId || null, name: venta.vendedorNombre || 'Equipo demo' }

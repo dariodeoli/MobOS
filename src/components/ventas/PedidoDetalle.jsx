@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import PresenciaPedido from './PresenciaPedido'
 import RecordHeader from '@/components/app/RecordHeader'
 import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
@@ -14,6 +14,9 @@ import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { cn, primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
+import CreditoPedido from '@/components/ventas/venta/CreditoPedido'
+import EntregaPregunta from '@/components/ventas/venta/EntregaPregunta'
+import { creditoBloqueaEntrega, preguntaEntregaAplica } from '@/lib/credito'
 import { api, apiFetch } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { metodoEntrega, opcionesDeEntrega, tonoEntrega } from './venta/entrega'
@@ -65,6 +68,9 @@ const AUDIT_LABELS = {
   ORDER_CUSTOMER_CREATED: (meta) => `Ficha creada desde el pedido: ${meta?.customerName || ''}${meta?.matched ? ' (coincidía con una ficha existente)' : ''}`,
   ORDER_VOIDED: (meta) => `Pedido anulado${meta?.reason ? `: ${meta.reason}` : ''}${Number(meta?.restoredUnits || 0) > 0 ? ` · ${meta.restoredUnits} unidad(es) repuestas` : ''}`,
   ORDER_DELIVERED_UNPAID: (meta) => `Entrega con saldo autorizada${Number(meta?.pendingPyg || 0) > 0 ? ` · saldo ${gs(Number(meta.pendingPyg))}` : ''}`,
+  ORDER_CREDIT_HELD: (meta) => <>Pendiente de autorización de crédito: supera el límite en <Money value={Number(meta?.overPyg || 0)} /></>,
+  ORDER_CREDIT_AUTHORIZED: (meta) => <>Crédito autorizado por {meta?.approverName || 'gerencia'}{meta?.via === 'PIN' ? ' (con PIN)' : ''}: <Money value={Number(meta?.overPyg || 0)} /> sobre el límite</>,
+  ORDER_CREDIT_REJECTED: (meta) => `Crédito rechazado por ${meta?.approverName || 'gerencia'}${meta?.note ? `: ${meta.note}` : ''}`,
   ORDER_TAGS_UPDATED: (meta) => (meta?.tags || []).length ? `Etiquetas: ${meta.tags.join(', ')}` : 'Etiquetas quitadas',
   ORDER_ARCHIVED: () => 'Pedido archivado',
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
@@ -133,7 +139,12 @@ const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detal
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false, abrirCobro = false }) {
   const toast = useToast()
   const navigate = useNavigate()
+  const ubicacion = useLocation()
   const { usuario, vendedores, sesion } = useSesion()
+  // Autorización de crédito: en la demo no hay recarga, así que el resultado se guarda acá.
+  const [creditoLocal, setCreditoLocal] = useState(null)
+  // «¿El cliente ya se llevó el producto?»: solo justo después de vender (el POS navega con la marca).
+  const [preguntaEntrega, setPreguntaEntrega] = useState(Boolean(ubicacion.state?.preguntaEntrega))
   const [accesos, setAccesos] = useState({})
   const [accesoBusy, setAccesoBusy] = useState(false)
   const [accesoMsg, setAccesoMsg] = useState('')
@@ -214,6 +225,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - paid)
+  const credito = creditoLocal ?? order.creditAuthorization ?? null
+  const creditoRetiene = creditoBloqueaEntrega({ creditAuthorization: credito })
   const clienteConCredito = Number(order.customer?.creditLimitPyg || 0) > 0 && Number(order.customer?.creditDays || 0) > 0
   const anulado = order.status === 'CANCELLED'
   const estadoPago = anulado ? 'Anulado' : (paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente'))
@@ -326,6 +339,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     toast.error('No se pudo imprimir la nota de entrega', resultado.error || 'Revisá la impresora.')
   }
   const cambiarEntrega = (fulfillmentStatus) => {
+    if (creditoRetiene && ['DELIVERED', 'PICKED_UP', 'PARTIAL'].includes(fulfillmentStatus)) {
+      setError('Pendiente de autorización de crédito: un administrador o gerente debe autorizar la entrega.')
+      return
+    }
     if (fulfillmentStatus === 'DELIVERED' && pendiente > 0 && !clienteConCredito && !puedeAnular) {
       setEntregaMotivo(''); setEntregaError(''); setEntregaAuth(null)
       setEntregaVersion(v => v + 1)
@@ -419,7 +436,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </dl>
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
-              <Badge key={order.fulfillmentStatus || 'PENDING'} className="mobos-chip-cambia" color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
+              {creditoRetiene
+                ? <Badge data-testid="estado-credito" color={credito.status === 'REJECTED' ? 'red' : 'orange'}>{credito.status === 'REJECTED' ? 'Crédito rechazado' : 'Pendiente de autorización de crédito'}</Badge>
+                : <Badge key={order.fulfillmentStatus || 'PENDING'} className="mobos-chip-cambia" color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>}
               {archivado && <Badge color="slate">Archivado</Badge>}
               {order.isSpecialOrder && (
                 <Badge color="orange">
@@ -456,7 +475,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </p>
             {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PENDING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
+              {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
               {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
@@ -467,6 +486,32 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
             </div>
           </section>
+
+          {credito && (
+            <CreditoPedido
+              order={order}
+              credito={credito}
+              esDemo={esDemo}
+              sesion={sesion}
+              puedeResolver={['ADMIN', 'GERENTE'].includes(usuario?.role) || (esDemo && ['dueno', 'ADMIN', 'GERENTE'].includes(sesion?.rol))}
+              onCambio={(siguiente) => {
+                setCreditoLocal(siguiente)
+                if (!esDemo) { load(); onChanged?.() } else onChanged?.()
+              }}
+            />
+          )}
+          {preguntaEntrega && !loading && !anulado && preguntaEntregaAplica({ ...order, creditAuthorization: credito }) && (
+            <EntregaPregunta
+              order={order}
+              esDemo={esDemo}
+              onEntregado={(estado) => {
+                setPreguntaEntrega(false)
+                if (esDemo) { setDetail({ ...order, fulfillmentStatus: estado }); onChanged?.() } else { load(); onChanged?.() }
+                toast.success('Pedido retirado', 'Quedó marcado como retirado.')
+              }}
+              onNoTodavia={() => setPreguntaEntrega(false)}
+            />
+          )}
 
           {/* Acceso del cliente: un enlace privado por nivel de información */}
           {!esDemo && (

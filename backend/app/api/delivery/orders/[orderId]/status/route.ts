@@ -5,6 +5,7 @@ import { InputError, objectInput } from '../../../../../../lib/payment-input'
 import { validateFulfillmentTransition } from '../../../../../../lib/orders'
 import { canUseDelivery, deliveryBalance } from '../../../../../../lib/delivery'
 import { consumeAuthorization, usableAuthorization } from '../../../../../../lib/authorizations'
+import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../../../../lib/credit-authorization'
 
 // Estado de entrega del repartidor: a entregar → en camino → entregado. Solo
 // sobre sus pedidos asignados y sin saltarse las reglas de la tienda: entregar
@@ -33,6 +34,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     let deliveryAuthorization: { id: string } | null = null
     let pendingDeliveryPyg = 0
     if (fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED') {
+      await assertCreditCleared(prisma, tenant, existing.id)
       const pagos = await prisma.payment.groupBy({
         by: ['status'],
         where: { tenantId: tenant, orderId: existing.id, status: { in: ['CONFIRMED', 'PENDING'] } },
@@ -47,7 +49,11 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           : null
         const credito = cliente && Number(cliente.creditLimitPyg || 0) > 0 && Number(cliente.creditDays || 0) > 0 ? Number(cliente.creditDays) : null
         if (credito) {
-          if (!existing.creditDays) creditUpdate = { creditDays: credito, dueAt: new Date(Date.now() + credito * 86400000) }
+          if (!existing.creditDays) {
+            if (!existing.customerId) throw new InputError('El pedido no tiene cliente.', 409)
+            await assertCreditAvailableForDelivery({ tenantId: tenant, orderId: existing.id, customerId: existing.customerId, pendingPyg: pendingDeliveryPyg })
+            creditUpdate = { creditDays: credito, dueAt: new Date(Date.now() + credito * 86400000) }
+          }
         } else {
           const authorization = await prisma.customerAuthorization.findFirst({
             where: { tenantId: tenant, kind: 'ORDER_DELIVER_UNPAID', entity: 'ORDER', entityId: existing.id, status: 'APPROVED', requestedById: session.user.id, usedAt: null },

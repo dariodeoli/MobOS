@@ -13,6 +13,7 @@ import {
   safeIntValue,
 } from '../../../lib/authorizations'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
+import { CREDIT_OVER_KIND, resolveCreditAuthorization } from '../../../lib/credit-authorization'
 
 // Autorizaciones comerciales y operativas: cualquier vendedor pide cambios de
 // condición (mayorista, crédito, días), un descuento fuera de política, una
@@ -27,7 +28,7 @@ const INT_MAX = 2147483647
 // Los tipos con sujeto propio (unidad, pedido, producto, gasto, transferencia,
 // compra) no exigen ficha de cliente: el sujeto es la operación, no la
 // condición comercial del cliente.
-const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID', 'ORDER_DELIVER_UNPAID', 'EXPENSE_OVER_LIMIT', 'TRANSFER', 'PURCHASE_CREDIT']
+const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID', 'ORDER_DELIVER_UNPAID', 'EXPENSE_OVER_LIMIT', 'TRANSFER', 'PURCHASE_CREDIT', CREDIT_OVER_KIND]
 const STOCK_ACTIONS = ['remove', 'adjust']
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 const safeInt = safeIntValue
@@ -161,6 +162,8 @@ export async function POST(request: Request) {
     const kind = clean(body?.kind, 20).toUpperCase()
     const note = clean(body?.note, 500) || null
     if (!(AUTHORIZATION_KINDS as readonly string[]).includes(kind)) return error('Tipo de autorización inválido.')
+    // La autorización de crédito nace sola al vender (o desde el pedido): no se pide a mano.
+    if (kind === CREDIT_OVER_KIND) return error('La autorización de crédito se pide desde el pedido.', 400)
     const isSubjectKind = SUBJECT_KINDS.includes(kind)
     // El descuento y los tipos con sujeto pueden no tener cliente (venta de
     // consumidor final, unidad o pedido); el resto sí exige ficha.
@@ -371,6 +374,16 @@ export async function PATCH(request: Request) {
     // El dueño (ADMIN) es la última instancia de la empresa: si trabaja solo,
     // su propia solicitud quedaría sin aprobador.
     if (current.requestedById === session.user.id && session.user.role !== 'ADMIN') return error('No podés resolver tu propia solicitud.', 403)
+    // Crédito sobre el límite: misma resolución que desde el pedido (un solo
+    // ganador, auditoría con quién aprobó y el monto, entrega habilitada).
+    if (current.kind === CREDIT_OVER_KIND && current.entityId) {
+      if (action === 'reject' && !resolvedNote) return error('Indicá el motivo del rechazo.')
+      const pedido = await prisma.order.findFirst({ where: { id: current.entityId, tenantId: session.user.tenantId }, select: { id: true, orderNumber: true } })
+      if (!pedido) return error('Pedido no encontrado.', 404)
+      await prisma.$transaction(tx => resolveCreditAuthorization(tx, { tenantId: session.user.tenantId, orderId: pedido.id, orderNumber: pedido.orderNumber, authorizationId: current.id, action: action as 'approve' | 'reject', approver: { id: session.user.id, name: session.user.name, role: session.user.role }, performedById: session.user.id, via: 'SESSION', note: resolvedNote }))
+      const resuelta = await prisma.customerAuthorization.findFirst({ where: { id: current.id, tenantId: session.user.tenantId }, include: authorizationDetail })
+      return json(await paraRol(session, resuelta))
+    }
     const isSubjectKind = SUBJECT_KINDS.includes(current.kind)
     // Un rechazo sin motivo deja al vendedor sin saber qué corregir.
     if (action === 'reject' && (current.kind === 'DISCOUNT' || current.kind === 'BELOW_LIST_PRICE' || isSubjectKind) && !resolvedNote) {

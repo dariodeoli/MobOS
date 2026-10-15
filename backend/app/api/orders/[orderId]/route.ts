@@ -9,6 +9,7 @@ import { consumeAuthorization, usableAuthorization } from '../../../../lib/autho
 import { serialKey } from '../../../../lib/validation'
 import { numero } from '../../../../lib/montos'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
+import { assertCreditAvailableForDelivery, assertCreditCleared, withCreditAuthorization } from '../../../../lib/credit-authorization'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -32,7 +33,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const { orderId } = await context.params
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
-  return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
+  return json(await withCreditAuthorization(prisma, tenant, redactOrderCosts(order, (await canSeeCostForSession(session)))))
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
@@ -166,6 +167,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     let pendingDeliveryPyg = 0
     // Entregar (o retirar) con saldo, incluso parcial, sigue la misma regla.
     if (['DELIVERED', 'PICKED_UP', 'PARTIAL'].includes(String(fulfillmentStatus)) && existing.fulfillmentStatus !== fulfillmentStatus) {
+      // Una venta que superó el crédito del cliente no sale hasta que un
+      // administrador o gerente la autorice (ni siquiera lo salta un admin).
+      await assertCreditCleared(prisma, tenant, existing.id)
       const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
       pendingDeliveryPyg = Math.max(0, numero(existing.totalPyg) - pagado)
       if (pendingDeliveryPyg > 0) {
@@ -173,7 +177,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           ? { creditDays: Number(existing.customer.creditDays) }
           : null
         if (credito) {
-          if (!existing.creditDays) creditUpdate = { creditDays: credito.creditDays, dueAt: new Date(Date.now() + credito.creditDays * 86400000) }
+          // Entregar con saldo convierte el pedido en venta a crédito: el crédito
+          // disponible se vuelve a controlar acá (deuda sin este pedido + su saldo
+          // vs. el límite). Si lo supera, hace falta la autorización de crédito.
+          if (!existing.creditDays) {
+            await assertCreditAvailableForDelivery({ tenantId: tenant, orderId: existing.id, customerId: existing.customer!.id, pendingPyg: pendingDeliveryPyg })
+            creditUpdate = { creditDays: credito.creditDays, dueAt: new Date(Date.now() + credito.creditDays * 86400000) }
+          }
         } else if (!canApproveOrderDiscount(session.user)) {
           const rawDeliveryAuthorizationId = body.deliveryAuthorizationId
           if (rawDeliveryAuthorizationId === undefined || rawDeliveryAuthorizationId === null || rawDeliveryAuthorizationId === '') {

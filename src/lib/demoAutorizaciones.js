@@ -2,6 +2,8 @@
 // —solicitudes pendientes y resueltas— sin tocar el API real. Las acciones
 // sobre estas filas quedan simuladas en el navegador.
 
+import { autorizacionesCreditoDemo } from './demoCreditoStore.js'
+
 const hace = (ms) => new Date(Date.now() - ms).toISOString()
 const HORA = 3600000
 
@@ -58,7 +60,8 @@ export const DEMO_AUTORIZACIONES = [
 ]
 
 export function demoAutorizacionesFiltradas(filtro = '', tipo = '') {
-  return DEMO_AUTORIZACIONES.filter(
+  // Las ventas demo que superaron el crédito del cliente aparecen arriba, como en la cuenta real.
+  return [...autorizacionesCreditoDemo(), ...DEMO_AUTORIZACIONES].filter(
     (fila) => (!filtro || fila.status === filtro) && (!tipo || fila.kind === tipo),
   )
 }
