@@ -28,6 +28,7 @@ const CONTENIDO = {
       ['Tu responsabilidad', 'Cada tienda responde por los datos que carga y por el uso que hace su equipo; las credenciales y los PIN son personales.'],
       ['Documentos', 'Los comprobantes y reportes de MobOS son documentos no fiscales: no reemplazan la facturación electrónica de tu país.'],
       ['Disponibilidad', 'El estado de los servicios se publica en moboss.online/status. Podés dejar el servicio cuando quieras y exportar tus datos.'],
+      ['Responsable', 'El responsable de los datos es DADOO CAPITAL LLC (30 N Gould St Ste R, Sheridan, WY 82801, Estados Unidos), representada por Dario De Oliveira. Contacto: mobos@weem.com.py.'],
       ['Consultas', 'Escribinos a mobos@weem.com.py.'],
     ],
   },
