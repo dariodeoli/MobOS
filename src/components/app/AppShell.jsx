@@ -24,7 +24,7 @@ import { usePresenceTracker } from '@/hooks/usePresence'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { useNotificaciones } from '@/hooks/useNotificaciones'
 import { useSesion } from '@/lib/sesion'
-import { APP_NAME } from '@/lib/brand'
+import { APP_NAME, APP_VERSION } from '@/lib/brand'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import {
   activeShellSection,
@@ -350,7 +350,7 @@ export default function AppShell({
           <img src="/mobos-icon.svg" alt="" className="h-8 w-8 shrink-0" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <strong data-testid="shell-tienda">{APP_NAME}</strong>
+              <p className="flex items-baseline gap-1.5"><strong data-testid="shell-tienda">{APP_NAME}</strong><span data-testid="shell-version" className="text-[10px] font-medium text-mute tabular-nums">{APP_VERSION}</span></p>
               <p className={CELDA_DATO}>{empresa?.nombre}</p>
             </div>
           )}

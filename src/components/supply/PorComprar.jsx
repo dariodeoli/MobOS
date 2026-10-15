@@ -268,24 +268,24 @@ export default function PorComprar() {
 
   return (
     <div className="space-y-4" data-testid="por-comprar">
-      <Card className="p-4 md:p-5">
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
-              <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
+      <Card className="px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {totales && (
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-mute">
+              <Badge color="blue">{totales.grupos} grupo{totales.grupos === 1 ? '' : 's'}</Badge>
+              <Badge color="slate">{totales.unidades} unidad{totales.unidades === 1 ? '' : 'es'}</Badge>
+              {contadores?.sinCentro > 0 && <Badge color="orange">{contadores.sinCentro} sin centro</Badge>}
+              <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <Button type="button" variant="outline" onClick={cargar} disabled={cargando} aria-label="Actualizar">
+              <Icon name="refresh" className="h-3.5 w-3.5" /><span className="hidden sm:inline">Actualizar</span>
             </Button>
             <Button type="button" variant="outline" onClick={() => setLibre(true)}>+ Compra libre</Button>
             <Button type="button" onClick={() => setAgregar(true)}>+ Agregar necesidad</Button>
           </div>
         </div>
-        {totales && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
-            <Badge color="blue">{totales.grupos} grupo{totales.grupos === 1 ? '' : 's'}</Badge>
-            <Badge color="slate">{totales.unidades} unidad{totales.unidades === 1 ? '' : 'es'}</Badge>
-            {contadores?.sinCentro > 0 && <Badge color="orange">{contadores.sinCentro} sin centro</Badge>}
-            <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-        )}
       </Card>
 
       <div className="space-y-2">
