@@ -4064,6 +4064,18 @@ model AppleIdentity {
   @@index([accountId])
 }
 
+// Nonce de un solo uso emitido por POST /api/auth/nonce para Apple/Google nativos.
+// Solo se guarda sha256 (docs/TOKENS.md); vence a los 5 min con el reloj de Postgres.
+model AuthNonce {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  purpose   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 // Token APNs de un iPhone. Único por token: si cambia de usuario, la fila pasa
 // al nuevo. Se borra al cerrar sesión, al borrar la cuenta o ante un 410 de APNs.
 model DeviceToken {

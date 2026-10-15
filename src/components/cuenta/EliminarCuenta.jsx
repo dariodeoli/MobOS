@@ -38,8 +38,9 @@ export default function EliminarCuenta({ esDemo = false }) {
   async function conApple() {
     setError(null)
     try {
-      const { identityToken, authorizationCode, nonce } = await iniciarSesionConApple()
-      await eliminar({ identityToken, authorizationCode, nonce })
+      // Nonce 'reauth' del servidor; el API espera { apple: { identityToken, nonce } }.
+      const { identityToken, nonce } = await iniciarSesionConApple({ purpose: 'reauth' })
+      await eliminar({ apple: { identityToken, nonce } })
     } catch (cause) {
       if (!cause?.cancelado) setError({ dueno: false, texto: cause?.message || 'No se pudo confirmar con Apple.' })
     }

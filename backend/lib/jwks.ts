@@ -16,9 +16,12 @@ async function loadKeys(url: string, force: boolean) {
   if (hit && !force && Date.now() - hit.at < TTL_MS) return hit.keys
   // Un kid desconocido recarga a lo sumo una vez por minuto (evita amplificar basura hacia el proveedor).
   if (hit && force && Date.now() - hit.at < 60_000) return hit.keys
-  const response = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' })
-  if (!response.ok) throw new JwtError('jwks_unavailable')
-  const body = await response.json() as { keys?: Jwk[] }
+  let body: { keys?: Jwk[] }
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' })
+    if (!response.ok) throw new Error(`status ${response.status}`)
+    body = await response.json() as { keys?: Jwk[] }
+  } catch { throw new JwtError('jwks_unavailable') }
   const keys = Array.isArray(body.keys) ? body.keys : []
   cache.set(url, { keys, at: Date.now() })
   return keys

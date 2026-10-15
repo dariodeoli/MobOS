@@ -54,6 +54,12 @@ try {
   const apns = require('../lib/apns.ts')
   const push = require('../lib/web-push.ts')
   const nativeClient = require('../lib/native-client.ts')
+  const nonceRoute = require('../app/api/auth/nonce/route.ts').POST
+  const authNonce = require('../lib/auth-nonce.ts')
+  const jwks = require('../lib/jwks.ts')
+  const checks_ = require('../app/api/system/checks/route.ts').GET
+  const appleLib = require('../lib/apple-auth.ts')
+  const { hashToken } = require('../lib/auth.ts')
 
   // ── Proveedores simulados ──────────────────────────────────────────────────
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -64,6 +70,9 @@ try {
     return `${head}.${body}.${sign('RSA-SHA256', Buffer.from(`${head}.${body}`), key).toString('base64url')}`
   }
   const now = () => Math.floor(Date.now() / 1000)
+  // Nonces fijos que se siembran en la base (el endpoint real se prueba aparte): hash + propósito + vencimiento por reloj de Postgres.
+  const GN = 'ef'.repeat(32), GR = '12'.repeat(32), AR = '34'.repeat(32)
+  const seedNonce = (raw, purpose = 'login') => prisma.$executeRaw`INSERT INTO "AuthNonce" ("id", "tokenHash", "purpose", "expiresAt") VALUES (${`seed-${raw.slice(0, 8)}-${purpose}`}, ${hashToken(raw)}, ${purpose}, now() + interval '5 minutes') ON CONFLICT ("tokenHash") DO UPDATE SET "purpose" = EXCLUDED."purpose", "expiresAt" = EXCLUDED."expiresAt"`
   const appleCalls = []
   globalThis.fetch = async (url, init) => {
     const target = String(url)
@@ -79,7 +88,7 @@ try {
     throw new Error(`fetch inesperado: ${target}`)
   }
   const appleToken = (sub, nonce, extra = {}) => rsaJwt({ iss: 'https://appleid.apple.com', aud: 'online.moboss.app', sub, exp: now() + 600, iat: now(), nonce: createHash('sha256').update(nonce).digest('hex'), ...extra })
-  const googleToken = (sub, email, extra = {}) => rsaJwt({ iss: 'https://accounts.google.com', aud: GOOGLE_IOS, azp: GOOGLE_IOS, sub, email, email_verified: true, name: 'Persona Google', exp: now() + 600, iat: now(), ...extra })
+  const googleToken = (sub, email, extra = {}) => rsaJwt({ iss: 'https://accounts.google.com', aud: GOOGLE_IOS, azp: GOOGLE_IOS, sub, email, email_verified: true, name: 'Persona Google', exp: now() + 600, iat: now(), nonce: GN, ...extra })
 
   const NATIVE = { 'X-MobOS-Client': 'ios/1.0.0', Origin: 'capacitor://localhost' }
   let ipCounter = 0
@@ -176,15 +185,56 @@ try {
   ok(del.data.borrados === 1 && (await prisma.deviceToken.count()) === 0, 'DELETE quita el token')
   apns.setApnsTransportForTests(null)
 
+
+  // ── Nonce emitido por el servidor ──────────────────────────────────────────
+  eq((await call(nonceRoute, { body: {} })).res.status, 400, 'el nonce exige cliente nativo')
+  const issued = await call(nonceRoute, { body: {}, headers: NATIVE })
+  ok(issued.res.status === 200 && /^[a-f0-9]{64}$/.test(issued.data.nonce) && issued.data.expiresInSeconds === 300 && issued.res.headers.get('cache-control') === 'no-store', 'POST /api/auth/nonce: 64 hex, 300 s, no-store')
+  const stored = await prisma.$queryRaw`SELECT "tokenHash", "purpose", "expiresAt" > now() AS vivo, "expiresAt" < now() + interval '301 seconds' AS corto FROM "AuthNonce" WHERE "tokenHash" = ${hashToken(issued.data.nonce)}`
+  ok(stored.length === 1 && stored[0].purpose === 'login' && stored[0].vivo && stored[0].corto && stored[0].tokenHash !== issued.data.nonce, 'en la base solo sha256, propósito y TTL de 5 min (reloj de Postgres)')
+  eq((await prisma.$queryRaw`SELECT 1 FROM "AuthNonce" WHERE "tokenHash" = ${issued.data.nonce}`).length, 0, 'el nonce crudo nunca se guarda')
+  eq((await call(nonceRoute, { body: { purpose: 'reauth' }, headers: NATIVE })).res.status, 200, 'purpose reauth')
+  // Un solo uso, propósito, vencimiento y carrera.
+  ok(!(await authNonce.consumeAuthNonce(issued.data.nonce, 'reauth')), 'un nonce de login no se consume como reauth')
+  ok(await authNonce.consumeAuthNonce(issued.data.nonce, 'login'), 'se consume una vez')
+  ok(!(await authNonce.consumeAuthNonce(issued.data.nonce, 'login')), 'y no una segunda')
+  ok(!(await authNonce.consumeAuthNonce('zz', 'login')) && !(await authNonce.consumeAuthNonce(undefined, 'login')), 'formato inválido se rechaza sin consultar')
+  const racing = (await call(nonceRoute, { body: {}, headers: NATIVE })).data.nonce
+  const raced = await Promise.all([authNonce.consumeAuthNonce(racing, 'login'), authNonce.consumeAuthNonce(racing, 'login'), authNonce.consumeAuthNonce(racing, 'login')])
+  eq(raced.filter(Boolean).length, 1, 'tres consumos simultáneos: gana exactamente uno')
+  const stale = (await call(nonceRoute, { body: {}, headers: NATIVE })).data.nonce
+  await prisma.$executeRaw`UPDATE "AuthNonce" SET "expiresAt" = now() - interval '1 second' WHERE "tokenHash" = ${hashToken(stale)}`
+  ok(!(await authNonce.consumeAuthNonce(stale, 'login')), 'un nonce vencido no se consume')
+  // Rate limit del endpoint.
+  let lastNonce
+  for (let i = 0; i < 31; i += 1) lastNonce = await call(nonceRoute, { body: {}, headers: NATIVE, ip: '203.0.113.50' })
+  eq(lastNonce.res.status, 429, 'rate limit en /auth/nonce')
+  // Apple con nonce real del servidor: sirve una vez; el token repetido (replay) falla.
+  const realNonce = (await call(nonceRoute, { body: {}, headers: NATIVE })).data.nonce
+  const replayToken = appleToken('replay-sub', realNonce, { email: 'nadie@example.test', email_verified: 'true' })
+  eq((await call(apple, { body: { identityToken: replayToken, nonce: realNonce }, headers: NATIVE })).res.status, 403, 'Apple con nonce del servidor: verifica (sigue sin tienda = 403)')
+  eq((await call(apple, { body: { identityToken: replayToken, nonce: realNonce }, headers: NATIVE })).res.status, 401, 'replay del mismo identityToken = 401')
+  eq((await call(apple, { body: { identityToken: appleToken('replay-sub', 'ab12'.repeat(16)), nonce: 'ab12'.repeat(16) }, headers: NATIVE })).res.status, 401, 'nonce que el servidor no emitió = 401')
+  eq((await call(apple, { body: { identityToken: appleToken('replay-sub', 'corto'), nonce: 'corto' }, headers: NATIVE })).res.status, 401, 'nonce con formato inválido = 401')
+  // Proveedor caído: 503, no 401.
+  const nonce = 'ab'.repeat(32)
+  const appleCall = async (identityToken, extra = {}, opts = {}) => { await seedNonce(nonce); return call(apple, { body: { identityToken, nonce, ...extra }, headers: NATIVE, ...opts }) }
+  const gCall = async (idToken, extra = {}, opts = {}) => { await seedNonce(GN); return call(googleNative, { body: { idToken, nonce: GN, ...extra }, headers: NATIVE, ...opts }) }
+  jwks.resetJwksCacheForTests()
+  const fetchOk = globalThis.fetch
+  globalThis.fetch = async (url, init) => { if (String(url).includes('/auth/keys') || String(url).includes('/oauth2/v3/certs')) throw new Error('red caída'); return fetchOk(url, init) }
+  eq((await appleCall(appleToken('s9', nonce))).res.status, 503, 'JWKS de Apple caído = 503')
+  eq((await gCall(googleToken('g-owner', 'owner@example.test'))).res.status, 503, 'JWKS de Google caído = 503')
+  globalThis.fetch = fetchOk
+  jwks.resetJwksCacheForTests()
+
   // ── Apple ──────────────────────────────────────────────────────────────────
-  const nonce = 'nonce-crudo-123456'
-  const appleCall = (identityToken, extra = {}, opts = {}) => call(apple, { body: { identityToken, nonce, ...extra }, headers: NATIVE, ...opts })
   eq((await call(apple, { body: { identityToken: appleToken('s0', nonce), nonce } })).res.status, 400, 'Apple exige cliente nativo')
   eq((await appleCall(appleToken('s0', nonce, { email: 'nadie@example.test', email_verified: 'true' }))).res.status, 403, 'sin cuenta/tienda = 403')
   eq((await appleCall(appleToken('s0', nonce, { email: 'nadie@example.test', email_verified: 'true' }))).data.message, 'No hay una tienda vinculada a esta cuenta', 'mensaje de sin tienda')
   ok((await prisma.appleIdentity.count()) === 0 && (await prisma.account.count()) === 1, 'un rechazo no crea cuentas ni identidades')
   eq((await appleCall(appleToken('s1', nonce), {}, {})).res.status, 403, 'sin correo y sin vínculo = 403')
-  eq((await appleCall(appleToken('s1', 'otro-nonce-999'))).res.status, 401, 'nonce que no coincide = 401')
+  eq((await appleCall(appleToken('s1', 'cd'.repeat(32)))).res.status, 401, 'nonce que no coincide = 401')
   eq((await appleCall(appleToken('s1', nonce, { aud: 'otra.app' }))).res.status, 401, 'aud ajeno = 401')
   eq((await appleCall(appleToken('s1', nonce, { iss: 'https://evil.example' }))).res.status, 401, 'iss ajeno = 401')
   eq((await appleCall(appleToken('s1', nonce, { exp: now() - 10 }))).res.status, 401, 'token vencido = 401')
@@ -208,9 +258,15 @@ try {
   // Relay desconocido: 403 sin sesión; con sesión abierta se vincula.
   const relayToken = appleToken('apple-relay-new', nonce, { email: 'zzz999@privaterelay.appleid.com', is_private_email: true, email_verified: true })
   eq((await appleCall(relayToken)).res.status, 403, 'relay nuevo sin vínculo = 403')
-  eq((await appleCall(relayToken, {}, { bearer: 'f'.repeat(64) })).res.status, 401, 'vincular con sesión inválida = 401')
-  const linked = await appleCall(relayToken, {}, { bearer: sellerToken })
-  ok(linked.res.status === 200 && (await prisma.appleIdentity.findUnique({ where: { subject: 'apple-relay-new' } }))?.accountId === account.id, 'relay se vincula desde una sesión abierta')
+  eq((await appleCall(relayToken, { reauth: { pin: '4821' } }, { bearer: 'f'.repeat(64) })).res.status, 401, 'vincular con sesión inválida = 401')
+  eq((await appleCall(relayToken, {}, { bearer: sellerToken })).res.status, 400, 'vincular con sesión abierta SIN reautenticación = 400')
+  eq((await appleCall(relayToken, { reauth: { pin: '0000' } }, { bearer: sellerToken })).res.status, 401, 'vincular con PIN incorrecto = 401')
+  eq((await appleCall(relayToken, { reauth: { apple: { identityToken: relayToken, nonce } } }, { bearer: sellerToken })).res.status, 400, 'vincular no acepta Apple/Google como reautenticación')
+  ok((await prisma.appleIdentity.count({ where: { subject: 'apple-relay-new' } })) === 0, 'sin reautenticación válida no se crea la identidad')
+  const linked = await appleCall(relayToken, { reauth: { pin: '4821' } }, { bearer: sellerToken })
+  ok(linked.res.status === 200 && (await prisma.appleIdentity.findUnique({ where: { subject: 'apple-relay-new' } }))?.accountId === account.id, 'relay se vincula desde una sesión abierta (con PIN fresco)')
+  const linkAudit = await prisma.auditLog.findMany({ where: { action: 'APPLE_LINKED', entityId: account.id } })
+  ok(linkAudit.length >= 2 && linkAudit.some(r => r.userId === A.admin.id && r.metadata?.via === 'session'), 'la vinculación deja APPLE_LINKED en la auditoría (por sesión y por correo verificado)')
   // Correo de una tienda NO verificada no vincula.
   const U = await mkStore('u', 'sin-verificar@example.test')
   await prisma.tenant.update({ where: { id: U.tenant.id }, data: { emailVerifiedAt: null } })
@@ -239,7 +295,6 @@ try {
   ok(last.res.headers.get('retry-after'), 'con Retry-After')
 
   // ── Google nativo ──────────────────────────────────────────────────────────
-  const gCall = (idToken, extra = {}, opts = {}) => call(googleNative, { body: { idToken, ...extra }, headers: NATIVE, ...opts })
   eq((await call(googleNative, { body: { idToken: googleToken('g1', 'g1@example.test') } })).res.status, 400, 'Google nativo exige cliente nativo')
   const gStranger = await gCall(googleToken('g-stranger', 'stranger@example.test'))
   ok(gStranger.res.status === 403 && gStranger.data.message === 'No hay una tienda vinculada a esta cuenta', 'Google sin tienda = 403')
@@ -253,6 +308,14 @@ try {
   await prisma.googleStoreAccess.create({ data: { subject: 'g-owner', tenantId: B.tenant.id, owner: true } })
   const gOk = await gCall(googleToken('g-owner', 'owner@example.test'))
   ok(gOk.res.status === 200 && /^[a-f0-9]{64}$/.test(gOk.data.token) && gOk.data.tenant.id === B.tenant.id && gOk.data.sellers.length === 1, 'Google nativo entra a su tienda existente')
+  // Nonce de Google: el claim tiene que coincidir con el emitido y se consume una vez.
+  eq((await gCall(googleToken('g-owner', 'owner@example.test', { nonce: 'aa'.repeat(32) }))).res.status, 401, 'Google: claim nonce distinto = 401')
+  eq((await gCall(googleToken('g-owner', 'owner@example.test', { nonce: undefined }))).res.status, 401, 'Google: idToken sin nonce = 401')
+  eq((await call(googleNative, { body: { idToken: googleToken('g-owner', 'owner@example.test') }, headers: NATIVE })).res.status, 400, 'Google: sin nonce en el cuerpo = 400')
+  await seedNonce(GN)
+  const gTok = googleToken('g-owner', 'owner@example.test')
+  eq((await call(googleNative, { body: { idToken: gTok, nonce: GN }, headers: NATIVE })).res.status, 200, 'Google con nonce válido')
+  eq((await call(googleNative, { body: { idToken: gTok, nonce: GN }, headers: NATIVE })).res.status, 401, 'Google: replay del mismo idToken = 401')
   const gPin = await call(pin, { body: { sellerId: B.admin.id, pin: '4821' }, headers: NATIVE, bearer: gOk.data.token })
   ok(gPin.res.status === 200 && gPin.data.sellerToken, 'la sesión de Google sigue al PIN')
   const savedGoogle = process.env.MOBOS_GOOGLE_IOS_CLIENT_ID
@@ -276,10 +339,19 @@ try {
   const mSeller = (await call(pin, { body: { sellerId: member.user.id, pin: '5932' }, headers: NATIVE, bearer: mLogin.data.token })).data.sellerToken
   await call(devices.POST, { body: { token: 'c'.repeat(64) }, bearer: mSeller })
   eq((await call(deleteMe, { method: 'DELETE', body: {}, bearer: mSeller })).res.status, 400, 'borrar sin reautenticación = 400')
-  eq((await call(deleteMe, { method: 'DELETE', body: { apple: { identityToken: appleToken('apple-ajena', nonce), nonce } }, bearer: mSeller })).res.status, 401, 'identidad de Apple ajena = 401')
-  eq((await call(deleteMe, { method: 'DELETE', body: { googleIdToken: googleToken('g-otra', 'otra@example.test') }, bearer: mSeller })).res.status, 401, 'Google no vinculada = 401')
+  await seedNonce(AR, 'reauth')
+  eq((await call(deleteMe, { method: 'DELETE', body: { apple: { identityToken: appleToken('apple-ajena', AR), nonce: AR } }, bearer: mSeller })).res.status, 401, 'identidad de Apple ajena = 401')
+  await seedNonce(GR, 'reauth')
+  eq((await call(deleteMe, { method: 'DELETE', body: { googleIdToken: googleToken('g-otra', 'otra@example.test', { nonce: GR }), googleNonce: GR }, bearer: mSeller })).res.status, 401, 'Google no vinculada = 401')
   appleCalls.length = 0
-  const gone = await call(deleteMe, { method: 'DELETE', body: { apple: { identityToken: appleToken('apple-member', nonce), nonce } }, bearer: mSeller })
+  // El nonce de login NO sirve para reautenticar (propósito distinto) y un nonce consumido no se reutiliza.
+  await seedNonce(AR, 'login')
+  eq((await call(deleteMe, { method: 'DELETE', body: { apple: { identityToken: appleToken('apple-member', AR), nonce: AR } }, bearer: mSeller })).res.status, 401, 'borrado: nonce de login no sirve como reauth')
+  eq((await call(deleteMe, { method: 'DELETE', body: { apple: { identityToken: appleToken('apple-member', nonce), nonce } }, bearer: mSeller })).res.status, 401, 'borrado: nonce no emitido = 401')
+  // Una identidad de Apple ya vinculada a OTRA cuenta no se puede mover con una sesión abierta.
+  eq((await appleCall(appleToken('apple-member', nonce), { reauth: { pin: '4821' } }, { bearer: sellerToken })).res.status, 409, 'vincular una identidad de otra cuenta = 409')
+  await seedNonce(AR, 'reauth')
+  const gone = await call(deleteMe, { method: 'DELETE', body: { apple: { identityToken: appleToken('apple-member', AR), nonce: AR } }, bearer: mSeller })
   ok(gone.res.status === 200 && gone.data.ok === true, 'DELETE /api/me con Bearer y reautenticación Apple')
   const revoke = appleCalls.find(c => c.url.endsWith('/auth/revoke'))
   ok(revoke && revoke.form.token === 'apple-refresh-secret' && revoke.form.token_type_hint === 'refresh_token', 'se revoca el refresh token de Apple')
@@ -291,7 +363,18 @@ try {
   await prisma.googleStoreAccess.create({ data: { subject: 'g-member', tenantId: A.tenant.id, owner: false } })
   const gmLogin = await gCall(googleToken('g-member', 'gm@example.test'))
   const gmSeller = (await call(pin, { body: { sellerId: gMember.user.id, pin: '6043' }, headers: NATIVE, bearer: gmLogin.data.token })).data.sellerToken
-  eq((await call(deleteMe, { method: 'DELETE', body: { googleIdToken: googleToken('g-member', 'gm@example.test') }, bearer: gmSeller })).res.status, 200, 'DELETE /api/me con reautenticación Google')
+  await seedNonce(GR, 'reauth')
+  eq((await call(deleteMe, { method: 'DELETE', body: { googleIdToken: googleToken('g-member', 'gm@example.test', { nonce: GR }), googleNonce: GR }, bearer: gmSeller })).res.status, 200, 'DELETE /api/me con reautenticación Google')
+  // ── Cifrado de secretos: aviso en el chequeo del sistema y refresh token sin sellar ──
+  const encKeys = process.env.MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON
+  const getCheck = async () => (await (await checks_(new Request('https://api.example.test/api/system/checks', { headers: { Authorization: `Bearer ${sellerToken}` } }))).json()).checks.find(c => c.id === 'secretos-cifrado')
+  eq((await getCheck()).estado, 'ok', 'chequeo del sistema: cifrado de secretos activo')
+  delete process.env.MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON
+  const missing = await getCheck()
+  ok(missing.estado === 'atencion' && /Cifrado de secretos no configurado/.test(missing.detalle) && /MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON/.test(missing.detalle), 'chequeo del sistema: «Cifrado de secretos no configurado»')
+  eq(appleLib.sealAppleRefreshToken('s', 'tok'), null, 'sin cifrado el refresh token no se guarda')
+  process.env.MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON = encKeys
+
   // El dueño sigue bloqueado.
   eq((await call(deleteMe, { method: 'DELETE', body: { pin: '4821' }, bearer: sellerToken })).res.status, 409, 'el dueño sigue necesitando transferir o eliminar la tienda')
 

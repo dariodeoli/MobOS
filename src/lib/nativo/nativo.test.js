@@ -20,6 +20,16 @@ test('sha256 en JS puro coincide con node:crypto (incluye acentos y bordes de bl
   }
 })
 
+test('apple y google piden el nonce al servidor antes de abrir la hoja', () => {
+  const apple = readFileSync(new URL('./apple.js', import.meta.url), 'utf8')
+  const google = readFileSync(new URL('./google.js', import.meta.url), 'utf8')
+  const nonce = readFileSync(new URL('./nonce.js', import.meta.url), 'utf8')
+  assert.match(nonce, /\/api\/auth\/nonce/)
+  assert.match(apple, /const nonce = await pedirNonce\(purpose\)/)
+  assert.match(google, /scopes: \['email', 'profile'\], nonce/)
+  assert.match(google, /return \{ idToken, nonce \}/)
+})
+
 test('nonce crudo: 64 hex y distinto cada vez', () => {
   const a = nonceCrudo()
   assert.match(a, /^[0-9a-f]{64}$/)

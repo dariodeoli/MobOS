@@ -120,8 +120,8 @@ export const sessionApi = {
   },
   // Google nativo (app de iPhone): el idToken de la hoja del sistema se valida
   // en el API; misma respuesta y mismas reglas que Apple (solo tiendas existentes).
-  loginGoogleNativo: async ({ idToken, storeId }) => {
-    const session = await api.post('/api/auth/google/native', { idToken, ...(storeId ? { storeId } : {}) })
+  loginGoogleNativo: async ({ idToken, nonce, storeId }) => {
+    const session = await api.post('/api/auth/google/native', { idToken, nonce, ...(storeId ? { storeId } : {}) })
     if (session?.storeRequired) {
       const anterior = getCompanyContext() || {}
       setCompanyContext({ ...anterior, stores: session.stores || [] })

@@ -3,6 +3,7 @@ import { prisma } from './prisma'
 import { audienceMatches, JwtError, listEnv, verifyJwtSignature } from './jwks'
 import { cifrarSecreto, descifrarSecreto, secretEncryptionConfigured } from './secret-crypto'
 import { logError, logInfo } from './log'
+import { consumeAuthNonce, NONCE_PATTERN, type NoncePurpose } from './auth-nonce'
 
 // Sign in with Apple para la app de iPhone (docs/IOS.md). Solo entra a cuentas
 // que YA tienen tienda vinculada: nunca crea cuentas ni tiendas.
@@ -15,16 +16,17 @@ export function appleClientIds() { return listEnv('MOBOS_APPLE_CLIENT_IDS') }
 
 const asBool = (value: unknown) => value === true || value === 'true'
 
-/** Verifica firma (JWKS de Apple), iss, aud, exp y nonce = sha256(nonce crudo) en hex. */
-export async function verifyAppleIdentityToken(identityToken: unknown, rawNonce: unknown): Promise<AppleIdentityClaims> {
+/** Verifica firma (JWKS de Apple), iss, aud, exp y nonce = sha256(nonce crudo) en hex; el crudo lo emitió el servidor y se consume una sola vez. */
+export async function verifyAppleIdentityToken(identityToken: unknown, rawNonce: unknown, purpose: NoncePurpose = 'login'): Promise<AppleIdentityClaims> {
   const audiences = appleClientIds()
   if (!audiences.length) throw new JwtError('not_configured')
-  if (typeof identityToken !== 'string' || typeof rawNonce !== 'string' || rawNonce.length < 8 || rawNonce.length > 256) throw new JwtError('invalid_token')
+  if (typeof identityToken !== 'string' || typeof rawNonce !== 'string' || !NONCE_PATTERN.test(rawNonce)) throw new JwtError('invalid_token')
   const claims = await verifyJwtSignature(identityToken, APPLE_JWKS_URL)
   if (claims.iss !== APPLE_ISSUER || !audienceMatches(claims.aud, audiences)) throw new JwtError('invalid_claims')
   if (typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 255) throw new JwtError('invalid_claims')
   const expected = createHash('sha256').update(rawNonce).digest('hex')
   if (typeof claims.nonce !== 'string' || claims.nonce !== expected) throw new JwtError('bad_nonce')
+  if (!(await consumeAuthNonce(rawNonce, purpose))) throw new JwtError('bad_nonce')
   const email = typeof claims.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email) ? claims.email.trim().toLowerCase() : null
   return { sub: claims.sub, email, emailVerified: asBool(claims.email_verified), isPrivateRelay: asBool(claims.is_private_email) || /@privaterelay\.appleid\.com$/i.test(email || '') }
 }
@@ -71,8 +73,21 @@ export async function exchangeAppleAuthorizationCode(code: unknown): Promise<str
 
 const usoToken = (subject: string) => ({ uso: 'apple-refresh-token', referencia: subject })
 
+let avisoCifrado = false
+/** Sin cifrado no se guarda el refresh token de Apple y no se podrá revocar al borrar la cuenta (5.1.1(v)). */
+export function warnIfSecretEncryptionMissing() {
+  if (avisoCifrado || secretEncryptionConfigured() || !appleKeyConfig()) return
+  avisoCifrado = true
+  logError('apple_secret_encryption_not_configured', { detail: 'Cifrado de secretos no configurado: no se guardan refresh tokens de Apple. Definí MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID y MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON.' })
+}
+warnIfSecretEncryptionMissing()
+
 export function sealAppleRefreshToken(subject: string, token: string) {
-  return secretEncryptionConfigured() ? cifrarSecreto(token, usoToken(subject)) : null
+  if (!secretEncryptionConfigured()) {
+    logError('apple_refresh_token_not_sealed', { detail: 'Cifrado de secretos no configurado: el token de Apple no se guardó y no podrá revocarse.' })
+    return null
+  }
+  return cifrarSecreto(token, usoToken(subject))
 }
 
 /** Revoca los tokens de Apple de la cuenta (5.1.1(v)). Nunca bloquea el borrado: registra y sigue. */

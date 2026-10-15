@@ -38,11 +38,22 @@ y APNs simulados): `cd backend && LC_ALL=en_US.UTF-8 node tests/ios-backend.mjs`
 `MOBOS_PRIVACY_URL`, `MOBOS_TERMS_URL` (por defecto `/soporte`, `/privacidad`,
 `/terminos` de `moboss.online`). Si la versión de la app es menor, bloquear con «Actualizá la app».
 
+## Nonce del servidor — `POST /api/auth/nonce`
+
+Cliente nativo, sin sesión, 30 pedidos / 15 min por IP. Body opcional `{ purpose: 'login' | 'reauth' }`
+(por defecto `login`; el borrado de cuenta usa `reauth`). Responde `{ nonce, expiresInSeconds: 300 }`:
+64 hex, solo `sha256` en la base (`AuthNonce`), vence a los 5 min con el reloj de Postgres y se
+consume **una sola vez** (`DELETE ... RETURNING`) después de validar el token. Apple y Google
+nativos (y la reautenticación de `DELETE /api/me`) lo exigen; el propósito tiene que coincidir.
+La app lo pide justo antes de abrir la hoja de Apple/Google. Apple: la app le pasa `sha256(nonce)`
+a Apple y manda el crudo; Google: el nonce se pasa tal cual al SDK y el claim `nonce` del idToken
+tiene que ser igual.
+
 ## Sign in with Apple — `POST /api/auth/apple`
 
 Body: `{ identityToken, nonce, fullName?, authorizationCode?, storeId?, deviceId? }`.
 
-- `nonce` es el valor **crudo**; la app le pasa a Apple `sha256(nonce)` en hex y el
+- `nonce` es el valor **crudo** emitido por `POST /api/auth/nonce` (un solo uso); la app le pasa a Apple `sha256(nonce)` en hex y el
   backend exige que el claim `nonce` sea ese hash.
 - Se verifica: firma RS256 con el JWKS de Apple, `iss = https://appleid.apple.com`,
   `aud ∈ MOBOS_APPLE_CLIENT_IDS` (`online.moboss.app`), `exp`, nonce.
@@ -51,18 +62,21 @@ Body: `{ identityToken, nonce, fullName?, authorizationCode?, storeId?, deviceId
   Google o una tienda con correo verificado. Si no hay tienda: `403` con
   «No hay una tienda vinculada a esta cuenta».
 - Relay privado (`@privaterelay.appleid.com`): funciona una vez vinculada. Para la primera
-  vez, la app abre sesión con contraseña/Google y llama a `/api/auth/apple` **con el
-  Bearer de esa sesión**: vincula la identidad a esa cuenta.
+  vez, la app abre sesión con PIN y llama a `/api/auth/apple` **con el Bearer de esa
+  sesión de vendedor** y `reauth: { pin }` (o `{ password }` de la empresa) **fresco en el mismo
+  pedido**: vincula la identidad solo a la cuenta propia y deja `APPLE_LINKED` en la auditoría.
+  Una identidad ya vinculada a otra cuenta responde `409 identity_in_use`. El `sub` manda siempre;
+  el correo solo sirve la primera vez, si es real, verificado por Apple y de una cuenta/tienda verificada.
 - `authorizationCode` (opcional pero recomendado): el backend lo canjea y guarda el
   refresh token **cifrado** solo para revocarlo al borrar la cuenta.
 - `fullName` (`{givenName,familyName}` o texto) llega solo la primera vez que Apple lo entrega.
 - Errores: `400` cliente no nativo / pedido inválido, `401` identidad inválida,
   `403` sin tienda, `429` demasiados intentos (20 / 15 min por IP, **antes** de la base),
-  `503` sin configurar.
+  `503` sin configurar o Apple/JWKS no disponible (`provider_unavailable`).
 
 ## Google en iPhone — `POST /api/auth/google/native`
 
-Body: `{ idToken, storeId? }`. Verifica firma con el JWKS de Google, `iss`, `exp`,
+Body: `{ idToken, nonce, storeId? }` (`nonce` de `POST /api/auth/nonce`; el idToken lo trae en el claim `nonce`). Verifica firma con el JWKS de Google, `iss`, `exp`,
 `email_verified` y `aud ∈ MOBOS_GOOGLE_IOS_CLIENT_ID` (lista separada por comas).
 Cliente iOS actual: `500595134387-36gmh5fu4tucjt0u2c9c380i4662pvdh.apps.googleusercontent.com`
 (no es secreto). Misma regla: solo tiendas ya vinculadas (`403` si no hay), mismos errores.
@@ -83,7 +97,7 @@ Cliente iOS actual: `500595134387-36gmh5fu4tucjt0u2c9c380i4662pvdh.apps.googleus
 
 `DELETE /api/me` con Bearer de vendedor y reautenticación en el mismo pedido, una de:
 `{ pin }`, `{ password }` (admin), `{ apple: { identityToken, nonce } }` o
-`{ googleIdToken }` (la identidad tiene que ser la vinculada a la cuenta). Efectos:
+`{ googleIdToken, googleNonce }` (nonces con `purpose: 'reauth'`) (la identidad tiene que ser la vinculada a la cuenta). Efectos:
 se revocan los tokens de Apple (`MOBOS_APPLE_TEAM_ID/KEY_ID/PRIVATE_KEY`), se borran
 `AppleIdentity`, tokens APNs, avisos web y foto, se cierran las sesiones y se anonimiza
 el perfil. Dueño / único admin: `409 OWNER_MUST_TRANSFER_OR_DELETE_STORE`.
@@ -98,6 +112,7 @@ Límite 5 pedidos / 15 min por IP. Si Apple falla al revocar, se registra y el b
 | `MOBOS_GOOGLE_IOS_CLIENT_ID` | aud permitido del login con Google en iPhone |
 | `MOBOS_APNS_KEY_ID`, `MOBOS_APNS_TEAM_ID`, `MOBOS_APNS_PRIVATE_KEY` | envío APNs |
 | `MOBOS_APNS_TOPIC` | `online.moboss.app` |
+| `MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID`, `MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON` | **Cifrado de secretos** (JSON `{"<id>": "<32 bytes en base64>"}`). Sin ellos no se guarda el refresh token de Apple y no se puede revocar al borrar la cuenta: el backend registra un error al arrancar y `/api/system/checks` muestra «Cifrado de secretos no configurado». |
 | `MOBOS_IOS_MIN_VERSION` | versión mínima de la app (opcional) |
 
 ## Qué tiene que hacer Dario

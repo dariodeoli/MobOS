@@ -1,7 +1,8 @@
 import { isNativeIOS } from '../plataforma.js'
+import { pedirNonce } from './nonce.js'
 
 // Sign in with Apple (guía 4.8): único método social en iOS. Flujo del nonce:
-// se genera uno crudo, se le pide a Apple el sha256 en hexadecimal (Apple lo
+// el servidor emite uno crudo de un solo uso (POST /api/auth/nonce), se le pide a Apple el sha256 en hexadecimal (Apple lo
 // copia tal cual al identityToken) y al API se le manda el CRUDO; el servidor
 // calcula el sha256 y lo compara con el claim del token.
 
@@ -67,10 +68,10 @@ export function nonceCrudo() {
  * Abre la hoja nativa de Sign in with Apple y devuelve el cuerpo listo para
  * `POST /api/auth/apple`. Cancelar la hoja lanza un error con `cancelado`.
  */
-export async function iniciarSesionConApple() {
+export async function iniciarSesionConApple({ purpose = 'login' } = {}) {
   if (!isNativeIOS()) throw new Error('Sign in with Apple solo está disponible en la app de iPhone.')
   const { SignInWithApple } = await import('@capacitor-community/apple-sign-in')
-  const nonce = nonceCrudo()
+  const nonce = await pedirNonce(purpose)
   let resultado
   try {
     resultado = await SignInWithApple.authorize({

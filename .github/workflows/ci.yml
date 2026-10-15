@@ -125,6 +125,11 @@ jobs:
           MOBOS_IT_EXECUTE: "1"
           PG_BIN: /opt/homebrew/bin
         run: bash tests/integration-http.sh
+      - name: Native identity security (isolated Postgres, simulated providers)
+        working-directory: backend
+        env:
+          PG_BIN: /opt/homebrew/bin
+        run: node tests/ios-backend.mjs
 
   e2e:
     # Shards en paralelo (#CI/#333): la suite completa tarda ~48 min en un

@@ -161,9 +161,10 @@ export default function Login() {
     setOk('')
     setCargando(true)
     try {
-      const credencial = storeId && appleRef.current?.proveedor === 'google' ? appleRef.current : { ...(await iniciarSesionConGoogle()), proveedor: 'google' }
+      // El nonce del servidor es de un solo uso: al elegir tienda se pide una credencial nueva.
+      const credencial = { ...(await iniciarSesionConGoogle()), proveedor: 'google' }
       appleRef.current = credencial
-      const result = await sessionApi.loginGoogleNativo({ idToken: credencial.idToken, storeId })
+      const result = await sessionApi.loginGoogleNativo({ idToken: credencial.idToken, nonce: credencial.nonce, storeId })
       if (result?.storeRequired) {
         setTiendas(result.stores || [])
         setModo('entrar'); setEtapa('tienda'); setGoogleReady(false)
@@ -187,8 +188,8 @@ export default function Login() {
     setOk('')
     setCargando(true)
     try {
-      // Con varias tiendas se reutiliza la credencial de Apple ya obtenida.
-      const credencial = storeId && appleRef.current?.proveedor !== 'google' && appleRef.current ? appleRef.current : await iniciarSesionConApple()
+      // El nonce del servidor es de un solo uso: al elegir tienda se pide una credencial nueva.
+      const credencial = { ...(await iniciarSesionConApple()), proveedor: 'apple' }
       appleRef.current = credencial
       const result = await sessionApi.loginApple({ ...credencial, storeId })
       if (result?.storeRequired) {
