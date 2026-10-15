@@ -42,10 +42,10 @@ test('correctionBlock: segunda corrección 409, medios no soportados 422', () =>
   for (const method of ['TRANSFER', 'CARD', 'PIX']) assert.equal(correctionBlock({ ...original, method }, false), null, method)
 })
 
-test('drawerFlags: turno abierto neta en el turno; cerrado solo reportes (constante)', () => {
+test('drawerFlags: turno abierto netea y cerrado ajusta la caja vigente sin reescribir el cierre', () => {
   assert.deepEqual(drawerFlags(true), { originSessionClosed: false, drawerImpact: true })
   assert.deepEqual(drawerFlags(false), { originSessionClosed: true, drawerImpact: CLOSED_SHIFT_AFFECTS_DRAWER })
-  assert.equal(CLOSED_SHIFT_AFFECTS_DRAWER, false, 'por defecto el cierre guardado y el arqueo de hoy no se tocan')
+  assert.equal(CLOSED_SHIFT_AFFECTS_DRAWER, true, 'la corrección tardía se registra como ajuste de hoy')
 })
 
 test('staffCorrectsPaymentsFrom: ausente = habilitado, solo false lo apaga', () => {

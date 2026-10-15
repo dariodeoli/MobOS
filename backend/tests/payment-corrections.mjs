@@ -241,10 +241,10 @@ const cuerpo8 = { reason: 'Corrección tardía', payments: [{ accountId: transfe
 await corregir(cajera, ocho.order.id, ocho.payment.id, cuerpo8, clave('cerrado-c'), 403)
 const tardia = (await corregir(admin, ocho.order.id, ocho.payment.id, cuerpo8)).payload
 assert.equal(tardia.correction.originSessionClosed, true)
-assert.equal(tardia.correction.drawerImpact, false, 'por defecto un turno cerrado solo ajusta reportes')
+assert.equal(tardia.correction.drawerImpact, true, 'turno cerrado: el ajuste afecta la caja vigente hoy')
 assert.equal(confirmado(ocho.order.id), 120000)
 assert.equal(Number(sql(`SELECT "expectedPyg" FROM "CashSession" WHERE "id"='${cierre.id}'`)), esperadoGuardado, 'el cierre guardado no se toca')
-assert.equal(sql(`SELECT "drawerImpact" FROM "PaymentCorrection" WHERE "id"='${tardia.correction.id}'`), 'f')
+assert.equal(sql(`SELECT "drawerImpact" FROM "PaymentCorrection" WHERE "id"='${tardia.correction.id}'`), 't')
 assert.equal(sql(`SELECT "originSessionClosed" FROM "PaymentCorrection" WHERE "id"='${tardia.correction.id}'`), 't')
 
 // Σ CONFIRMED por pedido y base consistente (sin reversiones huérfanas).
