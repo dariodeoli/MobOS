@@ -7,6 +7,8 @@
 // Sin estado ni almacenamiento: solo datos y funciones puras, testeables en node.
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './empresa.js'
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS } from './iphones.js'
+import { CATALOGO_VENTA } from './catalogoPro.js'
+import { generarVentasHistorial } from './ventasHistorial.js'
 
 // ── Catálogo de líneas demo (descripción, modelo y categoría visibles) ──
 const ARTICULOS = {
@@ -35,6 +37,9 @@ const MEDIO_CRM = {
   'POS UENO': { code: 'CARD', label: 'Tarjeta / POS' },
   TARJETA: { code: 'CARD', label: 'Tarjeta / POS' },
   PIX: { code: 'PIX', label: 'Pix' },
+  QR: { code: 'QR', label: 'QR' },
+  'GIFT CARD': { code: 'GIFT_CARD', label: 'Gift card' },
+  CRÉDITO: { code: 'CREDIT', label: 'Crédito' },
   'USDT - CRIPTO': { code: 'CRYPTO', label: 'USDT - Cripto' },
   CANJE: { code: 'TRADE_IN', label: 'Canje' },
   'SALDO A FAVOR': { code: 'STORE_CREDIT', label: 'Saldo a favor' },
@@ -53,7 +58,7 @@ const fechaLocal = (dias) => {
 }
 
 const linea = (productoId, cantidad, precioUnitario, seriales = []) => {
-  const articulo = ARTICULOS[productoId] || { descripcion: productoId, modelo: '', categoria: '' }
+  const articulo = ARTICULOS[productoId] || CATALOGO_VENTA[productoId] || { descripcion: productoId, modelo: '', categoria: '' }
   return { productoId, ...articulo, cantidad, precioUnitario, totalPyg: cantidad * precioUnitario, seriales }
 }
 const pago = (id, medioPago, cuenta, monto, hora) => ({ id, medioPago, cuenta, monto, hora })
@@ -61,7 +66,7 @@ const pago = (id, medioPago, cuenta, monto, hora) => ({ id, medioPago, cuenta, m
 // ── Semillas canónicas (ids estables para no duplicar al re-sembrar) ──
 // `diasAtras` 0 = hoy. `entrega`: RETIRO | DELIVERY. `fulfillment` es el estado
 // visible en el pedido/comprobante; los pagos definen Pagado/Parcial/Pendiente.
-export const VENTAS_DEMO = [
+const VENTAS_MANUALES = [
   {
     id: 'demo-venta-hoy-full', numero: 'AUR-0001', diasAtras: 0, hora: 10, minuto: 15,
     clienteId: 'demo-cliente-maria', cliente: 'María González', vendedorId: 'demo-user',
@@ -184,6 +189,10 @@ export const VENTAS_DEMO = [
   },
 ]
 
+// Ventas manuales (ids estables, casos puntuales) + ~120 días de historial
+// generado (#451). Los ids `demo-hist-*` son deterministas.
+export const VENTAS_DEMO = [...VENTAS_MANUALES, ...generarVentasHistorial()]
+
 // ── Derivaciones puras ──────────────────────────────────────────────
 export const totalProductos = (venta) => (venta.items || []).reduce((suma, item) => suma + (Number(item.totalPyg) || 0), 0)
 export const totalDeVenta = (venta) => totalProductos(venta) + (Number(venta.montoDelivery) || 0)
@@ -195,9 +204,9 @@ export const estadoPagoDeVenta = (venta) => {
 }
 export const fechaDeVenta = (venta) => fechaLocal(venta.diasAtras)
 export const creadoEnDeVenta = (venta) => hace(venta.diasAtras, venta.hora, venta.minuto)
-const conHora = (venta, hora) => {
+const conHora = (venta, hora, diasDespues = 0) => {
   const [h, m] = String(hora || '10:30').split(':').map(Number)
-  return hace(venta.diasAtras, h || 10, m || 0)
+  return hace(Math.max(0, venta.diasAtras - (Number(diasDespues) || 0)), h || 10, m || 0)
 }
 const vendedorDe = (id) => EQUIPO_DEMO.find((usuario) => usuario.id === id) || EQUIPO_DEMO[0]
 const sucursalDe = (id) => SUCURSALES_DEMO.find((sucursal) => sucursal.id === id) || SUCURSALES_DEMO[0]
@@ -208,7 +217,7 @@ const cuponDePago = (venta, pago, indice) => ({
   cuenta: pago.cuenta || '',
   monto: Number(pago.monto) || 0,
   amountPyg: Number(pago.monto) || 0,
-  fecha: conHora(venta, pago.hora),
+  fecha: conHora(venta, pago.hora, pago.diasDespues),
 })
 
 /** Ventas en la forma legacy que consume `storage.js`/el POS. */
@@ -275,7 +284,7 @@ export function pedidosDemoDeCliente(clienteId) {
     .map((venta) => {
       const pagos = (venta.pagos || []).map((item) => {
         const medio = MEDIO_CRM[String(item.medioPago || '').toUpperCase()] || { code: 'CASH', label: String(item.medioPago || 'Efectivo') }
-        return { amountPyg: Number(item.monto) || 0, method: medio.code, methodLabel: medio.label, paidAt: conHora(venta, item.hora) }
+        return { amountPyg: Number(item.monto) || 0, method: medio.code, methodLabel: medio.label, paidAt: conHora(venta, item.hora, item.diasDespues) }
       })
       const cobrado = pagos.reduce((suma, item) => suma + item.amountPyg, 0)
       const total = totalDeVenta(venta)

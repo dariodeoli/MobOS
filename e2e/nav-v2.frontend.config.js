@@ -28,6 +28,7 @@ export default defineConfig({
     'clientes-lista.frontend.spec.js',
     'pestanas-iconos.frontend.spec.js',
     'compras-escaneo.frontend.spec.js',
+    'demo-reportes.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

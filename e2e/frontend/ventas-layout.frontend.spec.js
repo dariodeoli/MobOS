@@ -88,7 +88,7 @@ test('Inicio: Vendedor muestra el nombre completo a 1280, "Para resolver hoy" al
   await enterDemo(page)
   await openShellDestination(page, 'Inicio')
   await settle(page)
-  const table = page.locator('table').first()
+  const table = page.locator('table').filter({ hasText: 'Vendedor' }).first()
   const headers = await table.locator('thead th').allInnerTexts()
   const col = headers.findIndex(text => text.trim() === 'Vendedor')
   expect(col, 'columna Vendedor').toBeGreaterThan(-1)
