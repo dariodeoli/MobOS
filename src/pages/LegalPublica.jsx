@@ -18,7 +18,7 @@ const CONTENIDO = {
       ['Cuánto tiempo los guardamos', 'Mientras tu tienda esté activa. Si la archivás, se conserva por un plazo de recuperación y después podés pedir su eliminación definitiva. Los respaldos se renuevan y los registros técnicos se purgan periódicamente.'],
       ['Tus controles', 'Desde Configuración podés exportar tus datos y archivar o eliminar la empresa; la eliminación borra el historial y se explica antes de confirmar.'],
       ['Borrar tu cuenta', 'Cada integrante puede pedir que se borre su cuenta: se cierran sus sesiones y se anonimiza su nombre y correo. Las ventas y registros del negocio se conservan con el nombre anonimizado. Si sos dueño de la tienda, primero tenés que transferirla o eliminarla.'],
-      ['Consultas', 'Escribinos a soporte@moboss.online.'],
+      ['Consultas', 'Escribinos a mobos@weem.com.py.'],
     ],
   },
   '/terminos': {
@@ -29,14 +29,14 @@ const CONTENIDO = {
       ['Tu responsabilidad', 'Cada tienda responde por los datos que carga y por el uso que hace su equipo; las credenciales y los PIN son personales.'],
       ['Documentos', 'Los comprobantes y reportes de MobOS son documentos no fiscales: no reemplazan la facturación electrónica de tu país.'],
       ['Disponibilidad', 'El estado de los servicios se publica en moboss.online/status. Podés dejar el servicio cuando quieras y exportar tus datos.'],
-      ['Consultas', 'Escribinos a soporte@moboss.online.'],
+      ['Consultas', 'Escribinos a mobos@weem.com.py.'],
     ],
   },
   '/soporte': {
     titulo: 'Soporte',
     intro: 'Cómo conseguir ayuda con MobOS.',
     bloques: [
-      ['Escribinos', 'Mandanos un correo a soporte@moboss.online contando qué pasó, desde qué pantalla y en qué dispositivo. Respondemos en días hábiles.'],
+      ['Escribinos', 'Mandanos un correo a mobos@weem.com.py contando qué pasó, desde qué pantalla y en qué dispositivo. Respondemos en días hábiles.'],
       ['Para acelerar la respuesta', 'Indicá el nombre de tu tienda, tu usuario (no tu PIN ni tu contraseña, nunca los pidas ni los compartas) y, si podés, una captura de pantalla.'],
       ['Estado del servicio', 'Si algo no carga, mirá primero moboss.online/status: ahí se publica el estado de los servicios.'],
       ['Tu cuenta y tus datos', 'Podés pedir el borrado de tu cuenta (se anonimizan tu nombre y tu correo). Si sos dueño de una tienda, primero tenés que transferirla o eliminarla desde Configuración. Para exportar o eliminar los datos de la tienda, escribinos.'],
@@ -74,7 +74,7 @@ export default function LegalPublica() {
           ))}
         </div>
         <p className="mt-10 rounded-xl border border-ink-600 bg-ink-800/40 p-4 text-xs text-mute">
-          Este resumen es informativo y puede actualizarse; ante una consulta concreta, escribinos a soporte@moboss.online.
+          Este resumen es informativo y puede actualizarse; ante una consulta concreta, escribinos a mobos@weem.com.py.
         </p>
       </main>
       <ProductFooter />
