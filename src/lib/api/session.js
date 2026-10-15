@@ -1,5 +1,5 @@
 import { api, API_URL, invalidarConsultas } from './client'
-import { limpiarTokens } from './nativo'
+import { limpiarTokens, cabecerasNativas } from './nativo'
 import { isNativeIOS } from '../plataforma'
 import { desactivarPush } from '../nativo/push'
 
@@ -157,12 +157,12 @@ export const sessionApi = {
     if (contexto?.onboardingRequired) setCompanyContext({ ...contexto, onboardingRequired: false })
     return result
   },
-  loginSeller: async (credentials) => {
+  loginSeller: async (credentials, options) => {
     // La autenticación principal (empresa/Google) la exige el servidor: el PIN
     // solo abre la sesión de operador si la cookie de empresa sigue viva y es
     // del mismo origen. El cliente no la cachea en localStorage porque una
     // recarga restaura solo la cookie.
-    const session = await api.post('/api/auth/pin', credentials)
+    const session = await api.post('/api/auth/pin', credentials, options)
     if (!session?.user) throw new Error('El servidor no devolvió una sesión válida.')
     clearLegacyTokens()
     return session
@@ -175,8 +175,22 @@ export const sessionApi = {
     return getCompanyContext()?.cookieSession ? api.post('/api/auth/logout') : Promise.resolve({ ok: true })
   },
   logout: async () => {
-    // Con el Bearer todavía vigente: el dispositivo deja de recibir push.
-    if (isNativeIOS()) await desactivarPush(api)
+    if (isNativeIOS()) {
+      // Capturar ambos permisos antes de borrar el Keychain. La salida local
+      // no depende de que haya señal; las revocaciones conservan su Bearer.
+      const company = cabecerasNativas('/api/auth/pin')
+      const seller = cabecerasNativas('/api/auth/logout')
+      const permisos = [...new Set([company.Authorization, seller.Authorization].filter(Boolean))]
+      const push = desactivarPush(api)
+      const revocaciones = permisos.map(Authorization => api.post('/api/auth/logout', undefined, {
+        headers: { Authorization }, timeoutMs: 5000, keepalive: true,
+      }))
+      clearSession()
+      void Promise.allSettled([push, ...revocaciones]).then(results => {
+        for (const result of results) if (result.status === 'rejected') console.error('[sesion] no se pudo revocar el acceso remoto al salir:', result.reason)
+      })
+      return { ok: true }
+    }
     const results = await Promise.allSettled([sessionApi.logoutSeller(), sessionApi.logoutCompany()])
     clearSession()
     const failed = results.find((result) => result.status === 'rejected')

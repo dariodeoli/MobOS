@@ -9,6 +9,14 @@ const CLAVE_TOKEN = 'mobos.token'
 const CLAVE_VENDEDOR = 'mobos.sellerToken'
 const CLAVE_VENCE = 'mobos.expiresAt'
 
+// Serializar escritura y limpieza impide que una escritura lenta termine
+// después del logout y vuelva a colocar credenciales en el Keychain.
+let colaEscrituras = Promise.resolve()
+function persistir(operacion) {
+  const resultado = colaEscrituras.then(operacion)
+  colaEscrituras = resultado.catch(() => {})
+  return resultado
+}
 let almacenInyectado = null
 let memoria = { token: null, sellerToken: null, expiresAt: null }
 
@@ -54,19 +62,23 @@ export async function guardarTokens(cuerpo) {
   }
   if (siguiente.token === memoria.token && siguiente.sellerToken === memoria.sellerToken && siguiente.expiresAt === memoria.expiresAt) return
   memoria = siguiente
+  return persistir(async () => {
   const a = await almacen()
   await Promise.all([
     siguiente.token ? a.set(CLAVE_TOKEN, siguiente.token) : a.remove(CLAVE_TOKEN),
     siguiente.sellerToken ? a.set(CLAVE_VENDEDOR, siguiente.sellerToken) : a.remove(CLAVE_VENDEDOR),
     siguiente.expiresAt ? a.set(CLAVE_VENCE, siguiente.expiresAt) : a.remove(CLAVE_VENCE),
   ])
+  })
 }
 
 /** Borra los tokens (logout, 401 de sesión): memoria primero, después Keychain. */
 export async function limpiarTokens() {
   memoria = { token: null, sellerToken: null, expiresAt: null }
+  return persistir(async () => {
   const a = await almacen()
   await Promise.all([a.remove(CLAVE_TOKEN), a.remove(CLAVE_VENDEDOR), a.remove(CLAVE_VENCE)])
+  })
 }
 
 export function hayTokens() {

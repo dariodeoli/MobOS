@@ -25,3 +25,14 @@ test('PIN táctil: error recuperable, bloqueo mientras verifica y teclado físic
  await abrir(page);await digitos(page,'9999');await expect(page.getByRole('alert')).toHaveText('PIN inválido. Probá de nuevo.');await expect(page.locator('.pin-seg-punto')).toHaveCount(0)
  const input=page.getByTestId('pin-input');await input.focus();await input.pressSequentially('30');await expect(page.locator('.pin-seg-punto')).toHaveCount(2);await input.press('Backspace');await expect(page.locator('.pin-seg-punto')).toHaveCount(1);await input.pressSequentially('001');await expect(page.getByTestId('pantalla-bloqueada')).toHaveCount(0);await expect(page.getByTestId('intentos')).toHaveText('2')
 })
+
+
+test('salir nativo no espera la red y revoca empresa y vendedor con los permisos capturados',async({page})=>{
+ const permisos=[]
+ await page.route('**/api/auth/logout',async route=>{ permisos.push(route.request().headers().authorization); await new Promise(resolve=>setTimeout(resolve,2000)); await route.fulfill({json:{ok:true}}).catch(()=>{}) })
+ await page.goto('/e2e/fixtures/sesion-nativa.html')
+ await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click()
+ await expect(page.getByText('Sin sesión: ok')).toBeVisible({timeout:1000})
+ await expect.poll(()=>permisos.sort()).toEqual(['Bearer EMPRESA_QA_484','Bearer VENDEDOR_QA_484'])
+ await page.getByRole('button',{name:'Comprobar Keychain'}).click();await expect(page.getByText('Keychain: 0')).toBeVisible()
+})

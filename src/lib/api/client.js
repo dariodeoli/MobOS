@@ -134,6 +134,7 @@ async function ejecutarConsulta({ path, init, body, headers, metodo, clave, vent
   }
 
   const payload = await readBody(response)
+  if (signal?.aborted) throw new ApiError('La solicitud fue cancelada.', { code: 'REQUEST_ABORTED' })
   if (!response.ok) {
     if (CODIGOS_QUE_INVALIDAN.has(response.status)) cacheDeConsultas.invalidarTodo()
     const retryAfter = response.status === 429 ? Number(response.headers.get('retry-after')) : 0
