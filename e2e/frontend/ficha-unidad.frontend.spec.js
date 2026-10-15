@@ -122,3 +122,25 @@ test.describe('ficha de unidad (#400)', () => {
     await expect(lista.getByTestId('proveedor-fila').first().getByTestId('proveedor-insignia')).toBeVisible()
   })
 })
+
+
+for (const width of [375, 390, 768, 1280, 1440]) {
+  test(`#396 ubicación de la ficha tiene un rótulo y editor legible ${width}px`, async ({ page }) => {
+    const { dialog, ficha } = await abrirFicha(page, { role: 'Dueño', width })
+    await expect(ficha.getByRole('heading', { name: 'Ubicación', exact: true })).toHaveCount(1)
+    const campo = ficha.getByTestId('unidad-ubicacion')
+    await campo.getByRole('button', { name: 'Editar depósito', exact: true }).click()
+    const editor = campo.getByRole('combobox', { name: 'Ubicación de la unidad', exact: true })
+    const medidas = await editor.evaluate(el => {
+      const canvas = document.createElement('canvas')
+      const contexto = canvas.getContext('2d')
+      contexto.font = getComputedStyle(el).font
+      return { ancho: el.clientWidth, texto: contexto.measureText(el.selectedOptions[0].textContent).width, derecho: el.getBoundingClientRect().right }
+    })
+    expect(medidas.ancho, 'el nombre del depósito entra junto a la flecha').toBeGreaterThan(medidas.texto + 40)
+    expect(medidas.derecho).toBeLessThanOrEqual(width)
+    expect(await dialog.evaluate(el => el.scrollWidth > el.clientWidth + 1)).toBe(false)
+    await campo.getByRole('button', { name: 'Cancelar edición de depósito', exact: true }).click()
+    await expect(editor).toHaveCount(0)
+  })
+}

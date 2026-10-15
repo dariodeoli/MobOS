@@ -481,3 +481,43 @@ for (const destino of ['Por comprar', 'Preparar compra', 'Preparar lote', 'Recep
     }
   })
 }
+
+
+for (const width of [375, 390]) {
+  test(`#396 tarjeta de unidad densa con costo completo ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await enterDemo(page)
+    await openShellDestination(page, 'Unidades')
+    const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+    await expect(tarjeta).toBeVisible()
+    const medidas = await tarjeta.evaluate(el => {
+      const costo = el.querySelector('[data-testid="unidad-costo"]')
+      return { alto: el.getBoundingClientRect().height, costo: costo?.textContent, costoRecortado: costo ? costo.scrollWidth > costo.clientWidth : true, derecha: el.getBoundingClientRect().right }
+    })
+    console.log('TARJETA', width, JSON.stringify(medidas))
+    expect(medidas.alto).toBeLessThan(170)
+    expect(medidas.costo).toMatch(/\d/)
+    expect(medidas.costoRecortado).toBe(false)
+    expect(medidas.derecha).toBeLessThanOrEqual(width)
+  })
+}
+
+
+for (const width of [1280, 1440, 1920]) {
+  test(`#396 Stock escritorio contenido visible y elipsis identificada ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page)
+    await openShellDestination(page, 'Unidades')
+    await expect(page.getByTestId('inventario-fila').first()).toBeVisible()
+    const filas = page.getByTestId('inventario-fila')
+    const desbordes = await filas.evaluateAll(nodos => nodos.flatMap(fila => [...fila.children].map((celda, i) => {
+      const texto = celda.textContent.trim()
+      const tooltipCompleto = (celda.title || '').includes(texto)
+      // TABLAS permite elipsis con tooltip para proveedor y SKU; nunca para importes ni IMEI.
+      const elipsisPermitida = celda.classList.contains('truncate') && tooltipCompleto && (celda.classList.contains('stock-lista-prov') || (fila.dataset.kind === 'product' && celda.dataset.testid === 'unidad-imei'))
+      return { indice: i, texto, ancho: celda.clientWidth, contenido: celda.scrollWidth, elipsisPermitida }
+    }).filter(celda => celda.contenido > celda.ancho + 1 && !celda.elipsisPermitida)))
+    expect(desbordes).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  })
+}
