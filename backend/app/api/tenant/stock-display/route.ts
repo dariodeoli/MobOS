@@ -26,6 +26,7 @@ export async function PUT(request: Request) {
   const stockDisplay = sanitizeStockDisplay(body)
   try {
     await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "Tenant" WHERE "id" = ${session.user.tenantId} FOR UPDATE`
       const current = await tx.tenant.findUnique({ where: { id: session.user.tenantId }, select: { settings: true } })
       const settings = current?.settings && typeof current.settings === 'object' && !Array.isArray(current.settings) ? current.settings as Record<string, unknown> : {}
       await tx.tenant.update({

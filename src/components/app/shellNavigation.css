@@ -123,3 +123,10 @@
 @media (prefers-reduced-motion: reduce) {
   .shell-nav-v2 [data-config-resaltado] { animation: none; }
 }
+
+/* #356: Unidades conserva una sola fila de navegación móvil y controles de 44px. */
+@media (max-width: 1023px) {
+  .shell-nav-v2[data-stock-compacto='1'] [data-testid='shell-mobile-header'] > div {
+    height: 44px;
+  }
+}

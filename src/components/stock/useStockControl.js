@@ -1,3 +1,4 @@
+import { stockBusinessDay, nextStockDayDelay } from '@/lib/stockDay'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { contextoActual, getProductos, modoDatosActual, refrescar, refrescarCatalogo, updateProducto } from '@/lib/storage'
@@ -140,8 +141,10 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [receiveBatch, setReceiveBatch] = useState(null)
   // Conteo físico rápido con cámara: escanea cada equipo y contrasta contra stock.
   const [countOpen, setCountOpen] = useState(false)
+  const countEpoch = useRef(0)
+  const countPending = useRef(new Set())
   const [countSession, setCountSession] = useState(null) // { scanning, found: Map, unknown: [], duplicates: [], flash }
-  const [receive, setReceive] = useState({ productId: '', serial: '', branchId: '', locationId: '', condition: 'NEW', batteryHealth: '', supplierName: '', costCurrency: 'PYG', originalCost: '', exchangeRatePyg: '', notes: '' })
+  const [receive, setReceive] = useState({ productId: '', serial: '', branchId: '', locationId: '', condition: 'NEW', batteryHealth: '', batteryCycles: '', supplierName: '', costCurrency: 'PYG', originalCost: '', exchangeRatePyg: '', notes: '' })
   // #323: el error de la carga rápida vive adentro del diálogo (junto al campo)
   // y no en el Aviso general, que quedaba detrás del overlay.
   const [receiveError, setReceiveError] = useState('')
@@ -339,6 +342,23 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   }, [tab, filtros, rolVeCosto, busquedaDiferida])
   const stock = useStockItems({ activo: inventarioOperativo && esListaStock, filtros: filtrosApi })
   recargarStockRef.current = stock.recargar
+  // #466: la planilla abierta también archiva ventas al cambiar el día de la tienda.
+  useEffect(() => {
+    if (!inventarioOperativo || !esListaStock) return
+    let day = stockBusinessDay()
+    let timer
+    const refreshDay = () => {
+      const today = stockBusinessDay()
+      if (today !== day) { day = today; recargarStockRef.current?.() }
+      clearTimeout(timer)
+      timer = setTimeout(refreshDay, nextStockDayDelay())
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshDay() }
+    refreshDay()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible) }
+  }, [inventarioOperativo, esListaStock])
+
   const cambiarFiltros = useCallback((cambios) => setSearchParams((actuales) => conFiltroStock(actuales, cambios), { replace: true }), [setSearchParams])
   const limpiarFiltros = useCallback(() => setSearchParams((actuales) => sinFiltrosStock(actuales), { replace: true }), [setSearchParams])
   useEffect(() => { refresh(busquedaDiferida, { lista: false }) }, [refresh, busquedaDiferida])
@@ -448,10 +468,10 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
       ? { costPyg: montoCosto ? Number(montoCosto) : null, costCurrency: 'PYG' }
       : { originalCost: montoCosto ? Number(montoCosto) : null, costCurrency: receive.costCurrency, ...(String(receive.exchangeRatePyg || '').trim() ? { exchangeRatePyg: Number(receive.exchangeRatePyg) } : {}) }
     await setAndRefresh(async () => {
-      await resources.inventoryUnits.create({ ...receive, ...costo, locationId: locationId || null, ...(serials.length === 1 ? { serial: serials[0] } : { serials }), batteryHealth: receive.batteryHealth === '' ? undefined : Number(receive.batteryHealth) })
+      await resources.inventoryUnits.create({ ...receive, ...costo, locationId: locationId || null, ...(serials.length === 1 ? { serial: serials[0] } : { serials }), batteryHealth: receive.batteryHealth === '' ? undefined : Number(receive.batteryHealth), batteryCycles: receive.batteryCycles === '' ? undefined : Number(receive.batteryCycles) })
       if (receive.branchId) recordarAltaSucursal(receive.branchId); if (locationId) recordarAltaDeposito(locationId)
       const proveedorConocido = coincideExacto(proveedores, receive.supplierName); if (proveedorConocido) setRecientesProveedores(recordarProveedorReciente(contextoActual().empresaId, proveedorConocido.id))
-      setReceive({ productId: '', serial: '', branchId: receive.branchId, locationId, condition: 'NEW', batteryHealth: '', supplierName: '', costCurrency: 'PYG', originalCost: '', exchangeRatePyg: '', notes: '' }); setReceiveOpen(false)
+      setReceive({ productId: '', serial: '', branchId: receive.branchId, locationId, condition: 'NEW', batteryHealth: '', batteryCycles: '', supplierName: '', costCurrency: 'PYG', originalCost: '', exchangeRatePyg: '', notes: '' }); setReceiveOpen(false)
     }, `${serials.length} ${serials.length === 1 ? 'unidad recibida' : 'unidades recibidas'} y stock actualizado.`, setReceiveError) }
   async function createReservation(event) {
     event.preventDefault()
@@ -497,23 +517,41 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     } catch { /* la venta sigue disponible sin preselección */ }
     window.location.assign('/ventas')
   }
-  function startCount() { setUnidadesPedidas(true); setCountSession({ scanning: true, found: new Map(), unknown: [], duplicates: [], flash: null }); setCountOpen(true) }
-  function countScan(raw) {
+  function startCount() {
+    const epoch = ++countEpoch.current
+    countPending.current.clear()
+    setUnidadesPedidas(true)
+    setCountSession({ epoch, scanning: true, found: new Map(), unknown: [], duplicates: [], flash: null })
+    setCountOpen(true)
+  }
+  async function countScan(raw) {
     const serial = normalizeScan(raw)
-    if (!serial) return
-    setCountSession(current => {
-      if (!current) return current
-      if (current.found.has(serial)) return { ...current, duplicates: [...current.duplicates, serial], flash: { serial, kind: 'dup' } }
-      const unit = units.find(item => item.serial === serial)
-      if (unit) {
+    if (!serial || !countSession?.scanning) return
+    const epoch = countSession.epoch
+    const key = `${epoch}:${serial}`
+    if (countSession.found.has(serial) || countPending.current.has(key)) {
+      setCountSession(current => current?.epoch === epoch ? { ...current, duplicates: [...current.duplicates, serial], flash: { serial, kind: 'dup' } } : current)
+      return
+    }
+    const unit = units.find(item => item.serial === serial)
+    if (!unit) {
+      setCountSession(current => current?.epoch === epoch ? { ...current, unknown: [...current.unknown, serial], flash: { serial, kind: 'miss' } } : current)
+      return
+    }
+    countPending.current.add(key)
+    try {
+      // No declarar verificado un equipo si la política o el servidor lo rechazan.
+      await resources.inventoryUnits.verify({ serial })
+      setCountSession(current => {
+        if (current?.epoch !== epoch) return current
         const found = new Map(current.found)
         found.set(serial, unit)
-        // La verificación física queda registrada con la auditoría de cada IMEI.
-        resources.inventoryUnits.verify({ serial }).catch(() => { /* el conteo sigue aunque falle el registro */ })
         return { ...current, found, flash: { serial, kind: 'ok', unit } }
-      }
-      return { ...current, unknown: [...current.unknown, serial], flash: { serial, kind: 'miss' } }
-    })
+      })
+    } catch (cause) {
+      countPending.current.delete(key)
+      if (countEpoch.current === epoch) toast.error(cause?.message || 'No se pudo registrar la verificación del equipo.')
+    }
   }
   const countMissing = useMemo(() => countSession ? units.filter(unit => (unit.status === 'AVAILABLE' || unit.status === 'RESERVED') && !countSession.found.has(unit.serial)) : [], [countSession, units])
   useEffect(() => {

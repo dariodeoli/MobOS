@@ -44,3 +44,10 @@ test('sin serial no hay QR ni código de unidad', () => {
   assert.equal(datos.enlace, '')
   assert.equal(datos.identificador, '----')
 })
+
+test('etiqueta de unidad conserva ciclos, incluido cero, sin inventar datos ausentes (#400)', () => {
+  assert.equal(datosEtiquetaUnidad({ ...UNIDAD, batteryCycles: 61 }).bateria, 'Batería 89% · 61 ciclos')
+  assert.equal(datosEtiquetaUnidad({ ...UNIDAD, batteryCycles: 0 }).bateria, 'Batería 89% · 0 ciclos')
+  assert.equal(datosEtiquetaUnidad({ ...UNIDAD, batteryHealth: null, batteryCycles: 61 }).bateria, '61 ciclos')
+  for (const value of [null, undefined, '', 'no', -1]) assert.equal(datosEtiquetaUnidad({ ...UNIDAD, batteryCycles: value }).bateria, 'Batería 89%')
+})

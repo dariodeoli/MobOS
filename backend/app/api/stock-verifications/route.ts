@@ -1,3 +1,4 @@
+import { assertCanVerify, readVerificationPolicy } from '../../../lib/stock-verification-policy'
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {
+    assertCanVerify(await readVerificationPolicy(prisma, tenant), session.user.role)
     const body = objectInput(await request.json())
     const candidate = typeof body.branchId === 'string' && body.branchId ? body.branchId : null
     const branchId = session.user.branchId || candidate

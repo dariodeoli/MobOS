@@ -38,11 +38,12 @@ export function datosEtiquetaUnidad(unit = {}, { base = '' } = {}) {
   const product = unit.product || {}
   const serial = String(unit.serial ?? '').trim()
   const ubicacion = unit.location || null
+  const ciclos = unit.batteryCycles === null || unit.batteryCycles === undefined || unit.batteryCycles === '' ? null : Number(unit.batteryCycles)
   return {
     modelo: modeloDe(product),
     nombre: String(product.name || product.nombre || '').trim(),
     condicion: CONDICIONES_STOCK[unit.condition] || String(unit.condition || ''),
-    bateria: Number(unit.batteryHealth) > 0 ? `Batería ${Number(unit.batteryHealth)}%` : '',
+    bateria: [Number(unit.batteryHealth) > 0 ? `Batería ${Number(unit.batteryHealth)}%` : '', Number.isInteger(ciclos) && ciclos >= 0 && ciclos <= 5000 ? `${ciclos} ciclos` : ''].filter(Boolean).join(' · '),
     ubicacion: [String(ubicacion?.code || '').trim(), String(ubicacion?.name || '').trim()].filter(Boolean).join(' · '),
     // #400: la etiqueta lleva solo la sigla del proveedor, nunca su nombre.
     proveedor: String(unit.supplier?.code || unit.supplierCode || '').trim(),
