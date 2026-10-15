@@ -7,13 +7,14 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 import { LIMITE_MONTO_GENERAL, numero } from '../../../../lib/montos'
 import { addressesInput, leerPorcentajeSeguro } from '../_lib'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 // Perfil 360° del cliente: ficha, órdenes con saldo, deuda total, garantías
 // de sus equipos, notas internas y seguimientos. El historial es el de toda la
 // empresa (todas las sucursales), con el mismo alcance que el listado de
 // clientes: el equipo atiende al cliente, no a la sucursal donde compró.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const id = (params.id || '').trim().slice(0, 128)
@@ -138,7 +139,8 @@ export async function GET(request: Request, { params }: RouteContext) {
 
 // Edición de la ficha: datos de contacto, tipo comercial y crédito. El tipo y
 // el crédito quedan reservados a administración/gerencia.
-export async function PATCH(request: Request, { params }: RouteContext) {
+export async function PATCH(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const id = (params.id || '').trim().slice(0, 128)
@@ -216,7 +218,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     // Lista de precios negociada: vacía significa volver al precio de la ficha.
     if (body.priceListId !== undefined) {
       const listId = body.priceListId === null || body.priceListId === '' ? null : String(body.priceListId).trim().slice(0, 128)
-      if (listId && !await prisma.priceList.findFirst({ where: { id: listId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } })) throw new InputError('Lista de precios no encontrada.')
+      if (listId && !(await prisma.priceList.findFirst({ where: { id: listId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } }))) throw new InputError('Lista de precios no encontrada.')
       data.priceListId = listId
     }
     // Direcciones: se reemplaza el conjunto completo (mismo contrato que el alta).

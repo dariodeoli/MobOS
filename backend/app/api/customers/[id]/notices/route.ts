@@ -2,7 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 // Mensajes de la tienda al cliente (#240 → portal): los escribe el equipo desde
 // la ficha y el cliente los ve en su cuenta; el portal marca el visto/no visto.
@@ -13,7 +13,8 @@ async function findCustomer(tenant: string, customerId: string) {
   return prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })
 }
 
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canWrite(session.user.role)) return error('No autorizado.', 403)
@@ -42,7 +43,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo publicar el mensaje.', 409) }
 }
 
-export async function DELETE(request: Request, { params }: RouteContext) {
+export async function DELETE(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canWrite(session.user.role)) return error('No autorizado.', 403)

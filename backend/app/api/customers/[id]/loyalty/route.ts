@@ -3,18 +3,19 @@ import { error, json } from '../../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../../lib/auth'
 import { InputError, objectInput } from '../../../../../lib/payment-input'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const INT_MAX = 2147483647
 // Nota única del canje: la comparten el movimiento y el saldo a favor para que
 // el estado de cuenta del cliente sea reconstruible.
 const NOTA_CANJE = 'Canje de puntos de fidelización'
 
-const clienteId = (params: RouteContext['params']) => (params.id || '').trim().slice(0, 128)
+const clienteId = (params: Awaited<RouteContext['params']>) => (params.id || '').trim().slice(0, 128)
 
 // Saldo de puntos del cliente, su historial y el porcentaje vigente de la
 // empresa. Siempre acotado al tenant de la sesión.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const id = clienteId(params)
@@ -38,7 +39,8 @@ export async function GET(request: Request, { params }: RouteContext) {
 // REDEMPTION y emite un StoreCredit con la misma nota. Atómico: el saldo se
 // re-chequea con la fila del cliente bloqueada, así el doble clic no canjea
 // dos veces.
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['orders:manage', 'payments:manage'])) return error('Tu rol no puede canjear puntos.', 403)

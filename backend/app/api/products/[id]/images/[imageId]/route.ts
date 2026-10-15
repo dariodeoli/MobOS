@@ -4,13 +4,14 @@ import { canAccessAny, requireSession } from '../../../../../../lib/auth'
 import { readAttachment } from '../../../../../../lib/attachment-storage'
 import { sucursalEfectiva } from '../../../../../../lib/sucursal-efectiva'
 
-type RouteContext = { params: { id?: string; imageId?: string } }
+type RouteContext = { params: Promise<{ id?: string; imageId?: string }> }
 
 const EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
 // Bytes de una foto (?size=thumb para la miniatura). El id es inmutable, así que
 // el navegador puede guardarla un año; borrar la oculta y el id pasa a 404.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const productId = (params.id || '').trim().slice(0, 128)
@@ -33,7 +34,8 @@ export async function GET(request: Request, { params }: RouteContext) {
 }
 
 // Borrar = ocultar (deletedAt). Si era la principal, la primera que queda lo pasa a ser.
-export async function DELETE(request: Request, { params }: RouteContext) {
+export async function DELETE(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['stock:manage'])) return error('No autorizado.', 403)
@@ -42,7 +44,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
   const imageId = (params.imageId || '').trim().slice(0, 128)
   const product = productId ? await prisma.product.findFirst({ where: { id: productId, tenantId }, select: { id: true, branchId: true } }) : null
   if (!product) return error('Producto no encontrado.', 404)
-  const userBranchId = session.user.branchId ?? await sucursalEfectiva(session)
+  const userBranchId = session.user.branchId ?? (await sucursalEfectiva(session))
   if ((userBranchId === null && product.branchId !== null) || (userBranchId && product.branchId !== null && product.branchId !== userBranchId)) return error('No autorizado para esa sucursal.', 403)
   const image = await prisma.productImage.findFirst({ where: { id: imageId, productId, tenantId, deletedAt: null }, select: { id: true, isPrimary: true } })
   if (!image) return error('Foto no encontrada.', 404)

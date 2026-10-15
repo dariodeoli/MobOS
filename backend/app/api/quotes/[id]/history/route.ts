@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { displayOrderNumber } from '../../../../../lib/order-number'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const ESTADOS: Record<string, string> = { DRAFT: 'Borrador', SENT: 'Enviada', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
 
@@ -56,7 +56,8 @@ type TimelineEvent = {
 // auditoría de la cotización (incluidas las notas guardadas en la ficha).
 // Mismo alcance que GET /api/quotes: VENDEDOR solo la suya; CAJERA su sucursal;
 // GERENTE su sucursal cuando la tiene; ADMIN todo el tenant.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'].includes(session.user.role)) return error('No autorizado.', 403)

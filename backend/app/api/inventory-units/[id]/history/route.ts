@@ -17,7 +17,7 @@ import {
   INVENTORY_REMOVED,
 } from '../../../../../lib/inventory'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const ESTADO_ES: Record<string, string> = { AVAILABLE: 'disponible', RESERVED: 'reservado', SOLD: 'vendido', DEFECTIVE: 'en revisión', IN_TRANSIT: 'en tránsito' }
 const ENTREGA_ES: Record<string, string> = { DELIVERED: 'entregado', READY_FOR_PICKUP: 'listo para retirar', IN_TRANSIT: 'en camino', READY_TO_SHIP: 'listo para enviar' }
@@ -109,7 +109,8 @@ function detalleDeEvento(action: string, metadata: unknown, locaciones: Map<stri
 // unidad (recepción, ajustes, bajas, ventas) y traslados entre sucursales
 // cuyo listado de seriales la incluya. ADMIN ve cualquier unidad de su
 // empresa; GERENTE solo las de su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)

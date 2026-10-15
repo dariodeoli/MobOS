@@ -4,7 +4,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { deleteAttachment, readAttachment, saveAttachment } from '../../../../../lib/attachment-storage'
 
-type RouteContext = { params: { id?: string } }
+type RouteContext = { params: Promise<{ id?: string }> }
 const MAX_AVATAR_BYTES = 1024 * 1024
 const AVATAR_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 const AREA = 'avatars'
@@ -47,7 +47,8 @@ const puedeEditar = (session: { user: { id: string; role: string } }, userId: st
 
 // Foto de perfil: la ve cualquier usuario de la tienda y la cambia su dueño
 // (o administración). Los bytes salen del volumen de adjuntos con respaldo en base.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const userId = (params.id || '').trim().slice(0, 128)
@@ -75,7 +76,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
 }
 
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const userId = (params.id || '').trim().slice(0, 128)
@@ -101,7 +103,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteContext) {
+export async function DELETE(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const userId = (params.id || '').trim().slice(0, 128)

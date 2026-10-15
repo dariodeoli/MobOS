@@ -55,7 +55,8 @@ type Exportacion = {
   nombre: string
 }
 
-export async function GET(request: Request, { params }: { params: { module: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ module: string }> }) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const module = texto(params.module).slice(0, 40) as ExportModule

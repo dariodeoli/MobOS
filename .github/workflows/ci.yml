@@ -58,7 +58,7 @@ jobs:
         run: npx prisma generate
       - name: Typecheck
         working-directory: backend
-        run: npx tsc --noEmit
+        run: npx next typegen && npx tsc --noEmit
       - name: Unit tests
         working-directory: backend
         run: npm run test:unit

@@ -4,7 +4,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
 import { canSeeCostForSession, canSeeSupplierName, loadSupplierDirectory, redactAuditMetadata, scrubSupplierNames, supplierCodeFor } from '../../../../../lib/cost-visibility'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const UNIT_STATUS: Record<string, string> = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
 
@@ -46,7 +46,8 @@ type TimelineEvent = {
 // precios propio, así que los cambios de precio salen de la auditoría.
 // Mismo alcance de sucursal que GET /api/products: VENDEDOR/CAJERA solo ven
 // productos de su sucursal (o generales sin sucursal).
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'].includes(session.user.role)) return error('No autorizado.', 403)

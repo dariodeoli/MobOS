@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 // Acciones conocidas del proveedor; el resto se muestra humanizado.
 const ACCIONES_PROVEEDOR: Record<string, string> = {
@@ -35,7 +35,8 @@ type TimelineEvent = {
 // Cronología del proveedor: compras con su total/estado, pagos y anticipos,
 // unidades recibidas y auditoría de la ficha. GERENTE replica el alcance de
 // /api/purchases y del balance: solo compras/unidades de su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)

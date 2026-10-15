@@ -4,7 +4,7 @@ import { requireSession } from '../../../../../../lib/auth'
 import { ensureStoreBranch } from '../../../../../../lib/store-branch'
 import { numero } from '../../../../../../lib/montos'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const gs = (value: bigint | number | null | undefined) => numero(value).toLocaleString('es-PY')
 
@@ -52,7 +52,8 @@ type TimelineEvent = {
 // Cronología de la sesión de caja: apertura, movimientos del período de la
 // sesión, cierre con la diferencia del arqueo, foto del arqueo y auditoría.
 // Mismo alcance que /api/cash: ADMIN todo; GERENTE su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
@@ -71,7 +72,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
   if (!cashSession) return error('Sesión de caja no encontrada.', 404)
   if (session.user.role === 'GERENTE') {
-    const branchId = session.user.branchId || await ensureStoreBranch(session)
+    const branchId = session.user.branchId || (await ensureStoreBranch(session))
     if (!branchId || cashSession.branchId !== branchId) return error('No autorizado para esa sucursal.', 403)
   }
 

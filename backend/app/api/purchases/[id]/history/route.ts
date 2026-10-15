@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const gs = (value: unknown) => Number(value || 0).toLocaleString('es-PY')
 
@@ -41,7 +41,8 @@ type TimelineEvent = {
 // Cronología de la compra: alta, cambios de costo por línea, recepción con la
 // suma de stock, pagos/anticipos, adjuntos (factura y comprobantes de pago) y
 // auditoría. Mismo alcance que /api/purchases: ADMIN todo; GERENTE su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)

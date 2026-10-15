@@ -6,9 +6,10 @@ import { readAttachment } from '../../../../../lib/attachment-storage'
 import { checkAttachmentTarget, isAttachmentEntity, type AttachmentEntity } from '../../../../../lib/attachments'
 import { safeDownloadName } from '../../../payments/_lib'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
 

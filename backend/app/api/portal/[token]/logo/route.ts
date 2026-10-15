@@ -22,8 +22,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   // fondo oscuro → logo claro) y, si la empresa solo subió una, se entrega esa.
   const pedida = new URL(request.url).searchParams.get('variant') === 'dark' ? 'dark' : 'light'
   const otra = pedida === 'dark' ? 'light' : 'dark'
-  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: portal.tenantId, variant: pedida } } })
-    ?? await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: portal.tenantId, variant: otra } } })
+  const logo = (await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: portal.tenantId, variant: pedida } } }))
+    ?? (await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: portal.tenantId, variant: otra } } }))
   if (!logo) return error('La empresa todavía no tiene logo.', 404)
   const bytes = await readAttachment({ storageKey: logo.storageKey, data: logo.data ?? new Uint8Array() })
   return new Response(bytes, {

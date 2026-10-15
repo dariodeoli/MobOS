@@ -95,7 +95,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
               ? await tx.customer.findFirst({ where: { tenantId: tenant, phone, archivedAt: null }, select: { id: true, name: true, phone: true } })
               : await tx.customer.findFirst({ where: { tenantId: tenant, archivedAt: null, name: { equals: nombre, mode: 'insensitive' } }, select: { id: true, name: true, phone: true } })
           if (existente?.id !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
-          const ficha = existente || await tx.customer.create({ data: { tenantId: tenant, createdById: session.user.id, name: nombre, ...(phone ? { phone, countryCode } : {}), ...(document ? { document } : {}), ...(email ? { email } : {}) }, select: { id: true, name: true, phone: true } })
+          const ficha = existente || (await tx.customer.create({ data: { tenantId: tenant, createdById: session.user.id, name: nombre, ...(phone ? { phone, countryCode } : {}), ...(document ? { document } : {}), ...(email ? { email } : {}) }, select: { id: true, name: true, phone: true } }))
           await tx.order.update({ where: { id: existing.id }, data: { customerId: ficha.id } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CUSTOMER_CREATED', entity: 'Order', entityId: existing.id, metadata: { customerId: ficha.id, customerName: ficha.name, matched: Boolean(existente) } } })
           return ficha

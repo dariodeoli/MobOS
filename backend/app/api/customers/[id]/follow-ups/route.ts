@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { FollowUpKind } from '@prisma/client'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const canWrite = (role: string) => ['ADMIN', 'GERENTE', 'VENDEDOR'].includes(role)
 const text = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -14,7 +14,8 @@ async function findCustomer(tenant: string, customerId: string) {
   return prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })
 }
 
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canWrite(session.user.role)) return error('No autorizado.', 403)
@@ -47,7 +48,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo guardar el seguimiento.', 409) }
 }
 
-export async function PATCH(request: Request, { params }: RouteContext) {
+export async function PATCH(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canWrite(session.user.role)) return error('No autorizado.', 403)
@@ -81,7 +83,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el seguimiento.', 409) }
 }
 
-export async function DELETE(request: Request, { params }: RouteContext) {
+export async function DELETE(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canWrite(session.user.role)) return error('No autorizado.', 403)

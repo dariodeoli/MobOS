@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { displayOrderNumber } from '../../../../../lib/order-number'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const gs = (value: unknown) => Number(value || 0).toLocaleString('es-PY')
 const ROLES: Record<string, string> = { ADMIN: 'Administrador', GERENTE: 'Gerente', VENDEDOR: 'Vendedor', CAJERA: 'Cajera', TECNICO: 'Técnico' }
@@ -46,7 +46,8 @@ type TimelineEvent = {
 // Cronología del funcionario: alta, cambios auditados de rol, sucursal, estado y
 // PIN (sin valores sensibles), reglas de comisión, sus últimas 50 ventas y la
 // auditoría de la cuenta. ADMIN todo el tenant; GERENTE con sucursal, la suya.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)

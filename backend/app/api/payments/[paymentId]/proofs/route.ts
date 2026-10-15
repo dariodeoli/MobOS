@@ -4,7 +4,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { findAccessiblePayment, MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../_lib'
 
-type RouteContext = { params: { paymentId: string } }
+type RouteContext = { params: Promise<{ paymentId: string }> }
 
 function metadata(proof: {
   id: string
@@ -26,7 +26,8 @@ function metadata(proof: {
   }
 }
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const payment = await findAccessiblePayment(params.paymentId, session)
@@ -41,7 +42,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   return json(proofs.map(metadata))
 }
 
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const payment = await findAccessiblePayment(params.paymentId, session)
