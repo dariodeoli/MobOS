@@ -58,12 +58,11 @@ test.describe('composición compacta', () => {
     await expect(resumen.getByText('Tienda', { exact: true })).toHaveCount(0)
     await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(0)
     const cargarMas = page.getByRole('button', { name: 'Cargar más clientes', exact: true })
-    for (let pagina = 0; pagina < 10 && await cargarMas.isVisible(); pagina += 1) {
-      await expect(resumen.getByText('Deuda: clientes en pantalla', { exact: true })).toBeVisible()
-      const anteriores = await page.getByTestId('cliente-fila').count()
-      await cargarMas.click()
-      await expect.poll(() => page.getByTestId('cliente-fila').count()).toBeGreaterThan(anteriores)
-    }
+    await expect(page.getByTestId('cliente-fila')).toHaveCount(50)
+    await expect(cargarMas).toBeVisible()
+    await expect(resumen.getByText('Deuda: clientes en pantalla', { exact: true })).toBeVisible()
+    await cargarMas.click()
+    await expect(page.getByTestId('cliente-fila')).toHaveCount(51)
     await expect(cargarMas).toHaveCount(0)
     await expect(resumen.getByText(/en pantalla$/)).toHaveCount(0)
     await page.getByRole('textbox', { name: 'Buscar clientes', exact: true }).fill('QA256_SCOPE')
