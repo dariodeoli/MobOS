@@ -1,3 +1,4 @@
+import './compras.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { useNavigate } from 'react-router-dom'
@@ -372,7 +373,7 @@ export default function Recepcion() {
     // el resumen y el stock dicen lo mismo (#461).
     const creadas = confirmada.unidadesCreadas ?? 0
     return (
-      <div className="space-y-4" data-testid="recepcion-confirmada">
+      <div className="compras-flujo space-y-4" data-testid="recepcion-confirmada">
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h2 className="font-semibold">Recepción confirmada · {confirmada.recepcion?.shipment?.code || ''}</h2>
@@ -409,7 +410,7 @@ export default function Recepcion() {
     const sobrantes = (recepcion.items || []).filter((item) => !item.shipmentItemId)
     const estados = resumen || {}
     return (
-      <div className="space-y-4" data-testid="recepcion-activa">
+      <div className="compras-flujo space-y-4" data-testid="recepcion-activa">
         <Card className="p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -592,10 +593,10 @@ export default function Recepcion() {
 
   // ── Llegadas pendientes ─────────────────────────────────────────────────
   return (
-    <div className="space-y-4" data-testid="recepcion">
+    <div className="compras-flujo space-y-4" data-testid="recepcion">
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <EncabezadoFlujo className="min-w-0 flex-1" paso="recepcion" onIr={(paso) => navigate(paso.ruta)} />
+          <EncabezadoFlujo className="min-w-0 w-full sm:flex-1" paso="recepcion" onIr={(paso) => navigate(paso.ruta)} />
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" onClick={() => setNuevaLlegada(true)} data-testid="recepcion-nueva-llegada">
               <Icon name="plus" className="h-3.5 w-3.5" />Nueva llegada

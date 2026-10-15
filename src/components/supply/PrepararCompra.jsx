@@ -1,3 +1,4 @@
+import './compras.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resources } from '@/lib/api'
@@ -135,10 +136,10 @@ export default function PrepararCompra() {
   }
 
   return (
-    <div className="space-y-4" data-testid="preparar-compra">
+    <div className="compras-flujo space-y-4" data-testid="preparar-compra">
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <EncabezadoFlujo className="min-w-0 flex-1" paso="preparacion" onIr={(paso) => navigate(paso.ruta)} />
+          <EncabezadoFlujo className="min-w-0 w-full sm:flex-1" paso="preparacion" onIr={(paso) => navigate(paso.ruta)} />
           <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
           </Button>
