@@ -33,6 +33,8 @@ test('salir nativo no espera la red y revoca empresa y vendedor con los permisos
  await page.goto('/e2e/fixtures/sesion-nativa.html')
  await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click()
  await expect(page.getByText('Sin sesión: ok')).toBeVisible({timeout:1000})
+ // El destino de navegación se alcanza solo después del Keychain lento.
+ await page.getByRole('button',{name:'Comprobar Keychain'}).click();await expect(page.getByText('Keychain: 0')).toBeVisible()
  await expect.poll(()=>permisos.sort()).toEqual(['Bearer EMPRESA_QA_484','Bearer VENDEDOR_QA_484'])
  await page.getByRole('button',{name:'Comprobar Keychain'}).click();await expect(page.getByText('Keychain: 0')).toBeVisible()
 })

@@ -19,3 +19,5 @@ Cada validación tiene un controlador abortable. Un nuevo bloqueo, salir, cambia
 El cierre de sesión nativo captura por separado el permiso de empresa y el del vendedor para revocarlos; limpia la sesión local sin esperar la red. Las revocaciones tienen un límite de cinco segundos y los errores quedan registrados. Las escrituras del Keychain se ordenan para que una escritura anterior lenta no vuelva a colocar credenciales después de borrarlas. Sin conectividad no se confirma la revocación remota.
 
 Pruebas adicionales: respuestas diferidas correctas e incorrectas tras otro bloqueo, dos intentos concurrentes, salida durante validación, escritura lenta seguida de limpieza del Keychain y cierre nativo con red demorada verificando ambos permisos capturados y salida local inmediata. 5 pruebas de navegador y 12 unitarias focalizadas PASS.
+
+El cierre espera que termine el borrado local del Keychain antes de navegar al acceso; no espera las revocaciones de red. Esto evita que una recarga alcance a recuperar credenciales mientras el borrado estaba en cola.

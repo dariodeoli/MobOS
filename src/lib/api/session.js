@@ -34,7 +34,7 @@ export function clearSession() {
   clearCompanyToken()
   // App de iPhone: el Bearer del Keychain también se va (la memoria se vacía
   // en el acto; el borrado del Keychain termina en segundo plano).
-  if (isNativeIOS()) limpiarTokens().catch((error) => console.error('[sesion] no se pudo limpiar el Keychain:', error))
+  if (isNativeIOS()) return limpiarTokens().catch((error) => console.error('[sesion] no se pudo limpiar el Keychain:', error))
 }
 
 // Tras cambiar de empresa sin sesión de vendedor en el destino, la recarga cae en
@@ -185,7 +185,7 @@ export const sessionApi = {
       const revocaciones = permisos.map(Authorization => api.post('/api/auth/logout', undefined, {
         headers: { Authorization }, timeoutMs: 5000, keepalive: true,
       }))
-      clearSession()
+      await clearSession()
       void Promise.allSettled([push, ...revocaciones]).then(results => {
         for (const result of results) if (result.status === 'rejected') console.error('[sesion] no se pudo revocar el acceso remoto al salir:', result.reason)
       })

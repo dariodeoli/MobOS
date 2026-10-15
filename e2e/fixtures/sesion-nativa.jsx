@@ -5,7 +5,7 @@ import { sessionApi } from '../../src/lib/api/session.js'
 import { usarAlmacen, guardarTokens, hayTokens } from '../../src/lib/api/nativo.js'
 Capacitor.getPlatform=()=> 'ios';Capacitor.isNativePlatform=()=>true
 const datos=new Map()
-usarAlmacen({get:async key=>datos.get(key),set:async(key,value)=>datos.set(key,value),remove:async key=>datos.delete(key)})
+usarAlmacen({get:async key=>datos.get(key),set:async(key,value)=>datos.set(key,value),remove:async key=>{ await new Promise(resolve=>setTimeout(resolve,100)); datos.delete(key) }})
 await guardarTokens({token:'EMPRESA_QA_484',sellerToken:'VENDEDOR_QA_484'})
 function Prueba() {
  const [estado,setEstado]=useState('Con sesión')
