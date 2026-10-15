@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { dirname, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   parsearDockerignore,
   estaExcluido,
@@ -14,10 +17,25 @@ const leer = ruta => readFileSync(new URL(`../../${ruta}`, import.meta.url), 'ut
 const raiz = parsearDockerignore(leer('.dockerignore'))
 const back = parsearDockerignore(leer('backend/.dockerignore'))
 
+test('los archivos locales importados como texto viajan al builder (#480)', () => {
+  const repo = fileURLToPath(new URL('../../', import.meta.url))
+  const fuentes = execFileSync('git', ['ls-files', 'src'], { cwd: repo, encoding: 'utf8' }).trim().split('\n')
+  for (const fuente of fuentes.filter(ruta => /\.[jt]sx?$/.test(ruta) && !ruta.includes('.test.'))) {
+    const codigo = readFileSync(resolve(repo, fuente), 'utf8')
+    for (const match of codigo.matchAll(/\b(?:import\s*\(\s*|from\s*)['"]([^'"]+\?raw)['"]/g)) {
+      if (!match[1].startsWith('.')) continue
+      const archivo = resolve(repo, dirname(fuente), match[1].replace(/\?raw$/, ''))
+      const ruta = relative(repo, archivo).replaceAll('\\', '/')
+      assert.ok(readFileSync(archivo).length > 0, `${fuente}: ${ruta} existe`)
+      assert.ok(!estaExcluido(ruta, raiz), `${fuente}: el builder necesita ${ruta}`)
+    }
+  }
+})
+
 test('el .dockerignore raíz excluye lo que el build del frontend no usa', () => {
   for (const ruta of [
     'docs/qa/1/a.png',
-    'docs/NOVEDADES.md',
+    'docs/IOS.md',
     'e2e/x.spec.js',
     'openspec/a.md',
     '.claude/agents/x.md',
@@ -40,6 +58,7 @@ test('el .dockerignore raíz excluye lo que el build del frontend no usa', () =>
 test('el contexto raíz conserva lo que build y runtime necesitan', () => {
   for (const ruta of [
     'index.html',
+    'docs/NOVEDADES.md',
     'src/main.jsx',
     'public/mobos-logo-concept-v2.png',
     'version.json',
