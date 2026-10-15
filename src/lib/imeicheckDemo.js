@@ -19,7 +19,7 @@ export function validarImeiDemo(valor) {
     if (i % 2 === 1) { digito *= 2; if (digito > 9) digito -= 9 }
     suma += digito
   }
-  if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no pasa la verificación de dígito control (Luhn).' }
+  if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no tiene un dígito de control válido: revisá que esté bien escrito.' }
   return { ok: true, imei }
 }
 
