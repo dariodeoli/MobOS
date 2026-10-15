@@ -1,3 +1,4 @@
+import './compras.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { resources } from '@/lib/api'
@@ -125,7 +126,7 @@ export default function ComprasCentro() {
   }
 
   return (
-    <div className="space-y-4" data-testid="compras-centro">
+    <div className="compras-flujo space-y-4" data-testid="compras-centro">
       <BarraModulo icono="store" titulo="Compras del Centro" testId="barra-compras-centro">
         <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
           <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
