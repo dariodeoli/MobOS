@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { displayOrderNumber } from '../../../../../lib/order-number'
 
 type RouteContext = { params: { id: string } }
 
@@ -130,7 +131,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: 'Venta',
       createdAt: order.createdAt,
       user: null,
-      detail: `${order.orderNumber} · Gs ${gs(order.totalPyg)}`,
+      detail: `${displayOrderNumber(order.orderNumber)} · Gs ${gs(order.totalPyg)}`,
     })),
   ]
   events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

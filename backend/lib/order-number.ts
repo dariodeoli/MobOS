@@ -46,3 +46,11 @@ export async function nextOrderNumber(tx: Prisma.TransactionClient, tenant: stri
 // rechaza la segunda y el POST se reintenta con el siguiente.
 export const esCodigoDuplicado = (e: unknown) => (e as { code?: string })?.code === 'P2002'
   && JSON.stringify((e as { meta?: unknown })?.meta ?? {}).includes('orderNumber')
+
+// Formato de pantalla (#461): `AUR-0003`, sin «#», igual que `codigoPedido()` del frontend. El valor
+// guardado (`AUR-#0003`) no cambia; esta función es solo para mensajes, correos y papeles.
+export const displayOrderNumber = (orderNumber: string | null | undefined) => {
+  const value = String(orderNumber ?? '').trim()
+  const match = value.match(/^([A-Z]{2,3})[- ]?#?(\d+)$/)
+  return match ? `${match[1]}-${match[2].padStart(4, '0')}` : value
+}

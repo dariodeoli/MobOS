@@ -1,3 +1,4 @@
+import { residueMessage, subCentResidue } from '../../../lib/payment-residue'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
@@ -110,6 +111,11 @@ export async function POST(request: Request) {
       const confirmed = numero(paid._sum.amountPyg)
       const totalVenta = numero(order.totalPyg)
       if (!Number.isSafeInteger(totalVenta) || totalVenta < 0 || totalVenta > LIMITE_MONTO_VENTAS || (status === 'CONFIRMED' && (!Number.isSafeInteger(confirmed + amount) || confirmed + amount > LIMITE_MONTO_VENTAS || confirmed + amount > totalVenta))) throw new Error('El pago supera el total de la venta.')
+      // El cobro no puede dejar un saldo menor a un centavo de la moneda cobrada (#461).
+      if (status === 'CONFIRMED') {
+        const residuo = subCentResidue(totalVenta - confirmed - amount, [normalized])
+        if (residuo > 0) throw new InputError(residueMessage(residuo), 422)
+      }
       const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey, createdById: session.user.id, userId: session.user.id } })
       await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })

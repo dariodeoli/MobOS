@@ -15,6 +15,8 @@ import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } fro
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
+import { withItemWarranty } from '../../../lib/order-warranty'
+import { residueMessage, subCentResidue } from '../../../lib/payment-residue'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback, PricingError } from '../../../lib/pricing'
 import { changeStock, linkSoldUnits } from '../../../lib/stock'
 import { crearDemandas, demandasDePedido, revisarMinimoDeStock } from '../../../lib/supply-demand'
@@ -645,6 +647,12 @@ export async function POST(request: Request) {
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
+      // Saldo menor a un centavo de la moneda cobrada (p. ej. Gs 7 por redondeo del dólar): la venta
+      // no se cierra con un residuo escondido, se completa en guaraníes (#461).
+      if (!aCredito && !paymentOnDelivery) {
+        const residuo = subCentResidue(total - confirmed, normalizedPayments)
+        if (residuo > 0) throw new InputError(residueMessage(residuo), 422)
+      }
       // Límite de crédito (autoridad del servidor, dentro de la misma
       // transacción): deuda abierta del cliente + lo que esta venta deja sin
       // cobrar ≤ límite. Sin límite configurado el disponible es 0. La ficha
@@ -733,7 +741,7 @@ export async function POST(request: Request) {
           tenant: { select: { name: true } },
         },
       })
-      if (emitido) await tx.order.update({ where: { id: order.id }, data: { receiptSnapshot: armarComprobante(emitido as unknown as Record<string, unknown>) } })
+      if (emitido) await tx.order.update({ where: { id: order.id }, data: { receiptSnapshot: armarComprobante(await withItemWarranty(tx, emitido) as unknown as Record<string, unknown>) } })
       // Garantía automática: registra la cobertura de cada equipo serializado
       // (días del producto o por condición) para que el cliente la vea por QR.
       if (branchId) {

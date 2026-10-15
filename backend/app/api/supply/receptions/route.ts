@@ -183,6 +183,10 @@ export async function PATCH(request: Request) {
       const esperado = pendientesDeRecibir(recepcion.shipment.items).find((item) => String(item.serial || '').toUpperCase() === serial && !cubiertos.has(item.id))
       const pendiente = pendientesDeRecibir(recepcion.shipment.items).find((item) => !item.serial && !cubiertos.has(item.id))
       const item = esperado || pendiente || null
+      // Un código que no figura en el manifiesto no se acepta por inercia (#461): se rechaza con el
+      // motivo. Si de verdad llegó una unidad de más se registra pidiéndolo (resultado SOBRANTE),
+      // queda como sobrante con nota y no entra al stock.
+      if (!item && resultadoPedido !== 'SOBRANTE') return error(`El código ${serial} no está en el manifiesto de este lote. Si llegó una unidad de más, registrala como sobrante.`, 409)
       const resultado = item ? resultadoPedido : 'SOBRANTE'
       const fila = await prisma.supplyReceptionItem.create({
         data: { tenantId: tenant, receptionId: recepcion.id, shipmentItemId: item?.id || null, serial, productId: item?.productId || recepcion.shipment.items[0]?.productId || '', resultado, nota: typeof body?.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 300) : null },

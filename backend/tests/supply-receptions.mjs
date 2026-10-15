@@ -78,7 +78,11 @@ const stockAntes = await req(`/api/stock?branchId=${rama}`)
 assert.equal(Number((Array.isArray(stockAntes) ? stockAntes : stockAntes.productos || []).find((item) => item.id === uno.producto.id)?.stock ?? 0), 0, 'el escaneo no mueve stock')
 
 // 4) Sobrante e incidencias con nota.
-const conSobrante = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra }, 201, admin)
+// Un IMEI que no está en el manifiesto se rechaza con el motivo (#461)...
+const rechazado = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra }, 409, admin)
+assert.match(rechazado.message, /no está en el manifiesto/)
+// ...y recién registrándolo como sobrante queda en la recepción (sin entrar al stock).
+const conSobrante = await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: imeiExtra, resultado: 'SOBRANTE' }, 201, admin)
 assert.equal(conSobrante.resumen.SOBRANTE, 1)
 const sobrante = conSobrante.recepcion.items.find((item) => item.resultado === 'SOBRANTE')
 await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'item', itemId: sobrante.id, resultado: 'SOBRANTE' }, 400, admin)
