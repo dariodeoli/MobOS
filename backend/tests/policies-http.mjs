@@ -31,7 +31,10 @@ try {
   await db.query(`INSERT INTO "Account" ("id","email","updatedAt") VALUES ($1,$2,now())`, [accountId, `policies-${accountId}@example.invalid`])
   await db.query(`INSERT INTO "TenantMembership" ("id","accountId","tenantId","userId","role","updatedAt") VALUES ($1,$2,$3,$4,'OWNER',now())`, [membershipId, accountId, owner.tenantId, owner.userId])
   for (const [id, token, fixture] of [[sessionId, ownerToken, owner], [foreignSessionId, foreignToken, other]]) {
-    await db.query(`INSERT INTO "Session" ("id","tenantId","userId","accountId","level","deviceId","tokenHash","expiresAt") VALUES ($1,$2,$3,$4,'SELLER','policies-http-qa',$5,now()+interval '1 hour')`, [id, fixture.tenantId, fixture.userId, accountId, hash(token)])
+    // Prisma interpreta DateTime sin zona como UTC; no usar now() local de PG.
+    await db.query(`INSERT INTO "Session" ("id","tenantId","userId","accountId","level","deviceId","tokenHash","expiresAt") VALUES ($1,$2,$3,$4,'SELLER','policies-http-qa',$5,$6::timestamp)`, [id, fixture.tenantId, fixture.userId, accountId, hash(token), new Date(Date.now() + 3600000).toISOString()])
+    const vigencia = await one(`SELECT "expiresAt" > $2::timestamp AS vigente FROM "Session" WHERE "id"=$1`, [id, new Date().toISOString()])
+    assert.equal(vigencia?.vigente, true, 'la fixture conserva al menos una hora UTC de sesión')
   }
   const write = { content: 'Política QA de garantía de la tienda.', published: true }
   await req('/api/tenant/policies', { status: 401 })
