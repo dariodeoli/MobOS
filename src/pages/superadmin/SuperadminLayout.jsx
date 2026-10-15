@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
-import { Activity, ArrowLeft, Building2, LayoutDashboard, Users } from 'lucide-react'
+import { Activity, ArrowLeft, Building2, LayoutDashboard, ShieldCheck, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import ThemeLogo from '@/components/app/ThemeLogo'
@@ -11,6 +11,7 @@ const SECCIONES = [
   { to: '/superadmin', etiqueta: 'Resumen', Icono: LayoutDashboard, fin: true },
   { to: '/superadmin/empresas', etiqueta: 'Empresas', Icono: Building2 },
   { to: '/superadmin/usuarios', etiqueta: 'Usuarios', Icono: Users },
+  { to: '/superadmin/verificaciones-imei', etiqueta: 'Verificaciones IMEI', corta: 'IMEI', id: 'imei', Icono: ShieldCheck },
   { to: '/superadmin/trafico', etiqueta: 'Tráfico y demo', corta: 'Tráfico', id: 'trafico', Icono: Activity, periodo: true },
 ]
 

@@ -7,6 +7,8 @@ import { guardarDemo, leerDemo } from './demoStorage.js'
 import { EQUIPO_DEMO } from './demo/iphones.js'
 
 const KEY = 'mobos:demo-imei-queries:v1'
+// Créditos del demo: sin precios ni compra; la demo parte con unas pocas verificaciones.
+export const CREDITOS_DEMO = 3
 const SERVICIO = { clave: 'APPLE_BASIC', nombre: 'Apple Basic', precioUsd: 0.06, precioConfirmado: true, campos: ['blacklist actual', 'Find My/iCloud', 'garantía'], serviceId: '1' }
 
 /** Valida como el backend, aceptando además los seriales ficticios del demo. */
@@ -25,6 +27,8 @@ export function validarImeiDemo(valor) {
 const enmascarar = (imei) => (String(imei).length <= 4 ? '•'.repeat(String(imei).length) : `${'•'.repeat(String(imei).length - 4)}${String(imei).slice(-4)}`)
 const leer = () => { try { const filas = JSON.parse(leerDemo(KEY)); return Array.isArray(filas) ? filas : [] } catch { return [] } }
 const guardar = (filas) => guardarDemo(KEY, JSON.stringify(filas))
+/** Verificaciones que le quedan al demo (cada consulta usa una). */
+export function saldoDemoImei() { return Math.max(0, CREDITOS_DEMO - leer().length) }
 const semillaDe = (imei) => String(imei).split('').reduce((suma, char) => suma + char.charCodeAt(0), 0)
 const verificadorDe = (imei) => EQUIPO_DEMO[semillaDe(imei) % EQUIPO_DEMO.length]
 
@@ -49,17 +53,18 @@ export async function postDemoImei(body = {}) {
     const reciente = filas.find((fila) => fila.imei === validacion.imei)
     return {
       imei: enmascarar(validacion.imei), servicio: { ...SERVICIO }, requiereConfirmacion: true,
-      costoEstimadoUsd: SERVICIO.precioUsd,
+      creditosRequeridos: 1, saldo: saldoDemoImei(), disponible: saldoDemoImei() >= 1,
       advertencia: reciente ? 'Ya hay una consulta de este servicio para el mismo IMEI en la última jornada (demo).' : null,
       reciente: reciente ? { id: reciente.id, status: reciente.status, costUsd: reciente.costUsd, requestedAt: reciente.requestedAt } : null,
       simulado: true, esMock: true,
     }
   }
-  if (body.confirm !== true) throw Object.assign(new Error('La consulta necesita confirmación explícita del costo.'), { status: 409, requiereConfirmacion: true, costoEstimadoUsd: SERVICIO.precioUsd })
+  if (body.confirm !== true) throw Object.assign(new Error('La consulta necesita confirmación explícita.'), { status: 409, requiereConfirmacion: true, creditosRequeridos: 1 })
   const requestId = String(body.requestId || '').trim()
   if (!requestId) throw Object.assign(new Error('Falta requestId para evitar dobles cobros.'), { status: 400 })
   const existente = filas.find((fila) => fila.requestId === requestId)
   if (existente) return { ...existente, repetida: true }
+  if (saldoDemoImei() < 1) throw Object.assign(new Error('No disponible en tu cuenta.'), { status: 402, code: 'IMEI_SIN_CREDITOS' })
   const verificador = verificadorDe(validacion.imei)
   const consulta = {
     id: `demo-imei-${Date.now().toString(36)}`,
