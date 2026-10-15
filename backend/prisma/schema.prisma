@@ -3670,6 +3670,7 @@ model ImeiCheckQuery {
   requestedAt DateTime  @default(now())
   resolvedAt  DateTime?
 
+  @@unique([tenantId, requestId])
   @@index([tenantId, imei, requestedAt])
   @@index([tenantId, requestedAt])
   conciliatedAt     DateTime?
