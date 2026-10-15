@@ -4,6 +4,7 @@ import { requireSession } from '../../../../lib/auth'
 import { serialKey } from '../../../../lib/validation'
 import { changeStock } from '../../../../lib/stock'
 import { INVENTORY_PHYSICALLY_VERIFIED } from '../../../../lib/inventory'
+import { canUndoVerification } from '../../../../lib/stock-verification'
 import { reservaDeAsignacion, vincularAsignacionAlRecibir } from '../../../../lib/transit'
 
 const branchAllowed = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   const now = new Date()
   try {
     const result = await prisma.$transaction(async tx => {
-      const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: { not: 'SOLD' } }, select: { id: true, serial: true, branchId: true, status: true, productId: true, locationId: true } })
+      const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: { not: 'SOLD' } }, select: { id: true, serial: true, branchId: true, status: true, productId: true, locationId: true, lastVerifiedAt: true, lastVerifiedById: true, verificationCount: true } })
       if (units.length !== serials.length) throw new Error('Uno o más equipos no existen, ya fueron vendidos o no se pueden verificar.')
       if (units.some(unit => !branchAllowed(session.user.role, session.user.branchId, unit.branchId))) throw new Error('No autorizado para verificar equipos de otra sucursal.')
       let received = 0
@@ -82,6 +83,8 @@ export async function POST(request: Request) {
             metadata: {
               serial: unit.serial,
               verifiedAt: now.toISOString(),
+              // Para deshacer el check dentro del minuto (DELETE de esta ruta).
+              previous: { at: unit.lastVerifiedAt?.toISOString() ?? null, byId: unit.lastVerifiedById ?? null, count: unit.verificationCount },
               locationId: llegoEnTransito ? locationId : unit.locationId ?? null,
               ...(llegoEnTransito ? { receivedInTransit: true } : {}),
             },
@@ -92,4 +95,29 @@ export async function POST(request: Request) {
     })
     return json(result)
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo registrar la verificación.', 409) }
+}
+
+// Deshacer el check de una fila: solo quien verificó, dentro del minuto y si nadie
+// volvió a verificar la unidad. Restaura quién/cuándo anterior y deja el evento en la cronología.
+export async function DELETE(request: Request) {
+  const tenant = await tenantId(request); const session = await requireSession(request)
+  if (!tenant || !session) return error('Falta sesión.', 401)
+  let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
+  const serial = serialKey(body.serial)
+  if (!serial) return error('Indicá el IMEI/serial.')
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const unit = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial, status: { not: 'SOLD' } }, select: { id: true, branchId: true, lastVerifiedAt: true, lastVerifiedById: true, verificationCount: true } })
+      if (!unit) throw new Error('El equipo no existe o ya fue vendido.')
+      if (!branchAllowed(session.user.role, session.user.branchId, unit.branchId)) throw new Error('No autorizado para deshacer la verificación de otra sucursal.')
+      const evento = await tx.auditLog.findFirst({ where: { tenantId: tenant, entity: 'InventoryUnit', entityId: unit.id, action: INVENTORY_PHYSICALLY_VERIFIED, userId: session.user.id }, orderBy: { createdAt: 'desc' } })
+      const meta = (evento?.metadata ?? {}) as { verifiedAt?: string; previous?: { at: string | null; byId: string | null; count: number }; receivedInTransit?: boolean }
+      if (!evento || meta.receivedInTransit || !meta.previous) throw new Error('Esta verificación no se puede deshacer.')
+      if (!canUndoVerification({ verifiedAt: unit.lastVerifiedAt, verifiedById: unit.lastVerifiedById, userId: session.user.id, auditAt: meta.verifiedAt ?? null })) throw new Error('Solo se puede deshacer tu verificación durante el primer minuto.')
+      await tx.inventoryUnit.update({ where: { id: unit.id }, data: { lastVerifiedAt: meta.previous.at ? new Date(meta.previous.at) : null, lastVerifiedById: meta.previous.byId, verificationCount: Math.max(0, meta.previous.count ?? 0) } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_VERIFICATION_UNDONE', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial, undoneAt: new Date().toISOString() } } })
+      return { undone: true, serial, lastVerifiedAt: meta.previous.at, lastVerifiedById: meta.previous.byId }
+    })
+    return json(result)
+  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo deshacer la verificación.', 409) }
 }

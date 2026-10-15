@@ -225,6 +225,7 @@ const TABS_INVENTARIO = [
   ['unidades', 'Unidades'],
   ['taller', 'Taller'],
   ['conteos', 'Conteos'],
+  ['verificacion', 'Verificación'],
   ['alertas', 'Alertas'],
   ['reservas', 'Reservas'],
   ['traslados', 'Traslados'],

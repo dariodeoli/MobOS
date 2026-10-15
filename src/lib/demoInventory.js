@@ -229,6 +229,24 @@ export function updateDemoUnit(data = {}) {
   return snapshot(state, unit)
 }
 
+export function undoVerifyDemoUnit(data = {}) {
+  const state = read()
+  const unit = porSerial(state, data.serial)
+  const previa = unit?.verificacionPrevia
+  if (!unit || !previa || previa.enTransito) throw new Error('Esta verificación no se puede deshacer.')
+  if (Date.now() - new Date(unit.lastVerifiedAt).getTime() > 60_000) throw new Error('Solo se puede deshacer tu verificación durante el primer minuto.')
+  unit.lastVerifiedBy = previa.by
+  unit.lastVerifiedAt = previa.at
+  unit.verifiedAt = previa.at
+  delete unit.verificacionPrevia
+  write(state)
+  return snapshot(state, unit)
+}
+
+// Para la verificación por escaneo en la demo (mismo store de unidades).
+export const leerEstadoDemo = () => read()
+export const guardarEstadoDemo = (state) => write(state)
+
 export function verifyDemoUnit(data = {}) {
   const state = read()
   const unit = porSerial(state, data.serial)
@@ -236,7 +254,9 @@ export function verifyDemoUnit(data = {}) {
   const llegabaEnTransito = unit.status === 'IN_TRANSIT'
   unit.status = llegabaEnTransito ? 'AVAILABLE' : unit.status
   if (data.locationId) unit.locationId = data.locationId
-  unit.lastVerifiedBy = verificadorDeDemo(semillaDe(unit.serial))
+  // Para deshacer el check de la fila dentro del minuto (igual que el API).
+  unit.verificacionPrevia = { by: unit.lastVerifiedBy || null, at: unit.lastVerifiedAt || null, enTransito: llegabaEnTransito }
+  unit.lastVerifiedBy = data.demoUser?.id ? { id: data.demoUser.id, name: data.demoUser.name, role: data.demoUser.role, hasAvatar: true } : verificadorDeDemo(semillaDe(unit.serial))
   unit.lastVerifiedAt = new Date().toISOString()
   unit.verifiedAt = unit.lastVerifiedAt
   // #218: al recibir la última unidad, el lote queda con llegada real y quién

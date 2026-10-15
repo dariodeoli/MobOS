@@ -74,7 +74,7 @@ export function plantillaColumnas(prefs, columnas) {
 }
 
 // Qué columnas se sueltan primero cuando el ancho no alcanza (las primeras caen antes).
-const SOLTAR_PRIMERO = ['ingreso', 'garantia', 'condicion', 'nota', 'proveedor', 'verificado']
+const SOLTAR_PRIMERO = ['garantia', 'ingreso', 'condicion', 'nota', 'proveedor', 'verificado']
 const PX_REM = 16
 const GAP_PX = 6
 // Casilla + modelo (mínimo) + acciones.
