@@ -23,7 +23,7 @@ test('encuentra los ajustes pedidos por sus sinónimos', () => {
   assert.ok(ids('deposito').includes('ubicaciones-deposito'))
   assert.ok(ids('colores').includes('logo-colores'))
   assert.ok(ids('sucursal').includes('sucursales'))
-  assert.ok(ids('facturacion').includes('plan-facturacion'))
+  assert.ok(!ids('suscripcion').includes('plan-facturacion'), 'MobOS no tiene planes: sin entrada de plan')
   assert.ok(ids('whatsapp').includes('whatsapp-plantillas'))
   assert.ok(ids('invitar').includes('equipo-invitar'))
 })
