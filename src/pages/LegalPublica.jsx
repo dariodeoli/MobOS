@@ -15,7 +15,7 @@ const CONTENIDO = {
       ['Quién los ve', 'Cada tienda ve solo sus datos. Los permisos del equipo limitan qué puede ver y hacer cada persona, y el servidor aplica ese recorte en cada acción.'],
       ['Para qué se usan', 'Para operar el servicio, hacer respaldos y mejorar el producto. No se venden a terceros.'],
       ['Tus controles', 'Desde Configuración podés exportar tus datos y archivar o eliminar la empresa; la eliminación borra el historial y se explica antes de confirmar.'],
-      ['Consultas', 'Escribinos a soporte@moboss.online.'],
+      ['Consultas', 'Escribinos a mobos@weem.com.py.'],
     ],
   },
   '/terminos': {
@@ -26,7 +26,7 @@ const CONTENIDO = {
       ['Tu responsabilidad', 'Cada tienda responde por los datos que carga y por el uso que hace su equipo; las credenciales y los PIN son personales.'],
       ['Documentos', 'Los comprobantes y reportes de MobOS son documentos no fiscales: no reemplazan la facturación electrónica de tu país.'],
       ['Disponibilidad', 'El estado de los servicios se publica en moboss.online/status. Podés dejar el servicio cuando quieras y exportar tus datos.'],
-      ['Consultas', 'Escribinos a soporte@moboss.online.'],
+      ['Consultas', 'Escribinos a mobos@weem.com.py.'],
     ],
   },
 }
@@ -60,7 +60,7 @@ export default function LegalPublica() {
           ))}
         </div>
         <p className="mt-10 rounded-xl border border-ink-600 bg-ink-800/40 p-4 text-xs text-mute">
-          Este resumen es informativo y puede actualizarse; ante una consulta concreta, escribinos a soporte@moboss.online.
+          Este resumen es informativo y puede actualizarse; ante una consulta concreta, escribinos a mobos@weem.com.py.
         </p>
       </main>
       <ProductFooter />

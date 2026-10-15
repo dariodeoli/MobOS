@@ -14,7 +14,7 @@ export type SuscripcionEntrante = { endpoint?: unknown; keys?: { p256dh?: unknow
 export function vapidConfig() {
   const publicKey = String(process.env.VAPID_PUBLIC_KEY || '').trim()
   const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim()
-  const subject = String(process.env.VAPID_SUBJECT || '').trim() || 'mailto:soporte@moboss.online'
+  const subject = String(process.env.VAPID_SUBJECT || '').trim() || 'mailto:mobos@weem.com.py'
   if (!publicKey || !privateKey || !subject) return null
   return { publicKey, privateKey, subject }
 }

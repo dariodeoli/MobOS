@@ -22,7 +22,7 @@ Además:
 
 - **Menú móvil**: botón hamburguesa con panel de secciones + CTAs (antes los
   enlaces desaparecían en mobile). Cierra al navegar y tiene área táctil 44.
-- **Pie legal**: Soporte (`mailto:soporte@moboss.online`), Estado (`/status`),
+- **Pie legal**: Soporte (`mailto:mobos@weem.com.py`), Estado (`/status`),
   Privacidad y Términos. Las dos páginas nuevas (`/privacidad`, `/terminos`)
   son un resumen informativo y factual del servicio.
 - **CTAs diferenciados**: «Probar la demo» siempre al demo; «Crear mi tienda» /

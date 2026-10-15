@@ -375,7 +375,7 @@ export default function Landing() {
         <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <a
             className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 transition hover:text-fono-dark"
-            href="mailto:soporte@moboss.online"
+            href="mailto:mobos@weem.com.py"
           >
             Soporte
           </a>

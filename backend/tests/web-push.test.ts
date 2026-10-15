@@ -36,7 +36,7 @@ assert.equal(vapidConfig(), null)
 process.env.VAPID_PUBLIC_KEY = 'clave-publica-demo'; process.env.VAPID_PRIVATE_KEY = 'clave-privada-demo'
 const config = vapidConfig()
 assert.equal(config?.publicKey, 'clave-publica-demo')
-assert.equal(config?.subject, 'mailto:soporte@moboss.online', 'sujeto por defecto')
+assert.equal(config?.subject, 'mailto:mobos@weem.com.py', 'sujeto por defecto')
 if (antes.publica === undefined) delete process.env.VAPID_PUBLIC_KEY; else process.env.VAPID_PUBLIC_KEY = antes.publica
 if (antes.privada === undefined) delete process.env.VAPID_PRIVATE_KEY; else process.env.VAPID_PRIVATE_KEY = antes.privada
 if (antes.sujeto === undefined) delete process.env.VAPID_SUBJECT; else process.env.VAPID_SUBJECT = antes.sujeto
