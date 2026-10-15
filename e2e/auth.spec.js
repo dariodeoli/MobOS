@@ -184,7 +184,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await expect(ficha.getByText('Total gastado')).toBeVisible()
   await expect(ficha.getByText('Gs 7.750.000').first()).toBeVisible()
   await expect(ficha.getByText('Últimas órdenes')).toBeVisible()
-  await expect(ficha.getByText('MOB-#0008').first()).toBeVisible()
+  await expect(ficha.getByText('MOB-0008').first()).toBeVisible()
   // El seguro del seed se ve en los datos clave del Resumen.
   await expect(ficha.getByTestId('perfil-datos-clave').getByText(/Activo · 12,5%/)).toBeVisible()
 
@@ -236,7 +236,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await expect(page.getByText('Gs 1.500.000').first()).toBeVisible()
   await page.goto(enlace.replace('/cuenta/', '/portal/'))
   await expect(page.getByRole('heading', { name: 'Aurora Móviles' })).toBeVisible()
-  await expect(page.getByText('MOB-#0008').first()).toBeVisible()
+  await expect(page.getByText('MOB-0008').first()).toBeVisible()
 
   // Servicio Técnico demo con casos en el pipeline.
   await page.goto('/servicio')

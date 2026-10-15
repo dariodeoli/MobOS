@@ -175,6 +175,12 @@ export default function Recepcion() {
     // Contra el manifiesto: un código que no está entre los esperados (y no hay unidades con IMEI
     // diferido que lo puedan tomar) se rechaza con el motivo; el servidor vuelve a validar.
     const enManifiesto = esperados.some((item) => String(item.serial || '').toUpperCase() === analisis.serial && !cubiertos.has(item.id)) || sinSerial.length > 0
+    // Un IMEI ya ingresado en una recepción anterior del lote no es un sobrante: se avisa tal cual.
+    const yaRecibido = (recepcion.shipment?.items || []).some((item) => item.status === 'RECIBIDO' && String(item.serial || '').toUpperCase() === analisis.serial)
+    if (!comoSobrante && yaRecibido) {
+      setAviso(`El IMEI ${analisis.serial} ya fue recibido en este lote.`)
+      return
+    }
     if (!comoSobrante && !enManifiesto) {
       setAviso(`${analisis.serial} no está en el manifiesto de este lote: no se registró. Si llegó una unidad de más, podés registrarla como sobrante (no entra al stock).`)
       setSobranteSugerido(analisis.serial)

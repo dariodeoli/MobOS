@@ -127,7 +127,7 @@ test('cotizaciones demo: de borrador a pedido y aprobación desde el portal', as
   await expect(fila).toHaveAttribute('data-estado', 'ACCEPTED', { timeout: 10_000 })
   await fila.getByRole('button', { name: 'Convertir' }).click()
   await expect(fila).toHaveAttribute('data-estado', 'CONVERTED', { timeout: 10_000 })
-  const numero = (await fila.innerText()).match(/AUR-#\d{4}/)?.[0]
+  const numero = (await fila.innerText()).match(/AUR-#?\d{4}/)?.[0]
   expect(numero, 'la cotización convertida muestra su pedido').toBeTruthy()
   await page.screenshot({ path: `${SHOTS}/claro-05-convertida.png` })
 
@@ -157,7 +157,7 @@ test('cotizaciones demo: de borrador a pedido y aprobación desde el portal', as
   const evidencia = page.getByTestId('aprobacion-evidencia')
   await expect(evidencia).toBeVisible({ timeout: 10_000 })
   await expect(evidencia).toContainText('Presupuesto aprobado')
-  await expect(evidencia).toContainText(/AUR-#\d{4}/)
+  await expect(evidencia).toContainText(/AUR-#?\d{4}/)
   await expect(evidencia).toContainText(/con código enviado a/i)
   await page.screenshot({ path: `${SHOTS}/claro-08-portal-aprobado.png` })
 

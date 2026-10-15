@@ -84,7 +84,8 @@ test('Por comprar: contadores, tarjeta compacta (prioridad/fecha/costo) y filtro
   await expect(fila.getByText('Urgente', { exact: true })).toBeVisible()
   await expect(fila.getByText('Nuevo', { exact: true })).toBeVisible()
   await expect(fila.getByText('Sin centro', { exact: true })).toBeVisible()
-  await expect(fila.getByText('Faltan 2 unidades')).toBeVisible()
+  // Tarjeta más densa: «Faltan» + la cantidad en negrita (sin la palabra «unidades»).
+  await expect(fila.getByTestId('por-comprar-faltan')).toHaveText(/Faltan\s*2/)
   await expect(fila.getByText(/Gs\s?120\.000/)).toBeVisible() // 2 × costo 60.000
   await expect(fila.getByText('Manual', { exact: true })).toBeVisible()
   await expect(fila.getByText(/Stock:/)).toBeVisible()
@@ -92,7 +93,8 @@ test('Por comprar: contadores, tarjeta compacta (prioridad/fecha/costo) y filtro
   // Pestañas por estado: los estados sin datos explican su vacío.
   for (const [tab, vacio] of [['Compradas', 'No hay compras registradas.'], ['Recibidas', 'Todavía no hay recepciones.'], ['Canceladas', 'No hay necesidades canceladas.']]) {
     await page.getByRole('tab', { name: new RegExp(`^${tab}`) }).click()
-    await expect(page.getByText(vacio)).toBeVisible()
+    // Con la búsqueda activa y datos de otros specs en el estado, el vacío explica el filtro.
+    await expect(page.getByText(vacio).or(page.getByText('Sin resultados con ese filtro.'))).toBeVisible()
   }
   await page.getByRole('tab', { name: /^Por comprar/ }).click()
   await page.getByLabel('Buscar producto').fill(producto.name)

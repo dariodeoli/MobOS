@@ -53,10 +53,11 @@ export function FilaConfig({ icono, titulo, descripcion, valor, accion, onClick,
 
   if (typeof onCambio === 'function') {
     return (
-      <div className={FILA} {...comunes}>
+      // La fila entera es el <label> del interruptor: toda la fila se toca (44 px en mobile).
+      <label className={cn(FILA, !disabled && 'cursor-pointer')} {...comunes}>
         <Contenido icono={icono} titulo={titulo} descripcion={descripcion} peligro={peligro} />
         <Switch checked={Boolean(checked)} disabled={disabled} onChange={(event) => onCambio(event.target.checked)} ariaLabel={titulo} />
-      </div>
+      </label>
     )
   }
 

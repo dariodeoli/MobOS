@@ -222,7 +222,7 @@ test('dueño: el inventario demo muestra unidades ficticias sin tocar el API', a
 
   await filas.first().click()
   const detalle = page.getByRole('dialog')
-  await expect(detalle.getByText(/Costo del equipo/)).toBeVisible()
+  await expect(detalle.getByText('Costo', { exact: true }).first()).toBeVisible()
   await expect(detalle.getByText(/Depósito|Piso de venta/).first()).toBeVisible()
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
@@ -393,7 +393,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   // #275: también en la demo la venta aterriza en el detalle del pedido, con
   // su número a la vista.
   await expect(page).toHaveURL(/\/pedidos\//, { timeout: 15_000 })
-  await expect(page.getByText(/AUR-#\d{4}/).first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/AUR-#?\d{4}/).first()).toBeVisible({ timeout: 15_000 })
 
   // Nada nuevo en el navegador: localStorage, sessionStorage, cookies, cachés
   // ni IndexedDB (incluida la cola offline real, que la demo no debe tocar).

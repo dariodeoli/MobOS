@@ -117,7 +117,9 @@ test('la verificación desde el menú de la fila registra usuario y fecha en la 
 
     await fila.click()
     const detalle = page.getByRole('dialog')
-    await expect(detalle.getByText(/Verificado por /)).toBeVisible()
+    // Rediseño de la ficha: la etiqueta «Verificado por» y debajo quién y cuándo.
+    await expect(detalle.getByText('Verificado por', { exact: true })).toBeVisible()
+    await expect(detalle.getByText('Sin verificación física registrada.')).toHaveCount(0)
     await expect(detalle.getByTestId('unidad-cronologia').getByText('Verificado físicamente')).toBeVisible()
   } finally { await limpiar(page, datos) }
 })
@@ -132,7 +134,7 @@ test('el detalle muestra QR, código de barras y el ingreso a stock', async ({ p
     await expect(detalle.getByText('Códigos de esta unidad')).toBeVisible()
     await expect(detalle.locator('img[alt^="QR de"]')).toBeVisible()
     await expect(detalle.getByText('Ingresó a stock').first()).toBeVisible()
-    await expect(detalle.getByText(/días? en stock/)).toBeVisible()
+    await expect(detalle.getByText(/^\d+ días?$/)).toBeVisible()
     await expect(detalle.getByText(serial, { exact: true }).first()).toBeVisible()
     await detalle.getByRole('button', { name: 'Copiar IMEI/serial' }).click()
   } finally { await limpiar(page, datos) }

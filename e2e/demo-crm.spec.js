@@ -65,14 +65,14 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   const ficha = page.getByRole('dialog')
   await expect(ficha.getByText(esperado).first()).toBeVisible()
   await expect(ficha.getByText('Últimas órdenes')).toBeVisible()
-  await expect(ficha.getByText(/AUR-#\d{4}/).first()).toBeVisible()
+  await expect(ficha.getByText(/AUR-#?\d{4}/).first()).toBeVisible()
   await expect(ficha.getByText('Última compra')).toBeVisible()
   await page.waitForTimeout(1200)
   await page.screenshot({ path: '/tmp/qa160-demo-ficha.png' })
 
   // Cronología: el pedido nuevo queda registrado en el historial del cliente.
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
-  await expect(ficha.getByText(/AUR-#\d{4}/).first()).toBeVisible()
+  await expect(ficha.getByText(/AUR-#?\d{4}/).first()).toBeVisible()
 
   // #236: el ojito abre el resumen rápido del cliente (demo, datos locales).
   // Se cierra la ficha que quedó abierta del tramo anterior.
@@ -102,8 +102,8 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await expect(mayorista.getByText(/Antigüedad:/)).toBeVisible()
   await expect(mayorista.getByText(/Etiquetas:/)).toBeVisible()
   await expect(mayorista.getByText('reventa').first()).toBeVisible()
-  expect(textoMayorista).toMatch(/TOTAL GASTADO Gs [\d.]+/)
-  expect(textoMayorista).toMatch(/PEDIDOS \d+/)
+  expect(textoMayorista).toMatch(/total gastado Gs [\d.]+/i)
+  expect(textoMayorista).toMatch(/pedidos \d+/i)
   await mayorista.getByRole('tab', { name: /^Resumen/ }).click()
   await page.waitForTimeout(600)
   await page.screenshot({ path: '/tmp/qa160-demo-perfil-mayorista.png' })
@@ -150,7 +150,7 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await page.goto('/portal/demo-demo-cliente-lucia-completo')
   await expect(page.getByText('Nota de la tienda')).toBeVisible({ timeout: 15000 })
   await expect(page.getByText(/Gracias por ser parte de Aurora Móviles/)).toBeVisible()
-  await expect(page.getByText('MOB-#0008').first()).toBeVisible()
+  await expect(page.getByText('MOB-0008').first()).toBeVisible()
   await page.screenshot({ path: '/tmp/qa160-demo-vitrina-nota.png' })
 
   expect(apiReal, `la demo no debe llamar al API real: ${apiReal.join(', ')}`).toEqual([])

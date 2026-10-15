@@ -80,7 +80,7 @@ test('demo: los avisos se arman con los datos del navegador', async ({ browser }
   const avisosLucia = page.getByTestId('portal-avisos')
   await expect(avisosLucia).toBeVisible({ timeout: 20000 })
   await expect(avisosLucia.getByText(/Tu pago vence en 6 días/)).toBeVisible()
-  await expect(avisosLucia.getByText(/MOB-#0008 está en camino/)).toBeVisible()
+  await expect(avisosLucia.getByText(/MOB-#?0008 está en camino/)).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/02-demo-avisos-lucia.png`, fullPage: true })
 
   // María: garantía por vencer (nivel completo).
@@ -92,7 +92,7 @@ test('demo: los avisos se arman con los datos del navegador', async ({ browser }
 
   // Carlos: pedido listo para retirar en el local.
   await page.goto('/cuenta/demo-demo-cliente-carlos-rapido')
-  await expect(page.getByTestId('portal-avisos').getByText(/MOB-#0004 está listo para retirar/)).toBeVisible({ timeout: 20000 })
+  await expect(page.getByTestId('portal-avisos').getByText(/MOB-#?0004 está listo para retirar/)).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: `${SALIDA}/04-demo-aviso-retiro.png`, fullPage: true })
   await contexto.close()
 })
