@@ -38,11 +38,11 @@ function CampoColor({ valor, base, etiqueta, onCambiar, onRestaurar, deposito })
         aria-label={`Color ${etiqueta} · ${deposito}`}
         value={efectivo}
         onChange={(evento) => onCambiar(evento.target.value)}
-        className="h-8 w-9 min-h-0 cursor-pointer rounded border border-ink-500 bg-transparent p-0.5"
+        className="h-11 min-h-11 w-11 min-w-11 shrink-0 cursor-pointer rounded border border-ink-500 bg-transparent p-0.5"
       />
       <MuestraColor fondo={efectivo} etiqueta={etiqueta} />
       {valor ? (
-        <button type="button" className="text-xs font-semibold text-fono-light hover:underline" onClick={onRestaurar}>De fábrica</button>
+        <button type="button" className="min-h-11 min-w-11 px-1 text-xs font-semibold text-fono-light hover:underline" onClick={onRestaurar}>De fábrica</button>
       ) : (
         <span className="text-[11px] text-mute">De fábrica</span>
       )}

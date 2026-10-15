@@ -2049,7 +2049,7 @@ for (const width of [320, 390, 1440]) {
       for (const button of await root.getByRole('button').all()) {
         if (!(await button.isVisible())) continue
         const box = await button.boundingBox()
-        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.height, await button.getAttribute('aria-label') || await button.innerText()).toBeGreaterThanOrEqual(44)
         expect(box.width).toBeGreaterThanOrEqual(44)
       }
       await page.screenshot({

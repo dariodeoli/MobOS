@@ -156,7 +156,7 @@ export default function ComprasCentro() {
             const activa = compra.status === 'COMPRADA'
             const cancelable = ['COMPRADA', 'PREPARANDO', 'EN_TRANSITO'].includes(compra.status)
             return (
-              <Card key={compra.id} className="px-3 py-1.5" data-testid="compra-centro-fila">
+              <Card key={compra.id} className={`px-3 ${expandida ? 'py-1.5' : 'py-px'}`} data-testid="compra-centro-fila">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <div className="min-w-[14rem] flex-1">
                     <p className={CELDA_IDENTIDAD} title={`${compra.code} · ${compra.supplierName || compra.supplier?.name || 'Sin proveedor'}`}>

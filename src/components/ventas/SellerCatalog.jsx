@@ -64,7 +64,7 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar, colores 
       data-testid="producto-fila"
       onClick={onClick}
       onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onClick?.() } }}
-      className={cn(GRID_CATALOGO, 'cond-color min-h-11 cursor-pointer rounded-lg px-3.5 py-1.5 transition hover:border-fono/40')}
+      className={cn(GRID_CATALOGO, 'cond-color min-h-11 cursor-pointer rounded-lg px-3.5 py-px transition hover:border-fono/40')}
     >
       <label className="flex h-11 w-11 items-center justify-center" onClick={(event) => event.stopPropagation()}>
         <input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
