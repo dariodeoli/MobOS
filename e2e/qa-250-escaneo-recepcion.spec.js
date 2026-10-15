@@ -455,7 +455,7 @@ test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page })
   await expect(activa.getByText('2 faltan')).toBeVisible()
   await page.getByLabel('IMEI del lote a escanear').fill(imeiRoto)
   await page.getByRole('button', { name: 'Cargar', exact: true }).click()
-  await expect(page.getByTestId("preparar-compra-estado-texto")).toContainText(/dígito verificador/)
+  await expect(page.getByTestId("preparar-lote-estado-texto")).toContainText(/dígito verificador/)
 
   // El válido entra por escaneo y el lote baja a 1 pendiente.
   await page.getByLabel('IMEI del lote a escanear').fill(imeiA)
