@@ -122,51 +122,50 @@ for (const width of widths) {
     await expect(page).toHaveURL(/\/pos/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await noOverflow(page)
-    const checkout = mobile
-      ? page
-          .getByTestId('pos-barra-accion')
-          .getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
-      : page
-          .getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
-          .filter({ visible: true })
-          .first()
-    await expect(checkout).toBeVisible()
-    await expect(page.locator('main form').filter({ visible: true }).first()).toBeVisible()
-    await noOverflow(page)
-    await page.screenshot({ path: `${output}/${width}-pos.png`, fullPage: true })
-    if (!mobile) await checkout.evaluate(element => element.scrollIntoView({ block: 'center' }))
-    if (mobile) {
-      await expect
-        .poll(() =>
-          page.evaluate(() => {
-            const checkout = document
-              .querySelector('[data-testid="pos-barra-accion"] button[type="submit"]')
-              ?.getBoundingClientRect()
-            const checkoutBar = document
-              .querySelector('[data-testid="pos-barra-accion"]')
-              ?.getBoundingClientRect()
-            const bottom = document
-              .querySelector('[data-testid="shell-bottom-nav"]')
-              ?.getBoundingClientRect()
-            const header = document
-              .querySelector('[data-testid="shell-mobile-header"]')
-              ?.getBoundingClientRect()
-            return Boolean(
-              checkout?.height &&
-              bottom?.height &&
-              header?.height &&
-              checkout.bottom <= bottom.top &&
-              checkoutBar?.bottom <= bottom.top &&
-              checkout.top >= header.bottom,
-            )
-          }),
-        )
-        .toBe(true)
+    if (width < 768) {
+      // #429 sustituyó el cobro vacío en línea por una barra y hojas móviles.
+      // Probar la acción real después de añadir un artículo, sin saltar el flujo.
+      await page.getByPlaceholder('Buscar producto…').fill('Funda MagSafe')
+      await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
+      const barra = page.getByTestId('pos-barra-carrito')
+      const abrir = page.getByTestId('pos-barra-carrito-abrir')
+      await expect(barra).toBeVisible()
+      await expect(barra).toContainText('180.000')
+      await expect.poll(async () => {
+        const caja = await barra.boundingBox()
+        const abajo = await navigation.boundingBox()
+        const arriba = await page.getByTestId('shell-mobile-header').boundingBox()
+        return Boolean(caja && abajo && arriba && caja.height > 0 &&
+          caja.y + caja.height <= abajo.y + 1 && caja.y >= arriba.y + arriba.height)
+      }).toBe(true)
+      await abrir.click()
+      const carrito = page.getByTestId('hoja-carrito')
+      await expect(carrito).toBeVisible()
+      const cobrar = carrito.getByTestId('carrito-cobrar')
+      await expect(cobrar).toBeVisible()
+      const boton = await cobrar.boundingBox()
+      expect(boton.height).toBeGreaterThanOrEqual(44)
+      expect(boton.x).toBeGreaterThanOrEqual(0)
+      expect(boton.x + boton.width).toBeLessThanOrEqual(width)
+      await noOverflow(page)
+      await cobrar.click()
+      const cobro = page.getByTestId('cobro-movil')
+      await expect(cobro).toBeVisible()
+      await expect(cobro.getByTestId('cobro-total-grande')).toContainText('180.000')
+      await noOverflow(page)
+      await page.keyboard.press('Escape')
+      await expect(cobro).toHaveCount(0)
       await page.setViewportSize({ width, height: 450 })
-      const input = page.locator('main input').first()
-      await input.focus()
+      await page.getByPlaceholder('Buscar producto…').focus()
       await expect(navigation).toBeHidden()
       await page.setViewportSize({ width, height: 900 })
+    } else {
+      const checkout = page.getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
+        .filter({ visible: true }).first()
+      await expect(checkout).toBeVisible()
+      await expect(page.locator('main form').filter({ visible: true }).first()).toBeVisible()
+      await noOverflow(page)
+      await checkout.evaluate(element => element.scrollIntoView({ block: 'center' }))
     }
     await page.goto('/ventas')
     await expect(page).toHaveURL(/\/pos/)
