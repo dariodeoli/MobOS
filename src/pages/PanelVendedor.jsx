@@ -1,3 +1,4 @@
+import { crearControlIntentosPin } from '@/lib/nativo/intentosPin'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
@@ -476,7 +477,8 @@ export default function PanelVendedor() {
   // combos, cuentas de cobro y su chunk a todas las pantallas.
   const [posMontado, setPosMontado] = useState(vista === 'cargar')
   const cambioEnCurso = useRef(false)
-  const lockEnCurso = useRef(false)
+  const controlPin = useRef(null)
+  if (!controlPin.current) controlPin.current = crearControlIntentosPin()
   const toast = useToast()
 
   // Ids visibles en el menú según el rol: deciden qué ítem resalta cuando la
@@ -654,6 +656,7 @@ export default function PanelVendedor() {
   )
 
   function pedirBloqueo() {
+    controlPin.current.invalidar()
     setLockPin('')
     setLockError('')
     setLockBusy(false)
@@ -676,29 +679,22 @@ export default function PanelVendedor() {
 
   const intentarDesbloqueo = useCallback(
     async (pinIntento) => {
-      if (lockEnCurso.current) return
-      lockEnCurso.current = true
-      setLockBusy(true)
-      setLockError('')
-      try {
+      await controlPin.current.ejecutar(async signal => {
         if (esDemo) {
           const esperado = usuario?.pin || (esOwner ? '3001' : '2001')
           if (pinIntento !== esperado) throw new Error('PIN inválido. Probá de nuevo.')
         } else {
-          await sessionApi.loginSeller({ sellerId: sesion?.vendedorId, pin: pinIntento })
+          await sessionApi.loginSeller({ sellerId: sesion?.vendedorId, pin: pinIntento }, { signal })
         }
-        setLocked(false)
-        setLockPin('')
-        marcarBloqueo(false)
-        vibrar('exito')
-        marcarPinVigente(true)
-      } catch (err) {
-        setLockError(err?.message || 'PIN inválido. Probá de nuevo.')
-        setLockPin('')
-      } finally {
-        lockEnCurso.current = false
-        setLockBusy(false)
-      }
+      }, {
+        alIniciar: () => { setLockBusy(true); setLockError('') },
+        alConfirmar: () => {
+          setLocked(false); setLockPin(''); marcarBloqueo(false)
+          vibrar('exito'); marcarPinVigente(true)
+        },
+        alFallar: err => { setLockError(err?.message || 'PIN inválido. Probá de nuevo.'); setLockPin('') },
+        alTerminar: () => setLockBusy(false),
+      })
     },
     [esDemo, esOwner, sesion?.vendedorId, usuario?.pin],
   )
@@ -719,6 +715,12 @@ export default function PanelVendedor() {
     return () => { vivo = false }
   }, [locked, esDemo, pedirFaceId])
 
+  useEffect(() => {
+    const control = controlPin.current
+    control.invalidar(); setLockBusy(false); setLockPin(''); setLockError('')
+    return () => control.invalidar()
+  }, [identidad])
+
   // App de iPhone: al pasar a segundo plano se bloquea; al volver pide el PIN.
   useEffect(() => {
     if (!isNativeIOS() || esDemo || !sesion?.vendedorId) return undefined
@@ -733,6 +735,7 @@ export default function PanelVendedor() {
   }, [locked, lockPin, pinLength, intentarDesbloqueo])
 
   async function confirmarSalir() {
+    controlPin.current.invalidar()
     setSaliendo(true)
     marcarBloqueo(false)
     try {

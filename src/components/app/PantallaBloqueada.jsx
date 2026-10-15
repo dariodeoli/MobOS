@@ -3,6 +3,7 @@ import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import PinSegmentado from '@/components/shared/PinSegmentado'
+import { isNativeIOS } from '@/lib/plataforma'
 import { Button, Eyebrow } from '@/components/ui'
 import { identidadDeUsuario } from '@/lib/identidad'
 import { vibrar } from '@/lib/nativo/haptics'
@@ -28,6 +29,7 @@ export default function PantallaBloqueada({
   error,
   esDemo = false,
   faceId = null,
+  tecladoTactil = isNativeIOS(),
 }) {
   const [logoEmpresa, setLogoEmpresa] = useState('')
   // Identidad unificada (#211): nombre visible, primer nombre y foto con el
@@ -106,6 +108,7 @@ export default function PantallaBloqueada({
                 id="lock-pin"
                 autoFocus
                 disabled={busy}
+                tecladoTactil={tecladoTactil}
                 length={pinLength}
                 value={pin}
                 onChange={onPinChange}

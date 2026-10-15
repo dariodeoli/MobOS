@@ -105,6 +105,7 @@ export default function DemoAccess() {
           </label>
           <PinSegmentado
             id="demo-pin"
+            disabled={busy}
             value={pin}
             onChange={(next) => { setError(''); setPin(next) }}
             className="mt-2" invalido={Boolean(error)}

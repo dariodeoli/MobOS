@@ -326,7 +326,7 @@ export default function Login() {
           </>}
 
           {modo === 'entrar' && etapa === 'setup' ? (
-            <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PinSegmentado id="setup-pin" autoFocus value={setupPin} onChange={(next) => { setError(''); setSetupPin(next) }} className="mt-2" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
+            <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PinSegmentado id="setup-pin" disabled={cargando} autoFocus value={setupPin} onChange={(next) => { setError(''); setSetupPin(next) }} className="mt-2" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
           ) : modo === 'entrar' && etapa === 'tienda' ? (
             <div className="space-y-2">
               <p className="text-sm leading-6 text-mute">{ios ? 'Tu cuenta' : 'Tu cuenta de Google'} tiene acceso a más de una tienda. Elegí con cuál querés entrar.</p>
@@ -345,7 +345,7 @@ export default function Login() {
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
               <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div>
-              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinSegmentado id="seller-pin" autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} invalido={Boolean(error)} className="mt-2" /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
+              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinSegmentado id="seller-pin" disabled={cargando} autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} invalido={Boolean(error)} className="mt-2" /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
               <details className="group">
                 <summary className="cursor-pointer text-center text-xs text-mute hover:text-fore">¿No sabés tu PIN? Elegí tu usuario</summary>
                 <Select id="seller" aria-label="Elegí tu usuario" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-2 w-full"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</Select>
