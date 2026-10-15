@@ -6,11 +6,11 @@ export const publicUrls = {
 }
 
 // Ruta interna segura para volver después del login (parámetro `next`). Solo
-// aceptamos rutas del propio origen: empiezan con `/` y nunca con `//` (que el
-// navegador interpreta como otro host).
+// aceptamos rutas del propio origen: empiezan con `/` y nunca con `//`,
+// backslash o controles que el navegador normaliza antes de resolver el host.
 export function rutaInterna(valor = '') {
   const ruta = String(valor || '').trim()
-  if (!ruta.startsWith('/') || ruta.startsWith('//')) return ''
+  if (!ruta.startsWith('/') || ruta.startsWith('//') || /[\\\x00-\x1f\x7f]/.test(ruta)) return ''
   return ruta
 }
 

@@ -3,7 +3,7 @@ import LoadingScreen from '@/components/app/LoadingScreen'
 import AvisoVersion from '@/components/app/AvisoVersion'
 import { flagsV2, rutaV2 } from '@/lib/flags'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
-import { publicUrls } from '@/lib/urls'
+import { publicUrls, rutaInterna } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -99,7 +99,7 @@ function PaginaCargando() {
 // Ruta de vuelta post-login (#248): la arma el redirect de las áreas
 // protegidas y solo se aceptan rutas internas ("/…", nunca "//host").
 function volverSeguro(valor) {
-  return typeof valor === 'string' && valor.startsWith('/') && !valor.startsWith('//') ? valor : ''
+  return rutaInterna(valor)
 }
 
 function rutaLogin(ubicacion) {
