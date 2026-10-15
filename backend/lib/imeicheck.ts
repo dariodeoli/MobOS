@@ -47,7 +47,7 @@ export const SERVICIOS: Record<string, { nombre: string; precioUsd: number; prec
 export const IDS_SANDBOX = ['12', '13', '14', '15']
 
 export type EscenarioMock = 'ok' | 'parcial' | 'pendiente' | 'timeout' | 'sin-saldo' | 'no-autorizado' | 'imei-invalido'
-export type EstadoConsulta = 'verificado' | 'parcial' | 'conciliar' | 'pendiente' | 'fallido'
+export type EstadoConsulta = 'reservado' | 'verificado' | 'parcial' | 'conciliar' | 'pendiente' | 'fallido'
 export type CampoVerificacion = { clave: string; etiqueta: string; valor: string | null; fuente: string; hora: string | null }
 
 export const NO_VERIFICADO = 'No verificado'
