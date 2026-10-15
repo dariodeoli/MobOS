@@ -3,6 +3,8 @@ import { Button, useResultado, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { anchoImagen, compartirArchivo, copiarImagen, documentoAPng, nombreImagenDocumento, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
+import { isNativeIOS } from '@/lib/plataforma'
+import { compartirArchivoNativo } from '@/lib/nativo/compartirArchivo'
 
 // Compartir un documento imprimible como imagen (#240/#220): convierte el mismo
 // HTML de «Descargar PDF» en PNG y lo comparte (Web Share; si el navegador no
@@ -44,6 +46,12 @@ export function useCompartirImagen({ construirHtml, nombre = 'documento', titulo
   }
 
   const compartir = () => conImagen(async (imagen, archivo) => {
+    if (isNativeIOS()) {
+      const resultado = await compartirArchivoNativo({ dataUrl: imagen.dataUrl, nombre: archivo.name, titulo: titulo || nombre, texto })
+      if (resultado === 'compartido') onResult?.('compartido')
+      else if (resultado !== 'cancelado') toast.error('No se pudo compartir', 'Probá de nuevo o usá «PNG» para descargarla.')
+      return
+    }
     if (puedeCompartirArchivo(globalThis, archivo)) {
       const resultado = await compartirArchivo(globalThis, { archivo, titulo: titulo || nombre, texto })
       if (resultado === 'compartido') { onResult?.('compartido'); return }
