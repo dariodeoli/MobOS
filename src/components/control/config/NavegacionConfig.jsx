@@ -44,7 +44,7 @@ export default function NavegacionConfig({ value, onChange, items = [], seccionA
   }
 
   return (
-    <div data-testid="config-pagina" className="config-pagina mx-auto w-full max-w-[960px]">
+    <div data-testid="config-pagina" className="config-pagina mx-auto w-full max-w-[1280px]">
       <div className="min-w-0">
         {group?.descripcion && (
           <p data-testid="config-grupo-descripcion" className="mb-4 text-sm text-mute">
