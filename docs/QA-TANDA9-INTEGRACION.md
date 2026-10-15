@@ -17,5 +17,8 @@ Puertas locales anteriores a integrar backend393/433:1485 unitarios frontend apr
 
 Responsividad de suministro y QR/IMEI: ver docs/QA-COMPRAS-450-396.md. Taller/Productos/Comparador: ver docs/QA-396-responsive.md. Cámara simulada; no acredita lectura óptica en un teléfono físico. La cobertura revisada no representa el cierre global de todos los criterios de396/370.
 
+## Base de identidades fiscales (#345)
+Se ejecutó de forma aislada `node --test backend/tests/billing-identity-default.test.mjs`:3 aprobados,0 fallidos. Reproduce la ruta nueva y la antigua, verifica la reparación dos veces, conserva cada fila y fecha, reproduce la reversión y repara de nuevo, y comprueba los escritores Prisma. El proceso crea y elimina su propio clúster; no hereda credenciales ni URLs reales. Esta prueba no acredita importadores SQL externos ni respaldos de producción.
+
 ## Publicación
 Pendiente del árbol final, CI protegido, deploy y smoke. Este informe no afirma todavía producción229 ni un nuevo build de TestFlight.
