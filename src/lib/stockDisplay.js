@@ -17,7 +17,9 @@ export const CONDICIONES_PRIMERO = Object.freeze([
   ['semi', 'Semi nuevos arriba, nuevos abajo'],
 ])
 
-export const CONFIG_VACIA = Object.freeze({ tipoPrimero: '', condicionPrimero: '', colores: Object.freeze({}) })
+export const CONFIG_VACIA = Object.freeze({ tipoPrimero: '', condicionPrimero: '', colores: Object.freeze({}), planilla: Object.freeze({}) })
+
+import { normalizarPlanilla } from './planillaPrefs.js'
 
 const HEX = /^#[0-9a-fA-F]{6}$/
 
@@ -39,7 +41,7 @@ export function normalizarConfig(crudo) {
     const semi = HEX.test(valor?.semi || '') ? valor.semi.toLowerCase() : ''
     if (nuevo || semi) colores[clave] = { ...(nuevo ? { nuevo } : {}), ...(semi ? { semi } : {}) }
   }
-  return { tipoPrimero, condicionPrimero, colores }
+  return { tipoPrimero, condicionPrimero, colores, planilla: normalizarPlanilla(base.planilla) }
 }
 
 // ── Contraste (WCAG 2.x) ──────────────────────────────────────────────────

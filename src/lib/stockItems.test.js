@@ -118,7 +118,8 @@ const unidadesDemo = Array.from({ length: 120 }, (_, i) => ({
   productId: 'p1', product: { id: 'p1', name: 'iPhone 15', sku: 'IP15', capacity: '128GB' }, branchId: i % 2 ? 'b1' : 'b2',
   branch: { id: i % 2 ? 'b1' : 'b2', name: i % 2 ? 'Central' : 'Villa Morra' }, supplier: { id: 's1', name: 'Mayorista' }, supplierName: 'Mayorista',
   costPyg: 5000000, batteryHealth: 90, createdAt: new Date(Date.UTC(2026, 9, 1) + i * 3600_000).toISOString(),
-  ...(i % 10 === 0 ? { updatedAt: new Date(Date.UTC(2026, 9, 5) + i * 3600_000).toISOString() } : {}),
+  // Las vendidas son de hoy (#466): solo entonces aparecen en la lista sin estado.
+  ...(i % 10 === 0 ? { updatedAt: new Date(Date.UTC(2026, 9, 5) + i * 3600_000).toISOString(), soldAt: new Date().toISOString(), sale: { orderNumber: `MOB-${String(i).padStart(4, '0')}`, fulfillmentStatus: i % 20 === 0 ? 'DELIVERED' : 'PROCESSING' } } : {}),
 }))
 const fuente = {
   units: unidadesDemo,
@@ -142,6 +143,21 @@ test('demo: pagina por cursor y entrega totales con los mismos filtros', () => {
   assert.equal(tercera.nextCursor, null)
   const ids = new Set([...primera.items, ...segunda.items, ...tercera.items].map((item) => item.id))
   assert.equal(ids.size, 121, 'sin repetidos entre páginas')
+})
+
+test('demo (#466): lo vendido otro día sale solo en Vendidos; la fila trae nota de venta y quién verificó', () => {
+  const vieja = { ...unidadesDemo[10], id: 'vieja', serial: 'DEMOVIEJA', status: 'SOLD', soldAt: '2026-10-01T15:00:00.000Z', lastVerifiedBy: { id: 'u1', name: 'Ana Gómez' }, lastVerifiedAt: '2026-10-01T10:00:00.000Z' }
+  const conVieja = { ...fuente, units: [...unidadesDemo, vieja] }
+  const sinEstado = listarStockItemsDemo({ limit: '200' }, conVieja)
+  assert.equal(sinEstado.items.some((item) => item.id === 'vieja'), false, 'no aparece en la lista general')
+  const vendidos = listarStockItemsDemo({ status: 'vendido', limit: '200' }, conVieja)
+  const enVendidos = vendidos.items.find((item) => item.id === 'vieja')
+  assert.ok(enVendidos, 'sí en Vendidos')
+  assert.deepEqual([enVendidos.verifiedById, enVendidos.verifiedByName], ['u1', 'Ana Gómez'])
+  const hoy = sinEstado.items.filter((item) => item.status === 'vendido')
+  assert.ok(hoy.length > 0 && hoy.every((item) => item.soldOrderNumber))
+  assert.equal(hoy.find((item) => item.soldOrderNumber === 'MOB-0020').soldDelivered, true)
+  assert.equal(hoy.find((item) => item.soldOrderNumber === 'MOB-0010').soldDelivered, false)
 })
 
 test('demo: filtros de estado, tipo, sucursal y búsqueda', () => {

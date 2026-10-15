@@ -82,6 +82,43 @@ export function estadoPlanilla(item, ahora = new Date()) {
   return null
 }
 
+const ESTADOS_VISIBLES = {
+  disponible: { clave: 'disponible', etiqueta: 'Disponible', abrev: 'DIS', icono: 'check', tono: 'ok' },
+  reservado: { clave: 'reservado', abrev: 'RES', icono: 'clock' },
+  vendido: { clave: 'vendido', etiqueta: 'Vendido', abrev: 'VEN', icono: 'receipt' },
+  transito: { clave: 'transito', abrev: 'TRÁ', icono: 'truck' },
+  defectuoso: { clave: 'defectuoso', abrev: 'DEF', icono: 'alert' },
+  prestamo: { clave: 'prestamo', abrev: 'PRÉ', icono: 'transfer' },
+}
+
+/**
+ * Estado para la columna de la planilla (#466): como `estadoPlanilla`, pero también
+ * «disponible», y con `abrev` (3 letras) e `icono` para el modo compacto. Siempre
+ * lleva `tono` (color). Los productos sin IMEI no tienen estado de unidad.
+ * @returns {{ clave: string, etiqueta: string, abrev: string, icono: string, tono: string, titulo: string } | null}
+ */
+export function estadoVisible(item, ahora = new Date()) {
+  if (!item || item.kind === 'product') return null
+  const base = estadoPlanilla(item, ahora) || (item.status === 'disponible' ? { ...ESTADOS_VISIBLES.disponible, titulo: 'Disponible' } : null)
+  if (!base) return null
+  return { ...ESTADOS_VISIBLES[base.clave], ...base }
+}
+
+/**
+ * Nota de venta de una unidad vendida (#466): número del pedido y si ya se entregó.
+ * @returns {{ numero: string, entregado: boolean, texto: string } | null}
+ */
+export function notaDeVenta(item) {
+  if (item?.status !== 'vendido' || item?.kind === 'product') return null
+  const numero = String(item.soldOrderNumber || '').trim().replace(/^#/, '')
+  if (!numero) return { numero: '', entregado: false, texto: 'sin nota' }
+  const entregado = item.soldDelivered === true
+  return { numero, entregado, texto: entregado ? `${numero} ✓` : `${numero} · sin entregar` }
+}
+
+/** Condición abreviada para la columna: «NUE» / «SEM» (o el texto entero). */
+export const abrevCondicion = (item) => (familiaCondicion(item) === 'new' ? 'NUE' : 'SEM')
+
 /** IMEI corto para la lista móvil: «…123456». El completo va en el tooltip y en la ficha. */
 export function imeiCorto(serial, cantidad = 6) {
   const texto = String(serial || '').replace(/\s+/g, '')

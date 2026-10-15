@@ -95,6 +95,8 @@ function unidad(producto, indice) {
     lastVerifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
     verifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
     events: estado === 'SOLD' ? [{ id: `demo-evento-${indice}`, type: 'sale', title: 'Venta', detail: 'Vendida en la demo', at: hace(5) }] : [],
+    // #466: dos ventas son de hoy (la 19 ya entregada) y la otra de hace 3 días: solo aparece en «Vendidos».
+    soldAt: estado === 'SOLD' ? hace(indice === 21 ? 3 : 0, 11) : null,
     sale: estado === 'SOLD' ? { fulfillmentStatus: indice === 19 ? 'DELIVERED' : indice === 20 ? 'READY_FOR_PICKUP' : 'PROCESSING', orderNumber: `MOB-00${40 + indice}` } : null,
   }
   if (estado === 'RESERVED') {

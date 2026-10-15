@@ -30,7 +30,7 @@ import { gs } from '@/utils/calculos'
 import { GRUPOS_INVENTARIO, INVENTARIO_TABS, MOTIVOS_BAJA, MOTIVOS_REVISION, TABS_CON_UNIDADES, TABS_LISTA_STOCK, fechaVerificacion, normalizeScan } from './stockHelpers'
 import { imprimirEtiquetasStock, printQuickReceipt } from './impresionStock'
 import { useStockItems } from './useStockItems'
-import { conFiltroStock, leerFiltrosStock, rangoDePeriodo, sinFiltrosStock } from './stockFiltros'
+import { conFiltroStock, conSucursalActiva, leerFiltrosStock, rangoDePeriodo, sinFiltrosStock } from './stockFiltros'
 import { EtiquetasStockError, vistaPreviaEtiquetasPdf } from '@/lib/printing/etiquetasStock'
 import { filasEtiquetasDeItems, unidadDeItem } from '@/lib/stockItems'
 
@@ -321,7 +321,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   }, [inventarioOperativo, cargarSecundarios])
   const busquedaDiferida = useBusquedaDiferida(query)
   // Filtros de la lista de Stock: viven en la URL (?tipo=&estado=&sucursal=&proveedor=).
-  const filtros = useMemo(() => leerFiltrosStock(searchParams), [searchParams])
+  // Unidades arranca en la sucursal activa (#466); «Todas» o elegir otra la cambia. Buscar un IMEI o SKU busca en todas.
+  const filtros = useMemo(() => conSucursalActiva(leerFiltrosStock(searchParams), { aplica: tab === 'unidades' && branches.length > 1 && !busquedaDiferida, sucursalActivaId: sucursal?.id || '' }), [searchParams, tab, branches.length, sucursal?.id, busquedaDiferida])
   const esListaStock = TABS_LISTA_STOCK.includes(tab)
   const filtrosApi = useMemo(() => {
     const rango = tab === 'vendidos' ? rangoDePeriodo(filtros) : { desde: '', hasta: '' }

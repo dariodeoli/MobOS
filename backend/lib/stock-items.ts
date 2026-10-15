@@ -75,6 +75,12 @@ export type StockItem = {
   // Quién verificó: código de verificación física (VPC…) o, si falta, el nombre del usuario.
   verifiedBy: string | null
   lastVerifiedAt: Date | string | null
+  // Quién verificó, como persona (para el avatar de la planilla, #466). Sin permiso extra: es el mismo dato que `verifiedBy`.
+  verifiedById: string | null
+  verifiedByName: string | null
+  // Nota de venta (#466): número del pedido que vendió la unidad y si ya se entregó. Solo en «vendido».
+  soldOrderNumber: string | null
+  soldDelivered: boolean | null
   locationCode: string | null
   locationIcon: string | null
   locationColor: string | null
@@ -186,6 +192,9 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
   } else {
     where.push(Prisma.sql`u."removedAt" IS NULL`)
     if (filters.status) where.push(Prisma.sql`u."status"::text = ${STATUS_TO_UNIT[filters.status]}`)
+    // Sin estado elegido (#466): lo vendido sale solo el día de la venta (día de la tienda, Asunción);
+    // al día siguiente queda únicamente en la vista «Vendidos».
+    else where.push(Prisma.sql`(u."status"::text <> 'SOLD' OR (u."soldAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Asuncion')::date >= (NOW() AT TIME ZONE 'America/Asuncion')::date)`)
   }
   const branch = scope.forcedBranchId ?? filters.branchId
   if (scope.forcedBranchId && filters.branchId && filters.branchId !== scope.forcedBranchId) return null
@@ -223,6 +232,8 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
       s."icon" AS "supplierIcon", s."color" AS "supplierColor", u."batteryCycles" AS "batteryCycles", u."warrantyUntil" AS "warrantyUntil", u."notes" AS "notes",
       u."reservedUntil" AS "reservedUntil", u."reservationCustomer" AS "reservationCustomer",
       COALESCE(NULLIF(btrim(u."verifiedByCode"), ''), vu."name") AS "verifiedBy", u."lastVerifiedAt" AS "lastVerifiedAt",
+      u."lastVerifiedById" AS "verifiedById", vu."name" AS "verifiedByName",
+      so."orderNumber" AS "soldOrderNumber", CASE WHEN so."id" IS NULL THEN NULL ELSE so."fulfillmentStatus"::text IN ('DELIVERED', 'PICKED_UP') END AS "soldDelivered",
       l."code" AS "locationCode", l."icon" AS "locationIcon", l."color" AS "locationColor",
       ${cost ? Prisma.sql`u."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr} AS "status", 1 AS "quantity",
@@ -234,6 +245,8 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     LEFT JOIN "StockLocation" l ON l."id" = u."locationId"
     LEFT JOIN "Supplier" s ON s."id" = u."supplierId"
     LEFT JOIN "User" vu ON vu."id" = u."lastVerifiedById"
+    LEFT JOIN "OrderItem" soi ON soi."id" = u."soldOrderItemId"
+    LEFT JOIN "Order" so ON so."id" = soi."orderId" AND so."tenantId" = u."tenantId"
     WHERE ${whereSql}
     ORDER BY "sortKey" DESC, "id" DESC LIMIT ${filters.limit + 1})`
 }
@@ -291,7 +304,8 @@ function productsBranch(filters: StockItemsFilters, scope: StockItemsScope, curs
       NULLIF(btrim(concat_ws(' ', p."model", p."capacity", p."color")), '') AS "model", p."name" AS "name",
       NULL::text AS "serial", NULL::text AS "condition", NULL::int AS "batteryHealth", NULL::text AS "supplierId", NULL::text AS "supplierName", NULL::text AS "supplierCode", NULL::text AS "consignorName",
       NULL::text AS "supplierIcon", NULL::text AS "supplierColor", NULL::int AS "batteryCycles", NULL::timestamp(3) AS "warrantyUntil", NULL::text AS "notes",
-      NULL::timestamp(3) AS "reservedUntil", NULL::text AS "reservationCustomer", NULL::text AS "verifiedBy", NULL::timestamp(3) AS "lastVerifiedAt",
+      NULL::timestamp(3) AS "reservedUntil", NULL::text AS "reservationCustomer", NULL::text AS "verifiedBy", NULL::timestamp(3) AS "lastVerifiedAt", NULL::text AS "verifiedById", NULL::text AS "verifiedByName",
+      NULL::text AS "soldOrderNumber", NULL::boolean AS "soldDelivered",
       NULL::text AS "locationCode", NULL::text AS "locationIcon", NULL::text AS "locationColor",
       ${scope.canSeeCost ? Prisma.sql`p."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr}::text AS "status", ${vendido ? Prisma.sql`sold."qty"` : Prisma.sql`GREATEST(p."stock", 0)`}::int AS "quantity",
@@ -348,6 +362,8 @@ export function mapStockRow(row: RawRow, canSeeCost: boolean, canSeeSupplier: bo
     batteryCycles: toNumber(row.batteryCycles), warrantyUntil: (row.warrantyUntil as Date | string | null) ?? null, notes: (row.notes as string | null) ?? null,
     reservedUntil: (row.reservedUntil as Date | string | null) ?? null, reservationCustomer: (row.reservationCustomer as string | null) ?? null,
     verifiedBy: (row.verifiedBy as string | null) ?? null, lastVerifiedAt: (row.lastVerifiedAt as Date | string | null) ?? null,
+    verifiedById: (row.verifiedById as string | null) ?? null, verifiedByName: (row.verifiedByName as string | null) ?? null,
+    soldOrderNumber: (row.soldOrderNumber as string | null) ?? null, soldDelivered: row.soldDelivered === null || row.soldDelivered === undefined ? null : Boolean(row.soldDelivered),
     locationCode: (row.locationCode as string | null) ?? null, locationIcon: (row.locationIcon as string | null) ?? null, locationColor: (row.locationColor as string | null) ?? null,
     costPyg: toNumber(row.costPyg), status: row.status as StockItemStatus, quantity: Number(row.quantity),
     branchId: (row.branchId as string | null) ?? null, branchName: (row.branchName as string | null) ?? null,
