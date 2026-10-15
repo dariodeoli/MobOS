@@ -10,7 +10,7 @@ globalThis.localStorage = {
   removeItem: clave => store.delete(clave),
 }
 
-const { consultasDemoImei, postDemoImei, validarImeiDemo } = await import('./demoImei.js')
+const { consultasDemoImei, postDemoImei, saldoDemoImei, validarImeiDemo } = await import('./demoImei.js')
 const SERIAL = 'AUR0001000000000'.slice(0, 16)
 
 test('valida igual que el backend y acepta los seriales ficticios del demo', () => {
@@ -23,7 +23,9 @@ test('valida igual que el backend y acepta los seriales ficticios del demo', () 
 test('precheck no registra la consulta y muestra el costo', async () => {
   const precheck = await postDemoImei({ action: 'precheck', imei: SERIAL })
   assert.equal(precheck.esMock, true)
-  assert.equal(precheck.costoEstimadoUsd, 0.06)
+  assert.equal(precheck.creditosRequeridos, 1)
+  assert.equal(precheck.saldo, 3)
+  assert.equal('costoEstimadoUsd' in precheck, false, 'sin precios')
   assert.equal(precheck.servicio.precioConfirmado, true)
   assert.equal(consultasDemoImei(SERIAL).length, 0)
 })
@@ -38,6 +40,16 @@ test('sin confirmación no ejecuta y con requestId no se cobra dos veces', async
   const repetida = await postDemoImei({ action: 'checks', imei: SERIAL, confirm: true, requestId: 'r-1' })
   assert.equal(repetida.id, primera.id)
   assert.equal(consultasDemoImei(SERIAL).length, 1)
+})
+
+test('al agotarse las verificaciones responde 402 «No disponible en tu cuenta»', async () => {
+  assert.equal(saldoDemoImei(), 2, 'la consulta anterior usó una')
+  await postDemoImei({ action: 'checks', imei: SERIAL, confirm: true, requestId: 'r-2' })
+  await postDemoImei({ action: 'checks', imei: SERIAL, confirm: true, requestId: 'r-3' })
+  assert.equal(saldoDemoImei(), 0)
+  const precheck = await postDemoImei({ action: 'precheck', imei: SERIAL })
+  assert.equal(precheck.disponible, false)
+  await assert.rejects(() => postDemoImei({ action: 'checks', imei: SERIAL, confirm: true, requestId: 'r-4' }), error => error.status === 402 && /No disponible en tu cuenta/.test(error.message))
 })
 
 test('un IMEI inválido se rechaza antes de registrar', async () => {

@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
+import { creditosDeServicio, correspondeReembolso, estadoCreditos, reembolsarConsulta, reservarConsulta } from '../../../lib/imei-credits'
 import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, modoImeicheck, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
@@ -30,9 +31,12 @@ export async function GET(request: Request) {
     orderBy: { requestedAt: 'desc' },
     take: Math.min(50, Math.max(1, Number(params.get('limit')) || 20)),
   })
+  const creditos = await estadoCreditos(tenant)
   return json({
     ...modoImeicheck(),
-    servicios: SERVICIOS,
+    creditos: { saldo: creditos.saldo, enforce: creditos.enforce },
+    // Sin precios: la app solo habla de verificaciones (créditos).
+    servicios: Object.fromEntries(Object.entries(SERVICIOS).map(([clave, s]) => [clave, { nombre: s.nombre, campos: s.campos, creditos: creditosDeServicio(clave) }])),
     consultas: consultas.map(fila => ({
       id: fila.id,
       imei: fila.imeiMasked,
@@ -91,6 +95,8 @@ export async function POST(request: Request) {
         error: status === 'conciliar' ? registro.error : null,
       },
     })
+    // «Conciliar» mantiene el crédito hasta resolver: recién acá, si quedó fallida sin cobro, se devuelve.
+    if (correspondeReembolso(status, costUsd)) await reembolsarConsulta(tenant, registro.id)
     await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIATED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
     return json(expectativa(actualizado, true))
   }
@@ -111,51 +117,59 @@ export async function POST(request: Request) {
       orderBy: { requestedAt: 'desc' },
       select: { id: true, status: true, costUsd: true, requestedAt: true },
     })
-    const simulado = modoImeicheck().modo === 'simulado'
+    const estado = await estadoCreditos(tenant)
+    const requeridos = creditosDeServicio(clave)
     return json({
       ...modoImeicheck(),
       imei: enmascararImei(validacion.imei),
-      servicio: { clave, ...servicio },
+      servicio: { clave, nombre: servicio.nombre, campos: servicio.campos },
       requiereConfirmacion: true,
-      // En simulado no hay cobro: el precio queda solo como referencia visible.
-      costoEstimadoUsd: simulado ? 0 : servicio.precioUsd,
-      costoReferenciaUsd: servicio.precioUsd,
-      ...(simulado ? { simulado: true } : {}),
+      // Sin precios ni compra: solo cuántas verificaciones usa y cuántas quedan.
+      creditosRequeridos: requeridos,
+      saldo: estado.saldo,
+      disponible: !estado.enforce || estado.saldo >= requeridos,
       advertencia: reciente ? 'Ya hay una consulta de este servicio para el mismo IMEI en las últimas 24 h.' : null,
       reciente,
     })
   }
 
   // Confirmación explícita: sin `confirm: true` no se ejecuta ni se cobra.
-  if (body?.confirm !== true) return error('La consulta necesita confirmación explícita del costo.', 409, { requiereConfirmacion: true, costoEstimadoUsd: servicio.precioUsd })
+  if (body?.confirm !== true) return error('La consulta necesita confirmación explícita.', 409, { requiereConfirmacion: true, creditosRequeridos: creditosDeServicio(clave) })
   const requestId = typeof body?.requestId === 'string' && body.requestId.trim() ? body.requestId.trim().slice(0, 128) : null
   if (!requestId) return error('Falta requestId para evitar dobles cobros.', 400)
   const verCrudo = ROLES_VER_CRUDO.includes(session.user.role)
   // Todo lookup por (tenantId, requestId): el requestId de otra empresa nunca se lee.
   const propia = () => prisma.imeiCheckQuery.findFirst({ where: { tenantId: tenant, requestId } })
-  const yaExiste = await propia()
-  if (yaExiste) return json({ ...expectativa(yaExiste, verCrudo), ...(yaExiste.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
-
-  // Reserva primero: la fila nace en estado «reservado» y la unicidad de la base
-  // decide quién consulta. Solo quien reserva llama al proveedor (sin doble cobro).
+  // Reserva + descuento de créditos en una sola transacción bajo el candado de la
+  // empresa: la unicidad (empresa, requestId) decide quién consulta y solo quien
+  // reserva descuenta y llama al proveedor (sin doble cobro).
   let reserva
   try {
-    reserva = await prisma.imeiCheckQuery.create({
-      data: {
-        tenantId: tenant,
-        branchId: session.user.branchId,
-        userId: session.user.id,
-        imei: validacion.imei,
-        imeiMasked: enmascararImei(validacion.imei),
-        provider: 'imeicheck.net',
-        serviceKey: clave,
-        serviceId: servicio.serviceId,
-        serviceName: servicio.nombre,
-        status: 'reservado',
-        costUsd: '0.00',
-        requestId,
-      },
+    const r = await reservarConsulta({
+      tenantId: tenant,
+      requestId,
+      servicioKey: clave,
+      buscar: tx => tx.imeiCheckQuery.findFirst({ where: { tenantId: tenant, requestId } }),
+      crear: tx => tx.imeiCheckQuery.create({
+        data: {
+          tenantId: tenant,
+          branchId: session.user.branchId,
+          userId: session.user.id,
+          imei: validacion.imei,
+          imeiMasked: enmascararImei(validacion.imei),
+          provider: 'imeicheck.net',
+          serviceKey: clave,
+          serviceId: servicio.serviceId,
+          serviceName: servicio.nombre,
+          status: 'reservado',
+          costUsd: '0.00',
+          requestId,
+        },
+      }),
     })
+    if (r.tipo === 'existente') return json({ ...expectativa(r.fila, verCrudo), ...(r.fila.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
+    if (r.tipo === 'sin-creditos') return json({ message: 'No disponible en tu cuenta.', code: 'IMEI_SIN_CREDITOS', creditos: { saldo: r.saldo, requeridos: r.requeridos } }, { status: 402 })
+    reserva = r.fila
   } catch (causa: any) {
     if (causa?.code !== 'P2002') throw causa
     const existente = await propia()
@@ -185,7 +199,12 @@ export async function POST(request: Request) {
       resolvedAt: resultado.estado === 'pendiente' ? null : new Date(),
     },
   })
-  return json({ ...expectativa(registro, verCrudo), esMock: resultado.esMock, ...modoImeicheck() }, { status: 201 })
+  // Falló sin cobro del proveedor: se devuelve el crédito, una sola vez. «A conciliar» lo conserva.
+  if (correspondeReembolso(resultado.estado, resultado.costoUsd)) {
+    try { await reembolsarConsulta(tenant, reserva.id) } catch (causa) { console.error('imei: no se pudo reembolsar el crédito', causa) }
+  }
+  const estado = await estadoCreditos(tenant).catch(() => null)
+  return json({ ...expectativa(registro, verCrudo), esMock: resultado.esMock, ...modoImeicheck(), ...(estado ? { creditos: { saldo: estado.saldo, enforce: estado.enforce } } : {}) }, { status: 201 })
 }
 
 function expectativa(fila: any, verCrudo: boolean) {

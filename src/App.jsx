@@ -57,6 +57,7 @@ const SuperadminResumen = lazy(() => import('@/pages/superadmin/Resumen'))
 const SuperadminEmpresas = lazy(() => import('@/pages/superadmin/Empresas'))
 const SuperadminUsuarios = lazy(() => import('@/pages/superadmin/Usuarios'))
 const SuperadminTrafico = lazy(() => import('@/pages/superadmin/Trafico'))
+const SuperadminCreditosImei = lazy(() => import('@/pages/superadmin/CreditosImei'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -344,6 +345,7 @@ export default function App() {
             <Route path="empresas" element={<SuperadminEmpresas />} />
             <Route path="usuarios" element={<SuperadminUsuarios />} />
             <Route path="trafico" element={<SuperadminTrafico />} />
+            <Route path="verificaciones-imei" element={<SuperadminCreditosImei />} />
             <Route path="*" element={<Navigate to="/superadmin" replace />} />
           </Route>
           <Route

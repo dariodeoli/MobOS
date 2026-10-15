@@ -142,6 +142,7 @@ export function leerParamsLista(url: URL, ordenes: readonly string[], ordenDefec
 
 export const ORDENES_EMPRESAS = Object.keys(ORDEN_EMPRESAS)
 export const ORDENES_USUARIOS = Object.keys(ORDEN_USUARIOS)
+export const ORDENES_CREDITOS = ['consumo', 'nombre', 'saldo', 'costo']
 
 /** Texto de búsqueda seguro para ILIKE: escapa % _ \ para que no actúen como comodines. */
 export function patronBusqueda(q: string): string {
