@@ -6,6 +6,7 @@ import { PAYMENT_LABELS } from '../../../../../lib/payments'
 import { countablePayments } from '../../../../../lib/payment-net'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
 import { numero, numeroOpcional } from '../../../../../lib/montos'
+import { politicasPublicadas } from '../../../../../lib/public-policies'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
@@ -35,7 +36,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       customer: { select: { name: true, phone: true, countryCode: true, email: true, document: true, addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
       seller: { select: { name: true } },
       branch: { select: { name: true, address: true, city: true, department: true, phone: true, instagram: true } },
-      tenant: { select: { name: true, email: true } },
+      tenant: { select: { name: true, email: true, slug: true, settings: true } },
     },
   })
   if (!order) return error('Seguimiento no encontrado.', 404)
@@ -125,7 +126,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
   const completo = {
     ...base,
-    company: { name: order.tenant?.name || null, email: order.tenant?.email || null },
+    company: { name: order.tenant?.name || null, email: order.tenant?.email || null, ...politicasPublicadas(order.tenant) },
     branch: order.branch
       ? {
           name: order.branch.name,
