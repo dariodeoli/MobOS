@@ -1057,7 +1057,8 @@ test('el ticket corto es el predeterminado y la plantilla se guarda por impresor
   await expect(hoja.locator('pre')).not.toContainText('Método')
   await expect(hoja.locator('pre')).not.toContainText('[QR]')
 
-  // Plantilla: 58 mm, corte parcial, 2 copias y fecha/hora en el corto.
+  // Plantilla: 58 mm (con el interruptor encendido), corte parcial, 2 copias y fecha/hora en el corto.
+  await page.evaluate(() => { localStorage.setItem('mobos:impresion:formato-58', '1'); window.dispatchEvent(new Event('mobos:formato-58')) })
   await editor.getByRole('button', { name: '58 mm' }).click()
   await editor.getByLabel('Corte').selectOption('parcial')
   await editor.getByRole('button', { name: 'Una copia más' }).click()

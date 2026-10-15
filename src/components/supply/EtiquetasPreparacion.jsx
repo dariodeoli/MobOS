@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatoPermitido } from '@/lib/printing/preferencias'
 import { Button, Skeleton, useResultado } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
@@ -19,7 +20,7 @@ import { buildEtiquetasLoteHtml } from '@/components/shared/OrderReceipt'
 // o se comparten/descargan desde el mismo HTML (contrato de PRN en
 // docs/ETIQUETAS-LOTE.md). También permite reimprimir una sola unidad.
 
-const formatosPorAncho = (ancho) => (Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
+const formatosPorAncho = (ancho) => formatoPermitido(Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
 
 export default function EtiquetasPreparacion({ open, onClose, compra }) {
   const avisar = useResultado()

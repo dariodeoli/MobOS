@@ -1,6 +1,9 @@
 import { escapeHtml } from '../../utils/printHtml.js'
 import { estadoInventario } from '../../utils/inventario.js'
 import { bateriaDe, gradoDe } from '../tallerRack.js'
+import { APP_NAME } from '../brand.js'
+import { datosEncabezado } from './empresaImpresion.js'
+import { CONDICIONES, pieDocumentoHtml } from './bloquesDocumento.js'
 
 // Hoja de estación del modo taller (#240 §4): lista imprimible de los equipos
 // de un carril/estación para trabajar en el depósito (modelo, IMEI, estado,
@@ -10,22 +13,22 @@ import { bateriaDe, gradoDe } from '../tallerRack.js'
 // - `buildStationSheetHtml(unidades, { estacion })`: una hoja (uso clásico).
 // - `buildStationSheetsHtml(grupos, { fecha })`: **en serie**, una hoja por
 //   estación en un solo documento (cada carril sale en su propia página).
-export function buildStationSheetHtml(unidades = [], { estacion = 'Taller', fecha = new Date() } = {}) {
-  return documentoDeHojas([{ estacion, unidades }], { fecha })
+export function buildStationSheetHtml(unidades = [], { estacion = 'Taller', fecha = new Date(), logo = '' } = {}) {
+  return documentoDeHojas([{ estacion, unidades }], { fecha, logo })
 }
 
-export function buildStationSheetsHtml(grupos = [], { fecha = new Date() } = {}) {
+export function buildStationSheetsHtml(grupos = [], { fecha = new Date(), logo = '' } = {}) {
   const lista = (Array.isArray(grupos) ? grupos : [])
     .map(({ estacion, unidades } = {}) => ({ estacion: estacion || 'Taller', unidades: Array.isArray(unidades) ? unidades : [] }))
     .filter((grupo) => grupo.unidades.length)
-  return documentoDeHojas(lista.length ? lista : [{ estacion: 'Taller', unidades: [] }], { fecha })
+  return documentoDeHojas(lista.length ? lista : [{ estacion: 'Taller', unidades: [] }], { fecha, logo })
 }
 
 const fechaLarga = (fecha) => (fecha instanceof Date && !Number.isNaN(fecha.getTime())
   ? fecha.toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '')
 
-function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha } = {}) {
+function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha, logo = '' } = {}) {
   const filas = unidades.map((unit, indice) => {
     const nombre = unit?.product?.name || unit?.product?.nombre || 'Equipo'
     const estado = estadoInventario(unit)
@@ -42,30 +45,36 @@ function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha } =
     </tr>`
   }).join('')
   const fechaTexto = fechaLarga(fecha)
+  const empresa = datosEncabezado()
 
   return `<section class="hoja">
-<div class="brand"><b>MobOS · Modo taller</b><span>${escapeHtml(estacion)}</span></div>
-<h1>Equipos en preparación</h1>
-<p class="meta">${unidades.length} equipo(s)${fechaTexto ? ` · ${escapeHtml(fechaTexto)}` : ''}</p>
+<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${escapeHtml(logo)}" alt="">` : ''}<div class="rz">${escapeHtml(empresa.razon || APP_NAME)}</div>${empresa.lineas.map((linea) => `<div class="sub">${escapeHtml(linea)}</div>`).join('')}</div><div class="doc"><div class="tipo">Hoja de estación</div><div class="num">${escapeHtml(estacion)}</div>${fechaTexto ? `<div class="cuando">${escapeHtml(fechaTexto)}</div>` : ''}</div></div>
+<p class="meta">${unidades.length} equipo(s) en preparación</p>
 <table><thead><tr><th>#</th><th>Modelo</th><th>IMEI / serial</th><th>Estado</th><th>Ubicación</th></tr></thead><tbody>${filas || '<tr><td colspan="5">Sin equipos en esta estación.</td></tr>'}</tbody>
 <tfoot><tr><td colspan="5">Total: ${unidades.length} equipo(s) · Marcá cada uno al verificarlo.</td></tr></tfoot></table>
-<footer><span>Hoja de estación generada por MobOS</span><span>Firma / control: ______________</span></footer>
+${pieDocumentoHtml({ condiciones: CONDICIONES.estacion, tieneQr: false, aviso: '' })}
+<footer><span>Generado por ${escapeHtml(APP_NAME)}${empresa.razon ? ` para ${escapeHtml(empresa.razon)}` : ''}</span><span>Firma / control: ______________</span></footer>
 </section>`
 }
 
-function documentoDeHojas(grupos, { fecha } = {}) {
-  const hojas = grupos.map((grupo) => hojaDeEstacion(grupo, { fecha })).join('')
+function documentoDeHojas(grupos, { fecha, logo = '' } = {}) {
+  const hojas = grupos.map((grupo) => hojaDeEstacion(grupo, { fecha, logo })).join('')
   const titulo = grupos.length === 1 ? `Hoja de estación · ${grupos[0].estacion}` : `Hojas de estación (${grupos.length})`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title><style>
-@page{size:A4;margin:14mm}
+@page{size:A4;margin:18mm 14mm 14mm}
 *{box-sizing:border-box}
 body{margin:0;font:12px/1.45 ui-sans-serif,system-ui,sans-serif;color:#10161f}
 .hoja{page-break-after:always}
 .hoja:last-child{page-break-after:auto}
-.brand{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #0c8876;padding-bottom:6px}
-.brand b{font-size:15px;letter-spacing:-.01em}
-.brand span{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#0c8876;font-weight:800}
-h1{font-size:18px;margin:10px 0 2px}
+.brand{display:flex;justify-content:space-between;gap:18px;border-bottom:2px solid #0c8876;padding-bottom:10px;margin-bottom:14px}
+.brand .logo{display:block;height:15mm;max-width:60mm;object-fit:contain;margin:0 0 5px}
+.brand .rz{font-size:15px;font-weight:800;line-height:1.25;overflow-wrap:anywhere;max-width:100%}
+.pie-doc{border-top:1px solid #d9dde1;margin-top:12px;padding-top:10px;break-inside:avoid}.pie-doc .condiciones{font-size:10px;color:#3b424a;line-height:1.5}.pie-doc .condiciones strong{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:#666d75;margin-bottom:2px}
+.brand .sub{font-size:10.5px;color:#3b424a;line-height:1.45}
+.brand .doc{text-align:right}
+.brand .tipo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#0c8876}
+.brand .num{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
+.brand .cuando{font-size:10.5px;color:#666d75;margin-top:2px}
 .meta{color:#5b6570;font-size:11px;margin-bottom:12px}
 table{width:100%;border-collapse:collapse}
 th{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#5b6570;text-align:left;border-bottom:1px solid #cfd6dd;padding:5px 6px}

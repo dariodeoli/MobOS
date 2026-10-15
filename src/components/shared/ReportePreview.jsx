@@ -3,6 +3,8 @@ import { Button, Select, useResultado } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { printHtml } from '@/utils/printHtml'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
+import useFormato58 from '@/hooks/useFormato58'
+import { formatoPermitido, formatosVisibles } from '@/lib/printing/preferencias'
 import { cargarImpresorasRemotas, configImpresora, estadoAgente, imprimirConDestino, impresoraPredeterminada, puedeCaerAlDialogo } from '@/lib/printing/agent'
 
 // Reportes imprimibles (cierre de caja, resumen): misma vista previa y misma
@@ -15,7 +17,10 @@ const anchoDeFormato = (formato) => (formato === 'thermal-80' ? 80 : formato ===
 
 export default function ReportePreview({ open, onClose, titulo = 'Reporte', formatoInicial = 'a4', construir, directo }) {
   const avisar = useResultado()
-  const [formato, setFormato] = useState(formatoInicial)
+  const con58 = useFormato58()
+  const [formatoElegido, setFormato] = useState(formatoInicial)
+  // Sin el interruptor «Formato 58 mm» (Impresión y dispositivos) solo A4 y 80 mm.
+  const formato = formatoPermitido(formatoElegido, { activo: con58 })
   const [html, setHtml] = useState('')
   const [cargando, setCargando] = useState(false)
   const [agente, setAgente] = useState(false)
@@ -74,7 +79,7 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
           <label className="block space-y-1 text-xs text-mute">
             <span>Formato</span>
             <Select aria-label="Formato de impresión" className="w-32" value={formato} onChange={(event) => setFormato(event.target.value)}>
-              {FORMATOS_REPORTE.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              {formatosVisibles(FORMATOS_REPORTE, { activo: con58 }).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
             </Select>
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">

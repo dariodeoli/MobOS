@@ -71,6 +71,8 @@ test.describe('plantilla del ticket de prueba', () => {
 
     // Ancho 58: el papel se angosta de verdad (58 mm ≈ 219 px contra 80 mm).
     const ancho80 = (await page.locator(HOJA).boundingBox())?.width || 0
+    await expect(editor.getByRole('button', { name: '58 mm' })).toHaveCount(0)
+    await page.evaluate(() => { localStorage.setItem('mobos:impresion:formato-58', '1'); window.dispatchEvent(new Event('mobos:formato-58')) })
     await expect(editor.getByRole('button', { name: '58 mm' })).toHaveAttribute('aria-pressed', 'false')
     await editor.getByRole('button', { name: '58 mm' }).click()
     await expect(editor.getByRole('button', { name: '58 mm' })).toHaveAttribute('aria-pressed', 'true')
