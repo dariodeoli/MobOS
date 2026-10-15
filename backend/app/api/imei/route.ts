@@ -111,6 +111,7 @@ export async function POST(request: Request) {
   if (!validacion.ok) return error(validacion.error, 400, { imei: String(body?.imei ?? '').slice(0, 40) })
 
   if (accion === 'precheck') {
+    const modo = modoImeicheck()
     // Referencia de idempotencia: una consulta igual y reciente se avisa acá.
     const reciente = await prisma.imeiCheckQuery.findFirst({
       where: { tenantId: tenant, imei: validacion.imei, serviceKey: clave, requestedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
@@ -120,7 +121,8 @@ export async function POST(request: Request) {
     const estado = await estadoCreditos(tenant)
     const requeridos = creditosDeServicio(clave)
     return json({
-      ...modoImeicheck(),
+      ...modo,
+      simulado: modo.modo === 'simulado',
       imei: enmascararImei(validacion.imei),
       servicio: { clave, nombre: servicio.nombre, campos: servicio.campos },
       requiereConfirmacion: true,
