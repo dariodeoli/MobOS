@@ -10,6 +10,12 @@ import { cn } from '@/lib/utils'
 // lo unifique en la biblioteca.
 export default function CameraScan({ onDetected, onClose, continuous = false, className, titulo = 'Enfocá el código' }) {
   const video = useRef(null)
+  // Los callbacks viajan por ref: si cambian en cada render del padre (pasa al
+  // escanear, porque la lista se actualiza) la cámara NO debe reiniciarse (#450).
+  const alDetectar = useRef(onDetected)
+  const alCerrar = useRef(onClose)
+  alDetectar.current = onDetected
+  alCerrar.current = onClose
   const [message, setMessage] = useState('Preparando cámara…')
 
   useEffect(() => {
@@ -43,9 +49,9 @@ export default function CameraScan({ onDetected, onClose, continuous = false, cl
               }
               ultimo = valor
               ultimoEn = ahora
-              onDetected(valor)
+              alDetectar.current?.(valor)
               if (!continuous) {
-                onClose?.()
+                alCerrar.current?.()
                 return
               }
             }
@@ -63,7 +69,7 @@ export default function CameraScan({ onDetected, onClose, continuous = false, cl
       if (timer) window.clearTimeout(timer)
       stream?.getTracks?.().forEach((pista) => pista.stop())
     }
-  }, [continuous, onClose, onDetected, titulo])
+  }, [continuous, titulo])
 
   return (
     <div className={cn('space-y-3', className)}>

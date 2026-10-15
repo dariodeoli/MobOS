@@ -27,6 +27,7 @@ export default defineConfig({
     'corregir-pago.frontend.spec.js',
     'clientes-lista.frontend.spec.js',
     'pestanas-iconos.frontend.spec.js',
+    'compras-escaneo.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

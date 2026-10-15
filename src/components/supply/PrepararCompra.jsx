@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resources } from '@/lib/api'
-import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
-import CameraScan from '@/components/shared/CameraScan'
+import { Badge, Button, Card, EmptyState, Skeleton, useToast } from '@/components/ui'
+import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
+import PanelEscaneoSeriales from '@/components/supply/PanelEscaneoSeriales'
+import { getProductos } from '@/lib/storage'
 import EtiquetasPreparacion from '@/components/supply/EtiquetasPreparacion'
 import Icon from '@/components/shared/Icon'
-import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 import { printHtml } from '@/utils/printHtml'
 import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -19,19 +21,18 @@ import { etiquetaPorSerial } from '@/lib/printing/etiquetaLote'
 
 export default function PrepararCompra() {
   const toast = useToast()
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  // #450: «Ir a Preparar compra» desde Recepción/Por comprar llega con la compra
+  // pedida (código o id): se muestra esa compra aunque ya no tenga pendientes.
+  const filtroCompra = (params.get('compra') || '').trim()
   const [compras, setCompras] = useState([])
   const [totales, setTotales] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [abierta, setAbierta] = useState(null)
   const [lineaId, setLineaId] = useState('')
-  const [entrada, setEntrada] = useState('')
-  const [pegado, setPegado] = useState('')
-  const [verPegado, setVerPegado] = useState(false)
-  const [camara, setCamara] = useState(false)
-  const [aviso, setAviso] = useState('')
   const [etiquetasDe, setEtiquetasDe] = useState(null)
-  const [busy, setBusy] = useState(false)
   const [etiquetasBusy, setEtiquetasBusy] = useState('')
   const [ultimoSerial, setUltimoSerial] = useState('')
 
@@ -39,11 +40,16 @@ export default function PrepararCompra() {
     setCargando(true)
     setError('')
     try {
-      const datos = await resources.supplyPurchases.list({ pendientes: 1 })
-      const lista = datos?.compras || []
+      const datos = await resources.supplyPurchases.list(filtroCompra ? { limit: 200 } : { pendientes: 1 })
+      const todas = datos?.compras || []
+      const buscada = filtroCompra.toLowerCase()
+      const lista = filtroCompra ? todas.filter((compra) => compra.id === filtroCompra || String(compra.code || '').toLowerCase() === buscada) : todas
       setCompras(lista)
-      setTotales(datos?.totales || null)
+      setTotales(filtroCompra
+        ? { compras: lista.length, pendientes: lista.reduce((suma, compra) => suma + (compra.lines || []).reduce((total, fila) => total + Number(fila.faltan || 0), 0), 0) }
+        : datos?.totales || null)
       setAbierta((actual) => {
+        if (filtroCompra && !actual && lista.length === 1) return lista[0]
         const vigente = lista.find((compra) => compra.id === actual?.id)
         if (vigente) return vigente
         // La compra completa sale de «pendientes»: se conserva abierta (con las
@@ -56,7 +62,7 @@ export default function PrepararCompra() {
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [filtroCompra])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -100,63 +106,39 @@ export default function PrepararCompra() {
     return compras.some((compra) => compra.id === abierta.id) ? compras : [abierta, ...compras]
   }, [compras, abierta])
 
-  const linea = useMemo(() => (abierta?.lines || []).find((fila) => fila.id === lineaId) || (abierta?.lines || []).find((fila) => fila.faltan > 0) || (abierta?.lines || [])[0] || null, [abierta, lineaId])
-  const cargadosLinea = useMemo(() => (linea?.serials || []).map((fila) => fila.serial), [linea])
+  const catalogo = useMemo(() => getProductos(), [])
 
-  async function escanear(serialBruto) {
-    if (!abierta || !linea || busy) return
-    const analisis = analizarSerial(serialBruto)
-    if (!analisis.ok) {
-      setAviso(`${analisis.serial || 'Código'}: ${textoMotivo(analisis.motivo)}`)
-      return
-    }
-    setBusy(true)
-    setAviso('')
-    try {
-      const datos = await resources.supplyPurchases.update({ id: abierta.id, action: 'scan', lineId: linea.id, serial: analisis.serial })
-      setEntrada('')
-      if (datos?.aviso) toast.info('Aviso del proveedor', datos.aviso)
-      cargar()
-    } catch (causa) {
-      setAviso(causa?.message || 'El IMEI no se pudo cargar.')
-    } finally {
-      setBusy(false)
-    }
+  const lineasPanel = useMemo(() => (abierta?.lines || []).map((fila) => ({
+    id: fila.id,
+    productId: fila.productId,
+    nombre: `${fila.product?.name || 'Producto'}${fila.product?.capacity ? ` · ${fila.product.capacity}` : ''}`,
+    cantidad: Number(fila.quantity) || 0,
+    seriales: (fila.serials || []).map((item) => (typeof item === 'string' ? { serial: item } : item)),
+  })), [abierta])
+
+  async function agregarSerial(serial, { luhnForzado, lineId }) {
+    const datos = await resources.supplyPurchases.update({ id: abierta.id, action: 'scan', lineId, serial, ...(luhnForzado ? { forzarLuhn: true } : {}) })
+    if (datos?.aviso) toast.info('Aviso del proveedor', datos.aviso)
+    setUltimoSerial(serial)
+    await cargar()
+    return datos
   }
 
-  async function pegarLote() {
-    if (!abierta || !linea || busy) return
-    const { validos, errores } = validarLote({ entradas: pegado, yaCargados: cargadosLinea, limite: Math.max(0, Number(linea.faltan) || 0) })
-    if (!validos.length) {
-      setAviso(errores.map((fila) => `${fila.serial}: ${textoMotivo(fila.motivo)}`).join(' · ') || 'No hay códigos para cargar.')
-      return
-    }
-    setBusy(true)
-    try {
-      await resources.supplyPurchases.update({ id: abierta.id, action: 'serials', lineId: linea.id, serials: validos })
-      setPegado('')
-      setVerPegado(false)
-      const rechazados = errores.length ? ` · no cargados: ${errores.map((fila) => `${fila.serial} (${textoMotivo(fila.motivo)})`).join(', ')}` : ''
-      setAviso(`${validos.length} cargado(s)${rechazados}`)
-      toast.success('IMEI cargados', `${validos.length} serial(es) en la línea.`)
-      cargar()
-    } catch (causa) {
-      setAviso(causa?.message || 'No se pudo cargar el lote.')
-    } finally {
-      setBusy(false)
-    }
+  async function agregarVarios(seriales, lineId) {
+    await resources.supplyPurchases.update({ id: abierta.id, action: 'serials', lineId, serials: seriales })
+    await cargar()
+  }
+
+  async function quitarSerial(serial, lineId) {
+    await resources.supplyPurchases.update({ id: abierta.id, action: 'removeSerial', lineId, serial })
+    await cargar()
   }
 
   return (
     <div className="space-y-4" data-testid="preparar-compra">
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-mute">
-              Compras con IMEI por completar: escaneá de a uno (lector Bluetooth/USB o cámara) o pegá varios.
-              Los IMEI se validan con Luhn y no se aceptan repetidos.
-            </p>
-          </div>
+          <EncabezadoFlujo className="min-w-0 flex-1" paso="preparacion" onIr={(paso) => navigate(paso.ruta)} />
           <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
           </Button>
@@ -169,11 +151,17 @@ export default function PrepararCompra() {
         )}
       </Card>
 
+      {filtroCompra && (
+        <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="preparar-compra-filtro">
+          <Badge color="blue">Compra {filtroCompra}</Badge>
+          <button type="button" className="min-h-11 underline" onClick={() => setParams({}, { replace: true })}>Ver todas las compras</button>
+        </p>
+      )}
       {error && <Card className="text-sm text-bad">{error}</Card>}
       {cargando && !compras.length ? (
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
       ) : !compras.length ? (
-        <EmptyState icon="box" title="No hay compras por preparar." description="Cuando una compra tenga IMEI pendientes, aparece acá." />
+        <EmptyState icon="box" title={filtroCompra ? `No se encontró la compra ${filtroCompra}.` : 'No hay compras por preparar.'} description={filtroCompra ? 'Puede estar cancelada o ser de otra empresa.' : 'Cuando una compra tenga IMEI pendientes, aparece acá.'} />
       ) : (
         <div className="space-y-2.5">
           {visibles.map((compra) => {
@@ -189,7 +177,7 @@ export default function PrepararCompra() {
                   <Badge color={pendientes > 0 ? 'orange' : 'green'}>{pendientes} IMEI pendiente{pendientes === 1 ? '' : 's'}</Badge>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => { setAbierta(expandida ? null : compra); setLineaId(''); setAviso('') }}>
+                  <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => { setAbierta(expandida ? null : compra); setLineaId(''); setUltimoSerial('') }}>
                     {expandida ? 'Cerrar' : 'Preparar IMEI'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setEtiquetasDe(compra)} data-testid="preparar-etiquetas">
@@ -199,62 +187,24 @@ export default function PrepararCompra() {
 
                 {expandida && (
                   <div className="mt-3 space-y-3 border-t border-ink-600 pt-3">
-                    {(compra.lines || []).map((fila) => (
-                      <label key={fila.id} className="flex items-center gap-2 text-sm">
-                        <input type="radio" name={`linea-${compra.id}`} checked={linea?.id === fila.id} onChange={() => { setLineaId(fila.id); setAviso(''); setUltimoSerial('') }} aria-label={`Línea ${fila.product?.name || fila.productId}`} />
-                        <span className="min-w-0 flex-1 truncate">{fila.product?.name || 'Producto'}{fila.product?.capacity ? ` · ${fila.product.capacity}` : ''}</span>
-                        <span className="text-xs text-mute tabular-nums">{(fila.serials || []).length}/{fila.quantity}</span>
-                        {Number(fila.faltan) > 0
-                          ? <Badge color="orange">{fila.faltan} faltan</Badge>
-                          : <Badge color="green">Completa</Badge>}
-                      </label>
-                    ))}
-
-                    {linea && linea.faltan > 0 && (
-                      <>
-                        <form onSubmit={(evento) => { evento.preventDefault(); escanear(entrada) }} className="flex flex-wrap items-center gap-2">
-                          <Input
-                            autoFocus
-                            value={entrada}
-                            onChange={(evento) => setEntrada(evento.target.value)}
-                            placeholder="Escaneá o escribí el IMEI…"
-                            aria-label="IMEI a escanear"
-                            className="min-w-0 flex-1"
-                          />
-                          <Button type="submit" disabled={busy || !entrada.trim()}>Cargar</Button>
-                          <Button type="button" variant="outline" onClick={() => setCamara((valor) => !valor)}>
-                            <Icon name="image" className="h-3.5 w-3.5" />Cámara
-                          </Button>
-                          <Button type="button" variant="outline" onClick={() => setVerPegado((valor) => !valor)}>Pegar varios</Button>
-                        </form>
-                        {camara && <CameraScan continuous onDetected={escanear} onClose={() => setCamara(false)} />}
-                        {verPegado && (
-                          <div className="space-y-2">
-                            <Textarea
-                              value={pegado}
-                              onChange={(evento) => setPegado(evento.target.value)}
-                              placeholder="Pegá los IMEI separados por coma, espacio o salto de línea…"
-                              aria-label="IMEI para pegar"
-                              className="min-h-24 w-full"
-                            />
-                            <div className="flex justify-end gap-2">
-                              <Button type="button" variant="outline" onClick={() => { setVerPegado(false); setPegado('') }} disabled={busy}>Cerrar</Button>
-                              <Button type="button" onClick={pegarLote} disabled={busy || !pegado.trim()}>{busy ? 'Cargando…' : 'Cargar lote'}</Button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {aviso && <p role="status" className="text-sm text-warn">{aviso}</p>}
-                    {ultimoSerial && !aviso && (
+                    <PanelEscaneoSeriales
+                      idBase="preparar-compra"
+                      lineas={lineasPanel}
+                      lineaId={lineaId}
+                      onLinea={setLineaId}
+                      productos={catalogo}
+                      agregar={agregarSerial}
+                      agregarVarios={agregarVarios}
+                      quitar={compra.status === 'RECIBIDA' || compra.status === 'CANCELADA' ? null : quitarSerial}
+                    />
+                    {ultimoSerial && (
                       <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
                         <span>Última unidad escaneada: <b className="text-fore">{ultimoSerial}</b></span>
-                        <Button type="button" variant="outline" disabled={Boolean(etiquetasBusy)} onClick={() => imprimirEtiquetas(compra, { serial: ultimoSerial })} data-testid="preparar-etiqueta-individual">
+                        <Button type="button" variant="outline" className="min-h-11" disabled={Boolean(etiquetasBusy)} onClick={() => imprimirEtiquetas(compra, { serial: ultimoSerial })} data-testid="preparar-etiqueta-individual">
                           <Icon name="printer" className="h-3.5 w-3.5" />Etiqueta de esa unidad
                         </Button>
                       </div>
                     )}
-                    {linea && linea.faltan <= 0 && <p className="text-sm text-ok">Línea completa: todos los IMEI cargados.</p>}
                   </div>
                 )}
               </Card>
