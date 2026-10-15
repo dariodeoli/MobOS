@@ -13,6 +13,7 @@ import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
 import FotoProducto from '@/components/shared/FotoProducto'
 import { CATEGORIAS_ACCESORIO, CLAVES_ACCESORIO, categoriaAccesorioDe, textoCompatibilidad } from '@/lib/categoriasAccesorio'
+import { categoriaMeta } from '@/lib/categoriasProducto'
 import { cn } from '@/lib/utils'
 
 const FILAS_INICIALES = 4
@@ -373,32 +374,27 @@ export default function PasoProductos({
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
                     className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
-                    <span className="flex min-w-0 items-stretch gap-2">
-                      {fotoFamilia ? (
-                        <FotoProducto
-                          src={fotoFamilia}
-                          size={40}
-                          icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || 'image'}
-                          className="self-center"
-                        />
-                      ) : null}
-                      <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <strong className="pos-product-name min-w-0 text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
-                        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-                          <span className="whitespace-nowrap text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
-                            {fam.items.length > 1 ? <span className="mr-1 text-[11px] font-medium text-mute">desde</span> : null}
+                    <span className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
+                      <FotoProducto
+                        src={fotoFamilia}
+                        size={40}
+                        icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || categoriaMeta(p).icon}
+                      />
+                        <strong className="pos-product-name col-span-2 min-w-0 break-words md:col-span-1 text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
+                        <span className="col-span-2 flex flex-wrap items-baseline justify-between gap-x-2">
+                          <span className="min-w-0 text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
+                            {fam.items.length > 1 ? <span className="block text-[11px] font-medium text-mute">desde</span> : null}
                             {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
                           </span>
                           {stockFamilia > 0
-                            ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : `${stockFamilia} en stock`}>{fotoFamilia ? stockFamilia : `${stockFamilia} en stock${fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}`}</b>
+                            ? <b className="min-w-0 text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : `${stockFamilia} en stock`}>{fotoFamilia ? stockFamilia : `${stockFamilia} en stock${fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}`}</b>
                             : <b className="whitespace-nowrap text-[11px] font-semibold text-bad" title="Agotado">{fotoFamilia ? '0' : 'Agotado'}</b>}
                         </span>
                         {unidadesFamilia > 0 && (
-                          <span className="block truncate text-[11px] text-mute">
+                          <span className="col-span-2 block truncate text-[11px] text-mute">
                             {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
                           </span>
                         )}
-                      </span>
                     </span>
                   </button>
                 )
