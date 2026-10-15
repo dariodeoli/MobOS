@@ -3682,3 +3682,25 @@ test('U3 selección: N filas elegidas ofrecen imprimir etiquetas y vista previa'
   await page.keyboard.press('Escape')
 })
 
+// #489: el estado disabled debe coincidir con la protección contra rebotes.
+// Reloj detenido para comprobar la ventana completa sin pausas arbitrarias.
+test('cobro móvil: el primer clic habilitado confirma una vez después de la transición', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.clock.install({ time: new Date('2026-10-15T12:00:00Z') })
+  const fixture = await enterApiFixture(page, 'confirmed')
+  await abrirCobroMovil(page)
+  await page.clock.pauseAt(new Date('2026-10-15T13:00:00Z'))
+  await page.getByTestId('medio-paga-al-recibir').evaluate(button => button.click())
+  const confirmar = page.getByTestId('cobro-confirmar-venta')
+  await expect(confirmar).toBeDisabled()
+  await page.clock.runFor(349)
+  await expect(confirmar).toBeDisabled()
+  expect(fixture.submitted()).toBe(0)
+  await page.clock.runFor(1)
+  await expect(confirmar).toBeEnabled()
+  await confirmar.evaluate(button => button.click())
+  await expect.poll(fixture.submitted).toBe(1)
+  await page.clock.runFor(1000)
+  expect(fixture.submitted()).toBe(1)
+  await expect(page.getByRole('button', { name: 'Ver pedido', exact: true })).toBeVisible()
+})
