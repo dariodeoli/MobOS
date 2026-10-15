@@ -178,6 +178,11 @@ function sortKeyFor(filters: StockItemsFilters, column: Prisma.Sql) {
   return filters.status === 'vendido' ? Prisma.sql`COALESCE(u."soldAt", u."createdAt")` : column
 }
 
+/** soldAt es timestamp UTC sin zona; el archivo diario usa el día comercial paraguayo. */
+export function soldVisibleOnBusinessDaySql(soldAt: Prisma.Sql, now: Prisma.Sql = Prisma.sql`NOW()`): Prisma.Sql {
+  return Prisma.sql`(${soldAt} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Asuncion')::date >= (${now} AT TIME ZONE 'America/Asuncion')::date`
+}
+
 function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor: StockItemsCursor | null, mode: Mode): Prisma.Sql | null {
   if (filters.rowKind === 'product') return null
   const t = scope.tenantId
@@ -194,7 +199,7 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     if (filters.status) where.push(Prisma.sql`u."status"::text = ${STATUS_TO_UNIT[filters.status]}`)
     // Sin estado elegido (#466): lo vendido sale solo el día de la venta (día de la tienda, Asunción);
     // al día siguiente queda únicamente en la vista «Vendidos».
-    else where.push(Prisma.sql`(u."status"::text <> 'SOLD' OR (u."soldAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Asuncion')::date >= (NOW() AT TIME ZONE 'America/Asuncion')::date)`)
+    else where.push(Prisma.sql`(u."status"::text <> 'SOLD' OR ${soldVisibleOnBusinessDaySql(Prisma.sql`u."soldAt"`)})`)
   }
   const branch = scope.forcedBranchId ?? filters.branchId
   if (scope.forcedBranchId && filters.branchId && filters.branchId !== scope.forcedBranchId) return null

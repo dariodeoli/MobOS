@@ -1,3 +1,4 @@
+import { assertCanVerify, readVerificationPolicy, verificationSnapshot } from '../../../../lib/stock-verification-policy'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
@@ -46,15 +47,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const now = new Date()
       const result = await prisma.$transaction(async tx => {
         await bloquearAbierta(tx, tenant, v.id)
+        const policy = await readVerificationPolicy(tx, tenant)
+        assertCanVerify(policy, session.user.role)
         const previa = await tx.stockVerificationScan.findUnique({ where: { verificationId_serial: { verificationId: v.id, serial } } })
         if (previa) return { duplicate: true, outcome: previa.outcome, reason: previa.reason, serial, productName: previa.productName }
-        const unit = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true, status: true, branchId: true, locationId: true, removedAt: true, lastVerifiedAt: true, lastVerifiedById: true, verificationCount: true, product: { select: { name: true } } } })
+        const unit = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true, status: true, branchId: true, locationId: true, removedAt: true, lastVerifiedAt: true, lastVerifiedById: true, verificationCount: true, condition: true, batteryHealth: true, batteryCycles: true, notes: true, product: { select: { name: true } } } })
         const verdict = classifyScan(unit, { branchId: v.branchId, locationId: v.locationId })
         const productName = unit?.product?.name ?? null
         await tx.stockVerificationScan.create({ data: { tenantId: tenant, verificationId: v.id, serial, unitId: unit?.id ?? null, outcome: verdict.outcome, reason: verdict.outcome === 'UNEXPECTED' ? verdict.reason : null, productName, scannedById: session.user.id } })
         if (verdict.outcome === 'VERIFIED' && unit) {
           await tx.inventoryUnit.update({ where: { id: unit.id }, data: { lastVerifiedAt: now, lastVerifiedById: session.user.id, verificationCount: { increment: 1 } } })
-          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_PHYSICALLY_VERIFIED, entity: 'InventoryUnit', entityId: unit.id, metadata: { serial, verifiedAt: now.toISOString(), locationId: unit.locationId, verificationId: v.id, previous: { at: unit.lastVerifiedAt?.toISOString() ?? null, byId: unit.lastVerifiedById ?? null, count: unit.verificationCount } } } })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_PHYSICALLY_VERIFIED, entity: 'InventoryUnit', entityId: unit.id, metadata: { snapshot: verificationSnapshot(policy, unit), serial, verifiedAt: now.toISOString(), locationId: unit.locationId, verificationId: v.id, previous: { at: unit.lastVerifiedAt?.toISOString() ?? null, byId: unit.lastVerifiedById ?? null, count: unit.verificationCount } } } })
         }
         return { duplicate: false, outcome: verdict.outcome, reason: verdict.outcome === 'UNEXPECTED' ? verdict.reason : null, serial, productName }
       }).catch(async (cause: any) => {

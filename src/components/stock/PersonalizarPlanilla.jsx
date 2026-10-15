@@ -3,6 +3,7 @@
 // navegador) y el dueño o gerente puede dejarlo como default de la empresa.
 // El costo se muestra solo a quien el servidor se lo da (Configuración › Permisos):
 // acá únicamente se elige si se ve en la planilla.
+import PoliticaVerificacion from './PoliticaVerificacion'
 import { useState } from 'react'
 import { Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -104,10 +105,7 @@ export default function PersonalizarPlanilla({ abierto, onCerrar, planilla, prop
           </ul>
           {rolVeCosto ? <p className="text-[11px] text-mute">El costo lo ven solo quienes tienen el permiso en Configuración › Permisos; acá no se cambia eso.</p> : null}
         </div>
-        <p className="rounded-lg border border-ink-600 p-2 text-[11px] text-mute" data-testid="planilla-pref-verificacion">
-          Verificación: cada fila muestra quién y cuándo verificó la unidad (avatar, fecha y hora); la acción «Verificar» registra a quien la hace.
-          Quién puede verificar se define en Configuración › Permisos.
-        </p>
+        <PoliticaVerificacion />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button type="button" disabled={!hayPropias} data-testid="planilla-pref-empresa" onClick={comoEmpresa} className="min-h-11 rounded-lg px-3 text-xs font-semibold text-fono-light hover:underline disabled:opacity-40 lg:min-h-9">
             Volver al de la empresa

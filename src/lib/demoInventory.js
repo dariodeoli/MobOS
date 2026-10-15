@@ -178,6 +178,7 @@ export function createDemoUnit(data = {}) {
       status: 'AVAILABLE',
       condition: data.condition || 'NEW',
       batteryHealth: data.batteryHealth === '' || data.batteryHealth === undefined ? null : Number(data.batteryHealth),
+      batteryCycles: data.batteryCycles === '' || data.batteryCycles === undefined || data.batteryCycles === null ? null : Number(data.batteryCycles),
       productId: data.productId,
       product: product ? { id: product.id, name: product.nombre, nombre: product.nombre, capacity: product.atributos?.capacidad || '', sku: product.sku || '', pricePyg: product.precioVenta } : null,
       branchId: data.branchId || DEMO_BRANCH,
