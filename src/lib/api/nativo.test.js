@@ -90,3 +90,38 @@ test('los tokens nunca se escriben en localStorage/sessionStorage', () => {
   const fuente = readFileSync(new URL('./nativo.js', import.meta.url), 'utf8')
   assert.doesNotMatch(fuente, /(localStorage|sessionStorage)\.(get|set|remove)Item/)
 })
+
+
+test('una escritura lenta anterior al logout no restaura tokens después de limpiar', async () => {
+ const datos = new Map(); let liberar; let iniciar
+ const iniciada = new Promise(resolve => { iniciar = resolve })
+ const bloqueo = new Promise(resolve => { liberar = resolve })
+ usarAlmacen({get: async key => datos.get(key), set: async (key,value) => { iniciar(); await bloqueo; datos.set(key,value) }, remove: async key => datos.delete(key)})
+ const guardando = guardarTokens({token:'EMPRESA-ANTERIOR',sellerToken:'VENDEDOR-ANTERIOR'})
+ await iniciada
+ const limpiando = limpiarTokens()
+ assert.equal(hayTokens(),false)
+ liberar(); await guardando; await limpiando
+ assert.equal(datos.size,0); assert.equal(hayTokens(),false)
+})
+
+
+test('cargarTokens espera una limpieza en curso y no vuelve a autenticar', async () => {
+ const datos=new Map();let liberar
+ const bloqueo=new Promise(resolve=>{liberar=resolve})
+ usarAlmacen({get:async key=>datos.get(key),set:async(key,value)=>datos.set(key,value),remove:async key=>{await bloqueo;datos.delete(key)}})
+ await guardarTokens({token:'EMPRESA_QA',sellerToken:'VENDEDOR_QA',expiresAt:'2030-01-01T00:00:00Z'})
+ const limpiando=limpiarTokens(), leyendo=cargarTokens()
+ assert.equal(hayTokens(),false)
+ liberar();await limpiando
+ assert.deepEqual(await leyendo,{token:null,sellerToken:null,expiresAt:null})
+ assert.equal(hayTokens(),false);assert.equal(datos.size,0)
+})
+test('una lectura iniciada antes del logout no restaura la memoria al terminar',async()=>{
+ const datos=new Map();let liberar,notificar
+ const bloqueo=new Promise(resolve=>{liberar=resolve}), iniciada=new Promise(resolve=>{notificar=resolve})
+ usarAlmacen({get:async key=>{const valor=datos.get(key);notificar();await bloqueo;return valor},set:async(key,value)=>datos.set(key,value),remove:async key=>datos.delete(key)})
+ await guardarTokens({token:'ANTERIOR_QA'})
+ const leyendo=cargarTokens();await iniciada;await limpiarTokens();liberar()
+ assert.deepEqual(await leyendo,{token:null,sellerToken:null,expiresAt:null});assert.equal(hayTokens(),false)
+})

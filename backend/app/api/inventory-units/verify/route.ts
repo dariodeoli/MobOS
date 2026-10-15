@@ -1,3 +1,5 @@
+import { assertCanVerify, readVerificationPolicy, verificationSnapshot } from '../../../../lib/stock-verification-policy'
+import { InputError } from '../../../../lib/payment-input'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
@@ -27,9 +29,11 @@ export async function POST(request: Request) {
   const now = new Date()
   try {
     const result = await prisma.$transaction(async tx => {
-      const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: { not: 'SOLD' } }, select: { id: true, serial: true, branchId: true, status: true, productId: true, locationId: true, lastVerifiedAt: true, lastVerifiedById: true, verificationCount: true } })
+      const policy = await readVerificationPolicy(tx, tenant)
+      const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: { not: 'SOLD' } }, select: { id: true, serial: true, branchId: true, status: true, productId: true, locationId: true, lastVerifiedAt: true, lastVerifiedById: true, verificationCount: true, condition: true, batteryHealth: true, batteryCycles: true, notes: true } })
       if (units.length !== serials.length) throw new Error('Uno o más equipos no existen, ya fueron vendidos o no se pueden verificar.')
       if (units.some(unit => !branchAllowed(session.user.role, session.user.branchId, unit.branchId))) throw new Error('No autorizado para verificar equipos de otra sucursal.')
+      if (units.some(unit => unit.status !== 'IN_TRANSIT')) assertCanVerify(policy, session.user.role)
       let received = 0
       let vinculadas = 0
       for (const unit of units) {
@@ -84,9 +88,10 @@ export async function POST(request: Request) {
             metadata: {
               serial: unit.serial,
               verifiedAt: now.toISOString(),
+              snapshot: verificationSnapshot(policy, unit),
               // Para deshacer el check dentro del minuto (DELETE de esta ruta).
               previous: { at: unit.lastVerifiedAt?.toISOString() ?? null, byId: unit.lastVerifiedById ?? null, count: unit.verificationCount },
-              locationId: llegoEnTransito ? locationId : unit.locationId ?? null,
+              locationId: locationId ?? (llegoEnTransito ? null : unit.locationId ?? null),
               ...(llegoEnTransito ? { receivedInTransit: true } : {}),
             },
           }
@@ -95,7 +100,7 @@ export async function POST(request: Request) {
       return { verified: units.length, receivedInTransit: received, verifiedAt: now.toISOString(), serials: units.map(unit => unit.serial) }
     })
     return json(result)
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo registrar la verificación.', 409) }
+  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo registrar la verificación.', cause instanceof InputError ? cause.status : 409) }
 }
 
 // Deshacer el check de una fila: solo quien verificó, dentro del minuto y si nadie

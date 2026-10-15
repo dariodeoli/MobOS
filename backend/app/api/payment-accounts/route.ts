@@ -90,47 +90,14 @@ async function validarPartes(tx: Prisma.TransactionClient, tenantId: string, dat
   }
 }
 
-// Cuentas predeterminadas (#118): los medios con logo de
-// src/components/shared/MedioPago.jsx, en el orden de la lista canónica
-// MEDIOS_PAGO (src/lib/catalog.js). La marca vive en `bank` —el logo se mapea
-// por banco— y `name` repite la marca como default previsible porque el modelo
-// exige nombre no vacío: el usuario lo reemplaza por el suyo desde la pantalla.
-// Nacen como esqueleto (sin titular ni número): el usuario completa esos datos
-// cuando los tenga y la validación de transferencias no bloquea el renombre.
-// El tipo es el uso esperado de cada medio y queda editable: bancos y billeteras
-// acreditan por transferencia, los adquirentes de tarjeta por tarjeta y el
-// billete es efectivo.
-const DEFAULT_ACCOUNTS: Array<{ brand: string; kind: PaymentAccountKind }> = [
-  { brand: 'UENO BANK', kind: 'TRANSFER' },
-  { brand: 'POS UENO', kind: 'CARD' },
-  { brand: 'PIK ITAÚ', kind: 'TRANSFER' },
-  { brand: 'DINELCO', kind: 'CARD' },
-  { brand: 'DINERO', kind: 'CASH' },
-  { brand: 'CONTINENTAL', kind: 'TRANSFER' },
-  { brand: 'FAMILIAR', kind: 'TRANSFER' },
-]
-
-// Siembra perezosa: la empresa que todavía no tiene ninguna cuenta recibe las
-// predeterminadas una sola vez. Idempotente: el lock por empresa y el conteo
-// bajo lock evitan duplicados por marca ante lecturas simultáneas.
-async function seedDefaultAccounts(tenantId: string) {
-  if (await prisma.paymentAccount.count({ where: { tenantId } }) > 0) return
-  await prisma.$transaction(async tx => {
-    await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Tenant" WHERE "id" = ${tenantId} FOR UPDATE`
-    if (await tx.paymentAccount.count({ where: { tenantId } }) > 0) return
-    for (const { brand, kind } of DEFAULT_ACCOUNTS) {
-      const account = await tx.paymentAccount.create({ data: { tenantId, name: brand, bank: brand, currency: 'PYG', kind, isActive: true } })
-      await tx.auditLog.create({ data: { tenantId, userId: null, action: 'PAYMENT_ACCOUNT_CREATED', entity: 'PaymentAccount', entityId: account.id, metadata: { after: accountSnapshot(account), seeded: true } } })
-    }
-  })
-}
-
+// #486: leer cuentas nunca crea datos; cada empresa configura sus medios reales.
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const tenantId = session.user.tenantId
-  await seedDefaultAccounts(tenantId)
-  return json(await prisma.paymentAccount.findMany({ where: { tenantId, ...(session.user.role === 'ADMIN' ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }))
+  const retired = await prisma.auditLog.findMany({ where: { tenantId, entity: 'PaymentAccount', action: 'PAYMENT_ACCOUNT_DEFAULT_RETIRED' }, select: { entityId: true } })
+  const retiredIds = retired.map(row => row.entityId).filter((id): id is string => Boolean(id))
+  return json(await prisma.paymentAccount.findMany({ where: { tenantId, ...(retiredIds.length ? { id: { notIn: retiredIds } } : {}), ...(session.user.role === 'ADMIN' ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }))
 }
 
 async function write(request: Request, create: boolean) {
@@ -152,6 +119,8 @@ async function write(request: Request, create: boolean) {
       }
       const id = textInput(body.id, 'id', 200)
       await tx.$queryRaw`SELECT "id" FROM "PaymentAccount" WHERE "id" = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`
+      const retired = await tx.auditLog.findFirst({ where: { tenantId, entity: 'PaymentAccount', entityId: id, action: 'PAYMENT_ACCOUNT_DEFAULT_RETIRED' }, select: { id: true } })
+      if (retired) throw new InputError('Esta cuenta de ejemplo fue retirada. Creá una cuenta con los datos reales de tu empresa.', 409)
       const before = await tx.paymentAccount.findFirst({ where: { id, tenantId } })
       if (!before) throw new InputError('Cuenta no encontrada.', 404)
       if (!Object.keys(data).length) throw new InputError('Faltan cambios.')

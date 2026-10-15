@@ -14,6 +14,16 @@ import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Etiqueta humana por acción. Lo que no está en el mapa se muestra tal cual
 // (el código crudo), que sigue siendo mejor que ocultarlo.
 const ACCIONES = {
+  STOCK_VERIFICATION_POLICY_UPDATED: ['Permisos de verificación de stock actualizados', 'blue'],
+  PAYMENT_ACCOUNT_BANK_CATALOG_NORMALIZED: ['Nombre del banco normalizado', 'blue'],
+  DELIVERY_TARIFF_CREATED: ['Tarifa del repartidor guardada', 'blue'],
+  DELIVERY_TARIFF_DEACTIVATED: ['Tarifa del repartidor desactivada', 'blue'],
+  DELIVERY_TRIP_RECORDED: ['Viajes de reparto registrados', 'blue'],
+  DELIVERY_TRIP_LINKED: ['Viaje vinculado a un pedido', 'blue'],
+  DELIVERY_TRIP_DISCARDED: ['Viaje sin venta descartado', 'blue'],
+  DELIVERY_WEEK_CLOSED: ['Semana del repartidor cerrada', 'blue'],
+  DELIVERY_WEEK_ADJUSTED: ['Saldo del repartidor ajustado', 'blue'],
+
   ORDER_CREATED: ['Venta registrada', 'green'],
   ORDER_DISCOUNT_APPROVED: ['Descuento aprobado', 'orange'],
   PAYMENT_RECORDED: ['Cobro registrado', 'green'],
@@ -131,6 +141,7 @@ const ACCIONES = {
   MESSAGE_TEMPLATE_CREATED: ['Plantilla creada', 'blue'],
   MESSAGE_TEMPLATE_UPDATED: ['Plantilla editada', 'slate'],
   MESSAGE_TEMPLATE_DELETED: ['Plantilla eliminada', 'red'],
+  PAYMENT_ACCOUNT_DEFAULT_RETIRED: ['Cuenta de ejemplo retirada', 'slate'],
   PAYMENT_ACCOUNT_CREATED: ['Cuenta de cobro creada', 'green'],
   PAYMENT_ACCOUNT_UPDATED: ['Cuenta de cobro editada', 'slate'],
   CASH_AUDIT_MARKED: ['Operación de caja auditada', 'blue'],

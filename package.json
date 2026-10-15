@@ -1,7 +1,7 @@
 {
   "name": "mobos",
   "private": true,
-  "version": "1.0.227",
+  "version": "1.0.228",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -31,7 +31,8 @@
     "test:release": "node --test scripts/release.test.mjs",
     "build:ios": "VITE_PLATFORM=ios VITE_API_URL=https://api.moboss.online vite build && cap sync ios",
     "build:ios:dev": "VITE_PLATFORM=ios VITE_PUSH_ENV=sandbox VITE_API_URL=https://api.moboss.online vite build && cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "prebuild": "node scripts/preparar-novedades.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^9.1.2",
@@ -40,6 +41,7 @@
     "@capacitor-mlkit/barcode-scanning": "^7.5.0",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.6.9",
+    "@capacitor/filesystem": "^7.1.9",
     "@capacitor/haptics": "^7.0.5",
     "@capacitor/ios": "^7.6.9",
     "@capacitor/keyboard": "^7.0.6",
@@ -53,7 +55,7 @@
     "html-to-image": "^1.11.11",
     "jsbarcode": "^3.11.6",
     "lucide-react": "^0.456.0",
-    "owncoding-ui": "https://github.com/dariodeoli/owncoding-ui/archive/refs/tags/v0.68.1.tar.gz",
+    "owncoding-ui": "https://github.com/dariodeoli/owncoding-ui/archive/refs/tags/v0.68.12.tar.gz",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

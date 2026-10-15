@@ -9,6 +9,16 @@ export const ROLES_AUDITORIA = ['ADMIN', 'GERENTE'] as const
 export const MAX_AUDIT_LIMIT = 200
 
 export const ACCIONES_AUDITORIA: Record<string, string> = {
+  PAYMENT_ACCOUNT_DEFAULT_RETIRED: 'Cuenta de ejemplo retirada',
+  STOCK_VERIFICATION_POLICY_UPDATED: 'Permisos de verificación de stock actualizados',
+  DELIVERY_TARIFF_CREATED: 'Tarifa del repartidor guardada',
+  DELIVERY_TARIFF_DEACTIVATED: 'Tarifa del repartidor desactivada',
+  DELIVERY_TRIP_RECORDED: 'Viajes de reparto registrados',
+  DELIVERY_TRIP_LINKED: 'Viaje vinculado a un pedido',
+  DELIVERY_TRIP_DISCARDED: 'Viaje sin venta descartado',
+  DELIVERY_WEEK_CLOSED: 'Semana del repartidor cerrada',
+  DELIVERY_WEEK_ADJUSTED: 'Saldo del repartidor ajustado',
+
   ORDER_CREATED: 'Venta registrada',
   ORDER_DISCOUNT_APPROVED: 'Descuento aprobado',
   PAYMENT_RECORDED: 'Cobro registrado',
@@ -144,6 +154,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   MESSAGE_TEMPLATE_DELETED: 'Plantilla eliminada',
   PAYMENT_ACCOUNT_CREATED: 'Cuenta de cobro creada',
   PAYMENT_ACCOUNT_UPDATED: 'Cuenta de cobro editada',
+  PAYMENT_ACCOUNT_BANK_CATALOG_NORMALIZED: 'Nombre del banco normalizado',
   CASH_AUDIT_MARKED: 'Operación de caja auditada',
   COMMISSION_SETTLED: 'Liquidación de comisiones creada',
   COMMISSION_SETTLEMENT_PAID: 'Liquidación de comisiones pagada',
@@ -186,6 +197,9 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
 
 // Área legible por entidad: el nombre técnico no dice nada en la pantalla.
 export const AREAS_AUDITORIA: Record<string, string> = {
+  DeliveryTariff: 'Reparto',
+  DeliveryTrip: 'Reparto',
+  DeliveryWeeklyClose: 'Reparto',
   Order: 'Pedidos',
   InventoryUnit: 'Inventario · unidades',
   ImeiCheckQuery: 'IMEI',

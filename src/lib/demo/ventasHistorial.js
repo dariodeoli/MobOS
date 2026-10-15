@@ -8,6 +8,7 @@
 // delivery, y pagos + saldo = total (el saldo es lo que no se cobró).
 import { CATALOGO_VENTA } from './catalogoPro.js'
 import { imeiDemo } from './iphones.js'
+import { diaDemo } from './reloj.js'
 
 const SEMILLA = 451
 export const DIAS_HISTORIAL = 120
@@ -70,8 +71,9 @@ const elegirPonderado = (rng, lista, peso) => {
 
 // Factor de demanda del día: fin de semana fuerte, quincena y tendencia.
 export function factorDeDia(fecha, diasAtras) {
-  const semana = [0.55, 0.8, 0.9, 1, 1.05, 1.55, 1.8][fecha.getDay()] // dom..sáb
-  const dia = fecha.getDate()
+  const calendario = new Date(`${diaDemo(0, fecha)}T00:00:00Z`)
+  const semana = [0.55, 0.8, 0.9, 1, 1.05, 1.55, 1.8][calendario.getUTCDay()] // dom..sáb
+  const dia = calendario.getUTCDate()
   const quincena = (dia <= 3 || (dia >= 15 && dia <= 17) || dia >= 30) ? 1.4 : 1
   const tendencia = 0.8 + 0.2 * (1 - diasAtras / DIAS_HISTORIAL)
   return semana * quincena * tendencia
@@ -130,8 +132,7 @@ export function generarVentasHistorial({ hoy = new Date(), dias = DIAS_HISTORIAL
   let numero = PRIMER_NUMERO
 
   for (let diasAtras = dias - 1; diasAtras >= 0; diasAtras -= 1) {
-    const fecha = new Date(hoy)
-    fecha.setDate(fecha.getDate() - diasAtras)
+    const fecha = new Date(`${diaDemo(diasAtras, hoy)}T15:00:00Z`)
     // Hasta el día 8 conviven con las ventas manuales: se agrega menos volumen.
     const base = factorDeDia(fecha, diasAtras) * (diasAtras <= 8 ? 1.2 : 2.6)
     const cantidad = Math.max(0, Math.round(base + (rng() - 0.5) * 1.6))

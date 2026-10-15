@@ -260,6 +260,7 @@ export default function AppShell({
       </button>
     )
   const angosta = usePantallaAngosta()
+  const stockCompacto = ['unidades', 'inventario'].includes(active)
   const offlineButton = (testid, { compacto = false } = {}) =>
     avisoCola && (
       <button
@@ -356,6 +357,7 @@ export default function AppShell({
   return (
     <div
       data-testid="shell"
+      data-stock-compacto={stockCompacto ? '1' : undefined}
       data-tema-v2={temaV2 ? '1' : '0'}
       className={cn(
         'shell-nav-v2 flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row',
@@ -443,7 +445,7 @@ export default function AppShell({
           className="sticky top-0 z-20 border-b border-ink-600 bg-ink pt-safe lg:hidden"
         >
           <div className="flex h-14 min-w-0 items-center gap-1 px-3">
-            <img src="/mobos-icon.svg" alt="MobOS" className="h-7 w-7 shrink-0" />
+            {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : <img src="/mobos-icon.svg" alt="MobOS" className="h-7 w-7 shrink-0" />}
             <div data-testid="shell-sucursal-mobile" className="flex min-w-0 flex-1 items-center">
               <SelectorSucursal className="max-w-full" />
             </div>
@@ -463,7 +465,7 @@ export default function AppShell({
           title={title}
           subtitle={subtitle}
           actions={headerActions}
-          aviso={esDemo ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
+          aviso={esDemo && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
           record={recordActivo}

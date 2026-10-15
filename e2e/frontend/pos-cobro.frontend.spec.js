@@ -34,11 +34,23 @@ async function seedCart(page, cantidad, pagos) {
     const cart = await import('/src/lib/posCart.js')
     const c = storage.contextoActual()
     const lista = storage.getProductos()
-    const items = Array.from({ length: cantidad }, (_, i) => {
+    const items = Array.isArray(cantidad) ? cantidad : Array.from({ length: cantidad }, (_, i) => {
       const p = lista[i % lista.length]
       return { key: `qa-${i}`, productoId: p.id, nombre: p.nombre, quantity: 1, precio: 180000, sobrePedido: true }
     })
-    cart.guardarCarrito(c.empresaId, c.sucursalId, c.userId, { items, customer: { name: 'Prueba frontend local' }, pagos })
+    let customer = { name: 'Prueba frontend local' }
+    if (Array.isArray(cantidad)) {
+      const { listarClientesDemo } = await import('/src/lib/demoClientes.js')
+      const { listDemoUnits, reserveDemoUnits } = await import('/src/lib/demoInventory.js')
+      customer = listarClientesDemo().find(cliente => cliente.name === 'Carlos Benítez')
+      for (const item of items.filter(item => item.requiereSerie)) {
+        const unidad = listDemoUnits().find(unidad => unidad.productId === item.productoId && unidad.status === 'AVAILABLE')
+        if (!unidad) throw new Error('Falta unidad demo disponible para el escenario multítem.')
+        item.serials = [unidad.serial]
+        reserveDemoUnits({ serials: item.serials, customerId: customer.id, customerName: customer.name })
+      }
+    }
+    cart.guardarCarrito(c.empresaId, c.sucursalId, c.userId, { items, customer, pagos })
   }, { cantidad, pagos })
 }
 
@@ -245,4 +257,63 @@ test('celular 390: el POS móvil sigue con su barra del carrito y sin controles 
   await page.getByTestId('pos-barra-carrito').getByTestId('pos-barra-carrito-abrir').click()
   await expect(page.getByTestId('carrito-cobrar')).toBeVisible()
   await expect(page.getByTestId('carrito-listo')).toBeHidden()
+})
+
+
+test('#487 POS demo conserva pedido multítem y saldo parcial al reabrir y cobrar', async ({ page }) => {
+  await enterPos(page, 1440, 900, { items: [
+    { key: 'funda-qa', productoId: 'demo-funda-magsafe-transparente', nombre: 'Funda MagSafe Transparente', quantity: 1, precio: 180000 },
+    { key: 'iphone-qa', productoId: 'demo-iphone-15-128-azul', nombre: 'iPhone 15 128GB Azul', quantity: 1, precio: 4850000, requiereSerie: true },
+  ], pagos: [pagoPyg('demo-cash-pyg', 1000000)] })
+  const stockAntes = await page.evaluate(async () => (await import('/src/lib/storage.js')).getProductos().find(p => p.id === 'demo-funda-magsafe-transparente').stock)
+  await expect(page.getByTestId('carrito-total')).toContainText('5.030.000')
+  await page.getByTestId('pos-cobro').locator('button[type="submit"]').first().click()
+  // El POS puede pedir confirmar el saldo pendiente antes de crear el pedido.
+  const parcial = page.getByRole('button', { name: 'Marcar pago parcial', exact: true })
+  if (await parcial.isVisible()) await parcial.click()
+  await expect(page.getByRole('button', { name: 'Ver pedido', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Ver pedido', exact: true }).click()
+  const articulos = page.getByTestId('pedido-articulos')
+  await expect(articulos).toContainText('Funda MagSafe Transparente')
+  await expect(articulos).toContainText('iPhone 15 128GB Azul')
+  const totales = page.getByTestId('pedido-totales-f3')
+  await expect(totales).toContainText('5.030.000')
+  await expect(totales).toContainText('1.000.000')
+  await expect(totales).toContainText('4.030.000')
+  const persistido = await page.evaluate(async () => {
+    const { listVentas } = await import('/src/lib/storage.js')
+    const { totalesPedido } = await import('/src/utils/pedido.js')
+    const ultima = listVentas().find(v => v.items?.some(i => i.description === 'Funda MagSafe Transparente') && v.items?.some(i => i.description === 'iPhone 15 128GB Azul'))
+    return { pagos: ultima.pagos.map(p => ({ id: p.id, monto: p.monto })), numero: ultima.orderNumber, filas: listVentas().filter(v => v.orderNumber === ultima.orderNumber).length, ...totalesPedido(ultima) }
+  })
+  expect(persistido.pagos).toHaveLength(1)
+  expect(persistido.pagos[0].monto).toBe(1000000)
+  expect(persistido).toMatchObject({ filas: 1, total: 5030000, pagado: 1000000, pendiente: 4030000, estado: 'Parcial' })
+  await page.getByRole('button', { name: /^Cobrar saldo/ }).click()
+  const modal = page.getByRole('dialog').filter({ hasText: /^Pagos ·/ })
+  await modal.getByLabel('Cuenta de destino').selectOption({ index: 1 })
+  await modal.getByLabel('Monto del pago').fill('4030000')
+  await modal.getByRole('button', { name: 'Registrar pago' }).click()
+  await expect(modal.getByTestId('pago-aviso')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: /^Cobrar saldo/ })).toHaveCount(0)
+  await expect(totales).toContainText('5.030.000')
+  await expect(articulos).toContainText('iPhone 15 128GB Azul')
+  const final = await page.evaluate(async numero => {
+    const { listVentas, getProductos } = await import('/src/lib/storage.js')
+    const { totalesPedido } = await import('/src/utils/pedido.js')
+    const { listDemoUnits } = await import('/src/lib/demoInventory.js')
+    const { buildOrderReceiptHtml } = await import('/src/components/shared/OrderReceipt.jsx')
+    const venta = listVentas().find(v => v.orderNumber === numero)
+    return { ...totalesPedido(venta), pagos: venta.pagos.map(p => ({ id: p.id, monto: p.monto })), stock: getProductos().find(p => p.id === 'demo-funda-magsafe-transparente').stock,
+      serialVendido: listDemoUnits().find(u => u.serial === venta.items[1].serials[0]).status,
+      recibo: await buildOrderReceiptHtml(venta) }
+  }, persistido.numero)
+  expect(final).toMatchObject({ total: 5030000, pagado: 5030000, pendiente: 0, estado: 'Pagado', stock: stockAntes - 1, serialVendido: 'SOLD' })
+  expect(final.pagos).toHaveLength(2)
+  expect(new Set(final.pagos.map(p => p.id)).size).toBe(2)
+  expect(final.pagos.reduce((suma, p) => suma + p.monto, 0)).toBe(5030000)
+  expect(final.recibo).toContain('Funda MagSafe Transparente')
+  expect(final.recibo).toContain('iPhone 15 128GB Azul')
+  expect(final.recibo).toContain('5.030.000')
 })

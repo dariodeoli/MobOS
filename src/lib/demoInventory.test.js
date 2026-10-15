@@ -86,3 +86,12 @@ test('filtrarUnidadesDemo acota por producto, sucursal y estado', () => {
   // Las unidades sin sucursal (caso borde) siguen visibles en cualquier filtro.
   assert.equal(demo.filtrarUnidadesDemo([{ id: 'x', branchId: null, status: 'AVAILABLE' }], { branchId: demo.DEMO_BRANCH }).length, 1)
 })
+
+test('recepción demo conserva ciclos de carga, incluido cero (#400)', () => {
+  const productId = demo.demoInventorySeed().units[0].productId
+  for (const batteryCycles of [0, 61]) {
+    const serial = `CICLOS-${batteryCycles}`
+    demo.createDemoUnit({ productId, serial, branchId: demo.DEMO_BRANCH, batteryHealth: 100, batteryCycles })
+    assert.equal(demo.listDemoUnits(serial)[0].batteryCycles, batteryCycles)
+  }
+})

@@ -84,3 +84,11 @@ test('#400: la etiqueta de unidad imprime la sigla del proveedor y jamás su nom
   assert.match(impreso, /S\/S/)
   assert.doesNotMatch(impreso, /Mayorista|Secreto/)
 })
+
+test('selección de etiquetas conserva ciclos en ESC/POS y vista previa sin costos (#400)', () => {
+  const fila = { ...unidad('CICLOS-ETIQUETA'), batteryHealth: 100, batteryCycles: 0 }
+  const resultado = etiquetasDeFilasStock([fila], { base: BASE })
+  assert.ok(textoDe(resultado.trabajos).includes('100% · 0 ciclos'))
+  assert.ok(htmlVistaPreviaEtiquetas(resultado.items).includes('100% · 0 ciclos'))
+  assert.equal(textoDe(resultado.trabajos).includes('4321987'), false)
+})

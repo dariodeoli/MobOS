@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  buildStockItemsPageSql, buildStockItemsTotalsSql, buildStockTotals, decodeStockCursor, encodeStockCursor, mapStockRow,
+  soldVisibleOnBusinessDaySql, buildStockItemsPageSql, buildStockItemsTotalsSql, buildStockTotals, decodeStockCursor, encodeStockCursor, mapStockRow,
   paginateStockRows, parseStockItemsQuery, redactStockItem, redactUnitCosts, STOCK_ITEMS_DEFAULT_LIMIT, STOCK_ITEMS_MAX_LIMIT,
   type StockItemsFilters, type StockItemsScope,
 } from '../lib/stock-items'
@@ -220,4 +220,22 @@ test('planilla v2 (#466): quién verificó y la nota de venta con su entrega sal
 test('filtros sin estado ni tipo usan los defaults esperados', () => {
   const filters: StockItemsFilters = filtersOf()
   assert.deepEqual([filters.rowKind, filters.stockKind, filters.status, filters.q], [null, null, null, ''])
+})
+
+// Integración focalizada: solo usa la base aislada declarada por el arnés.
+test('archivo diario: cruza medianoche de Paraguay y no la de UTC', { skip: !process.env.MOBOS_STOCK_TEST_DATABASE_URL }, async () => {
+  const { Client } = require('pg')
+  const { Prisma } = require('@prisma/client')
+  const db = new Client({ connectionString: process.env.MOBOS_STOCK_TEST_DATABASE_URL })
+  await db.connect()
+  try {
+    const soldAt = Prisma.sql`TIMESTAMP '2026-10-15 23:30:00'`
+    for (const [clock, expected] of [['2026-10-16T00:00:01Z', true], ['2026-10-16T02:59:59Z', true], ['2026-10-16T03:00:00Z', false]]) {
+      const predicate = soldVisibleOnBusinessDaySql(soldAt, Prisma.sql`${clock}::timestamptz`)
+      const result = await db.query(`SELECT ${predicate.text} AS visible`, predicate.values)
+      assert.equal(result.rows[0].visible, expected, String(clock))
+    }
+    const vendidos = sqlOf(buildStockItemsPageSql(filtersOf('kind=unit&status=vendido'), scope(), null)!)
+    assert.ok(!vendidos.includes('America/Asuncion'), 'Vendidos conserva el historial sin archivo diario')
+  } finally { await db.end() }
 })

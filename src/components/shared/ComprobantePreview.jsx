@@ -229,12 +229,11 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
     }
   }
 
-  const acciones = (
-    <div className="space-y-2">
+  const controles = (
       <div className="flex flex-wrap items-center gap-2">
         <label className="block space-y-1 text-xs text-mute">
           <span>Comprobante</span>
-          <div role="radiogroup" aria-label="Tipo de comprobante" className="flex items-center gap-1">
+          <div role="radiogroup" aria-label="Tipo de comprobante" className="flex flex-wrap items-center gap-1">
             {NIVELES_MODELO.map(({ id, label, icon }) => (
               <button
                 key={id}
@@ -247,14 +246,14 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
                 className={`inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold md:h-9 md:min-h-9 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${nivel === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
               >
                 <Icon name={icon} className="h-4 w-4" />
-                <span className="hidden sm:inline">{label}</span>
+                <span>{label}</span>
               </button>
             ))}
           </div>
         </label>
         <label className="block space-y-1 text-xs text-mute">
           <span>Formato</span>
-          <div role="radiogroup" aria-label="Formato de impresión" className="flex items-center gap-1">
+          <div role="radiogroup" aria-label="Formato de impresión" className="flex flex-wrap items-center gap-1">
             {formatos.map(([id, label]) => (
               <button
                 key={id}
@@ -273,6 +272,10 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
           </div>
         </label>
       </div>
+  )
+
+  const acciones = (
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 sm:justify-between">
         <CompartirImagen
           construirHtml={() => html}
@@ -295,6 +298,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
   return (
     <VentanaDetalle open={open} onClose={onClose} title="Comprobante" size="lg">
       <div className="space-y-3">
+        {controles}
         {agente && Number(estado?.cola?.pendientes || 0) > 0 && (
           <Aviso tono="warn" compact className="px-3">
             El puente tiene {estado.cola.pendientes} trabajo(s) encolado(s): la impresora no respondió y reintenta solo.
@@ -335,7 +339,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
           onConfirm={() => { setPreguntaDuplicado(null); imprimirDirecto(true) }}
         />
         <p className="text-[11px] text-mute">
-          Cada nivel imprime su propio QR privado. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
+          El comprobante muestra la información del nivel elegido. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
         </p>
         <VistaPreviaPapel
           formato={formato}

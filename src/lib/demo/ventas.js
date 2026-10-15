@@ -9,6 +9,7 @@ import { EMPRESA_DEMO, SUCURSALES_DEMO } from './empresa.js'
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS } from './iphones.js'
 import { CATALOGO_VENTA } from './catalogoPro.js'
 import { generarVentasHistorial } from './ventasHistorial.js'
+import { diaDemo, instanteDemo } from './reloj.js'
 
 // ── Catálogo de líneas demo (descripción, modelo y categoría visibles) ──
 const ARTICULOS = {
@@ -45,17 +46,6 @@ const MEDIO_CRM = {
   'SALDO A FAVOR': { code: 'STORE_CREDIT', label: 'Saldo a favor' },
 }
 
-const hace = (dias, hora = 10, minuto = 0) => {
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() - dias)
-  fecha.setHours(hora, minuto, 0, 0)
-  return fecha.toISOString()
-}
-const fechaLocal = (dias) => {
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() - dias)
-  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
-}
 
 const linea = (productoId, cantidad, precioUnitario, seriales = []) => {
   const articulo = ARTICULOS[productoId] || CATALOGO_VENTA[productoId] || { descripcion: productoId, modelo: '', categoria: '' }
@@ -209,26 +199,26 @@ export const estadoPagoDeVenta = (venta) => {
   const pagado = totalPagado(venta)
   return total > 0 && pagado >= total ? 'Pagado' : pagado > 0 ? 'Parcial' : 'Pendiente'
 }
-export const fechaDeVenta = (venta) => fechaLocal(venta.diasAtras)
-export const creadoEnDeVenta = (venta) => hace(venta.diasAtras, venta.hora, venta.minuto)
-const conHora = (venta, hora, diasDespues = 0) => {
+export const fechaDeVenta = (venta, ahora = new Date()) => diaDemo(venta.diasAtras, ahora)
+export const creadoEnDeVenta = (venta, ahora = new Date()) => instanteDemo(venta.diasAtras, venta.hora, venta.minuto, ahora)
+const conHora = (venta, hora, diasDespues = 0, ahora = new Date()) => {
   const [h, m] = String(hora || '10:30').split(':').map(Number)
-  return hace(Math.max(0, venta.diasAtras - (Number(diasDespues) || 0)), h || 10, m || 0)
+  return instanteDemo(Math.max(0, venta.diasAtras - (Number(diasDespues) || 0)), Number.isFinite(h) ? h : 10, Number.isFinite(m) ? m : 0, ahora)
 }
 const vendedorDe = (id) => EQUIPO_DEMO.find((usuario) => usuario.id === id) || EQUIPO_DEMO[0]
 const sucursalDe = (id) => SUCURSALES_DEMO.find((sucursal) => sucursal.id === id) || SUCURSALES_DEMO[0]
 
-const cuponDePago = (venta, pago, indice) => ({
+const cuponDePago = (venta, pago, indice, ahora) => ({
   id: pago.id || `demo-pago-${venta.id}-${indice}`,
   medioPago: pago.medioPago,
   cuenta: pago.cuenta || '',
   monto: Number(pago.monto) || 0,
   amountPyg: Number(pago.monto) || 0,
-  fecha: conHora(venta, pago.hora, pago.diasDespues),
+  fecha: conHora(venta, pago.hora, pago.diasDespues, ahora),
 })
 
 /** Ventas en la forma legacy que consume `storage.js`/el POS. */
-export function ventasDemoLegacy() {
+export function ventasDemoLegacy(ahora = new Date()) {
   return VENTAS_DEMO.map((venta) => {
     const items = (venta.items || []).map((item, indice) => {
       const articulo = ARTICULOS[item.productoId] || {}
@@ -246,7 +236,7 @@ export function ventasDemoLegacy() {
         ...(garantiaDiasDemo(item.categoria || articulo.categoria) ? { warrantyDays: garantiaDiasDemo(item.categoria || articulo.categoria) } : {}),
       }
     })
-    const pagos = (venta.pagos || []).map((item, indice) => cuponDePago(venta, item, indice))
+    const pagos = (venta.pagos || []).map((item, indice) => cuponDePago(venta, item, indice, ahora))
     const pagado = pagos.reduce((suma, item) => suma + item.monto, 0)
     const total = totalDeVenta(venta)
     const vendedor = vendedorDe(venta.vendedorId)
@@ -255,8 +245,8 @@ export function ventasDemoLegacy() {
       id: venta.id,
       orderNumber: venta.numero,
       numero: venta.numero,
-      fecha: fechaDeVenta(venta),
-      creadoEn: creadoEnDeVenta(venta),
+      fecha: fechaDeVenta(venta, ahora),
+      creadoEn: creadoEnDeVenta(venta, ahora),
       cliente: venta.cliente,
       clienteId: venta.clienteId,
       customer: { id: venta.clienteId, name: venta.cliente },
@@ -286,13 +276,13 @@ export function ventasDemoLegacy() {
 }
 
 /** Pedidos de un cliente en la forma que consume la ficha/portal del CRM. */
-export function pedidosDemoDeCliente(clienteId) {
+export function pedidosDemoDeCliente(clienteId, ahora = new Date()) {
   return VENTAS_DEMO
     .filter((venta) => venta.clienteId === clienteId)
     .map((venta) => {
       const pagos = (venta.pagos || []).map((item) => {
         const medio = MEDIO_CRM[String(item.medioPago || '').toUpperCase()] || { code: 'CASH', label: String(item.medioPago || 'Efectivo') }
-        return { amountPyg: Number(item.monto) || 0, method: medio.code, methodLabel: medio.label, paidAt: conHora(venta, item.hora, item.diasDespues) }
+        return { amountPyg: Number(item.monto) || 0, method: medio.code, methodLabel: medio.label, paidAt: conHora(venta, item.hora, item.diasDespues, ahora) }
       })
       const cobrado = pagos.reduce((suma, item) => suma + item.amountPyg, 0)
       const total = totalDeVenta(venta)
@@ -303,7 +293,7 @@ export function pedidosDemoDeCliente(clienteId) {
         totalPyg: total,
         collectedPyg: cobrado,
         pendingPyg: Math.max(0, total - cobrado),
-        createdAt: creadoEnDeVenta(venta),
+        createdAt: creadoEnDeVenta(venta, ahora),
         status: cobrado >= total && total > 0 ? 'COMPLETED' : 'PENDING',
         deliveryType: venta.entrega,
         fulfillmentStatus: venta.fulfillment || (venta.entrega === 'DELIVERY' ? 'DELIVERED' : 'PICKED_UP'),

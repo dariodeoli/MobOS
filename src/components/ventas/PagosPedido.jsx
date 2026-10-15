@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { codigoPedido, pagadoNeto, totalesPedido } from '@/utils/pedido'
 import CheckAnimado from '@/components/shared/CheckAnimado'
-import { Aviso, Badge, BarraProgreso, Button, Input, Modal, MoneyInput, Select } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Input, MoneyInput, Select } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -12,7 +12,7 @@ import { listVentas, updateVenta, refrescar } from '@/lib/storage'
 import { listDemoProofs, saveDemoProof } from '@/lib/demoProofs'
 import { gs, num } from '@/utils/calculos'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
-import { getPaymentAccounts } from '@/lib/paymentAccounts'
+import { getPaymentAccounts, KIND_LABELS } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import SerialField from '@/components/shared/SerialField'
@@ -20,7 +20,7 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
 import { whatsappUrl } from '@/utils/telefono'
 import { renderMessage } from '@/components/customers/customerMessaging'
-import { printInternalReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { printInternalReceipt } from '@/components/shared/OrderReceipt'
 import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketReciboInterno } from '@/lib/printing/tickets'
@@ -29,6 +29,8 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import CorregirPagoModal from './CorregirPagoModal'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { metodoDeMedio } from '@/lib/demoConciliacion'
 import { esDeCorreccion, esReversion, evaluarCorreccionPago, reversionesPorOriginal } from '@/utils/correccionPago'
 
@@ -53,9 +55,10 @@ export function whatsappTrackingLink(order, extra = '', template = null) {
 const METODOS_PAGO = ['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'PIX', 'STORE_CREDIT']
 const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
-export default function PagosPedido({ venta, onClose }) {
+export default function PagosPedido({ venta, onClose, onVerComprobante, open = true }) {
   const { esDemo, usuario, sesion } = useSesion()
   const [order, setOrder] = useState(venta)
+  const [comprobante, setComprobante] = useState(false)
   useEffect(() => {
     if (esDemo) return
     let vigente = true
@@ -385,8 +388,10 @@ export default function PagosPedido({ venta, onClose }) {
     if (!resultado.dialogo) setError(resultado.error || 'No se pudo imprimir el recibo interno.')
   }
 
-  return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${codigoPedido(order.codigo || order.orderNumber) || order.cliente || 'Pedido'}`} size="amplio">
-    <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
+  return <>
+    {!onVerComprobante && <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)} />}
+    <VentanaDetalle open={open && !comprobante} busy={busy} className="pagos-pedido" onClose={() => !busy && onClose()} title={`Pagos · ${codigoPedido(order.codigo || order.orderNumber) || order.cliente || 'Pedido'}`} size="lg">
+    <p className="mb-3 text-xs text-mute">Cobrá el saldo en uno o varios pagos. Adjuntar un archivo no confirma una transferencia.</p>
     {trackingUrlFor(order) && !esDemo && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
         {whatsappTrackingLink(order, '', plantillaSeguimiento) ? (
@@ -396,22 +401,22 @@ export default function PagosPedido({ venta, onClose }) {
         )}
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { copiarAlPortapapeles(trackingUrlFor(order)) }}>Copiar enlace</button>
         {!esDemo && order.customer?.email && <button type="button" disabled={emailBusy} className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={enviarComprobante}>{emailBusy ? 'Encolando…' : 'Enviar comprobante por email'}</button>}
-        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => printOrderReceipt(order, { format: 'a4' })}>Imprimir comprobante</button>
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={imprimirRegalo}>Imprimir recibo de regalo</button>
         <span className="w-full text-xs text-mute sm:w-auto">El enlace muestra solo estado y comprobante; sin teléfonos, direcciones ni pagos.</span>
       </div>
     )}
-    <div className="mb-5 grid grid-cols-2 gap-3">
-      <div className="rounded-2xl border border-ok/25 bg-gradient-to-br from-ok/10 to-transparent p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl tabular-nums text-ok">{gs(pagadoPedido)}</strong></div>
-      <div className={`rounded-2xl border p-4 ${pending > 0 ? 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent' : 'border-ink-600'}`}><p className="text-xs text-mute">Pendiente</p><strong className={`mt-1 block text-xl tabular-nums ${pending > 0 ? 'text-warn' : ''}`}>{gs(pending)}</strong></div>
+    <div data-testid="pagos-resumen" className="mb-4 flex flex-wrap items-start gap-3 border-y border-ink-600 py-3">
+      <div className="min-w-0 flex-[1_1_8rem]"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block break-words text-xl tabular-nums text-ok-text">{gs(pagadoPedido)}</strong></div>
+      <div className="min-w-0 flex-[1_1_8rem]"><p className="text-xs text-mute">Pendiente</p><strong className={`mt-1 block break-words text-xl tabular-nums ${pending > 0 ? 'text-warn-text' : ''}`}>{gs(pending)}</strong></div>
       <BarraProgreso
         valor={Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((pagadoPedido / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}
         tono="ok"
         etiqueta="Progreso de pago del pedido"
-        className="col-span-2 bg-ink-700"
+        className="basis-full bg-ink-700"
       />
-      {saldoFavor?.availablePyg > 0 && <p className="col-span-2 text-xs text-ok">Saldo a favor disponible: {gs(saldoFavor.availablePyg)}</p>}
+      {saldoFavor?.availablePyg > 0 && <p className="basis-full text-xs text-ok-text">Saldo a favor disponible: {gs(saldoFavor.availablePyg)}</p>}
     </div>
+    <Button type="button" variant="outline" className="mb-4" data-testid="pagos-comprobante" onClick={() => onVerComprobante ? onVerComprobante() : setComprobante(true)}>Ver comprobante</Button>
     {reciboPostventa && !postventaOpen && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={imprimirPostventa}>{reciboPostventa.operation === 'EXCHANGE' ? 'Imprimir recibo de cambio' : 'Imprimir recibo de devolución'}</button>
@@ -458,7 +463,7 @@ export default function PagosPedido({ venta, onClose }) {
       </div>
     )}
     {cuotasOpen && (
-      <form onSubmit={crearPlanCuotas} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
+      <form onSubmit={crearPlanCuotas} className="mb-4 space-y-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
         <h3 className="font-semibold">Plan de cuotas</h3>
         <p className="text-xs text-mute">Se reparte el saldo pendiente ({gs(pending)}) en cuotas mensuales a crédito, cada una con su vencimiento. Cada cuota se cobra con su botón «Cobrar cuota»: queda saldada, la deuda baja y el recordatorio se detiene.</p>
         <div className={GRILLA_DOS_COLUMNAS}>
@@ -468,7 +473,7 @@ export default function PagosPedido({ venta, onClose }) {
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={cuotasBusy || Number(cuotasForm.count) < 2 || Number(cuotasForm.count) > 24}>{cuotasBusy ? 'Creando…' : 'Crear plan'}</Button><Button type="button" variant="ghost" disabled={cuotasBusy} onClick={() => setCuotasOpen(false)}>Cancelar</Button></div>
       </form>
     )}
-    {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
+    {pending > 0 && <form onSubmit={register} data-testid="pagos-cobrar" className="mb-4 space-y-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
       <h3 className="font-semibold">{cuotaPago ? 'Cobrar cuota del plan' : 'Registrar pago parcial o total'}</h3>
       {cuotaPago && (
         <div data-testid="cuota-en-cobro" className="rounded-lg border border-fono/30 bg-ink-800 p-3 text-xs">
@@ -477,8 +482,8 @@ export default function PagosPedido({ venta, onClose }) {
           <button type="button" className="mt-2 text-mute underline" onClick={() => { setCuotaPago(null); setAmount('') }}>Cancelar y cobrar libre</button>
         </div>
       )}
-      <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setRateOrigin(null); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
-      <label className="block text-xs text-mute">Monto en {FOREIGN(account?.currency) ? account.currency : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={FOREIGN(account?.currency) ? account.currency : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={FOREIGN(account?.currency) ? '10,50' : 'Gs 0'} />{!FOREIGN(account?.currency) && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
+      <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setRateOrigin(null); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency === 'PYG' ? 'Gs' : a.currency} · {a.accountNumber || KIND_LABELS[a.kind] || 'Cuenta'}</option>)}</Select></label>
+      <label className="block text-xs text-mute">Monto en {FOREIGN(account?.currency) ? account.currency : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={FOREIGN(account?.currency) ? account.currency : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={FOREIGN(account?.currency) ? '10,50' : '0'} />{!FOREIGN(account?.currency) && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
       {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={(v) => { setRate(v); setRateOrigin(v === '' || v == null ? null : origenManual(sesion?.nombre)) }} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando…' : 'Usar cotización del día'}</button>{rateOrigin && <span className={`ml-2 text-[11px] ${rateOrigin.stale ? 'text-warn' : 'text-mute'}`} data-testid="cotizacion-origen">{etiquetaOrigen(rateOrigin)}</span>}</div>}
       {account && !cuotaPago && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><SerialField aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={value => setDevice(d => ({ ...d, serial: value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
@@ -532,5 +537,6 @@ export default function PagosPedido({ venta, onClose }) {
     {notice && <p role="status" data-testid="pago-aviso" className="mobos-chip-cambia mt-4 flex items-center gap-2 text-sm text-ok"><CheckAnimado size={24} className="shrink-0" />{notice}</p>}
     {corrigiendo && <CorregirPagoModal pago={corrigiendo} pedido={order} usuario={usuario} cuentas={accounts} esDemo={esDemo} onClose={() => setCorrigiendo(null)} onCorregido={pagoCorregido} />}
     {esDemo && <p className="mt-4 text-xs text-mute">Demo: pagos y archivos se guardan sólo en este navegador.</p>}
-  </Modal>
+  </VentanaDetalle>
+  </>
 }

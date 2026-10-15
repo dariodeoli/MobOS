@@ -7,6 +7,11 @@ datasource db {
 }
 
 model Tenant {
+  reconciliationDays ReconciliationDay[]
+  deliveryTariffs DeliveryTariff[]
+  deliveryTrips DeliveryTrip[]
+  deliveryWeeklyCloses DeliveryWeeklyClose[]
+  deliveryWeeklyAdjustments DeliveryWeeklyAdjustment[]
   stockVerifications  StockVerification[]
   productImages       ProductImage[]
   presenceTabs        PresenceTab[]
@@ -308,6 +313,9 @@ model GeoCity {
 }
 
 model Branch {
+  reconciliationDays ReconciliationDay[]
+  deliveryTrips DeliveryTrip[]
+  deliveryWeeklyCloses DeliveryWeeklyClose[]
   branchUsages UserBranchUsage[]
   tradeInDevices TradeInDevice[]
   cashSessions   CashSession[]
@@ -356,6 +364,13 @@ model Branch {
 }
 
 model User {
+  deliveryTariffsCreated DeliveryTariff[] @relation("DeliveryTariffCreator")
+  deliveryTripsDriven DeliveryTrip[] @relation("DeliveryTripDriver")
+  deliveryTripsCreated DeliveryTrip[] @relation("DeliveryTripCreator")
+  deliveryTripsResolved DeliveryTrip[] @relation("DeliveryTripResolver")
+  deliveryClosesDriven DeliveryWeeklyClose[] @relation("DeliveryCloseDriver")
+  deliveryClosesCreated DeliveryWeeklyClose[] @relation("DeliveryCloseCreator")
+  deliveryAdjustmentsCreated DeliveryWeeklyAdjustment[] @relation("DeliveryAdjustmentCreator")
   memberships         TenantMembership[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
@@ -1485,6 +1500,7 @@ model QuoteApproval {
 }
 
 model Order {
+  deliveryTrips DeliveryTrip[]
   tradeInDevices    TradeInDevice[]
   id                String            @id @default(cuid())
   tenantId          String
@@ -4093,4 +4109,127 @@ model DeviceToken {
   updatedAt   DateTime  @updatedAt
 
   @@index([tenantId, userId])
+}
+
+// Honorarios del repartidor; independientes del deliveryPyg cobrado al cliente.
+model DeliveryTariff {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name String
+  validFrom DateTime @db.Date
+  validUntil DateTime @db.Date
+  tiers Json
+  isActive Boolean @default(true)
+  createdById String
+  createdBy User @relation("DeliveryTariffCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  trips DeliveryTrip[]
+  @@index([tenantId, isActive, validFrom])
+}
+
+model DeliveryTrip {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  driverId String
+  driver User @relation("DeliveryTripDriver", fields: [driverId], references: [id], onDelete: Restrict)
+  orderId String?
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  tariffId String
+  tariff DeliveryTariff @relation(fields: [tariffId], references: [id], onDelete: Restrict)
+  tariffSnapshot Json
+  route String
+  distanceMeters Int
+  tripsCount Int
+  feePerTripPyg BigInt
+  totalFeePyg BigInt
+  performedOn DateTime @db.Date
+  status String @default("COMPLETED")
+  resolutionNote String?
+  resolvedById String?
+  resolvedBy User? @relation("DeliveryTripResolver", fields: [resolvedById], references: [id], onDelete: Restrict)
+  resolvedAt DateTime?
+  weeklyCloseId String?
+  weeklyClose DeliveryWeeklyClose? @relation(fields: [weeklyCloseId], references: [id], onDelete: Restrict)
+  idempotencyKey String
+  createdById String
+  createdBy User @relation("DeliveryTripCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, branchId, driverId, performedOn])
+  @@index([tenantId, orderId, status])
+}
+
+model DeliveryWeeklyClose {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  driverId String
+  driver User @relation("DeliveryCloseDriver", fields: [driverId], references: [id], onDelete: Restrict)
+  weekStart DateTime @db.Date
+  feesPyg BigInt
+  collectedPyg BigInt
+  renderedPyg BigInt
+  balanceAtClosePyg BigInt
+  snapshot Json
+  createdById String
+  createdBy User @relation("DeliveryCloseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  trips DeliveryTrip[]
+  adjustments DeliveryWeeklyAdjustment[]
+  @@unique([tenantId, branchId, driverId, weekStart])
+  @@index([tenantId, weekStart])
+}
+
+model DeliveryWeeklyAdjustment {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  weeklyCloseId String
+  weeklyClose DeliveryWeeklyClose @relation(fields: [weeklyCloseId], references: [id], onDelete: Restrict)
+  deltaPyg BigInt
+  reason String
+  idempotencyKey String
+  createdById String
+  createdBy User @relation("DeliveryAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([tenantId, idempotencyKey])
+  @@index([weeklyCloseId, createdAt])
+}
+
+// Declaración diaria independiente de caja/bancos (#451); no crea ni confirma cobros.
+model ReconciliationDay {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  businessDay String @db.VarChar(10)
+  createdAt DateTime @default(now())
+  revisions ReconciliationDayRevision[]
+  @@unique([tenantId, branchId, businessDay])
+}
+
+// Revisiones inmutables; el estado actual se reevalúa contra cobros vigentes.
+model ReconciliationDayRevision {
+  id String @id @default(cuid())
+  dayId String
+  day ReconciliationDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  tenantId String
+  requestId String
+  requestHash String
+  version Int
+  declarations Json
+  snapshot Json
+  paymentSnapshot Json
+  note String?
+  createdById String
+  createdAt DateTime @default(now())
+  @@unique([tenantId, requestId])
+  @@unique([dayId, version])
 }
