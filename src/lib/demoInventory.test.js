@@ -2,6 +2,7 @@
 // variados y mutaciones session-only. Sin navegador: storage falso.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 
 // Fuera de la demo, demoStorage delega en localStorage: acá se simula con
 // memoria para que las mutaciones sobrevivan dentro del archivo de tests.
@@ -14,11 +15,11 @@ globalThis.localStorage = {
 
 const demo = await import('./demoInventory.js')
 
-test('el seed demo tiene 24 unidades con seriales ficticios y estados variados', () => {
+test('el seed demo tiene 60 unidades con seriales ficticios y estados variados', () => {
   const state = demo.demoInventorySeed()
-  assert.equal(state.units.length, 24)
+  assert.equal(state.units.length, 60)
   assert.ok(state.units.every(unit => /^35\d{13}$/.test(unit.serial)), 'IMEI de aspecto real: 15 dígitos con prefijo 35')
-  assert.equal(new Set(state.units.map(unit => unit.serial)).size, 24, 'IMEI únicos')
+  assert.equal(new Set(state.units.map(unit => unit.serial)).size, 60, 'IMEI únicos')
   const estados = new Set(state.units.map(unit => unit.status))
   for (const esperado of ['AVAILABLE', 'RESERVED', 'SOLD', 'DEFECTIVE', 'IN_TRANSIT']) assert.ok(estados.has(esperado), esperado)
   assert.equal(state.locations.filter(location => location.branchId === demo.DEMO_BRANCH).length, 3)
@@ -28,7 +29,7 @@ test('el seed demo tiene 24 unidades con seriales ficticios y estados variados',
 })
 
 test('listar filtra por búsqueda y la vista de eliminados arranca vacía', () => {
-  assert.equal(demo.listDemoUnits().length, 24)
+  assert.equal(demo.listDemoUnits().length, 60)
   const encontradas = demo.listDemoUnits(demo.demoInventorySeed().units[1].serial)
   assert.equal(encontradas.length, 1)
   assert.equal(demo.listDemoUnits('', 'removed').length, 0)
@@ -93,5 +94,44 @@ test('recepción demo conserva ciclos de carga, incluido cero (#400)', () => {
     const serial = `CICLOS-${batteryCycles}`
     demo.createDemoUnit({ productId, serial, branchId: demo.DEMO_BRANCH, batteryHealth: 100, batteryCycles })
     assert.equal(demo.listDemoUnits(serial)[0].batteryCycles, batteryCycles)
+  }
+})
+
+const camposIdentidad = ['id', 'serial', 'productId', 'status', 'condition', 'branchId', 'locationId', 'supplierName', 'costCurrency', 'originalCost', 'exchangeRatePyg', 'costPyg', 'batteryHealth', 'batteryCycles']
+const identidad = unit => Object.fromEntries(camposIdentidad.map(key => [key, unit[key]]))
+
+test('#350 conserva las identidades y valores de las 24 unidades originales', () => {
+  store.clear()
+  const primeras = demo.demoInventorySeed().units.slice(0, 24).map(identidad)
+  // Snapshot de campos comerciales del seed anterior, HEAD5ab622ae. Se excluyen
+  // solo fechas relativas al reloj, que no identifican ni valorizan la unidad.
+  assert.equal(createHash('sha256').update(JSON.stringify(primeras)).digest('hex'), '6daaa79be67ae3d661e169291df4c7e6eea250a2a723823ceccc7c7651b9deb5')
+})
+
+test('#350 agrega 36 teléfonos deterministas, disponibles y sin afectar ventas/reservas', () => {
+  store.clear()
+  const state = demo.demoInventorySeed()
+  const nuevas = state.units.slice(24)
+  assert.equal(nuevas.length, 36)
+  assert.equal(new Set(state.units.map(unit => unit.id)).size, 60)
+  store.clear()
+  assert.deepEqual(state.units.map(identidad), demo.demoInventorySeed().units.map(identidad))
+  const conteos = Object.fromEntries(['AVAILABLE', 'RESERVED', 'SOLD', 'DEFECTIVE', 'IN_TRANSIT'].map(status => [status, state.units.filter(unit => unit.status === status).length]))
+  assert.deepEqual(conteos, { AVAILABLE: 51, RESERVED: 3, SOLD: 3, DEFECTIVE: 2, IN_TRANSIT: 1 })
+  for (const unit of nuevas) {
+    assert.equal(unit.status, 'AVAILABLE')
+    assert.equal(unit.sale, null)
+    assert.deepEqual(unit.events, [])
+    assert.equal(state.locations.find(location => location.id === unit.locationId)?.branchId, unit.branchId)
+    assert.ok(Date.parse(unit.createdAt) <= Date.now(), 'el ingreso nuevo no está en el futuro')
+    assert.ok(unit.costPyg > 0 && unit.supplierName && unit.batteryHealth > 0)
+  }
+  for (const unit of state.units) {
+    // Verificación independiente del dígito de control de los 60 IMEI.
+    const suma = [...unit.serial].reverse().reduce((total, char, index) => {
+      const doble = index % 2 ? Number(char) * 2 : Number(char)
+      return total + (doble > 9 ? doble - 9 : doble)
+    }, 0)
+    assert.equal(suma % 10, 0, unit.serial)
   }
 })

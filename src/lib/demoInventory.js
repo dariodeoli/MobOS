@@ -2,7 +2,7 @@
 // y proveedores ficticios. Contrato session-only (#201): las mutaciones viven en
 // sessionStorage y el seed se regenera al entrar a la demo; nada toca la base.
 //
-// Los seriales son claramente de prueba (prefijo DEMO, nunca un IMEI real) y los
+// Los IMEI son ficticios, deterministas y con dígito de control válido; los
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
 import { PROVEEDORES_DEMO } from './demo/proveedores.js'
@@ -36,8 +36,8 @@ const COTIZACION = 7300
 const verificadorDeDemo = (semilla) => { const usuario = EQUIPO_DEMO[Math.abs(Number(semilla) || 0) % EQUIPO_DEMO.length]; return { id: usuario.id, name: usuario.nombre, role: usuario.rol, hasAvatar: true } }
 const semillaDe = (valor) => String(valor || '').split('').reduce((suma, char) => suma + char.charCodeAt(0), 0)
 
-// 24 unidades: 15 disponibles, 3 reservadas, 3 vendidas, 2 en revisión y 1 en
-// tránsito; 14 nuevas y 10 seminuevas; repartidas entre depósitos y piso.
+// Los primeros 24 equipos conservan sus identidades, condiciones y estados.
+// #350 agrega 36 disponibles: 60 teléfonos, sin crear cobros ni nuevas ventas.
 const ESTADOS = [
   'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE',
   'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'AVAILABLE',
@@ -66,7 +66,7 @@ const NOTAS_DEMO = { 3: '#MOB-0041 · Lucía F.', 6: 'Ingresó con caja abierta'
 const primerDiaDeMes = (meses) => { const ahora = new Date(); return new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() + meses, 1)).toISOString() }
 
 function unidad(producto, indice) {
-  const estado = ESTADOS[indice - 1]
+  const estado = ESTADOS[indice - 1] || 'AVAILABLE'
   const condicion = indice % 5 === 0 ? 'USED' : indice % 7 === 0 ? 'REFURBISHED' : 'NEW'
   const enUsd = indice % 2 === 0
   const costoPyg = enUsd ? null : Math.round(Number(producto.precioCosto) * 0.94 / 1000) * 1000
@@ -84,11 +84,11 @@ function unidad(producto, indice) {
     productId: producto.id,
     product: { id: producto.id, name: producto.nombre, nombre: producto.nombre, capacity: producto.atributos?.capacidad || '', sku: producto.sku || producto.id.toUpperCase().slice(0, 16), pricePyg: producto.precioVenta },
     branchId: indice % 8 === 0 ? DEMO_BRANCH_2 : DEMO_BRANCH,
-    locationId: UBICACION_POR_INDICE[indice - 1] || 'demo-ubic-deposito-1',
+    locationId: UBICACION_POR_INDICE[indice - 1] || (indice % 8 === 0 ? 'demo-ubic-vm-deposito' : UBICACIONES[(indice - 25) % 3].id),
     supplierName: PROVEEDORES[indice % PROVEEDORES.length].name,
     supplier: PROVEEDORES[indice % PROVEEDORES.length],
     notes: NOTAS_DEMO[indice] || '',
-    createdAt: hace(30 - indice),
+    createdAt: hace(indice <= ESTADOS.length ? 30 - indice : 30 + indice - ESTADOS.length),
     lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
     // #219: la demo espeja la forma real (`lastVerifiedAt` es lo que leen la
     // fila y la ficha); `verifiedAt` queda por compatibilidad.
@@ -115,7 +115,7 @@ function seed() {
   return {
     version: 1,
     products: productos,
-    units: Array.from({ length: 24 }, (_, i) => unidad(productos[i % productos.length], i + 1)),
+    units: Array.from({ length: 60 }, (_, i) => unidad(productos[i % productos.length], i + 1)),
     locations: UBICACIONES.map(item => ({ ...item })),
     branches: SUCURSALES.map(item => ({ ...item })),
     suppliers: PROVEEDORES.map(item => ({ ...item })),
