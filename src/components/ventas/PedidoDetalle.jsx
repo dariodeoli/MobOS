@@ -130,7 +130,7 @@ function PhotoThumb({ orderId, commentId, photo }) {
 
 const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
 
-export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false }) {
+export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false, abrirCobro = false }) {
   const toast = useToast()
   const navigate = useNavigate()
   const { usuario, vendedores, sesion } = useSesion()
@@ -139,7 +139,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [accesoMsg, setAccesoMsg] = useState('')
   const [comprobante, setComprobante] = useState(false)
   // Cobrar el saldo pendiente sin salir del detalle (mismo modal que Cobranzas).
-  const [cobroAbierto, setCobroAbierto] = useState(false)
+  const [cobroAbierto, setCobroAbierto] = useState(Boolean(abrirCobro))
   // Nota del pedido editable desde el detalle (#21).
   const [notaOpen, setNotaOpen] = useState(false)
   const [notaTexto, setNotaTexto] = useState('')

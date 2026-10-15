@@ -262,7 +262,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [asignandoLista, setAsignandoLista] = useState(false)
   // Edición directa de la configuración comercial (solo administración/gerencia).
   const [comercialAbierto, setComercialAbierto] = useState(false)
-  const [comercialForm, setComercialForm] = useState({ pricingTier: 'RETAIL', creditHabilitado: false, creditDays: '', creditLimitPyg: '' })
+  const [comercialForm, setComercialForm] = useState({ pricingTier: 'RETAIL', creditHabilitado: false, creditDays: '', creditLimitPyg: '', blocked: false, blockedReason: '' })
   const [guardandoComercial, setGuardandoComercial] = useState(false)
   // Direcciones de la ficha (alta, edición y baja reemplazando el conjunto).
   const [direccionForm, setDireccionForm] = useState(null)
@@ -319,6 +319,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       creditHabilitado: Number(ficha.creditLimitPyg || 0) > 0,
       creditDays: ficha.creditDays ?? '',
       creditLimitPyg: Number(ficha.creditLimitPyg || 0) > 0 ? ficha.creditLimitPyg : '',
+      blocked: Boolean(ficha.blocked),
+      blockedReason: ficha.blockedReason || '',
     })
     setComercialAbierto(true)
   }
@@ -338,6 +340,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       body.creditLimitPyg = null
       body.creditDays = null
     }
+    // Cliente bloqueado (#399): el motivo es obligatorio y se audita en el servidor.
+    if (comercialForm.blocked && !comercialForm.blockedReason.trim()) { toast.error('Falta el motivo', 'Indicá por qué se bloquea al cliente.'); return }
+    body.blocked = Boolean(comercialForm.blocked)
+    body.blockedReason = comercialForm.blocked ? comercialForm.blockedReason.trim() : null
     setGuardandoComercial(true)
     try {
       await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, body)
@@ -1808,6 +1814,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               </form>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Configuración comercial</p>
+                {profile?.customer?.blocked ? <span data-testid="perfil-bloqueado" className="rounded border border-bad/40 px-1.5 py-0.5 text-xs font-bold text-bad-text">Bloqueado{profile.customer.blockedReason ? `: ${profile.customer.blockedReason}` : ''}</span> : null}
                 {puedeResolver && (
                   <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirComercial}>
                     <Icon name="edit" className="h-3.5 w-3.5" />
@@ -2416,6 +2423,15 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 <Input id="comercial-dias" type="number" min={0} max={365} disabled={guardandoComercial} value={comercialForm.creditDays} onChange={(event) => setComercialForm((form) => ({ ...form, creditDays: event.target.value }))} placeholder="30" />
               </FormField>
             </div>
+          )}
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input type="checkbox" data-testid="comercial-bloqueado" disabled={guardandoComercial} checked={comercialForm.blocked} onChange={(event) => setComercialForm((form) => ({ ...form, blocked: event.target.checked }))} />
+            Cliente bloqueado
+          </label>
+          {comercialForm.blocked && (
+            <FormField label="Motivo del bloqueo" htmlFor="comercial-motivo-bloqueo" hint="Se muestra en rojo al vender; no se le puede vender a crédito.">
+              <Input id="comercial-motivo-bloqueo" maxLength={300} disabled={guardandoComercial} value={comercialForm.blockedReason} onChange={(event) => setComercialForm((form) => ({ ...form, blockedReason: event.target.value }))} placeholder="Ej. Deuda vencida" />
+            </FormField>
           )}
           <p className="text-xs text-mute">El cambio queda registrado en la cronología del cliente.</p>
           <div className="flex justify-end gap-2">
