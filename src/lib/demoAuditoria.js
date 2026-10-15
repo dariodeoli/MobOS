@@ -1,6 +1,7 @@
 import { metodoDeMedio } from './demoConciliacion.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { getDemoTenant } from './demoTenant.js'
+import { esperadoCaja } from './demoCash.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
 // `/api/cash/audit` y `/api/cash/audit-operations` con las ventas demo y la
@@ -106,7 +107,7 @@ export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde
   const recibidoPyg = operaciones.filter((operacion) => operacion.direction === 'IN').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
   const salidasPyg = operaciones.filter((operacion) => operacion.direction === 'OUT').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
   // Esperado del rango: apertura + recibido − salidas (la misma cuenta del servidor y de Caja).
-  const esperadoPyg = Math.max(0, aperturaPyg + recibidoPyg - salidasPyg)
+  const esperadoPyg = esperadoCaja(aperturaPyg, recibidoPyg - salidasPyg)
   const diferenciaPyg = cash?.status === 'CLOSED' ? (Number(cash.countedPyg) || 0) - esperadoPyg : 0
   return {
     resumen: {
