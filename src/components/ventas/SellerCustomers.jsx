@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Aviso, Button, ConfirmDialog, IconAction, Input, Modal, MoneyInput, SaveActions, Select, Textarea, useResultado } from '@/components/ui'
+import { Aviso, Button, ConfirmDialog, EmptyState, IconAction, Input, Modal, MoneyInput, SaveActions, Select, Textarea, useResultado } from '@/components/ui'
 import CountrySelect from '@/components/shared/CountrySelect'
 import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -282,6 +282,22 @@ export default function SellerCustomers() {
   }
 
   const filasImportadas = filasParaImportar(importTexto)
+  // Vacío (Shopify): sin filtros ni búsqueda es una tarjeta con «Crear cliente»
+  // y sin encabezado; con filtros, el encabezado queda y el aviso va debajo.
+  const hayFiltro = Boolean(search) || filtro !== 'todos'
+  const sinClientes = !data.loading && !data.error && !rows.length && !hayFiltro
+  const limpiarFiltros = () => { setSearch(''); setQuery(''); setFiltro('todos') }
+  const vacioFiltrado = !rows.length && hayFiltro ? (
+    <div data-testid="clientes-sin-coincidencias">
+      <EmptyState
+        compact
+        icon="search"
+        title="Ningún cliente coincide"
+        description="Probá con otro nombre, teléfono o RUC."
+        action={<Button type="button" variant="outline" onClick={limpiarFiltros}>Limpiar filtros</Button>}
+      />
+    </div>
+  ) : null
   const resumenMostrar = esDemo ? { total: rows.length, wholesalers: rows.filter((row) => row.wholesale).length, retail: rows.filter((row) => !row.wholesale).length } : resumen
   // Vista previa v2 (#241): resumen de la lista en tiles —clientes listados,
   // con deuda y saldo por cobrar— con los números de consola.
@@ -398,21 +414,12 @@ export default function SellerCustomers() {
       <ResumenMetricas
         testId="resumen-clientes"
         className="clientes-f3-summary"
+        pista={!esDemo && (data.hayMas || hayFiltro || Number(resumenMostrar?.total) > rows.length) ? 'Deuda: clientes en pantalla' : undefined}
         items={[
-          {
-            titulo: 'Clientes',
-            valor: resumenMostrar?.total ?? '—',
-            alcance: esDemo ? 'En pantalla' : 'Tienda',
-            nota: esDemo ? undefined : `${rows.length} en pantalla`,
-          },
-          {
-            titulo: 'Mayoristas',
-            valor: resumenMostrar?.wholesalers ?? '—',
-            alcance: esDemo ? 'En pantalla' : 'Tienda',
-            nota: resumenMostrar ? undefined : resumenCargando ? 'Cargando…' : 'No disponible',
-          },
-          { titulo: 'Con deuda', valor: resumenV2.conDeuda, alcance: 'En pantalla' },
-          { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar), alcance: 'En pantalla' },
+          { titulo: 'Clientes', valor: resumenMostrar?.total ?? '—' },
+          { titulo: 'Mayoristas', valor: resumenMostrar?.wholesalers ?? '—' },
+          { titulo: 'Con deuda', valor: resumenV2.conDeuda },
+          { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar) },
         ].map((item) => ({ ...item, tono: 'clientes-f3-value' }))}
       />
     </div>
@@ -421,7 +428,7 @@ export default function SellerCustomers() {
         Resumen de tienda no disponible. Los importes corresponden solo a los clientes en pantalla.
       </p>
     )}
-    <SellerFeedback {...data} empty={!rows.length} />
+    <SellerFeedback {...data} empty={false} />
     {seguimientos.length > 0 && (
       <section className="clientes-f3-followups rounded-xl border border-warn/25 bg-warn/5 p-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-warn">Seguimientos para hoy ({seguimientos.length})</h3>
@@ -436,8 +443,19 @@ export default function SellerCustomers() {
         ))}</div>
       </section>
     )}
+    {sinClientes && (
+      <div data-testid="clientes-vacio" className="rounded-xl border border-ink-600 bg-ink-800">
+        <EmptyState
+          icon="users"
+          title="Todavía no tenés clientes"
+          description="Creá tu primer cliente o importá tu lista para vender a crédito y seguir sus compras."
+          action={<Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>}
+        />
+      </div>
+    )}
+    {!data.loading && !data.error && !sinClientes && vista === 'grid' && !rows.length && vacioFiltrado}
     {!data.loading && !data.error && vista === 'grid' && <ul className={cn(GRILLA_DOS_COLUMNAS, 'clientes-f3-grid')}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
+    {!data.loading && !data.error && !sinClientes && vista === 'list' && <ClientesTabla vacio={vacioFiltrado} rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
     {!data.loading && !data.error && data.hayMas && <div className="clientes-f3-pagination flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} />
     {/* Unificar duplicados (#268) desde la selección de la lista: dos fichas. */}

@@ -1709,7 +1709,7 @@ for (const width of [320, 390, 768, 860, 861, 1440]) {
       await expect(row).toContainText('100.000.000')
       await expect(row).not.toContainText('qa@example.invalid')
       await expect(root.getByTestId('resumen-clientes')).toContainText('127')
-      await expect(root.getByTestId('resumen-clientes')).toContainText('2 en pantalla')
+      await expect(root.getByTestId('resumen-clientes')).toContainText('Deuda: clientes en pantalla')
       // Una sola barra: las acciones (Exportar, Importar, Crear) viven en su hueco.
       await expect(root.getByTestId('barra-clientes').locator('[data-slot="actions"]').getByRole('button')).toHaveCount(3)
       expect(
@@ -1801,15 +1801,14 @@ test('F3 Clientes cursor, tenant/page scopes, filters and export contracts', asy
   const root = page.locator('.clientes-f3')
   await expect(root.getByTestId('cliente-fila')).toHaveCount(50)
   await expect(root.getByTestId('resumen-clientes')).toContainText('127')
-  await expect(root.getByTestId('resumen-clientes')).toContainText('50 en pantalla')
+  await expect(root.getByTestId('resumen-clientes')).toContainText('Deuda: clientes en pantalla')
   expect(state.queries[0]).toEqual({ orden: 'actividad', limit: '50' })
   await root.getByRole('button', { name: 'Cargar más clientes' }).click()
   await expect(root.getByTestId('cliente-fila')).toHaveCount(51)
   expect(state.queries.at(-1)).toEqual({ orden: 'actividad', limit: '50', cursor: 'qa-cliente-49' })
-  await expect(root.getByTestId('resumen-clientes')).toContainText('51 en pantalla')
+  await expect(root.getByTestId('resumen-clientes')).toContainText('Deuda: clientes en pantalla')
   const pageDebt = root.getByTestId('resumen-clientes').locator('> div').last()
   await expect(pageDebt).toContainText('100.250.000')
-  await expect(pageDebt).toContainText('En pantalla')
   await expect(root.getByRole('button', { name: 'Cargar más clientes' })).toHaveCount(0)
   const queriesBefore = state.queries.length
   await root.getByRole('button', { name: 'Ordenar cliente en pantalla', exact: true }).click()
@@ -1853,8 +1852,7 @@ for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
     ).toContainText('Resumen de tienda no disponible')
     const tenantCount = root.getByTestId('resumen-clientes').locator('> div').first()
     await expect(tenantCount.locator('.clientes-f3-value')).toHaveText('—')
-    await expect(tenantCount).toContainText('2 en pantalla')
-    await expect(tenantCount).toContainText('Tienda')
+    await expect(tenantCount).not.toContainText('Tienda')
     if (role === 'VENDEDOR')
       await expect(root.getByRole('navigation', { name: 'Secciones de clientes' })).toHaveCount(0)
     else {

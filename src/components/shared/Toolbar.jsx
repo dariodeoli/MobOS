@@ -75,7 +75,7 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
             data-slot="search"
             className={cn(
               'min-w-0 basis-full sm:min-w-[14rem] sm:flex-1 sm:basis-64',
-              lista && 'max-sm:order-[-5] max-sm:flex-1 max-sm:basis-40 sm:min-w-[20rem] sm:max-w-[26.25rem] sm:basis-80',
+              lista && 'max-sm:order-[-5] max-sm:flex-1 max-sm:basis-40 sm:min-w-[14rem] sm:max-w-[20rem] sm:basis-64',
               searchClassName,
             )}
           >

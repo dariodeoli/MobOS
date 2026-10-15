@@ -23,6 +23,7 @@ export default defineConfig({
     'multiempresa.frontend.spec.js',
     'publicas-layout.frontend.spec.js',
     'corregir-pago.frontend.spec.js',
+    'clientes-lista.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,
