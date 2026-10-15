@@ -221,10 +221,10 @@ test('Unidades: Vendidos y Eliminados son opciones del chip Estado y los 12 dest
   await page.getByTestId('filtro-estado-abrir').click()
   await page.getByTestId('filtro-estado-eliminados').click()
   await expect(page).toHaveURL(/\/stock\/eliminados$/)
-  // Control reúne siete vistas en el segundo nivel y no hay una tercera fila de pestañas.
+  // Control reúne ocho vistas en el segundo nivel y no hay una tercera fila de pestañas.
   await openShellDestination(page, 'Control')
   const vistas = page.getByTestId('subtabs-inventario')
-  for (const nombre of ['Conteos', 'Alertas', 'Autorizaciones', 'Taller', 'Ubicaciones', 'Compartido', 'Reservas'])
+  for (const nombre of ['Conteos', 'Verificación', 'Alertas', 'Autorizaciones', 'Taller', 'Ubicaciones', 'Compartido', 'Reservas'])
     await expect(vistas.getByRole('tab', { name: new RegExp(`^${nombre}`) })).toBeVisible()
   const filasDePestanas = await page.locator('[role="tablist"]:visible, [data-testid="shell-contexto"]:visible, [data-testid="shell-subcontexto"]:visible').count()
   expect(filasDePestanas, 'filas de pestañas visibles (shell + vistas)').toBeLessThanOrEqual(2)

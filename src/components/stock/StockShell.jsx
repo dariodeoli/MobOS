@@ -20,6 +20,7 @@ import TabTraslados from './TabTraslados'
 import TabUbicaciones from './TabUbicaciones'
 import TabCompartido from './TabCompartido'
 import TabConteos from './TabConteos'
+import TabVerificacion from './TabVerificacion'
 
 export default function StockShell({ tab: tabProp, onTabChange } = {}) {
   const ctx = useStockControl({ tab: tabProp, onTabChange })
@@ -79,6 +80,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
       {tab === 'compartido' && <TabCompartido ctx={ctx} />}
       {tab === 'eliminados' && <ListaStock ctx={ctx} vista="eliminados" />}
       {tab === 'conteos' && <TabConteos ctx={ctx} />}
+      {tab === 'verificacion' && <TabVerificacion ctx={ctx} />}
     </div>
       <AccionesUnidad ctx={ctx} />
     </div>

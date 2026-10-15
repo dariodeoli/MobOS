@@ -25,6 +25,7 @@ import {
   garantiaPlanilla, imeiCorto, modeloPlanilla, notaDeVenta, siglaUbicacion, textoBateria, textoGrupo,
 } from '@/lib/planilla'
 import { COLUMNAS_PLANILLA, columnasQueEntran, fechaHoraCorta, imeiUltimos4, planillaEfectiva, plantillaColumnas, siglaSucursal } from '@/lib/planillaPrefs'
+import { msParaDeshacer } from '@/lib/verificacionStock'
 import { identificadorDeItem, textoEstadoItem } from '@/lib/stockItems'
 import { estiloCondicion } from '@/lib/stockDisplay'
 import { fechaHora } from '@/utils/fecha'
@@ -123,7 +124,15 @@ function NotaEditable({ item, puedeEditar, onGuardar }) {
 }
 
 /** Verificación (#466): avatar de quien verificó + fecha y hora cortas (detalle en el tooltip) y acción de verificar. */
-function CeldaVerificado({ item, ahora, onVerificar, busy }) {
+function CeldaVerificado({ item, ahora, onVerificar, onDeshacer, busy }) {
+  // Deshacer vive 1 minuto: un temporizador oculta el botón al vencer sin esperar otro render.
+  const [, repintar] = useState(0)
+  const restante = onDeshacer ? msParaDeshacer(item.lastVerifiedAt) : 0
+  useEffect(() => {
+    if (restante <= 0) return undefined
+    const temporizador = window.setTimeout(() => repintar((n) => n + 1), restante + 50)
+    return () => window.clearTimeout(temporizador)
+  }, [restante])
   if (item.kind !== 'unit') return <span className="pl-sec">—</span>
   const verificada = Boolean(item.lastVerifiedAt)
   const persona = { id: item.verifiedById || undefined, name: item.verifiedByName || item.verifiedBy || 'Equipo' }
@@ -136,7 +145,20 @@ function CeldaVerificado({ item, ahora, onVerificar, busy }) {
           <span className="pl-sec truncate text-[11px] tabular-nums">{fechaHoraCorta(item.lastVerifiedAt, ahora)}</span>
         </>
       ) : <span className="pl-sec truncate text-[11px]">sin verificar</span>}
-      {onVerificar ? (
+      {onDeshacer && restante > 0 ? (
+        <button
+          type="button"
+          data-testid="planilla-deshacer"
+          disabled={busy}
+          title="Deshacer mi verificación (1 minuto)"
+          aria-label={`Deshacer la verificación de ${identificadorDeItem(item)}`}
+          className="pl-verificar pl-deshacer"
+          onClick={(event) => { event.stopPropagation(); onDeshacer() }}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <Icon name="back" className="h-3 w-3" aria-hidden="true" />
+        </button>
+      ) : onVerificar ? (
         <button
           type="button"
           data-testid="planilla-verificar"
@@ -164,6 +186,7 @@ function FilaPlanilla({ colores, columnas, prefs, item, rolVeCosto, seleccionado
   const esUnidad = item.kind === 'unit'
   const puedeEditar = esUnidad && item.status !== 'vendido' && item.status !== 'eliminado'
   const verificar = acciones?.find((accion) => accion.label === 'Verificar')
+  const deshacer = acciones?.find((accion) => accion.label === 'Deshacer verificación')
   const celdas = {
     condicion: () => (
       <span className="pl-celda" data-testid="planilla-condicion">
@@ -202,7 +225,7 @@ function FilaPlanilla({ colores, columnas, prefs, item, rolVeCosto, seleccionado
           : <><ChipEstadoPlanilla estado={estado} modo={prefs.estado} /><NotaDeVenta item={item} /></>}
       </span>
     ),
-    verificado: () => <CeldaVerificado item={item} ahora={ahora} busy={busy} onVerificar={verificar ? () => verificar.run() : undefined} />,
+    verificado: () => <CeldaVerificado item={item} ahora={ahora} busy={busy} onVerificar={verificar ? () => verificar.run() : undefined} onDeshacer={deshacer ? () => deshacer.run() : undefined} />,
     garantia: () => (
       <span className="pl-celda pl-garantia pl-2" data-tono={garantia.tono} data-testid="planilla-garantia" title={garantia.detalle}>
         {garantia.texto || <span className="pl-sec">—</span>}

@@ -410,7 +410,11 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const setAndRefresh = async (operation, success, alFallar) => { setBusy(true); setError(''); setNotice(''); try { await operation(); setNotice(success); await refresh(query); await refrescarCatalogo({ forzar: true }) } catch (cause) { const mensaje = cause?.message || 'No se pudo guardar.'; if (alFallar) alFallar(mensaje); else setError(mensaje) } finally { setBusy(false) } }
   async function search(event) { event.preventDefault(); await refresh(busquedaDiferida) }
   async function exportarUnidades() { setExportando(true); setError(''); try { await descargarCsv('inventory-units', { q: query.trim() || undefined, orden }, 'mobos-inventario-unidades.csv') } catch (cause) { setError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) } }
-  async function verify(unit) { await setAndRefresh(() => resources.inventoryUnits.verify({ serial: unit.serial }), `IMEI ${unit.serial.slice(-4)} verificado.`) }
+  // El demo no tiene servidor: firma con la persona de la sesión (el API usa la sesión real).
+  const firmaDemo = esDemo && usuario ? { demoUser: { id: usuario.id, name: usuario.name || usuario.nombre, role: usuario.role } } : {}
+  async function verify(unit) { await setAndRefresh(() => resources.inventoryUnits.verify({ serial: unit.serial, ...firmaDemo }), `IMEI ${unit.serial.slice(-4)} verificado. Podés deshacerlo durante 1 minuto.`) }
+  // Deshacer el check de la fila: solo quien lo hizo, durante el primer minuto (lo valida el servidor).
+  async function deshacerVerificacion(unit) { await setAndRefresh(() => resources.inventoryUnits.undoVerify({ serial: unit.serial }), `Verificación del IMEI ${unit.serial.slice(-4)} deshecha.`) }
   // Rack (#240 §4): verificación en serie, un solo refresh y un solo aviso.
   async function verificarLote(lista = []) {
     if (!lista.length) return
@@ -1162,6 +1166,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     search,
     exportarUnidades,
     verify,
+    deshacerVerificacion,
+    usuarioId: usuario?.id || null,
     verificarLote,
     abrirReceive,
     abrirLlegada,

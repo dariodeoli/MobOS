@@ -100,11 +100,12 @@ for (const dark of [false, true]) {
     // Columnas: modelo + batería con todos los dígitos (% · ciclos), ingreso, IMEI mono, ubicación con sigla, proveedor con sigla, garantía.
     const semi = page.locator('[data-testid="planilla-fila"][data-condicion="used"]').first()
     await expect(semi.getByTestId('planilla-bateria')).toHaveText(/^\d+% · \d+ ciclos$/)
-    // «Ingreso» es la primera columna que se suelta cuando el ancho no alcanza (a 1440 con el menú abierto no entra).
+    // «Garantía» es la primera columna que se suelta cuando el ancho no alcanza (a 1440 con el menú abierto no entra) y recién después «Ingreso».
     await expect(semi.getByTestId('unidad-imei')).toHaveClass(/font-mono/)
     await expect(semi.getByTestId('ubicacion-badge')).toBeVisible()
     await expect(semi.getByTestId('proveedor-badge')).toHaveText(/^[A-Z]{3,8}$/)
-    await expect(page.getByTestId('planilla-garantia').filter({ hasText: /\d{4}|expirada/ }).first()).toBeVisible()
+    await expect(semi.getByTestId('planilla-ingreso')).toBeVisible()
+    await expect(page.getByTestId('planilla-garantia')).toHaveCount(0)
     await expect(page.getByTestId('planilla-encabezado').getByText('Costo', { exact: true })).toBeVisible()
 
     await expectLayoutContract(page, `Planilla 1440 ${dark ? 'dark' : 'light'}`, { scope: 'all' })

@@ -74,8 +74,10 @@ export default function AccionesUnidad({ ctx }) {
 // acciones reutilizan los mismos manejadores que la ficha de la unidad, así que
 // los permisos y las auditorías no cambian. Los accesorios solo abren su ficha
 // de producto o imprimen su etiqueta.
+import { puedeDeshacerVerificacion } from '@/lib/verificacionStock'
+
 export function accionesDeItem(item, ctx) {
-  const { products, abrirDetalleItem, sellUnit, openReserveFor, releaseReservation, verify, imprimirEtiquetasSeleccion, requestReason, imprimirComprobanteRapido, navigate } = ctx
+  const { products, abrirDetalleItem, sellUnit, openReserveFor, releaseReservation, verify, deshacerVerificacion, usuarioId, imprimirEtiquetasSeleccion, requestReason, imprimirComprobanteRapido, navigate } = ctx
   const etiqueta = { label: 'Imprimir etiqueta', tooltip: 'Imprimir la etiqueta de esta fila', icon: 'printer', run: () => imprimirEtiquetasSeleccion([item]) }
   if (item.kind === 'product') {
     return [
@@ -98,6 +100,7 @@ export function accionesDeItem(item, ctx) {
     ...(vendible ? [{ label: item.status === 'reservado' ? 'Finalizar venta' : 'Vender', tooltip: item.status === 'reservado' ? 'Cerrar la venta de la unidad reservada' : 'Cargar la venta de esta unidad', icon: 'cart', run: () => sellUnit(unit) }] : []),
     ...(item.status === 'disponible' ? [{ label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => openReserveFor(unit) }] : []),
     ...(item.status === 'reservado' ? [{ label: 'Liberar reserva', tooltip: 'Soltar la reserva y dejar la unidad disponible', icon: 'clock', run: () => releaseReservation(unit.serial) }] : []),
+    ...(puedeDeshacerVerificacion(item, usuarioId) ? [{ label: 'Deshacer verificación', tooltip: 'Quitar el check que acabás de hacer (disponible 1 minuto)', icon: 'back', run: () => deshacerVerificacion(unit) }] : []),
     ...(item.status !== 'vendido' ? [{ label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => verify(unit) }] : []),
     etiqueta,
     { label: item.status === 'defectuoso' ? 'Habilitar unidad' : 'Enviar a revisión', tooltip: 'Cambiar el estado con un motivo (queda auditado)', icon: 'alert', run: () => requestReason('adjust', unit) },
