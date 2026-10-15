@@ -6,7 +6,9 @@ import { openShellProfile, lockShell } from './helpers/shell-navigation.js'
 // elemento cortado o un control clave por debajo de 44 (mobile).
 import { test, expect } from '@playwright/test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { cerrarGuiaDemo } from './helpers/demo.js'
+import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/responsive-mobile'
 const ANCHOS = [[360, 740], [390, 844], [414, 896], [768, 1024]]

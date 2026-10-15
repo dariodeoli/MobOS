@@ -10,3 +10,10 @@ export async function cerrarGuiaDemo(page, { timeout = 4000 } = {}) {
   await guia.getByRole('button', { name: 'Cerrar' }).click()
   return true
 }
+
+// El aviso de métricas anónimas (#438) se muestra una vez en la demo y queda
+// fijo abajo; tapa el carrito del POS y el perfil. Estas specs no lo prueban
+// (lo cubre e2e/frontend/aviso-privacidad), así que llegan con el aviso ya visto.
+export function silenciarAvisoMetricas(page) {
+  return page.addInitScript(() => { try { localStorage.setItem('mobos:aviso-metricas', '1') } catch { /* sin storage */ } })
+}

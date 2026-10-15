@@ -6,7 +6,9 @@ import { openShellDestination, shellCatalog } from './helpers/shell-navigation.j
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { cerrarGuiaDemo } from './helpers/demo.js'
+import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const DIR = join('docs', 'qa', '303-centro-control')
 const FOTO_PNG = Buffer.from(

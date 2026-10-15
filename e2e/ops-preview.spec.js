@@ -5,7 +5,8 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
-const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
+// La medición anónima de la demo (/api/public/track, #438) es la única llamada permitida.
+const esLlamadaApi = (url) => (url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')) && !url.includes('/api/public/track')
 
 test('el tablero ops preview usa los tokens v2 y no llama al API', async ({ page }) => {
   const llamadas = []

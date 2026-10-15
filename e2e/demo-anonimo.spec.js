@@ -7,10 +7,13 @@ import { test, expect } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
-import { cerrarGuiaDemo } from './helpers/demo.js'
+import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
-const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
+// La medición anónima de la demo (/api/public/track, #438) es la única llamada permitida.
+const esLlamadaApi = (url) => (url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')) && !url.includes('/api/public/track')
 
 // Cierra la guía "Cómo funciona la demo" si se abrió sola (primera visita).
 const cerrarGuia = cerrarGuiaDemo
