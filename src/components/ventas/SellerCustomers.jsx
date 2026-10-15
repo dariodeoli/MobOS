@@ -103,10 +103,7 @@ export function readDemoCustomers() {
 }
 
 export default function SellerCustomers() {
-  const { esDemo, usuario, empresa, sucursal, sesion } = useSesion()
-  // Campañas: solo administración/gerencia y solo con datos reales.
-  const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
-  const [seccion, setSeccion] = useState('clientes')
+  const { esDemo } = useSesion()
   // La búsqueda global abre la sección con ?q= y, si eligió un cliente puntual,
   // con ?cliente=<id> para abrir su ficha directo.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -341,10 +338,7 @@ export default function SellerCustomers() {
 
   return <SellerSection title="Clientes">
     <div className="clientes-f3">
-    {puedeCampanas && <nav aria-label="Secciones de clientes" className="clientes-f3-secciones">
-      {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)}>{label}</button>)}
-    </nav>}
-    {puedeCampanas && seccion === 'campanas' ? <CampanasClientes templates={plantillasClientes} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} /> : <>
+    <>
     {' '}
     <Toolbar
       plano
@@ -531,7 +525,21 @@ export default function SellerCustomers() {
         {saveError && <p role="alert" className="text-bad">{saveError}</p>}
       </form>
     </Modal>
-    </>}
+    </>
+    </div>
+  </SellerSection>
+}
+
+// Campañas de recompra: pestaña propia de la fila única de Clientes (solo
+// administración/gerencia y solo con datos reales; la ruta es /campanas).
+export function CampanasVista() {
+  const { esDemo, usuario, empresa, sucursal, sesion } = useSesion()
+  const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
+  if (esDemo || !['ADMIN', 'GERENTE'].includes(usuario?.role)) return null
+  const plantillas = templateData.rows.filter((item) => !item.category || item.category === 'CUSTOMERS')
+  return <SellerSection title="Campañas">
+    <div className="clientes-f3">
+      <CampanasClientes templates={plantillas} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} />
     </div>
   </SellerSection>
 }

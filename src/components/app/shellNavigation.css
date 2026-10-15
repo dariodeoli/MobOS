@@ -107,3 +107,19 @@
 .shell-nav-v2 .shell-body[data-registro='1'] > main {
   padding-top: 0.5rem;
 }
+
+/* #410 · Ajuste al que llegó la búsqueda: resaltado breve y sin movimiento
+   cuando el usuario pidió reducirlo. */
+.shell-nav-v2 [data-config-resaltado] {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 3px;
+  border-radius: 8px;
+  animation: config-resaltado 2.4s ease-out forwards;
+}
+@keyframes config-resaltado {
+  0%, 70% { outline-color: rgb(var(--c-fono)); }
+  100% { outline-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shell-nav-v2 [data-config-resaltado] { animation: none; }
+}

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import Icon from '@/components/shared/Icon'
 import { infoBadge, nombreConBadge } from './sectionTabsBadge'
+import { iconoDeTab } from './tabIconos'
 
 // Section tabs, never a native dropdown.
 //  - below lg: one horizontal scroll strip of 44px tabs with an edge fade;
@@ -28,19 +29,23 @@ const tabClass = (activo, extra) =>
 
 // Label plus count pill. The pill is decorative (aria-hidden): the button
 // carries the full accessible name through aria-label.
-function TabLabel({ item }) {
+function TabLabel({ item, conIcono = true }) {
   const info = infoBadge(item)
-  if (!info) return item.label
+  const icono = conIcono ? iconoDeTab(item) : null
+  if (!info && !icono) return item.label
   return (
     <>
+      {icono && <Icon name={icono} aria-hidden="true" data-tab-icon className="mr-2 h-4 w-4 shrink-0" />}
       {item.label}
-      <span
-        aria-hidden="true"
-        data-tab-badge
-        className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-fono px-1.5 text-[11px] font-bold leading-none tabular-nums text-white"
-      >
-        {info.texto}
-      </span>
+      {info && (
+        <span
+          aria-hidden="true"
+          data-tab-badge
+          className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-fono px-1.5 text-[11px] font-bold leading-none tabular-nums text-white"
+        >
+          {info.texto}
+        </span>
+      )}
     </>
   )
 }
@@ -248,7 +253,7 @@ export default function SectionTabs({
                   : 'text-mute hover:text-fore',
               )}
             >
-              <TabLabel item={item} />
+              <TabLabel item={item} conIcono={false} />
             </button>
           ))}
         </div>

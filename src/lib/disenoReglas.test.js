@@ -229,7 +229,7 @@ test('la landing: identidad por tema, vistas ilustrativas y verificador de IMEI 
   const preview = leer('components/landing/CommercialPreview.jsx')
   assert.match(preview, /Vista ilustrativa · datos de ejemplo/, 'the presentation is honestly labelled')
   assert.doesNotMatch(landing, /\/landing\/(panel|portal)\.png|Captura real/, 'illustrations are not described as product captures')
-  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Planes pendientes de confirmación']) {
+  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Hoy MobOS es gratis']) {
     assert.ok(landing.includes(text), `the landing preserves ${text}`)
   }
   // Menú móvil y pie legal (#322).

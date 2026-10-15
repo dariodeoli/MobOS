@@ -253,7 +253,7 @@ test('#278 · compactos de Precios, Celulares, Comparador y Autorizaciones', asy
   mkdirSync(DIR, { recursive: true })
   const pantallas = [
     { ruta: '/precios', barra: 'barra-precios', extra: 'Nueva lista' },
-    { ruta: '/celulares', barra: 'barra-celulares', extra: 'Comparar' },
+    { ruta: '/celulares', barra: 'barra-celulares', extra: 'Compartir por WhatsApp' },
     { ruta: '/comparador', barra: 'barra-comparador', extra: 'Semi-nuevos' },
     { ruta: '/autorizaciones', barra: 'barra-autorizaciones', extra: 'Actualizar' },
   ]

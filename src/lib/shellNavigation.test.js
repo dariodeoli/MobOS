@@ -219,7 +219,7 @@ test('approved presentation groups keep tabs per area and segments only where a 
     const clients = shellContextGroups(sections.find(section => section.id === 'clientes'))
     assert.deepEqual(
       clients.map(group => group.id),
-      ['clientes', 'promociones', 'plantillas'],
+      ['clientes', 'campanas', 'promociones', 'plantillas'],
     )
     const stock = shellContextGroups(sections.find(section => section.id === 'stock'))
     assert.deepEqual(
