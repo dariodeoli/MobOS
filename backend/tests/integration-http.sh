@@ -848,6 +848,9 @@ node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_
 echo "Verificación de stock: check por fila, deshacer 1 minuto y sesión por escaneo..."
 node "$BACKEND_ROOT/tests/stock-verification-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
 
+# Políticas públicas: dueño real, datos mínimos sin sesión y borradores privados (#433).
+node "$BACKEND_ROOT/tests/policies-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$ADMIN_TOKEN_C" "$DATABASE_URL"
+
 echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
 node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"
 

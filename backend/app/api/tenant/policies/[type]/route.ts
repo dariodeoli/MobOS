@@ -2,15 +2,16 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { verificationOwner } from '../../../../../lib/stock-verification-policy'
 import { POLICY_MAX_CHARS, isPolicyType, policiesFrom, sanitizePolicyText } from '../../../../../lib/policies'
 
-// Guarda una política de la empresa (#433). Solo el dueño (ADMIN), siempre
+// Guarda una política de la empresa (#433). Solo la cuenta propietaria vinculada al perfil activo, siempre
 // dentro de su propia empresa (el tenant sale de la sesión, nunca del cuerpo),
 // con auditoría. Publicar exige texto.
 export async function PUT(request: Request, context: { params: Promise<{ type: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('Solo el dueño puede editar las políticas.', 403)
+  if (!await verificationOwner(request, session)) return error('Solo el dueño puede editar las políticas.', 403)
   const { type } = await context.params
   if (!isPolicyType(type)) return error('Política desconocida.', 404)
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
