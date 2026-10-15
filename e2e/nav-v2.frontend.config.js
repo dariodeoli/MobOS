@@ -32,6 +32,7 @@ export default defineConfig({
     'politicas.frontend.spec.js',
     'credito.frontend.spec.js',
     'compras-escaneo.frontend.spec.js',
+    'demo-reportes.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

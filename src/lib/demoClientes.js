@@ -303,6 +303,17 @@ SEED_DEMO_CLIENTES.push(
   // pedidos salen de las ventas canónicas (misma fuente que el comprobante).
   clienteExtra('demo-cliente-carlos-benitez', 'Carlos Benítez', '3.111.222', '0971111222', 'Asunción', { tags: ['ocasional'], notas: 'Seña de una funda en dos medios.' }),
   clienteExtra('demo-cliente-lucia-franco', 'Lucía Franco', '4.666.777', '0983666777', 'San Lorenzo', { tags: ['frecuente'], notas: 'Retira el pedido al confirmar el pago.' }),
+  // #451: cartera más grande para que Clientes, Pedidos y Reportes tengan volumen.
+  clienteExtra('demo-cliente-patricia', 'Patricia Duarte', '4.112.334', '0984300111', 'Asunción', { tags: ['frecuente'] }),
+  clienteExtra('demo-cliente-ricardo', 'Ricardo Amarilla', '3.778.901', '0971300222', 'Luque', { tags: ['ocasional'], credito: 1000000, dias: 15 }),
+  clienteExtra('demo-cliente-sandra', 'Sandra Báez', '5.223.456', '0985300333', 'Lambaré', { tags: ['whatsapp'] }),
+  clienteExtra('demo-cliente-osvaldo', 'Osvaldo Rojas', '2.998.120', '0982300444', 'Capiatá', { tags: ['nuevo'] }),
+  clienteExtra('demo-cliente-natalia', 'Natalia Britez', '4.887.650', '0986300555', 'San Lorenzo', { tags: ['frecuente'], seguro: true }),
+  clienteExtra('demo-cliente-bruno', 'Bruno Insfrán', '5.440.210', '0973300666', 'Fernando de la Mora', { tags: ['ocasional'] }),
+  clienteExtra('demo-cliente-camila', 'Camila Arévalo', '5.901.778', '0981300777', 'Asunción', { tags: ['whatsapp', 'frecuente'] }),
+  clienteExtra('demo-cliente-derlis', 'Derlis Giménez', '3.665.432', '0972300888', 'Itauguá', { tags: ['ocasional'], credito: 500000, dias: 7 }),
+  clienteExtra('demo-cliente-mirta', 'Mirta Samaniego', '2.456.789', '0987300999', 'Villa Elisa', { tags: ['nuevo'] }),
+  clienteExtra('demo-cliente-lorena', 'Lorena Servín', '5.112.667', '0974300123', 'Ñemby', { tags: ['frecuente'] }),
 )
 
 

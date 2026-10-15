@@ -1,7 +1,9 @@
 // #404: fotos de muestra para el catálogo demo. Son ilustraciones SVG generadas
 // acá (formas simples, sin imágenes de terceros ni marcas), en data URI para que
 // el demo no dependa de la red ni del API.
-const COLORES = { LAMINA: '#38bdf8', CASE: '#a78bfa', CABLE: '#f59e0b', CARGADOR: '#22c55e', AUDIO: '#f472b6' }
+import { ACCESORIOS_DEMO } from './catalogoPro.js'
+
+const COLORES = { LAMINA: '#38bdf8', CASE: '#a78bfa', CABLE: '#f59e0b', CARGADOR: '#22c55e', AUDIO: '#f472b6', WATCH: '#fb7185', POWERBANK: '#14b8a6', ADAPTADOR: '#64748b' }
 
 const DIBUJOS = {
   // Vidrio protector: pantalla con brillo diagonal.
@@ -12,6 +14,12 @@ const DIBUJOS = {
   CABLE: (c) => `<path d="M30 88c0-44 60 4 60-44" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/><rect x="22" y="84" width="16" height="22" rx="4" fill="${c}"/><rect x="82" y="14" width="16" height="22" rx="4" fill="${c}"/>`,
   // Cargador: cubo con clavijas.
   CARGADOR: (c) => `<rect x="34" y="36" width="52" height="56" rx="10" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="4"/><rect x="46" y="18" width="6" height="18" rx="2" fill="${c}"/><rect x="68" y="18" width="6" height="18" rx="2" fill="${c}"/><path d="M62 50l-8 14h10l-6 14" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // Reloj: caja con correa.
+  WATCH: (c) => `<rect x="44" y="8" width="32" height="26" rx="6" fill="${c}" fill-opacity=".4"/><rect x="44" y="86" width="32" height="26" rx="6" fill="${c}" fill-opacity=".4"/><rect x="34" y="32" width="52" height="56" rx="16" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="4"/><path d="M60 46v16l10 6" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round"/>`,
+  // Power bank: batería con rayo.
+  POWERBANK: (c) => `<rect x="36" y="16" width="48" height="88" rx="12" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="4"/><path d="M62 38l-10 22h12l-8 22" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // Adaptador: dos fichas unidas.
+  ADAPTADOR: (c) => `<rect x="26" y="46" width="30" height="28" rx="6" fill="${c}"/><rect x="64" y="42" width="34" height="36" rx="8" fill="${c}" fill-opacity=".3" stroke="${c}" stroke-width="4"/><rect x="54" y="56" width="12" height="8" fill="${c}"/>`,
   // Auriculares: dos cápsulas con vástago y estuche.
   AUDIO: (c) => `<rect x="30" y="20" width="14" height="40" rx="7" fill="${c}"/><rect x="76" y="20" width="14" height="40" rx="7" fill="${c}"/><rect x="34" y="68" width="52" height="34" rx="14" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="4"/>`,
 }
@@ -25,20 +33,6 @@ export function fotoDemoSvg(tipo) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 
-// [id, nombre, categoría, precio, costo, stock, tipo, compatibles]
-const ACCESORIOS_DEMO = [
-  ['demo-funda-magsafe-transparente', 'Funda MagSafe Transparente', 'Accesorios', 180000, 70000, 23, 'CASE', ['iPhone 15 Pro']],
-  ['demo-funda-silicona-negra', 'Funda Silicona Negra', 'Accesorios', 150000, 55000, 14, 'CASE', ['iPhone 15', 'iPhone 15 Pro']],
-  ['demo-cargador-usbc-20w', 'Cargador USB-C 20W', 'Accesorios', 220000, 120000, 10, 'CARGADOR', []],
-  ['demo-airpods-pro-2-usbc', 'AirPods Pro 2 USB-C', 'Audio', 1850000, 1300000, 3, 'AUDIO', []],
-  ['demo-vidrio-17-pro', 'Protector de vidrio 17 Pro', 'Protectores', 120000, 45000, 0, 'LAMINA', ['iPhone 17 Pro']],
-  ['demo-lamina-hidrogel-17', 'Lámina hidrogel iPhone 17', 'Protectores', 60000, 18000, 40, 'LAMINA', ['iPhone 17']],
-  ['demo-case-antigolpes-17-pro', 'Case antigolpes iPhone 17 Pro', 'Accesorios', 210000, 85000, 12, 'CASE', ['iPhone 17 Pro']],
-  ['demo-cable-usbc-lightning-1m', 'Cable USB-C a Lightning 1 m', 'Accesorios', 90000, 30000, 30, 'CABLE', ['iPhone 14', 'iPhone 13']],
-  ['demo-cable-usbc-usbc-2m', 'Cable USB-C a USB-C 2 m', 'Accesorios', 110000, 38000, 18, 'CABLE', ['iPhone 17 Pro', 'iPad']],
-  ['demo-cargador-magsafe-15w', 'Cargador MagSafe 15W', 'Accesorios', 340000, 190000, 6, 'CARGADOR', ['iPhone 17 Pro', 'iPhone 15 Pro']],
-]
-
 /**
  * Completa el catálogo demo con fotos de muestra y categorías de accesorio.
  * Idempotente: agrega los productos que faltan y rellena foto/tipo/compatibles
@@ -48,7 +42,7 @@ const ACCESORIOS_DEMO = [
 export function conFotosDemo(productos, crear) {
   const existentes = new Map(productos.map((item) => [item.id, item]))
   const lista = [...productos]
-  for (const [id, nombre, categoria, precio, costo, stock, tipo, compatibles] of ACCESORIOS_DEMO) {
+  for (const [id, nombre, categoria, precio, costo, stock, tipo, compatibles, reorderPoint] of ACCESORIOS_DEMO) {
     const actual = existentes.get(id)
     const base = actual || crear(id, nombre, categoria, precio, costo, stock)
     const completo = {
@@ -56,6 +50,7 @@ export function conFotosDemo(productos, crear) {
       accessoryCategory: base.accessoryCategory || tipo,
       compatibleModels: base.compatibleModels?.length ? base.compatibleModels : compatibles,
       imagenes: base.imagenes?.length ? base.imagenes : [fotoDemoSvg(tipo)],
+      ...(reorderPoint && !base.reorderPoint ? { reorderPoint } : {}),
     }
     if (actual) lista[lista.indexOf(actual)] = completo
     else lista.push(completo)

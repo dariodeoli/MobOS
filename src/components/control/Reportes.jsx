@@ -8,9 +8,8 @@ import { fechaHora } from '@/utils/fecha'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
-import { Badge, Button, Card, CeldaMoneda, EmptyState, Select, Stat } from '@/components/ui'
+import { Badge, Button, Card, CeldaMoneda, EmptyState, Select } from '@/components/ui'
 import { ChipDelta, GraficoArea, GraficoBarras, TarjetaGrafico, serieContinua, variacionPct } from '@/components/shared/graficos'
-import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
 import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
@@ -275,11 +274,11 @@ export default function Reportes() {
 
       {datosComisiones && tipo === 'comisiones' && (
         <>
-          <StatGrid columnas={3}>
-            <Stat compact label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={`${etiquetaRango(rango)}`} />
-            <Stat compact label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
-            <Stat compact className="col-span-2 md:col-span-1" label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
-          </StatGrid>
+<div role="group" aria-label="Resumen de comisiones" className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+            <KpiReporte label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={etiquetaRango(rango)} />
+            <KpiReporte label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
+            <KpiReporte label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
+          </div>
 
           {datosComisiones.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
 
@@ -341,21 +340,12 @@ export default function Reportes() {
 
       {totales && tipo !== 'comisiones' && (
         <>
-          <StatGrid columnas={4}>
-            <Stat compact
-              className="border-fono/60"
-              label="Total del período"
-              valor={gs(totales.totalPyg)}
-              sub={`${totales.orders} ventas · ${etiquetaRango(rango)}`}
-            />
-            <Stat compact label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
-            <Stat compact
-              label="Margen real"
-              valor={gs(totales.netProfitPyg ?? totales.profitPyg)}
-              sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${formatPercent(totales.netMarginPct)}%`}
-            />
-            <Stat compact label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
-          </StatGrid>
+          <div data-testid="reportes-kpis" role="group" aria-label="Resumen del período" className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 min-[1100px]:grid-cols-4">
+            <KpiReporte destacado label="Total del período" valor={gs(totales.totalPyg)} sub={`${totales.orders} ventas · ${etiquetaRango(rango)}`} />
+            <KpiReporte label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
+            <KpiReporte label="Margen real" valor={gs(totales.netProfitPyg ?? totales.profitPyg)} sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${formatPercent(totales.netMarginPct)}%`} />
+            <KpiReporte label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
+          </div>
 
           {datos.previous?.totals && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="reportes-variaciones">
@@ -388,26 +378,28 @@ export default function Reportes() {
             {datos.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
           </div>
 
-          <StatGrid columnas={3}>
-            <Stat compact label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
-            <Stat compact label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
-            <Stat compact className="col-span-2 md:col-span-1" label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
-          </StatGrid>
-
-          {(serieDias.length > 1 || itemsBarras.length > 0) && (
-            <div className="grid grid-cols-1 gap-4 print:hidden min-[1200px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-              {serieDias.length > 1 && (
-                <TarjetaGrafico testId="reportes-grafico-dias" titulo="Ventas por día" detalle={etiquetaRango(rango)}>
-                  <GraficoArea serie={serieDias} titulo={`Ventas por día, ${etiquetaRango(rango)}`} etiquetaSerie="Ventas" />
-                </TarjetaGrafico>
-              )}
-              {itemsBarras.length > 0 && (
-                <TarjetaGrafico testId="reportes-grafico-grupos" titulo={tituloBarras} detalle={grupo === 'product' || grupo === 'category' ? 'Venta por línea' : 'Total del período'}>
-                  <GraficoBarras items={itemsBarras} etiqueta={tituloBarras} />
-                </TarjetaGrafico>
-              )}
+          <section data-testid="reportes-metricas" aria-labelledby="reportes-metricas-titulo" className="space-y-4 print:hidden">
+            <h2 id="reportes-metricas-titulo" className="text-base font-semibold text-fore">Métricas y evolución</h2>
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+              <KpiReporte label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
+              <KpiReporte label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
+              <KpiReporte label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
             </div>
-          )}
+            {(serieDias.length > 1 || itemsBarras.length > 0) && (
+              <div className="grid grid-cols-1 items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                {serieDias.length > 1 && (
+                  <TarjetaGrafico testId="reportes-grafico-dias" titulo="Ventas por día" detalle={etiquetaRango(rango)}>
+                    <GraficoArea serie={serieDias} titulo={`Ventas por día, ${etiquetaRango(rango)}`} etiquetaSerie="Ventas" />
+                  </TarjetaGrafico>
+                )}
+                {itemsBarras.length > 0 && (
+                  <TarjetaGrafico testId="reportes-grafico-grupos" titulo={tituloBarras} detalle={grupo === 'product' || grupo === 'category' ? 'Venta por línea' : 'Total del período'}>
+                    <GraficoBarras items={itemsBarras} etiqueta={tituloBarras} />
+                  </TarjetaGrafico>
+                )}
+              </div>
+            )}
+          </section>
 
           {grupos.length === 0 ? (
             <Card>
@@ -539,6 +531,18 @@ function TablaImpresion({ testId, titulo, encabezados, filas }) {
         ))}
       </tbody>
     </table>
+  )
+}
+
+// Celda de KPI del reporte: etiqueta, cifra y detalle apilados. Cada celda
+// ocupa su propia casilla de la grilla y el texto parte línea: nunca se pisa.
+function KpiReporte({ label, valor, sub, destacado = false }) {
+  return (
+    <div className={cn('min-w-0 rounded-xl border bg-ink-800 px-4 py-3', destacado ? 'border-fono/60' : 'border-ink-600')}>
+      <div className="text-xs font-medium text-mute">{label}</div>
+      <div className="mt-0.5 break-words text-xl font-semibold leading-7 tabular-nums text-fore">{valor}</div>
+      {sub && <div className="mt-0.5 break-words text-xs leading-4 text-mute">{sub}</div>}
+    </div>
   )
 }
 
