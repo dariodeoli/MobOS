@@ -19,10 +19,12 @@ function persistir(operacion) {
 }
 let almacenInyectado = null
 let memoria = { token: null, sellerToken: null, expiresAt: null }
+let revisionMemoria = 0
 
 /** Solo para tests: reemplaza el Keychain por un almacén en memoria. */
 export function usarAlmacen(almacen) {
   almacenInyectado = almacen
+  revisionMemoria++
   memoria = { token: null, sellerToken: null, expiresAt: null }
 }
 
@@ -42,8 +44,11 @@ async function almacen() {
 
 /** Lee los tokens del Keychain al arrancar la app. */
 export async function cargarTokens() {
+  const revision = revisionMemoria
+  await colaEscrituras
   const a = await almacen()
   const [token, sellerToken, expiresAt] = await Promise.all([a.get(CLAVE_TOKEN), a.get(CLAVE_VENDEDOR), a.get(CLAVE_VENCE)])
+  if (revision !== revisionMemoria) return { ...memoria }
   memoria = { token: token || null, sellerToken: sellerToken || null, expiresAt: expiresAt || null }
   return { ...memoria }
 }
@@ -61,6 +66,7 @@ export async function guardarTokens(cuerpo) {
     expiresAt: cuerpo.expiresAt ? String(cuerpo.expiresAt) : memoria.expiresAt,
   }
   if (siguiente.token === memoria.token && siguiente.sellerToken === memoria.sellerToken && siguiente.expiresAt === memoria.expiresAt) return
+  revisionMemoria++
   memoria = siguiente
   return persistir(async () => {
   const a = await almacen()
@@ -74,6 +80,7 @@ export async function guardarTokens(cuerpo) {
 
 /** Borra los tokens (logout, 401 de sesión): memoria primero, después Keychain. */
 export async function limpiarTokens() {
+  revisionMemoria++
   memoria = { token: null, sellerToken: null, expiresAt: null }
   return persistir(async () => {
   const a = await almacen()
