@@ -44,6 +44,30 @@ html.dark {
   --mobos-surface: rgb(var(--c-ink));
   --mobos-border: rgb(var(--c-ink-600));
 }
+/* Color de fila por condición de la unidad (#400, planilla de Stock): nuevo →
+   verde, semi nuevo → amarillo. Son tonos suaves como tripletes RGB; la
+   ubicación suma su variante con un 12 % de su color propio (planilla.css).
+   Texto principal (--c-fore), secundario (--cond-fg-2) y los tonos de alerta
+   (--cond-warn / --cond-bad) miden ≥ 4.5:1 sobre cada fondo, incluso mezclado
+   con negro, blanco o un color saturado (cuenta en docs/TOKENS.md §7). */
+:root {
+  --cond-new-bg: 220 243 229;
+  --cond-new-bd: 134 196 155;
+  --cond-used-bg: 254 240 190;
+  --cond-used-bd: 224 186 80;
+  --cond-fg-2: 51 65 85;
+  --cond-warn: 120 53 15;
+  --cond-bad: 153 27 27;
+}
+html.dark {
+  --cond-new-bg: 22 58 38;
+  --cond-new-bd: 52 120 80;
+  --cond-used-bg: 66 52 14;
+  --cond-used-bd: 140 110 30;
+  --cond-fg-2: 203 213 225;
+  --cond-warn: 253 230 138;
+  --cond-bad: 254 202 202;
+}
 body { font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; }
 h1, h2, h3, nav, button, label { font-family: 'Space Grotesk', 'Inter', sans-serif; }
 h1, h2, h3 { letter-spacing: -.035em; text-wrap: balance; }
