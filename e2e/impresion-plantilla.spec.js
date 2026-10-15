@@ -54,7 +54,7 @@ test.describe('plantilla del ticket de prueba', () => {
     // (XXXX-X), sin pie de trazabilidad ni códigos.
     await expect(dialogo.getByLabel('Tipo de prueba')).toHaveValue('corta')
     const hoja = page.frameLocator(HOJA)
-    await expect(hoja.locator('pre')).toContainText('TICKET DE PRUEBA MobOS')
+    await expect(hoja.locator('pre')).toContainText('PRUEBA DE IMPRESIÓN')
     await expect(hoja.locator('pre')).toContainText('VALIDACIÓN')
     await expect(hoja.locator('pre')).not.toContainText('Impresora')
     await expect(hoja.locator('pre')).not.toContainText('[QR]')

@@ -187,3 +187,104 @@ test('POS 390: la ficha usa el ancho disponible sin scroll horizontal', async ({
   }
   expect(await sinScrollHorizontal(page)).toBe(true)
 })
+
+// #363: adaptadores reales sobre el catálogo y buscador de la biblioteca.
+async function montarCamposCompartidos(page, banco = 'Financiera Finexpar') {
+  await page.goto('/')
+  await page.evaluate(async bancoInicial => {
+    const recursos = performance.getEntriesByType('resource').map(r => r.name)
+    const React = await import(recursos.find(url => url.includes('/deps/react.js')))
+    const ReactDOM = await import(recursos.find(url => url.includes('react-dom_client')))
+    const { default: Proveedor } = await import('/src/components/shared/SupplierCombobox.jsx')
+    const { default: Banco } = await import('/src/components/shared/BancoCombobox.jsx')
+    const { default: Ruc } = await import('/src/components/shared/RucField.jsx')
+    const R = React.default || React
+    const h = R.createElement
+    const proveedores = [{ id: 'a', name: 'Proveedor Ágil', code: 'AGIL' }]
+    function Campos() {
+      const [valor, cambiar] = R.useState('')
+      const [ruc, cambiarRuc] = R.useState('123456789')
+      const [identidad, aceptar] = R.useState(null)
+      const [banco, cambiarBanco] = R.useState(bancoInicial)
+      const [eventos, guardar] = R.useState([])
+      const registrar = (tipo, valor) => guardar(prev => [...prev, [tipo, valor]])
+      return h('div', { style: { padding: 20, maxWidth: 600 } },
+        h(Proveedor, { proveedores, value: valor, onLibre: texto => { cambiar(texto); registrar('libre', texto) }, onSelect: item => { cambiar(item.id); registrar('select', item.id) }, onUsado: item => registrar('usado', item.id) }),
+        h('button', { onClick: () => cambiar('') }, 'Reset proveedor'),
+        h('button', { onClick: () => guardar([]) }, 'Limpiar eventos'),
+        h('output', { 'data-testid': 'eventos-proveedor' }, JSON.stringify(eventos)),
+        h(Banco, { id: 'banco-compartido', value: banco, onChange: cambiarBanco }),
+        h('output', { 'data-testid': 'banco-guardado' }, banco),
+        h(Ruc, { ariaLabel: 'RUC seguro', value: ruc, onChange: cambiarRuc, onDatos: aceptar }),
+        h('output', { 'data-testid': 'ruc-aceptado' }, JSON.stringify(identidad)))
+    }
+    const nodo = document.createElement('div')
+    document.body.replaceChildren(nodo)
+    const renderer = ReactDOM.default || ReactDOM
+    renderer.createRoot(nodo).render(h(Campos))
+  }, banco)
+}
+
+test('Proveedor compartido confirma texto una vez, busca por sigla y respeta reset', async ({ page }) => {
+  await montarCamposCompartidos(page)
+  const campo = page.getByRole('combobox', { name: 'Proveedor' })
+  await campo.fill('Nuevo proveedor QA')
+  await campo.press('Enter')
+  await page.getByRole('button', { name: 'Limpiar eventos' }).focus()
+  await expect(page.getByTestId('eventos-proveedor')).toHaveText('[["libre","Nuevo proveedor QA"]]')
+  await page.getByRole('button', { name: 'Reset proveedor' }).click()
+  await expect(campo).toHaveValue('')
+  await page.getByRole('button', { name: 'Limpiar eventos' }).click()
+  await campo.fill('agil')
+  await page.getByRole('option', { name: /Proveedor Ágil/ }).click()
+  await expect(campo).toHaveValue('Proveedor Ágil')
+  await expect(page.getByTestId('eventos-proveedor')).toHaveText('[["select","a"],["usado","a"]]')
+  await page.getByRole('button', { name: 'Reset proveedor' }).click()
+  await page.getByRole('button', { name: 'Limpiar eventos' }).click()
+  await campo.fill('Otro proveedor')
+  await page.getByRole('button', { name: 'Limpiar eventos' }).focus()
+  await expect(page.getByTestId('eventos-proveedor')).toHaveText('[["libre","Otro proveedor"]]')
+})
+
+for (const original of ['Financiera Finexpar', 'Financiera El Comercio', 'Banco desconocido QA']) {
+  test(`Banco compartido conserva ${original} hasta elegir otra institución`, async ({ page }) => {
+    await montarCamposCompartidos(page, original)
+    const campo = page.locator('#banco-compartido')
+    await campo.focus()
+    await campo.press('Escape')
+    await expect(campo).toHaveValue(original)
+    await expect(page.getByTestId('banco-guardado')).toHaveText(original)
+    await campo.fill('Ueno')
+    await page.getByRole('option', { name: 'ueno bank', exact: true }).click()
+    await expect(campo).toHaveValue('ueno bank')
+    await expect(page.getByTestId('banco-guardado')).toHaveText('ueno bank')
+  })
+}
+
+
+test('RUC compartido: 9 dígitos, nombre oficial, descartar y consentimiento antes de aplicar', async ({ page }) => {
+  const oficial = 'PÉREZ LÓPEZ, JUAN S.A.'
+  await page.route('**/api/ruc?*', route => route.fulfill({ json: {
+    query: { normalized: '123456789', fullRuc: '123456789-0' }, reviewRequired: true, source: { provider: 'OwnData' },
+    result: { ruc: '123456789', dv: '0', fullRuc: '123456789-0', nameOfficial: oficial, name: 'NO USAR ALIAS', stateRaw: 'ACTIVO', equivalenceRaw: '' },
+  } }))
+  await montarCamposCompartidos(page)
+  const campo = page.getByRole('textbox', { name: 'RUC seguro' })
+  await expect(campo).toHaveValue('123456789')
+  const raiz = page.locator('.mobos-ruc-field')
+  const extraer = raiz.getByRole('button', { name: 'Extraer los datos del RUC' })
+  await extraer.click()
+  await expect(raiz.getByRole('status')).toContainText(oficial)
+  await expect(page.getByTestId('ruc-aceptado')).toHaveText('null')
+  await raiz.getByRole('button', { name: 'Descartar' }).click()
+  await expect(raiz.getByRole('status')).toHaveCount(0)
+  await extraer.click()
+  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
+  const aceptado = JSON.parse(await page.getByTestId('ruc-aceptado').innerText())
+  expect(aceptado.nameOfficial).toBe(oficial)
+  expect(aceptado.fullRuc).toBe('123456789-0')
+  await extraer.click()
+  await expect(raiz.getByRole('status')).toBeVisible()
+  await campo.fill('12345678')
+  await expect(raiz.getByRole('status')).toHaveCount(0)
+})

@@ -152,6 +152,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   MESSAGE_TEMPLATE_DELETED: 'Plantilla eliminada',
   PAYMENT_ACCOUNT_CREATED: 'Cuenta de cobro creada',
   PAYMENT_ACCOUNT_UPDATED: 'Cuenta de cobro editada',
+  PAYMENT_ACCOUNT_BANK_CATALOG_NORMALIZED: 'Nombre del banco normalizado',
   CASH_AUDIT_MARKED: 'Operación de caja auditada',
   COMMISSION_SETTLED: 'Liquidación de comisiones creada',
   COMMISSION_SETTLEMENT_PAID: 'Liquidación de comisiones pagada',
