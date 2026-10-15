@@ -244,12 +244,8 @@
   font-family: inherit;
 }
 
-/* Densidad (#448): en escritorio (tabla ≥ 1200 px) la fila mide ~44 px; los
-   accesos pasan de 44 a 32 px. En táctil (tarjetas) quedan los 44 px. */
-.clientes-f3 > .clientes-f3-list .clientes-f3-table [data-testid='cliente-fila'] :is(button, label) {
-  min-height: 0;
-  min-width: 0;
-  width: 32px;
-  height: 32px;
-  margin-block: 0;
+/* Filas compactas con acciones táctiles completas, también en escritorio.
+   La densidad se obtiene del espaciado de la fila, sin achicar los menús. */
+.clientes-f3 > .clientes-f3-list .clientes-f3-table [data-testid='cliente-fila'] {
+  padding-block: 1px;
 }
