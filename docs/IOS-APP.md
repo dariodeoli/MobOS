@@ -111,7 +111,8 @@ Basado en `agendese/docs/app-store/GUIA-PUBLICAR-APP-STORE.md`.
 - **Privacidad:** URL `https://moboss.online/privacidad`. «Sí, recopilamos datos»:
   Nombre, Correo, Teléfono, Dirección física (clientes), Fotos o vídeos
   (foto del perfil), Otro contenido del usuario (notas de clientes y pedidos),
-  Historial de compras (ventas/pedidos), ID de usuario e ID del dispositivo (token push). En cada uno: Funcionalidad de la app, vinculado a la
+  Historial de compras (ventas/pedidos), Información de pago (forma de pago),
+  Otra información financiera (deudas y crédito), ID de usuario e ID del dispositivo (token push). En cada uno: Funcionalidad de la app, vinculado a la
   identidad, **sin seguimiento**. Tiene que coincidir con `PrivacyInfo.xcprivacy`.
   Publicar la declaración la confirma el dueño.
 - **Versión:** URL de soporte `https://moboss.online/soporte`; URL de marketing
