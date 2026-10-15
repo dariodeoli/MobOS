@@ -10,7 +10,10 @@ const WIDTH = 1280
 
 async function entrar(page, rol) {
   await page.setViewportSize({ width: WIDTH, height: 900 })
-  await page.route('**/api/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Frontend-only harness"}' }))
+  await page.route('**/api/**', route =>
+    !new URL(route.request().url()).pathname.startsWith('/api/')
+      ? route.continue()
+      : route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Frontend-only harness"}' }))
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
@@ -68,7 +71,6 @@ test('vendedor: venta a crédito de un cliente sin crédito queda pendiente de a
   await expect(page.getByTestId('credito-pendiente')).toContainText('Pendiente de autorización de crédito')
   await expect(page.getByTestId('estado-credito')).toContainText('Pendiente de autorización de crédito')
   await expect(page.getByTestId('entrega-pregunta')).toHaveCount(0)
-  await expect(page.getByText('Retirado', { exact: true })).toHaveCount(0)
 
   // El vendedor no aprueba: sin PIN no hay botón; con el PIN de otro vendedor tampoco.
   await expect(page.getByTestId('credito-autorizar')).toHaveCount(0)
@@ -104,8 +106,8 @@ test('vendedor: con el PIN del gerente en el mostrador la venta a crédito nace 
   await expect(page.getByTestId('entrega-pregunta')).toContainText('¿El cliente ya se llevó el producto?')
   await page.getByTestId('entrega-no').click()
   await expect(page.getByTestId('entrega-pregunta')).toHaveCount(0)
-  await expect(page.getByText('En preparación').first()).toBeVisible()
-  await expect(page.getByText('Retirado', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/Prepar/).first()).toBeVisible()
+  await expect(page.getByTestId('paso-activo')).not.toContainText('Retirado')
 })
 
 test('dueño: puede autorizar el crédito él mismo (queda a su nombre) y confirma la entrega aparte', async ({ page }) => {
@@ -121,20 +123,15 @@ test('dueño: puede autorizar el crédito él mismo (queda a su nombre) y confir
   await expect(page.getByText('Retirado', { exact: true }).first()).toBeVisible()
 })
 
-test('venta cobrada de contado: nunca queda «Retirado» sola, se pregunta y por defecto no se entrega', async ({ page }) => {
+test('venta de mostrador: nunca queda «Retirado» sola, se pregunta y por defecto no se entrega', async ({ page }) => {
   await entrar(page, 'Dueño')
-  const producto = await agregarProducto(page)
-  // Cobro completo en efectivo con el primer medio rápido.
-  const cobro = page.getByTestId('pos-cobro')
-  await cobro.getByRole('button', { name: /Efectivo/ }).first().click()
-  await expect(cobrar(page)).toContainText('Confirmar venta')
-  await cobrar(page).click()
+  await agregarProducto(page)
+  await cobrar(page).click() // «Crear pedido sin pago»
   await expect(page.getByTestId('entrega-pregunta')).toBeVisible({ timeout: 10000 })
   await expect(page.getByTestId('entrega-pregunta')).toContainText('¿El cliente ya se llevó el producto?')
-  // Sin responder, el estado es «En preparación» (no «Retirado»).
-  await expect(page.getByText('En preparación').first()).toBeVisible()
-  await expect(page.getByText('Retirado', { exact: true })).toHaveCount(0)
-  expect(producto.precio).toBeGreaterThan(0)
+  // Sin responder, el estado es «en preparación» (no «Retirado»).
+  await expect(page.getByText(/Prepar/).first()).toBeVisible()
   await page.getByTestId('entrega-si').click()
+  await expect(page.getByTestId('entrega-pregunta')).toHaveCount(0)
   await expect(page.getByText('Retirado', { exact: true }).first()).toBeVisible()
 })

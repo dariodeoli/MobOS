@@ -3,14 +3,13 @@ import { Aviso, Button, Input, Label, PinInput } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { resolverCreditoDemo } from '@/lib/demoCreditoStore'
 import { gs } from '@/utils/calculos'
+import { fechaHoraCorta } from '@/utils/fecha'
 
 // Estado de la autorización de crédito en la página del pedido. Un pedido que
 // superó el crédito del cliente no se entrega hasta que un administrador o
 // gerente lo autorice: lo hace con su sesión (un clic) o, desde el mostrador,
 // cualquier vendedor ingresando el PIN de uno de ellos. Rechazar pide motivo y
 // deja el pedido sin entregar. Todo queda auditado en el servidor.
-const fechaCorta = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '')
-
 export default function CreditoPedido({ order, credito, esDemo, puedeResolver, sesion, onCambio }) {
   const [pin, setPin] = useState('')
   const [motivo, setMotivo] = useState('')
@@ -59,12 +58,12 @@ export default function CreditoPedido({ order, credito, esDemo, puedeResolver, s
 
   if (credito.status === 'APPROVED') {
     return (
-      <p data-testid="credito-autorizado" className="rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs text-ok-text">
+      <Aviso tono="ok" como="div" data-testid="credito-autorizado" className="rounded-xl px-3 py-2 text-xs">
         <b>Crédito autorizado</b>
         {credito.resolvedByName ? ` por ${credito.resolvedByName}` : ''}
-        {credito.resolvedAt ? ` · ${fechaCorta(credito.resolvedAt)}` : ''}
+        {credito.resolvedAt ? ` · ${fechaHoraCorta(credito.resolvedAt)}` : ''}
         {credito.overPyg > 0 ? ` · ${gs(credito.overPyg)} sobre el límite` : ''}
-      </p>
+      </Aviso>
     )
   }
 

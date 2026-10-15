@@ -26,6 +26,7 @@ import {
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
+import { autorizacionesCreditoDemo } from '@/lib/demoCreditoStore'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
@@ -133,7 +134,9 @@ export default function Autorizaciones() {
 
   async function load() {
     if (esDemo) {
-      setRows(demoAutorizacionesFiltradas(filtro, tipo))
+      // Las ventas demo que superaron el crédito del cliente aparecen arriba, como en la cuenta real.
+      const credito = autorizacionesCreditoDemo().filter((fila) => (!filtro || fila.status === filtro) && (!tipo || fila.kind === tipo))
+      setRows([...credito, ...demoAutorizacionesFiltradas(filtro, tipo)])
       return
     }
     setLoading(true)
