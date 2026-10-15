@@ -9,6 +9,7 @@ import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 import { recoveryDeadline } from '../../../lib/tenant-archive'
 import { purgeTenantData, type TenantPurgeCounts } from '../../../lib/tenant-purge'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
+import { correoCambioReseteaVerificacion } from '../../../lib/tenant-email'
 import { formatUnitCode, normalizeUnitCodePrefix, resolveUnitCodePrefix } from '../../../lib/unit-code'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
@@ -258,7 +259,7 @@ export async function PATCH(request: Request) {
       // contraseña de la empresa. Mover el OWNER exigiría verificar el correo
       // nuevo (enlace o Google): fuera de este alcance.
       await prisma.$transaction(async tx => {
-        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { name: nextName, email: nextEmail, ...perfil } })
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { name: nextName, email: nextEmail, ...perfil, ...(correoCambioReseteaVerificacion(current.email, nextEmail) ? { emailVerifiedAt: null } : {}) } })
         await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: { name: current.name, email: current.email, address: current.address, city: current.city, department: current.department, phone: current.phone, ruc: current.ruc }, after: { name: nextName, email: nextEmail, ...perfil } } } })
       })
       return json({ ok: true, name: nextName, email: nextEmail, ...perfil })

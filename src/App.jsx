@@ -12,6 +12,8 @@ import { applyPageMetadata } from '@/lib/seo'
 import { isDemoRuntime } from '@/lib/demoMode'
 import DemoAccess from '@/pages/DemoAccess'
 import { DESTINO_LEGADO } from '@/lib/rutas'
+import AvisoMetricas from '@/components/app/AvisoMetricas'
+import TraficoSitio from '@/components/app/TraficoSitio'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -35,6 +37,7 @@ const PedidoPublico = lazy(() => import('@/pages/PedidoPublico'))
 const CarritoPublico = lazy(() => import('@/pages/CarritoPublico'))
 const InformePublico = lazy(() => import('@/pages/InformePublico'))
 const GarantiaPublica = lazy(() => import('@/pages/GarantiaPublica'))
+const PoliticasPublicas = lazy(() => import('@/pages/PoliticasPublicas'))
 const CotizacionPublica = lazy(() => import('@/pages/CotizacionPublica'))
 const CuentaPublica = lazy(() => import('@/pages/CuentaPublica'))
 const PortalCliente = lazy(() => import('@/pages/PortalCliente'))
@@ -47,6 +50,13 @@ const ProductoPublico = lazy(() => import('@/pages/ProductoPublico'))
 const PruebaImpresion = lazy(() => import('@/pages/PruebaImpresion'))
 const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'))
 const VerificarCorreo = lazy(() => import('@/pages/VerificarCorreo'))
+// Panel del dueño de la plataforma: layout propio, fuera de la app de las
+// empresas. Solo se dibuja si el API confirma el acceso; si no, vuelve a «/».
+const SuperadminLayout = lazy(() => import('@/pages/superadmin/SuperadminLayout'))
+const SuperadminResumen = lazy(() => import('@/pages/superadmin/Resumen'))
+const SuperadminEmpresas = lazy(() => import('@/pages/superadmin/Empresas'))
+const SuperadminUsuarios = lazy(() => import('@/pages/superadmin/Usuarios'))
+const SuperadminTrafico = lazy(() => import('@/pages/superadmin/Trafico'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -258,11 +268,11 @@ export default function App() {
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview || statusPreview
   const status = typeof window !== 'undefined' && (window.location.pathname === '/status' || statusPreview)
   // Privacidad y Términos viven en el host público (#322) junto a la landing.
-  const legal = typeof window !== 'undefined' && ['/privacidad', '/terminos'].includes(window.location.pathname)
+  const legal = typeof window !== 'undefined' && ['/privacidad', '/terminos', '/soporte'].includes(window.location.pathname)
   // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
   // en dev/local se abre la página acá mismo (#197).
   const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
-  if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
+  if (landing) return <><MetadatosPagina publicPage /><TraficoSitio kind="landing" /><AvisoMetricas /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
 
   const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
   const clientPortal = ['clientes.moboss.online', 'www.clientes.moboss.online'].includes(host) || clientPortalPreview
@@ -283,6 +293,9 @@ export default function App() {
             <Route path="/u/:serial" element={<InformePublico />} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
+            {/* Políticas públicas de cada empresa (#433). */}
+            <Route path="/:slug/politicas" element={<PoliticasPublicas />} />
+            <Route path="/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
@@ -293,6 +306,8 @@ export default function App() {
     <SesionProvider>
       <ToastProvider demo={isDemoRuntime}>
         <MetadatosPagina />
+        <TraficoSitio kind="demo" />
+        <AvisoMetricas soloDemo />
         <AvisoVersion />
         <Suspense fallback={<PaginaCargando />}>
         <Routes>
@@ -301,6 +316,7 @@ export default function App() {
           {/* Públicas informativas de la landing (#322). */}
           <Route path="/privacidad" element={<LegalPublica />} />
           <Route path="/terminos" element={<LegalPublica />} />
+          <Route path="/soporte" element={<LegalPublica />} />
           <Route path="/restablecer-contrasena/:token?" element={<RecuperarContrasena />} />
           <Route path="/recuperar-empresa" element={<RecuperarEmpresa />} />
           <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
@@ -314,6 +330,8 @@ export default function App() {
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          <Route path="/:slug/politicas" element={<PoliticasPublicas />} />
+          <Route path="/:slug/politicas/:tipo" element={<PoliticasPublicas />} />
           {/* A5 (#279): el cliente aprueba la alternativa de una variante agotada. */}
           <Route path="/alternativa/:token" element={<AlternativaPublica />} />
           {/* QR impresos (ver src/lib/printing/qr.js): la etiqueta de góndola
@@ -321,6 +339,13 @@ export default function App() {
               caían al catch-all y terminaban en el login. */}
           <Route path="/producto/:sku" element={<ProductoPublico />} />
           <Route path="/prueba" element={<PruebaImpresion />} />
+          <Route path="/superadmin" element={<SuperadminLayout />}>
+            <Route index element={<SuperadminResumen />} />
+            <Route path="empresas" element={<SuperadminEmpresas />} />
+            <Route path="usuarios" element={<SuperadminUsuarios />} />
+            <Route path="trafico" element={<SuperadminTrafico />} />
+            <Route path="*" element={<Navigate to="/superadmin" replace />} />
+          </Route>
           <Route
             path="/"
             element={

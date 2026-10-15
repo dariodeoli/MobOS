@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { gs } from '@/utils/calculos'
 import { whatsappUrl } from '@/utils/telefono'
@@ -108,5 +109,18 @@ export function ResumenTotales({ filas = [], total, etiquetaTotal = 'Total', pen
         </p>
       )}
     </div>
+  )
+}
+
+// Enlace al pie de las páginas públicas hacia las políticas de la tienda
+// (#433). Sin slug (la tienda no publicó ninguna) no se dibuja.
+export function EnlacePoliticas({ slug, className }) {
+  if (!slug) return null
+  return (
+    <p className={cn('text-center', className)}>
+      <Link to={`/${encodeURIComponent(slug)}/politicas`} data-testid="enlace-politicas" className="inline-flex min-h-11 items-center px-3 text-sm font-semibold text-fono-light underline-offset-2 hover:underline">
+        Políticas de la tienda
+      </Link>
+    </p>
   )
 }

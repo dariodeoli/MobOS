@@ -7,11 +7,14 @@ import { openShellDestination, selectAnalysisSection } from './helpers/shell-nav
 // Los chequeos de las funciones de #194 son "soft": si el deploy todavía no las
 // tiene, el test las lista como pendientes en vez de cortar el recorrido.
 import { test, expect } from '@playwright/test'
-import { cerrarGuiaDemo } from './helpers/demo.js'
+import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const BASE = (process.env.DEMO_BASE_URL || '').replace(/\/$/, '')
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
-const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
+// La medición anónima de la demo (/api/public/track, #438) es la única llamada permitida.
+const esLlamadaApi = (url) => (url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')) && !url.includes('/api/public/track')
 const url = (ruta) => `${BASE}${ruta}`
 
 async function entrarDemo(page) {

@@ -5,6 +5,9 @@ import { openShellDestination, lockShell } from './helpers/shell-navigation.js'
 // resto del equipo entra a /mi-cuenta (sin permisos de administración).
 import { test, expect } from './helpers/seller-test.js'
 import { pngSolido } from './helpers/png.js'
+import { silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-253-mi-cuenta'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -76,6 +79,7 @@ test('demo: Mi cuenta se arma con los datos de la pestaña', async ({ browser })
   test.skip(test.info().project.name !== 'admin', 'Demo del dueño.')
   const contexto = await browser.newContext({ viewport: { width: 1280, height: 1000 } })
   const page = await contexto.newPage()
+  await silenciarAvisoMetricas(page)
 
   await page.goto('/demo')
   await page.waitForTimeout(1200)

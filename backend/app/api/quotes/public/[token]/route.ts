@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { numero } from '../../../../../lib/montos'
+import { politicasPublicadas } from '../../../../../lib/public-policies'
 import { OTP_MAX_ATTEMPTS, congelarVersionDeCotizacion, enmascararEmail, enmascararTelefono } from '../../../../../lib/quote-approval'
 import { canalesOtpDisponibles } from '../../../../../lib/otp-transport'
 
@@ -21,7 +22,7 @@ async function porToken(token: string) {
       customer: { select: { name: true, document: true, email: true, phone: true, countryCode: true } },
       seller: { select: { name: true } },
       order: { select: { orderNumber: true } },
-      tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
+      tenant: { select: { name: true, slug: true, settings: true, logos: { select: { id: true }, take: 1 } } },
     },
   })
 }
@@ -86,7 +87,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
     validUntil: contenido.validUntil,
-    company: { name: quote.tenant?.name || null, logo: Boolean(quote.tenant?.logos?.length) },
+    company: { name: quote.tenant?.name || null, logo: Boolean(quote.tenant?.logos?.length), ...politicasPublicadas(quote.tenant) },
     branch: quote.branch ? {
       name: quote.branch.name,
       address: quote.branch.address,

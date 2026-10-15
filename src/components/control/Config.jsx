@@ -20,6 +20,7 @@ import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import Comercial from '@/components/control/config/Comercial'
+import Politicas from '@/components/control/config/Politicas'
 import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import TiendasSucursales from '@/components/config/TiendasSucursales'
@@ -65,13 +66,14 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
 
 // #299 · Organización en secciones por tarea: cada una se abre con su tarea
 // clara y no se mezcla con el resto. El orden es el del uso cotidiano.
-const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', peligro: 'alert' }
+const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', peligro: 'alert' }
 const ORG_SECCIONES = [
   ['datos', 'Datos generales'],
   ['identidad', 'Identidad visual'],
   ['sucursales', 'Sucursales y depósitos'],
   ['fiscales', 'Datos fiscales'],
   ['numeracion', 'Numeración'],
+  ['politicas', 'Políticas'],
   ['peligro', 'Zona de peligro'],
 ]
 
@@ -342,6 +344,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           {guardadoNumeracion.panel}
           <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
         </Card>}
+          {org === 'politicas' && esDueno && <Politicas />}
           {org === 'peligro' && <>
         <Card data-config-anchor="peligro" className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
 

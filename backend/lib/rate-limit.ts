@@ -34,3 +34,22 @@ export function enforceRateLimit(request: Request, route: string, max: number, w
   windows.set(key, hits)
   return null
 }
+
+/**
+ * Tope global por proceso (sin distinguir cliente) para endpoints públicos
+ * cuando no hay IP verificada y enforceRateLimit no limita. Devuelve true si se
+ * excedió; quien llama decide la respuesta.
+ */
+export function globalCapExceeded(route: string, max: number, windowMs: number): boolean {
+  const key = `global:${route}`
+  const now = Date.now()
+  const hits = windows.get(key) ?? []
+  while (hits.length && hits[0] <= now - windowMs) hits.shift()
+  if (hits.length >= max) {
+    windows.set(key, hits)
+    return true
+  }
+  hits.push(now)
+  windows.set(key, hits)
+  return false
+}

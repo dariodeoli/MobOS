@@ -12,6 +12,8 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiqueta
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import { documentoComprobante } from '@/lib/printing/ventaComprobante'
+import { garantiaConPolitica } from '@/lib/politicas'
+import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -396,7 +398,10 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
   const { total, pagado: paid, pendiente } = totalesPedido(order)
   const when = order.createdAt || order.creadoEn || order.fecha
-  const link = token ? accessUrlFor(token) : trackingUrlFor(order)
+  const politica = await getPoliticasImpresion()
+  const linkPedido = token ? accessUrlFor(token) : trackingUrlFor(order)
+  // Sin enlace del pedido, el QR lleva a las políticas públicas de la tienda (#433).
+  const link = linkPedido || politica.url
   let qr = ''
   try { if (link) qr = await qrDataUrl(link, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* el enlace queda impreso igual */ }
   const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
@@ -463,7 +468,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ? `<div class="card"><div class="label">Cronología</div><table class="pagos">${order.timeline.map(evento => `<tr><td>${escapeHtml(textoEvento(evento))}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
     : ''
   const logo = await getLogoDataUrl()
-  const textoQr = level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'
+  const textoQr = !linkPedido ? 'Políticas de la tienda' : level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'
   const fila = (rotulo, valor, clase = '') => `<tr${clase ? ` class="${clase}"` : ''}><td>${escapeHtml(rotulo)}</td><td class="num">${valor}</td></tr>`
   const columnas = termico ? '' : '<thead><tr><th>Producto</th><th class="cant">Cant.</th><th class="num">Precio</th><th class="num">Total</th></tr></thead>'
 
@@ -485,7 +490,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ${credito}
     ${cronologia}
     <div class="pie-doc">
-      <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaDeVenta(order))}<br>Documento no fiscal · No válido como factura.</div>
+      <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaConPolitica(garantiaDeVenta(order), politica)).replace(/\n/g, '<br>')}<br>Documento no fiscal · No válido como factura.</div>
       ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link)}` : ''}</div></div>` : ''}
     </div>
     <footer>Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa.replace(/\.$/, ''))}` : ''}.</footer>

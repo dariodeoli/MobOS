@@ -2,6 +2,7 @@ import { configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDial
 import { accessUrlFor, buildProductLabelsHtml, buildUnitLabelsHtml, printOrderReceipt, printRemisionReceipt, tokenDeNivel } from '@/components/shared/OrderReceipt'
 import { ticketComprobante, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketEtiquetasUnidad, ticketRemision } from '@/lib/printing/tickets'
 import { qrDataUrl } from '@/lib/qr'
+import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api/client'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -56,8 +57,9 @@ export async function printQuickReceipt(unit) {
   const orden = await api.get(`/api/orders/${encodeURIComponent(venta.orderId)}`)
   // El QR del nivel rápido: mismo token de impresión que emite el comprobante.
   const token = await tokenDeNivel(orden.id, 'rapido')
+  const politica = await getPoliticasImpresion()
   const link = token ? accessUrlFor(token) : ''
-  const resultado = await imprimirDocumento(ticketComprobante(orden, { nivel: 'rapido', ancho, link }), { tipo: 'comprobante', ref: orden.orderNumber || venta.orderNumber || '' })
+  const resultado = await imprimirDocumento(ticketComprobante(orden, { nivel: 'rapido', ancho, link: link || politica.url, politica }), { tipo: 'comprobante', ref: orden.orderNumber || venta.orderNumber || '' })
   if (resultado?.ok || !puedeCaerAlDialogo(resultado)) return resultado
   const abierto = await printOrderReceipt(orden, { level: 'rapido', format: formato, token })
   return { ...resultado, dialogo: Boolean(abierto) }

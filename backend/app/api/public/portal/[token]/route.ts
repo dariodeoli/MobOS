@@ -4,6 +4,7 @@ import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { buscarPorTokenPublico, hashTokenPublico } from '../../../../../lib/public-token'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
+import { politicasPublicadas } from '../../../../../lib/public-policies'
 
 // Vitrina pública del cliente: una página de solo lectura por token donde ve
 // sus pedidos, su saldo a favor, sus puntos de fidelización y —si el enlace es
@@ -34,7 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         tenantId: true,
         customerId: true,
         customer: { select: { name: true, loyaltyPointsPyg: true, publicNote: true } },
-        tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
+        tenant: { select: { name: true, slug: true, settings: true, logos: { select: { id: true }, take: 1 } } },
       },
     }),
     (legacyToken) => prisma.customerPortalToken.findFirst({
@@ -45,7 +46,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         tenantId: true,
         customerId: true,
         customer: { select: { name: true, loyaltyPointsPyg: true, publicNote: true } },
-        tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
+        tenant: { select: { name: true, slug: true, settings: true, logos: { select: { id: true }, take: 1 } } },
       },
     }),
   )
@@ -106,7 +107,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
   return json({
     nivel: portal.level,
-    tienda: { nombre: portal.tenant?.name || null, tieneLogo: Boolean(portal.tenant?.logos?.length) },
+    tienda: { nombre: portal.tenant?.name || null, tieneLogo: Boolean(portal.tenant?.logos?.length), ...politicasPublicadas(portal.tenant) },
     cliente: {
       nombre: portal.customer?.name || null,
       // Nota pública de la tienda (issue #127): solo viaja si existe; la nota

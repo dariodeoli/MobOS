@@ -11,6 +11,9 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const SALIDA = process.env.MOBOS_299_CAPTURAS || ''
 
@@ -26,6 +29,7 @@ const ORG = [
   ['Sucursales y depósitos', 'Tiendas'],
   ['Datos fiscales', 'Empresas/personas jurídicas (privado)'],
   ['Numeración', 'Identificador de pedidos'],
+  ['Políticas', 'Políticas de la tienda'],
   ['Zona de peligro', 'Archivar empresa'],
 ]
 

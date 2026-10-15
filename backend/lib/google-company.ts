@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { hashToken, requiresAdminPinSetup } from './auth'
-import { accountForGoogle, ensureMembership, hasActiveMembership, syncGoogleMemberships } from './membership'
+import { accountForGoogle, ensureMembership, hasActiveMembership, recordGoogleIdentity, syncGoogleMemberships } from './membership'
 import { AuthFlowError, GoogleIdentity } from './google-oauth'
 
 export type GoogleStore = { id: string; name: string; slug: string }
@@ -53,7 +53,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
         }
         const created = await tx.tenant.create({ data: { name: input.companyName, email: existing ? null : identity.email, emailVerifiedAt: existing ? null : new Date(), slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
         const admin = await tx.user.create({ data: { tenantId: created.id, name: identity.name?.slice(0, 100) || 'Administrador', email: identity.email, pinHash, role: 'ADMIN' } })
-        await tx.googleIdentity.upsert({ where: { subject: identity.sub }, update: { name: identity.name || null, picture: identity.picture || null }, create: { subject: identity.sub, name: identity.name || null, picture: identity.picture || null } })
+        await recordGoogleIdentity(tx, identity)
         await tx.googleStoreAccess.create({ data: { subject: identity.sub, tenantId: created.id, owner: true } })
         // Doble escritura (#377): la cuenta se identifica por el subject de Google,
         // nunca por correo; el perfil vinculado es el ADMIN recién creado.
@@ -78,6 +78,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
 
   // Pertenencias al día (doble escritura) y sin las tiendas que la persona dejó.
   await prisma.$transaction(async tx => {
+    await recordGoogleIdentity(tx, identity)
     const account = await accountForGoogle(tx, identity.sub)
     await syncGoogleMemberships(tx, account.id, identity.sub, identity.email)
   })
@@ -101,7 +102,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
   if (!tenant) throw new AuthFlowError('no_store', 'Esta cuenta todavía no tiene tienda. Completá el alta.', 409)
   // La identidad ya estaba vinculada: se refresca el perfil con cada acceso
   // para que el nombre real y la foto del dueño sigan al día en la sesión.
-  await prisma.googleIdentity.upsert({ where: { subject: identity.sub }, update: { name: identity.name || null, picture: identity.picture || null }, create: { subject: identity.sub, name: identity.name || null, picture: identity.picture || null } })
+  await prisma.$transaction(tx => recordGoogleIdentity(tx, identity))
   // El dueño vende con su nombre real: si el admin sigue con el nombre
   // genérico del alta y el perfil Google tiene nombre, se sincroniza para que
   // ventas, reportes y comprobantes muestren a la persona (no "Administrador").

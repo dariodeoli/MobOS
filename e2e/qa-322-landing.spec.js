@@ -160,7 +160,7 @@ test('la landing se recorre en móvil con menú, sin repeticiones y con pie lega
 
   // Pie legal: Soporte, Estado, Privacidad y Términos.
   const pie = page.locator('footer.mobos-footer')
-  await expect(pie.getByRole('link', { name: 'Soporte' })).toHaveAttribute('href', /^mailto:soporte@moboss\.online/)
+  await expect(pie.getByRole('link', { name: 'Soporte' })).toHaveAttribute('href', /^mailto:mobos@weem\.com\.py/)
   await expect(pie.getByRole('link', { name: 'Estado' })).toHaveAttribute('href', '/status')
   await expect(pie.getByRole('link', { name: 'Privacidad' })).toHaveAttribute('href', '/privacidad')
   await expect(pie.getByRole('link', { name: 'Términos' })).toHaveAttribute('href', '/terminos')

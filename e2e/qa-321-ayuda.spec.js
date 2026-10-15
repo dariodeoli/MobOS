@@ -8,7 +8,9 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { openShellProfile } from './helpers/shell-navigation.js'
-import { cerrarGuiaDemo } from './helpers/demo.js'
+import { cerrarGuiaDemo, silenciarAvisoMetricas } from './helpers/demo.js'
+
+test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
 const SHOTS = process.env.MOBOS_CAPTURAS || join('docs', 'qa', '321-ayuda-atajos')
 mkdirSync(SHOTS, { recursive: true })

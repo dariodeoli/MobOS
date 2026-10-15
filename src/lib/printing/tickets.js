@@ -13,6 +13,7 @@ import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocument
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 import { documentoComprobante } from './ventaComprobante.js'
 import { desgloseVenta, garantiaDeVenta, serialesDeItem } from './ventaPapel.js'
+import { garantiaConPolitica } from '../politicas.js'
 import { TIPOS_PRUEBA, paginaDePrueba } from 'owncoding-ui'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -37,7 +38,7 @@ function importeGrande(t, rotulo, monto) {
 // #318: el pedido se normaliza con la misma fuente de verdad que el HTML
 // (empresa, cliente, número, artículos y totales), también para las ventas
 // legacy del demo y las filas del listado.
-export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, link = '', logo = null, contexto } = {}) {
+export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, link = '', logo = null, contexto, politica = null } = {}) {
   const order = documentoComprobante(entrada, contexto)
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(order.items) ? order.items : []
@@ -149,11 +150,13 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
 
   // Garantía y estado, luego el QR del pedido.
   t.linea()
-  if (completo) t.texto(garantiaDeVenta(order))
+  if (completo) t.texto(garantiaConPolitica(garantiaDeVenta(order), politica))
   t.centrado(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')
   if (link) {
     t.avanza(1)
-    t.centrado(nivel === 'rapido' ? 'Seguimiento' : 'Comprobante y seguimiento')
+    // Sin enlace del pedido, el QR lleva a las políticas públicas de la tienda (#433).
+    const soloPoliticas = Boolean(politica?.url) && link === politica.url
+    t.centrado(soloPoliticas ? 'Políticas de la tienda' : nivel === 'rapido' ? 'Seguimiento' : 'Comprobante y seguimiento')
     t.qr(link, { tamano: 7 })
     t.texto(link)
   }
