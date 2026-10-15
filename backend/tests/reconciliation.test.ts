@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import test from 'node:test'
+import { evaluateDailyReconciliation } from '../lib/reconciliation'
+import { parseDailyDeclarations, reconciliationDayRange } from '../lib/reconciliation-day'
 import { processorOf, summarizeReconciliation, type ReconciliationPayment } from '../lib/reconciliation'
 
 // #144: agrupación por cuenta/medio/procesadora, foto del pago sobre la cuenta
@@ -84,3 +87,40 @@ assert.equal(processorOf(pago({ accountSnapshot: { processor: 'Dinelco' } })), '
 assert.equal(processorOf(pago({ accountSnapshot: null })), '')
 
 console.log('Conciliación: resumen por cuenta, medio y procesadora OK (#144)')
+
+const cash = { id: 'cash', method: 'CASH', accountId: null, currency: 'PYG', status: 'CONFIRMED', amountPyg: 100000 }
+const declared = (method: string, accountId: string | null, receivedPyg: number) => ({ method, accountId, currency: 'PYG', receivedPyg })
+test('día: sin declaración independiente queda pendiente aunque los cobros estén confirmados', () => {
+  assert.equal(evaluateDailyReconciliation([cash], null).state, 'PENDING')
+  assert.equal(evaluateDailyReconciliation([cash], null).groups[0].receivedPyg, null)
+  assert.equal(evaluateDailyReconciliation([cash], [declared('CASH', null, 100000)]).state, 'VERIFIED')
+  assert.equal(evaluateDailyReconciliation([cash, { ...cash }], [declared('CASH', null, 100000)]).expectedPyg, 100000)
+})
+test('día: diferencias opuestas no se compensan para marcar verde; cero debe declararse', () => {
+  const transfer = { ...cash, id: 'transfer', method: 'TRANSFER', accountId: 'bank' }
+  const result = evaluateDailyReconciliation([cash, transfer], [declared('CASH', null, 90000), declared('TRANSFER', 'bank', 110000)])
+  assert.equal(result.differencePyg, 0); assert.equal(result.differences, 2); assert.equal(result.state, 'DIFFERENCE')
+  assert.equal(evaluateDailyReconciliation([], null).state, 'PENDING')
+  assert.equal(evaluateDailyReconciliation([], [declared('CASH', null, 0)]).state, 'VERIFIED')
+  assert.equal(evaluateDailyReconciliation([transfer], [declared('TRANSFER', 'bank', 100000)]).state, 'PENDING')
+})
+test('día: reevalúa tras corrección y no toma pagos pendientes o crédito como recibido', () => {
+  const declarations = [declared('CASH', null, 100000)]
+  assert.equal(evaluateDailyReconciliation([cash], declarations).state, 'VERIFIED')
+  assert.equal(evaluateDailyReconciliation([{ ...cash, amountPyg: 80000 }], declarations).differencePyg, 20000)
+  const result = evaluateDailyReconciliation([{ ...cash, status: 'PENDING' }, { ...cash, id: 'credit', method: 'CREDIT' }], declarations)
+  assert.equal(result.expectedPyg, 0); assert.equal(result.state, 'DIFFERENCE')
+})
+test('declaración: importe explícito entero en Gs, grupo único y USDT válido', () => {
+  assert.deepEqual(parseDailyDeclarations([declared('CASH', null, 0)]), [declared('CASH', null, 0)])
+  assert.equal(parseDailyDeclarations([{ ...declared('CRYPTO', 'crypto', 1000), currency: 'USDT' }])[0].currency, 'USDT')
+  for (const receivedPyg of ['', null, undefined, -1, 1.5, '1000', Infinity]) assert.throws(() => parseDailyDeclarations([{ ...declared('CASH', null, 0), receivedPyg }]))
+  assert.throws(() => parseDailyDeclarations([declared('CASH', null, 0), declared('CASH', null, 1)]))
+  assert.throws(() => parseDailyDeclarations([{ ...declared('CASH', null, 0), currency: 'XYZ' }]))
+})
+test('día financiero: límites reales de Paraguay y rechazo de fechas inexistentes', () => {
+  const range = reconciliationDayRange('2026-10-15')
+  assert.equal(range.start.toISOString(), '2026-10-15T03:00:00.000Z')
+  assert.equal(range.end.toISOString(), '2026-10-16T03:00:00.000Z')
+  for (const day of ['2026-02-31', '2026-13-01', '2026-1-01', null]) assert.throws(() => reconciliationDayRange(day))
+})

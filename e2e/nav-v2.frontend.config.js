@@ -22,6 +22,7 @@ export default defineConfig({
     'campos-ancho.frontend.spec.js',
     'config-secciones.frontend.spec.js',
     'stock-layout.frontend.spec.js',
+    'reconciliation-day.frontend.spec.js',
     'stock-policy.frontend.spec.js',
     'planilla-unidades.frontend.spec.js',
     'verificacion-stock.frontend.spec.js',

@@ -1,3 +1,4 @@
+import { dailyPayments, dailyRequestHash, dailyView, parseDailyDeclarations, paymentEvidence, reconciliationDayRange } from '../../../../lib/reconciliation-day'
 import { Prisma, type PaymentMethod } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
@@ -16,6 +17,7 @@ import {
   holderOf,
   processorOf,
   summarizeReconciliation,
+  evaluateDailyReconciliation,
   type ReconciliationBatchLike,
   type ReconciliationPayment,
 } from '../../../../lib/reconciliation'
@@ -80,6 +82,11 @@ export async function GET(request: Request) {
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
   try {
     const params = new URL(request.url).searchParams
+    if (params.get('view') === 'day') {
+      if (!ctx.branchId) throw new InputError('Elegí una sucursal para verificar el día.')
+      const { day } = reconciliationDayRange(params.get('day'))
+      return json(await prisma.$transaction(tx => dailyView(tx, ctx.session.user.tenantId, ctx.branchId!, day), { isolationLevel: 'RepeatableRead' }), { headers: { 'Cache-Control': 'no-store' } })
+    }
     const { from, to, start, end } = rangoDe(params)
     const soloResumen = ['1', 'true'].includes((params.get('soloResumen') || '').toLowerCase())
     const accountId = params.get('accountId') || ''
@@ -192,6 +199,42 @@ export async function POST(request: Request) {
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
   try {
     const body = objectInput(await request.json())
+    if (body.action === 'day') {
+      if (!ctx.branchId || body.branchId !== ctx.branchId) throw new InputError('Elegí tu sucursal para verificar el día.', 403)
+      const { day } = reconciliationDayRange(body.day)
+      const declarations = parseDailyDeclarations(body.declarations)
+      const requestId = typeof body.requestId === 'string' ? body.requestId : ''
+      if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId)) throw new InputError('Identificador de solicitud inválido.')
+      if (typeof body.expectedVersion !== 'number' || !Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0) throw new InputError('Versión de declaración inválida.')
+      let note: string | null
+      try { note = normalizeReconciliationNote(body.note) } catch (cause) { throw new InputError(cause instanceof Error ? cause.message : 'Nota inválida.') }
+      const tenantId = ctx.session.user.tenantId, branchId = ctx.branchId
+      const requestHash = dailyRequestHash(declarations, note)
+      await prisma.$transaction(async tx => {
+        // Un candado por día evita revisiones duplicadas y serializa guardados simultáneos.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify([tenantId, branchId, day])}, 451))`
+        const prior = await tx.reconciliationDayRevision.findUnique({ where: { tenantId_requestId: { tenantId, requestId } }, include: { day: true } })
+        if (prior) {
+          if (prior.requestHash !== requestHash || prior.day.branchId !== branchId || prior.day.businessDay !== day) throw new InputError('La solicitud ya se usó con otros datos.', 409)
+          return
+        }
+        const existing = await tx.reconciliationDay.findUnique({ where: { tenantId_branchId_businessDay: { tenantId, branchId, businessDay: day } }, include: { revisions: { orderBy: { version: 'desc' }, take: 1 } } })
+        const version = existing?.revisions[0]?.version || 0
+        if (version !== body.expectedVersion) throw new InputError('Otra persona actualizó este día. Actualizá y revisá la declaración.', 409)
+        const payments = await dailyPayments(tx, tenantId, branchId, day, tx)
+        // Las cuentas nuevas deben pertenecer a esta empresa; las históricas del cobro son válidas aunque estén inactivas.
+        const accountIds = [...new Set(declarations.map(row => row.accountId).filter(Boolean))] as string[]
+        const accounts = await tx.paymentAccount.findMany({ where: { tenantId, id: { in: accountIds } }, select: { id: true } })
+        if (accounts.length !== accountIds.length) throw new InputError('Alguna cuenta no pertenece a la empresa.', 403)
+        const result = evaluateDailyReconciliation(payments, declarations)
+        if (result.missing) throw new InputError('Declará el importe recibido de cada medio/cuenta, incluido cero.')
+        if (result.differences && !note) throw new InputError('Indicá el motivo de las diferencias.')
+        const entry = existing || await tx.reconciliationDay.create({ data: { tenantId, branchId, businessDay: day } })
+        const revision = await tx.reconciliationDayRevision.create({ data: { dayId: entry.id, tenantId, requestId, requestHash, version: version + 1, declarations: declarations as unknown as Prisma.InputJsonValue, snapshot: result as unknown as Prisma.InputJsonValue, paymentSnapshot: paymentEvidence(payments), note, createdById: ctx.session.user.id } })
+        await tx.auditLog.create({ data: { tenantId, userId: ctx.session.user.id, action: 'RECONCILIATION_DAY_DECLARED', entity: 'ReconciliationDay', entityId: entry.id, metadata: { branchId, day, revisionId: revision.id, version: revision.version, state: result.state, expectedPyg: result.expectedPyg, receivedPyg: result.receivedPyg, differencePyg: result.differencePyg, differences: result.differences, note } } })
+      })
+      return json(await prisma.$transaction(tx => dailyView(tx, tenantId, branchId, day), { isolationLevel: 'RepeatableRead' }))
+    }
     if (body.action !== 'batch') throw new InputError('Acción de conciliación inválida.')
     const rawIds = body.paymentIds
     if (!Array.isArray(rawIds) || !rawIds.length || rawIds.length > MAX_LOTE) throw new InputError(`Elegí entre 1 y ${MAX_LOTE} pagos para el lote.`)
@@ -213,6 +256,7 @@ export async function POST(request: Request) {
       const corregido = await tx.payment.findFirst({ where: { tenantId, OR: [{ id: { in: paymentIds }, reversalOfId: { not: null } }, { reversalOfId: { in: paymentIds } }] }, select: { id: true } })
       if (corregido) throw new InputError('El lote incluye un pago corregido o su reversión: conciliá el pago nuevo.', 409)
       for (const row of rows) {
+        if (row.status === 'PENDING' && (row.deliveryUserId || row.deliverySettlementId)) throw new InputError('Los cobros pendientes de reparto se verifican mediante su rendición.', 409)
         if (!['CONFIRMED', 'PENDING'].includes(row.status)) throw new InputError('Solo se concilian pagos confirmados o pendientes.')
         if (!(RECONCILIATION_METHODS as readonly string[]).includes(row.method)) throw new InputError('El lote incluye un medio que no se concilia.')
       }
@@ -235,6 +279,7 @@ export async function POST(request: Request) {
 
       const fechas = rows.map((row) => row.paidAt || row.createdAt).sort((a, b) => a.getTime() - b.getTime())
       const orders = await tx.order.findMany({ where: { id: { in: [...new Set(rows.map((row) => row.orderId))] }, tenantId }, select: { id: true, branchId: true } })
+      if (ctx.branchId && orders.some(order => order.branchId !== ctx.branchId)) throw new InputError('El lote incluye pagos de otra sucursal.', 403)
       const branches = new Set(orders.map((order) => order.branchId || ''))
       const branchId = branches.size === 1 ? ([...branches][0] || null) : null
 

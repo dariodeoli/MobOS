@@ -230,3 +230,43 @@ export async function confirmReconciledPayment(
   await tx.auditLog.create({ data: { tenantId, userId, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, amountPyg: row.amountPyg, method: row.method, note } } })
   return true
 }
+
+
+export type DailyDeclaration = { method: string; accountId: string | null; currency: string; receivedPyg: number }
+export type DailyPayment = { id: string; method: string; accountId: string | null; currency: string | null; amountPyg: number | bigint; status: string; label?: string }
+export const dailyGroupKey = (row: { method: string; accountId: string | null; currency: string | null }) => JSON.stringify([row.method, row.accountId || '', row.currency || 'PYG'])
+
+/** Una declaración es independiente: nunca se completa con el monto del sistema. */
+export function evaluateDailyReconciliation(payments: DailyPayment[], declarations: DailyDeclaration[] | null) {
+  const groups = new Map<string, { key: string; method: string; accountId: string | null; currency: string; label: string; expectedPyg: number; receivedPyg: number | null; differencePyg: number | null; count: number }>()
+  const group = (row: { method: string; accountId: string | null; currency: string | null; label?: string }) => {
+    const key = dailyGroupKey(row)
+    if (!groups.has(key)) groups.set(key, { key, method: row.method, accountId: row.accountId, currency: row.currency || 'PYG', label: row.label || METHOD_LABELS[row.method] || row.method, expectedPyg: 0, receivedPyg: null, differencePyg: null, count: 0 })
+    return groups.get(key)!
+  }
+  // Aun sin ventas, declarar caja cero es una afirmación explícita del responsable.
+  group({ method: 'CASH', accountId: null, currency: 'PYG' })
+  const seen = new Set<string>()
+  for (const payment of payments) {
+    if (payment.status !== 'CONFIRMED' || !(RECONCILIATION_METHODS as readonly string[]).includes(payment.method) || seen.has(payment.id)) continue
+    seen.add(payment.id)
+    const row = group(payment)
+    row.expectedPyg += numero(payment.amountPyg); row.count++
+    if (!Number.isSafeInteger(row.expectedPyg)) throw new Error('El total del día supera el rango permitido.')
+  }
+  for (const declaration of declarations || []) {
+    const row = group(declaration)
+    row.receivedPyg = declaration.receivedPyg
+    row.differencePyg = declaration.receivedPyg - row.expectedPyg
+  }
+  const rows = [...groups.values()].sort((a, b) => a.key.localeCompare(b.key))
+  const missing = rows.filter(row => row.receivedPyg === null).length
+  const differences = rows.filter(row => row.differencePyg !== null && row.differencePyg !== 0).length
+  return {
+    state: differences ? 'DIFFERENCE' : missing ? 'PENDING' : 'VERIFIED',
+    groups: rows, missing, differences,
+    expectedPyg: rows.reduce((sum, row) => sum + row.expectedPyg, 0),
+    receivedPyg: rows.reduce((sum, row) => sum + (row.receivedPyg ?? 0), 0),
+    differencePyg: rows.reduce((sum, row) => sum + (row.differencePyg ?? 0), 0),
+  }
+}
