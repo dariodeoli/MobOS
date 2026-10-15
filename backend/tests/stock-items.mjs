@@ -47,7 +47,7 @@ try {
   assert.equal(page.totals.byKind.ACCESORIO, 1)
   const unidad = page.items.find(row => row.kind === 'unit' && row.serial === unidadesDb[1].serial)
   assert.ok(unidad, 'la unidad aparece')
-  assert.deepEqual(Object.keys(unidad).sort(), ['batteryCycles', 'batteryHealth', 'branchId', 'branchName', 'condition', 'consignorName', 'costPyg', 'createdAt', 'id', 'kind', 'locationCode', 'locationColor', 'locationIcon', 'locationId', 'locationName', 'model', 'name', 'notes', 'productId', 'quantity', 'reservationCustomer', 'reservedUntil', 'serial', 'sku', 'soldAt', 'status', 'stockKind', 'supplierCode', 'supplierColor', 'supplierIcon', 'supplierId', 'supplierName', 'verifiedBy', 'warrantyUntil'])
+  assert.deepEqual(Object.keys(unidad).sort(), ['batteryCycles', 'batteryHealth', 'branchId', 'branchName', 'condition', 'consignorName', 'costPyg', 'createdAt', 'id', 'kind', 'lastVerifiedAt', 'locationCode', 'locationColor', 'locationIcon', 'locationId', 'locationName', 'model', 'name', 'notes', 'productId', 'quantity', 'reservationCustomer', 'reservedUntil', 'serial', 'sku', 'soldAt', 'status', 'stockKind', 'supplierCode', 'supplierColor', 'supplierIcon', 'supplierId', 'supplierName', 'verifiedBy', 'warrantyUntil'])
   assert.equal(unidad.status, 'disponible'); assert.equal(unidad.quantity, 1); assert.equal(unidad.stockKind, 'EQUIPO')
   assert.equal(unidad.costPyg, 2100000); assert.equal(unidad.supplierName, `Proveedor ${tag}`); assert.equal(unidad.batteryHealth, 88)
   assert.match(unidad.model, /U2 128GB Negro/)
