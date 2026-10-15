@@ -7,6 +7,7 @@ import { countablePayments } from '../../../../../lib/payment-net'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
 import { numero, numeroOpcional } from '../../../../../lib/montos'
 import { politicasPublicadas } from '../../../../../lib/public-policies'
+import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
@@ -88,6 +89,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     customerName: order.customer?.name || null,
     seller: order.seller?.name || null,
     company: { name: order.tenant?.name || null },
+    // Contacto de la sucursal (nunca del cliente ni del vendedor) para «Escribir por WhatsApp».
+    contacto: contactoPublicoSucursal(order.branch),
     items: order.items.map(item => ({
       description: item.description,
       quantity: item.quantity,

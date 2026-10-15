@@ -40,5 +40,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     serial: item.serial,
   }))
   const manifiesto = manifiestoEnvio({ envio, items, base })
-  return json(manifiesto)
+  // Las notas del envío son internas del equipo de abastecimiento: no viajan (#412).
+  const { notas: _notasInternas, ...publico } = manifiesto
+  return json(publico)
 }

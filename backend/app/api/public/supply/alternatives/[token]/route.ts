@@ -37,7 +37,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       optionSummary: alternativa.optionSummary,
       priceDeltaPyg: alternativa.priceDeltaPyg,
       newEta: alternativa.newEta,
-      notes: alternativa.notes,
+      // `notes` es interna (acumula motivos de decisiones): nunca viaja al cliente (#412).
       resumen: resumenAlternativa(alternativa),
       requiereOtp: requiereAprobacionCliente(alternativa.priceDeltaPyg),
       resuelta: ['ACEPTADA', 'RECHAZADA', 'CANCELADA'].includes(alternativa.status),

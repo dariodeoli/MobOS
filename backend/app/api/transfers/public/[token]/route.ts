@@ -3,6 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { serialKey } from '../../../../../lib/validation'
 import { changeStock } from '../../../../../lib/stock'
+import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 
 // Vista pública del remito de traslado: origen, destino, líneas con IMEI y
 // guía AEX. El destino la abre desde el QR impreso para confirmar la recepción
@@ -48,6 +49,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     receivedNote: transfer.receivedNote,
     aexGuide: transfer.aexGuide,
     notes: transfer.notes,
+    // Contacto de la sucursal que despacha, para consultar el remito por WhatsApp.
+    contacto: contactoPublicoSucursal(transfer.sourceBranch),
     sourceBranch: transfer.sourceBranch,
     destinationBranch: transfer.destinationBranch,
     createdBy: transfer.createdBy?.name || null,

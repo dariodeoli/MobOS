@@ -11,6 +11,7 @@ import PasosEntrega from '@/components/customerPortal/PasosEntrega'
 import { demoVitrinaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
 
 // Vitrina pública del cliente: solo lectura, por token. Muestra la marca de la
@@ -176,6 +177,7 @@ export default function PortalCliente() {
           </>
         )}
       </div>
+      <WhatsAppSucursal contacto={portal?.contacto} />
       <ProductFooter />
     </main>
   )
