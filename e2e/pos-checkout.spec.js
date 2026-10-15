@@ -85,7 +85,8 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await dividirSaldo.click()
   await expect(paymentsSection.getByTestId('pago-fila-1')).toBeVisible()
   await expect(accountSelects).toHaveCount(1)
-  await expect(amountInputs.nth(1)).toHaveValue('')
+  // «Dividir pago» deja la fila nueva ya con el saldo que falta.
+  await expect(amountInputs.nth(1)).toHaveValue('20.000')
 
   // Second payment account covers the remainder.
   await elegirCuenta(page, paymentsSection, 1, 'Transferencia E2E')
@@ -439,12 +440,17 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
-  for (const bloque of ['Cliente', 'Productos', 'Productos de esta venta', 'Cobro y entrega']) {
+  for (const bloque of ['Cliente', 'Productos', 'Productos de esta venta']) {
     const heading = page.getByRole('heading', { name: bloque, exact: true })
     await expect(heading).toBeVisible()
     // Sin pasos: el título del bloque no arranca con un número.
     expect(await heading.textContent()).not.toMatch(/^\s*\d/)
   }
+  // Cobro compacto (una sola pantalla): el bloque ya no lleva título propio, pero
+  // sigue a la vista y sin numeración de pasos.
+  const cobro = page.getByTestId('pos-cobro')
+  await expect(cobro).toBeVisible()
+  expect((await cobro.textContent()).trim()).not.toMatch(/^\d/)
 
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
   await expect(page.getByTestId('carrito-total')).toBeVisible()

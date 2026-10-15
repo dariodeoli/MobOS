@@ -205,7 +205,7 @@ export default function PasoCarrito({
               type="button"
               data-testid="carrito-listo"
               onClick={onListo}
-              className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-ok px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
+              className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
             >
               Listo, ir a cobrar
             </button>

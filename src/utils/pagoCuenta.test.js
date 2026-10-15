@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { accountPayment, updateAccountPayment, cambiarCuentaPago, errorCotizacion, avisoDesvioCotizacion, residuoSubCentavo, vueltoEfectivoExtranjero, pagosSinVuelto } from './pagoCuenta.js'
 import { convertirAPyg, montoMaximoEnMoneda } from './conversionPyg.js'
 
@@ -88,23 +87,28 @@ test('cambiar de cuenta a otra moneda descarta la cotización anterior (#390)', 
   assert.equal(primera.cambio.originalAmount, '10,00')
 })
 
-// Función del servidor (payment-input.ts), copiada literal con Prisma.Decimal.
-const { Decimal } = createRequire(new URL('../../backend/package.json', import.meta.url))('@prisma/client/runtime/client')
-const servidor = (monto, tasa) => new Decimal(monto).mul(new Decimal(tasa)).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber()
+// Referencia independiente (cociente exacto con BigInt y redondeo HALF_UP). El
+// cruce contra Prisma.Decimal del servidor vive en backend/tests/conversion-pyg.test.ts.
+const referencia = (monto, tasa) => {
+  const [mi, mf = ''] = String(monto).split('.')
+  const [ti, tf = ''] = String(tasa).split('.')
+  const num = BigInt(mi + mf) * BigInt(ti + tf)
+  const den = 10n ** BigInt(mf.length + tf.length)
+  return Number(num / den + (2n * (num % den) >= den ? 1n : 0n))
+}
 
-test('conversión a PYG idéntica al servidor (Decimal HALF_UP) en 1.000+ combinaciones', () => {
+test('conversión a PYG HALF_UP exacta en 1.000+ combinaciones', () => {
   let n = 0
   const tasas = ['7250', '7300', '7300.5', '7301.46', '7284.25', '5935.01', '1375.5', '7249.99', '19999.99']
   for (let cents = 1; cents <= 20000; cents += 29) {
     const monto = (cents / 100).toFixed(2)
     for (const tasa of tasas) {
-      assert.equal(convertirAPyg(monto, tasa), servidor(monto, tasa), `${monto} x ${tasa}`)
+      assert.equal(convertirAPyg(monto, tasa), referencia(monto, tasa), `${monto} x ${tasa}`)
       n++
     }
   }
   assert.ok(n >= 721)
   assert.equal(convertirAPyg('2,01', '7250'), 14573, 'caso reportado: el cliente daba 14.572')
-  assert.equal(servidor('2.01', '7250'), 14573)
 })
 
 test('el prefill USD redondea hacia abajo al centavo y nunca supera el saldo', () => {

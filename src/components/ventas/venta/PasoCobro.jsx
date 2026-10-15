@@ -356,7 +356,7 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            className="h-9"
+            className="h-11 md:h-9"
             onClick={() => onAgregarPago()}
             disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal || pagoIncompleto}
             title={sinProductos || sinTotal ? motivoPago : pagoIncompleto ? 'Completá la cuenta y el monto del pago actual para agregar otro.' : undefined}
@@ -366,7 +366,7 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            className="h-9"
+            className="h-11 md:h-9"
             onClick={() => onAgregarGiftCard?.()}
             disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear || pagoIncompleto}
             title={!puedeCanjear ? motivoGiftCard : undefined}

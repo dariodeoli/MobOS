@@ -99,7 +99,7 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-1" data-testid="pago-monto-bloque">
       <div className="flex items-center gap-1.5">
         <label htmlFor="monto-original" className="text-[11px] font-semibold text-mute">Monto ({account?.currency || 'moneda'})</label>
-        <MoneyInput id="monto-original" aria-label="Monto original" className="h-9 w-36" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={extranjera ? '0,00' : '0'} />
+        <MoneyInput id="monto-original" aria-label="Monto original" className="h-9 w-48" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={extranjera ? '0,00' : '0'} />
       </div>
       {puedeDividir && (
         <button type="button" data-testid="pago-dividir" className="toque-44 inline-flex h-11 items-center rounded-lg border border-fono/40 px-2.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:h-8" onClick={onDividir} title={`Quedan ${gs(pendientePyg)} por cobrar: agrega otro pago con ese saldo`}>

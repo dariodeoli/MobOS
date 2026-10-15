@@ -89,10 +89,10 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await expect(pagos.getByTestId('cuenta-capsula').first()).toBeVisible()
   // #391: cambiar de cuenta es en el lugar y «Paga al recibir» es un interruptor.
   await toque(pagos.getByTestId('cuenta-cambiar').first(), 'cambiar cuenta')
-  await toque(pagos.getByTestId('pos-paga-al-recibir'), 'paga al recibir')
+  await toque(page.getByTestId('pos-paga-al-recibir'), 'paga al recibir')
   await toque(pagos.getByLabel('Monto original').first(), 'monto original')
   await toque(pagos.getByRole('button', { name: 'Eliminar pago 1' }), 'eliminar pago')
-  await toque(page.getByRole('button', { name: '+ Agregar pago' }), 'agregar pago')
+  await toque(page.getByRole('button', { name: /^\+ Agregar (otro )?pago$/ }), 'agregar pago')
   await toque(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido|Guardar pedido)/ }), 'botón principal')
 
   // Entrega.

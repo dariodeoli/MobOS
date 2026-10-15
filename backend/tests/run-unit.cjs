@@ -83,3 +83,4 @@ require('./membership.test.ts')
 // probar el camino sin configuración.
 require('./aex-ship.test.ts')
 require('./fx.test.ts')
+require('./conversion-pyg.test.ts')
