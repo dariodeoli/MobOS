@@ -30,12 +30,12 @@ export default function ResumenMetricas({ items = [], testId = 'resumen-metricas
     >
       {lead && <div className="flex shrink-0 items-center border-r border-ink-600 px-2">{lead}</div>}
       {items.map(({ titulo, valor, alcance, nota, tono = '', grafico }) => (
-        <div key={titulo} className="flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap border-r border-ink-600 px-3 py-1.5 last:border-r-0 sm:min-w-0 sm:flex-1">
-          <span className="text-xs font-medium leading-4 text-mute">{titulo}</span>
-          <span className={cn('v2-numero text-base font-semibold leading-6 tabular-nums', tono)}>{valor}</span>
-          {nota && <span className="text-xs leading-4 text-mute">{nota}</span>}
+        <div key={titulo} className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-2 border-r border-ink-600 px-3 py-1.5 last:border-r-0 sm:min-w-0 sm:flex-1">
+          <span className="whitespace-nowrap text-xs font-medium leading-4 text-mute">{titulo}</span>
+          <span className={cn('v2-numero whitespace-nowrap text-base font-semibold leading-6 tabular-nums', tono)}>{valor}</span>
+          {nota && <span className="whitespace-nowrap text-xs leading-4 text-mute">{nota}</span>}
           {grafico?.length > 1 && <span className="hidden w-12 shrink-0 md:block" data-testid="kpi-grafico"><Sparkline valores={grafico} alto={20} anchoMax={48} /></span>}
-          {alcance && !alcanceUnico && <span className="text-xs font-semibold leading-4 text-mute">{alcance}</span>}
+          {alcance && !alcanceUnico && <span className="whitespace-nowrap text-xs font-semibold leading-4 text-mute">{alcance}</span>}
         </div>
       ))}
       {pista && !alcanceUnico && (
