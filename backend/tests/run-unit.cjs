@@ -85,3 +85,4 @@ require('./site-events.test.ts')
 // probar el camino sin configuración.
 require('./aex-ship.test.ts')
 require('./fx.test.ts')
+require('./policies.test.ts')

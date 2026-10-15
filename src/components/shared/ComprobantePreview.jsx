@@ -17,6 +17,7 @@ import {
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
+import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { logoRasterDesdeDataUrl } from '@/lib/printing/logoRaster'
 import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
 import { printingApi } from '@/lib/api/printing'
@@ -189,7 +190,8 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
       toast.success(reimprimir ? 'Reimpresión encolada (demo)' : 'Comprobante encolado (demo)', 'Dato ficticio: no se envió nada al puente.')
       return
     }
-    const resultado = await imprimirDocumento(ticketComprobante(documento, { nivel, ancho, link, logo }), { tipo: 'comprobante', ref: referencia, reimprimir })
+    const politica = await getPoliticasImpresion()
+    const resultado = await imprimirDocumento(ticketComprobante(documento, { nivel, ancho, link: link || politica.url, logo, politica }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
     if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }
     if (!resultado.ok) { avisar.fallo('imprimir', resultado.error || 'Revisá la impresora.'); return }

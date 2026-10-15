@@ -29,6 +29,7 @@ export default defineConfig({
     'pestanas-iconos.frontend.spec.js',
     'superadmin.frontend.spec.js',
     'aviso-privacidad.frontend.spec.js',
+    'politicas.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

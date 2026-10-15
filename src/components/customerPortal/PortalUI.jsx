@@ -1,6 +1,7 @@
 import Icon from '@/components/shared/Icon'
 import { Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { EnlacePoliticas } from '@/components/publico/KitPublico'
 
 // Objetos compartidos por los dos portales públicos del cliente (cuenta por QR
 // y vitrina): un solo encabezado con la marca de la tienda, secciones con la
@@ -67,10 +68,13 @@ export function PortalFallo({ mensaje, ayuda = 'Pedile un enlace nuevo a la tien
   )
 }
 
-export function PortalPie({ tienda, actualizado }) {
+export function PortalPie({ tienda, actualizado, politicasSlug }) {
   return (
-    <p className="pt-1 text-center text-xs text-mute">
-      {actualizado ? `Actualizado ${actualizado} · ` : ''}Documento no fiscal · Generado por MobOS para {tienda || 'la tienda'}
-    </p>
+    <>
+      <p className="pt-1 text-center text-xs text-mute">
+        {actualizado ? `Actualizado ${actualizado} · ` : ''}Documento no fiscal · Generado por MobOS para {tienda || 'la tienda'}
+      </p>
+      <EnlacePoliticas slug={politicasSlug} />
+    </>
   )
 }
