@@ -55,6 +55,9 @@ import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 import './finanzasTactil.css'
 
+const FORMATO_USD = new Intl.NumberFormat('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const formatoUsd = (valor) => FORMATO_USD.format(Number(valor) || 0)
+
 // Repuestos/proveedores y taller: listados responsivos (`ListaDensa`: tabla
 // desde lg, tarjeta debajo) con acciones de 44px bajo lg.
 const BOTON_FILA = 'min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2'
@@ -801,7 +804,7 @@ export default function Caja() {
               : 'Sin apertura'
           }
         />
-        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub={expectedUsd !== 0 ? `Gs ± movimientos · US$ ${expectedUsd.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} en dólares` : 'Apertura + efectivo en Gs ± movimientos del turno'} />
+        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub={expectedUsd !== 0 ? `Gs ± movimientos · US$ ${formatoUsd(expectedUsd)} en dólares` : 'Apertura + efectivo en Gs ± movimientos del turno'} />
         <Stat
           compact
           label="Diferencia"
@@ -1238,7 +1241,7 @@ export default function Caja() {
         {expectedUsd !== 0 && (
           <div className="mt-4">
             <Label htmlFor="counted-usd">Dólares contados (US$)</Label>
-            <Input id="counted-usd" inputMode="decimal" value={contadoUsd} onChange={e => setContadoUsd(e.target.value)} placeholder={`Esperado US$ ${expectedUsd.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+            <Input id="counted-usd" inputMode="decimal" value={contadoUsd} onChange={e => setContadoUsd(e.target.value)} placeholder={`Esperado US$ ${formatoUsd(expectedUsd)}`} />
           </div>
         )}
         <div className="mt-4">
