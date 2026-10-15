@@ -133,3 +133,13 @@ test('iOS: Info.plist con textos en español, cifrado exento y Face ID como prot
   const privacidad = readFileSync(new URL('../../../ios/App/App/PrivacyInfo.xcprivacy', import.meta.url), 'utf8')
   assert.match(privacidad, /NSPrivacyTracking<\/key>\s*<false\/>/)
 })
+
+test('push rechaza escapes por backslash y conserva destinos MobOS seguros (#491)', () => {
+  for (const route of ['/\\example.invalid', '/\\\\example.invalid', '/\t/example.invalid', '/\n/example.invalid', '//example.invalid', 'https://example.invalid/pedidos/1']) {
+    assert.equal(rutaDeNotificacion({ route }), '', JSON.stringify(route))
+  }
+  assert.equal(rutaDeNotificacion({ route: '/pedidos/abc?tab=pago#detalle' }), '/pedidos/abc?tab=pago#detalle')
+  assert.equal(rutaDeNotificacion({ url: 'https://app.moboss.online/pedidos/9?x=1#pago' }), '/pedidos/9?x=1#pago')
+  assert.equal(rutaDeNotificacion({ url: 'https://clientes.moboss.online/pedidos/9' }), '/pedidos/9')
+  assert.equal(rutaDeNotificacion({ url: 'https://app.moboss.online.evil.invalid/pedidos/9' }), '')
+})
