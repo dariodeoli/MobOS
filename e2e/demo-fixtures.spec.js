@@ -40,14 +40,12 @@ test('#324 · dueño: pedidos con artículos, transacciones y comprobante de Aur
   await fila.waitFor({ state: 'visible', timeout: 25_000 })
   await fila.click()
   await expect(page.getByRole('heading', { name: 'AUR-#0002' })).toBeVisible()
-  // Las secciones del detalle arrancan plegadas: se abren para auditar que el
-  // pedido trae sus artículos y que la transacción no está en Gs 0.
-  await page.getByRole('button', { name: /Artículos preparados/ }).click()
+  // Artículos y pago están siempre visibles: se audita que el pedido trae sus
+  // artículos y que la transacción no está en Gs 0.
   await expect(page.getByText('Funda MagSafe Transparente')).toBeVisible()
   await expect(page.getByText('Sin artículos detallados')).toHaveCount(0)
-  await page.getByRole('button', { name: /Información de pago/ }).click()
   await expect(page.getByText(/50\.000/).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /Cliente Carlos Benítez/ })).toBeVisible()
+  await expect(page.getByTestId('pedido-cliente').getByText('Carlos Benítez')).toBeVisible()
   await capturar(page, '01-dueno-pedido')
 })
 
