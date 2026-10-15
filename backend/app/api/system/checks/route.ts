@@ -3,6 +3,7 @@ import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { emailTransportConfigured } from '../../../../lib/email'
 import { emailOutboxEncryptionConfigured } from '../../../../lib/email-outbox-crypto'
+import { secretEncryptionConfigured } from '../../../../lib/secret-crypto'
 import { aexConfigurado, aexWebhookConToken } from '../../../../lib/aex'
 
 type EstadoChequeo = 'ok' | 'atencion' | 'error'
@@ -52,6 +53,8 @@ export async function GET(request: Request) {
   agregar('correo', 'Correo saliente', correo ? 'ok' : 'atencion', correo ? 'Transporte configurado' : 'Sin configurar: no se envían verificaciones ni avisos')
   const cifrado = emailOutboxEncryptionConfigured()
   agregar('correo-cifrado', 'Cifrado del correo', cifrado ? 'ok' : 'atencion', cifrado ? 'Bandeja de salida cifrada' : 'Sin clave de cifrado')
+  const secretos = secretEncryptionConfigured()
+  agregar('secretos-cifrado', 'Cifrado de secretos', secretos ? 'ok' : 'atencion', secretos ? 'Activo (códigos de desbloqueo y tokens de Apple)' : 'Cifrado de secretos no configurado: no se guardan tokens de Apple y no se pueden revocar al borrar una cuenta (MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID y MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON)')
   const aex = aexConfigurado()
   agregar('aex', 'AEX (envíos)', aex ? 'ok' : 'atencion', aex ? 'Credenciales cargadas' : 'Sin credenciales: cotizador y guías deshabilitados')
   const webhook = aexWebhookConToken()

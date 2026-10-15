@@ -1,6 +1,6 @@
 {
   "name": "mobos-backend",
-  "version": "1.0.226",
+  "version": "1.0.227",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
@@ -19,20 +19,28 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.6.0",
     "bcryptjs": "^3.0.3",
-    "next": "14.2.35",
+    "next": "15.5.28",
     "pg": "^8.23.0",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/web-push": "^3.6.4",
     "prisma": "^7.6.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.30"
+    },
+    "source-map-js": "1.2.2",
+    "fast-uri": "3.1.8",
+    "mysql2": "3.24.6"
   }
 }

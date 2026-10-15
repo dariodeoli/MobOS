@@ -6,7 +6,7 @@ import { sucursalEfectiva } from '../../../../../lib/sucursal-efectiva'
 import { MAX_PRODUCT_IMAGES, MAX_PRODUCT_THUMB_BYTES, ProductImageError, readProductImage, serializeProductImage } from '../../../../../lib/product-images'
 import { MAX_MULTIPART_BODY_BYTES } from '../../../payments/_lib'
 
-type RouteContext = { params: { id?: string } }
+type RouteContext = { params: Promise<{ id?: string }> }
 
 // #404: fotos de producto. Todo se filtra por empresa; un producto de otra
 // empresa responde 404. Subir, reordenar y marcar principal exigen stock:manage.
@@ -21,12 +21,13 @@ async function productoDeLaEmpresa(productId: string, tenantId: string) {
 
 /** Misma regla de sucursal que PATCH /api/products. */
 async function sucursalPermitida(session: Parameters<typeof sucursalEfectiva>[0], product: { branchId: string | null }) {
-  const userBranchId = session.user.branchId ?? await sucursalEfectiva(session)
+  const userBranchId = session.user.branchId ?? (await sucursalEfectiva(session))
   if ((userBranchId === null && product.branchId !== null) || (userBranchId && product.branchId !== null && product.branchId !== userBranchId)) return false
   return true
 }
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const productId = (params.id || '').trim().slice(0, 128)
@@ -35,7 +36,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   return json(images.map(image => serializeProductImage(productId, image)))
 }
 
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['stock:manage'])) return error('No autorizado.', 403)
@@ -104,7 +106,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 }
 
 // PATCH { action: 'reorder', order: [id…] } | { action: 'primary', imageId }
-export async function PATCH(request: Request, { params }: RouteContext) {
+export async function PATCH(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['stock:manage'])) return error('No autorizado.', 403)

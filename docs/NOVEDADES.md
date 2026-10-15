@@ -11,6 +11,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.227 — 2026-10-15
+
+- **Análisis:** vuelve Ventas del día, con productos, vendedores y cobros por cuenta y sucursal; los días con más de 500 pedidos se cuentan completos.
+- **Equipo:** el encabezado permite ver qué otras personas de la empresa están conectadas.
+- **Servidor:** actualización de seguridad y compatibilidad de las rutas existentes.
+
+- **iPhone:** app para Vender, Pedidos, Clientes y Configuración, con escáner, comprobantes para compartir y notificaciones.
+- **Acceso:** Apple y Google usan un código del servidor que vence a los cinco minutos y sirve una sola vez; también protege la confirmación de borrado de cuenta.
+- **Seguridad:** vincular otra identidad de Apple requiere confirmar el PIN o la contraseña y queda registrado. El servidor avisa si falta el cifrado necesario para guardar el permiso de revocación de Apple.
+- **PIN:** casillas centradas con respuesta al escribir y al equivocarse; el aviso de la demo tiene su propio espacio y la entrada cabe en el celular.
+
 ## v1.0.226 — 2026-10-14
 
 Rediseño de toda la aplicación y varias empresas bajo una misma cuenta.

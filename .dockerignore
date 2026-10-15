@@ -23,8 +23,10 @@ test-results
 blob-report
 playwright
 
-# Documentación, diseño, specs y E2E: no los usa ningún build
-docs
+# El registro de cambios se importa como texto en el frontend.
+docs/**
+!docs/NOVEDADES.md
+# Diseño, specs y E2E no forman parte del build.
 design
 openspec
 e2e

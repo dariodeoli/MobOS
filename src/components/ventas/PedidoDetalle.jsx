@@ -37,6 +37,8 @@ import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/men
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
 import './ventasF3.css'
+import { isNativeIOS } from '@/lib/plataforma'
+import { compartirNativo } from '@/lib/nativo/compartir'
 
 const FULFILLMENT = FULFILLMENT_LABELS
 // Pasos del flujo de entrega para la vista previa v2 (#241): agrupa los estados
@@ -337,6 +339,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   function copiarAcceso(token, nivel = '') {
     const url = accessUrlFor(token)
     if (!url) { setAccesoMsg('No se pudo armar el enlace.'); return }
+    // App de iPhone: hoja nativa de compartir (WhatsApp, Mensajes, Mail…).
+    if (isNativeIOS()) { compartirNativo({ titulo: 'Pedido en MobOS', url, dialogo: 'Compartir enlace del pedido' }).then((ok) => { if (!ok) setAccesoMsg(url) }); return }
     copiarAlPortapapeles(url).then((ok) => {
       if (ok) toast.success('Enlace copiado', nivel ? `Acceso ${nivel.toLowerCase()} listo para compartir.` : 'Listo para compartir.')
       else setAccesoMsg(url)
@@ -642,7 +646,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                         <span className="flex flex-wrap items-center gap-3">
                           {token ? (
                             <>
-                              <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>Copiar enlace</button>
+                              <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>{isNativeIOS() ? 'Compartir enlace' : 'Copiar enlace'}</button>
                               <button type="button" className="inline-flex min-h-11 -my-2 items-center text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
                             </>
                           ) : (

@@ -1,3 +1,5 @@
+import { isNativeIOS } from './plataforma.js'
+
 // Presentation only: the caller's existing destination catalog remains the
 // authority for route access. Unknown catalogs keep their own destinations.
 //
@@ -124,6 +126,8 @@ export function shellNavigation(nav = []) {
   const projected = ids.has('unidades') ? [...destinations, ['control', 'Control', 'check']] : destinations
   const sections = PRIMARY_SECTIONS.map(section => ({
     ...section,
+    // App de iPhone: la sección «Ventas» solo trae Pedidos y así se llama.
+    label: section.id === 'ventas' && isNativeIOS() ? 'Pedidos' : section.label,
     items: section.destinations.flatMap(id => projected.filter(([key]) => key === id)),
   })).filter(section => section.items.length)
   const mapped = new Set(sections.flatMap(section => section.items.map(([id]) => id)))

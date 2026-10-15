@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
+import { Aviso, Button, Input, Label, PasswordInput, Select } from '@/components/ui'
+import PinSegmentado from '@/components/shared/PinSegmentado'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import { rutaInterna } from '@/lib/urls'
@@ -9,10 +10,19 @@ import { sessionApi, getCompanyContext } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
 import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
+import AppleButton from '@/components/auth/AppleButton'
+import { iniciarSesionConApple } from '@/lib/nativo/apple'
+import { googleNativoDisponible, iniciarSesionConGoogle } from '@/lib/nativo/google'
+import { SOPORTE_URL, isNativeIOS } from '@/lib/plataforma'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
+// App de iPhone: solo se entra a tiendas que ya existen (sin alta de tienda ni
+// Google, que bloquea los WebView embebidos). Apple + correo + demo.
+const SIN_TIENDA = 'No hay una tienda vinculada a esta cuenta.'
+
 export default function Login() {
+  const ios = isNativeIOS()
   const { entrarEmpresa, entrarVendedor } = useSesion()
   const [modo, setModo] = useState('entrar') // entrar | crear
   const [f, setF] = useState({
@@ -36,6 +46,8 @@ export default function Login() {
   const [setupPin, setSetupPin] = useState('')
   const [signupErrors, setSignupErrors] = useState({})
   const [signupTouched, setSignupTouched] = useState({})
+  const [errorSoporte, setErrorSoporte] = useState(false)
+  const appleRef = useRef(null)
 
   // Si la sesión sigue viva se entra directo a la app: el login queda solo para
   // quien tiene que autenticarse. El destino guardado (`next`) manda.
@@ -144,8 +156,64 @@ export default function Login() {
     }
   }
 
+  async function iniciarGoogleNativo(storeId) {
+    setError('')
+    setErrorSoporte(false)
+    setOk('')
+    setCargando(true)
+    try {
+      // El nonce del servidor es de un solo uso: al elegir tienda se pide una credencial nueva.
+      const credencial = { ...(await iniciarSesionConGoogle()), proveedor: 'google' }
+      appleRef.current = credencial
+      const result = await sessionApi.loginGoogleNativo({ idToken: credencial.idToken, nonce: credencial.nonce, storeId })
+      if (result?.storeRequired) {
+        setTiendas(result.stores || [])
+        setModo('entrar'); setEtapa('tienda'); setGoogleReady(false)
+      } else {
+        appleRef.current = null
+        showCompany(result)
+      }
+    } catch (err) {
+      if (err?.cancelado) return
+      appleRef.current = null
+      if (err?.status === 403) {
+        setError(err.message && /tienda vinculada/i.test(err.message) ? err.message : SIN_TIENDA)
+        setErrorSoporte(true)
+      } else setError(err?.message || 'No se pudo completar el acceso con Google.')
+    } finally { setCargando(false) }
+  }
+
+  async function iniciarApple(storeId) {
+    setError('')
+    setErrorSoporte(false)
+    setOk('')
+    setCargando(true)
+    try {
+      // El nonce del servidor es de un solo uso: al elegir tienda se pide una credencial nueva.
+      const credencial = { ...(await iniciarSesionConApple()), proveedor: 'apple' }
+      appleRef.current = credencial
+      const result = await sessionApi.loginApple({ ...credencial, storeId })
+      if (result?.storeRequired) {
+        setTiendas(result.stores || [])
+        setModo('entrar'); setEtapa('tienda'); setGoogleReady(false)
+      } else {
+        appleRef.current = null
+        showCompany(result)
+      }
+    } catch (err) {
+      if (err?.cancelado) return
+      appleRef.current = null
+      if (err?.status === 403) {
+        setError(err.message && /tienda vinculada/i.test(err.message) ? err.message : SIN_TIENDA)
+        setErrorSoporte(true)
+      } else setError(err?.message || 'No se pudo completar el acceso con Apple.')
+    } finally { setCargando(false) }
+  }
+
   async function elegirTienda(storeId) {
     if (cargando || !storeId) return
+    if (appleRef.current?.proveedor === 'google') { await iniciarGoogleNativo(storeId); return }
+    if (appleRef.current) { await iniciarApple(storeId); return }
     setError('')
     setOk('')
     setCargando(true)
@@ -227,7 +295,7 @@ export default function Login() {
     }
   }
 
-  const crear = modo === 'crear'
+  const crear = modo === 'crear' && !ios
 
   return (
     <AuthLayout>
@@ -239,15 +307,17 @@ export default function Login() {
         )}
         <AuthPanelHeader />
 
-        <h1 className="mb-1 text-2xl font-semibold sm:text-[1.7rem]">
+        <h1 className={cn('mb-1 text-2xl font-semibold sm:text-[1.7rem]', ios && 'mb-3 text-xl sm:text-xl')}>
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
         </h1>
-        {!crear && etapa !== 'tienda' && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
+        {!crear && etapa !== 'tienda' && !ios && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
         {crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Empezá con Google o creá tu acceso con correo.</p>}
 
         <form onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
           {crear && !googleReady && <><GoogleButton create busy={cargando} onClick={() => iniciarGoogle(true)} /><OAuthDivider /></>}
-          {!crear && etapa === 'empresa' && <><GoogleButton busy={cargando} onClick={() => iniciarGoogle()} /><OAuthDivider /></>}
+          {!crear && etapa === 'empresa' && (ios
+            ? <><AppleButton busy={cargando} onClick={() => iniciarApple()} />{googleNativoDisponible() && <GoogleButton busy={cargando} onClick={() => iniciarGoogleNativo()} />}<OAuthDivider /></>
+            : <><GoogleButton busy={cargando} onClick={() => iniciarGoogle()} /><OAuthDivider /></>)}
 
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" placeholder="Nombre de tu tienda" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
@@ -256,10 +326,10 @@ export default function Login() {
           </>}
 
           {modo === 'entrar' && etapa === 'setup' ? (
-            <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PinInput id="setup-pin" autoFocus value={setupPin} onChange={(next) => { setError(''); setSetupPin(next) }} className="mx-auto" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
+            <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PinSegmentado id="setup-pin" autoFocus value={setupPin} onChange={(next) => { setError(''); setSetupPin(next) }} className="mt-2" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
           ) : modo === 'entrar' && etapa === 'tienda' ? (
             <div className="space-y-2">
-              <p className="text-sm leading-6 text-mute">Tu cuenta de Google tiene acceso a más de una tienda. Elegí con cuál querés entrar.</p>
+              <p className="text-sm leading-6 text-mute">{ios ? 'Tu cuenta' : 'Tu cuenta de Google'} tiene acceso a más de una tienda. Elegí con cuál querés entrar.</p>
               {tiendas.length === 0 && !cargando && <p className="text-sm text-mute">No se encontraron tiendas disponibles para esta cuenta.</p>}
               {tiendas.map((t) => (
                 <button key={t.id} type="button" onClick={() => elegirTienda(t.id)} disabled={cargando} className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink-500 bg-paper px-4 py-3 text-left transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">
@@ -270,12 +340,12 @@ export default function Login() {
                   <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
                 </button>
               ))}
-              <button type="button" onClick={() => iniciarGoogle(true)} disabled={cargando} className="w-full rounded-xl border border-dashed border-ink-500 px-4 py-3 text-sm font-semibold text-fono-light transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">+ Crear otra tienda</button>
+              {!ios && <button type="button" onClick={() => iniciarGoogle(true)} disabled={cargando} className="w-full rounded-xl border border-dashed border-ink-500 px-4 py-3 text-sm font-semibold text-fono-light transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">+ Crear otra tienda</button>}
             </div>
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
               <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div>
-              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinInput id="seller-pin" autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
+              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinSegmentado id="seller-pin" autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} invalido={Boolean(error)} className="mt-2" /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
               <details className="group">
                 <summary className="cursor-pointer text-center text-xs text-mute hover:text-fore">¿No sabés tu PIN? Elegí tu usuario</summary>
                 <Select id="seller" aria-label="Elegí tu usuario" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-2 w-full"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</Select>
@@ -291,7 +361,7 @@ export default function Login() {
               id="mail"
               value={f.correo}
               onChange={(value) => setF((x) => ({ ...x, correo: value }))}
-              placeholder="vos@tutienda.com"
+              placeholder={ios ? 'Correo de tu tienda' : 'vos@tutienda.com'}
               autoCapitalize="none"
               autoCorrect="off"
               autoComplete="email"
@@ -305,18 +375,18 @@ export default function Login() {
               id="pass"
               value={f.clave}
               onChange={set('clave')}
-              placeholder={crear ? 'Mínimo 8 caracteres' : '••••••••'}
+              placeholder={crear ? 'Mínimo 8 caracteres' : ios ? 'Contraseña' : '••••••••'}
               autoComplete={crear ? 'new-password' : 'current-password'}
             />
           </div>
           {/* Llevamos el correo ya escrito para no volver a tipearlo en recuperación. */}
-          <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link><Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link></div>
+          <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link>{!ios && <Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link>}</div>
           </>}
 
           {error && (
             <Aviso como="div" className="flex items-start gap-2 px-3.5 py-2.5">
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
+              <span>{error}{errorSoporte && <> <a href={SOPORTE_URL} data-testid="login-soporte" className="inline-flex min-h-11 items-center font-semibold underline">Escribir a soporte</a></>}</span>
             </Aviso>
           )}
           {ok && (
@@ -329,11 +399,18 @@ export default function Login() {
           {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base md:h-12 md:min-h-12" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
             {cargando && <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}{cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
           </Button>}
-          {(crear || etapa === 'empresa') && <p className="pt-1 text-center text-sm text-mute">
+          {!ios && (crear || etapa === 'empresa') && <p className="pt-1 text-center text-sm text-mute">
             {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
           </p>}
           {!crear && etapa === 'empresa' && <p className="text-center text-sm text-mute">¿Querés verlo primero? <Link to="/demo" data-testid="login-probar-demo" className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Probar la demo</Link></p>}
         </form>
+        {ios && (
+          <p className="mt-4 text-center text-xs text-mute" data-testid="login-legal-ios">
+            <Link to="/privacidad" className="inline-flex min-h-11 items-center px-2 hover:text-fore hover:underline">Privacidad</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/terminos" className="inline-flex min-h-11 items-center px-2 hover:text-fore hover:underline">Términos</Link>
+          </p>
+        )}
       </AuthPanel>
     </AuthLayout>
   )

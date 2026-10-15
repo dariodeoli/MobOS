@@ -15,7 +15,7 @@ const TEMPLATE_BY_STATUS: Record<string, string> = {
 }
 
 function render(body: string, variables: Record<string, string>) {
-  return body.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_match, key: string) => variables[key] ?? '')
+  return body.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_match, key: string) => variables[key] ?? '');
 }
 
 const importe = (value: number) => `Gs. ${Math.round(Math.max(0, value)).toLocaleString('es-PY')}`

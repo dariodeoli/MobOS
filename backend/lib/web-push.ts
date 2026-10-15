@@ -4,6 +4,7 @@
 // porque el aviso puede verse en la pantalla bloqueada del dispositivo.
 import webpush from 'web-push'
 import { prisma } from './prisma'
+import { enviarApns } from './apns'
 
 const TZ_TIENDA = 'America/Asuncion'
 /** Sugerido por el plan A1: silencio 22:00–07:00 salvo avisos urgentes. */
@@ -84,7 +85,7 @@ export async function quitarWebPush({ tenantId, userId, endpoint }: { tenantId: 
  * endpoints muertos (404/410). Nunca lanza: si el push falla, la bandeja interna
  * sigue siendo la fuente oficial.
  */
-export async function enviarWebPush({ tenantId, userId, titulo, cuerpo, url = '/', tag = 'mobos', urgente = false, ahora = new Date() }: { tenantId: string; userId: string; titulo?: string; cuerpo?: string; url?: string; tag?: string; urgente?: boolean; ahora?: Date }) {
+async function enviarWebPushNavegador({ tenantId, userId, titulo, cuerpo, url = '/', tag = 'mobos', urgente = false, ahora = new Date() }: { tenantId: string; userId: string; titulo?: string; cuerpo?: string; url?: string; tag?: string; urgente?: boolean; ahora?: Date }) {
   const config = vapidConfig()
   if (!config) return { configurado: false, enviados: 0, silenciados: 0, podados: 0 }
   const suscripciones = await prisma.webPushSubscription.findMany({ where: { tenantId, userId }, select: { id: true, endpoint: true, p256dh: true, auth: true, silencioDesde: true, silencioHasta: true } })
@@ -111,4 +112,16 @@ export async function enviarWebPush({ tenantId, userId, titulo, cuerpo, url = '/
     }
   }
   return { configurado: true, enviados, silenciados, podados }
+}
+
+/**
+ * Fan-out único de avisos: navegador (Web Push) + iPhone (APNs). Los totales de
+ * `enviados`/`podados` suman ambos canales; `apns` trae el detalle del iPhone.
+ */
+export async function enviarWebPush(entrada: Parameters<typeof enviarWebPushNavegador>[0]) {
+  const [web, apns] = await Promise.all([
+    enviarWebPushNavegador(entrada),
+    enviarApns({ tenantId: entrada.tenantId, userId: entrada.userId, titulo: entrada.titulo, cuerpo: entrada.cuerpo, url: entrada.url, tag: entrada.tag, urgente: entrada.urgente }),
+  ])
+  return { ...web, configurado: web.configurado || apns.configurado, enviados: web.enviados + apns.enviados, podados: web.podados + apns.podados, apns }
 }

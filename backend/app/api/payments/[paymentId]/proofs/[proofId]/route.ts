@@ -5,9 +5,10 @@ import { prisma } from '../../../../../../lib/prisma'
 import { readAttachment } from '../../../../../../lib/attachment-storage'
 import { findAccessiblePayment, safeDownloadName } from '../../../_lib'
 
-type RouteContext = { params: { paymentId: string; proofId: string } }
+type RouteContext = { params: Promise<{ paymentId: string; proofId: string }> }
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const payment = await findAccessiblePayment(params.paymentId, session)

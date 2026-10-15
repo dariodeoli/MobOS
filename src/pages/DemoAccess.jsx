@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
-import { PinInput } from '@/components/ui'
+import PinSegmentado from '@/components/shared/PinSegmentado'
 import { PERFILES_DEMO, perfilDemoPorPin } from '@/lib/demo/equipo.js'
 import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 
@@ -99,15 +99,15 @@ export default function DemoAccess() {
         </div>
 
         {/* Ingresar otro PIN: siempre visible, sin colapsar (#235). */}
-        <div className="mt-3 rounded-xl border bg-paper/50 p-3 [border-color:var(--landing-line)]">
+        <div className="mt-3 rounded-xl border bg-paper/50 px-3 py-2 [border-color:var(--landing-line)]">
           <label htmlFor="demo-pin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-mute">
             <KeyRound size={13} className="text-fono-dark" /> Ingresar otro PIN
           </label>
-          <PinInput
+          <PinSegmentado
             id="demo-pin"
             value={pin}
             onChange={(next) => { setError(''); setPin(next) }}
-            className="mt-1.5 h-12 w-40 disabled:opacity-50"
+            className="mt-2" invalido={Boolean(error)}
             ariaLabel="Ingresar otro PIN"
           />
           <p id="demo-pin-status" role="status" className={`mt-1.5 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>

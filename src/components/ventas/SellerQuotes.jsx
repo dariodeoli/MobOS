@@ -40,6 +40,8 @@ import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import { quoteActions } from '@/lib/ventasF3'
 import './ventasF3.css'
+import { isNativeIOS } from '@/lib/plataforma'
+import { compartirNativo } from '@/lib/nativo/compartir'
 // Etiqueta y tono (ok · warn · bad · neutral) de cada estado: lo dibuja StatusChip.
 const STATUS = { DRAFT: ['Borrador', 'neutral'], SENT: ['Enviada', 'neutral'], ACCEPTED: ['Aceptada', 'warn'], REJECTED: ['Rechazada', 'bad'], CONVERTED: ['Convertida', 'ok'], EXPIRED: ['Vencida', 'bad'], CANCELLED: ['Cancelada', 'neutral'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
@@ -349,6 +351,8 @@ export default function SellerQuotes() {
   async function copiarEnlace() {
     const url = esDemo ? enlaceDemoCotizacion(enlace) : quoteUrlFor(enlace?.publicToken)
     if (!url) return
+    // App de iPhone: hoja nativa de compartir (WhatsApp, Mensajes, Mail…).
+    if (isNativeIOS()) { if (!(await compartirNativo({ titulo: 'Cotización', url, dialogo: 'Compartir cotización' }))) setEnlaceError('No se pudo compartir el enlace.'); return }
     if (await copiarAlPortapapeles(url)) setNotice('Enlace copiado al portapapeles.'); else setEnlaceError('No se pudo copiar el enlace.')
   }
   async function imprimirEnlace() {
@@ -752,7 +756,7 @@ export default function SellerQuotes() {
           {/* #314: en demo se puede recorrer el enlace como cliente sin salir
               de la pestaña (la aprobación con código vuelve a la lista). */}
           {esDemo && <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={() => { const url = cotizacionUrlFor(enlace, { demo: true }); setEnlace(null); navigate(url) }} data-testid="cotizacion-ver-cliente"><Icon name="eye" className="h-4 w-4" />Ver como cliente</Button>}
-          <Button type="button" variant="outline" disabled={!enlace?.publicToken} onClick={copiarEnlace}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
+          <Button type="button" variant="outline" disabled={!enlace?.publicToken} onClick={copiarEnlace}><Icon name={isNativeIOS() ? 'share' : 'copy'} className="h-4 w-4" />{isNativeIOS() ? 'Compartir enlace' : 'Copiar enlace'}</Button>
           {!esDemo && <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>}
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>

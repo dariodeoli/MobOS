@@ -13,7 +13,7 @@
 //   `limpiarAvatarCache()` borra todo (cierre de sesión en equipos compartidos).
 // - `precargarAvatar()` queda expuesto para el arranque de sesión (el hook vive
 //   en `lib/sesion.jsx`, de PLT: se engancha desde ahí sin tocar este módulo).
-import { API_URL } from '@/lib/api/client'
+import { API_URL, apiFetch } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { avatarDemo } from '@/lib/demo/avatares'
 import { crearAlmacenAvatar, crearCacheAvatar } from '@/lib/avatarCache'
@@ -25,8 +25,7 @@ async function cargarAvatar(userId, { etag = '' } = {}) {
   try {
     // `no-cache` fuerza revalidar el ETag en cada uso (#271): si la foto cambió
     // o se quitó, el navegador no puede servir la anterior desde su caché.
-    const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/avatar`, {
-      credentials: 'include',
+    const response = await apiFetch(`/api/users/${encodeURIComponent(userId)}/avatar`, {
       cache: 'no-cache',
       headers: { Accept: 'image/*', ...(etag ? { 'If-None-Match': etag } : {}) },
     })

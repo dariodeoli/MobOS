@@ -3,6 +3,7 @@ import { Aviso, BarraProgreso, Button, Modal, Skeleton } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
+import { cargarPedidosParaAnalisis } from '@/lib/posAnalyticsPedidos'
 import { listVentas } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { construirDemoCajas, getDemoCash } from '@/lib/demoCash'
@@ -11,15 +12,16 @@ import { fechaClave } from '@/utils/calculos'
 import { fechaCorta } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Tablero del POS (#156): ventas de hoy contra ayer, pedidos, unidades por
 // pedido, ticket promedio, ventas netas, top productos, ventas por vendedor y
 // sucursal, y cobros por medio. Se calcula en el navegador con los pedidos que
 // ya trae la API (misma fuente que el listado).
 const Cambio = ({ valor }) => {
-  if (!valor) return <span className="text-[11px] text-mute">=</span>
+  if (!valor) return <span className="text-xs text-mute">=</span>
   return (
-    <span className={cn('text-[11px] font-semibold', valor > 0 ? 'text-ok' : 'text-bad')}>
+    <span className={cn('text-xs font-semibold', valor > 0 ? 'text-ok' : 'text-bad')}>
       {valor > 0 ? '↑' : '↓'} {Math.abs(valor)}%
     </span>
   )
@@ -29,10 +31,10 @@ function Metrica({ label, valor, extra }) {
   return (
     <div className="min-w-0 rounded-xl border border-ink-600 bg-ink-800/50 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] font-bold uppercase tracking-wider text-mute">{label}</span>
+        <span className={ROTULO_SECCION}>{label}</span>
         {extra}
       </div>
-      <div className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums text-fore">{valor}</div>
+      <div className="mt-1 break-words text-base sm:text-lg font-semibold tracking-tight tabular-nums text-fore">{valor}</div>
     </div>
   )
 }
@@ -42,7 +44,7 @@ function Lista({ titulo, filas, valorDe, etiquetaDe }) {
   const maximo = Math.max(1, ...filas.map(valorDe))
   return (
     <section className="rounded-xl border border-ink-600 p-3">
-      <h3 className="text-[10.5px] font-bold uppercase tracking-wider text-mute">{titulo}</h3>
+      <h3 className={ROTULO_SECCION}>{titulo}</h3>
       <div className="mt-2 space-y-1.5">
         {filas.map((fila) => (
           <div key={fila.clave}>
@@ -70,7 +72,7 @@ const desdeDePeriodo = (periodo) => {
   return fechaClave(desde)
 }
 
-export default function AnalyticsPos({ open, onClose }) {
+export default function AnalyticsPos({ open = true, onClose, inline = false }) {
   const [ordenes, setOrdenes] = useState(null)
   const [sesiones, setSesiones] = useState([])
   const [error, setError] = useState('')
@@ -87,7 +89,7 @@ export default function AnalyticsPos({ open, onClose }) {
       setOrdenes(listVentas().map(venta => ({
         id: venta.id,
         orderNumber: venta.id,
-        totalPyg: Number(venta.precio || 0),
+        totalPyg: Number(venta.totalPyg ?? venta.precio ?? 0),
         createdAt: venta.creadoEn || (venta.fecha ? `${venta.fecha}T12:00:00` : new Date().toISOString()),
         status: venta.estadoPago === 'Pagado' ? 'COMPLETED' : 'PENDING',
         fulfillmentStatus: venta.entrega === 'Delivery' ? 'IN_TRANSIT' : 'PROCESSING',
@@ -99,17 +101,21 @@ export default function AnalyticsPos({ open, onClose }) {
           status: 'CONFIRMED',
           paidAt: pago.fecha,
         })),
-        items: [{ quantity: 1, unitPricePyg: Number(venta.precio || 0), totalPyg: Number(venta.precio || 0) }],
-        seller: { name: venta.vendedorNombre || 'Hernán Acosta' },
-        branch: { name: 'Casa Central' },
+        items: venta.items?.length ? venta.items.map(item => ({ ...item, productId: item.productId || item.productoId })) : [{ productId: venta.productoId, description: venta.productoNombre, quantity: 1, unitPricePyg: Number(venta.precio || 0), totalPyg: Number(venta.precio || 0) }],
+        seller: venta.seller || { name: venta.vendedorNombre || 'Sin vendedor' },
+        branch: venta.branch || { name: venta.sucursalNombre || 'Sin sucursal' },
       })))
       return () => { vivo = false }
     }
-    api.get('/api/orders?filtro=todos&limit=500')
-      .then((filas) => { if (vivo) setOrdenes(Array.isArray(filas) ? filas : []) })
+    const controller = new AbortController()
+    const ayer = new Date()
+    ayer.setDate(ayer.getDate() - 1)
+    const desde = [fechaClave(ayer), desdeDePeriodo(periodo)].sort()[0]
+    cargarPedidosParaAnalisis((url, opciones) => api.get(url, opciones), desde, controller.signal)
+      .then((filas) => { if (vivo) setOrdenes(filas) })
       .catch((cause) => { if (vivo) setError(cause?.message || 'No se pudieron cargar las ventas.') })
-    return () => { vivo = false }
-  }, [open])
+    return () => { vivo = false; controller.abort() }
+  }, [open, periodo])
 
   // Ventas por caja (#148 §18): el mismo corte por sesión de Finanzas → Caja.
   useEffect(() => {
@@ -134,14 +140,14 @@ export default function AnalyticsPos({ open, onClose }) {
   )
   const cambioVentas = tablero ? comparacion(tablero.hoy.ventas, tablero.ayer.ventas) : 0
 
-  return (
-    <Modal open={open} onClose={onClose} title="Analytics del POS" size="amplio">
+  const contenido = (
+    <>
       {error && <Aviso tono="error" className="rounded-xl">{error}</Aviso>}
       {!tablero && !error && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /></div>}
       {tablero && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-[10.5px] font-bold uppercase tracking-wider text-mute">Resumen de hoy</h3>
+            <h3 className={ROTULO_SECCION}>Resumen de hoy</h3>
             <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Período del análisis">
               {PERIODOS.map(([id, label]) => (
                 <button
@@ -150,7 +156,7 @@ export default function AnalyticsPos({ open, onClose }) {
                   role="tab"
                   aria-selected={periodo === id}
                   onClick={() => setPeriodo(id)}
-                  className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', periodo === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+                  className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', periodo === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
                 >
                   {label}
                 </button>
@@ -159,13 +165,13 @@ export default function AnalyticsPos({ open, onClose }) {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metrica label="Ventas de hoy" valor={gs(tablero.hoy.ventas)} extra={<Cambio valor={cambioVentas} />} />
-            <Metrica label="Pedidos" valor={tablero.hoy.pedidos} extra={<span className="text-[11px] text-mute">ayer {tablero.ayer.pedidos}</span>} />
+            <Metrica label="Pedidos" valor={tablero.hoy.pedidos} extra={<span className="text-xs text-mute">ayer {tablero.ayer.pedidos}</span>} />
             <Metrica label="Ticket promedio" valor={gs(tablero.hoy.aov)} />
             <Metrica label="Items por pedido" valor={tablero.hoy.itemsPorPedido} />
-            <Metrica label="Ventas netas" valor={gs(tablero.hoy.neto)} extra={<span className="text-[11px] text-mute">bruto {gs(tablero.hoy.bruto)}</span>} />
+            <Metrica label="Ventas netas" valor={gs(tablero.hoy.neto)} extra={<span className="text-xs text-mute">bruto {gs(tablero.hoy.bruto)}</span>} />
             <Metrica label="Descuentos" valor={gs(tablero.hoy.descuentos)} />
             <Metrica label="Cobrado" valor={gs(tablero.hoy.cobrado)} />
-            <Metrica label="Efectivo" valor={gs(tablero.hoy.efectivo)} extra={tablero.hoy.reembolsado ? <span className="text-[11px] text-mute">reembolsos {gs(tablero.hoy.reembolsado)}</span> : null} />
+            <Metrica label="Efectivo" valor={gs(tablero.hoy.efectivo)} extra={tablero.hoy.reembolsado ? <span className="text-xs text-mute">reembolsos {gs(tablero.hoy.reembolsado)}</span> : null} />
             <Metrica label="Pendiente" valor={gs(tablero.hoy.pendiente)} />
             <Metrica label="Reembolsos" valor={gs(tablero.hoy.reembolsado)} />
           </div>
@@ -187,11 +193,14 @@ export default function AnalyticsPos({ open, onClose }) {
             )}
           </div>
 
-          <div className="flex justify-end">
+          {!inline && <div className="flex justify-end">
             <Button type="button" variant="outline" onClick={onClose}>Cerrar</Button>
-          </div>
+          </div>}
         </div>
       )}
-    </Modal>
+    </>
   )
+  return inline
+    ? <section aria-label="Ventas del día" data-testid="ventas-del-dia">{contenido}</section>
+    : <Modal open={open} onClose={onClose} title="Ventas del día" size="amplio">{contenido}</Modal>
 }

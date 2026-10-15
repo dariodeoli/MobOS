@@ -1,7 +1,7 @@
 {
   "name": "mobos",
   "private": true,
-  "version": "1.0.226",
+  "version": "1.0.227",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -28,9 +28,27 @@
     "test:e2e:smoke": "playwright test --grep 'seller logs in with company credentials|registers the sale and lists it in pedidos|clic en la fila abre el pedido por su id interno|owner-only nav items|resumen shows the dashboard KPIs|lists the seeded serialized unit|returns the minimal public payload|has no horizontal overflow'",
     "release:prepare-version": "node scripts/release.mjs --prepare-version",
     "release:build-current": "node scripts/release.mjs --build-current",
-    "test:release": "node --test scripts/release.test.mjs"
+    "test:release": "node --test scripts/release.test.mjs",
+    "build:ios": "VITE_PLATFORM=ios VITE_API_URL=https://api.moboss.online vite build && cap sync ios",
+    "build:ios:dev": "VITE_PLATFORM=ios VITE_PUSH_ENV=sandbox VITE_API_URL=https://api.moboss.online vite build && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^9.1.2",
+    "@aparajita/capacitor-secure-storage": "^7.1.6",
+    "@capacitor-community/apple-sign-in": "^7.1.0",
+    "@capacitor-mlkit/barcode-scanning": "^7.5.0",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/keyboard": "^7.0.6",
+    "@capacitor/network": "^7.0.4",
+    "@capacitor/push-notifications": "^7.0.7",
+    "@capacitor/share": "^7.0.4",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
+    "@capgo/capacitor-social-login": "^7.20.0",
     "clsx": "^2.1.1",
     "html-to-image": "^1.11.11",
     "jsbarcode": "^3.11.6",
@@ -44,6 +62,7 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
     "@playwright/test": "^1.63.0",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",

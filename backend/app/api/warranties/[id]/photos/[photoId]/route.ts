@@ -4,11 +4,12 @@ import { prisma } from '../../../../../../lib/prisma'
 import { readAttachment } from '../../../../../../lib/attachment-storage'
 import { safeDownloadName } from '../../../../payments/_lib'
 
-type RouteContext = { params: { id: string; photoId: string } }
+type RouteContext = { params: Promise<{ id: string; photoId: string }> }
 
 // Descarga de una foto de garantía. Alcance igual al listado: todos los roles
 // menos VENDEDOR; GERENTE solo su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role === 'VENDEDOR') return error('No autorizado.', 403)

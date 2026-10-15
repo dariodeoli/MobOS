@@ -342,3 +342,81 @@ header button::after {
 .ventana-detalle > div:first-child > button[aria-label="Cerrar"]:hover,
 [role="dialog"] > div:first-child > button[aria-label="Cerrar"]:hover { filter: brightness(1.1); background: rgb(var(--c-bad)); color: rgb(var(--c-on-bad)); }
 .ventana-detalle > div:first-child > button[aria-label="Cerrar"]:focus-visible { outline: 2px solid rgb(var(--c-bad)); outline-offset: 2px; }
+
+/* App de iPhone (Capacitor): `html.app-ios` lo pone lib/nativo/arranque.js.
+   La WebView ocupa toda la pantalla (viewport-fit=cover, contentInset never),
+   así que los elementos fijos respetan el notch, la isla dinámica y la barra
+   de inicio con env(safe-area-inset-*). */
+html.app-ios {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: none;
+}
+/* Pantallas sin sesión: ingreso, demo y recuperaciones. */
+html.app-ios .auth-landing {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Modales y hojas inferiores (owncoding-ui: «fixed inset-0 z-50»). */
+html.app-ios .fixed.inset-0.z-50 {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+/* Pantalla de bloqueo del PIN. */
+html.app-ios .fixed.inset-0.z-\[70\] {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+/* Avisos flotantes (toasts): por encima de la barra inferior del panel. */
+html.app-ios .fixed[class*='z-[60]'] {
+  bottom: calc(56px + 1rem + env(safe-area-inset-bottom));
+}
+/* Campos a 16px: iOS no hace zoom automático al enfocar un input. */
+html.app-ios input,
+html.app-ios select,
+html.app-ios textarea {
+  font-size: max(16px, 1em);
+}
+
+/* Ingreso en UNA pantalla (iPhone SE 375x667 hasta Pro Max): logo chico, campos
+   y botones de 44-48 px, etiquetas solo para lectores (el placeholder dice qué
+   va), sin pie ni encabezado largo. El contenedor igual puede desplazarse para
+   que el teclado nunca tape el campo enfocado. */
+html.app-ios .auth-ios .auth-shell-grid { align-items: start; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+html.app-ios .auth-ios .login-panel { padding: 1rem; border-radius: 1.5rem; box-shadow: none; }
+html.app-ios .auth-ios .auth-form > * + * { margin-top: 0.5rem; }
+html.app-ios .auth-ios .auth-form button[class*='h-14'],
+html.app-ios .auth-ios .auth-form > .h-14 { height: 3rem; border-radius: 0.875rem; }
+html.app-ios .auth-ios .auth-form #mail,
+html.app-ios .auth-ios .auth-form #pass { height: 2.75rem; }
+html.app-ios .auth-ios .auth-form label[for='mail'],
+html.app-ios .auth-ios .auth-form label[for='pass'] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html.app-ios .auth-ios .auth-form > .py-1 { padding-block: 0; }
+/* PIN de ingreso: queda arriba para que el teclado numérico no lo tape. */
+html.app-ios .auth-ios .auth-form button[type='submit']:disabled { display: none; }
+
+/* Pantalla de PIN: tarjeta compacta anclada arriba, sin adornos, para que entre
+   con el teclado numérico abierto en un iPhone SE. */
+html.app-ios .fixed.inset-0.z-\[70\] { place-items: start center; overflow-y: auto; }
+html.app-ios [data-testid='pantalla-bloqueada'] { padding: 1rem; margin-top: 0.5rem; }
+html.app-ios [data-testid='pantalla-bloqueada'] .lock-icono,
+html.app-ios [data-testid='pantalla-bloqueada'] .lock-sucursal,
+html.app-ios [data-testid='pantalla-bloqueada'] .lock-ayuda { display: none; }
+html.app-ios [data-testid='pantalla-bloqueada'] .lock-logo { height: 1.5rem; }
+html.app-ios [data-testid='pantalla-bloqueada'] #lock-pin,
+html.app-ios [data-testid='pantalla-bloqueada'] [class*='mt-5'] { margin-top: 0.75rem; }
+html.app-ios [data-testid='pantalla-bloqueada'] p.rounded-xl { margin-top: 0.75rem; }
+
+/* ── PIN segmentado (celdas iguales, un punto por dígito) ─────────────── */
+@keyframes pin-seg-pop { 0% { transform: scale(.55); opacity: 0; } 65% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes pin-seg-sacude { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
+.pin-seg-celda { border-color: rgb(var(--c-ink-500)); transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+.pin-seg-celda[data-lleno="true"] { border-color: rgb(var(--c-fono-dark) / .6); background-color: rgb(var(--c-fono) / .08); }
+.pin-seg-celda[data-activa="true"] { border-color: rgb(var(--c-fono-dark)); box-shadow: 0 0 0 3px rgb(var(--c-fono-dark) / .2); }
+.pin-seg-punto { background: rgb(var(--c-fore)); animation: pin-seg-pop .22s cubic-bezier(.2,.8,.3,1) both; }
+.pin-seg[data-invalido="true"] .pin-seg-celda { border-color: rgb(var(--c-bad)); background-color: rgb(var(--c-bad) / .06); }
+.pin-seg[data-invalido="true"] .pin-seg-punto { background: rgb(var(--c-bad)); }
+.pin-seg[data-exito="true"] .pin-seg-celda { border-color: rgb(var(--c-ok)); background-color: rgb(var(--c-ok) / .08); color: rgb(var(--c-ok)); }
+.pin-seg-check { animation: pin-seg-pop .3s cubic-bezier(.2,.8,.3,1) both; }
+.pin-seg-sacude { animation: pin-seg-sacude .3s ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) { .pin-seg-punto, .pin-seg-check, .pin-seg-sacude { animation: none !important; } }

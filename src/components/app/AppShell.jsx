@@ -20,7 +20,7 @@ import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useColaOffline } from '@/hooks/useColaOffline'
 import { sincronizarEventosWebPush, sincronizarWebPush } from '@/lib/webPush'
-import { usePresenceTracker } from '@/hooks/usePresence'
+import { usePresenceTracker, usePresentes } from '@/hooks/usePresence'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { useNotificaciones } from '@/hooks/useNotificaciones'
 import { useSesion } from '@/lib/sesion'
@@ -135,6 +135,9 @@ export default function AppShell({
   const colaUrgente = colaOffline.conflictos > 0
   // El rediseño es reactivo: el selector de Preferencias lo cambia al instante.
   usePresenceTracker()
+  const personasPresentes = usePresentes()
+  const otrosPresentes = personasPresentes.filter(persona => persona.id !== usuarioActual?.id)
+  const [equipoPresenteAbierto, setEquipoPresenteAbierto] = useState(false)
   const sections = shellNavigation(nav)
   const currentSection = activeShellSection(sections, active)
   const contextGroups = shellContextGroups(currentSection)
@@ -163,6 +166,20 @@ export default function AppShell({
 
   const sinLeer = preferencias.notificaciones ? notificaciones.nuevas.length : 0
   const estadoPresencia = enLinea ? 'en-linea' : 'offline'
+  const equipoButton = (compact = false) => otrosPresentes.length > 0 && (
+    <button
+      type="button"
+      data-testid={compact ? 'shell-equipo-online-mobile' : 'shell-equipo-online'}
+      aria-label={`Equipo en línea: ${otrosPresentes.length} persona${otrosPresentes.length === 1 ? '' : 's'}`}
+      aria-haspopup="dialog"
+      aria-expanded={equipoPresenteAbierto}
+      onClick={() => setEquipoPresenteAbierto(true)}
+      className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-ok hover:bg-ink-700"
+    >
+      <Icon name="users" className="h-4 w-4" />
+      <span className="text-xs font-semibold">{otrosPresentes.length}</span>
+    </button>
+  )
   const profileButton = (compact = false, { lateral = false } = {}) => (
     <button
       type="button"
@@ -388,7 +405,10 @@ export default function AppShell({
         </nav>
         <div className={cn('flex min-w-0 shrink-0 flex-col gap-0.5 border-t border-ink-600 pt-2', collapsed && 'w-full items-center')}>
           {offlineButton('shell-cola-offline', { compacto: collapsed })}
-          {profileButton(false, { lateral: true })}
+          <div className={cn('flex min-w-0 items-center', collapsed && 'flex-col')}>
+            {profileButton(false, { lateral: true })}
+            {equipoButton()}
+          </div>
           {[configDestination, helpDestination].filter(Boolean).map(([id, label, icon]) => (
             <button
               key={id}
@@ -430,6 +450,7 @@ export default function AppShell({
             {offlineButton('shell-cola-offline-pill')}
             {searchButton(true)}
             {alertsButton(true)}
+            {equipoButton(true)}
             {profileButton(true)}
           </div>
         </header>
@@ -647,6 +668,18 @@ export default function AppShell({
           />
         </>
       )}
+      <Modal open={equipoPresenteAbierto} onClose={() => setEquipoPresenteAbierto(false)} title="Equipo en línea">
+        {otrosPresentes.length ? (
+          <ul className="space-y-3">
+            {otrosPresentes.map(persona => (
+              <li key={persona.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                <PersonaChip user={persona} estado="en-linea" />
+                <span className="text-xs text-mute">{persona.scope?.startsWith('pedidos/') ? 'Viendo un pedido' : 'En la tienda'}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-mute">No hay otras personas en línea.</p>}
+      </Modal>
       <DialogosEmpresa control={cambioEmpresa} />
     </div>
   )

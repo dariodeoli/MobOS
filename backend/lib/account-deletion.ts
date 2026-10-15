@@ -1,6 +1,10 @@
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'node:crypto'
 import { prisma } from './prisma'
+import { revokeAppleIdentities, verifyAppleIdentityToken } from './apple-auth'
+import { verifyGoogleNativeToken } from './native-auth'
+import { logError } from './log'
+import { JwtError } from './jwks'
 
 // Borrar mi cuenta. Un integrante se desvincula de todas sus
 // tiendas, se cierran sus sesiones y se anonimiza lo personal; los registros del
@@ -13,7 +17,7 @@ const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_MINUTES = 15
 
 export class DeletionError extends Error {
-  constructor(public code: 'REAUTH_REQUIRED' | 'REAUTH_FAILED' | 'REAUTH_LOCKED' | 'OWNER_MUST_TRANSFER_OR_DELETE_STORE', message: string, public status: number, public details?: unknown) { super(message) }
+  constructor(public code: 'REAUTH_REQUIRED' | 'REAUTH_FAILED' | 'REAUTH_LOCKED' | 'PROVIDER_UNAVAILABLE' | 'OWNER_MUST_TRANSFER_OR_DELETE_STORE', message: string, public status: number, public details?: unknown) { super(message) }
 }
 
 export type DeletionContext = { userId: string; tenantId: string; accountId: string | null }
@@ -23,18 +27,38 @@ export type DeletionContext = { userId: string; tenantId: string; accountId: str
  * (solo ADMIN) .
  * Cualquier fallo responde igual para no revelar cuál dato era el incorrecto.
  */
-export async function verifyDeletionReauth(ctx: DeletionContext, body: Record<string, unknown>) {
+export async function verifyDeletionReauth(ctx: DeletionContext, body: Record<string, unknown>, options: { allowIdentity?: boolean } = {}) {
   const fail = () => new DeletionError('REAUTH_FAILED', 'No se pudo confirmar tu identidad.', 401)
   const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { id: true, role: true, pinHash: true, failedLoginAttempts: true, lockedUntil: true, tenant: { select: { passwordHash: true } } } })
   if (!user) throw fail()
   const pin = typeof body.pin === 'string' ? body.pin : ''
   const password = typeof body.password === 'string' ? body.password : ''
-  if (!pin && !password) throw new DeletionError('REAUTH_REQUIRED', 'Confirmá tu identidad con tu PIN o tu contraseña.', 400)
+  const allowIdentity = options.allowIdentity !== false
+  const apple = allowIdentity && body.apple && typeof body.apple === 'object' ? body.apple as Record<string, unknown> : null
+  const googleIdToken = allowIdentity && typeof body.googleIdToken === 'string' ? body.googleIdToken : ''
+  if (!pin && !password && !apple && !googleIdToken) throw new DeletionError('REAUTH_REQUIRED', 'Confirmá tu identidad con tu PIN, tu contraseña o tu cuenta de Apple/Google.', 400)
 
   const now = new Date()
   if (user.lockedUntil && user.lockedUntil > now) throw new DeletionError('REAUTH_LOCKED', 'Demasiados intentos. Esperá unos minutos e intentá nuevamente.', 429)
   let ok = false
-  if (pin) ok = await bcrypt.compare(pin, user.pinHash)
+  if (!pin && !password && (apple || googleIdToken)) {
+    // Reautenticación con Apple/Google (app de iPhone): la identidad tiene que
+    // ser la que está vinculada a la cuenta de la sesión.
+    try {
+      if (!ctx.accountId) throw new Error('no_account')
+      if (apple) {
+        const identity = await verifyAppleIdentityToken(apple.identityToken, apple.nonce, 'reauth')
+        ok = !!(await prisma.appleIdentity.findFirst({ where: { subject: identity.sub, accountId: ctx.accountId }, select: { id: true } }))
+      } else {
+        const identity = await verifyGoogleNativeToken(googleIdToken, body.googleNonce, 'reauth')
+        ok = !!(await prisma.account.findFirst({ where: { id: ctx.accountId, googleSubject: identity.sub }, select: { id: true } }))
+      }
+    } catch (cause) {
+      // Un proveedor caído no es una contraseña mala: no suma intentos fallidos.
+      if (cause instanceof JwtError && cause.message === 'jwks_unavailable') throw new DeletionError('PROVIDER_UNAVAILABLE', 'No pudimos contactar a Apple/Google. Intentá nuevamente.', 503)
+      ok = false
+    }
+  } else if (pin) ok = await bcrypt.compare(pin, user.pinHash)
   else if (user.role === 'ADMIN' && user.tenant.passwordHash) ok = await bcrypt.compare(password, user.tenant.passwordHash)
   if (!ok) {
     const attempts = (user.lockedUntil && user.lockedUntil <= now ? 0 : user.failedLoginAttempts) + 1
@@ -43,6 +67,9 @@ export async function verifyDeletionReauth(ctx: DeletionContext, body: Record<st
   }
   if (user.failedLoginAttempts) await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
 }
+
+/** Reautenticación fresca con PIN del usuario o contraseña de la empresa (sin Apple/Google). Misma política de bloqueo. */
+export const verifyFreshReauth = (ctx: DeletionContext, body: Record<string, unknown>) => verifyDeletionReauth(ctx, body, { allowIdentity: false })
 
 /** Perfiles (User) de la persona: el de la sesión y los vinculados a su cuenta en otras tiendas. */
 async function personProfiles(ctx: DeletionContext) {
@@ -89,9 +116,16 @@ export async function deletePersonalAccount(ctx: DeletionContext): Promise<Delet
   const deadPin = await bcrypt.hash(randomBytes(32).toString('hex'), 10)
   const now = new Date()
 
+  // Apple (5.1.1(v)): se revocan los tokens ANTES de borrar la identidad. Si
+  // falla, se registra y el borrado sigue (el usuario no queda atrapado).
+  if (account) {
+    await revokeAppleIdentities(account.id).catch(cause => logError('apple_revoke_failed', { error: cause instanceof Error ? cause.message : String(cause) }))
+  }
+
   await prisma.$transaction(async tx => {
     await tx.session.updateMany({ where: { OR: [{ userId: { in: userIds } }, ...(account ? [{ accountId: account.id }] : [])], revokedAt: null }, data: { revokedAt: now } })
     await tx.webPushSubscription.deleteMany({ where: { userId: { in: userIds } } })
+    await tx.deviceToken.deleteMany({ where: { userId: { in: userIds } } })
     await tx.userAvatar.deleteMany({ where: { userId: { in: userIds } } })
     if (emails.length) await tx.userInvitation.deleteMany({ where: { email: { in: emails }, consumedAt: null, revokedAt: null } })
     // Anonimiza el perfil en cada tienda: las ventas y cobros siguen apuntando a

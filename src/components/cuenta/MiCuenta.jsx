@@ -14,6 +14,8 @@ import { etiquetaRol } from '@/lib/roles'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import '@/components/control/config/configTouch.css'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import AjustesIPhone from '@/components/cuenta/AjustesIPhone'
+import EliminarCuenta from '@/components/cuenta/EliminarCuenta'
 
 // Mi cuenta (#253): la superficie PERSONAL de cualquier rol. Perfil (nombre,
 // correo y foto), preferencias del dispositivo (bloqueo por inactividad y
@@ -255,6 +257,9 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
           </div>
           {sesiones.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}
         </Card>
+
+        <AjustesIPhone puedeAjustarEquipo={usuario?.role === 'ADMIN' || Boolean(sesion?.esPropietario)} esDemo={esDemo} />
+        <EliminarCuenta esDemo={esDemo} />
       </PanelDerecho>
 
       <ConfirmDialog

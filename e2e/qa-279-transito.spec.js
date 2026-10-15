@@ -14,10 +14,17 @@ const ANTES = Boolean(process.env.QA_279_ANTES)
 const PREFIJO = ANTES ? 'antes' : 'despues'
 const clave = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 900 + 100)}`.toUpperCase()
 
-const apiPagina = (page, ruta, opciones = {}) => page.evaluate(async ({ api, ruta, opciones }) => {
-  const respuesta = await fetch(`${api}${ruta}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opciones })
-  return { status: respuesta.status, body: await respuesta.json().catch(() => null) }
-}, { api: API, ruta, opciones })
+// La preparación usa las cookies del mismo contexto sin depender del documento:
+// una redirección de la aplicación no debe destruir un POST en curso.
+const apiPagina = async (page, ruta, opciones = {}) => {
+  const { body, ...resto } = opciones
+  const respuesta = await page.request.fetch(`${API}${ruta}`, {
+    ...resto,
+    headers: { 'Content-Type': 'application/json', Origin: new URL(page.url()).origin, ...opciones.headers },
+    ...(body === undefined ? {} : { data: body }),
+  })
+  return { status: respuesta.status(), body: await respuesta.json().catch(() => null) }
+}
 
 const tema = (page, modo) => page.addInitScript((m) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, modo)
 
@@ -25,7 +32,7 @@ test('#279 · A4: se aparta una unidad en tránsito, queda bloqueada y al llegar
   mkdirSync(DIR, { recursive: true })
   const adminCtx = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
   const adminPage = await adminCtx.newPage()
-  await adminPage.goto('/inventario/unidades')
+  await adminPage.goto('/stock/unidades')
   const marca = clave()
   const serial = `ZZA4E2E${marca}`.slice(0, 20)
   let productoOrigen = ''

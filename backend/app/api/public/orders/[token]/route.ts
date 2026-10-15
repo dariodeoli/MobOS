@@ -4,7 +4,8 @@ import { enforceRateLimit } from '../../../../../lib/rate-limit'
 // Ruta histórica de tracking público. El comprobante vigente apunta a
 // /api/orders/public/[token], que expone la vista mínima. Se conserva un
 // redirect para no romper los QR de comprobantes ya entregados.
-export async function GET(request: Request, { params }: { params: { token: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   // Mismo límite que el resto de las superficies públicas (#178).
   const limited = enforceRateLimit(request, 'orders-public-redirect', 60, 60_000)
   if (limited) return limited

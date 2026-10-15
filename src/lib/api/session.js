@@ -1,4 +1,7 @@
 import { api, API_URL, invalidarConsultas } from './client'
+import { limpiarTokens } from './nativo'
+import { isNativeIOS } from '../plataforma'
+import { desactivarPush } from '../nativo/push'
 
 const COMPANY_CONTEXT_KEY = 'owncoding_hub_company_context'
 const LEGACY_KEYS = ['owncoding_hub_access_token', 'owncoding_hub_company_token']
@@ -29,6 +32,9 @@ export function clearCompanyToken() {
 export function clearSession() {
   clearLegacyTokens()
   clearCompanyToken()
+  // App de iPhone: el Bearer del Keychain también se va (la memoria se vacía
+  // en el acto; el borrado del Keychain termina en segundo plano).
+  if (isNativeIOS()) limpiarTokens().catch((error) => console.error('[sesion] no se pudo limpiar el Keychain:', error))
 }
 
 // Tras cambiar de empresa sin sesión de vendedor en el destino, la recarga cae en
@@ -96,6 +102,43 @@ export const sessionApi = {
     setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
     return session
   },
+  // Sign in with Apple (app de iPhone): el API verifica el identityToken, el
+  // nonce (se manda el crudo; el servidor compara su sha256) y devuelve la
+  // misma sesión de empresa que el login por correo. Solo entra a tiendas que
+  // ya existen: sin tienda vinculada responde 403 con un mensaje para mostrar.
+  loginApple: async ({ identityToken, authorizationCode, nonce, fullName, storeId }) => {
+    const session = await api.post('/api/auth/apple', { identityToken, authorizationCode, nonce, fullName: fullName || null, ...(storeId ? { storeId } : {}) })
+    if (session?.storeRequired) {
+      const anterior = getCompanyContext() || {}
+      setCompanyContext({ ...anterior, stores: session.stores || [] })
+      return session
+    }
+    if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
+    clearLegacyTokens()
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, stores: session.stores || [], cookieSession: true })
+    return session
+  },
+  // Google nativo (app de iPhone): el idToken de la hoja del sistema se valida
+  // en el API; misma respuesta y mismas reglas que Apple (solo tiendas existentes).
+  loginGoogleNativo: async ({ idToken, nonce, storeId }) => {
+    const session = await api.post('/api/auth/google/native', { idToken, nonce, ...(storeId ? { storeId } : {}) })
+    if (session?.storeRequired) {
+      const anterior = getCompanyContext() || {}
+      setCompanyContext({ ...anterior, stores: session.stores || [] })
+      return session
+    }
+    if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
+    clearLegacyTokens()
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, stores: session.stores || [], cookieSession: true })
+    return session
+  },
+  // Eliminar mi cuenta (guía 5.1.1(v)): re-autenticación en el cuerpo. El
+  // dueño de una tienda no puede borrarse sin transferirla o eliminarla antes.
+  deleteAccount: async (reauth) => {
+    const result = await api.delete('/api/me', { body: reauth })
+    clearSession()
+    return result
+  },
   registerCompany: async (details) => {
     const session = await api.post('/api/auth/register', details)
     if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
@@ -132,6 +175,8 @@ export const sessionApi = {
     return getCompanyContext()?.cookieSession ? api.post('/api/auth/logout') : Promise.resolve({ ok: true })
   },
   logout: async () => {
+    // Con el Bearer todavía vigente: el dispositivo deja de recibir push.
+    if (isNativeIOS()) await desactivarPush(api)
     const results = await Promise.allSettled([sessionApi.logoutSeller(), sessionApi.logoutCompany()])
     clearSession()
     const failed = results.find((result) => result.status === 'rejected')

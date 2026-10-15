@@ -6,7 +6,7 @@ import { etiquetaServicio } from '../../../../../lib/service-order'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 import { displayOrderNumber } from '../../../../../lib/order-number'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const ESTADO_PEDIDO: Record<string, string> = { PENDING: 'Pendiente', REGISTERED: 'Registrado', COMPLETED: 'Completado', CANCELLED: 'Cancelado' }
 const ENTREGA_PEDIDO: Record<string, string> = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -130,7 +130,8 @@ type TimelineEvent = {
 // Paginada con cursor propio (fecha|id) para el botón "Cargar más".
 // Mismo alcance de sucursal que el perfil: VENDEDOR solo si tiene pedidos en
 // su sucursal; ADMIN/GERENTE ven todo el tenant.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const tenant = session.user.tenantId

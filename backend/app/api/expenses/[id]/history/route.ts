@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { ensureStoreBranch } from '../../../../../lib/store-branch'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const gs = (value: unknown) => Number(value || 0).toLocaleString('es-PY')
 
@@ -51,7 +51,8 @@ type TimelineEvent = {
 // Cronología del gasto: es un CashMovement (kind EXPENSE) del libro financiero,
 // así que reúne alta, cobro o anulación, adjuntos del comprobante y auditoría.
 // Mismo alcance que /api/finance y /api/cash: ADMIN todo; GERENTE su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
@@ -69,7 +70,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
   if (!movement) return error('Gasto no encontrado.', 404)
   if (session.user.role === 'GERENTE') {
-    const branchId = session.user.branchId || await ensureStoreBranch(session)
+    const branchId = session.user.branchId || (await ensureStoreBranch(session))
     if (!branchId || movement.branchId !== branchId) return error('No autorizado para esa sucursal.', 403)
   }
 
