@@ -67,6 +67,8 @@ import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos, { PosCustomer } from './venta/PasoProductos'
 import { usePosCatalogoServidor } from '@/hooks/usePosCatalogoServidor'
+import { categoriaAccesorioDe } from '@/lib/categoriasAccesorio'
+import { subirFotosPendientes } from '@/components/productos/GaleriaFotosProducto'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
@@ -396,7 +398,9 @@ export default function FormularioVenta({
   const [busquedaProducto, setBusquedaProducto] = useState('')
   // #354: en cuenta real el catálogo del POS se pagina y busca en el servidor;
   // sin conexión (o en demo) sigue el catálogo completo del espejo local.
-  const catalogoServidor = usePosCatalogoServidor({ q: busquedaProducto, habilitado: !esDemo && modoDatosActual() === 'api' })
+  const [accesorio, setAccesorio] = useState('todas')
+  const fotosNuevas = useRef([])
+  const catalogoServidor = usePosCatalogoServidor({ q: busquedaProducto, accesorio: accesorio === 'todas' ? '' : accesorio, habilitado: !esDemo && modoDatosActual() === 'api' })
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
   const [unidadesDeImei, setUnidadesDeImei] = useState(0)
@@ -919,6 +923,7 @@ export default function FormularioVenta({
   }, [busquedaProducto, productos])
 
   const familiasVisibles = familias.filter(fam => {
+    if (accesorio !== 'todas' && !fam.items.some(item => categoriaAccesorioDe(item) === accesorio)) return false
     const query = busquedaProducto.trim().toLocaleLowerCase()
     if (!query) return true
     // Nombre, modelo/variante y SKU: tipear el código a mano tiene que
@@ -947,7 +952,7 @@ export default function FormularioVenta({
     setNombreProd('')
     setColoresNuevos([])
     setColorInput('')
-    setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
+    setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '', accesorio: '' })
   }
 
   // SKU legible y estable a partir del nombre; si ya existe, el backend le
@@ -970,8 +975,13 @@ export default function FormularioVenta({
           updateProducto(creado.id, { precioVenta: precioNuevo, precioCosto: costoNuevo ?? 0, condicion: nuevoDetalles.condicion, mayorista: mayoristaNuevo ?? 0 })
           return creado
         }
-        return addProductoApi({ nombre, sku: skuDe(nombre), precioVenta: precioNuevo, precioCosto: costoNuevo, category: nuevoDetalles.categoria, condition: nuevoDetalles.condicion, ...(mayoristaNuevo ? { wholesalePricePyg: mayoristaNuevo } : {}), stock: 0 })
-      }
+        const creado = await addProductoApi({ nombre, sku: skuDe(nombre), precioVenta: precioNuevo, precioCosto: costoNuevo, category: nuevoDetalles.categoria, condition: nuevoDetalles.condicion, ...(mayoristaNuevo ? { wholesalePricePyg: mayoristaNuevo } : {}), ...(nuevoDetalles.accesorio ? { accessoryCategory: nuevoDetalles.accesorio } : {}), stock: 0 })
+          // #404: las fotos preparadas en el alta suben apenas existe el producto.
+          if (fotosNuevas.current.length) {
+            try { await subirFotosPendientes(creado.id, fotosNuevas.current) } catch (cause) { console.error('[fotos-producto] alta sin fotos', cause); setErrorVenta('El producto se creó, pero no se pudieron subir las fotos. Agregalas desde su ficha.') }
+          }
+          return creado
+        }
       if (coloresNuevos.length === 0) {
         // Producto sin colores: entra directo a la venta.
         agregarProducto(await crear(base))
@@ -986,7 +996,7 @@ export default function FormularioVenta({
       setNombreProd('')
       setColoresNuevos([])
       setColorInput('')
-      setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
+      setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '', accesorio: '' })
     } catch (error) {
       setErrorVenta(error?.message || 'No se pudo crear el producto.')
     } finally {
@@ -2205,6 +2215,9 @@ export default function FormularioVenta({
               creandoProd={creandoProd}
               cancelarNuevoProd={cancelarNuevoProd}
               setBusquedaProducto={setBusquedaProducto}
+              accesorio={accesorio}
+              onFotosNuevas={fotos => { fotosNuevas.current = fotos }}
+              setAccesorio={setAccesorio}
               combos={combos}
               agregarCombo={agregarCombo}
               noticeCombo={noticeCombo}

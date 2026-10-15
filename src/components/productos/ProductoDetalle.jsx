@@ -20,6 +20,9 @@ import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { demoInventorySeed, listDemoTransfers, listDemoUnits } from '@/lib/demoInventory'
 import { eventosDemo } from '@/components/productos/kardexDemo'
 import { cn } from '@/lib/utils'
+import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
+import FotoProducto from '@/components/shared/FotoProducto'
+import { CATEGORIAS_ACCESORIO, CLAVES_ACCESORIO, categoriaAccesorioDe, modelosCompatibles, parseModelosCompatibles, textoCompatibilidad } from '@/lib/categoriasAccesorio'
 
 const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const DESTINATION = { NORMAL: 'Normal', OFFER: 'Oferta', WHOLESALE: 'Mayorista' }
@@ -84,6 +87,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     garantiaDias: product?.warrantyDays != null ? String(product.warrantyDays) : '',
     garantiaCubre: product?.warrantyCoverage || '',
     garantiaNoCubre: product?.warrantyExclusions || '',
+    accesorio: product?.accessoryCategory || '',
+    compatibles: modelosCompatibles(product).join(', '),
   }))
 
   const loadUnits = useCallback(async () => {
@@ -206,6 +211,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         ...(form.garantiaDias === '' ? { warrantyDays: null } : { warrantyDays: num(form.garantiaDias) }),
         warrantyCoverage: form.garantiaCubre.trim(),
         warrantyExclusions: form.garantiaNoCubre.trim(),
+        accessoryCategory: form.accesorio || null,
+        compatibleModels: parseModelosCompatibles(form.compatibles),
       }
       const updated = await api.patch('/api/products', payload)
       setCurrent(updated)
@@ -251,6 +258,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={current?.condition === 'NEW' ? 'green' : 'orange'}>{CONDITION[current?.condition] || current?.condition || 'Nuevo'}</Badge>
               <Badge color="slate">{categoria(current) || 'Sin categoría'}</Badge>
+              {categoriaAccesorioDe(current) && <Badge color="slate">{CATEGORIAS_ACCESORIO[categoriaAccesorioDe(current)].singular}</Badge>}
+              {textoCompatibilidad(current, { max: 3 }) && <Badge color="blue">{textoCompatibilidad(current, { max: 3 })}</Badge>}
               {(current?.capacity || current?.color || current?.model) && <Badge color="slate">{[current?.model, current?.capacity, current?.color].filter(Boolean).join(' · ')}</Badge>}
               {current?.destination && current.destination !== 'NORMAL' && <Badge color="blue">{DESTINATION[current.destination]}</Badge>}
               {current?.isActive === false && <Badge color="red">Inactivo</Badge>}
@@ -275,6 +284,11 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             </div>
             {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
           </div>
+
+          {/* #404: fotos del producto (la principal se ve en POS, lista, carrito y cotización). */}
+          {(esDemo ? (current?.imagenes || []).length > 0 : true) && (esDemo
+            ? <div className="flex flex-wrap gap-2" data-testid="galeria-demo">{(current.imagenes || []).map((src, i) => <FotoProducto key={i} src={src} size={64} alt={`Foto ${i + 1}`} />)}</div>
+            : <GaleriaFotosProducto productId={current.id} puedeEditar={Boolean(canManage)} onCambio={onChanged} />)}
 
           {/* Resumen operativo: lo que gerencia mira antes de decidir. */}
           <div className="rounded-2xl border border-ink-600 p-4" data-testid="producto-resumen-stock">
@@ -377,6 +391,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <form onSubmit={guardarEdicion} className={cn('mt-4 rounded-xl border border-fono/25 bg-fono/5 p-4', GRILLA_DOS_COLUMNAS)}>
               <div className="sm:col-span-2"><h4 className={ROTULO_SECCION}>Editar producto</h4></div>
               <div><Label htmlFor="categoria">Categoría</Label><Select id="categoria" value={form.categoria} onChange={event => setForm(current => ({ ...current, categoria: event.target.value }))}>{CATEGORIAS.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}{!CATEGORIAS.includes(form.categoria) && form.categoria && <option value={form.categoria}>{form.categoria}</option>}</Select></div>
+              <div><Label htmlFor="accesorio">Tipo de accesorio</Label><Select id="accesorio" value={form.accesorio} onChange={event => setForm(current => ({ ...current, accesorio: event.target.value }))}><option value="">No es accesorio</option>{CLAVES_ACCESORIO.map(clave => <option key={clave} value={clave}>{CATEGORIAS_ACCESORIO[clave].singular}</option>)}</Select></div>
+              <div><Label htmlFor="compatibles">Compatible con</Label><Input id="compatibles" value={form.compatibles} onChange={event => setForm(current => ({ ...current, compatibles: event.target.value }))} placeholder="iPhone 17 Pro, iPhone 17" /></div>
               <div><Label htmlFor="condicion">Condición</Label><Select id="condicion" value={form.condicion} onChange={event => setForm(current => ({ ...current, condicion: event.target.value }))}>{Object.entries(CONDITION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
               <div><Label htmlFor="modelo">Modelo</Label><Input id="modelo" value={form.modelo} onChange={event => setForm(current => ({ ...current, modelo: event.target.value }))} placeholder="Ej. iPhone 15 Pro Max" /></div>
               <div><Label htmlFor="color">Color</Label><Input id="color" value={form.color} onChange={event => setForm(current => ({ ...current, color: event.target.value }))} placeholder="Ej. Titanio Negro" /></div>

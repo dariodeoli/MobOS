@@ -4,6 +4,8 @@ import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
 import { canSeeCost, redactProductCosts } from '../lib/cost-visibility'
 import { catalogMeta, catalogSearchFilter, parseCatalogPage } from '../lib/product-catalog'
+import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../lib/product-accessories'
+import { PRIMARY_IMAGE_INCLUDE, primaryImageFields } from '../lib/product-images'
 
 // #354 · GET /api/products?page= : catálogo paginado con búsqueda en servidor.
 
@@ -44,6 +46,8 @@ const modules: Record<string, unknown> = {
   // El dueño apagó "vendedores ven costos": mismas reglas reales, sin base de datos.
   '../../../lib/cost-visibility': { canSeeCostForSession: async (session: { user: { role: string } }) => canSeeCost(session.user.role, { permissions: { sellerSeesCosts: false } }), redactProductCosts },
   '../../../lib/product-catalog': { catalogMeta, catalogSearchFilter, parseCatalogPage },
+  '../../../lib/product-accessories': { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels },
+  '../../../lib/product-images': { PRIMARY_IMAGE_INCLUDE, primaryImageFields },
 }
 const routeExports: Record<string, unknown> = {}
 runInNewContext(source, {
