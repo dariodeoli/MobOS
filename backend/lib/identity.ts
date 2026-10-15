@@ -25,6 +25,9 @@ export const MOBOS_ALLOWED_APP_ORIGINS = [
   // El portal de clientes es una app propia y llama al API con credenciales (#129).
   MOBOS_IDENTITY.urls.clientPortal,
   MOBOS_LOCAL_APP_ORIGIN,
+  // App de iPhone (Capacitor): el WebView usa estos orígenes y autentica con Bearer.
+  'capacitor://localhost',
+  'ionic://localhost',
 ] as const
 
 export const MOBOS_IDENTITY_HEADERS = {

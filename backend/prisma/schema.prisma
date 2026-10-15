@@ -10,6 +10,7 @@ model Tenant {
   productImages       ProductImage[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
+  deviceTokens DeviceToken[]
   webPushEnvios      WebPushEnvio[]
   branchUsages        UserBranchUsage[]
   usageSessions       UsageSession[]
@@ -196,6 +197,7 @@ model Account {
   updatedAt     DateTime           @updatedAt
   memberships   TenantMembership[]
   sessions      Session[]
+  appleIdentities AppleIdentity[]
 }
 
 enum MembershipRole {
@@ -356,6 +358,7 @@ model User {
   memberships         TenantMembership[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
+  deviceTokens DeviceToken[]
   webPushEnvios      WebPushEnvio[]
   branchUsages        UserBranchUsage[]
   usageSessions       UsageSession[]
@@ -3947,4 +3950,42 @@ model SiteEvent {
   @@index([createdAt])
   @@index([kind, name, createdAt])
   @@index([visitorId])
+}
+
+// App de iPhone (docs/IOS.md). Identidad de Sign in with Apple vinculada a una
+// cuenta EXISTENTE (nunca crea cuentas ni tiendas). El refresh token de Apple
+// se guarda cifrado solo para revocarlo al borrar la cuenta.
+model AppleIdentity {
+  id              String    @id @default(cuid())
+  subject         String    @unique
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  email           String?
+  isPrivateRelay  Boolean   @default(false)
+  name            String?
+  refreshTokenEnc String?
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([accountId])
+}
+
+// Token APNs de un iPhone. Único por token: si cambia de usuario, la fila pasa
+// al nuevo. Se borra al cerrar sesión, al borrar la cuenta o ante un 410 de APNs.
+model DeviceToken {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform    String    @default("ios")
+  token       String    @unique
+  environment String    @default("production")
+  appVersion  String?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId, userId])
 }
