@@ -47,3 +47,8 @@ Páginas de cliente #403: 66 casos nuevos aprobados (8 vistas por 3 anchos y 2 t
 El CI de 89447282 detectó cuatro selectores antiguos de Taller/Comparador. Se adaptaron al menú vigente y al nombre accesible del color, preservando las comprobaciones funcionales; los cuatro casos pasaron en su base aislada. La publicación quedó detenida y requiere CI nuevo del SHA final. Fuente final: 1490 unitarios frontend aprobados, lint sin errores con una advertencia previa, build frontend aprobado.
 
 El último shard del CI anterior detectó otros 15 recorridos que abrían Taller por la barra anterior. Se adaptaron al helper del menú vigente y todos pasaron localmente al primer intento (15/15, 0 reintentos), con contraste, contadores, avance e historial intactos. Junto con los cuatro casos del otro shard quedan 19 fallos investigados y revalidados. El arnés detuvo su clúster y servidor propios al terminar.
+
+
+### PIN y diálogos de sesión (#493)
+
+La QA nativa detectó que Cerrar sesión y Cambiar de usuario desmontaban el fondo opaco del bloqueo y dejaban ver ventas detrás del modal. Se agrega un contenedor opaco pasivo para cada diálogo mientras la sesión está bloqueada, sin duplicar foco ni formulario PIN. Regresión browser: 2/2 PASS en 390px claro y 1440px oscuro, cobertura completa sin transparencia, foco dentro, Escape restaura PIN y Salir termina sesión. Revisión independiente APPROVE. Pendiente CI del nuevo SHA y confirmación nativa; no bypass interactivo demostrado.

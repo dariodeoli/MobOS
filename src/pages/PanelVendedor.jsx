@@ -1044,6 +1044,7 @@ export default function PanelVendedor() {
         </main>
       </AppShell>
 
+      <div className={locked && cambiarAbierto ? 'fixed inset-0 z-[70] bg-paper' : undefined} data-testid={locked && cambiarAbierto ? 'bloqueo-fondo-opaco' : undefined}>
       <Modal
         open={cambiarAbierto}
         onClose={() => !cambiando && setCambiarAbierto(false)}
@@ -1104,6 +1105,7 @@ export default function PanelVendedor() {
         )}
         <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
       </Modal>
+      </div>
 
       <PantallaBloqueada
         abierto={locked && !cambiarAbierto && !salirAbierto}
@@ -1143,6 +1145,7 @@ export default function PanelVendedor() {
         </Link>
       </Modal>
 
+      <div className={locked && salirAbierto ? 'fixed inset-0 z-[70] bg-paper' : undefined} data-testid={locked && salirAbierto ? 'bloqueo-fondo-opaco' : undefined}>
       <ConfirmDialog
         open={salirAbierto}
         onCancel={() => setSalirAbierto(false)}
@@ -1153,6 +1156,7 @@ export default function PanelVendedor() {
         variant="danger"
         busy={saliendo}
       />
+      </div>
 
       <ResaltarAjuste />
       {busquedaAbierta && (
