@@ -106,6 +106,26 @@ async function main() {
   const caja = await prisma.$queryRaw`SELECT "expectedPyg" FROM "CashSession" WHERE "id" = ${`${TENANT}-cash-session`}`
   ok(Number(caja[0]?.expectedPyg) === 1500, 'caja: --fix recompone expectedPyg desde apertura + cobros')
 
+  // El saldo esperado admite signo: un ajuste/egreso superior al fondo puede
+  // dejarlo negativo. Un negativo que no coincide con el ledger sigue fallando.
+  await prisma.cashMovement.create({ data: {
+    id: `${TENANT}-negative-adjustment`, tenantId: TENANT, branchId: BRANCH, createdById: USER,
+    kind: 'ADJUSTMENT', direction: 'OUT', currency: 'PYG', originalAmount: 2000,
+    exchangeRatePyg: 1, amountPyg: 2000, description: 'Ajuste sintético de un cobro anterior',
+    status: 'CLEARED', createdAt: new Date(Date.now() - 10 * 60000), clearedAt: new Date(Date.now() - 10 * 60000),
+  } })
+  await prisma.cashSession.update({ where: { id: `${TENANT}-cash-session` }, data: { expectedPyg: -500 } })
+  run(false, { expect: 0 }); checks++
+  console.log('ok · caja: esperado negativo respaldado por ledger es coherente')
+  await prisma.cashSession.update({ where: { id: `${TENANT}-cash-session` }, data: { expectedPyg: -501 } })
+  run(false, { expect: 1 }); checks++
+  console.log('ok · caja: negativo sin respaldo exacto sigue siendo inconsistencia')
+  run(true, { expect: 0 })
+  const negativa = await prisma.cashSession.findUnique({ where: { id: `${TENANT}-cash-session` } })
+  ok(Number(negativa.expectedPyg) === -500, 'caja: --fix conserva el signo reconstruido del ledger')
+  await prisma.cashMovement.delete({ where: { id: `${TENANT}-negative-adjustment` } })
+  await prisma.cashSession.update({ where: { id: `${TENANT}-cash-session` }, data: { expectedPyg: 1500 } })
+
   // --- créditos: cobro confirmado por encima del total (no se inventa un arreglo) ---
   const creditOrder = `${TENANT}-credit-order`
   await seedOrder(creditOrder, TENANT, USER, `CONSIST-CREDIT-${stamp}`, 'COMPLETED', 1000)
