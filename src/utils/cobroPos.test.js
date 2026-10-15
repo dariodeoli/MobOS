@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { avisoClienteBloqueado, datosEncomienda, direccionDeEntrega, notasDeEntrega, empresasRecientes, entregaCobraEnvio, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from './cobroPos.js'
+import { avisoClienteBloqueado, detalleCredito, puedeOfrecerCredito, datosEncomienda, direccionDeEntrega, notasDeEntrega, empresasRecientes, entregaCobraEnvio, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from './cobroPos.js'
 
 test('el envío solo suma con Delivery o Encomienda (#390)', () => {
   assert.equal(montoEnvioEfectivo('Delivery', '30000'), 30000)
@@ -49,4 +49,12 @@ test('delivery: la dirección guardada o escrita y el repartidor van en las indi
   assert.equal(notasDeEntrega('Delivery', { entregaDireccion: 'X' }, [], { name: 'Marcos' }), 'Entregar en: X · Repartidor: Marcos')
   assert.equal(notasDeEntrega('Retiro en tienda', { observacion: 'Nota', entregaDireccion: 'X' }, [], { name: 'Marcos' }), 'Nota')
   assert.equal(notasDeEntrega('Delivery', {}, []), '')
+})
+
+test('crédito / fiado: se ofrece con cualquier cliente de la ficha y dice el límite o que falta autorización (#461)', () => {
+  assert.equal(puedeOfrecerCredito({ id: 'c1' }), true)
+  assert.equal(puedeOfrecerCredito({ name: 'Sin ficha' }), false)
+  assert.equal(puedeOfrecerCredito(null), false)
+  assert.equal(detalleCredito({ id: 'c1', creditLimitPyg: 5000000, creditDays: 30 }, n => `Gs ${n}`), 'límite Gs 5000000 · 30 días')
+  assert.match(detalleCredito({ id: 'c1' }), /sin límite cargado/)
 })
