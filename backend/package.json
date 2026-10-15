@@ -41,6 +41,9 @@
     },
     "source-map-js": "1.2.2",
     "fast-uri": "3.1.8",
-    "mysql2": "3.24.6"
+    "mysql2": "3.24.6",
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
   }
 }
