@@ -39,7 +39,7 @@ const customerValue = (customer) => ({
   billingName: customer.billingName || '', billingDocument: customer.billingDocument || '',
 })
 
-export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '' }) {
+export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '', onStats }) {
   const { empresa } = useSesion()
   const empresaId = empresa?.id || null
   const [matches, setMatches] = useState([])
@@ -64,6 +64,9 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const cajaRef = useRef(null)
   const enfocarBusqueda = useRef(false)
   const stats = registro?.id === value.id ? (registro?.stats || estadisticasDemo(registro)) : null
+  // La deuda abierta del cliente elegido sube al POS para anticipar el crédito.
+  const deudaStats = stats ? Number(stats.pendingPyg || 0) : null
+  useEffect(() => { onStats?.(deudaStats) }, [deudaStats, value.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // #309: el POS colapsa la ficha elegida a una línea; los modales de edición
   // (ficha del cliente, cambiar cliente del pedido) mantienen el formulario.
   const colapsado = colapsarFicha && Boolean(value.id) && !editar

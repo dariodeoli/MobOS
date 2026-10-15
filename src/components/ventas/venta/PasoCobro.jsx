@@ -17,6 +17,7 @@ import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
 import { updateAccountPayment } from '@/utils/pagoCuenta'
 import EncabezadoBloque from './EncabezadoBloque'
+import CreditoAutorizacion from './CreditoAutorizacion'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -32,6 +33,12 @@ export default function PasoCobro({
   setVenderACredito,
   creditoDias,
   setCreditoDias,
+  evaluacionCredito = null,
+  creditoPin = '',
+  setCreditoPin = () => {},
+  creditoAutorizoYo = false,
+  setCreditoAutorizoYo = () => {},
+  puedeAutorizarCredito = false,
   cuentas,
   usaCuentas,
   errorCuentas,
@@ -101,7 +108,7 @@ export default function PasoCobro({
       : pagoCompleto
         ? 'Confirmar venta'
         : sinPago
-          ? (venderACredito ? 'Crear pedido a crédito' : pagaAlRecibir ? 'Crear pedido · paga al recibir' : 'Crear pedido sin pago')
+          ? (venderACredito ? (evaluacionCredito?.requiereAutorizacion && !creditoAutorizoYo && !creditoPin ? 'Crear pedido · pendiente de autorización' : 'Crear pedido a crédito') : pagaAlRecibir ? 'Crear pedido · paga al recibir' : 'Crear pedido sin pago')
           : 'Crear pedido'
   // Primary action remains neutral in every payment state (#341); status
   // meaning is preserved in the label and the payment summary.
@@ -137,8 +144,10 @@ export default function PasoCobro({
     >
       <EncabezadoBloque compacto titulo="Cobro y entrega" />
 
-      {/* Venta a crédito: interruptor compacto, solo si el cliente tiene crédito. */}
-      {Number(customer.creditLimitPyg || 0) > 0 && (
+      {/* Venta a crédito: interruptor compacto para cualquier cliente con ficha.
+          Sin crédito (o por encima del disponible) el servidor exige la
+          autorización de un administrador o gerente: nunca hay pase libre. */}
+      {Boolean(customer.id) && (
         <div data-testid="pos-credito" className="rounded-xl border border-fono/25 bg-fono/5 px-3 py-2">
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm md:min-h-0">
             <input
@@ -152,7 +161,7 @@ export default function PasoCobro({
             <span className="min-w-0">
               <span className="font-semibold">Vender a crédito</span>
               <span className="ml-2 text-xs text-mute">
-                límite {gs(Number(customer.creditLimitPyg))}
+                {Number(customer.creditLimitPyg || 0) > 0 ? `límite ${gs(Number(customer.creditLimitPyg))}` : 'sin crédito habilitado · requiere autorización'}
                 {customer.creditDays ? ` · plazo ${customer.creditDays} días` : ''}
               </span>
               {customer.blocked ? <span className="ml-2 text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
@@ -179,6 +188,17 @@ export default function PasoCobro({
                 . Podés igualmente registrar un adelanto abajo.
               </p>
             </div>
+          )}
+          {venderACredito && (
+            <CreditoAutorizacion
+              evaluacion={evaluacionCredito}
+              pin={creditoPin}
+              setPin={setCreditoPin}
+              autorizoYo={creditoAutorizoYo}
+              setAutorizoYo={setCreditoAutorizoYo}
+              puedeAutorizar={puedeAutorizarCredito}
+              deshabilitado={guardando}
+            />
           )}
         </div>
       )}

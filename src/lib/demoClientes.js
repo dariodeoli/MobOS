@@ -778,7 +778,7 @@ export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'n
 }
 
 /** Forma canónica de un pedido demo (misma que los seeds). */
-function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [], vendedor = '', sucursal = '', estado } = {}) {
+function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [], vendedor = '', sucursal = '', estado, credito = null, creditDays = null } = {}) {
   const totalPyg = Math.max(0, Math.round(Number(total) || 0))
   const collectedPyg = Math.max(0, Math.min(totalPyg, Math.round(Number(pagado) || 0)))
   const pendingPyg = Math.max(0, totalPyg - collectedPyg)
@@ -798,9 +798,12 @@ function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [
     pendingPyg,
     createdAt: fecha || new Date().toISOString(),
     status: estado || (pendingPyg > 0 ? 'PENDING' : 'COMPLETED'),
-    // Una venta del mostrador se retira en el acto (#240 → portal).
+    // Una venta del mostrador queda «En preparación» hasta que el vendedor
+    // confirma que el cliente ya se llevó el producto (nunca se marca sola).
     deliveryType: 'RETIRO',
-    fulfillmentStatus: 'PICKED_UP',
+    fulfillmentStatus: 'PROCESSING',
+    ...(creditDays ? { creditDays } : {}),
+    ...(credito ? { creditAuthorization: credito } : {}),
     branch: { id: 'mobos-demo-central', name: sucursal || 'Casa Central' },
     seller: { id: 'demo-user', name: vendedor || 'Equipo demo' },
     serials: normalizados.flatMap((item) => item.serials),

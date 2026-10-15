@@ -275,12 +275,19 @@ test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
   const retiro = carlos.orders.find((row) => row.orderNumber === 'MOB-0004')
   assert.equal(retiro.tracking.encabezado, 'Seguimiento de retiro')
   assert.equal(retiro.tracking.pasos.find((paso) => paso.actual).label, 'Listo para retirar')
-  // Una venta del mostrador sale entregada: no le quedan pasos pendientes.
+  // Una venta del mostrador NO sale entregada sola: queda en preparación hasta
+  // que el vendedor confirma que el cliente ya se llevó el producto.
   const venta = registrarPedidoDemoDeVenta(LUCIA, { numero: `AUR-${Date.now().toString(36).toUpperCase()}`, total: 500000, pagado: 500000, items: [{ description: 'Funda demo', quantity: 1 }] })
   const cuentaVenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
   const pedidoVenta = cuentaVenta.orders.find((row) => row.orderNumber === venta.orderNumber)
-  assert.equal(pedidoVenta.fulfillmentStatus, 'PICKED_UP')
-  assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), true)
+  assert.equal(pedidoVenta.fulfillmentStatus, 'PROCESSING')
+  assert.equal(pedidoVenta.tracking.pasos.find((paso) => paso.actual).key, 'PROCESSING')
+  assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), false)
+  // Confirmada la entrega, el portal la sigue hasta el último paso.
+  buscarClienteDemo(LUCIA).demoProfile.orders.find((row) => row.orderNumber === venta.orderNumber).fulfillmentStatus = 'PICKED_UP'
+  const entregada = demoCuentaPayload('demo-demo-cliente-lucia-rapido').orders.find((row) => row.orderNumber === venta.orderNumber)
+  assert.equal(entregada.fulfillmentStatus, 'PICKED_UP')
+  assert.equal(entregada.tracking.pasos.every((paso) => paso.hecho), true)
 })
 
 test('la cuenta demo muestra el historial de pagos (#240)', () => {

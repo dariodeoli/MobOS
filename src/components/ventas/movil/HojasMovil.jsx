@@ -192,7 +192,7 @@ export function HojaSinStock({ open, onClose, pendientes, permiso, onVenderIgual
 }
 
 // Después de cobrar: vuelto, recibo y «Listo».
-export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onImprimir, onVerPedido, esDemo }) {
+export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onImprimir, onVerPedido, esDemo, creditoPendiente = false, pregunta = null }) {
   const fila = 'flex min-h-14 w-full items-center gap-3 rounded-2xl border border-ink-600 bg-ink-800 px-4 text-left text-base font-semibold transition active:scale-[.99]'
   return (
     <BottomSheet
@@ -210,6 +210,12 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
           {total > 0 && <p className="v2-numero text-2xl font-extrabold tabular-nums" data-testid="exito-total">{gs(total)}</p>}
           {esDemo && <p className="text-xs font-semibold text-mute">Modo demo: la venta queda guardada solo en este navegador.</p>}
         </div>
+        {creditoPendiente && (
+          <div role="status" data-testid="exito-credito-pendiente" className="rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn-text">
+            Pendiente de autorización de crédito: el cliente superaría su crédito. No se entrega hasta que un administrador o gerente lo autorice.
+          </div>
+        )}
+        {pregunta}
         {vuelto > 0 && (
           <div role="status" data-testid="exito-vuelto" className="rounded-2xl bg-ok px-4 py-3 text-center text-lg font-extrabold text-on-ok">
             Vuelto: <span className="tabular-nums">{gs(vuelto)}</span>

@@ -5,6 +5,7 @@ import { InputError, objectInput } from '../../../../../../lib/payment-input'
 import { validateFulfillmentTransition } from '../../../../../../lib/orders'
 import { canUseDelivery, deliveryBalance } from '../../../../../../lib/delivery'
 import { consumeAuthorization, usableAuthorization } from '../../../../../../lib/authorizations'
+import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../../../../lib/credit-authorization'
 
 // Estado de entrega del repartidor: a entregar → en camino → entregado. Solo
 // sobre sus pedidos asignados y sin saltarse las reglas de la tienda: entregar
@@ -32,7 +33,11 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     let creditUpdate: { creditDays?: number; dueAt?: Date } = {}
     let deliveryAuthorization: { id: string } | null = null
     let pendingDeliveryPyg = 0
+    // El control de crédito corre en la misma transacción que cambia el estado.
+    let creditGate: { customerId: string; pendingPyg: number } | null = null
+    const entregando = fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED'
     if (fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED') {
+      await assertCreditCleared(prisma, tenant, existing.id) // chequeo temprano; el definitivo va en la transacción
       const pagos = await prisma.payment.groupBy({
         by: ['status'],
         where: { tenantId: tenant, orderId: existing.id, status: { in: ['CONFIRMED', 'PENDING'] } },
@@ -47,7 +52,11 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           : null
         const credito = cliente && Number(cliente.creditLimitPyg || 0) > 0 && Number(cliente.creditDays || 0) > 0 ? Number(cliente.creditDays) : null
         if (credito) {
-          if (!existing.creditDays) creditUpdate = { creditDays: credito, dueAt: new Date(Date.now() + credito * 86400000) }
+          if (!existing.creditDays) {
+            if (!existing.customerId) throw new InputError('El pedido no tiene cliente.', 409)
+            creditGate = { customerId: existing.customerId, pendingPyg: pendingDeliveryPyg }
+            creditUpdate = { creditDays: credito, dueAt: new Date(Date.now() + credito * 86400000) }
+          }
         } else {
           const authorization = await prisma.customerAuthorization.findFirst({
             where: { tenantId: tenant, kind: 'ORDER_DELIVER_UNPAID', entity: 'ORDER', entityId: existing.id, status: 'APPROVED', requestedById: session.user.id, usedAt: null },
@@ -59,6 +68,10 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       }
     }
     const order = await prisma.$transaction(async tx => {
+      if (entregando) {
+        await assertCreditCleared(tx, tenant, existing.id)
+        if (creditGate) await assertCreditAvailableForDelivery(tx, { tenantId: tenant, orderId: existing.id, customerId: creditGate.customerId, pendingPyg: creditGate.pendingPyg })
+      }
       const updated = await tx.order.update({ where: { id: existing.id }, data: { fulfillmentStatus, ...creditUpdate }, select: { id: true, orderNumber: true, fulfillmentStatus: true, status: true, totalPyg: true, assignedToId: true, assignedAt: true } })
       if (deliveryAuthorization) {
         await consumeAuthorization(tx, { id: deliveryAuthorization.id, tenantId: tenant, kinds: ['ORDER_DELIVER_UNPAID'], userId: session.user.id, label: 'entrega', usedByOrderId: existing.id })

@@ -1,3 +1,4 @@
+import CreditoAutorizacion from '../venta/CreditoAutorizacion'
 import { useEffect, useRef, useState } from 'react'
 import { Aviso, Button } from '@/components/ui'
 import BottomSheet from '@/components/shared/BottomSheet'
@@ -89,6 +90,12 @@ export default function CobroMovil({
   setPagaAlRecibir,
   venderACredito,
   setVenderACredito,
+  evaluacionCredito = null,
+  creditoPin = '',
+  setCreditoPin = () => {},
+  creditoAutorizoYo = false,
+  setCreditoAutorizoYo = () => {},
+  puedeAutorizarCredito = false,
   guardando,
   guardadoIncompleto,
   valido,
@@ -269,12 +276,12 @@ export default function CobroMovil({
                     onClick={() => elegirMedio(m)}
                   />
                 ))}
-                {reales.length === 0 && Number(customer?.creditLimitPyg || 0) > 0 && (
+                {reales.length === 0 && Boolean(customer?.id) && !customer?.blocked && (
                   <BotonMedio
                     testId="medio-credito"
                     icono="clock"
                     titulo="Vender a crédito"
-                    detalle={`Límite ${gs(Number(customer.creditLimitPyg))}`}
+                    detalle={Number(customer.creditLimitPyg || 0) > 0 ? `Límite ${gs(Number(customer.creditLimitPyg))}` : 'Sin crédito · requiere autorización'}
                     disabled={sinTotal || guardando}
                     onClick={() => { setPagos(l => l.filter(pagoReal)); setVenderACredito(true); irA('confirmar') }}
                   />
@@ -447,6 +454,17 @@ export default function CobroMovil({
                 </div>
               )}
             </div>
+            {venderACredito && (
+              <CreditoAutorizacion
+                evaluacion={evaluacionCredito}
+                pin={creditoPin}
+                setPin={setCreditoPin}
+                autorizoYo={creditoAutorizoYo}
+                setAutorizoYo={setCreditoAutorizoYo}
+                puedeAutorizar={puedeAutorizarCredito}
+                deshabilitado={guardando}
+              />
+            )}
             {!guardando && motivos.length > 0 && (
               <p role="status" className="text-xs font-semibold text-warn">Falta: {motivos.join(' · ')}</p>
             )}

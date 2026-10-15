@@ -37,7 +37,7 @@ assert.equal(customer.pricingTier, 'WHOLESALE')
 
 // Producto con precio mayorista.
 const sku = `CRED-SKU-${Date.now()}`
-result = await request('/api/products', 'POST', { sku, name: 'Equipo crédito y descuentos', pricePyg: 950000, wholesalePricePyg: 800000, stock: 10, branchId: 'branch-a-it' })
+result = await request('/api/products', 'POST', { sku, name: 'Equipo crédito y descuentos', pricePyg: 950000, wholesalePricePyg: 800000, stock: 20, branchId: 'branch-a-it' })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const product = result.payload
 assert.equal(product.wholesalePricePyg, 800000)
@@ -109,16 +109,23 @@ assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.ok(result.payload.some(row => row.id === creditOrder.id), 'filtro=nopagados debe incluir el pedido a crédito.')
 console.log('orders-credit-discounts · check filtro=nopagados incluye crédito: OK')
 
-// Superar el límite de crédito se rechaza.
+// Superar el límite de crédito: la venta se crea «pendiente de autorización de
+// crédito» (no se entrega) y no se vende libremente (ver credito-autorizacion.mjs).
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
-assert.equal(result.response.status, 409, 'Debe rechazar por superar el límite de crédito.')
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.equal(result.payload.creditAuthorization?.status, 'PENDING', 'Debe quedar pendiente de autorización por superar el límite de crédito.')
+assert.equal(result.payload.fulfillmentStatus, 'PROCESSING', 'Una venta que supera el crédito no se entrega.')
 
-// Cliente sin límite no puede vender a crédito.
+// Cliente sin límite tampoco vende a crédito libremente: pide autorización
+// (se usa otro cliente para que `sinCredito` siga sin deuda en los filtros).
 result = await request('/api/customers', 'POST', { name: `Sin Crédito ${Date.now()}`, phone: `59598${String(Date.now()).slice(-7)}` })
 assert.equal(result.response.status, 201)
 const sinCredito = result.payload
-result = await request('/api/orders', 'POST', { customerId: sinCredito.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
-assert.equal(result.response.status, 400, 'Debe rechazar crédito sin límite configurado.')
+result = await request('/api/customers', 'POST', { name: `Sin Límite Retenido ${Date.now()}`, phone: `59596${String(Date.now()).slice(-7)}` })
+assert.equal(result.response.status, 201)
+result = await request('/api/orders', 'POST', { customerId: result.payload.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.equal(result.payload.creditAuthorization?.status, 'PENDING', 'Crédito sin límite configurado requiere autorización.')
 
 // Autorizaciones comerciales: el vendedor pide plazo, gerencia autoriza un
 // máximo menor al pedido y el cliente queda con lo autorizado, auditado.
