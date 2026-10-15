@@ -2493,6 +2493,9 @@ export default function FormularioVenta({
               titulo={lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : ''}
               total={Number(lastOrder?.totalPyg) || 0}
               vuelto={vueltoExito}
+              cliente={lastOrder?.customer?.name || lastOrder?.cliente || ''}
+              nota={lastOrder?.notes || lastOrder?.observacion || ''}
+              onVerCliente={!esDemo && lastOrder?.customer?.id ? () => { setHoja(null); setVueltoExito(0); navigate(`/clientes?cliente=${encodeURIComponent(lastOrder.customer.id)}`) } : undefined}
               whatsapp={lastOrder ? whatsappTrackingLink(lastOrder) : ''}
               onImprimir={() => { toast.info('Comprobante abierto', 'Revisalo y confirmá la impresión.'); setComprobante(true) }}
               onVerPedido={() => { setHoja(null); setVueltoExito(0); navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`) }}

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { openShellDestination } from '../helpers/shell-navigation.js'
 
 // POS en celular (#429): flujo estilo Shopify POS en pantallas <768 px.
 // Demo frontend-only (sin backend). Escritorio queda como estaba (50/50).
@@ -8,6 +9,7 @@ const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-pos-movil'
 async function enterPos(page, width, height = 800, dark = false) {
   await page.setViewportSize({ width, height })
   await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' })
+  await page.addInitScript(dark => localStorage.setItem('mobos:theme', dark ? 'dark' : 'light'), dark)
   await page.route('**/api/**', route =>
     !new URL(route.request().url()).pathname.startsWith('/api/')
       ? route.continue()
@@ -413,4 +415,107 @@ test('escritorio 1440 no cambia: columnas 50/50 y sin barra ni hojas del celular
   const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
   const der = await page.getByTestId('pos-bloque-carrito').boundingBox()
   expect(Math.abs(izq.width - der.width)).toBeLessThanOrEqual(24)
+})
+
+// #485: adaptación sobre los flujos actuales, sin otra fuente de dinero/stock.
+for (const width of [360, 390]) for (const dark of [false, true]) {
+  test(`#485 ${width} ${dark ? 'oscuro' : 'claro'}: carrito seguro, pedidos compactos y cobrar con comprobante actual`, async ({ page }) => {
+    page.setDefaultTimeout(10000)
+    await enterPos(page, width, 800, dark)
+    await mkdir(out, { recursive: true })
+    if (dark) await expect(page.locator('html')).toHaveClass(/dark/)
+    const prod = await productoSimple(page)
+    await agregar(page, prod.nombre)
+    const barra = page.getByTestId('pos-barra-carrito')
+    const nav = page.getByTestId('shell-bottom-nav')
+    let b = await barra.boundingBox(), n = await nav.boundingBox()
+    expect(b.y + b.height).toBeLessThanOrEqual(n.y + 1)
+    await expect(barra.getByTestId('barra-total')).toHaveText(`Gs ${prod.precio.toLocaleString('es-PY')}`)
+    // Safe area ampliada: la barra usa la misma reserva del shell.
+    await page.getByTestId('shell').evaluate(el => el.style.setProperty('--shell-bottom-space', '90px'))
+    b = await barra.boundingBox()
+    expect(b.y + b.height).toBeLessThanOrEqual(800 - 90)
+    await page.getByTestId('pos-movil').evaluate(el => { for (let nodo = el; nodo; nodo = nodo.parentElement) nodo.scrollTop = nodo.scrollHeight })
+    const ultimoProducto = page.locator('.pos-product-card').last()
+    expect((await ultimoProducto.boundingBox()).y + (await ultimoProducto.boundingBox()).height).toBeLessThanOrEqual(b.y)
+    await openShellDestination(page, 'Pedidos')
+    const buscar = page.getByPlaceholder('Pedido, cliente, RUC, producto o IMEI')
+    await buscar.fill('AUR-0002')
+    const fila = page.getByTestId('pedido-fila').first()
+    await expect(fila).toContainText('Carlos Benítez')
+    await expect(fila.getByRole('group', { name: 'Estado de pago' })).toContainText('Parcial')
+    await expect(fila.getByRole('group', { name: 'Estado de entrega' })).toContainText('Retirado')
+    expect((await fila.boundingBox()).height).toBeLessThanOrEqual(110)
+    const total = fila.locator('.ventas-f3-order-total')
+    await expect(total).toHaveText('Gs 180.000')
+    expect(await total.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    if (width === 360 && !dark) await page.screenshot({ path: `${out}/485-pedidos360.png` })
+    await fila.click()
+    const acciones = page.getByTestId('pedido-acciones')
+    const botones = acciones.getByRole('button')
+    for (const boton of await botones.all()) { const box = await boton.boundingBox(); if (box) expect(box.height).toBeGreaterThanOrEqual(44) }
+    await sinScrollHorizontal(page, width)
+    if (width === 360 && !dark) await page.screenshot({ path: `${out}/485-pedido360.png` })
+    await page.getByRole('button', { name: /^Cobrar saldo/ }).click()
+    const pagos = page.getByRole('dialog', { name: /^Pagos ·/ })
+    await expect(pagos).toHaveClass(/ventana-detalle/)
+    await expect(pagos.getByTestId('pagos-resumen')).toContainText('Gs 80.000')
+    await expect(pagos.getByTestId('pagos-resumen')).toContainText('Gs 100.000')
+    await expect(pagos.getByLabel('Monto del pago')).toHaveAttribute('placeholder', '0')
+    for (const label of await pagos.getByLabel('Cuenta de destino').locator('option').allTextContents()) expect(label).not.toMatch(/PYG|TRANSFER|CASH|CARD/)
+    if (width === 360 && !dark) await page.screenshot({ path: `${out}/485-cobrar360.png` })
+    await pagos.getByLabel('Monto del pago').fill('12000')
+    await pagos.getByTestId('pagos-comprobante').click()
+    const comprobante = page.getByRole('dialog', { name: 'Comprobante', exact: true })
+    await expect(comprobante).toBeVisible()
+    await expect(comprobante.getByRole('radio', { name: 'Comprobante Completo', exact: true })).toBeVisible()
+    const marco = comprobante.locator('iframe[title="Vista previa del comprobante"]')
+    await expect.poll(() => marco.evaluate(el => el.contentDocument?.body.innerText || '')).toContain('Generado por MobOS')
+    await expect.poll(() => marco.evaluate(el => el.contentDocument?.body.innerText || '')).toContain('180.000')
+    await sinScrollHorizontal(page, width)
+    if (width === 360 && !dark) await page.screenshot({ path: `${out}/485-comprobante360.png` })
+    await page.keyboard.press('Escape')
+    await expect(pagos).toBeVisible()
+    await expect(pagos.getByLabel('Monto del pago')).toHaveValue('12.000')
+    await page.keyboard.press('Escape')
+    await expect(pagos).toHaveCount(0)
+  })
+}
+
+for (const width of [360, 390]) test(`#485 ${width}: confirmación con cliente, nota, importe completo y acciones claras`, async ({ page }) => {
+  await enterPos(page, width)
+  await page.evaluate(async () => {
+    const recursos = performance.getEntriesByType('resource').map(r => r.name)
+    const ReactModule = await import(recursos.find(url => url.includes('/deps/react.js')))
+    const React = ReactModule.default || ReactModule
+    const DOM = await import(recursos.find(url => url.includes('react-dom_client')))
+    const { HojaExito } = await import('/src/components/ventas/movil/HojasMovil.jsx')
+    const h = React.createElement
+    function Ejemplo() {
+      const [accion, elegir] = React.useState('')
+      return h(React.Fragment, null, h(HojaExito, {
+        open: true, onClose: () => elegir('nueva venta'), titulo: 'Pedido QA-0485 creado',
+        total: 999999999999, cliente: 'Cliente de prueba QA', nota: 'Entregar con comprobante premium.',
+        onVerCliente: () => elegir('cliente'), onVerPedido: () => elegir('pedido'), onImprimir: () => elegir('comprobante'),
+      }), h('output', { 'data-testid': 'accion-confirmada' }, accion))
+    }
+    const nodo = document.createElement('div')
+    document.body.replaceChildren(nodo)
+    const renderer = DOM.default || DOM
+    renderer.createRoot(nodo).render(h(Ejemplo))
+  })
+  const hoja = page.getByTestId('hoja-exito')
+  await expect(hoja.getByTestId('exito-total')).toHaveText('Gs 999.999.999.999')
+  expect(await hoja.getByTestId('exito-total').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+  await expect(hoja.getByTestId('exito-cliente')).toHaveText('Cliente de prueba QA')
+  await expect(hoja.getByTestId('exito-nota')).toContainText('Entregar con comprobante premium.')
+  for (const [id, texto] of [['exito-ver-cliente', 'cliente'], ['exito-ver-pedido', 'pedido'], ['exito-imprimir', 'comprobante'], ['exito-listo', 'nueva venta']]) {
+    const boton = hoja.getByTestId(id)
+    await boton.scrollIntoViewIfNeeded()
+    expect((await boton.boundingBox()).height).toBeGreaterThanOrEqual(44)
+    await boton.click()
+    await expect(page.getByTestId('accion-confirmada')).toHaveText(texto)
+  }
+  await expect(hoja.getByTestId('exito-listo')).toHaveText('Nueva venta')
+  await sinScrollHorizontal(page, width)
 })

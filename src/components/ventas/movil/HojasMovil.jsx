@@ -192,7 +192,7 @@ export function HojaSinStock({ open, onClose, pendientes, permiso, onVenderIgual
 }
 
 // Después de cobrar: vuelto, recibo y «Listo».
-export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onImprimir, onVerPedido, esDemo, creditoPendiente = false, pregunta = null }) {
+export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onImprimir, onVerPedido, cliente = '', nota = '', onVerCliente, esDemo, creditoPendiente = false, pregunta = null }) {
   const fila = 'flex min-h-14 w-full items-center gap-3 rounded-2xl border border-ink-600 bg-ink-800 px-4 text-left text-base font-semibold transition active:scale-[.99]'
   return (
     <BottomSheet
@@ -201,7 +201,7 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
       title="Venta registrada"
       size="full"
       testId="hoja-exito"
-      footer={<Button type="button" data-testid="exito-listo" className="min-h-14 w-full text-base" onClick={onClose}>Listo</Button>}
+      footer={<Button type="button" data-testid="exito-listo" className="min-h-14 w-full text-base" onClick={onClose}>Nueva venta</Button>}
     >
       <div className="space-y-4">
         <div className="space-y-2 rounded-2xl border border-ok/35 bg-ok/[.06] px-4 py-6 text-center">
@@ -210,6 +210,15 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
           {total > 0 && <p className="v2-numero text-2xl font-extrabold tabular-nums" data-testid="exito-total">{gs(total)}</p>}
           {esDemo && <p className="text-xs font-semibold text-mute">Modo demo: la venta queda guardada solo en este navegador.</p>}
         </div>
+        {(cliente || nota) && (
+          <div className="rounded-2xl border border-ink-600 bg-ink-800 px-4 py-2 text-sm" data-testid="exito-resumen">
+            {cliente && <div className="flex min-h-11 items-center justify-between gap-2">
+              <span className="min-w-0"><span className="block text-xs text-mute">Cliente</span><b className="break-words" data-testid="exito-cliente">{cliente}</b></span>
+              {onVerCliente && <button type="button" className="min-h-11 shrink-0 rounded-lg px-2 font-semibold text-fono-light" onClick={onVerCliente} data-testid="exito-ver-cliente">Ver cliente</button>}
+            </div>}
+            {nota && <p className="border-t border-ink-600 py-2" data-testid="exito-nota"><span className="block text-xs text-mute">Nota</span><span className="whitespace-pre-wrap break-words">{nota}</span></p>}
+          </div>
+        )}
         {creditoPendiente && (
           <div role="status" data-testid="exito-credito-pendiente" className="rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm font-semibold text-warn-text">
             Pendiente de autorización de crédito: el cliente superaría su crédito. No se entrega hasta que un administrador o gerente lo autorice.
@@ -229,12 +238,12 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
             </a>
           )}
           <button type="button" className={fila} onClick={onImprimir} data-testid="exito-imprimir">
-            <Icon name="printer" className="h-5 w-5 text-fono-light" /> Imprimir recibo
+            <Icon name="printer" className="h-5 w-5 text-fono-light" /> Comprobante / imprimir
           </button>
           <button type="button" className={fila} onClick={onVerPedido} data-testid="exito-ver-pedido">
             <Icon name="receipt" className="h-5 w-5 text-fono-light" /> Ver pedido
           </button>
-          <p className="text-xs text-mute">En el pedido también podés enviar el comprobante por correo y gestionar al cliente.</p>
+          <p className="text-xs text-mute">En Ver pedido podés enviar el comprobante por correo, gestionar al cliente y editar la nota.</p>
         </div>
       </div>
     </BottomSheet>

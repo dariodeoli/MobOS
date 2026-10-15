@@ -366,3 +366,42 @@
   text-transform: none;
   letter-spacing: normal;
 }
+
+.ventas-f3-order-statuses { display: contents; }
+
+/* #485: número/importe, cliente, fecha/ubicación y los dos estados en una
+   tarjeta móvil compacta. El detalle de artículos se abre al tocar el pedido. */
+@media (max-width: 639px) {
+  .ventas-f3 .ventas-f3-order-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content 44px;
+    gap: 3px 8px;
+    padding: 8px 10px;
+  }
+  .ventas-f3 .ventas-f3-order-code { grid-area: 1 / 1; min-width: 0; }
+  .ventas-f3 .ventas-f3-order-total { grid-area: 1 / 2; font-size: 13px; text-align: right !important; }
+  .ventas-f3 .ventas-f3-order-identity { grid-area: 2 / 1 / 3 / 3; padding: 0; }
+  .ventas-f3 .ventas-f3-order-identity .ventas-f3-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ventas-f3 .ventas-f3-order-identity .ventas-f3-description { display: none; }
+  .ventas-f3 .ventas-f3-order-date { grid-area: 3 / 1; font-size: 11px; }
+  .ventas-f3 .ventas-f3-delivery { grid-area: 3 / 2 / 4 / 4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 11px; }
+  .ventas-f3 .ventas-f3-order-statuses { grid-area: 4 / 1 / 5 / 4; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+  .ventas-f3 .ventas-f3-quick { position: static; grid-area: 1 / 3 / 3 / 4; align-self: start; width: 44px; height: 44px; }
+}
+
+/* El cobro usa la misma ventana actual que los detalles, también fuera del
+   contenedor de la lista (Modal se monta en un portal). */
+.pagos-pedido p { overflow-wrap: anywhere; }
+@media (max-width: 1023px) {
+  .pagos-pedido button, .pagos-pedido a[href], .pagos-pedido select,
+  .pagos-pedido input:not([type='checkbox'], [type='radio']) { min-height: 44px; }
+}
+
+/* El encabezado pertenece al slot del shell, fuera del cuerpo del pedido. */
+@media (max-width: 639px) {
+  [data-testid="record-header"]:has([data-testid="pedido-acciones"]) > div:last-child {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  [data-testid="pedido-acciones"] { flex-wrap: nowrap; }
+}
