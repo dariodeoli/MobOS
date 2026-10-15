@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
+import { creditosDeServicio, correspondeReembolso, estadoCreditos, reembolsarConsulta, reservarConsulta } from '../../../lib/imei-credits'
 import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, modoImeicheck, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
@@ -30,9 +31,12 @@ export async function GET(request: Request) {
     orderBy: { requestedAt: 'desc' },
     take: Math.min(50, Math.max(1, Number(params.get('limit')) || 20)),
   })
+  const creditos = await estadoCreditos(tenant)
   return json({
     ...modoImeicheck(),
-    servicios: SERVICIOS,
+    creditos: { saldo: creditos.saldo, enforce: creditos.enforce },
+    // Sin precios: la app solo habla de verificaciones (créditos).
+    servicios: Object.fromEntries(Object.entries(SERVICIOS).map(([clave, s]) => [clave, { nombre: s.nombre, campos: s.campos, creditos: creditosDeServicio(clave) }])),
     consultas: consultas.map(fila => ({
       id: fila.id,
       imei: fila.imeiMasked,
@@ -42,15 +46,11 @@ export async function GET(request: Request) {
       serviceName: fila.serviceName,
       status: fila.status,
       etiqueta: etiquetaEstado(fila.status as never),
-      costUsd: Number(fila.costUsd),
-      externalId: fila.externalId,
       error: fila.error,
       normalized: fila.normalized,
       requestedAt: fila.requestedAt,
       resolvedAt: fila.resolvedAt,
-      // #233: la conciliación queda a la vista en el registro (fecha y nota).
       conciliatedAt: fila.conciliatedAt,
-      conciliationNote: fila.conciliationNote,
       ...(verCrudo ? { responseRaw: fila.responseRaw } : {}),
     })),
   })
@@ -63,36 +63,21 @@ export async function POST(request: Request) {
   const tenant = session.user.tenantId
   let body: any
   try { body = await request.json() } catch { return error('Cuerpo inválido.') }
-  const accion = body?.action === 'precheck' ? 'precheck' : body?.action === 'checks' ? 'checks' : body?.action === 'conciliar' ? 'conciliar' : null
-  if (!accion) return error('Acción inválida: usá precheck, checks o conciliar.')
-  // #233: conciliación manual (admin/gerente) de una consulta ambigua: asocia la
-  // orden del proveedor y corrige estado/costo real sin repetir la consulta.
-  if (accion === 'conciliar') {
-    if (!ROLES_VER_CRUDO.includes(session.user.role)) return error('Solo administración puede conciliar consultas.', 403)
+  const accion = body?.action === 'precheck' ? 'precheck' : body?.action === 'checks' ? 'checks' : body?.action === 'reportar' ? 'reportar' : null
+  if (!accion) return error('Acción inválida: usá precheck, checks o reportar.')
+  // «Reportar problema»: el inquilino solo avisa. No cambia estado, costo ni saldo:
+  // la conciliación y el reembolso los decide la plataforma (/superadmin) con los
+  // datos del proveedor.
+  if (accion === 'reportar') {
     const requestId = typeof body?.requestId === 'string' ? body.requestId.trim() : ''
     const id = typeof body?.id === 'string' ? body.id.trim() : ''
-    if (!requestId && !id) return error('Indicá requestId o id de la consulta a conciliar.')
+    if (!requestId && !id) return error('Indicá requestId o id de la consulta.')
+    const nota = typeof body?.note === 'string' ? body.note.trim().slice(0, 500) : ''
+    if (!nota) return error('Contanos qué pasó con la consulta.')
     const registro = await prisma.imeiCheckQuery.findFirst({ where: { tenantId: tenant, ...(id ? { id } : { requestId }) } })
-    if (!registro) return error('No se encontró la consulta a conciliar.', 404)
-    const estados = ['verificado', 'parcial', 'conciliar', 'pendiente', 'fallido']
-    const status = typeof body?.status === 'string' && estados.includes(body.status) ? body.status : registro.status
-    const costUsd = body?.costUsd === undefined ? Number(registro.costUsd) : Number(body.costUsd)
-    if (!Number.isFinite(costUsd) || costUsd < 0) return error('Costo inválido para conciliar.')
-    const actualizado = await prisma.imeiCheckQuery.update({
-      where: { id: registro.id },
-      data: {
-        status,
-        costUsd: String(costUsd.toFixed(2)),
-        externalId: typeof body?.externalId === 'string' && body.externalId.trim() ? body.externalId.trim().slice(0, 128) : registro.externalId,
-        conciliatedAt: new Date(),
-        conciliationNote: typeof body?.note === 'string' ? body.note.trim().slice(0, 500) : registro.conciliationNote,
-        resolvedAt: typeof body?.resolvedAt === 'string' && !Number.isNaN(new Date(body.resolvedAt).getTime()) ? new Date(body.resolvedAt) : new Date(),
-        normalized: Array.isArray(body?.normalized) ? body.normalized : registro.normalized,
-        error: status === 'conciliar' ? registro.error : null,
-      },
-    })
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIATED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
-    return json(expectativa(actualizado, true))
+    if (!registro) return error('No se encontró la consulta.', 404)
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_REPORTED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, nota } } })
+    return json({ ok: true, ...expectativa(registro, false) })
   }
   const clave = typeof body?.servicio === 'string' && SERVICIOS[body.servicio] ? body.servicio : 'APPLE_BASIC'
   const servicio = SERVICIOS[clave]
@@ -105,57 +90,67 @@ export async function POST(request: Request) {
   if (!validacion.ok) return error(validacion.error, 400, { imei: String(body?.imei ?? '').slice(0, 40) })
 
   if (accion === 'precheck') {
+    const modo = modoImeicheck()
     // Referencia de idempotencia: una consulta igual y reciente se avisa acá.
     const reciente = await prisma.imeiCheckQuery.findFirst({
       where: { tenantId: tenant, imei: validacion.imei, serviceKey: clave, requestedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
       orderBy: { requestedAt: 'desc' },
-      select: { id: true, status: true, costUsd: true, requestedAt: true },
+      select: { id: true, status: true, requestedAt: true },
     })
-    const simulado = modoImeicheck().modo === 'simulado'
+    const estado = await estadoCreditos(tenant)
+    const requeridos = creditosDeServicio(clave)
     return json({
-      ...modoImeicheck(),
+      ...modo,
+      simulado: modo.modo === 'simulado',
       imei: enmascararImei(validacion.imei),
-      servicio: { clave, ...servicio },
+      servicio: { clave, nombre: servicio.nombre, campos: servicio.campos },
       requiereConfirmacion: true,
-      // En simulado no hay cobro: el precio queda solo como referencia visible.
-      costoEstimadoUsd: simulado ? 0 : servicio.precioUsd,
-      costoReferenciaUsd: servicio.precioUsd,
-      ...(simulado ? { simulado: true } : {}),
+      // Sin precios ni compra: solo cuántas verificaciones usa y cuántas quedan.
+      creditosRequeridos: requeridos,
+      saldo: estado.saldo,
+      disponible: !estado.enforce || estado.saldo >= requeridos,
       advertencia: reciente ? 'Ya hay una consulta de este servicio para el mismo IMEI en las últimas 24 h.' : null,
       reciente,
     })
   }
 
   // Confirmación explícita: sin `confirm: true` no se ejecuta ni se cobra.
-  if (body?.confirm !== true) return error('La consulta necesita confirmación explícita del costo.', 409, { requiereConfirmacion: true, costoEstimadoUsd: servicio.precioUsd })
+  if (body?.confirm !== true) return error('La consulta necesita confirmación explícita.', 409, { requiereConfirmacion: true, creditosRequeridos: creditosDeServicio(clave) })
   const requestId = typeof body?.requestId === 'string' && body.requestId.trim() ? body.requestId.trim().slice(0, 128) : null
   if (!requestId) return error('Falta requestId para evitar dobles cobros.', 400)
   const verCrudo = ROLES_VER_CRUDO.includes(session.user.role)
   // Todo lookup por (tenantId, requestId): el requestId de otra empresa nunca se lee.
   const propia = () => prisma.imeiCheckQuery.findFirst({ where: { tenantId: tenant, requestId } })
-  const yaExiste = await propia()
-  if (yaExiste) return json({ ...expectativa(yaExiste, verCrudo), ...(yaExiste.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
-
-  // Reserva primero: la fila nace en estado «reservado» y la unicidad de la base
-  // decide quién consulta. Solo quien reserva llama al proveedor (sin doble cobro).
+  // Reserva + descuento de créditos en una sola transacción bajo el candado de la
+  // empresa: la unicidad (empresa, requestId) decide quién consulta y solo quien
+  // reserva descuenta y llama al proveedor (sin doble cobro).
   let reserva
   try {
-    reserva = await prisma.imeiCheckQuery.create({
-      data: {
-        tenantId: tenant,
-        branchId: session.user.branchId,
-        userId: session.user.id,
-        imei: validacion.imei,
-        imeiMasked: enmascararImei(validacion.imei),
-        provider: 'imeicheck.net',
-        serviceKey: clave,
-        serviceId: servicio.serviceId,
-        serviceName: servicio.nombre,
-        status: 'reservado',
-        costUsd: '0.00',
-        requestId,
-      },
+    const r = await reservarConsulta({
+      tenantId: tenant,
+      requestId,
+      servicioKey: clave,
+      buscar: tx => tx.imeiCheckQuery.findFirst({ where: { tenantId: tenant, requestId } }),
+      crear: tx => tx.imeiCheckQuery.create({
+        data: {
+          tenantId: tenant,
+          branchId: session.user.branchId,
+          userId: session.user.id,
+          imei: validacion.imei,
+          imeiMasked: enmascararImei(validacion.imei),
+          provider: 'imeicheck.net',
+          serviceKey: clave,
+          serviceId: servicio.serviceId,
+          serviceName: servicio.nombre,
+          status: 'reservado',
+          costUsd: '0.00',
+          requestId,
+        },
+      }),
     })
+    if (r.tipo === 'existente') return json({ ...expectativa(r.fila, verCrudo), ...(r.fila.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
+    if (r.tipo === 'sin-creditos') return json({ message: 'No disponible en tu cuenta.', code: 'IMEI_SIN_CREDITOS', creditos: { saldo: r.saldo, requeridos: r.requeridos } }, { status: 402 })
+    reserva = r.fila
   } catch (causa: any) {
     if (causa?.code !== 'P2002') throw causa
     const existente = await propia()
@@ -185,7 +180,12 @@ export async function POST(request: Request) {
       resolvedAt: resultado.estado === 'pendiente' ? null : new Date(),
     },
   })
-  return json({ ...expectativa(registro, verCrudo), esMock: resultado.esMock, ...modoImeicheck() }, { status: 201 })
+  // Falló sin cobro del proveedor: se devuelve el crédito, una sola vez. «A conciliar» lo conserva.
+  if (correspondeReembolso(resultado.estado, resultado.costoUsd)) {
+    try { await reembolsarConsulta(tenant, reserva.id) } catch (causa) { console.error('imei: no se pudo reembolsar el crédito', causa) }
+  }
+  const estado = await estadoCreditos(tenant).catch(() => null)
+  return json({ ...expectativa(registro, verCrudo), esMock: resultado.esMock, ...modoImeicheck(), ...(estado ? { creditos: { saldo: estado.saldo, enforce: estado.enforce } } : {}) }, { status: 201 })
 }
 
 function expectativa(fila: any, verCrudo: boolean) {
@@ -198,15 +198,11 @@ function expectativa(fila: any, verCrudo: boolean) {
     serviceName: fila.serviceName,
     status: fila.status,
     etiqueta: etiquetaEstado(fila.status),
-    costUsd: Number(fila.costUsd),
-    externalId: fila.externalId,
     error: fila.error,
     normalized: fila.normalized,
     requestedAt: fila.requestedAt,
     resolvedAt: fila.resolvedAt,
-    // #233: lo que se muestra en el registro una vez conciliada.
     conciliatedAt: fila.conciliatedAt,
-    conciliationNote: fila.conciliationNote,
     ...(verCrudo ? { responseRaw: fila.responseRaw } : {}),
   }
 }

@@ -29,6 +29,7 @@ export const TAB_ICONOS = {
   precios: 'tag',
   taller: 'wrench',
   conteos: 'list',
+  verificacion: 'check',
   alertas: 'alert',
   reservas: 'pin',
   vendidos: 'receipt',

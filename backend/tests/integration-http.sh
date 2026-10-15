@@ -154,6 +154,7 @@ SQL
   RUC_PILOT_USER_ID=user-ruc-pilot-it RUC_PILOT_TENANT_ID=tenant-ruc-pilot-it \
   RUC_PILOT_OWNER_EMAIL=dariodeoli@gmail.com RUC_API_KEY='' RUC_SUN_API_KEY='' \
   RUC_ACCOUNT_HOURLY_LIMIT=12 RUC_INSTALLATION_MONTHLY_LIMIT=90 \
+  MOBOS_PLATFORM_OWNER_EMAIL=platform-owner-it@example.invalid \
   NODE_ENV=test MOBOS_APP_URL=https://app.moboss.online MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" \
     MOBOS_STORAGE_DIR="$RUN_ROOT/storage" \
     MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" \
@@ -591,8 +592,13 @@ node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/stock-unificado.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 # #400 (A): código interno de unidad (trigger), ciclos/garantía, íconos y sigla.
 node "$BACKEND_ROOT/tests/unit-code.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
+# Créditos IMEI: el control está activo en el arnés; la empresa A parte con un lote grande
+# para las pruebas que consultan IMEI sin ser sobre créditos (imei-credits-http.mjs los reajusta).
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "INSERT INTO \"ImeiCreditLot\" (\"id\",\"tenantId\",\"source\",\"granted\",\"remaining\",\"note\") VALUES ('it-lote-base','tenant-a-it','GRANT',1000,1000,'arnés') ON CONFLICT (\"id\") DO NOTHING"
 echo "Consulta de IMEI: requestId por empresa y una sola llamada al proveedor (#193)..."
 node "$BACKEND_ROOT/tests/imei-request-id.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
+echo "Créditos de verificación IMEI: consumo atómico, reembolso, cupo y panel de plataforma..."
+node "$BACKEND_ROOT/tests/imei-credits-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 
 echo "Sucursal efectiva: un vendedor sin sucursal ve catálogo, unidades y vende (#286)..."
 node "$BACKEND_ROOT/tests/sucursal-efectiva.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
@@ -809,7 +815,7 @@ echo "Centro de Abastecimiento F2: compra rápida, IMEI y stock adicional (#250)
 node "$BACKEND_ROOT/tests/supply-purchases.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
 echo "Centro de Abastecimiento F3: IMEI y preparación (escaneo, lote y etiquetas) (#250)..."
-node "$BACKEND_ROOT/tests/supply-preparation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+node "$BACKEND_ROOT/tests/supply-preparation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 
 echo "Centro de Abastecimiento F4: lotes, tránsito y manifiesto (#250)..."
 node "$BACKEND_ROOT/tests/supply-shipments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
@@ -835,6 +841,9 @@ node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$
 
 echo "Llegada de mercadería: pegado, conciliación y confirmación por destino (#408)..."
 node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
+
+echo "Verificación de stock: check por fila, deshacer 1 minuto y sesión por escaneo..."
+node "$BACKEND_ROOT/tests/stock-verification-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
 
 echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
 node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"

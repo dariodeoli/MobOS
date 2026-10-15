@@ -221,7 +221,7 @@ export default function ImeiVerificador() {
               </div>
               <div className="text-right text-[10px] text-mute">
                 <p className="font-semibold text-fore">{consulta.fuente}</p>
-                <p>{fechaHora(consulta.fecha)} · costo US$ {consulta.costoUsd.toFixed(2)}</p>
+                <p>{fechaHora(consulta.fecha)}</p>
               </div>
             </div>
 

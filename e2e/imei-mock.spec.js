@@ -29,13 +29,13 @@ test('el IMEI se valida antes de consultar y el precheck no cobra', async ({ pag
   const precheck = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'precheck', imei: IMEI, servicio: 'APPLE_BASIC' }) })
   expect(precheck.status).toBe(200)
   expect(precheck.datos.imei).not.toContain(IMEI)
-  expect(precheck.datos.servicio.precioUsd).toBe(0.06)
-  expect(precheck.datos.servicio.precioConfirmado).toBe(true)
+  expect(precheck.datos.creditosRequeridos).toBe(1)
+  expect(precheck.datos.saldo).toBeGreaterThan(0)
+  expect(precheck.datos.servicio.precioUsd, 'la app no expone precios').toBeUndefined()
   expect(precheck.datos.requiereConfirmacion).toBe(true)
   expect(precheck.datos.modo).toBe('simulado', 'sin LIVE el modo visible es simulado')
   expect(precheck.datos.simulado).toBe(true)
-  expect(precheck.datos.costoEstimadoUsd).toBe(0)
-  expect(precheck.datos.costoReferenciaUsd).toBe(0.06)
+  expect(precheck.datos.costoEstimadoUsd).toBeUndefined()
   // El precheck no deja registro (no hubo consulta).
   const historial = await api(page, `imei?imei=${IMEI}`, { method: 'GET' })
   expect(historial.datos.consultas).toEqual([])
@@ -55,7 +55,7 @@ test('sin confirmación explícita no se ejecuta y con requestId no se cobra dos
   expect(primera.status).toBe(201)
   expect(primera.datos.esMock).toBe(true)
   expect(primera.datos.etiqueta).toBe('Verificado')
-  expect(primera.datos.costUsd).toBe(0.06)
+  expect(primera.datos).not.toHaveProperty('costUsd')
   expect(primera.datos.campos ?? primera.datos.normalized).toBeTruthy()
 
   // Mismo requestId (clic repetido / reintento): devuelve el registro, sin otro cargo.
@@ -123,11 +123,11 @@ test('los estados del proveedor se registran sin cobro y sin llamar al proveedor
   const IMEI = imeiValido()
   await page.goto('/inventario/unidades')
   const casos = [
-    { escenario: 'parcial', etiqueta: 'Parcial', costo: 0.06 },
-    { escenario: 'pendiente', etiqueta: 'No verificado', costo: 0 },
-    { escenario: 'timeout', etiqueta: 'A conciliar', costo: 0.06 },
-    { escenario: 'sin-saldo', etiqueta: 'No verificado', costo: 0 },
-    { escenario: 'no-autorizado', etiqueta: 'No verificado', costo: 0 },
+    { escenario: 'parcial', etiqueta: 'Parcial' },
+    { escenario: 'pendiente', etiqueta: 'No verificado' },
+    { escenario: 'timeout', etiqueta: 'A conciliar' },
+    { escenario: 'sin-saldo', etiqueta: 'No verificado' },
+    { escenario: 'no-autorizado', etiqueta: 'No verificado' },
   ]
   for (const caso of casos) {
     const respuesta = await api(page, 'imei', {
@@ -137,7 +137,7 @@ test('los estados del proveedor se registran sin cobro y sin llamar al proveedor
     expect(respuesta.status).toBe(201)
     expect(respuesta.datos.esMock).toBe(true)
     expect(respuesta.datos.etiqueta).toBe(caso.etiqueta)
-    expect(respuesta.datos.costUsd).toBe(caso.costo)
+    expect(respuesta.datos).not.toHaveProperty('costUsd')
   }
 })
 
@@ -191,8 +191,8 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
     expect(precheckB.status()).toBe(200)
     const precheckDatos = await precheckB.json()
     expect(precheckDatos.advertencia).toBeNull()
-    expect(precheckDatos.costoEstimadoUsd).toBe(0)
-    expect(precheckDatos.costoReferenciaUsd).toBe(0.06)
+    expect(precheckDatos.costoEstimadoUsd).toBeUndefined()
+    expect(precheckDatos.creditosRequeridos).toBe(1)
 
     // Consulta propia de B: queda solo en su historial.
     const consultaB = await apiB.post(`${API}/api/imei`, { headers: cabecerasB, data: { action: 'checks', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC', confirm: true, requestId: `qa-193-tienda-b-${Date.now()}` } })
@@ -211,35 +211,31 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
   }
 })
 
-// #233: una consulta ambigua (timeout) queda «A conciliar» con costo estimado y
-// administración puede conciliarla asociando la orden del proveedor.
-test('el timeout queda a conciliar y administración lo concilia sin repetir la consulta', async ({ page }) => {
+// #233: una consulta ambigua (timeout) queda «A conciliar». La empresa NO concilia
+// ni cambia estado/costo: solo reporta el problema; la plataforma decide.
+test('el timeout queda a conciliar y la empresa solo puede reportar el problema', async ({ page }) => {
   await page.goto('/inventario/unidades')
   const IMEI_TIMEOUT = imeiValido()
   const requestId = `qa-233-${Date.now()}`
   const creada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI_TIMEOUT, servicio: 'APPLE_BASIC', confirm: true, requestId, escenario: 'timeout' }) })
   expect(creada.status).toBe(201)
   expect(creada.datos.etiqueta).toBe('A conciliar')
-  expect(creada.datos.costUsd).toBe(0.06)
+  expect(creada.datos).not.toHaveProperty('costUsd')
 
-  const conciliada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'conciliar', requestId, externalId: 'ORD-233-DEMO', status: 'verificado', costUsd: 0.06, resolvedAt: '2026-09-21T23:09:00-03:00', normalized: [{ clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'On', fuente: 'imeicheck.net', hora: '2026-09-21T23:09:00-03:00' }], note: 'Conciliado con el panel; iCloud/US Block clean no certifican blacklist mundial.' }) })
-  expect(conciliada.status).toBe(200)
-  expect(conciliada.datos.externalId).toBe('ORD-233-DEMO')
-  expect(conciliada.datos.status).toBe('verificado')
-  expect(Number(conciliada.datos.costUsd)).toBe(0.06)
-  expect(conciliada.datos.resolvedAt).toBe('2026-09-22T02:09:00.000Z')
-  expect(conciliada.datos.normalized?.[0]?.valor).toBe('On')
+  const conciliada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'conciliar', requestId, status: 'fallido', costUsd: 0 }) })
+  expect(conciliada.status).toBe(400)
+  const reporte = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'reportar', requestId, note: 'No llegó respuesta del proveedor.' }) })
+  expect(reporte.status).toBe(200)
+  expect(reporte.datos.status).toBe('conciliar')
 
   const historial = await api(page, `imei?imei=${IMEI_TIMEOUT}`, { method: 'GET' })
   const fila = historial.datos.consultas.find(item => item.id === creada.datos.id)
-  expect(fila.externalId).toBe('ORD-233-DEMO')
-  expect(fila.etiqueta).toBe('Verificado')
+  expect(fila.etiqueta).toBe('A conciliar')
+  expect(fila).not.toHaveProperty('costUsd')
 })
 
-// #233: conciliación desde la UI (acción funcional y auditada): el botón está
-// para ADMIN/GERENTE en el registro, abre el modal con los datos del panel y al
-// guardar actualiza la consulta y deja la auditoría.
-test('la ficha permite conciliar una consulta desde el modal y deja la auditoría', async ({ page }) => {
+// Reportar problema desde la UI: botón en el registro, modal simple y auditoría.
+test('la ficha permite reportar un problema de una consulta y deja la auditoría', async ({ page }) => {
   const IMEI_UI = imeiValido()
   await page.goto('/inventario/unidades')
   const requestId = `qa-233ui-${Date.now()}`
@@ -252,35 +248,23 @@ test('la ficha permite conciliar una consulta desde el modal y deja la auditorí
   await page.getByTestId('imei-consultas-abrir').click()
   await page.getByLabel('IMEI a consultar').fill(IMEI_UI)
   await page.getByTestId('imei-consultas-buscar').click()
+  await expect(page.getByTestId('imei-consultas-lista')).not.toContainText('US$')
   await page.getByTestId(`imei-conciliar-${creada.datos.id}`).click()
 
-  // El modal llega con los datos del panel y la aclaración obligatoria.
-  const modal = page.getByRole('dialog', { name: 'Conciliar consulta IMEI' })
+  const modal = page.getByRole('dialog', { name: 'Reportar problema de la consulta' })
   await expect(modal).toBeVisible()
-  await expect(modal.getByText('iCloud/US Block clean ≠ blacklist mundial', { exact: true })).toBeVisible()
-  await expect(modal.getByLabel('Nota de conciliación')).toHaveValue(/iCloud\/US Block clean ≠ blacklist mundial/)
-  await modal.getByLabel('Costo real USD').fill('0.06')
-  await modal.getByLabel('Orden del proveedor').fill('ORD-233-UI')
-  await modal.getByLabel('Nota de conciliación').fill('Conciliado con el panel del proveedor. iCloud/US Block clean ≠ blacklist mundial.')
+  await expect(modal.getByLabel('Costo real USD')).toHaveCount(0)
+  await modal.getByLabel('Qué pasó').fill('El proveedor no respondió.')
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/01-modal-conciliar.png`, fullPage: true })
   await page.getByTestId('imei-conciliar-guardar').click()
-  await expect(page.getByText('Consulta conciliada.')).toBeVisible({ timeout: 15_000 })
-  // El registro queda conciliado y el botón sigue disponible (la ventana no es solo lectura).
-  await expect(page.getByTestId(`imei-conciliar-${creada.datos.id}`)).toBeVisible()
-  await expect(page.getByText(/Conciliada el/)).toBeVisible()
-  await page.screenshot({ path: `${SALIDA}/02-consulta-conciliada.png`, fullPage: true })
+  await expect(page.getByText('Problema reportado.', { exact: false })).toBeVisible({ timeout: 15_000 })
 
   const historial = await api(page, `imei?imei=${IMEI_UI}`, { method: 'GET' })
   const fila = historial.datos.consultas.find(item => item.id === creada.datos.id)
-  expect(fila.etiqueta).toBe('Verificado')
-  expect(fila.externalId).toBe('ORD-233-UI')
-  expect(Number(fila.costUsd)).toBe(0.06)
-  expect(fila.conciliationNote).toMatch(/blacklist mundial/)
-  expect(fila.conciliatedAt).toBeTruthy()
+  expect(fila.etiqueta).toBe('A conciliar')
 
-  // La acción queda en la auditoría como IMEI_QUERY_CONCILIATED.
-  const auditoria = await api(page, 'audit?action=IMEI_QUERY_CONCILIATED&entity=ImeiCheckQuery&limit=50', { method: 'GET' })
+  const auditoria = await api(page, 'audit?action=IMEI_QUERY_REPORTED&entity=ImeiCheckQuery&limit=50', { method: 'GET' })
   expect(auditoria.status).toBe(200)
   const entradas = Array.isArray(auditoria.datos) ? auditoria.datos : (auditoria.datos?.entradas || [])
   expect(entradas.some(entrada => entrada.entityId === creada.datos.id)).toBe(true)

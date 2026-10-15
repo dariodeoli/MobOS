@@ -165,7 +165,7 @@ export const normalizeScan = (value = '') => {
   return crudo.trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
 }
 export const safe = (value = '') => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
-export const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos', 'autorizaciones']
+export const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos', 'verificacion', 'autorizaciones']
 // Navegación de Stock (rediseño): el shell muestra Unidades · Productos ·
 // Traslados · Control · Precios. Cada grupo de acá es una de esas pestañas y sus
 // vistas van como segundo nivel en la barra de la pestaña (nunca una tercera
@@ -175,12 +175,12 @@ export const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'tr
 export const GRUPOS_INVENTARIO = [
   { id: 'unidades', label: 'Unidades', tabs: ['unidades', 'vendidos', 'eliminados'] },
   { id: 'traslados', label: 'Traslados', tabs: ['traslados', 'transito'] },
-  { id: 'control', label: 'Control', tabs: ['conteos', 'alertas', 'autorizaciones', 'taller', 'ubicaciones', 'compartido', 'reservas'] },
+  { id: 'control', label: 'Control', tabs: ['conteos', 'verificacion', 'alertas', 'autorizaciones', 'taller', 'ubicaciones', 'compartido', 'reservas'] },
 ]
 export const TAB_LABEL = {
   unidades: 'Unidades', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
   transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
-  taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
+  taller: 'Taller', conteos: 'Conteos', verificacion: 'Verificación', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
 }
 export const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
 

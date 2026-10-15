@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
+import pg from 'pg'
 
 // #250 Fase 3 — IMEI y preparación: escaneo de a uno (mobile), pegado múltiple,
 // cuadre del lote (Luhn, repetidos, duplicados globales y cantidad vs
 // comprada), IMEI diferido y etiquetas de la preparación. Sigue sin tocar
 // stock: solo la recepción lo hará.
-const [base, admin, vendedor] = process.argv.slice(2)
+const [base, admin, vendedor, databaseUrl] = process.argv.slice(2)
 if (!base || !admin) throw new Error('base y token admin requeridos')
 let checks = 0
 async function req(path, method = 'GET', body, expected = 200, token = admin) {
@@ -88,8 +89,13 @@ assert.ok(!finales.compras.some((fila) => fila.id === compra.id), 'sin IMEI pend
 const imeiOtro = '490154203237641'
 const requestId = `qa-250f3-${Date.now()}`
 await req('/api/imei', 'POST', { action: 'checks', imei: imeiOtro, servicio: 'APPLE_BASIC', confirm: true, requestId }, 201)
-// El modelo detectado llega con la conciliación del panel del proveedor.
-await req('/api/imei', 'POST', { action: 'conciliar', requestId, status: 'verificado', costUsd: 0.06, normalized: [{ clave: 'modelo', etiqueta: 'Modelo', valor: 'iPhone 13' }], note: 'Panel del proveedor' }, 200)
+// El modelo detectado llega con la conciliación de la plataforma (el inquilino no concilia): se simula en la base.
+{
+  const db = new pg.Client({ connectionString: databaseUrl })
+  await db.connect()
+  await db.query(`UPDATE "ImeiCheckQuery" SET "status" = 'verificado', "normalized" = $1::jsonb WHERE "tenantId" = 'tenant-a-it' AND "requestId" = $2`, [JSON.stringify([{ clave: 'modelo', etiqueta: 'Modelo', valor: 'iPhone 13' }]), requestId])
+  await db.end()
+}
 const compraC = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor C', lines: [{ productId: producto.id, quantity: 1 }] }, 201)
 const conAviso = await req('/api/supply/purchases', 'PATCH', { id: compraC.id, action: 'scan', lineId: compraC.lines[0].id, serial: imeiOtro })
 assert.ok(conAviso.aviso && /figura como/.test(conAviso.aviso), 'el aviso de modelo distinto viaja en la respuesta')

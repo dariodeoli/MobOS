@@ -238,7 +238,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         label: row.status === 'conciliar' ? 'Consulta IMEI (a conciliar)' : row.status === 'verificado' ? 'Consulta IMEI verificada' : 'Consulta IMEI',
         createdAt: row.requestedAt,
         user: row.userId ? { id: row.userId, name: mapa.get(row.userId) || 'Usuario' } : null,
-        detail: `${row.serviceName} · ${row.imeiMasked} · US$${Number(row.costUsd).toFixed(2)}${row.status === 'conciliar' ? ' · pudo cobrarse, conciliar' : ''}`,
+        detail: `${row.serviceName} · ${row.imeiMasked}${row.status === 'conciliar' ? ' · en revisión' : ''}`,
       }))
     })()),
     // #240: la orden puede guardar el serial crudo y la unidad el normalizado;

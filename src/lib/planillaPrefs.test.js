@@ -35,11 +35,16 @@ test('plantilla: una pista por columna visible, con casilla, modelo y acciones',
   assert.equal(plantillaColumnas(prefs, columnas).split(' ').length, columnas.length + 3)
 })
 
-test('columnasQueEntran suelta primero ingreso y garantía y no toca lo esencial', () => {
+test('columnasQueEntran suelta primero garantía y después ingreso, sin tocar lo esencial', () => {
   const prefs = planillaEfectiva({}, {})
   assert.deepEqual(columnasQueEntran(prefs, { verCosto: true }, 2000), columnasVisibles(prefs, { verCosto: true }))
+  // Garantía se oculta antes que Ingreso: nunca queda Garantía sin Ingreso.
+  for (let ancho = 2000; ancho >= 700; ancho -= 10) {
+    const lista = columnasQueEntran(prefs, { verCosto: true }, ancho)
+    assert.ok(!(lista.includes('garantia') && !lista.includes('ingreso')), `ancho ${ancho}`)
+  }
   const medio = columnasQueEntran(prefs, { verCosto: true }, 1100)
-  assert.equal(medio.includes('ingreso'), false)
+  assert.equal(medio.includes('garantia'), false)
   assert.equal(medio.includes('estado'), true)
   const angosto = columnasQueEntran(prefs, { verCosto: true }, 760)
   for (const esencial of ['imei', 'ubicacion', 'estado']) assert.ok(angosto.includes(esencial), esencial)

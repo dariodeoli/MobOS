@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fechaHora, paraInputFechaHora } from '@/utils/fecha'
+import { fechaHora } from '@/utils/fecha'
 import { serialEnmascarado } from '@/utils/serial'
 import { qrDataUrl } from '@/lib/qr'
 import { Aviso, Badge, Button, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
@@ -18,7 +18,7 @@ import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
-import { conciliarDemoImei, consultasDemoImei, postDemoImei, validarImeiDemo } from '@/lib/demoImei'
+import { conciliarDemoImei, consultasDemoImei, postDemoImei, saldoDemoImei, validarImeiDemo } from '@/lib/demoImei'
 import { getDemoServicio } from '@/lib/demoServicio'
 import { COSMETICOS, estadoInspeccion, INSPECCION_ESTADOS, INSPECCION_ITEMS, resumenVerificacion } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
@@ -36,7 +36,6 @@ import { etiquetaEnvio, etiquetaMetodoEnvio, etiquetaNecesidad, etiquetaOrigen }
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 // #233: aclaración que acompaña toda conciliación (el panel del proveedor no
 // certifica el estado global del equipo con esos dos indicadores).
-const NOTA_CONCILIACION = 'Conciliado con el panel del proveedor. iCloud/US Block clean ≠ blacklist mundial: no certifican el estado global del equipo.'
 
 const money = (value, currency) => {
   const amount = Number(value)
@@ -78,12 +77,16 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const puedeConciliar = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol))
   // #193/#200: modo del adaptador visible ANTES de confirmar (real: simulado o vivo).
   const [imeiModo, setImeiModo] = useState('simulado')
+  // Créditos de verificación (docs/IMEI-CREDITOS.md): solo «cuántas quedan»; sin precios ni compra.
+  const [imeiSaldo, setImeiSaldo] = useState(null)
   useEffect(() => {
-    if (esDemo) return undefined
     let activo = true
-    api.get('/api/imei').then(datos => { if (activo && datos?.modo) setImeiModo(datos.modo) }).catch(() => {})
+    const lectura = esDemo ? Promise.resolve({ creditos: { saldo: saldoDemoImei() } }) : api.get('/api/imei')
+    lectura.then(datos => { if (!activo) return; if (datos?.modo) setImeiModo(datos.modo); if (Number.isFinite(datos?.creditos?.saldo)) setImeiSaldo(datos.creditos.saldo) }).catch(() => {})
     return () => { activo = false }
   }, [esDemo])
+  const sinVerificaciones = imeiSaldo !== null && imeiSaldo <= 0
+  const textoVerificaciones = n => `${n} ${n === 1 ? 'verificación' : 'verificaciones'}`
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -159,7 +162,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     try {
       // #227: en demo la cronología sale de la propia unidad (sin API).
       // #240: historial del serial: verificaciones/movimientos + consultas IMEI + reparaciones.
-      const consultasDemo = esDemo ? consultasDemoImei(unit.serial).map(consulta => ({ id: consulta.id, type: 'imei', label: 'Consulta IMEI', createdAt: consulta.requestedAt, user: consulta.verificador ? { id: consulta.verificador.id, name: consulta.verificador.nombre } : null, detail: `${consulta.serviceName} · ${consulta.etiqueta} · US$${Number(consulta.costUsd || 0).toFixed(2)}` })) : []
+      const consultasDemo = esDemo ? consultasDemoImei(unit.serial).map(consulta => ({ id: consulta.id, type: 'imei', label: 'Consulta IMEI', createdAt: consulta.requestedAt, user: consulta.verificador ? { id: consulta.verificador.id, name: consulta.verificador.nombre } : null, detail: `${consulta.serviceName} · ${consulta.etiqueta}` })) : []
       const reparacionesDemo = esDemo ? (getDemoServicio().rows || []).filter(fila => String(fila.serial || '').toUpperCase() === String(unit.serial || '').toUpperCase()).map(fila => ({ id: fila.id, type: 'repair', label: `Reparación ${fila.serviceNumber || ''}`.trim(), createdAt: fila.receivedAt || fila.createdAt, user: fila.technicianName ? { id: '', name: fila.technicianName } : null, detail: `${fila.device || 'Equipo'} · ${fila.status}`, costPyg: fila.costPyg, serviceNumber: fila.serviceNumber, status: fila.status, repairsAppliedAt: null })) : []
       // Los eventos del demo usan `at`/`title`; la cronología de la cuenta real usa `createdAt`/`label`.
       const eventosDemo = esDemo ? (unit.events || []).map(evento => ({ ...evento, label: evento.label || evento.title, createdAt: evento.createdAt || evento.at })) : []
@@ -313,35 +316,21 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // la aclaración obligatoria en la nota (iCloud/US Block clean no son blacklist).
   function abrirConciliacion(fila) {
     setConsultaError('')
-    setConciliando({
-      ...fila,
-      status: ['verificado', 'parcial', 'fallido'].includes(fila.status) ? fila.status : 'verificado',
-      costUsd: fila.costUsd ?? 0.06,
-      resolvedAt: paraInputFechaHora(fila.resolvedAt || new Date()),
-      externalId: fila.externalId || '',
-      note: fila.conciliationNote || NOTA_CONCILIACION,
-    })
+    setConciliando({ ...fila, note: '' })
   }
+  // El inquilino solo reporta el problema; la plataforma decide el reembolso.
   async function guardarConciliacion(event) {
     event.preventDefault()
     if (!conciliando) return
+    if (!conciliando.note.trim()) { setConsultaError('Contanos qué pasó con la consulta.'); return }
     setConsultaBusy(true); setConsultaError('')
     try {
-      const cuerpo = {
-        action: 'conciliar',
-        ...(conciliando.requestId ? { requestId: conciliando.requestId } : { id: conciliando.id }),
-        status: conciliando.status,
-        costUsd: Number(conciliando.costUsd) || 0,
-        ...(conciliando.resolvedAt ? { resolvedAt: new Date(conciliando.resolvedAt).toISOString() } : {}),
-        ...(conciliando.externalId ? { externalId: conciliando.externalId } : {}),
-        ...(Array.isArray(conciliando.normalized) ? { normalized: conciliando.normalized } : {}),
-        note: conciliando.note,
-      }
+      const cuerpo = { action: 'reportar', ...(conciliando.requestId ? { requestId: conciliando.requestId } : { id: conciliando.id }), note: conciliando.note }
       const actualizada = esDemo ? conciliarDemoImei(cuerpo) : await api.post('/api/imei', cuerpo)
       setConsultasFilas(filas => filas.map(fila => (fila.id === actualizada.id ? { ...fila, ...actualizada } : fila)))
       setConciliando(null)
-      toast.success('Consulta conciliada.')
-    } catch (cause) { setConsultaError(cause?.message || 'No se pudo conciliar la consulta.') } finally { setConsultaBusy(false) }
+      toast.success('Problema reportado. Lo revisamos y te avisamos.')
+    } catch (cause) { setConsultaError(cause?.message || 'No se pudo reportar el problema.') } finally { setConsultaBusy(false) }
   }
 
   // Precheck: valida el IMEI y muestra servicio, campos y COSTO antes de ejecutar.
@@ -355,10 +344,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         ? await postDemoImei({ action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' })
         : await api.post('/api/imei', { action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' })
       if (datos?.modo) setImeiModo(datos.modo)
+      if (Number.isFinite(datos?.saldo)) setImeiSaldo(datos.saldo)
       setImeiDatos(datos)
       setImeiFase('precheck')
     } catch (cause) {
-      setImeiError(cause?.status === 403 ? 'Función paga: pedile a administración que habilite la consulta de IMEI.' : (cause?.message || 'No se pudo preparar la consulta.'))
+      setImeiError(cause?.status === 403 ? 'Pedile a administración que habilite la consulta de IMEI.' : (cause?.message || 'No se pudo preparar la consulta.'))
     } finally { setImeiBusy(false) }
   }
 
@@ -372,8 +362,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         ? await postDemoImei({ action: 'checks', imei: unit.serial, servicio: 'APPLE_BASIC', confirm: true, requestId: imeiRequestId.current })
         : await api.post('/api/imei', { action: 'checks', imei: unit.serial, servicio: 'APPLE_BASIC', confirm: true, requestId: imeiRequestId.current }))
       setImeiFase('resultado')
+      const restantes = esDemo ? saldoDemoImei() : (await api.get('/api/imei').then(datos => datos?.creditos?.saldo).catch(() => null))
+      if (Number.isFinite(restantes)) setImeiSaldo(restantes)
     } catch (cause) {
-      setImeiError(cause?.message || 'No se pudo consultar el IMEI.')
+      if (cause?.status === 402) setImeiSaldo(0)
+      setImeiError(cause?.status === 402 ? 'No disponible en tu cuenta.' : (cause?.message || 'No se pudo consultar el IMEI.'))
     } finally { setImeiBusy(false) }
   }
 
@@ -627,19 +620,21 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="detalle-unidad-imei">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>Consulta de IMEI</h3>
-            <span className="flex items-center gap-2">{esDemo ? <Badge color="blue">Demo: simulado</Badge> : imeiModo === 'vivo' ? <Badge color="slate">Función paga</Badge> : <Badge color="blue">SIMULADO · Sin cobro</Badge>}{canManage && <Button type="button" variant="outline" className="px-2 text-xs" data-testid="imei-consultas-abrir" onClick={() => { setConsultasOpen(true); setConsultaError(''); setConsultasFilas([]) }}>Consultas IMEI</Button>}</span>
+            <span className="flex items-center gap-2">{esDemo ? <Badge color="blue">Demo: simulado</Badge> : imeiModo === 'vivo' ? null : <Badge color="blue">SIMULADO</Badge>}{imeiSaldo !== null && <Badge color={sinVerificaciones ? 'orange' : 'slate'} data-testid="imei-saldo">{sinVerificaciones ? 'No disponible en tu cuenta' : `Te quedan ${textoVerificaciones(imeiSaldo)}`}</Badge>}{canManage && <Button type="button" variant="outline" className="px-2 text-xs" data-testid="imei-consultas-abrir" onClick={() => { setConsultasOpen(true); setConsultaError(''); setConsultasFilas([]) }}>Consultas IMEI</Button>}</span>
           </div>
-          <p className="mt-1 text-xs text-mute">Estado del equipo en IMEIcheck (blacklist, Find My/iCloud, SIM lock, MDM, garantía). Se muestra el costo antes de confirmar y cada consulta queda auditada. Si no se puede verificar, se muestra como «No verificado», nunca «Limpio».</p>
-          {!imeiFase && !imeiBusy && <Button type="button" variant="outline" className="mt-2" onClick={imeiPrecheck} data-testid="imei-precheck">Consultar IMEI (ver costo)</Button>}
+          <p className="mt-1 text-xs text-mute">Estado del equipo en IMEIcheck (blacklist, Find My/iCloud, SIM lock, MDM, garantía). Cada consulta usa verificaciones de tu cuenta y queda auditada. Si no se puede verificar, se muestra como «No verificado», nunca «Limpio».</p>
+          {!imeiFase && !imeiBusy && !sinVerificaciones && <Button type="button" variant="outline" className="mt-2" onClick={imeiPrecheck} data-testid="imei-precheck">Consultar IMEI</Button>}
+          {!imeiFase && !imeiBusy && sinVerificaciones && <p className="mt-2 text-xs font-semibold text-warn" data-testid="imei-sin-verificaciones">No disponible en tu cuenta.</p>}
           {imeiBusy && <p className="mt-2 text-xs text-mute" role="status">Consultando…</p>}
           {imeiError && <Aviso tono="error" className="mt-2">{imeiError}</Aviso>}
           {imeiFase === 'precheck' && imeiDatos && (
             <div className="mt-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-sm">
-              <p className="font-semibold text-fore">{imeiDatos.simulado || imeiModo !== 'vivo' ? `${imeiDatos.servicio?.nombre || 'Apple Basic'} · SIMULADO · Sin cobro (referencia US$ ${Number(imeiDatos.costoReferenciaUsd ?? imeiDatos.servicio?.precioUsd ?? 0).toFixed(2)})` : `${imeiDatos.servicio?.nombre || 'Apple Basic'} · US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)}`}</p>
+              <p className="font-semibold text-fore">{`${imeiDatos.servicio?.nombre || 'Apple Basic'}${imeiDatos.simulado || imeiModo !== 'vivo' ? ' · SIMULADO · Sin cobro' : ''} · usa ${textoVerificaciones(imeiDatos.creditosRequeridos ?? 1)}`}</p>
+              <p className="mt-0.5 text-xs text-mute" data-testid="imei-precheck-saldo">{imeiDatos.disponible === false ? 'No disponible en tu cuenta.' : `Te quedan ${textoVerificaciones(imeiDatos.saldo ?? imeiSaldo ?? 0)}`}</p>
               <p className="mt-1 text-xs text-mute">Campos: {(imeiDatos.servicio?.campos || []).join(' · ')}</p>
               {imeiDatos.advertencia && <p className="mt-1 text-xs text-warn">{imeiDatos.advertencia}</p>}
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button type="button" disabled={imeiBusy} onClick={imeiConfirmar} data-testid="imei-confirmar">{imeiDatos.simulado || imeiModo !== 'vivo' ? 'Confirmar consulta simulada (sin cobro)' : `Confirmar consulta (US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)})`}</Button>
+                <Button type="button" disabled={imeiBusy || imeiDatos.disponible === false} onClick={imeiConfirmar} data-testid="imei-confirmar">{imeiDatos.simulado || imeiModo !== 'vivo' ? 'Confirmar consulta simulada (sin cobro)' : `Confirmar consulta (${textoVerificaciones(imeiDatos.creditosRequeridos ?? 1)})`}</Button>
                 <Button type="button" variant="ghost" disabled={imeiBusy} onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cancelar</Button>
               </div>
             </div>
@@ -648,7 +643,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <div className="mt-2 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge color={imeiDatos.status === 'verificado' ? 'green' : imeiDatos.status === 'parcial' || imeiDatos.status === 'conciliar' ? 'orange' : 'slate'}>{imeiDatos.etiqueta || (imeiDatos.status === 'verificado' ? 'Verificado' : 'No verificado')}</Badge>
-                {(imeiDatos.simulado || imeiDatos.esMock) ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">Costo {imeiDatos.status === 'conciliar' ? 'estimado ' : ''}US$ {Number(imeiDatos.costUsd || 0).toFixed(2)} · {imeiDatos.serviceName || 'Apple Basic'}</span>}
+                {(imeiDatos.simulado || imeiDatos.esMock) ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">{imeiDatos.serviceName || 'Apple Basic'}</span>}
+                {imeiSaldo !== null && <span className="text-xs text-mute" data-testid="imei-resultado-saldo">{sinVerificaciones ? 'No disponible en tu cuenta' : `Te quedan ${textoVerificaciones(imeiSaldo)}`}</span>}
                 {(imeiDatos.simulado || imeiDatos.esMock) && <span className="text-xs text-mute">Sin cobro: respuesta simulada de la fase 1</span>}
               </div>
               {(imeiDatos.campos || imeiDatos.normalized || []).map(campo => (
@@ -697,7 +693,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2"><Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} /><Input aria-label="Nota de repuestos no OEM" placeholder="Nota / detalle de la reparación" value={inspeccion.repuestosNoOemNota} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOemNota: event.target.value }))} /></div>
               <MoneyInput aria-label="Costo de repuestos y arreglos" title="Lo que costó reparar o reponer los repuestos detectados: se suma al costo real del equipo para la ganancia y el seguro" placeholder="Costo de repuestos" value={inspeccion.costoRepuestosPyg} onValueChange={(valor) => setInspeccion(actual => ({ ...actual, costoRepuestosPyg: valor }))} />
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="min-h-11 rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40 md:min-h-0"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
-            <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
+            <Button type="button" variant="outline" disabled={imeiBusy || sinVerificaciones} title={sinVerificaciones ? 'No disponible en tu cuenta' : 'Corre la verificación de IMEI y trae los bloqueos al checklist'} onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
           {reparaciones.length > 0 && (
             <div className="mt-3 rounded-xl border border-ink-600 p-3" data-testid="unidad-reparaciones">
@@ -748,31 +744,25 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           <div className="mt-3 space-y-2" data-testid="imei-consultas-lista">
             {consultasFilas.map(fila => <article key={fila.id} className="rounded-xl border border-ink-600 p-2 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-2"><Badge color={fila.status === 'verificado' ? 'green' : fila.status === 'conciliar' ? 'orange' : 'slate'}>{fila.etiqueta || fila.status}</Badge><span className="text-mute">{fila.imei || ''} · US$ {Number(fila.costUsd || 0).toFixed(2)} · {fila.requestedAt ? new Date(fila.requestedAt).toLocaleString('es-PY') : ''}</span></span>
-                {puedeConciliar && <Button type="button" className="px-2 text-xs" title="Conciliar la consulta con el panel del proveedor (queda auditada)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Conciliar</Button>}
+                <span className="flex items-center gap-2"><Badge color={fila.status === 'verificado' ? 'green' : fila.status === 'conciliar' ? 'orange' : 'slate'}>{fila.etiqueta || fila.status}</Badge><span className="text-mute">{fila.imei || ''} · {fila.requestedAt ? new Date(fila.requestedAt).toLocaleString('es-PY') : ''}</span></span>
+                {puedeConciliar && <Button type="button" className="px-2 text-xs" title="Avisarnos que esta consulta falló o no coincide (queda registrado)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Reportar problema</Button>}
               </div>
               {fila.status === 'conciliar' && fila.error ? <p className="mt-1 text-[11px] text-warn">{fila.error}</p> : null}
-              {fila.conciliatedAt ? <p className="mt-1 text-[11px] text-mute">Conciliada el {fechaHora(fila.conciliatedAt)}{fila.externalId ? ` · orden ${fila.externalId}` : ''}</p> : null}
+              {fila.conciliatedAt ? <p className="mt-1 text-[11px] text-mute">Revisada el {fechaHora(fila.conciliatedAt)}</p> : null}
             </article>)}
           </div>
         </Modal>
 
         {/* #233: conciliación de una consulta IMEI (acción auditada de admin/gerencia) */}
-        <Modal open={Boolean(conciliando)} onClose={() => { if (!consultaBusy) setConciliando(null) }} title="Conciliar consulta IMEI" size="formulario">
+        <Modal open={Boolean(conciliando)} onClose={() => { if (!consultaBusy) setConciliando(null) }} title="Reportar problema de la consulta" size="formulario">
           {conciliando && <form onSubmit={guardarConciliacion} className="space-y-3">
             <p className="text-xs text-mute">IMEI {conciliando.imeiMasked || serialEnmascarado(conciliando.imei)} · {conciliando.serviceName || 'Apple Basic'} · registrada el {fechaHora(conciliando.requestedAt)}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Select aria-label="Estado conciliado" value={conciliando.status} onChange={event => setConciliando(actual => ({ ...actual, status: event.target.value }))}><option value="verificado">Verificado</option><option value="parcial">Parcial</option><option value="fallido">Fallido</option></Select>
-              <Input aria-label="Costo real USD" inputMode="decimal" value={conciliando.costUsd} onChange={event => setConciliando(actual => ({ ...actual, costUsd: event.target.value.replace(/[^0-9.]/g, '') }))} placeholder="Costo real US$" />
-              <Input aria-label="Fecha del panel" type="datetime-local" value={conciliando.resolvedAt} onChange={event => setConciliando(actual => ({ ...actual, resolvedAt: event.target.value }))} />
-              <Input aria-label="Orden del proveedor" value={conciliando.externalId} onChange={event => setConciliando(actual => ({ ...actual, externalId: event.target.value }))} placeholder="Orden del proveedor (opcional)" />
-            </div>
-            <Textarea aria-label="Nota de conciliación" rows={3} maxLength={500} value={conciliando.note} onChange={event => setConciliando(actual => ({ ...actual, note: event.target.value }))} placeholder="Nota de la conciliación" />
-            <p className="text-[11px] text-mute">La nota incluye la aclaración obligatoria: <b className="text-fore">iCloud/US Block clean ≠ blacklist mundial</b>. Son señales parciales del panel y no certifican el estado global del equipo.</p>
+            <Textarea aria-label="Qué pasó" rows={3} maxLength={500} value={conciliando.note} onChange={event => setConciliando(actual => ({ ...actual, note: event.target.value }))} placeholder="Contanos qué pasó con la consulta" />
+            <p className="text-[11px] text-mute">Nuestro equipo revisa el caso y, si corresponde, devuelve la verificación a tu saldo.</p>
             {consultaError && <Aviso tono="error" compact>{consultaError}</Aviso>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" disabled={consultaBusy} onClick={() => setConciliando(null)}>Cancelar</Button>
-              <Button type="submit" disabled={consultaBusy} data-testid="imei-conciliar-guardar">{consultaBusy ? 'Guardando…' : 'Guardar conciliación'}</Button>
+              <Button type="submit" disabled={consultaBusy} data-testid="imei-conciliar-guardar">{consultaBusy ? 'Enviando…' : 'Enviar reporte'}</Button>
             </div>
           </form>}
         </Modal>
