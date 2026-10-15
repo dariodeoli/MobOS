@@ -23,8 +23,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
   const pedida = new URL(request.url).searchParams.get('variant') === 'dark' ? 'dark' : 'light'
   const otra = pedida === 'dark' ? 'light' : 'dark'
-  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: order.tenantId, variant: pedida } } })
-    || await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: order.tenantId, variant: otra } } })
+  const logo = (await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: order.tenantId, variant: pedida } } }))
+    || (await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: order.tenantId, variant: otra } } }))
   if (!logo) return error('La empresa todavía no tiene logo.', 404)
 
   const bytes = await readAttachment({ storageKey: logo.storageKey, data: logo.data ?? new Uint8Array() })

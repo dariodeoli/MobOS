@@ -3,7 +3,7 @@ import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import type { OrderStatus } from '@prisma/client'
 
-type RouteContext = { params: { id?: string } }
+type RouteContext = { params: Promise<{ id?: string }> }
 const CANCELADOS: OrderStatus[] = ['CANCELLED']
 const TZ = 'America/Asuncion'
 
@@ -18,8 +18,9 @@ const capitalizar = (texto: string) => texto.charAt(0).toUpperCase() + texto.sli
 // Analítica del cliente para su perfil: frecuencia, ticket promedio, gasto
 // mensual, antigüedad, productos/modelo/categoría preferidos y meses y días de
 // mayor actividad. Se calcula sobre las ventas no canceladas.
-export async function GET(request: Request, { params }: RouteContext) {
-  const tenant = await tenantId(request); const session = await requireSession(request)
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
+  const tenant = await tenantId(request);const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Cliente obligatorio.')

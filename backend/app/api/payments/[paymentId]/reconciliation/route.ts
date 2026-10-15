@@ -4,9 +4,10 @@ import { prisma } from '../../../../../lib/prisma'
 import { findAccessiblePayment, normalizeReconciliationNote, RECONCILIATION_ROLES } from '../../_lib'
 import { confirmReconciledPayment, lockPaymentRow } from '../../../../../lib/reconciliation'
 
-type RouteContext = { params: { paymentId: string } }
+type RouteContext = { params: Promise<{ paymentId: string }> }
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const payment = await findAccessiblePayment(params.paymentId, session)
@@ -20,7 +21,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   return json(reconciliation ?? { paymentId: payment.id, state: 'PENDING', note: null, verifiedBy: null, createdAt: null, updatedAt: null })
 }
 
-export async function PATCH(request: Request, { params }: RouteContext) {
+export async function PATCH(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!RECONCILIATION_ROLES.includes(session.user.role as (typeof RECONCILIATION_ROLES)[number])) return error('No autorizado para conciliar pagos.', 403)

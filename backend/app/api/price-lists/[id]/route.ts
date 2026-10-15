@@ -5,7 +5,7 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 import { PricingError } from '../../../../lib/pricing'
 import { parsePriceListItems, PriceListInputError, validarReemplazoExplicito } from '../../../../lib/price-lists'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const priceListInclude = {
   items: { include: { tiers: { orderBy: { minQty: 'asc' as const } } } },
@@ -20,7 +20,8 @@ async function listaDelTenant(tenantId: string, id: string) {
 
 // El detalle de una lista (categorías y precios) es información comercial
 // sensible: solo ADMIN/GERENTE. El vendedor resuelve precios por /api/pricing.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia ven el detalle de las listas de precios.', 403)
@@ -31,12 +32,13 @@ export async function GET(request: Request, { params }: RouteContext) {
   return json(lista)
 }
 
-export async function PATCH(request: Request, { params }: RouteContext) {
+export async function PATCH(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
-  if (!id || !await listaDelTenant(session.user.tenantId, id)) return error('Lista no encontrada.', 404)
+  if (!id || !(await listaDelTenant(session.user.tenantId, id))) return error('Lista no encontrada.', 404)
   try {
     const body = objectInput(await request.json())
     const data: Record<string, unknown> = {}
@@ -75,12 +77,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
 // Baja lógica: la lista deja de aplicarse, pero se conserva para auditoría y
 // para los clientes que la tengan asignada (pasan al precio de su ficha).
-export async function DELETE(request: Request, { params }: RouteContext) {
+export async function DELETE(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
-  if (!id || !await listaDelTenant(session.user.tenantId, id)) return error('Lista no encontrada.', 404)
+  if (!id || !(await listaDelTenant(session.user.tenantId, id))) return error('Lista no encontrada.', 404)
   const updated = await prisma.priceList.update({ where: { id }, data: { isActive: false } })
   await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_DEACTIVATED', entity: 'PriceList', entityId: updated.id, metadata: { name: updated.name } } })
   return json({ id: updated.id, isActive: updated.isActive })

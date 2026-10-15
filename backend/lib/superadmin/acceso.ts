@@ -51,7 +51,7 @@ type Contexto = { params: Record<string, string> }
  * ejecuta el handler. Todo handler del panel se exporta con este envoltorio.
  */
 export function conAdministradorPlataforma(handler: (request: Request, dueno: DuenoPlataforma, contexto: Contexto) => Promise<Response>) {
-  return async (request: Request, contexto: Contexto): Promise<Response> => {
+  return async (request: Request, contexto: { params: Promise<Record<string, string>> }): Promise<Response> => {
     // El límite va ANTES de consultar la base y responde igual que una ruta inexistente.
     if (enforceRateLimit(request, 'superadmin', 120, 60_000)) {
       logInfo('superadmin_acceso_denegado', { motivo: 'limite_de_intentos' })
@@ -60,7 +60,7 @@ export function conAdministradorPlataforma(handler: (request: Request, dueno: Du
     const dueno = await requerirAdministradorPlataforma(request)
     if (!dueno) return noEncontrado()
     try {
-      return await handler(request, dueno, contexto)
+      return await handler(request, dueno, { params: await contexto.params })
     } catch (error) {
       logError('superadmin_handler_error', { reason: error instanceof Error ? error.message : String(error) })
       return NextResponse.json({ message: 'No se pudo cargar el panel.' }, { status: 500 })

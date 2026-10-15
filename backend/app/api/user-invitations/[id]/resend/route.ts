@@ -4,7 +4,7 @@ import { deliverInvitation, enqueueInvitation, invitationToken, INVITATION_COOLD
 import { error, json } from '../../../../../lib/http'
 import { withEmailOutboxTransaction } from '../../../../../lib/email-outbox'
 
-export async function POST(request: Request, context: { params: { id: string } }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Sesión inválida.', 401)
   if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
@@ -13,8 +13,8 @@ export async function POST(request: Request, context: { params: { id: string } }
   const now = new Date()
   try {
     const prepared = await withEmailOutboxTransaction('invitation-resend', async tx => {
-      await tx.$queryRaw`SELECT "id" FROM "UserInvitation" WHERE "id" = ${context.params.id} FOR UPDATE`
-      const current = await tx.userInvitation.findFirst({ where: { id: context.params.id, tenantId, consumedAt: null, revokedAt: null }, include: { tenant: { select: { name: true } } } })
+      await tx.$queryRaw`SELECT "id" FROM "UserInvitation" WHERE "id" = ${(await context.params).id} FOR UPDATE`
+      const current = await tx.userInvitation.findFirst({ where: { id: (await context.params).id, tenantId, consumedAt: null, revokedAt: null }, include: { tenant: { select: { name: true } } } })
       if (!current || current.expiresAt <= now) throw new Error('INVITATION_NOT_FOUND')
       const pending = await tx.emailOutbox.findFirst({ where: { aggregateType: 'UserInvitation', aggregateId: current.id, sentAt: null, cancelledAt: null, failedAt: null }, orderBy: { createdAt: 'desc' }, select: { id: true } })
       if (pending) return { invitation: current, jobId: pending.id }

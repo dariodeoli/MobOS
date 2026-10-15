@@ -4,7 +4,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../../payments/_lib'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 // Fotos de un caso de garantía. Mismo criterio que los comprobantes de pago:
 // multipart, MIME permitido, magic bytes, tamaño máximo y sha256. Con volumen
@@ -31,7 +31,8 @@ function metadata(photo: { id: string; label: string | null; fileName: string; m
   return { id: photo.id, label: photo.label, fileName: photo.fileName, mimeType: photo.mimeType, sizeBytes: photo.sizeBytes, sha256: photo.sha256, createdAt: photo.createdAt }
 }
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role === 'VENDEDOR') return error('No autorizado.', 403)
@@ -49,7 +50,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   return json(photos.map(metadata))
 }
 
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)

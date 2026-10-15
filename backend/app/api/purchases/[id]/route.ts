@@ -4,12 +4,13 @@ import { requireSession } from '../../../../lib/auth'
 import { purchaseTotals } from '../../../../lib/purchases'
 import { numero } from '../../../../lib/montos'
 
-type RouteContext = { params: { id: string } }
+type RouteContext = { params: Promise<{ id: string }> }
 
 // Detalle de una compra con líneas, pagos y auditoría (creación, anticipos,
 // pagos, recepción y ediciones de costos). GERENTE replica el alcance de
 // /api/purchases: solo ve órdenes de su sucursal.
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(request: Request, props: RouteContext) {
+  const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
