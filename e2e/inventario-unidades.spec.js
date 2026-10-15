@@ -601,7 +601,7 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     await expect(marco).toHaveCount(1)
     const hoja = await marco.evaluate((frame) => frame.contentDocument?.documentElement?.outerHTML || '')
     expect(hoja).toContain('Hoja de estación')
-    expect(hoja).toContain('Equipos en preparación')
+    expect(hoja).toContain('equipo(s) en preparación')
     expect(hoja).toContain('Taller')
     for (const unidad of datos.unidades) expect(hoja).toContain(unidad.serial)
     writeFileSync('test-results/qa-240-taller/07-hoja-estacion.html', hoja)

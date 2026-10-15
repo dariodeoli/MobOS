@@ -1105,12 +1105,15 @@ export default function Impresoras() {
       )}
 
       {panel === 'impresoras' && (
-        <Card className="flex flex-wrap items-center justify-between gap-3" data-testid="formato-58-fila">
-          <label htmlFor="formato-58" className="min-w-0 flex-1 cursor-pointer">
-            <span className="block text-sm font-semibold">Formato 58 mm</span>
-            <span className="block text-xs text-mute">Apagado: los comprobantes y las vistas previas ofrecen solo 80 mm y A4. Encendelo si tu impresora usa rollo de 58 mm.</span>
+        <Card data-testid="formato-58-fila">
+          {/* Toda la fila es la etiqueta del interruptor: el área táctil es la fila (>= 44px). */}
+          <label htmlFor="formato-58" className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Formato 58 mm</span>
+              <span className="block text-xs text-mute">Apagado: los comprobantes y las vistas previas ofrecen solo 80 mm y A4. Encendelo si tu impresora usa rollo de 58 mm.</span>
+            </span>
+            <Switch id="formato-58" checked={formato58} onChange={(event) => fijarFormato58(event.target.checked)} ariaLabel="Formato 58 mm" data-testid="formato-58" />
           </label>
-          <Switch id="formato-58" checked={formato58} onChange={(event) => fijarFormato58(event.target.checked)} ariaLabel="Formato 58 mm" data-testid="formato-58" />
         </Card>
       )}
 

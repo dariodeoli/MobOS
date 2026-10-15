@@ -20,12 +20,12 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await expect(page.getByTestId("pedido-fila").first()).toBeVisible()
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
-  // La grilla de cada fila tiene 7 celdas (código/fecha, cliente, entrega,
+  // La grilla de cada fila tiene 8 celdas (código, fecha, cliente, entrega,
   // pago, estado, total y, la última, la vista rápida) y la fecha entra
   // completa: nada descolgado ni cortado.
   const celdas = page.getByTestId("pedido-fila").first().locator(":scope > *")
-  await expect(celdas).toHaveCount(7)
-  const fecha = celdas.nth(0).locator("p")
+  await expect(celdas).toHaveCount(8)
+  const fecha = celdas.nth(1)
   expect(await fecha.evaluate(elemento => elemento.scrollWidth <= elemento.clientWidth + 1)).toBeTruthy()
 
   await page.reload()
@@ -176,8 +176,6 @@ test('pedidos: la nota del pedido se edita desde el detalle', async ({ page }) =
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   const nota = `Nota E2E ${Date.now().toString(36)}`
-  // La sección de cliente (donde vive la nota) arranca plegada.
-  await page.locator('main').getByRole('button', { name: /^Cliente/ }).first().click()
   await page.getByRole('button', { name: /Agregar nota|Editar nota/ }).click()
   await page.getByLabel('Nota del pedido').fill(nota)
   await page.getByRole('button', { name: 'Guardar nota' }).click()
