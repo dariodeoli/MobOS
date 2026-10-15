@@ -1,4 +1,4 @@
-import { openShellDestination } from './helpers/shell-navigation.js'
+import { openShellDestination, openTallerTabs } from './helpers/shell-navigation.js'
 // Auth flows against the real API (fresh context, no storageState).
 // The seeded company and sellers come from global-setup.
 
@@ -245,7 +245,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
 
   // Un solo módulo “Servicio y Garantías” (#224): en “Todo” cada registro
   // muestra su tipo y la garantía ya convertida conserva su vínculo.
-  await page.getByRole('group', { name: 'Ver taller o garantías' }).getByRole('button', { name: 'Todo', exact: true }).click()
+  await (await openTallerTabs(page)).getByRole('button', { name: 'Todo', exact: true }).click()
   const filasDemo = page.getByTestId('servicio-garantia-fila')
   await expect(filasDemo.filter({ hasText: 'OS-#0001' }).getByText('Desde garantía')).toBeVisible()
   await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="GARANTIA"]').filter({ hasText: 'Lucía Fernández' }).getByText('En servicio')).toBeVisible()

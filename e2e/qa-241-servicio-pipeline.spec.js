@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test'
 import { auditarContraste, informar } from './helpers/contraste.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { openTallerTabs } from './helpers/shell-navigation.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const TEMAS = [['claro', 'light'], ['oscuro', 'dark']]
@@ -37,7 +38,7 @@ async function abrirDemo(page) {
 
 async function abrirTablero(page) {
   await page.goto('/servicio', { waitUntil: 'domcontentloaded' })
-  await page.getByTestId('servicio-garantias').getByRole('button', { name: 'Tablero', exact: true }).click()
+  await (await openTallerTabs(page)).getByRole('button', { name: 'Tablero', exact: true }).click()
   await page.getByTestId('servicio-garantias-tablero').waitFor({ timeout: 20000 })
   await page.getByTestId('tablero-tarjeta').first().waitFor({ timeout: 20000 })
 }

@@ -9,6 +9,7 @@
 import { test, expect } from '@playwright/test'
 import { auditarContraste, informar } from './helpers/contraste.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { openTallerTabs } from './helpers/shell-navigation.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const TEMAS = [['claro', 'light'], ['oscuro', 'dark']]
@@ -55,7 +56,7 @@ for (const [tema, modo] of TEMAS) {
         await page.screenshot({ path: `${SHOTS}/c241f4e-servicio-${etiqueta}-${tema}-${vista}.png` })
 
         // Todo: el listado unificado con los tiles de servicio y garantías.
-        await page.getByRole('button', { name: 'Todo', exact: true }).click()
+        await (await openTallerTabs(page)).getByRole('button', { name: 'Todo', exact: true }).click()
         await page.getByTestId('servicio-garantias-tabla').waitFor({ timeout: 15000 })
         await page.waitForTimeout(200)
         const todo = await auditarContraste(page, [], RAICES)
