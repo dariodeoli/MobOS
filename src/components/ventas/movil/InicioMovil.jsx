@@ -40,13 +40,14 @@ export function BarraCarrito({ cantidad, total, onAbrir }) {
   return (
     <div
       data-testid="pos-barra-carrito"
-      className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-30 px-3 pb-2 pt-1 md:hidden"
+      className="fixed inset-x-0 z-30 px-3 pb-2 pt-1 md:hidden"
+      style={{ bottom: 'var(--shell-bottom-space, calc(56px + env(safe-area-inset-bottom, 0px)))' }}
     >
       <button
         type="button"
         data-testid="pos-barra-carrito-abrir"
         onClick={onAbrir}
-        className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-fono px-4 text-onbrand shadow-float transition active:scale-[.99]"
+        className="flex min-h-14 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-fono px-4 py-2 text-onbrand shadow-float transition active:scale-[.99]"
       >
         <span className="flex min-w-0 items-center gap-2 text-left">
           <Icon name="cart" className="h-5 w-5 shrink-0" />
@@ -55,7 +56,7 @@ export function BarraCarrito({ cantidad, total, onAbrir }) {
             <span data-testid="barra-cantidad" className="block truncate text-sm font-bold">{textoArticulos(cantidad)}</span>
           </span>
         </span>
-        <span data-testid="barra-total" className="v2-numero whitespace-nowrap text-lg font-extrabold tabular-nums">{gs(total)}</span>
+        <span data-testid="barra-total" className="v2-numero ml-auto max-w-full whitespace-nowrap text-lg font-extrabold tabular-nums">{gs(total)}</span>
       </button>
     </div>
   )

@@ -796,10 +796,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
         </div>
       )}
-      <ComprobantePreview order={ordenComprobante} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
+      <ComprobantePreview order={ordenComprobante} open={comprobante} onClose={() => setComprobante(false)} formatos={FORMATOS_PEDIDO} />
       {cobroAbierto && (
         <PagosPedido
           venta={esDemo ? (listVentas().find(venta => venta.id === order.id) || order) : ventaDesdeApi(order)}
+          open={!comprobante}
+          onVerComprobante={() => setComprobante(true)}
           onClose={() => { setCobroAbierto(false); load(); onChanged?.() }}
         />
       )}
@@ -892,7 +894,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           }
           meta={[order.createdAt || order.date ? fechaLegible(order.createdAt || order.date) : '', order.branch?.name, order.seller?.name].filter(Boolean).join(' · ')}
           actions={
-            <>
+            <div data-testid="pedido-acciones" className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
               <PresenciaPedido pedidoId={order.id || row?.id} />
               {navegacion && (
                 <span className="flex items-center" role="group" aria-label="Pedidos vecinos">
@@ -900,13 +902,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                   <button type="button" data-testid="pedido-siguiente" aria-label="Pedido siguiente" title="Pedido siguiente" disabled={!navegacion.siguiente} onClick={() => navegacion.onIr(navegacion.siguiente)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:h-9 lg:w-9"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
                 </span>
               )}
-              {!esDemo && !anulado && <Button type="button" variant="outline" data-testid="pedido-devolver" onClick={() => setCobroAbierto(true)}>Devolver</Button>}
-              <Button type="button" variant="outline" aria-label="Imprimir comprobante" title="Imprimir comprobante" onClick={() => setComprobante(true)}>
+              <Button type="button" variant="outline" className="min-h-11 min-w-11 justify-center px-3" aria-label="Imprimir comprobante" title="Imprimir comprobante" onClick={() => setComprobante(true)}>
                 <Icon name="printer" className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">Imprimir comprobante</span>
               </Button>
               {/* #275: después de confirmar la venta la app aterriza acá; desde el
                   detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
-              <Button type="button" variant="outline" data-testid="volver-al-pos" aria-label="Volver al POS" title="Volver al POS" onClick={() => navigate('/pos')}>
+              <Button type="button" variant="outline" className="min-h-11 min-w-11 justify-center px-3" data-testid="volver-al-pos" aria-label="Volver al POS" title="Volver al POS" onClick={() => navigate('/pos')}>
                 <Icon name="receipt" className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">Volver al POS</span>
               </Button>
               <MenuDesplegable
@@ -914,12 +915,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 ariaLabel="Más acciones del pedido"
                 trigger={<span className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fore lg:min-h-9">Más acciones<Icon name="chevron" className="h-3.5 w-3.5" /></span>}
                 items={[
+                  ...(!esDemo && !anulado ? [{ id: 'devolver', label: 'Devolver / postventa', onClick: () => setCobroAbierto(true) }] : []),
                   { id: 'nota-entrega', label: 'Nota de entrega', onClick: imprimirNotaEntrega },
                   ...(!esDemo ? [{ id: 'archivar', label: archivado ? 'Desarchivar' : 'Archivar', onClick: alternarArchivado }] : []),
                   ...(!esDemo && !anulado ? [{ separador: true }, { id: 'anular', label: 'Anular pedido', onClick: abrirAnular }] : []),
                 ]}
               />
-            </>
+            </div>
           }
         />
         {cuerpo}

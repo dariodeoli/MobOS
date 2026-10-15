@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
@@ -246,7 +246,8 @@ function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false })
       <span className="ventas-f3-delivery text-xs text-mute" title={row.branchName ? `${row.branchName} · ${entrega}` : entrega}>
         {row.branchName ? <><span className="block truncate text-fore">{row.branchName}</span><span className="block truncate">{entrega}</span></> : entrega}
       </span>
-      <span className="ventas-f3-payment flex flex-wrap items-center gap-1">
+      <div className="ventas-f3-order-statuses">
+      <span role="group" aria-label="Estado de pago" className="ventas-f3-payment flex flex-wrap items-center gap-1">
         <BadgePago row={row} v2={v2} />
         <ChipPagaAlRecibir row={row} />
         {esPagaAlRecibirPendiente(row) && onCobrar ? (
@@ -260,9 +261,10 @@ function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false })
           >Cobrar</button>
         ) : null}
       </span>
-      <span className="ventas-f3-state">
+      <span role="group" aria-label="Estado de entrega" className="ventas-f3-state">
         <BadgeEstado row={row} v2={v2} />
       </span>
+      </div>
       <span className="ventas-f3-money ventas-f3-order-total">{total}</span>
       <button
         type="button"
@@ -428,7 +430,13 @@ export default function SellerOrders() {
   // PedidoDetalle recargaba el pedido en loop y el modal del cliente perdía lo
   // tipeado.
   const respaldo = useMemo(() => (orderId ? { id: orderId } : null), [orderId])
-  const detalleAbierto = seleccion || (!esDemo ? respaldo : null)
+  // La búsqueda diferida puede terminar con el pedido ya abierto. La recarga
+  // vacía las filas brevemente: conservar su última selección evita desmontar
+  // Cobrar y perder lo escrito (también al volver de una vista previa).
+  const seleccionAnterior = useRef(null)
+  useEffect(() => { if (seleccion) seleccionAnterior.current = seleccion }, [seleccion])
+  const seleccionCargando = data.loading && seleccionAnterior.current?.id === orderId ? seleccionAnterior.current : null
+  const detalleAbierto = seleccion || seleccionCargando || (!esDemo ? respaldo : null)
   const abrirPedido = (row, opciones) => navigate(`/pedidos/${encodeURIComponent(row.id)}${location.search}`, opciones)
   const cobrarPedido = (row) => abrirPedido(row, { state: { cobrar: true } })
   const cerrarPedido = () => navigate(`/pedidos${location.search}`)
