@@ -410,18 +410,14 @@ export function ticketPruebaTipo(tipo, {
     // La empresa ya va en el encabezado compartido: acá solo la marca de la app.
     nombreApp: APP_NAME,
     qr: (datos) => qrPrueba(datos, base),
+    encabezado: (ticket) => {
+      encabezadoTicket(ticket, 'PRUEBA DE IMPRESIÓN')
+      if (tipo !== 'corta') ticket.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
+      if (marca) ticket.centrado(`Comparativa ${marca}`)
+    },
+    pie: (ticket) => pieTicket(ticket, { leyenda: '' }),
   })
-  // El cuerpo de la prueba es de la biblioteca; el encabezado de la empresa
-  // (logo, razón social, RUC, dirección, sucursal y contacto) es el mismo de
-  // todo ticket y va antes: se arma acá y se antepone a los bytes.
-  const cabecera = crearTicket({ ancho }).iniciar()
-  encabezadoTicket(cabecera, 'PRUEBA DE IMPRESIÓN')
-  const binario = (bytes) => Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
-  return {
-    ...pagina,
-    base64: () => btoa(binario(cabecera.bytes()) + atob(pagina.base64())),
-    lineas: () => [...cabecera.lineas(), ...pagina.lineas()],
-  }
+  return pagina
 }
 
 // Compatibilidad con el flujo anterior: la prueba clásica de caracteres.

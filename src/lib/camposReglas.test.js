@@ -108,7 +108,7 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
 // que duplique un componente publicado falla acá y obliga a decidir (usar el
 // objeto de `owncoding-ui` o publicarlo allí).
 const DEUDA_BIBLIOTECA = new Set([
-  'Avatar', 'BancoCombobox', 'BancoLogo', 'PasosEquipo', 'PersonaChip',
+  'Avatar', 'PasosEquipo', 'PersonaChip',
 ])
 
 // Adaptadores (#253): la UI es de la biblioteca y la app solo aporta la capa de
@@ -172,29 +172,27 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
   }
 })
 
-test('RucField composes shared primitives with internal lookup and explicit acceptance', () => {
+test('RucField adapta la variante compacta conservando admisión fiscal y aceptación expresa', () => {
   const source = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
-  assert.match(source, /import \{ BotonDentroCampo \} from 'owncoding-ui'/)
-  assert.match(source, /import \{ Badge, Input \} from '@\/components\/ui'/)
-  assert.match(source, /<Input\b/)
-  assert.match(source, /<BotonDentroCampo\b/)
-  assert.doesNotMatch(source, /<input\b|RucField as CampoRuc/)
+  assert.match(source, /import \{ RucField as CampoRuc \} from 'owncoding-ui'/)
+  assert.match(source, /<CampoRuc\b/)
+  assert.doesNotMatch(source, /<input\b|<Input\b/)
+  assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
   assert.match(source, /lookupDemoRuc\(identity, consultarRucDemo\)/)
   assert.match(source, /admitRucResponse\(await api\.get\(`\/api\/ruc\?ruc=/)
   assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
   assert.match(source, /if \(!request\.isCurrent\(scope\.current\)\) return/)
-  const extractStart = source.indexOf('async function extract()')
-  const applyStart = source.indexOf('function apply()')
+  const extractStart = source.indexOf('const consultar = useCallback')
+  const applyStart = source.indexOf('function aplicar(')
   assert.ok(extractStart >= 0 && applyStart > extractStart)
-  const extraction = source.slice(extractStart, applyStart)
-  assert.doesNotMatch(extraction, /onAplicar|onDatos|accept\?\./)
-  const acceptance = source.slice(applyStart, source.indexOf('return (', applyStart))
-  assert.match(acceptance, /suggestion\?\.request\.isCurrent\(scope\.current\)/)
-  assert.match(acceptance, /const accept = onAplicar \|\| onDatos/)
-  assert.match(acceptance, /accept\?\.\(result\)/)
-  assert.match(source, /suggestion\.result\.nameOfficial/)
-  assert.match(source, /onClick=\{apply\}/)
-  assert.match(source, /onClick=\{invalidate\}>Descartar/)
+  assert.doesNotMatch(source.slice(extractStart, applyStart), /onAplicar|onDatos|aceptar\?\./)
+  const acceptance = source.slice(applyStart, source.indexOf('return <', applyStart))
+  assert.match(acceptance, /resultado\?\.request\.isCurrent\(scope\.current\)/)
+  assert.match(acceptance, /const aceptar = onAplicar \|\| onDatos/)
+  assert.match(acceptance, /aceptar\?\.\(resultado\.datos\)/)
+  assert.match(source, /name: result\.nameOfficial/)
+  assert.match(source, /onAplicar=\{aplicar\}/)
+  assert.match(source, /onDescartar=\{\(\) => guard\.current\.cancel\(\)\}/)
 })
 
 test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {

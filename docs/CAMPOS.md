@@ -113,3 +113,7 @@ El ancho lo resuelve el **componente compartido**, no la pantalla: arreglar `Ema
 ## 6. Cobertura
 
 `npm test` (unitarios de frontend) · `npm run test:unit` (backend) · `npx playwright test` (e2e: batería, teléfono, límite de crédito, checkout, paneles). El test de aserción de fuente (`src/lib/camposReglas.test.js`) falla si un RUC se consulta fuera de `RucField`, si vuelve un input de correo/teléfono crudo, o si un objeto publicado en `owncoding-ui` se reimplementa localmente (#253, inventario congelado en el lote 34). El contador `node scripts/auditoria-duplicacion.mjs` (grupo «duplicados con la biblioteca») muestra la deuda vigente de migración.
+
+### Campos compartidos · #362 / #363
+
+`RucField` usa la variante compacta de owncoding-ui (Usar/Descartar), adaptando `nameOfficial` sin modificarlo y conservando la admisión fiscal, la invalidación por contexto y el consentimiento. `SupplierCombobox` adapta `BuscadorProveedor` para ids/texto, últimos usados y confirmación al salir o al teclear. `BancoCombobox` y `BancoLogo` son los componentes compartidos; el catálogo tiene 32 instituciones. Los nombres bancarios históricos/desconocidos permanecen como se guardaron salvo las equivalencias exactas documentadas en `BANCOS-CATALOGO.md`.
