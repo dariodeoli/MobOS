@@ -45,7 +45,8 @@ test('Clientes preserves create/import/export payloads, validation and original 
 
 test('Clientes preserves reviewed fiscal profile and unchanged summary/communication engines', () => {
   for (const [file, expected] of [
-    ['CustomerProfile.jsx', '6a4d61764a241efd3420572116f8370b272f1e129beb90b50f9471642854bb2d'],
+    // #498: alta/edición fiscal demo revisada; cubierta por ruc498-identidad frontend y demoBillingIdentities.
+    ['CustomerProfile.jsx', '575bf54cedf884c9365c3e2c198075b127655c1583d0fbe04bef3355ea485305'],
     ['ClienteResumenPopup.jsx', 'a12e1ed5afa6d281167d0f105f573f3eac7b9d3054e64371a3eb09193163c98a'],
     [
       'CustomerCommunicationCard.jsx',

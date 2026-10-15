@@ -57,3 +57,17 @@ La QA nativa detectó que Cerrar sesión y Cambiar de usuario desmontaban el fon
 ### Revisión completa de íconos de Productos (#492)
 
 Inspección de lista/tarjetas, foto/fallback, chips de categorías, acciones y navegación. Sin ocultación específica de iOS: cabecera decorativa se omite bajo640px y selector lista/tarjetas bajo768px por diseño responsive; las acciones de texto son iguales en web/móvil. Matriz browser390/1440 claro/oscuro: 4/4 PASS, SVG con trazos/dimensiones, chips+Actualizar+navegación móvil y miniaturas por producto visibles, sin desborde. El único fallback omitido confirmado era Vender, ya corregido. Pendiente informe nativo final y publicación del nuevo build.
+
+
+### Extractor RUC demo y móvil (#498)
+
+Fix ee6d0da1 integrado como ad16af13, QA independiente APPROVE. El POS conserva identidad fiscal exacta en formulario/borrador y payload admitido; la demo guarda/edita identidades por empresa+cliente en memoria de pestaña (reinicia al recargar/salir), sin seed/APIreal/piloto ampliado. Writer52/52unit y5/5frontend de ficha/POS, consentimiento/cancelación/stale y nombres largosPASS. Raíz7/7browserNuevoCliente360/390/1440ambostemas y suite frontend1499/1499PASS. La huella intencional deCustomerProfile enclientesF3.test se actualiza después de revisar el diff y sus regresiones; motores de resumen/comunicación permanecen protegidos.
+
+Límite#344: ordersinlinecliente sigue name≤200/trim y no acepta nameOfficialseparado; la preservación exacta de todos los metadatos fiscales enbackend por esa ruta no se acredita aquí. Titular usa officialNameInput existente. ConsultaOwnDatareal y TestFlightnuevo pendientes. QA nativa previa acreditó extractor/alta/lectura/descarte; revalidación de los nuevos flujos en candidato en curso.
+
+### Stock demo / CI (#494)
+
+La ampliación60equipos dejó obsoleto un literal de demo-imei-conciliacion.852159b9 usa oráculo de unidadesAVAILABLE por familia, exige incremento exacto1 tras recepción, serial único y conservación de unidadesprevias; stockPOSantes/después coincide sin recarga.1/1relacionado frontenddemoPASS. No cambia catálogo/negocio ni elimina assertions. NuevoCI final requerido; CI77eaanterior falló solo ese caso (resto de shards e integración/backend/frontendPASS).
+
+
+Cierre de validación local #498: **33/33** combinadosRUC+POS móvilPASS con fuente congelada (1.2min), incluidos pagos divididos/vuelto/no-duplicados, UI y bloqueo. Primer recorrido tuvo32PASS+1timeout mientras se editaba un recurso importado; el caso aislado pasó5.9s y la corrida completa estática33/33sin cambios ni assertions debilitadas. No presentar esa primera corrida comoPASS.
