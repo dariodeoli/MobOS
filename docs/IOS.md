@@ -36,3 +36,8 @@ que ya existe y lo que queda para más adelante.
   `MOBOS_APPLE_TEAM_ID`, `MOBOS_APPLE_KEY_ID`, `MOBOS_APPLE_PRIVATE_KEY`,
   `MOBOS_APNS_KEY_ID`, `MOBOS_APNS_TEAM_ID`, `MOBOS_APNS_PRIVATE_KEY`,
   `MOBOS_APNS_TOPIC`, `MOBOS_IOS_MIN_VERSION`.
+
+## App de iPhone (Capacitor)
+
+Hecha en la rama `codex/ios-app-v2`: ver `docs/IOS-APP.md` (cómo construirla,
+firmarla, subirla a TestFlight y completar la ficha de App Store Connect).
