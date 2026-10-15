@@ -9,12 +9,8 @@ import { canCorrectPayment, staffCorrectsPaymentsFrom } from './payment-correcti
 // edita: se agrega una reversión (monto negativo, mismo medio y cuenta) y N pagos
 // nuevos que suman exactamente el original. Σ CONFIRMED del pedido no cambia.
 
-/**
- * Qué pasa con el efectivo cuando el pago salió de un turno de caja ya cerrado.
- * false = la corrección solo afecta reportes (el cierre guardado y el arqueo de
- * hoy no se tocan). Pendiente de confirmación del dueño: cambiar acá basta.
- */
-export const CLOSED_SHIFT_AFFECTS_DRAWER = false
+/** Los ajustes se registran hoy en el ledger; nunca se reescribe un cierre anterior. */
+export const CLOSED_SHIFT_AFFECTS_DRAWER = true
 
 /** Medios que v1 no corrige (422): se pagan con otro activo o tienen su propio ciclo. */
 export const UNSUPPORTED_METHODS = ['TRADE_IN', 'STORE_CREDIT', 'GIFT_CARD', 'CREDIT', 'CRYPTO'] as const
