@@ -79,6 +79,7 @@ test('demo: Mi cuenta se arma con los datos de la pestaña', async ({ browser })
   test.skip(test.info().project.name !== 'admin', 'Demo del dueño.')
   const contexto = await browser.newContext({ viewport: { width: 1280, height: 1000 } })
   const page = await contexto.newPage()
+  await silenciarAvisoMetricas(page)
 
   await page.goto('/demo')
   await page.waitForTimeout(1200)
