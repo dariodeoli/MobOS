@@ -7,6 +7,7 @@ datasource db {
 }
 
 model Tenant {
+  stockVerifications  StockVerification[]
   productImages       ProductImage[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
@@ -685,6 +686,52 @@ model InventoryCountLine {
 
   @@unique([countId, serial])
   @@index([countId])
+}
+
+// Verificación física de stock («¿está en el local?»): sesión por sucursal/depósito
+// que NO ajusta el stock; solo deja constancia de quién vio qué y cuándo.
+model StockVerification {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId        String
+  locationId      String?
+  // OPEN | FINISHED | CANCELLED
+  status          String   @default("OPEN")
+  note            String?
+  startedById     String
+  startedAt       DateTime @default(now())
+  finishedById    String?
+  finishedAt      DateTime?
+  expectedCount   Int      @default(0)
+  verifiedCount   Int      @default(0)
+  missingCount    Int      @default(0)
+  unexpectedCount Int      @default(0)
+  // Seriales que faltaron al terminar (resumen del historial).
+  missingSerials  Json?
+  scans           StockVerificationScan[]
+
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, startedAt])
+}
+
+model StockVerificationScan {
+  id             String            @id @default(cuid())
+  tenantId       String
+  verificationId String
+  verification   StockVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  serial         String
+  unitId         String?
+  // VERIFIED | UNEXPECTED
+  outcome        String
+  // OTHER_BRANCH | OTHER_LOCATION | SOLD | NOT_AVAILABLE | UNKNOWN
+  reason         String?
+  productName    String?
+  scannedById    String
+  createdAt      DateTime          @default(now())
+
+  @@unique([verificationId, serial])
+  @@index([tenantId, verificationId])
 }
 
 model InventoryUnit {

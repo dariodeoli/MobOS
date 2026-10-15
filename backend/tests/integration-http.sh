@@ -836,6 +836,9 @@ node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$
 echo "Llegada de mercadería: pegado, conciliación y confirmación por destino (#408)..."
 node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
 
+echo "Verificación de stock: check por fila, deshacer 1 minuto y sesión por escaneo..."
+node "$BACKEND_ROOT/tests/stock-verification-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
+
 echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
 node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"
 
