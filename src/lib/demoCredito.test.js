@@ -49,6 +49,8 @@ test('autorizar en el mostrador: solo con el PIN de un gerente o administrador, 
   assert.equal(autorizacionCreditoDemo({ evaluacion, pin: '2002', sesion: vendedor }).resolvedByName, 'Ana Giménez')
   assert.equal(autorizacionCreditoDemo({ evaluacion, pin: '3001', sesion: vendedor }).status, 'APPROVED')
   assert.equal(autorizacionCreditoDemo({ evaluacion, yoAutorizo: true, sesion: dueno }).resolvedByName, 'Hernán Acosta')
+  // Un gerente no se aprueba su propia venta sobre el límite (igual que el servidor).
+  assert.throws(() => autorizacionCreditoDemo({ evaluacion, yoAutorizo: true, sesion: { rol: 'GERENTE', nombre: 'Ana Giménez' } }), /gerente no puede aprobar su propia venta/)
 })
 
 test('el pedido retenido no se entrega hasta que lo autorice un administrador o gerente', () => {

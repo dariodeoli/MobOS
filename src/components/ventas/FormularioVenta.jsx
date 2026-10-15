@@ -826,7 +826,8 @@ export default function FormularioVenta({
   const pendiente = Math.max(0, totalGeneral - totalPagado)
   // Crédito: anticipa lo que el servidor va a decidir (límite − deuda abierta).
   // Quien puede autorizar es el dueño o un gerente; los demás usan el PIN de uno.
-  const puedeAutorizarCredito = ['dueno', 'ADMIN', 'GERENTE'].includes(sesion?.rol)
+  // «Autorizo yo»: solo el dueño/administrador; un gerente no se aprueba su propia venta (usa el PIN de otro).
+  const puedeAutorizarCredito = ['dueno', 'ADMIN'].includes(sesion?.rol)
   const evaluacionCredito = venderACredito && customer?.id
     ? evaluarCredito({ limite: customer.creditLimitPyg, deuda: deudaCliente, saldo: pendiente })
     : null
@@ -1494,8 +1495,8 @@ export default function FormularioVenta({
       if (!esDemo && payloadParaCola && esErrorDeRed(error)) {
         try {
           const item = await encolarVenta({
-            // El PIN de un gerente nunca se guarda en la cola local: la venta se sincroniza pendiente de autorización.
-            payload: { ...payloadParaCola, creditApprovalPin: undefined, offline: true },
+            // El PIN de un gerente y el «Autorizo yo» nunca se guardan en la cola local: la venta a crédito sobre el límite se sincroniza retenida, pendiente de autorización.
+            payload: { ...payloadParaCola, creditApprovalPin: undefined, creditSelfApproval: undefined, offline: true },
             idempotencyKey: idempotencyKeyRef.current,
             resumen: { cliente: f.cliente, total: totalGeneral, items: orderItems.length },
           })

@@ -129,7 +129,7 @@ try {
   assert.equal(r.payload.creditAuthorization?.status, 'REJECTED')
   r = await call(`/api/orders/${aRechazar.id}`, { method: 'PATCH', token: adminToken, body: { fulfillmentStatus: 'DELIVERED' } })
   assert.equal(r.status, 409)
-  assert.match(String(r.payload?.message), /rechazada/)
+  assert.match(String(r.payload?.message), /Rechazado — anulá el pedido o pedí una nueva autorización/)
   // También se resuelve desde «Autorizaciones» (misma regla) y aprueba el dueño.
   r = await call(`/api/orders/${aRechazar.id}/credit-authorization`, { method: 'POST', token: sellerToken, body: { action: 'request' } })
   assert.equal(r.status, 201, 'tras un rechazo el vendedor puede volver a pedirla')
@@ -199,6 +199,87 @@ try {
   r = await call(`/api/orders/${sinMarca.id}`, { method: 'PATCH', token: adminToken, body: { fulfillmentStatus: 'DELIVERED' } })
   assert.equal(r.status, 200, JSON.stringify(r.payload))
 
+  // ── 6b) Entregas simultáneas del mismo cliente: control y estado en UNA transacción ─
+  // Límite 1.000.000, dos pedidos de 800.000 sin marca de crédito. Cada entrega
+  // ve el otro pedido como deuda abierta: nunca pueden salir los dos.
+  const doble = await nuevoCliente('Entrega Doble', { creditLimitPyg: 1000000, creditDays: 20 })
+  const pedidosDobles = []
+  for (let i = 0; i < 2; i += 1) {
+    r = await venta(doble.id, 800000)
+    assert.equal(r.status, 201, JSON.stringify(r.payload))
+    pedidosDobles.push(r.payload)
+  }
+  const entregas = await Promise.all(pedidosDobles.map((p) => call(`/api/orders/${p.id}`, { method: 'PATCH', token: adminToken, body: { fulfillmentStatus: 'DELIVERED' } })))
+  const pasaron = entregas.filter((e) => e.status === 200).length
+  assert.ok(pasaron <= 1, `solo una entrega puede pasar el límite: ${entregas.map((e) => e.status).join(',')}`)
+  for (const e of entregas.filter((x) => x.status !== 200)) {
+    assert.equal(e.status, 409, JSON.stringify(e.payload))
+    assert.match(String(e.payload?.message), /superaría el crédito/)
+  }
+  // Mismo control por el reparto no deja pasar lo retenido (ver estado del que quedó sin entregar).
+  const sinEntregar = pedidosDobles.filter((_, i) => entregas[i].status !== 200)
+  for (const p of sinEntregar) assert.equal(psql(`SELECT "fulfillmentStatus" FROM "Order" WHERE "id" = '${p.id}'`), 'PROCESSING', 'si el control falla el estado no cambia')
+
+  // ── 6c) Un pedido rechazado no consume crédito disponible ─────────────────────
+  const rechazador = await nuevoCliente('Rechazado Libera', { creditLimitPyg: 1000000, creditDays: 15 })
+  r = await venta(rechazador.id, 900000, { creditDays: 15 })
+  assert.equal(r.payload.creditAuthorization, null)
+  r = await venta(rechazador.id, 900000, { creditDays: 15 })
+  assert.equal(r.payload.creditAuthorization?.status, 'PENDING')
+  const rechazado = r.payload
+  r = await call(`/api/orders/${rechazado.id}/credit-authorization`, { method: 'POST', token: gerenteToken, body: { action: 'reject', note: 'No corresponde' } })
+  assert.equal(r.status, 200, JSON.stringify(r.payload))
+  r = await venta(rechazador.id, 100000, { creditDays: 15 })
+  assert.equal(r.status, 201, JSON.stringify(r.payload))
+  assert.equal(r.payload.creditAuthorization, null, 'el rechazado ya no cuenta como deuda: quedan 100.000 disponibles')
+  r = await call(`/api/orders/${rechazado.id}`)
+  assert.equal(r.payload.creditAuthorization?.status, 'REJECTED')
+
+  // ── 6d) Devolución parcial con saldo a favor baja la deuda abierta ───────────
+  const devolvedor = await nuevoCliente('Devolución Parcial', { creditLimitPyg: 1000000, creditDays: 30 })
+  r = await venta(devolvedor.id, 1000000, { creditDays: 30, payments: [{ method: 'CASH', amountPyg: 400000 }] })
+  assert.equal(r.status, 201, JSON.stringify(r.payload))
+  assert.equal(r.payload.creditAuthorization, null)
+  const conDevolucion = r.payload
+  r = await call(`/api/orders/${conDevolucion.id}/return`, { method: 'POST', body: { operation: 'RETURN', reason: 'Devuelve un equipo', refundPyg: 300000, refundMode: 'CREDIT', restock: 'NONE' } })
+  assert.equal(r.status, 200, JSON.stringify(r.payload))
+  assert.equal(r.payload.status, 'PENDING', 'devolución parcial: el pedido sigue abierto')
+  // Pagó 400.000 y devolvió 300.000 como saldo a favor: debe 300.000 (no 600.000),
+  // así que quedan 700.000 disponibles y una venta de 700.000 no pide autorización.
+  r = await venta(devolvedor.id, 700000, { creditDays: 30 })
+  assert.equal(r.status, 201, JSON.stringify(r.payload))
+  assert.equal(r.payload.creditAuthorization, null, 'la devolución parcial baja la deuda abierta')
+  r = await venta(devolvedor.id, 10000, { creditDays: 30 })
+  assert.equal(r.status, 201, JSON.stringify(r.payload))
+  assert.equal(r.payload.creditAuthorization?.status, 'PENDING', 'con 300.000 + 700.000 el límite queda justo agotado')
+
+  // ── 6e) El pedido con autorización de crédito no cambia de cliente ────────────
+  const otro = await nuevoCliente('Otro Cliente')
+  r = await call(`/api/orders/${retenido.id}`, { method: 'PATCH', token: adminToken, body: { action: 'setCustomer', customerId: otro.id } })
+  assert.equal(r.status, 409, JSON.stringify(r.payload))
+  assert.match(String(r.payload?.message), /autorización de crédito/)
+  r = await call(`/api/orders/${retenido.id}`, { method: 'PATCH', token: adminToken, body: { action: 'createCustomer', customer: { name: `Nuevo ${stamp}`, phone: '595981000111' } } })
+  assert.equal(r.status, 409, JSON.stringify(r.payload))
+  assert.equal(psql(`SELECT "customerId" FROM "Order" WHERE "id" = '${retenido.id}'`), lucia.id)
+
+  // ── 6f) «Autorizo yo»: el administrador sí; el gerente no se aprueba a sí mismo ─
+  const propio = await nuevoCliente('Auto Aprobación', { creditLimitPyg: 100000, creditDays: 7 })
+  r = await venta(propio.id, 600000, { creditDays: 7, creditSelfApproval: true }, gerenteToken)
+  assert.equal(r.status, 403, 'un gerente no usa «Autorizo yo» sobre su propia venta')
+  r = await venta(propio.id, 600000, { creditDays: 7, creditApprovalPin: PIN_GERENTE }, gerenteToken)
+  assert.equal(r.status, 403, 'tampoco con su propio PIN')
+  r = await venta(propio.id, 600000, { creditDays: 7 }, gerenteToken)
+  assert.equal(r.status, 201, JSON.stringify(r.payload))
+  assert.equal(r.payload.creditAuthorization?.status, 'PENDING')
+  const delGerente = r.payload
+  r = await call(`/api/orders/${delGerente.id}/credit-authorization`, { method: 'POST', token: gerenteToken, body: { action: 'approve' } })
+  assert.equal(r.status, 403, 'el gerente no aprueba su propia solicitud desde el pedido')
+  r = await call('/api/authorizations', { method: 'PATCH', token: gerenteToken, body: { id: delGerente.creditAuthorization.id, action: 'approve' } })
+  assert.equal(r.status, 403, 'ni desde Autorizaciones')
+  r = await call(`/api/orders/${delGerente.id}/credit-authorization`, { method: 'POST', token: adminToken, body: { action: 'approve' } })
+  assert.equal(r.status, 200, JSON.stringify(r.payload))
+  assert.equal(psql(`SELECT metadata->>'selfApproved' FROM "AuditLog" WHERE action = 'ORDER_CREDIT_AUTHORIZED' AND "entityId" = '${delGerente.id}'`), 'false')
+
   // ── 7) Los PIN incorrectos se limitan por solicitante (5 en 15 minutos) ───────
   for (let i = 0; i < 5; i += 1) {
     r = await call(`/api/orders/${deudaInicial.id}/credit-authorization`, { method: 'POST', token: cajeraToken, body: { action: 'approve', pin: '1111' } })
@@ -206,6 +287,16 @@ try {
   }
   r = await call(`/api/orders/${deudaInicial.id}/credit-authorization`, { method: 'POST', token: cajeraToken, body: { action: 'approve', pin: PIN_GERENTE } })
   assert.equal(r.status, 429, 'tras 5 PIN incorrectos ni el PIN correcto pasa desde ese usuario')
+
+  // ── 8) Fuerza bruta en paralelo: 50 PIN erróneos simultáneos → a lo sumo 5 se comparan ─
+  const antes = Number(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "tenantId" = 'tenant-a-it' AND "userId" = 'user-gerente-it' AND action = 'CREDIT_PIN_ATTEMPT'`))
+  const rafaga = await Promise.all(Array.from({ length: 50 }, (_, i) => call(`/api/orders/${deudaInicial.id}/credit-authorization`, { method: 'POST', token: gerenteToken, body: { action: 'approve', pin: '1111' }, headers: { 'x-forwarded-for': `198.51.100.${i + 1}` } })))
+  const comparados = rafaga.filter((x) => x.status === 403).length
+  const limitados = rafaga.filter((x) => x.status === 429).length
+  assert.ok(comparados <= 5, `a lo sumo 5 PIN se comparan (fueron ${comparados})`)
+  assert.equal(comparados + limitados, 50, `el resto es 429: ${rafaga.map((x) => x.status).join(',')}`)
+  const intentos = Number(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "tenantId" = 'tenant-a-it' AND "userId" = 'user-gerente-it' AND action = 'CREDIT_PIN_ATTEMPT'`)) - antes
+  assert.ok(intentos <= 5, `solo quedan registrados 5 intentos (fueron ${intentos})`)
 
   console.log('credito-autorizacion: OK')
 } finally {

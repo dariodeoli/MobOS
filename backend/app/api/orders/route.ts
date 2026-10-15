@@ -10,7 +10,7 @@ import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
-import { createCreditHold, evaluateCreditSale, isCreditResolverRole, lockCustomerCredit, notifyCreditHold, recordCreditApproval, verifyApproverPin, withCreditAuthorization, withCreditAuthorizations, type CreditApprover, type CreditEvaluation } from '../../../lib/credit-authorization'
+import { assertSelfApprovalAllowed, createCreditHold, evaluateCreditSale, isCreditResolverRole, lockCustomerCredit, notifyCreditHold, recordCreditApproval, verifyApproverPin, withCreditAuthorization, withCreditAuthorizations, type CreditApprover, type CreditEvaluation } from '../../../lib/credit-authorization'
 import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } from '../../../lib/authorizations'
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
@@ -308,9 +308,11 @@ export async function POST(request: Request) {
   let creditApprovalVia: 'PIN' | 'POS' = 'PIN'
   if (body.creditApprovalPin !== undefined && body.creditApprovalPin !== null && body.creditApprovalPin !== '') {
     creditApprover = await verifyApproverPin({ tenantId: tenant, requesterId: session.user.id, pin: body.creditApprovalPin })
+    assertSelfApprovalAllowed(creditApprover, session.user.id)
   } else if (body.creditSelfApproval !== undefined) {
     if (body.creditSelfApproval !== true) throw new InputError('creditSelfApproval debe ser verdadero.')
-    if (!isCreditResolverRole(session.user.role)) throw new InputError('Solo administración o gerencia pueden autorizar el crédito.', 403)
+    // «Autorizo yo»: solo el dueño/administrador (un gerente no se aprueba a sí mismo).
+    if (session.user.role !== 'ADMIN') throw new InputError(isCreditResolverRole(session.user.role) ? 'Un gerente no puede aprobar su propia venta a crédito sobre el límite: pedí que la apruebe otro gerente o el administrador.' : 'Solo administración o gerencia pueden autorizar el crédito.', 403)
     creditApprover = { id: session.user.id, name: session.user.name, role: session.user.role }
     creditApprovalVia = 'POS'
   }

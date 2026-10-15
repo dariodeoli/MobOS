@@ -9,7 +9,7 @@ import { consumeAuthorization, usableAuthorization } from '../../../../lib/autho
 import { serialKey } from '../../../../lib/validation'
 import { numero } from '../../../../lib/montos'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
-import { assertCreditAvailableForDelivery, assertCreditCleared, withCreditAuthorization } from '../../../../lib/credit-authorization'
+import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -67,6 +67,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           : null
         if (customerId && !customer) throw new InputError('Cliente no encontrado.')
         const updated = await prisma.$transaction(async tx => {
+          if (customerId !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
           const order = await tx.order.update({ where: { id: existing.id }, data: { customerId } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: customerId ? 'ORDER_CUSTOMER_CHANGED' : 'ORDER_CUSTOMER_REMOVED', entity: 'Order', entityId: existing.id, metadata: { previousCustomerId: existing.customerId, previousCustomerName: existing.customer?.name || null, customerId, customerName: customer?.name || null } } })
           return order
@@ -90,6 +91,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
             : phone
               ? await tx.customer.findFirst({ where: { tenantId: tenant, phone, archivedAt: null }, select: { id: true, name: true, phone: true } })
               : await tx.customer.findFirst({ where: { tenantId: tenant, archivedAt: null, name: { equals: nombre, mode: 'insensitive' } }, select: { id: true, name: true, phone: true } })
+          if (existente?.id !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
           const ficha = existente || await tx.customer.create({ data: { tenantId: tenant, createdById: session.user.id, name: nombre, ...(phone ? { phone, countryCode } : {}), ...(document ? { document } : {}), ...(email ? { email } : {}) }, select: { id: true, name: true, phone: true } })
           await tx.order.update({ where: { id: existing.id }, data: { customerId: ficha.id } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CUSTOMER_CREATED', entity: 'Order', entityId: existing.id, metadata: { customerId: ficha.id, customerName: ficha.name, matched: Boolean(existente) } } })
@@ -165,11 +167,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     let deliveryAuthorization: { id: string } | null = null
     let creditUpdate: { creditDays?: number; dueAt?: Date } = {}
     let pendingDeliveryPyg = 0
+    // Control de crédito que se ejecuta DENTRO de la transacción que entrega
+    // (con la ficha del cliente bloqueada hasta confirmar el estado).
+    let creditGate: { customerId: string; pendingPyg: number } | null = null
+    let entregando = false
     // Entregar (o retirar) con saldo, incluso parcial, sigue la misma regla.
     if (['DELIVERED', 'PICKED_UP', 'PARTIAL'].includes(String(fulfillmentStatus)) && existing.fulfillmentStatus !== fulfillmentStatus) {
       // Una venta que superó el crédito del cliente no sale hasta que un
       // administrador o gerente la autorice (ni siquiera lo salta un admin).
-      await assertCreditCleared(prisma, tenant, existing.id)
+      entregando = true
+      await assertCreditCleared(prisma, tenant, existing.id) // chequeo temprano; el definitivo va en la transacción
       const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
       pendingDeliveryPyg = Math.max(0, numero(existing.totalPyg) - pagado)
       if (pendingDeliveryPyg > 0) {
@@ -181,7 +188,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           // disponible se vuelve a controlar acá (deuda sin este pedido + su saldo
           // vs. el límite). Si lo supera, hace falta la autorización de crédito.
           if (!existing.creditDays) {
-            await assertCreditAvailableForDelivery({ tenantId: tenant, orderId: existing.id, customerId: existing.customer!.id, pendingPyg: pendingDeliveryPyg })
+            creditGate = { customerId: existing.customer!.id, pendingPyg: pendingDeliveryPyg }
             creditUpdate = { creditDays: credito.creditDays, dueAt: new Date(Date.now() + credito.creditDays * 86400000) }
           }
         } else if (!canApproveOrderDiscount(session.user)) {
@@ -196,6 +203,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       }
     }
     const order = await prisma.$transaction(async tx => {
+      if (entregando) {
+        await assertCreditCleared(tx, tenant, existing.id)
+        if (creditGate) await assertCreditAvailableForDelivery(tx, { tenantId: tenant, orderId: existing.id, customerId: creditGate.customerId, pendingPyg: creditGate.pendingPyg })
+      }
       const updated = await tx.order.update({ where: { id: existing.id }, data: { ...(fulfillmentStatus === undefined ? {} : { fulfillmentStatus }), ...(deliveryType === undefined ? {} : { deliveryType }), ...(deliveryNotes === undefined ? {} : { deliveryNotes }), ...creditUpdate }, include: orderInclude })
       if (deliveryAuthorization) {
         await consumeAuthorization(tx, { id: deliveryAuthorization.id, tenantId: tenant, kinds: ['ORDER_DELIVER_UNPAID'], userId: session.user.id, label: 'entrega', usedByOrderId: existing.id })

@@ -4,7 +4,7 @@ import { gs } from '@/utils/calculos'
 // Aviso del cobro cuando la venta a crédito supera el crédito disponible del
 // cliente (o el cliente no tiene crédito). El servidor decide siempre; acá se
 // explica qué va a pasar y se ofrece autorizar en el momento:
-//   · el dueño/gerente que vende confirma con un check («Autorizo yo»);
+//   · el dueño/administrador que vende confirma con un check («Autorizo yo»);
 //   · cualquier vendedor puede pegar el PIN de un gerente o administrador;
 //   · sin nada de eso la venta se crea «Pendiente de autorización de crédito»,
 //     con las unidades reservadas, y no se entrega hasta que se apruebe.

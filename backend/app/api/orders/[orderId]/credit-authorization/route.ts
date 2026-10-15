@@ -7,6 +7,7 @@ import { numero } from '../../../../../lib/montos'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import {
   creditAuthorizationsFor,
+  creditedBackPyg,
   createCreditHold,
   evaluateCreditSale,
   isCreditResolverRole,
@@ -48,7 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       if (latest?.status === 'PENDING' || latest?.status === 'APPROVED') return json({ creditAuthorization: latest })
       const created = await prisma.$transaction(async tx => {
         const cobrado = await tx.payment.aggregate({ where: { tenantId: tenant, orderId: order.id, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
-        const saldo = Math.max(0, numero(order.totalPyg) - numero(cobrado._sum.amountPyg))
+        const saldo = Math.max(0, numero(order.totalPyg) - numero(cobrado._sum.amountPyg) - await creditedBackPyg(tx, tenant, order.id))
         if (saldo <= 0) throw new InputError('El pedido no tiene saldo: no hace falta autorización de crédito.', 409)
         const posicion = await lockCustomerCredit(tx, tenant, customerId, order.id)
         const evaluation = evaluateCreditSale({ limitPyg: posicion.limitPyg, debtPyg: posicion.debtPyg, unpaidPyg: saldo })
@@ -82,7 +83,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       // Sin solicitud previa (pedido viejo): se aprueba directo si de verdad supera el crédito.
       await prisma.$transaction(async tx => {
         const cobrado = await tx.payment.aggregate({ where: { tenantId: tenant, orderId: order.id, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
-        const saldo = Math.max(0, numero(order.totalPyg) - numero(cobrado._sum.amountPyg))
+        const saldo = Math.max(0, numero(order.totalPyg) - numero(cobrado._sum.amountPyg) - await creditedBackPyg(tx, tenant, order.id))
         const posicion = await lockCustomerCredit(tx, tenant, customerId, order.id)
         const evaluation = evaluateCreditSale({ limitPyg: posicion.limitPyg, debtPyg: posicion.debtPyg, unpaidPyg: saldo })
         if (!evaluation.requiresAuthorization) throw new InputError('El cliente tiene crédito disponible para este saldo: no hace falta autorización.', 409)

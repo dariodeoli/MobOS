@@ -17,8 +17,14 @@ import { evaluateCreditSale, type CreditEvaluation } from './credit-rules'
 // en la campana y en «Autorizaciones» sin una tabla nueva.
 
 export const CREDIT_OVER_KIND = 'ORDER_CREDIT_OVER'
-export const CREDIT_PIN_FAILED_ACTION = 'CREDIT_PIN_FAILED'
+// Cada verificación de PIN deja una fila CREDIT_PIN_ATTEMPT ANTES de comparar;
+// si el PIN era correcto se agrega CREDIT_PIN_OK (entityId = id del intento).
+// «Fallos» = intentos sin su OK: un intento en vuelo cuenta como fallo hasta
+// que se confirme, así 50 pedidos paralelos no pueden ver todos «0 fallos».
+export const CREDIT_PIN_ATTEMPT_ACTION = 'CREDIT_PIN_ATTEMPT'
+export const CREDIT_PIN_OK_ACTION = 'CREDIT_PIN_OK'
 const CREDIT_PIN_MAX_FAILURES = 5
+const CREDIT_PIN_TENANT_MAX_FAILURES = 20
 const CREDIT_PIN_WINDOW_MS = 15 * 60 * 1000
 
 export { evaluateCreditSale, type CreditEvaluation }
@@ -35,12 +41,22 @@ export async function lockCustomerCredit(tx: Prisma.TransactionClient, tenantId:
   const rows = await tx.$queryRaw<Array<{ creditLimitPyg: bigint | number | null; creditDays: number | null }>>`
     SELECT "creditLimitPyg", "creditDays" FROM "Customer" WHERE "id" = ${customerId} AND "tenantId" = ${tenantId} FOR UPDATE`
   if (!rows.length) throw new InputError('Cliente no encontrado.', 404)
+  // Deuda abierta = Σ (total − cobrado confirmado − saldo a favor emitido por
+  // devolución parcial) de los pedidos PENDING del cliente. Un pedido cuya
+  // última autorización de crédito fue RECHAZADA no consume crédito: no se puede
+  // entregar y queda para anular o pedir de nuevo.
   const debt = await tx.$queryRaw<Array<{ total: bigint }>>`
-    SELECT COALESCE(SUM(o."totalPyg" - COALESCE(p.confirmed, 0)), 0)::bigint AS total
+    SELECT COALESCE(SUM(GREATEST(0, o."totalPyg" - COALESCE(p.confirmed, 0) - COALESCE(sc.credited, 0))), 0)::bigint AS total
     FROM "Order" o
     LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS confirmed FROM "Payment" WHERE "tenantId" = ${tenantId} AND status = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
+    LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS credited FROM "StoreCredit" WHERE "tenantId" = ${tenantId} AND "orderId" IS NOT NULL GROUP BY "orderId") sc ON sc."orderId" = o."id"
     WHERE o."tenantId" = ${tenantId} AND o."customerId" = ${customerId} AND o."status" = 'PENDING'
-      AND (${excludeOrderId ?? null}::text IS NULL OR o."id" <> ${excludeOrderId ?? null})`
+      AND (${excludeOrderId ?? null}::text IS NULL OR o."id" <> ${excludeOrderId ?? null})
+      AND NOT EXISTS (
+        SELECT 1 FROM "CustomerAuthorization" a
+        WHERE a."tenantId" = o."tenantId" AND a."kind" = ${CREDIT_OVER_KIND} AND a."entity" = 'ORDER' AND a."entityId" = o."id" AND a."status" = 'REJECTED'
+          AND a."createdAt" = (SELECT MAX(a2."createdAt") FROM "CustomerAuthorization" a2 WHERE a2."tenantId" = o."tenantId" AND a2."kind" = ${CREDIT_OVER_KIND} AND a2."entity" = 'ORDER' AND a2."entityId" = o."id")
+      )`
   const debtPyg = numero(debt[0]?.total)
   if (!Number.isSafeInteger(debtPyg)) throw new InputError('No se pudo calcular la deuda del cliente.', 409)
   return { limitPyg: numero(rows[0].creditLimitPyg), debtPyg: Math.max(0, debtPyg), creditDays: rows[0].creditDays }
@@ -51,24 +67,66 @@ export type CreditApprover = { id: string; name: string; role: string }
 export const isCreditResolverRole = (role: string) => (AUTHORIZATION_RESOLVERS as readonly string[]).includes(role)
 
 /**
+ * Auto-aprobación («Autorizo yo»): el dueño/administrador es la última instancia
+ * de la empresa y puede aprobar el crédito de su propia venta; un gerente NO
+ * puede aprobar el crédito que sobrepasó él mismo (lo aprueba otro gerente o el
+ * administrador). Misma regla en todos los caminos: venta con «Autorizo yo»,
+ * PIN propio, POST credit-authorization y PATCH /api/authorizations. Queda en
+ * la auditoría como `selfApproved`.
+ */
+export function assertSelfApprovalAllowed(approver: CreditApprover, requesterId: string | null | undefined) {
+  if (requesterId && approver.id === requesterId && approver.role !== 'ADMIN') {
+    throw new InputError('No podés aprobar tu propia venta a crédito sobre el límite: pedí que la apruebe otro gerente o el administrador.', 403)
+  }
+}
+
+/** Saldo a favor emitido por devoluciones parciales de ese pedido (baja lo que el cliente debe). */
+export async function creditedBackPyg(db: Db, tenantId: string, orderId: string): Promise<number> {
+  const total = await db.storeCredit.aggregate({ where: { tenantId, orderId }, _sum: { amountPyg: true } })
+  return numero(total._sum.amountPyg)
+}
+
+/** Un pedido con autorización de crédito (de cualquier estado) no cambia de cliente: la deuda y la aprobación quedarían en otra ficha. */
+export async function assertNoCreditAuthorization(db: Db, tenantId: string, orderId: string) {
+  const hay = await db.customerAuthorization.findFirst({ where: { tenantId, kind: CREDIT_OVER_KIND, entity: 'ORDER', entityId: orderId }, select: { id: true } })
+  if (hay) throw new InputError('El pedido tiene una autorización de crédito: no se puede cambiar el cliente. Anulá el pedido y creá uno nuevo.', 409)
+}
+
+/**
  * Identifica a quien aprueba por su PIN de operador (único por empresa). Solo
- * valen administradores y gerentes activos. Los intentos fallidos se cuentan
- * por solicitante en la auditoría (5 en 15 minutos → 429) para que el
- * mostrador no sirva para adivinar PINs, sin bloquear la cuenta del dueño.
- * Se llama FUERA de la transacción: bcrypt es lento.
+ * valen administradores y gerentes activos.
+ *
+ * Anti fuerza bruta (atómico): en una transacción corta, bajo un advisory lock
+ * por empresa (serializa a todos los solicitantes de la empresa, así los topes
+ * por solicitante y por empresa se leen y escriben sin carreras), se cuentan los
+ * intentos sin confirmar de los últimos 15 minutos —5 por solicitante y 20 por
+ * empresa → 429— y se INSERTA el intento actual antes de comparar. Recién
+ * después se hace la comparación bcrypt (lenta) fuera del lock. Un PIN correcto
+ * agrega CREDIT_PIN_OK; formato inválido, PIN erróneo y «PIN compartido» quedan
+ * como fallos. Lo usan POST /api/orders (creditApprovalPin) y la autorización
+ * desde el pedido.
  */
 export async function verifyApproverPin(input: { tenantId: string; requesterId: string; pin: unknown }): Promise<CreditApprover> {
   const desde = new Date(Date.now() - CREDIT_PIN_WINDOW_MS)
-  const fallos = await prisma.auditLog.count({ where: { tenantId: input.tenantId, userId: input.requesterId, action: CREDIT_PIN_FAILED_ACTION, createdAt: { gte: desde } } })
-  if (fallos >= CREDIT_PIN_MAX_FAILURES) throw new InputError('Demasiados PIN incorrectos. Esperá 15 minutos o pedí que gerencia apruebe desde su sesión.', 429)
+  const intentoId = await prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`credit-pin:${input.tenantId}`}))`
+    const filas = await tx.$queryRaw<Array<{ propios: bigint; empresa: bigint }>>`
+      SELECT COUNT(*) FILTER (WHERE a."userId" = ${input.requesterId})::bigint AS propios, COUNT(*)::bigint AS empresa
+      FROM "AuditLog" a
+      WHERE a."tenantId" = ${input.tenantId} AND a."action" = ${CREDIT_PIN_ATTEMPT_ACTION} AND a."createdAt" >= ${desde}
+        AND NOT EXISTS (SELECT 1 FROM "AuditLog" ok WHERE ok."tenantId" = a."tenantId" AND ok."action" = ${CREDIT_PIN_OK_ACTION} AND ok."entityId" = a."id")`
+    if (numero(filas[0]?.propios) >= CREDIT_PIN_MAX_FAILURES) throw new InputError('Demasiados PIN incorrectos. Esperá 15 minutos o pedí que gerencia apruebe desde su sesión.', 429)
+    if (numero(filas[0]?.empresa) >= CREDIT_PIN_TENANT_MAX_FAILURES) throw new InputError('Demasiados PIN incorrectos en la empresa. Esperá 15 minutos o pedí que gerencia apruebe desde su sesión.', 429)
+    const intento = await tx.auditLog.create({ data: { tenantId: input.tenantId, userId: input.requesterId, action: CREDIT_PIN_ATTEMPT_ACTION, entity: 'Tenant', entityId: input.tenantId, metadata: {} }, select: { id: true } })
+    return intento.id
+  })
+  const rechazar = (motivo: string, mensaje: string, status: number): never => {
+    // Ya quedó registrado como intento sin confirmar (= fallo); acá solo se anota el motivo.
+    logError('credito: PIN de aprobador rechazado', { tenantId: input.tenantId, requesterId: input.requesterId, motivo })
+    throw new InputError(mensaje, status)
+  }
   const pin = typeof input.pin === 'string' ? input.pin.trim() : ''
-  const registrarFallo = async (motivo: string) => {
-    await prisma.auditLog.create({ data: { tenantId: input.tenantId, userId: input.requesterId, action: CREDIT_PIN_FAILED_ACTION, entity: 'Tenant', entityId: input.tenantId, metadata: { motivo } } })
-  }
-  if (!pinValido(pin)) {
-    await registrarFallo('formato')
-    throw new InputError('PIN de gerente o administrador incorrecto.', 403)
-  }
+  if (!pinValido(pin)) return rechazar('formato', 'PIN de gerente o administrador incorrecto.', 403)
   const now = new Date()
   const candidatos = await prisma.user.findMany({
     where: { tenantId: input.tenantId, status: 'ACTIVE', role: { in: [...AUTHORIZATION_RESOLVERS] as UserRole[] }, OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
@@ -78,12 +136,11 @@ export async function verifyApproverPin(input: { tenantId: string; requesterId: 
   for (const candidato of candidatos) {
     if (await bcrypt.compare(pin, candidato.pinHash)) coinciden.push({ id: candidato.id, name: candidato.name, role: candidato.role })
   }
-  if (coinciden.length === 0) {
-    await registrarFallo('pin')
-    throw new InputError('PIN de gerente o administrador incorrecto.', 403)
-  }
-  // Como en el acceso: un PIN repetido entre dos aprobadores es ambiguo y se rechaza.
-  if (coinciden.length > 1) throw new InputError('Ese PIN lo comparten varios aprobadores. Pedí a administración que asigne PINs distintos.', 409)
+  if (coinciden.length === 0) return rechazar('pin', 'PIN de gerente o administrador incorrecto.', 403)
+  // Como en el acceso: un PIN repetido entre dos aprobadores es ambiguo y se
+  // rechaza; también cuenta como fallo (no sirve para sondear PIN compartidos).
+  if (coinciden.length > 1) return rechazar('compartido', 'Ese PIN lo comparten varios aprobadores. Pedí a administración que asigne PINs distintos.', 409)
+  await prisma.auditLog.create({ data: { tenantId: input.tenantId, userId: input.requesterId, action: CREDIT_PIN_OK_ACTION, entity: 'CreditPinAttempt', entityId: intentoId, metadata: { approverId: coinciden[0].id } } })
   return coinciden[0]
 }
 
@@ -172,11 +229,11 @@ export async function assertCreditCleared(db: Db, tenantId: string, orderId: str
   // Si el pedido ya se cobró entero no hay crédito en juego: nada que autorizar.
   const pedido = await db.order.findFirst({ where: { id: orderId, tenantId }, select: { totalPyg: true } })
   const cobrado = await db.payment.aggregate({ where: { tenantId, orderId, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
-  if (pedido && numero(pedido.totalPyg) - numero(cobrado._sum.amountPyg) <= 0) return
+  if (pedido && numero(pedido.totalPyg) - numero(cobrado._sum.amountPyg) - await creditedBackPyg(db, tenantId, orderId) <= 0) return
   if (ultima.status === 'PENDING') {
     throw new InputError(`Pendiente de autorización de crédito: el cliente superaría su crédito en Gs ${ultima.overPyg.toLocaleString('es-PY')}. Un administrador o gerente debe autorizar la entrega.`, 409)
   }
-  throw new InputError(`La autorización de crédito fue rechazada${ultima.resolvedNote ? `: ${ultima.resolvedNote}` : ''}. El pedido no se puede entregar.`, 409)
+  throw new InputError(`Rechazado — anulá el pedido o pedí una nueva autorización de crédito${ultima.resolvedNote ? ` (motivo: ${ultima.resolvedNote})` : ''}. No se puede entregar.`, 409)
 }
 
 export function creditRequestValue(orderId: string, evaluation: CreditEvaluation, extra: Record<string, unknown> = {}): Prisma.InputJsonValue {
@@ -199,8 +256,9 @@ export async function createCreditHold(tx: Prisma.TransactionClient, input: { te
  * quién aprobó, el monto sobre el límite y si fue por sesión o por PIN.
  */
 export async function resolveCreditAuthorization(tx: Prisma.TransactionClient, input: { tenantId: string; orderId: string; orderNumber: string | null; authorizationId: string; action: 'approve' | 'reject'; approver: CreditApprover; performedById: string; via: 'SESSION' | 'PIN' | 'POS'; note?: string | null }) {
-  const current = await tx.customerAuthorization.findFirst({ where: { id: input.authorizationId, tenantId: input.tenantId, kind: CREDIT_OVER_KIND, entity: 'ORDER', entityId: input.orderId }, select: { id: true, status: true, requestedValue: true, customerId: true } })
+  const current = await tx.customerAuthorization.findFirst({ where: { id: input.authorizationId, tenantId: input.tenantId, kind: CREDIT_OVER_KIND, entity: 'ORDER', entityId: input.orderId }, select: { id: true, status: true, requestedValue: true, customerId: true, requestedById: true } })
   if (!current) throw new InputError('Autorización de crédito no encontrada.', 404)
+  if (input.action === 'approve') assertSelfApprovalAllowed(input.approver, current.requestedById)
   const now = new Date()
   const claimed = await tx.customerAuthorization.updateMany({
     where: { id: current.id, tenantId: input.tenantId, status: 'PENDING' },
@@ -212,18 +270,19 @@ export async function resolveCreditAuthorization(tx: Prisma.TransactionClient, i
     tenantId: input.tenantId, userId: input.approver.id,
     action: input.action === 'approve' ? 'ORDER_CREDIT_AUTHORIZED' : 'ORDER_CREDIT_REJECTED',
     entity: 'Order', entityId: input.orderId,
-    metadata: { authorizationId: current.id, orderNumber: input.orderNumber, customerId: current.customerId, overPyg: asNumber(value.overPyg), limitPyg: asNumber(value.limitPyg), debtPyg: asNumber(value.debtPyg), unpaidPyg: asNumber(value.unpaidPyg), approverId: input.approver.id, approverName: input.approver.name, approverRole: input.approver.role, performedById: input.performedById, via: input.via, ...(input.note ? { note: input.note } : {}) },
+    metadata: { authorizationId: current.id, orderNumber: input.orderNumber, customerId: current.customerId, overPyg: asNumber(value.overPyg), limitPyg: asNumber(value.limitPyg), debtPyg: asNumber(value.debtPyg), unpaidPyg: asNumber(value.unpaidPyg), approverId: input.approver.id, approverName: input.approver.name, approverRole: input.approver.role, performedById: input.performedById, via: input.via, selfApproved: input.action === 'approve' && current.requestedById === input.approver.id, ...(input.note ? { note: input.note } : {}) },
   } })
 }
 
 /** Aprobación directa en el mostrador (PIN o dueño en el POS): nace aprobada. */
 export async function recordCreditApproval(tx: Prisma.TransactionClient, input: { tenantId: string; orderId: string; orderNumber: string | null; customerId: string; requestedById: string; evaluation: CreditEvaluation; approver: CreditApprover; via: 'SESSION' | 'PIN' | 'POS' }) {
+  assertSelfApprovalAllowed(input.approver, input.requestedById)
   const now = new Date()
   const created = await tx.customerAuthorization.create({
     data: { tenantId: input.tenantId, customerId: input.customerId, kind: CREDIT_OVER_KIND, status: 'APPROVED', entity: 'ORDER', entityId: input.orderId, requestedById: input.requestedById, resolvedById: input.approver.id, resolvedAt: now, usedAt: now, usedByOrderId: input.orderId, requestedValue: creditRequestValue(input.orderId, input.evaluation, { orderNumber: input.orderNumber }), resolvedValue: { approved: true } },
     select: { id: true },
   })
-  await tx.auditLog.create({ data: { tenantId: input.tenantId, userId: input.approver.id, action: 'ORDER_CREDIT_AUTHORIZED', entity: 'Order', entityId: input.orderId, metadata: { authorizationId: created.id, orderNumber: input.orderNumber, customerId: input.customerId, overPyg: input.evaluation.overPyg, limitPyg: input.evaluation.limitPyg, debtPyg: input.evaluation.debtPyg, unpaidPyg: input.evaluation.unpaidPyg, approverId: input.approver.id, approverName: input.approver.name, approverRole: input.approver.role, performedById: input.requestedById, via: input.via } } })
+  await tx.auditLog.create({ data: { tenantId: input.tenantId, userId: input.approver.id, action: 'ORDER_CREDIT_AUTHORIZED', entity: 'Order', entityId: input.orderId, metadata: { authorizationId: created.id, orderNumber: input.orderNumber, customerId: input.customerId, overPyg: input.evaluation.overPyg, limitPyg: input.evaluation.limitPyg, debtPyg: input.evaluation.debtPyg, unpaidPyg: input.evaluation.unpaidPyg, approverId: input.approver.id, approverName: input.approver.name, approverRole: input.approver.role, performedById: input.requestedById, via: input.via, selfApproved: input.approver.id === input.requestedById } } })
   return created.id
 }
 
@@ -250,12 +309,18 @@ export async function notifyCreditHold(input: { tenantId: string; orderId: strin
  * Entregar con saldo a un cliente con crédito convierte el pedido en venta a
  * crédito: se vuelve a controlar el crédito disponible (deuda sin este pedido +
  * su saldo vs. el límite). Si lo supera, hace falta la autorización aprobada.
+ *
+ * Recibe la transacción de quien entrega: bloquea la ficha del cliente (FOR
+ * UPDATE) y el bloqueo dura hasta que esa misma transacción actualiza el pedido,
+ * así dos entregas simultáneas del mismo cliente se serializan y la segunda ya
+ * ve la deuda de la primera.
  */
-export async function assertCreditAvailableForDelivery(input: { tenantId: string; orderId: string; customerId: string; pendingPyg: number }) {
-  const posicion = await prisma.$transaction(tx => lockCustomerCredit(tx, input.tenantId, input.customerId, input.orderId))
-  const evaluacion = evaluateCreditSale({ limitPyg: posicion.limitPyg, debtPyg: posicion.debtPyg, unpaidPyg: input.pendingPyg })
+export async function assertCreditAvailableForDelivery(tx: Prisma.TransactionClient, input: { tenantId: string; orderId: string; customerId: string; pendingPyg: number }) {
+  const posicion = await lockCustomerCredit(tx, input.tenantId, input.customerId, input.orderId)
+  const saldo = Math.max(0, input.pendingPyg - await creditedBackPyg(tx, input.tenantId, input.orderId))
+  const evaluacion = evaluateCreditSale({ limitPyg: posicion.limitPyg, debtPyg: posicion.debtPyg, unpaidPyg: saldo })
   if (!evaluacion.requiresAuthorization) return
-  const autorizacion = (await creditAuthorizationsFor(prisma, input.tenantId, [input.orderId])).get(input.orderId)
+  const autorizacion = (await creditAuthorizationsFor(tx, input.tenantId, [input.orderId])).get(input.orderId)
   if (autorizacion?.status !== 'APPROVED') {
     throw new InputError(`Entregar con saldo superaría el crédito del cliente en Gs ${evaluacion.overPyg.toLocaleString('es-PY')}. Solicitá la autorización de crédito desde el pedido.`, 409)
   }

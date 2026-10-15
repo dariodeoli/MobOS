@@ -5,7 +5,7 @@
 //     «Pendiente de autorización de crédito» y NO se entrega;
 // Las funciones que tocan las ventas reciben el `almacen` ({ listar, actualizar });
 // la interfaz usa demoCreditoStore.js, que lo conecta al almacén de la demo.
-//   · autoriza el dueño/gerente (con el check «Autorizo yo»), un PIN de gerente
+//   · autoriza el dueño/administrador (con el check «Autorizo yo»), un PIN de gerente
 //     o administrador del equipo demo, o más tarde desde el pedido.
 import { buscarClienteDemo, actualizarClienteDemo } from './demoClientes.js'
 import { perfilDemoPorPin } from './demo/equipo.js'
@@ -13,6 +13,8 @@ import { evaluarCredito } from './credito.js'
 
 const APROBADORES = ['ADMIN', 'GERENTE']
 export const esAprobadorDemo = (rol) => ['dueno', 'ADMIN', 'GERENTE'].includes(rol)
+// «Autorizo yo»: solo el dueño/administrador (igual que el servidor).
+export const puedeAutoAutorizarDemo = (rol) => ['dueno', 'ADMIN'].includes(rol)
 
 /** Deuda abierta del cliente demo: saldo de sus pedidos (lo que ve la ficha). */
 export function deudaDemoDeCliente(clienteId) {
@@ -54,7 +56,7 @@ export function autorizacionCreditoDemo({ evaluacion, pin = '', yoAutorizo = fal
     return resumen(evaluacion, { status: 'APPROVED', requestedByName: vendedor, resolvedAt: new Date().toISOString(), resolvedByName: perfil.nombre })
   }
   if (yoAutorizo) {
-    if (!esAprobadorDemo(sesion?.rol)) throw new Error('Solo administración o gerencia pueden autorizar el crédito.')
+    if (!puedeAutoAutorizarDemo(sesion?.rol)) throw new Error(esAprobadorDemo(sesion?.rol) ? 'Un gerente no puede aprobar su propia venta a crédito sobre el límite: pedí que la apruebe otro gerente o el administrador.' : 'Solo administración o gerencia pueden autorizar el crédito.')
     return resumen(evaluacion, { status: 'APPROVED', requestedByName: vendedor, resolvedAt: new Date().toISOString(), resolvedByName: vendedor })
   }
   return resumen(evaluacion, { status: 'PENDING', requestedByName: vendedor })

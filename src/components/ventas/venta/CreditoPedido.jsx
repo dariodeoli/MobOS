@@ -70,7 +70,8 @@ export default function CreditoPedido({ order, credito, esDemo, puedeResolver, s
   if (credito.status === 'REJECTED') {
     return (
       <Aviso tono="error" como="div" role="alert" data-testid="credito-rechazado" className="space-y-2 rounded-xl p-3 text-sm">
-        <p className="font-bold">Crédito rechazado{credito.resolvedByName ? ` por ${credito.resolvedByName}` : ''}</p>
+        <p className="font-bold">Rechazado — anulá o pedí nueva autorización</p>
+        <p className="text-xs">Crédito rechazado{credito.resolvedByName ? ` por ${credito.resolvedByName}` : ''}; este pedido ya no cuenta como deuda del cliente.</p>
         <p className="text-xs">{credito.resolvedNote || 'Sin motivo indicado.'} El pedido no se puede entregar. Podés pedir una nueva autorización o anular el pedido.</p>
         {!esDemo && <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={pedirDeNuevo}>Pedir autorización de nuevo</Button>}
         {error && <p role="alert" className="text-xs font-semibold">{error}</p>}
