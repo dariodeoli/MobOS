@@ -3,6 +3,8 @@
 // de `buildListaPreciosHtml` (OrderReceipt.jsx), con el mismo encabezado y pie
 // que el comprobante premium (#407).
 
+import { whatsappUrl } from '../../utils/telefono.js'
+
 const sinAcentos = (texto) => String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 /** Tope de unidades para decir «Últimas unidades». */
@@ -15,7 +17,7 @@ export function enlaceWhatsApp(telefono, codigoPais = '595') {
   if (digitos.startsWith(codigoPais)) digitos = digitos.slice(codigoPais.length)
   digitos = digitos.replace(/^0+/, '')
   if (!digitos) return ''
-  return `https://wa.me/${codigoPais}${digitos}`
+  return whatsappUrl(`${codigoPais}${digitos}`, '', `+${codigoPais}`)
 }
 
 /** «+595 983 123 456» a partir de cualquier forma de cargar el teléfono; '' si no hay. */

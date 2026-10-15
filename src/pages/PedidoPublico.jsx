@@ -4,6 +4,7 @@ import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { cn, primerNombre } from '@/lib/utils'
 import { fechaHora } from '@/utils/fecha'
+import { telefonoVisible } from '@/utils/telefono'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
@@ -60,7 +61,7 @@ export default function PedidoPublico() {
   const movimientos = order?.level === 'detallado' ? (order.timeline || []) : []
   const garantias = order?.warranties || []
   const cantidadArticulos = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
-  const facturacion = [order?.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : '', order?.customer?.email || ''].filter(Boolean).join(' · ')
+  const facturacion = [order?.customer?.phone ? telefonoVisible(order.customer.phone, order.customer.countryCode || '+595') : '', order?.customer?.email || ''].filter(Boolean).join(' · ')
   const ultimoMovimiento = movimientos[0]?.at ? fechaHora(movimientos[0].at) : ''
 
   return (
@@ -189,7 +190,7 @@ export default function PedidoPublico() {
               >
                 <div className="space-y-1.5 text-sm text-mute">
                   {order.customer?.name && <p><b className="text-fore">{order.customer.name}</b>{order.customer.document ? ` · ${order.customer.document}` : ''}</p>}
-                  {order.customer?.phone && <p>{order.customer.countryCode || ''} {order.customer.phone}</p>}
+                  {order.customer?.phone && <p>{telefonoVisible(order.customer.phone, order.customer.countryCode || '+595')}</p>}
                   {order.customer?.email && <p className="truncate">{order.customer.email}</p>}
                   {(order.customer?.addresses || []).map((address, index) => (
                     <p key={index}>{address.label ? `${address.label}: ` : ''}{[address.address, address.city, address.department, address.country].filter(Boolean).join(', ')}</p>

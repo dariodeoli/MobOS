@@ -9,6 +9,7 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
+import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { useStockDisplay } from '@/hooks/useStockDisplay'
 import { estiloCondicion } from '@/lib/stockDisplay'
@@ -396,7 +397,7 @@ export default function PorComprar() {
                     />
                   )}
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="max-w-full truncate text-sm font-semibold" title={grupo.producto}>{grupo.producto || 'Producto'}</p>
+                    <p className={cn(CELDA_IDENTIDAD, 'max-w-full')} title={grupo.producto}>{grupo.producto || 'Producto'}</p>
                     <Badge color="slate">{CONDICION[grupo.condicion] || grupo.condicion || '—'}</Badge>
                     <Badge color={grupo.centro ? 'blue' : 'orange'}>{grupo.centro || 'Sin centro'}</Badge>
                     {vence ? <span className={cn('whitespace-nowrap text-xs', vence.tono)}>{vence.texto}</span> : <span className="pl-sec whitespace-nowrap text-xs">Sin fecha prometida</span>}

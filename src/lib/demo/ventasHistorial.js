@@ -99,7 +99,7 @@ function pagosDe({ rng, id, total, diasAtras, mayorista, hora, minuto }) {
   }
   if (tirada < 0.3) return { pagos: [pago(0, 'DINERO', '', total)] }
   if (tirada < 0.55) return { pagos: [pago(0, 'TRANSFERENCIA', banco(), total)] }
-  if (tirada < 0.72) return { pagos: [pago(0, 'POS UENO', 'ueno · Tarjeta', total)] }
+  if (tirada < 0.72) return { pagos: [pago(0, 'POS UENO', 'Ueno · Tarjeta', total)] }
   if (tirada < 0.82) return { pagos: [pago(0, 'QR', 'QR · Bancard', total)] }
   if (tirada < 0.91) {
     const usd = Math.floor((total * 0.5) / (COTIZACION_USD * 10)) * COTIZACION_USD * 10

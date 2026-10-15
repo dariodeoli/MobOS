@@ -36,6 +36,7 @@ export default defineConfig({
     'credito.frontend.spec.js',
     'compras-escaneo.frontend.spec.js',
     'demo-reportes.frontend.spec.js',
+    'densidad.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

@@ -308,13 +308,14 @@ for (const [width, height, maxTop, maxHeader] of [
   })
 }
 
-// Taller (#396): cápsulas con borde, 1/2/3/4 por fila según el ancho y la
-// primera orden a la vista sin cabeceras apiladas.
+// Taller (#396/#448): cápsulas con borde de 1 y 2 por fila en celular y tablet y,
+// desde 1280 px, una fila fina por orden (≤ 48 px). La primera orden va a la vista
+// sin cabeceras apiladas.
 for (const [width, height, columnas] of [
   [375, 812, 1],
   [768, 1024, 2],
-  [1280, 900, 3],
-  [1440, 900, 4],
+  [1280, 900, 1],
+  [1440, 900, 1],
 ]) {
   test(`Taller en cápsulas: ${columnas} por fila a ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height })
@@ -337,6 +338,11 @@ for (const [width, height, columnas] of [
     expect(cajas[0].borde, 'borde visible').toBe('1px')
     expect(parseFloat(cajas[0].radio), 'radio').toBeGreaterThan(0)
     if (width >= 1440) expect(cajas[0].y, 'primera orden a la vista').toBeLessThanOrEqual(300)
+    // #448: en escritorio la orden es una fila fina.
+    if (width >= 1280) {
+      const altos = await filas.evaluateAll(nodos => nodos.slice(0, 6).map(nodo => Math.round(nodo.getBoundingClientRect().height)))
+      for (const alto of altos) expect(alto, 'alto de la fila de Taller').toBeLessThanOrEqual(48)
+    }
     // Sin código interno repetido ni casillas fuera del modo selección.
     await expect(page.getByRole('checkbox')).toHaveCount(0)
     await expect(filas.first()).not.toContainText('AUR-OS')
