@@ -35,6 +35,15 @@ test.describe('composición compacta', () => {
   })
 
   test('Clientes: resumen con alcance explícito y acciones en la barra', async ({ page }) => {
+    // Aislamos la composición de los clientes archivados y las altas de otros
+    // specs: dos páginas reales del contrato (50 + 1) y un resumen coherente.
+    const clientes = Array.from({ length: 51 }, (_, i) => ({ id: `qa256-${i}`, name: `Cliente ${i}`, pricingTier: 'RETAIL' }))
+    await page.route('**/api/customers/summary', route => route.fulfill({ json: { total: 51, wholesalers: 0, retail: 51 } }))
+    await page.route(/\/api\/customers\?/, route => {
+      const params = new URL(route.request().url()).searchParams
+      const rows = params.get('q') ? [] : params.has('cursor') ? clientes.slice(50) : clientes.slice(0, 50)
+      return route.fulfill({ json: rows })
+    })
     await page.goto('/clientes')
     await expect(page.getByTestId('cliente-fila').first()).toBeVisible({ timeout: 20_000 })
     const barra = page.getByTestId('barra-clientes')
@@ -48,7 +57,17 @@ test.describe('composición compacta', () => {
     // avisa (pista) cuando el listado está filtrado o paginado.
     await expect(resumen.getByText('Tienda', { exact: true })).toHaveCount(0)
     await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(0)
+    const cargarMas = page.getByRole('button', { name: 'Cargar más clientes', exact: true })
+    for (let pagina = 0; pagina < 10 && await cargarMas.isVisible(); pagina += 1) {
+      await expect(resumen.getByText('Deuda: clientes en pantalla', { exact: true })).toBeVisible()
+      const anteriores = await page.getByTestId('cliente-fila').count()
+      await cargarMas.click()
+      await expect.poll(() => page.getByTestId('cliente-fila').count()).toBeGreaterThan(anteriores)
+    }
+    await expect(cargarMas).toHaveCount(0)
     await expect(resumen.getByText(/en pantalla$/)).toHaveCount(0)
+    await page.getByRole('textbox', { name: 'Buscar clientes', exact: true }).fill('QA256_SCOPE')
+    await expect(resumen.getByText('Deuda: clientes en pantalla', { exact: true })).toBeVisible()
   })
 
   test('Inventario: barra única con buscador, filtros y acciones agrupadas', async ({ page }) => {
