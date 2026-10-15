@@ -251,7 +251,7 @@ async function checkLines(db: Db, actor: ArrivalActor, arrival: { id: string; br
     else if (!validProducts.has(line.productId)) add(line, 'PRODUCTO_INVALIDO', 'error', 'El producto no existe en esta sucursal')
     if (!line.supplierId) add(line, 'PROVEEDOR_FALTA', 'error', 'Falta el proveedor')
     if (line.serial) {
-      const check = classifySerialInput(line.serial)
+      const check = classifySerialInput(line.serial, { allowTrailingZeros: hasConfirmedSerial(line) })
       if (check.kind === 'INVALIDO') add(line, 'SERIAL_INVALIDO', 'error', check.message)
       if ((count.get(line.serial.toUpperCase()) ?? 0) > 1) add(line, 'DUPLICADO_EN_LOTE', 'error', `IMEI/serie repetido en la llegada (${line.serial})`)
       if (line.destination !== 'DEVOLVER' && inInventory.has(line.serial.toUpperCase())) add(line, 'SERIAL_EXISTENTE', 'error', `El IMEI/serie ${line.serial} ya está en el inventario`)
@@ -277,6 +277,13 @@ async function checkLines(db: Db, actor: ArrivalActor, arrival: { id: string; br
     }
   }
   return out
+}
+
+const IMEI_CONFIRMADO = 'IMEI_CONFIRMADO'
+
+// El operador confirmó este IMEI terminado en 000 (aviso guardado con la serie).
+function hasConfirmedSerial(line: { serial: string | null; issues: unknown }) {
+  return Boolean(line.serial) && issuesOf(line).some(issue => issue.code === IMEI_CONFIRMADO && issue.message.includes(String(line.serial)))
 }
 
 // Hallazgos finales de una línea: los del parser/conciliación que siguen
@@ -498,8 +505,14 @@ export async function patchLine(actor: ArrivalActor, arrivalId: string, body: Re
   if ('serial' in body) {
     const serial = typeof body.serial === 'string' ? serialKey(body.serial) : ''
     data.serial = serial || null
-    if (serial) { const check = classifySerialInput(serial); data.serialKind = check.kind === 'IMEI' ? 'IMEI' : 'SERIE' } else data.serialKind = 'NINGUNO'
-    drop.add('IMEI_EXCEL'); drop.add('IMEI_INVALIDO'); drop.add('FALTA_IMEI')
+    const confirm = body.confirmSerial === true
+    if (serial) { const check = classifySerialInput(serial, { allowTrailingZeros: confirm }); data.serialKind = check.kind === 'IMEI' ? 'IMEI' : 'SERIE' } else data.serialKind = 'NINGUNO'
+    drop.add('IMEI_EXCEL'); drop.add('IMEI_INVALIDO'); drop.add('FALTA_IMEI'); drop.add(IMEI_CONFIRMADO)
+    // «El IMEI es correcto»: un IMEI real terminado en 000 que pasa Luhn baja de error a aviso.
+    if (confirm && serial && classifySerialInput(serial, { allowTrailingZeros: true }).kind === 'IMEI' && /^\d{15}$/.test(serial.replace(/[\s-]+/g, '')) && /0{3,}$/.test(serial.replace(/[\s-]+/g, ''))) {
+      data.issues = [...issuesOf(line).filter(issue => issue.code !== IMEI_CONFIRMADO), { code: IMEI_CONFIRMADO, severity: 'warning', message: `IMEI ${serial} termina en 000: confirmado por el operador`, source: 'parse' }] as unknown as Prisma.InputJsonValue
+      drop.delete(IMEI_CONFIRMADO)
+    }
     // Con serie cargada, una fila «Falta IMEI» pasa a ingresar al stock.
     if (serial && line.destination === 'FALTA_IMEI' && !('destination' in body)) data.destination = 'STOCK'
   }
@@ -729,9 +742,9 @@ export async function confirmArrival(actor: ArrivalActor, id: string, idempotenc
 
 // ------------------------------------------------- completar IMEI faltante
 
-export async function completeMissingSerial(actor: ArrivalActor, lineId: string, rawSerial: unknown) {
+export async function completeMissingSerial(actor: ArrivalActor, lineId: string, rawSerial: unknown, confirmSerial = false) {
   const serial = typeof rawSerial === 'string' ? serialKey(rawSerial) : ''
-  const check = serial ? classifySerialInput(serial) : null
+  const check = serial ? classifySerialInput(serial, { allowTrailingZeros: confirmSerial }) : null
   if (!check) throw new InputError('Indicá el IMEI o la serie.')
   if (check.kind === 'INVALIDO') throw new InputError(check.message)
 

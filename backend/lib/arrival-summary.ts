@@ -93,10 +93,13 @@ export function costPygOf(currency: 'USD' | 'PYG', original: number | null, rate
 export type SerialCheck = { kind: 'IMEI' | 'SERIE'; value: string } | { kind: 'INVALIDO'; message: string }
 
 // IMEI de 15 dígitos con Luhn, o serie alfanumérica (iPad/Watch) de 6 a 20.
-export function classifySerialInput(value: string): SerialCheck {
+// `allowTrailingZeros`: el operador confirmó que un IMEI que termina en 000 es
+// real; deja de ser «perdido por Excel» si pasa Luhn (la notación científica
+// nunca llega acá: tiene letras o coma).
+export function classifySerialInput(value: string, options: { allowTrailingZeros?: boolean } = {}): SerialCheck {
   const serial = value.replace(/[\s-]+/g, '').toUpperCase()
   if (/^\d{15}$/.test(serial)) {
-    if (/0{3,}$/.test(serial)) return { kind: 'INVALIDO', message: 'IMEI perdido por Excel, corregir (termina en ceros)' }
+    if (/0{3,}$/.test(serial) && !(options.allowTrailingZeros && luhnValid(serial))) return { kind: 'INVALIDO', message: 'IMEI perdido por Excel, corregir (termina en ceros)' }
     return luhnValid(serial) ? { kind: 'IMEI', value: serial } : { kind: 'INVALIDO', message: `IMEI inválido (no pasa Luhn): ${serial}` }
   }
   if (/^[A-Z0-9]{6,20}$/.test(serial) && /\d/.test(serial) && !/^\d+$/.test(serial)) return { kind: 'SERIE', value: serial }

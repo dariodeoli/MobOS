@@ -174,6 +174,18 @@ try {
   assert.ok(sinDestino.lines[0].issues.some(i => i.code === 'SUCURSAL_DESTINO_FALTA'))
   await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: conExcel.lines[0].id, destination: 'STOCK' })
   await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: 'no-existe', note: 'x' }, 404)
+  // «El IMEI es correcto»: un IMEI real terminado en 000 (Luhn ok) baja de error a aviso; sin Luhn o científico sigue bloqueando.
+  const imeiCeros = '352793100006000'
+  const sinConfirmar = await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: conExcel.lines[0].id, serial: imeiCeros })
+  assert.ok(sinConfirmar.lines[0].issues.some(i => i.severity === 'error'), 'sin confirmar sigue bloqueando')
+  const confirmado = await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: conExcel.lines[0].id, serial: imeiCeros, confirmSerial: true })
+  assert.ok(!confirmado.lines[0].issues.some(i => i.severity === 'error'), JSON.stringify(confirmado.lines[0].issues))
+  assert.ok(confirmado.lines[0].issues.some(i => i.code === 'IMEI_CONFIRMADO' && i.severity === 'warning'))
+  const sinLuhn = await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: conExcel.lines[0].id, serial: '352793000000000', confirmSerial: true })
+  assert.ok(sinLuhn.lines[0].issues.some(i => i.severity === 'error'), 'sin Luhn el forzado no alcanza')
+  const cientifico = await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: conExcel.lines[0].id, serial: '3,52793E+14', confirmSerial: true })
+  assert.ok(cientifico.lines[0].issues.some(i => i.severity === 'error'), 'la notación científica nunca se fuerza')
+  await req(`/api/supply/arrivals/${mala.id}/lines`, 'PATCH', { lineId: conExcel.lines[0].id, serial: imei.H })
 
   // ── Aislamiento por empresa ─────────────────────────────────────────────
   await req(`/api/supply/arrivals/${llegada.id}`, 'GET', undefined, 404, adminC)

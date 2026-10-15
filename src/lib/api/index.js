@@ -5,6 +5,7 @@ import { createDemoTransfer, createDemoUnit, demoStockAlerts, filtrarUnidadesDem
 import { listarStockItemsDemo } from '@/lib/demo/stockItems.js'
 import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
+import { completeDemoArrivalSerial, confirmDemoArrival, createDemoArrival, getDemoArrival, listDemoArrivals, parseDemoArrival, patchDemoArrivalLine } from '@/lib/demo/llegada.js'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones.js'
 import { anularGiftCardDemo, buscarGiftCardDemo, detalleGiftCardDemo, emitirGiftCardDemo, listarGiftCardsDemo } from '@/lib/giftCards'
 // El módulo de Inventario funciona igual en demo (#213): cuando hay sesión demo
@@ -96,6 +97,18 @@ export const resources = {
     }, (params = {}) => (params.id || params.shipmentId ? demoSupplyReceptionDetail(params) : listDemoSupplyReceptions(params))),
     create: demo(data => api.post('/api/supply/receptions', data), data => createDemoSupplyReception(data)),
     update: demo(data => api.patch('/api/supply/receptions', data), data => updateDemoSupplyReception(data)),
+  },
+  // Llegada de mercadería (#408 G): borrador → pegado en seco → editar filas →
+  // confirmar (idempotente) → completar IMEI faltante. En demo, intérprete local.
+  supplyArrivals: {
+    list: demo((params = {}) => api.get(`/api/supply/arrivals?${new URLSearchParams(params)}`, { cacheMs: 0 }), () => listDemoArrivals()),
+    create: demo(data => api.post('/api/supply/arrivals', data), data => createDemoArrival(data)),
+    get: demo(id => api.get(`/api/supply/arrivals/${encodeURIComponent(id)}`, { cacheMs: 0 }), id => getDemoArrival(id, getProductos())),
+    parse: demo((id, text) => api.post(`/api/supply/arrivals/${encodeURIComponent(id)}/parse`, { text }), (id, text) => parseDemoArrival(id, text, getProductos())),
+    patchLine: demo((id, data) => api.patch(`/api/supply/arrivals/${encodeURIComponent(id)}/lines`, data), (id, data) => patchDemoArrivalLine(id, data, getProductos())),
+    // `confirmar` y no `confirm`: la regla de diseño prohíbe llamadas con ese nombre (diálogo nativo).
+    confirmar: demo((id, key) => api.post(`/api/supply/arrivals/${encodeURIComponent(id)}/confirm`, {}, { headers: { 'Idempotency-Key': key } }), id => confirmDemoArrival(id, getProductos())),
+    completeSerial: demo((lineId, serial, confirmSerial = false) => api.patch(`/api/supply/arrivals/lines/${encodeURIComponent(lineId)}`, { serial, ...(confirmSerial ? { confirmSerial: true } : {}) }), (lineId, serial, confirmSerial) => completeDemoArrivalSerial(lineId, serial, confirmSerial, getProductos())),
   },
   // F6 (#250): rendimiento por proveedor, tiempos de tránsito y atrasos. El
   // panel tiene «Actualizar»: se piden sin caché de GET, como el resto.

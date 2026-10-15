@@ -13,6 +13,7 @@ import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketComprobanteRecepcion, ticketManifiesto } from '@/lib/printing/tickets'
 import { buildManifiestoHtml, printComprobanteRecepcion } from '@/components/shared/OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
+import LlegadaLote from './LlegadaLote'
 
 // Abastecimiento · F5 (#250 §11): UI de recepción.
 // Llegadas pendientes → abrir (o retomar) por lote / código / token del QR →
@@ -70,6 +71,8 @@ export default function Recepcion() {
   const [imprimiendo, setImprimiendo] = useState(false)
   const [manifiestoBusy, setManifiestoBusy] = useState(false)
   const [busy, setBusy] = useState(false)
+  // #408 G: llegada de mercadería pegada desde la planilla.
+  const [nuevaLlegada, setNuevaLlegada] = useState(false)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -540,6 +543,9 @@ export default function Recepcion() {
     )
   }
 
+  // ── Nueva llegada (pegado de la planilla) ───────────────────────────────
+  if (nuevaLlegada) return <LlegadaLote onVolver={() => { setNuevaLlegada(false); cargar() }} />
+
   // ── Llegadas pendientes ─────────────────────────────────────────────────
   return (
     <div className="space-y-4" data-testid="recepcion">
@@ -552,6 +558,9 @@ export default function Recepcion() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={() => setNuevaLlegada(true)} data-testid="recepcion-nueva-llegada">
+              <Icon name="plus" className="h-3.5 w-3.5" />Nueva llegada
+            </Button>
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
               <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
             </Button>
