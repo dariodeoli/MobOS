@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
+import PinTeclado from '@/components/shared/PinTeclado'
+import { isNativeIOS } from '@/lib/plataforma'
 
 // PIN numérico en celdas iguales (4 a 6), variante de CodigoSegmentado. Un solo
 // input real cubre todo el grupo (transparente, sin cursor, a 16 px para que
@@ -20,6 +22,7 @@ export default function PinSegmentado({
   ariaLabel,
   id,
   className,
+  tecladoTactil = isNativeIOS(),
   ...inputProps
 }) {
   const total = Math.min(6, Math.max(4, Number(length) || 4))
@@ -37,7 +40,7 @@ export default function PinSegmentado({
   }, [invalido, value])
 
   function actualizar(raw) {
-    if (disabled) return
+    if (disabled || exito) return
     const next = raw.replace(/\D/g, '').slice(0, total)
     onChange?.(next)
     if (next.length === total && next !== value) onComplete?.(next)
@@ -49,8 +52,10 @@ export default function PinSegmentado({
       data-testid="pin-segmentado"
       data-invalido={invalido ? 'true' : undefined}
       data-exito={exito ? 'true' : undefined}
+      data-teclado-tactil={tecladoTactil ? 'true' : undefined}
       className={cn('pin-seg relative mx-auto w-full max-w-[15rem]', className)}
     >
+      <div className="relative" data-testid="pin-indicadores">
       <div aria-hidden="true" className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
         {Array.from({ length: total }, (_, i) => {
           const lleno = i < largo
@@ -74,16 +79,23 @@ export default function PinSegmentado({
         {...inputProps}
         id={id}
         type="text"
-        inputMode="numeric"
+        inputMode={tecladoTactil ? 'none' : 'numeric'}
         pattern="[0-9]*"
-        autoComplete="one-time-code"
+        autoComplete={tecladoTactil ? 'off' : 'one-time-code'}
         maxLength={total}
         value={value}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus && !tecladoTactil}
+        readOnly={tecladoTactil}
         disabled={disabled}
         aria-label={ariaLabel || `PIN de ${total} dígitos`}
         aria-invalid={invalido || undefined}
         onChange={(e) => actualizar(e.target.value)}
+        onKeyDown={(e) => {
+          inputProps.onKeyDown?.(e)
+          if (!tecladoTactil || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+          if (/^[0-9]$/.test(e.key)) { e.preventDefault(); actualizar(`${value}${e.key}`) }
+          else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); actualizar(String(value).slice(0, -1)) }
+        }}
         onFocus={(e) => { setEnfocado(true); inputProps.onFocus?.(e) }}
         onBlur={(e) => { setEnfocado(false); inputProps.onBlur?.(e) }}
         onPaste={(e) => {
@@ -98,6 +110,8 @@ export default function PinSegmentado({
         data-testid="pin-input"
         className="absolute inset-0 h-full w-full cursor-text border-0 bg-transparent p-0 text-base opacity-0 outline-none [caret-color:transparent]"
       />
+      </div>
+      {tecladoTactil && <PinTeclado disabled={disabled || exito} completo={largo >= total} vacio={!largo} onDigito={digito => actualizar(`${value}${digito}`)} onBorrar={() => actualizar(String(value).slice(0, -1))} />}
     </div>
   )
 }

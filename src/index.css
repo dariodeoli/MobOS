@@ -420,3 +420,13 @@ html.app-ios [data-testid='pantalla-bloqueada'] p.rounded-xl { margin-top: 0.75r
 .pin-seg-check { animation: pin-seg-pop .3s cubic-bezier(.2,.8,.3,1) both; }
 .pin-seg-sacude { animation: pin-seg-sacude .3s ease-in-out 1; }
 @media (prefers-reduced-motion: reduce) { .pin-seg-punto, .pin-seg-check, .pin-seg-sacude { animation: none !important; } }
+
+/* #484: el PIN nativo usa teclas propias y no abre el teclado de iOS. */
+.pin-seg[data-teclado-tactil='true'] .pin-seg-celda { aspect-ratio: 1; max-height: 3rem; }
+.pin-seg[data-teclado-tactil='true'] input { cursor: default; }
+html.app-ios [data-testid='pantalla-bloqueada'] .lock-ayuda[role='alert'] { display: block; }
+html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
+@media (max-height: 700px) {
+  html.app-ios [data-testid='pantalla-bloqueada'] { margin-top: 0; padding: 0.75rem; }
+  html.app-ios [data-testid='pantalla-bloqueada'] .pin-tecla { height: 3rem; width: 3rem; }
+}

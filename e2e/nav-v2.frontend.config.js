@@ -43,6 +43,7 @@ export default defineConfig({
     'densidad.frontend.spec.js',
     'datos-consistentes.frontend.spec.js',
     'pin-segmentado.frontend.spec.js',
+    'pin-tactil.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,
