@@ -179,5 +179,5 @@ test('pedidos: la nota del pedido se edita desde el detalle', async ({ page }) =
   await page.getByRole('button', { name: /Agregar nota|Editar nota/ }).click()
   await page.getByLabel('Nota del pedido').fill(nota)
   await page.getByRole('button', { name: 'Guardar nota' }).click()
-  await expect(page.getByText(`Nota: ${nota}`)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId("pedido-notas").getByText(nota)).toBeVisible({ timeout: 15_000 })
 })

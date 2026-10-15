@@ -330,7 +330,7 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   await expect(contenido.locator('.doc .tipo')).toHaveText('Hoja de estación')
   await expect(contenido.locator('.meta')).toContainText('en preparación')
   const texto = await contenido.locator('body').innerText()
-  expect(texto).toContain('Hoja de estación')
+  expect(texto).toMatch(/hoja de estación/i)
   expect(texto).toContain(imei)
   expect(texto).toContain('Firma / control')
   expect(texto).toContain('Marcá cada uno al verificarlo')
