@@ -29,13 +29,13 @@ test('el IMEI se valida antes de consultar y el precheck no cobra', async ({ pag
   const precheck = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'precheck', imei: IMEI, servicio: 'APPLE_BASIC' }) })
   expect(precheck.status).toBe(200)
   expect(precheck.datos.imei).not.toContain(IMEI)
-  expect(precheck.datos.servicio.precioUsd).toBe(0.06)
-  expect(precheck.datos.servicio.precioConfirmado).toBe(true)
+  expect(precheck.datos.creditosRequeridos).toBe(1)
+  expect(precheck.datos.saldo).toBeGreaterThan(0)
+  expect(precheck.datos.servicio.precioUsd, 'la app no expone precios').toBeUndefined()
   expect(precheck.datos.requiereConfirmacion).toBe(true)
   expect(precheck.datos.modo).toBe('simulado', 'sin LIVE el modo visible es simulado')
   expect(precheck.datos.simulado).toBe(true)
-  expect(precheck.datos.costoEstimadoUsd).toBe(0)
-  expect(precheck.datos.costoReferenciaUsd).toBe(0.06)
+  expect(precheck.datos.costoEstimadoUsd).toBeUndefined()
   // El precheck no deja registro (no hubo consulta).
   const historial = await api(page, `imei?imei=${IMEI}`, { method: 'GET' })
   expect(historial.datos.consultas).toEqual([])
@@ -191,8 +191,8 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
     expect(precheckB.status()).toBe(200)
     const precheckDatos = await precheckB.json()
     expect(precheckDatos.advertencia).toBeNull()
-    expect(precheckDatos.costoEstimadoUsd).toBe(0)
-    expect(precheckDatos.costoReferenciaUsd).toBe(0.06)
+    expect(precheckDatos.costoEstimadoUsd).toBeUndefined()
+    expect(precheckDatos.creditosRequeridos).toBe(1)
 
     // Consulta propia de B: queda solo en su historial.
     const consultaB = await apiB.post(`${API}/api/imei`, { headers: cabecerasB, data: { action: 'checks', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC', confirm: true, requestId: `qa-193-tienda-b-${Date.now()}` } })

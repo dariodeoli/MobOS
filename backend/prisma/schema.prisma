@@ -3737,6 +3737,52 @@ model ImeiCheckQuery {
   conciliationNote  String?
 }
 
+// Créditos de verificación IMEI (docs/IMEI-CREDITOS.md). Los gestiona SOLO la
+// plataforma desde /superadmin; no hay precios ni compra dentro de la app.
+// Cada lote tiene saldo propio (CHECK remaining >= 0 en la migración) y el libro
+// de movimientos ImeiCreditEntry es solo de agregado (nunca se edita ni borra).
+model ImeiCreditLot {
+  id          String    @id
+  tenantId    String
+  source      String
+  granted     Int
+  remaining   Int
+  expiresAt   DateTime?
+  sourceRef   String?
+  note        String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, remaining, expiresAt])
+}
+
+model ImeiCreditEntry {
+  id          String   @id
+  tenantId    String
+  lotId       String?
+  type        String
+  amount      Int
+  sourceRef   String
+  serviceKey  String?
+  queryId     String?
+  note        String?
+  actorId     String?
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, type, sourceRef])
+  @@index([tenantId, createdAt])
+  @@index([queryId])
+}
+
+// Cupo mensual por empresa (créditos por mes). `since` = desde cuándo corre.
+model ImeiCreditSetting {
+  tenantId         String   @id
+  monthlyAllowance Int      @default(0)
+  since            DateTime @default(now())
+  updatedById      String?
+  updatedAt        DateTime @updatedAt
+}
+
 // A1 (#279) · Web Push: una suscripción por usuario y dispositivo. La bandeja
 // interna sigue siendo la fuente oficial; el push solo avisa al navegador y el
 // payload viaja sin datos sensibles (título/cuerpo genéricos + ruta interna).

@@ -32,6 +32,17 @@ const modules: Record<string, unknown> = {
   '../../../lib/prisma': { prisma },
   '../../../lib/http': { json: (data: unknown, init?: ResponseInit) => Response.json(data, init), error: (message: string, status = 400) => Response.json({ message }, { status }) },
   '../../../lib/auth': { requireSession: async () => ({ user: { id: 'u', tenantId: currentTenant, role: 'ADMIN', branchId: null } }), canAccessAny: () => true },
+  // Créditos: este test cubre el requestId; el saldo se prueba en imei-credits-http.mjs.
+  '../../../lib/imei-credits': {
+    creditosDeServicio: () => 1,
+    correspondeReembolso: () => false,
+    estadoCreditos: async () => ({ saldo: 99, enforce: true }),
+    reembolsarConsulta: async () => 0,
+    reservarConsulta: async ({ buscar, crear }: any) => {
+      const existente = await buscar(prisma)
+      return existente ? { tipo: 'existente', fila: existente } : { tipo: 'reservada', fila: await crear(prisma), consumidos: 1, enSombra: 0 }
+    },
+  },
   '../../../lib/imeicheck': { ...real, consultarImei: async (...args: unknown[]) => { providerCalls += 1; await pause(); return real.consultarImei(...args) } },
 }
 const routeExports: Record<string, any> = {}

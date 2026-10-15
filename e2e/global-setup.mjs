@@ -383,6 +383,17 @@ async function writeStorageState(file, companyToken, sellerToken) {
   await writeFile(file, JSON.stringify(state, null, 2))
 }
 
+// Créditos IMEI (docs/IMEI-CREDITOS.md): en e2e el control está activo, así que la
+// empresa seed recibe un lote grande y re-afirmado en cada corrida (los specs
+// consultan IMEI varias veces y la base persistente no se vacía).
+function reponerCreditosImei() {
+  try {
+    psql(`INSERT INTO "ImeiCreditLot" ("id","tenantId","source","granted","remaining","note") SELECT 'e2e-imei-credits', t."id", 'GRANT', 5000, 5000, 'Créditos de prueba e2e' FROM "Tenant" t WHERE t."email" = '${SEED.company.email}' ON CONFLICT ("id") DO UPDATE SET "remaining" = 5000, "granted" = 5000;`)
+  } catch {
+    // Sin la tabla (migración pendiente) no hay nada que reponer.
+  }
+}
+
 export default async function globalSetup() {
   await mkdir(AUTH_DIR, { recursive: true })
   // La base persistente es compartida entre worktrees: otra sesión puede
@@ -441,6 +452,7 @@ export default async function globalSetup() {
       }
     }
     await seedFresh(ctx)
+    reponerCreditosImei()
     guardarSnapshot()
   } finally {
     await ctx.dispose()
@@ -452,6 +464,7 @@ export default async function globalSetup() {
 // revocar nuestras sesiones (reset de PIN), o los archivos de estado pueden
 // faltar. Es barato (login + 2 PIN) e idempotente.
 async function refreshStorageStates(ctx) {
+  reponerCreditosImei()
   const company = await loginCompany(ctx)
   const seller = company.sellers.find((s) => s.name === SEED.sellers[0].name)
   const admin = company.sellers.find((s) => s.name === SEED.admin.name)
