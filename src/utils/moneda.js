@@ -73,16 +73,18 @@ const USD_INPUT_FORMATTER = new Intl.NumberFormat('es-PY', {
   maximumFractionDigits: 2,
 })
 
+const FORMATTER_DECIMALES_LIBRES = new Intl.NumberFormat('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+
 // Presentación editable para monedas decimales (USD/BRL/EUR/USDT):
 // separador de miles con punto y 2 decimales con coma (es-PY).
-export function formatUsdInput(value) {
+export function formatUsdInput(value, { decimalesFijos = true } = {}) {
   let text = String(value ?? '').trim()
   if (!text) return ''
   // Acepta «12,50» y «1.234,50» (decimal con coma, como lo propone el POS) además
   // del decimal con punto que emite el campo.
   if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.')
   const amount = Number(text)
-  return Number.isFinite(amount) ? USD_INPUT_FORMATTER.format(amount) : ''
+  return Number.isFinite(amount) ? (decimalesFijos ? USD_INPUT_FORMATTER : FORMATTER_DECIMALES_LIBRES).format(amount) : ''
 }
 
 // Borrador de un monto decimal MIENTRAS se escribe (USD/BRL/EUR/USDT): conserva
@@ -102,6 +104,10 @@ export function borradorDecimal(raw, decimales = 2) {
     valor: String(Number(`${entero || '0'}${dec ? `.${dec}` : ''}`)),
   }
 }
+
+// Valor comparable con el de un borrador: «0» sigue siendo «0» (con `|| ''` el
+// cero se perdía y el borrador «0,» se descartaba: no se podía escribir 0,50).
+export const valorNormalizado = (value) => (value === '' || value == null || !Number.isFinite(Number(value)) ? '' : String(Number(value)))
 
 // Convierte el texto del campo a un string decimal limpio (punto como
 // separador decimal), en el mismo estilo que parseGsInput para guaraníes.

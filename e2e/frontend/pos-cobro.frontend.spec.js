@@ -121,6 +121,8 @@ test('1440: monto dentro de la tarjeta, «Dividir pago» junto al monto y pagos 
   await expect(cobro.getByText('Dividir saldo')).toHaveCount(0)
   await dividir.click()
   await expect(page.getByTestId('pago-fila-1')).toBeVisible()
+  // «Dividir pago» deja la fila nueva ya con el saldo que falta.
+  await expect(page.getByTestId('pago-fila-1').getByLabel('Monto original')).toHaveValue('600.000')
   // La fila nueva espera cuenta y monto antes de abrir otro pago.
   await expect(cobro.getByRole('button', { name: '+ Agregar otro pago' })).toBeDisabled()
   await page.getByTestId('pago-fila-1').getByLabel('Cuenta de cobro').click()
@@ -152,6 +154,28 @@ test('USD: acepta 100, 300 y centavos; la cotización es en guaraníes con miles
   await expect(fila.getByTestId('cotizacion-origen')).toContainText(/manual/i)
   await monto.fill('300')
   await expect(fila).toContainText('Gs 2.205.000')
+})
+
+test('USD: escribe 0,50 y 0,99; el saldo se propone hacia abajo y el resto sub-centavo se cierra en Gs', async ({ page }) => {
+  await enterPos(page, 1440, 900, { items: 5 })
+  const fila = await agregarPagoUsd(page)
+  const monto = fila.getByLabel('Monto original')
+  await monto.fill('')
+  await monto.pressSequentially('0,50')
+  await expect(monto).toHaveValue('0,50')
+  await monto.fill('')
+  await monto.pressSequentially('0,99')
+  await expect(monto).toHaveValue('0,99')
+  // Gs 900.000 a 7.300 = US$ 123,287…: se propone 123,28 (nunca 123,29 = pasarse).
+  await monto.fill('')
+  await monto.fill('123,28')
+  const cobro = page.getByTestId('pos-cobro')
+  const completar = cobro.getByTestId('cobro-completar-gs')
+  await expect(completar).toContainText('Completar en Gs')
+  await expect(cobro.getByTestId('cobro-pendiente')).toContainText('56')
+  await completar.click()
+  await expect(cobro.getByTestId('cobro-pendiente')).toContainText('Gs 0')
+  await expect(page.getByTestId('pago-fila-1')).toBeVisible()
 })
 
 test('tarjeta de transferencia: alias visible y «Copiar datos» deja un bloque limpio', async ({ page }) => {

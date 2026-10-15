@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { borradorDecimal, formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, errorMonto, limiteMonto, LIMITE_MONTO_ALMACENABLE, LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
+import { valorNormalizado, borradorDecimal, formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, errorMonto, limiteMonto, LIMITE_MONTO_ALMACENABLE, LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
 import { gs, gsInput } from './calculos.js'
 
 test('formatea guaraníes con separadores locales', () => {
@@ -116,4 +116,27 @@ test('guaraníes: miles al escribir y valor numérico entero', () => {
   assert.equal(formatGsInput('7350'), '7.350')
   assert.equal(formatGsInput('1234567'), '1.234.567')
   assert.equal(parseGsInput('7.350'), 7350)
+})
+
+test('MoneyInput: el borrador sobrevive a cada tecla, también con «0» inicial (0,50 / 0,99)', () => {
+  // Simula el campo: cada tecla recalcula borrador y valor; el borrador solo se
+  // muestra si coincide con el valor guardado (borradorVigente).
+  const tipear = (secuencia) => {
+    let texto = ''
+    let valor = ''
+    for (const tecla of secuencia) {
+      const b = borradorDecimal(texto + tecla)
+      texto = b.texto
+      valor = b.valor
+      assert.equal(borradorDecimal(texto).valor === valorNormalizado(valor), true, `borrador vigente tras «${texto}»`)
+    }
+    return texto
+  }
+  assert.equal(tipear('0,50'), '0,50')
+  assert.equal(tipear('0,99'), '0,99')
+  assert.equal(tipear('10,5'), '10,5')
+  assert.equal(tipear('300'), '300')
+  assert.equal(tipear('1250,75'), '1.250,75')
+  assert.equal(valorNormalizado('0'), '0')
+  assert.equal(valorNormalizado(''), '')
 })

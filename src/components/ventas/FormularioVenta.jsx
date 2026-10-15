@@ -56,7 +56,7 @@ import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
-import { accountPayment } from '@/utils/pagoCuenta'
+import { accountPayment, pagosSinVuelto, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import GiftCardsPos from './venta/GiftCardsPos'
@@ -78,7 +78,7 @@ import { useMediaQuery } from '@/components/shared/useMediaQuery'
 import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
 import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
 import CobroMovil from './movil/CobroMovil'
-import { vueltoDePagos } from './movil/posMovil'
+import { pagoDeMedio, vueltoDePagos } from './movil/posMovil'
 import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
@@ -288,11 +288,14 @@ function useAlturaPos(ref) {
     }
     const pedir = () => { if (!raf) raf = requestAnimationFrame(medir) }
     medir()
-    const t = setTimeout(medir, 400)
+    // Re-mide cuando el contenido de la página cambia de alto (fuentes, avisos,
+    // resumen) en vez de esperar un tiempo fijo.
+    const observador = typeof ResizeObserver === 'function' ? new ResizeObserver(pedir) : null
+    observador?.observe(document.body)
     window.addEventListener('resize', pedir)
     document.addEventListener('toggle', pedir, true)
     return () => {
-      clearTimeout(t)
+      observador?.disconnect()
       window.removeEventListener('resize', pedir)
       document.removeEventListener('toggle', pedir, true)
       if (raf) cancelAnimationFrame(raf)
@@ -864,6 +867,9 @@ export default function FormularioVenta({
   const descuentoMedioPct = Math.max(0, ...pagos.map(pago => Number(cuentas?.find(cuenta => cuenta.id === pago.accountId)?.discountPct || 0)), 0)
   const descuentoMedioGs = Math.round((subtotal * descuentoMedioPct) / 100)
   const pendiente = Math.max(0, totalGeneral - totalPagado)
+  // Efectivo en dólares: se puede entregar de más y se devuelve el vuelto en Gs.
+  const vueltoExtranjero = usaCuentas ? vueltoEfectivoExtranjero(pagos, cuentas, totalGeneral) : { exceso: 0, vuelto: 0, permitido: true }
+  const excedePagos = totalPagado > totalGeneral && !vueltoExtranjero.permitido
 
   // Guía inline (#148 §11): líneas que hoy bloquean el guardado — sin IMEI
   // elegido o sin stock y sin marcar «sobre pedido» — con su acción para
@@ -889,10 +895,10 @@ export default function FormularioVenta({
   const motivosBloqueo = [
     !sesion?.vendedorId && 'Ingresá con tu PIN para vender.',
     cantTotal === 0 && 'Agregá al menos un producto.',
-    totalPagado > totalGeneral && 'Los pagos superan el total de la venta.',
+    excedePagos && 'Los pagos superan el total de la venta.',
     gsNum(descuento) > subtotal && 'El descuento supera el subtotal.',
   ].filter(Boolean)
-  const valido = sesion?.vendedorId && cantTotal > 0 && totalPagado <= totalGeneral && gsNum(descuento) <= subtotal
+  const valido = sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
   // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
@@ -1025,7 +1031,7 @@ export default function FormularioVenta({
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
     const lista = [...items]
     if (!sesion?.vendedorId || lista.length === 0) return
-    if (totalPagado > totalGeneral) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
+    if (excedePagos) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
     if (gsNum(descuento) > subtotal) { setErrorVenta('El descuento supera el subtotal de la venta.'); return }
     const orderItems = lista.map(it => {
       const pct = parsePercent(it.descuentoPct) ?? 0
@@ -1179,8 +1185,11 @@ export default function FormularioVenta({
       // Los campos de moneda (originalAmount/currency/exchangeRatePyg) se
       // rechazan sin accountId.
       // «No pagado» (#148 §11): el bloque queda PENDING y no cuenta como cobrado.
+      // Vuelto en dólares: al servidor viaja solo lo aplicado a la venta.
+      const pagosParaServidor = usaCuentas && vueltoExtranjero.exceso > 0 ? pagosSinVuelto(pagos, cuentas, totalGeneral) : pagos
+      if (!pagosParaServidor) throw new Error('Para dar vuelto en dólares hace falta una cuenta de efectivo en guaraníes.')
       payments = usaCuentas
-        ? pagos.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
+        ? pagosParaServidor.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
         : pagos.map(p => (p.giftCardCode !== undefined
           ? pagoGiftCard(p)
           : {
@@ -1468,7 +1477,7 @@ export default function FormularioVenta({
       setItems([])
       setDescuento('')
       setAuthDescuento(null)
-      setVueltoExito(vueltoDePagos(pagos))
+      setVueltoExito(vueltoDePagos(pagos) + vueltoExtranjero.vuelto)
       setPagos([])
       setPagaAlRecibir(false)
       setVenderACredito(false)
@@ -1553,7 +1562,11 @@ export default function FormularioVenta({
         // #283: el pago arranca SIN cuenta (la predeterminada de #272 se
         // elimina) y el monto se edita en `originalAmount` (moneda de la
         // cuenta): al elegirla se propone el saldo que falta.
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
+        // «Dividir pago» / «Completar en Gs»: la fila nueva sale con el saldo
+        // que falta (o con la cuenta indicada ya elegida).
+        ? (prefill.cuenta && prefill.monto > 0
+          ? pagoDeMedio(prefill.cuenta, prefill.monto)
+          : { ...PAGO_VACIO, accountId: '', originalAmount: prefill.monto > 0 ? String(Math.round(prefill.monto)) : '', exchangeRatePyg: '' })
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
@@ -2306,6 +2319,7 @@ export default function FormularioVenta({
               totalGeneral={totalGeneral}
               totalPagado={totalPagado}
               pendiente={pendiente}
+              vuelto={vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0}
               f={f}
               setF={setF}
               set={set}

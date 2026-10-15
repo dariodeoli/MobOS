@@ -6,6 +6,7 @@ import { Input, TAMANOS_CAMPO } from 'owncoding-ui'
 import {
   LIMITE_MONTO_GENERAL,
   borradorDecimal,
+  valorNormalizado,
   excedeMonto,
   formatGsInput,
   formatUsdInput,
@@ -74,14 +75,14 @@ export function Card({ className, ...props }) {
 // ── MoneyInput (local: el símbolo «Gs.» espera decisión de diseño) ──
 const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
 
-export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
+export function MoneyInput({ currency = 'PYG', symbol, decimalesFijos = true, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
   const isPyg = currency === 'PYG'
   const prefix = symbol || MONEY_SYMBOL[currency] || currency
   // Monedas con decimales: mientras se escribe se muestra el borrador tipeado
   // (formatear «1» como «1,00» en cada tecla comía los dígitos siguientes).
   const [borrador, setBorrador] = useState(null)
-  const borradorVigente = !isPyg && borrador !== null && borradorDecimal(borrador).valor === String(Number(value) || '')
-  const display = isPyg ? formatGsInput(value) : borradorVigente ? borradorDecimal(borrador).texto : formatUsdInput(value)
+  const borradorVigente = !isPyg && borrador !== null && borradorDecimal(borrador).valor === valorNormalizado(value)
+  const display = isPyg ? formatGsInput(value) : borradorVigente ? borradorDecimal(borrador).texto : formatUsdInput(value, { decimalesFijos })
   const limite = limiteMonto(max)
   const excede = excedeMonto(value, limite)
   // Largo máximo del campo: el monto más grande documentado (con separadores)

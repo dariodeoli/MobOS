@@ -8,7 +8,8 @@ import { cotizacionFx } from '@/lib/fx'
 import { useSesion } from '@/lib/sesion'
 import { etiquetaOrigen, origenAutomatico, origenManual } from '@/utils/cotizacion'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
-import { cambiarCuentaPago, FOREIGN } from '@/utils/pagoCuenta'
+import { avisoDesvioCotizacion, cambiarCuentaPago, errorCotizacion, FOREIGN } from '@/utils/pagoCuenta'
+import { montoMaximoEnMoneda } from '@/utils/conversionPyg'
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
 
@@ -20,6 +21,9 @@ export function cotizacionReferencial(currency = 'USD', opciones = {}) {
   if (isDemoRuntime) return Promise.resolve({ rate: 7300, source: 'demo', sourceLabel: 'Demo', side: 'compra', updatedAt: null, fetchedAt: null, stale: false })
   return cotizacionFx({ purpose: 'sales', currency, ...opciones })
 }
+// La cotización automática conserva sus decimales (hasta 2); no se redondea a Gs enteros.
+const tasaTexto = (rate) => String(Math.round(Number(rate) * 100) / 100)
+
 export default function PaymentAccountFields({ payment, accounts, onChange, pendientePyg = 0, acciones = null, onDividir = null }) {
   const account = accounts.find((a) => a.id === payment.accountId)
   const onChangeRef = useRef(onChange)
@@ -27,6 +31,8 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
   const { sesion } = useSesion() || {}
   const [sinCotizacion, setSinCotizacion] = useState(false)
   const [actualizando, setActualizando] = useState(false)
+  // Cotización de hoy (referencia para avisar si la manual se aparta mucho).
+  const [referencia, setReferencia] = useState(0)
   // Cotización automática para cuentas en USD: se pide una vez (con caché de la
   // API) y queda editable: es la sugerencia, no una obligación. Viaja marcada
   // como `automatico` para no pisar una cotización cargada a mano mientras la
@@ -38,17 +44,26 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
       if (!vivo) return
       if (!info || !(info.rate > 0)) { setSinCotizacion(true); return }
       setSinCotizacion(false)
+      setReferencia(info.rate)
       const proponer = proponerAlLlegarCotizacion.current && String(montoRef.current || '') === '' && pendienteRef.current > 0
       proponerAlLlegarCotizacion.current = false
       onChangeRef.current({
-        exchangeRatePyg: String(Math.round(info.rate)),
+        exchangeRatePyg: tasaTexto(info.rate),
         automatico: true,
         rateOrigin: origenAutomatico(info),
-        ...(proponer ? { originalAmount: (pendienteRef.current / info.rate).toFixed(2).replace('.', ',') } : {}),
+        ...(proponer ? { originalAmount: montoMaximoEnMoneda(pendienteRef.current, tasaTexto(info.rate)) } : {}),
       })
     })
     return () => { vivo = false }
   }, [account?.currency, payment.exchangeRatePyg])
+  // Con cotización ya cargada (manual o de un borrador) igual se consulta la de
+  // hoy, solo como referencia para el aviso de desvío.
+  useEffect(() => {
+    if (!FOREIGN(account?.currency) || !(Number(payment.exchangeRatePyg) > 0) || referencia > 0) return undefined
+    let vivo = true
+    cotizacionReferencial(account.currency).then((info) => { if (vivo && info?.rate > 0) setReferencia(info.rate) })
+    return () => { vivo = false }
+  }, [account?.currency, payment.exchangeRatePyg, referencia])
   // «Usar la del día»: acción explícita de la persona (sí reemplaza una cotización
   // manual); la consulta automática de arriba nunca lo hace.
   async function usarCotizacionDelDia() {
@@ -58,7 +73,8 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
     setActualizando(false)
     if (!info || !(info.rate > 0)) { setSinCotizacion(true); return }
     setSinCotizacion(false)
-    onChangeRef.current({ exchangeRatePyg: String(Math.round(info.rate)), rateOrigin: origenAutomatico(info) })
+    setReferencia(info.rate)
+    onChangeRef.current({ exchangeRatePyg: tasaTexto(info.rate), rateOrigin: origenAutomatico(info) })
   }
   const [cambiando, setCambiando] = useState(false)
   const proponerAlLlegarCotizacion = useRef(false)
@@ -93,12 +109,15 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
       {extranjera && (
         <div className="flex flex-wrap items-center gap-1.5">
           <label htmlFor="cotizacion-manual" className="text-[11px] font-semibold text-mute">Cotización</label>
-          <MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="PYG" symbol="Gs." className="h-9 w-32" max={999999} value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v === '' || v == null ? '' : String(v), rateOrigin: v === '' || v == null ? undefined : origenManual(sesion?.nombre) })} placeholder="Ej. 7.300" />
+          <MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" decimalesFijos={false} symbol="Gs." className="h-9 w-32" max={999999} value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v === '' || v == null ? '' : String(v), rateOrigin: v === '' || v == null ? undefined : origenManual(sesion?.nombre) })} placeholder="Ej. 7.300" />
           <span className="text-[11px] text-mute" data-testid="cotizacion-origen">
             {payment.rateOrigin && <span className={payment.rateOrigin.stale ? 'text-warn' : undefined}>{etiquetaOrigen(payment.rateOrigin)}</span>}
             {!payment.rateOrigin && sinCotizacion && <span>Sin cotización automática: cargala a mano.</span>}
             {(payment.rateOrigin?.manual || sinCotizacion) && <button type="button" data-testid="cotizacion-usar-del-dia" disabled={actualizando} onClick={usarCotizacionDelDia} className="toque-44 ml-2 font-semibold text-fono-light hover:underline disabled:opacity-40 md:min-h-0">{actualizando ? 'Consultando…' : 'Usar la del día'}</button>}
           </span>
+          {(errorCotizacion(payment.exchangeRatePyg) || avisoDesvioCotizacion(payment.exchangeRatePyg, referencia)) && (
+            <span role="alert" data-testid="cotizacion-aviso" className={`basis-full text-[11px] ${errorCotizacion(payment.exchangeRatePyg) ? 'text-bad-text' : 'text-warn'}`}>{errorCotizacion(payment.exchangeRatePyg) || avisoDesvioCotizacion(payment.exchangeRatePyg, referencia)}</span>
+          )}
           <span className="text-[11px] text-mute">= <b className="tabular-nums text-fore">{gs(montoPyg)}</b></span>
         </div>
       )}

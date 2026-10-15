@@ -15,7 +15,7 @@ import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
-import { updateAccountPayment } from '@/utils/pagoCuenta'
+import { cuentaEfectivoPyg, FOREIGN, residuoSubCentavo, updateAccountPayment } from '@/utils/pagoCuenta'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -50,6 +50,7 @@ export default function PasoCobro({
   totalGeneral,
   totalPagado,
   pendiente,
+  vuelto = 0,
   f,
   setF,
   valido,
@@ -76,7 +77,12 @@ export default function PasoCobro({
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
   // Pagos paso a paso: la fila vigente (la última) debe tener monto para sumar otra.
   const ultimoPago = pagos[pagos.length - 1]
-  const pagoIncompleto = Boolean(ultimoPago) && !(Number(String(ultimoPago.monto || '').replace(/\D/g, '')) > 0)
+  const cuentaUltimo = usaCuentas && ultimoPago && ultimoPago.giftCardCode === undefined ? (cuentas || []).find(c => c.id === ultimoPago.accountId) : null
+  const sinCuentaOCotizacion = Boolean(usaCuentas && ultimoPago && ultimoPago.giftCardCode === undefined) && (!cuentaUltimo || (FOREIGN(cuentaUltimo.currency) && !(Number(ultimoPago.exchangeRatePyg) > 0)))
+  const pagoIncompleto = Boolean(ultimoPago) && (sinCuentaOCotizacion || !(Number(String(ultimoPago.monto || '').replace(/\D/g, '')) > 0))
+  // Saldo menor a un centavo de dólar: no se cobra en USD; se cierra en Gs con un clic.
+  const residuoGs = usaCuentas ? residuoSubCentavo(pendiente, ultimoPago, cuentas) : 0
+  const efectivoGs = cuentaEfectivoPyg(cuentas)
   const sinPago = totalPagado <= 0
   // Segundo renglón del botón: productos e importe (#148 §5/§11).
   const detalleBoton = [
@@ -610,6 +616,12 @@ export default function PasoCobro({
               {gs(totalPagado)}
             </strong>
           </span>
+          {vuelto > 0 && (
+            <span data-testid="cobro-vuelto" className="flex items-baseline gap-2 rounded-lg border border-fono/35 bg-fono/[.08] px-2.5 py-1 text-fono-light">
+              <span>Vuelto</span>
+              <strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums">{gs(vuelto)}</strong>
+            </span>
+          )}
           <span
             data-testid="cobro-pendiente"
             className={cn(
@@ -627,6 +639,17 @@ export default function PasoCobro({
               {gs(pendiente)}
             </strong>
           </span>
+          {residuoGs > 0 && efectivoGs && (
+            <button
+              type="button"
+              data-testid="cobro-completar-gs"
+              className="toque-44 inline-flex min-h-11 items-center rounded-lg border border-fono/40 px-2.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-8"
+              onClick={() => onAgregarPago({ monto: residuoGs, cuenta: efectivoGs })}
+              title="El saldo es menor a un centavo de dólar: se cobra en guaraníes en efectivo"
+            >
+              Completar en Gs ({gs(residuoGs)})
+            </button>
+          )}
         </div>
         <div className={cn('min-w-0 flex-1 items-center gap-3 basis-48', modoMovil ? 'flex' : 'hidden lg:flex')}>
           <BotonGuardar className="flex-1" />
