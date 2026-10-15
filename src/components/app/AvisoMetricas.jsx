@@ -1,6 +1,5 @@
 import { X } from 'lucide-react'
 import { useState } from 'react'
-import { demoSessionActive } from '@/lib/demoMode'
 import { medicionDesactivada } from '@/lib/trafico'
 
 // Aviso breve y descartable (no bloquea ni pide consentimiento): se muestra
@@ -10,8 +9,9 @@ export const CLAVE_AVISO_METRICAS = 'mobos:aviso-metricas'
 
 function visible(soloDemo) {
   try {
-    // En el host de la app solo corresponde en el acceso a la demo / sesión demo.
-    if (soloDemo && window.location.pathname !== '/demo' && !demoSessionActive()) return false
+    // En el host de la app solo en la pantalla de acceso a la demo: dentro de la
+    // app fija abajo tapaba botones (POS, pagos), y la demo ya tiene su banner.
+    if (soloDemo && window.location.pathname !== '/demo') return false
     if (medicionDesactivada()) return false
     return localStorage.getItem(CLAVE_AVISO_METRICAS) !== '1'
   } catch { return false }
