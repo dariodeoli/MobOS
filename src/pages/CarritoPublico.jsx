@@ -64,7 +64,7 @@ export default function CarritoPublico() {
                 {carrito.items.map((item, index) => (
                   <div key={index} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{item.description}</p>
+                      <p className="break-words font-medium">{item.description}</p>
                       <p className="mt-0.5 text-xs text-mute">
                         {item.quantity} × {gs(item.unitPricePyg)}
                         {item.discountPyg > 0 ? ` · descuento − ${gs(item.discountPyg)}` : ''}
@@ -107,7 +107,7 @@ export default function CarritoPublico() {
                 href={carrito.checkoutUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-ok px-4 text-base font-bold text-black transition hover:brightness-110"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-ok px-4 text-base font-bold text-on-ok transition hover:brightness-110"
               >
                 <Icon name="cart" className="h-5 w-5" />
                 Checkout — {gs(carrito.totalPyg)}
@@ -116,7 +116,7 @@ export default function CarritoPublico() {
               <button
                 type="button"
                 onClick={copiarEnlace}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-ok px-4 text-base font-bold text-black transition hover:brightness-110"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-ok px-4 text-base font-bold text-on-ok transition hover:brightness-110"
               >
                 <Icon name="check" className="h-5 w-5" />
                 {copiado ? 'Enlace copiado' : `Checkout — ${gs(carrito.totalPyg)}`}

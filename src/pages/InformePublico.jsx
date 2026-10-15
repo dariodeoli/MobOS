@@ -1,3 +1,4 @@
+import './informePublico.css'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { codigoPedido } from '@/utils/pedido'
 import { useEffect, useState } from 'react'
@@ -113,7 +114,7 @@ export default function InformePublico() {
   const locksCertificado = (unit.controles || []).map((control) => ({ clave: control.clave, estado: control.ok ? 'libre' : 'activo', detalle: `${control.label}: ${control.valor}` }))
 
   return (
-    <main className={`${marco} space-y-4 pt-8`}>
+    <main className={`informe-publico ${marco} space-y-4 pt-8`}>
       <header className="text-center">
         <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
         <h1 className="mt-1 text-2xl font-bold">{store.name}</h1>
@@ -212,10 +213,10 @@ export default function InformePublico() {
       <p className="text-center text-xs text-mute">{disclaimer}</p>
 
       <div className="flex flex-wrap justify-center gap-2">
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={copiarEnlace}>
+        <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={copiarEnlace}>
           <Icon name="copy" className="h-4 w-4" />{copiado ? 'Enlace copiado' : 'Copiar enlace'}
         </button>
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={() => window.print()}>
+        <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={() => window.print()}>
           <Icon name="printer" className="h-4 w-4" />Imprimir
         </button>
       </div>

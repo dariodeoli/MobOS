@@ -97,8 +97,8 @@ export default function AlternativaPublica() {
                 <Input maxLength={300} value={motivo} onChange={(event) => setMotivo(event.target.value)} placeholder="Comentario para el equipo" aria-label="Comentario" />
               </label>
               <div className={PIE_ACCIONES}>
-                <Button type="button" variant="outline" disabled={busy} data-testid="alternativa-rechazar" onClick={() => responder('RECHAZAR')}>Rechazar</Button>
-                <Button type="button" disabled={busy || (alternativa.requiereOtp && otp.trim().length !== 6)} data-testid="alternativa-aceptar" onClick={() => responder('ACEPTAR')}>
+                <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-testid="alternativa-rechazar" onClick={() => responder('RECHAZAR')}>Rechazar</Button>
+                <Button type="button" className="min-h-11" disabled={busy || (alternativa.requiereOtp && otp.trim().length !== 6)} data-testid="alternativa-aceptar" onClick={() => responder('ACEPTAR')}>
                   {busy ? 'Enviando…' : alternativa.requiereOtp ? 'Aprobar con el código' : 'Aprobar la alternativa'}
                 </Button>
               </div>
