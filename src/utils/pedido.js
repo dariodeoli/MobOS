@@ -5,8 +5,9 @@
 // Documentado en docs/NUMERACION.md.
 export function codigoPedido(orderNumber) {
   const value = String(orderNumber ?? '').trim()
-  const match = value.match(/^([A-Z]{2,3})[- ]?#?(\d+)$/)
-  return match ? `${match[1]}-${String(match[2]).padStart(4, '0')}` : value
+  // Mismo criterio que displayOrderNumber() del backend: el prefijo puede tener cualquier largo.
+  const match = value.match(/^([A-Za-z]+)[- ]?#?(\d+)$/)
+  return match ? `${match[1].toUpperCase()}-${String(match[2]).padStart(4, '0')}` : value
 }
 
 const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -61,12 +62,20 @@ export const pagosDelPedido = (order) => {
 export const cuentaComoCobro = (pago) => !pago?.status || pago.status === 'CONFIRMED'
 export const montoDePago = (pago) => Number(pago?.amountPyg ?? pago?.monto ?? 0) || 0
 
+export const cuentaComoReembolso = (pago) => pago?.status === 'REFUNDED'
+// Pagado NETO: cobros confirmados (con el signo de sus reversiones) menos reembolsos. Un reembolso
+// es un pago REFUNDED de monto positivo y el original sigue CONFIRMED (igual que netPaid() del backend).
+export const pagadoNeto = (pagos) => (Array.isArray(pagos) ? pagos : []).reduce(
+  (suma, pago) => (cuentaComoCobro(pago) ? suma + montoDePago(pago) : cuentaComoReembolso(pago) ? suma - Math.abs(montoDePago(pago)) : suma), 0)
+
 export function totalesPedido(order) {
   const total = Number(order?.totalPyg ?? order?.total ?? (Number(order?.precio || 0) + Number(order?.montoDelivery || 0)))
-  const confirmados = pagosDelPedido(order).filter(cuentaComoCobro)
-  const pagado = confirmados.length
-    ? confirmados.reduce((suma, pago) => suma + montoDePago(pago), 0)
+  const pagos = pagosDelPedido(order)
+  const pagado = pagos.some((pago) => cuentaComoCobro(pago) || cuentaComoReembolso(pago))
+    ? pagadoNeto(pagos)
     : Number(order?.totalPagado ?? order?.paidPyg ?? 0)
   const estado = total > 0 && pagado >= total ? 'Pagado' : pagado > 0 ? 'Parcial' : 'Pendiente'
-  return { total, pagado, pendiente: Math.max(0, total - pagado), estado }
+  // Un pedido cancelado/devuelto no queda debiendo nada.
+  const pendiente = order?.status === 'CANCELLED' ? 0 : Math.max(0, total - pagado)
+  return { total, pagado, pendiente, estado }
 }

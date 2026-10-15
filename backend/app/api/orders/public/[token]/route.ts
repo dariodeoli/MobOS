@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { PAYMENT_LABELS } from '../../../../../lib/payments'
-import { countablePayments } from '../../../../../lib/payment-net'
+import { countablePayments, netPaid } from '../../../../../lib/payment-net'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
 import { numero, numeroOpcional } from '../../../../../lib/montos'
 import { politicasPublicadas } from '../../../../../lib/public-policies'
@@ -44,8 +44,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const level = acceso?.level || 'rapido'
   // Correcciones de pago (#393): el cliente ve los pagos vigentes, sin el par original + reversión (la suma no cambia).
   const pagosConfirmados = countablePayments(order.payments).filter(pago => pago.status === 'CONFIRMED')
-  const pagado = pagosConfirmados.reduce((sum, pago) => sum + numero(pago.amountPyg), 0)
-  const pendiente = Math.max(0, numero(order.totalPyg) - pagado)
+  const pagado = netPaid(order.payments)
+  const pendiente = order.status === 'CANCELLED' ? 0 : Math.max(0, numero(order.totalPyg) - pagado)
   // El crédito también viaja en el nivel rápido: la vista digital del cliente
   // muestra saldo, plazo y vencimiento sin exponer datos internos.
   const credito = order.creditDays

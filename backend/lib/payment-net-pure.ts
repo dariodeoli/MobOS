@@ -13,6 +13,19 @@ export function sumConfirmed(payments: readonly Rowish[]): number {
   return payments.reduce((total, pago) => ((pago.status ?? 'CONFIRMED') === 'CONFIRMED' ? total + numero(pago.amountPyg) : total), 0)
 }
 
+/**
+ * Pagado NETO de un pedido (#461): Σ CONFIRMED (con el signo de las reversiones) − Σ REFUNDED.
+ * Un reembolso se guarda como un pago REFUNDED de monto positivo y el original sigue CONFIRMED;
+ * el neto es lo que realmente quedó cobrado. Única cuenta para «Pagado» y «Saldo».
+ */
+export function netPaid(payments: readonly Rowish[]): number {
+  return payments.reduce((total, pago) => {
+    const monto = numero(pago.amountPyg)
+    if (pago.status === 'REFUNDED') return total - Math.abs(monto)
+    return (pago.status ?? 'CONFIRMED') === 'CONFIRMED' ? total + monto : total
+  }, 0)
+}
+
 /** Monto en la moneda original con el signo de amountPyg (la reversión guarda originalAmount positivo). */
 export function signedOriginalAmount(pago: { originalAmount?: unknown; amountPyg: bigint | number | null | undefined; reversalOfId?: string | null }): number {
   const monto = Number(pago.originalAmount ?? pago.amountPyg)

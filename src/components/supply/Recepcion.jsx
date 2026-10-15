@@ -65,6 +65,7 @@ export default function Recepcion() {
   const [aviso, setAviso] = useState('')
   // Código bien formado que no está en el manifiesto: se ofrece registrarlo como sobrante (no entra al stock).
   const [sobranteSugerido, setSobranteSugerido] = useState('')
+  const [sobranteNota, setSobranteNota] = useState('')
   const [codigo, setCodigo] = useState('')
   const [incidencia, setIncidencia] = useState(null)
   const [incidenciaError, setIncidenciaError] = useState('')
@@ -162,7 +163,7 @@ export default function Recepcion() {
     if (datos?.resumen) setResumen(datos.resumen)
   }
 
-  async function escanear(serialBruto, { comoSobrante = false } = {}) {
+  async function escanear(serialBruto, { comoSobrante = false, nota: notaSobrante = '' } = {}) {
     if (!recepcion || busy) return
     const analisis = analizarSerial(serialBruto)
     setSobranteSugerido('')
@@ -181,10 +182,10 @@ export default function Recepcion() {
     setBusy(true)
     setAviso('')
     try {
-      const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'scan', serial: analisis.serial, ...(comoSobrante ? { resultado: 'SOBRANTE' } : {}) })
+      const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'scan', serial: analisis.serial, ...(comoSobrante ? { resultado: 'SOBRANTE', note: notaSobrante.trim() } : {}) })
       aplicar(datos)
       setEntrada('')
-      if (comoSobrante) setAviso(`${analisis.serial} quedó como sobrante: no entra al stock. Agregale una nota para explicarlo.`)
+      if (comoSobrante) { setAviso(`${analisis.serial} quedó como sobrante con tu nota: no entra al stock.`); setSobranteSugerido(''); setSobranteNota('') }
     } catch (causa) {
       setAviso(causa?.message || 'El código no se pudo registrar.')
       if (/no está en el manifiesto/i.test(causa?.message || '')) setSobranteSugerido(analisis.serial)
@@ -477,9 +478,12 @@ export default function Recepcion() {
             <p role="status" className="flex flex-wrap items-center gap-2 text-sm text-warn" data-testid="recepcion-aviso">
               <span className="min-w-0">{aviso}</span>
               {sobranteSugerido && (
-                <Button type="button" variant="outline" disabled={busy} onClick={() => escanear(sobranteSugerido, { comoSobrante: true })} data-testid="recepcion-registrar-sobrante">
-                  Registrar como sobrante
-                </Button>
+                <>
+                  <Input aria-label="Nota del sobrante" value={sobranteNota} onChange={(evento) => setSobranteNota(evento.target.value)} placeholder="Nota obligatoria: qué llegó de más" className="w-full sm:max-w-xs" data-testid="recepcion-sobrante-nota" />
+                  <Button type="button" variant="outline" disabled={busy || sobranteNota.trim().length < 3} onClick={() => escanear(sobranteSugerido, { comoSobrante: true, nota: sobranteNota })} data-testid="recepcion-registrar-sobrante">
+                    Registrar como sobrante
+                  </Button>
+                </>
               )}
             </p>
           )}

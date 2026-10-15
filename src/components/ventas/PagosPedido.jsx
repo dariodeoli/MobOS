@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { codigoPedido, totalesPedido } from '@/utils/pedido'
+import { codigoPedido, pagadoNeto, totalesPedido } from '@/utils/pedido'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { Aviso, Badge, BarraProgreso, Button, Input, Modal, MoneyInput, Select } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
@@ -173,7 +173,7 @@ export default function PagosPedido({ venta, onClose }) {
   }
   const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '', refundMode: 'CASH', restock: 'NONE' })
   const [postventaBusy, setPostventaBusy] = useState(false)
-  const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
+  const cobrado = pagadoNeto(payments) // neto de reembolsos; monto en guaraníes (amountPyg ?? monto)
 
   // Elegir una cuota prepara el cobro: monto fijo, cuota seleccionada y aviso.
   function cobrarCuota(pago) {

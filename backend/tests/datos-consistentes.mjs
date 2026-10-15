@@ -119,8 +119,34 @@ const resumen = auditoria.resumen
 assert.equal(resumen.esperadoPyg, resumen.aperturaPyg + resumen.recibidoPyg - (resumen.salidasPyg ?? 0) , 'el esperado del rango = inicial + recibido − salidas')
 checks++
 assert.ok(turno)
-// Deja la caja como estaba: sin turno abierto de esta prueba.
-await ok('/api/cash', 'POST', { action: 'close', countedPyg: esperadoCaja })
+
+// 2b. QA #462: el esperado es el NETO con signo (no se recorta en cero antes de sumar la apertura).
+const gasto = (monto, descripcion) => ({ action: 'movement', kind: 'EXPENSE', direction: 'OUT', currency: 'PYG', originalAmount: String(monto), exchangeRatePyg: 1, description: descripcion })
+const esperadoActual = async () => { const lectura = await ok('/api/cash', 'GET'); return Number(lectura.session?.expectedPyg ?? lectura.expectedPyg) }
+const resumenAbierto = async () => (await ok(`/api/cash?sesiones=1&from=${hoy}&to=${hoy}`, 'GET')).sesiones?.find((fila) => fila.id === turno.id)
+await ok('/api/cash', 'POST', gasto(200000, `Retiro datos ${sufijo}`), 201)
+assert.equal(await esperadoActual(), 500000 + 250000 - 200000, 'apertura + ventas − retiro')
+checks++
+// Un reembolso en efectivo (parcial) sale del cajón y baja el pagado neto del pedido.
+await ok(`/api/orders/${ordenEfectivo.id}/return`, 'POST', { operation: 'RETURN', reason: 'Reembolso parcial de prueba', refundPyg: 100000, refundMode: 'CASH', restock: 'NONE' })
+assert.equal(await esperadoActual(), 500000 + 250000 - 200000 - 100000, 'el reembolso en efectivo baja el esperado de Caja')
+checks++
+const tras = await ok(`/api/orders/${ordenEfectivo.id}`, 'GET')
+const pagadoNeto = suma(tras.payments) - tras.payments.filter((pago) => pago.status === 'REFUNDED').reduce((total, pago) => total + Number(pago.amountPyg), 0)
+assert.equal(pagadoNeto, 150000, 'Pagado = 250.000 − 100.000 reembolsados')
+assert.equal(Math.max(0, Number(tras.totalPyg) - pagadoNeto), 100000, 'Saldo = 100.000')
+checks += 2
+// Retiro mayor que lo que hay: el esperado queda NEGATIVO (señal real), no 0 ni la apertura.
+await ok('/api/cash', 'POST', gasto(700000, `Retiro grande datos ${sufijo}`), 201)
+const esperadoNegativo = 500000 + 250000 - 200000 - 100000 - 700000
+assert.equal(await esperadoActual(), esperadoNegativo)
+checks++
+const filaAbierta = await resumenAbierto()
+if (filaAbierta) { assert.equal(Number(filaAbierta.esperadoPyg), esperadoNegativo, 'el corte por turno usa la misma fórmula que Caja'); checks++ }
+// Deja la caja como estaba: sin turno abierto de esta prueba. El esperado guardado al cerrar es el mismo.
+const cerrado = await ok('/api/cash', 'POST', { action: 'close', countedPyg: 0 })
+assert.equal(Number(cerrado.expectedPyg), esperadoNegativo, 'el cierre guarda el esperado con signo')
+checks++
 
 // ── 3. Cotización → pedido: número nuevo y único ───────────────────────────────────────────
 const antes = await ok('/api/orders?limit=200', 'GET')
