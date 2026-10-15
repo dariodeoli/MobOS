@@ -36,6 +36,7 @@ export function accountSnapshot(account: PaymentAccount): Prisma.InputJsonObject
   // aunque la cuenta cambie después.
   return { id: account.id, tenantId: account.tenantId, name: account.name, bank: account.bank, holder: account.holder,
     accountNumber: account.accountNumber, document: account.document, processor: account.processor, pixKey: account.pixKey,
+    aliasType: account.aliasType, aliasValue: account.aliasValue,
     reference: account.reference, currencyLabel: account.currencyLabel, holderId: account.holderId, companyId: account.companyId,
     currency: account.currency, kind: account.kind, isActive: account.isActive,
     feePercent: account.feePercent.toString(), discountPct: account.discountPct.toString(), settlementDays: account.settlementDays }

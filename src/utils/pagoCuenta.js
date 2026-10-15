@@ -3,6 +3,30 @@
 // cotización (la automática del servicio nunca pisa la escrita a mano, #173-A).
 
 import { origenParaServidor } from './cotizacion.js'
+import { convertirAPyg, montoMaximoEnMoneda } from './conversionPyg.js'
+
+// Rango razonable de una cotización escrita a mano (Gs por unidad extranjera).
+export const COTIZACION_MIN = 1000
+export const COTIZACION_MAX = 20000
+// Desvío (%) contra la cotización de hoy a partir del cual se avisa.
+export const DESVIO_COTIZACION_PCT = 5
+
+/** '' si la cotización escrita es razonable; si no, el motivo. */
+export function errorCotizacion(valor) {
+  const n = decimal(valor)
+  if (!Number.isFinite(n)) return ''
+  if (n < COTIZACION_MIN || n > COTIZACION_MAX) return `La cotización debe estar entre ${COTIZACION_MIN.toLocaleString('es-PY')} y ${COTIZACION_MAX.toLocaleString('es-PY')} Gs.`
+  return ''
+}
+
+/** Aviso (no bloquea) si la cotización se aparta más de 5% de la de hoy. */
+export function avisoDesvioCotizacion(valor, referencia) {
+  const n = decimal(valor)
+  const ref = Number(referencia)
+  if (!Number.isFinite(n) || !(ref > 0)) return ''
+  const pct = Math.abs(n - ref) / ref * 100
+  return pct > DESVIO_COTIZACION_PCT ? `Se aparta ${pct.toFixed(1).replace('.', ',')}% de la cotización de hoy (${Math.round(ref).toLocaleString('es-PY')}).` : ''
+}
 
 export const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
@@ -24,7 +48,10 @@ export function accountPayment(payment, accounts) {
     throw new Error('Ingresá un monto positivo: USD/BRL admite hasta 2 decimales y PYG solo enteros.')
   }
   if (!Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) throw new Error('Ingresá una cotización manual mayor a cero.')
-  const amountPyg = Math.round(originalAmount * exchangeRatePyg)
+  const rangoCotizacion = FOREIGN(account.currency) ? errorCotizacion(payment.exchangeRatePyg) : ''
+  if (rangoCotizacion) throw new Error(rangoCotizacion)
+  // Misma aritmética entera (HALF_UP) que el servidor: sin diferencias de 1 Gs.
+  const amountPyg = convertirAPyg(String(payment.originalAmount).trim(), FOREIGN(account.currency) ? String(payment.exchangeRatePyg).trim() : '1')
   if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0) throw new Error('El monto convertido en PYG no es válido.')
   const tradeIn = account.kind === 'TRADE_IN' ? {
     serial: (payment.tradeIn?.serial || '').trim(),
@@ -48,7 +75,7 @@ export function updateAccountPayment(payment, change, accounts) {
   const account = accounts.find((a) => a.id === next.accountId && a.isActive)
   const original = decimal(next.originalAmount)
   const rate = FOREIGN(account?.currency) ? decimal(next.exchangeRatePyg) : 1
-  const amount = Math.round(original * rate)
+  const amount = account && original > 0 && rate > 0 ? convertirAPyg(String(next.originalAmount).trim(), FOREIGN(account.currency) ? String(next.exchangeRatePyg).trim() : '1') : NaN
   return { ...next, medioPago: account?.name || '', cuenta: account?.name || '', monto: account && original > 0 && rate > 0 && Number.isSafeInteger(amount) ? String(amount) : '' }
 }
 
@@ -68,10 +95,70 @@ export function cambiarCuentaPago(payment, accounts, accountId, pendientePyg = 0
   const originalAmount = conservar
     ? payment.originalAmount
     : pendientePyg > 0 && rate > 0
-      ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
+      ? (esPyg ? String(Math.round(pendientePyg)) : montoMaximoEnMoneda(pendientePyg, exchangeRatePyg))
       : ''
   return {
     cambio: { accountId, originalAmount, exchangeRatePyg, tradeIn: undefined, ...(exchangeRatePyg === '' ? { rateOrigin: undefined } : {}) },
     proponerAlLlegarCotizacion: cambioMoneda && !esPyg && originalAmount === '',
   }
+}
+
+// Saldo que queda tras un pago en moneda extranjera cuando es menor a un
+// centavo de esa moneda en guaraníes: no se puede cobrar en USD, se cierra en Gs.
+export function residuoSubCentavo(pendientePyg, ultimoPago, cuentas) {
+  const cuenta = (cuentas || []).find((a) => a.id === ultimoPago?.accountId)
+  const rate = decimal(ultimoPago?.exchangeRatePyg)
+  const pendiente = Math.round(Number(pendientePyg) || 0)
+  if (!cuenta || !FOREIGN(cuenta.currency) || !(rate > 0) || ultimoPago?.noPagado) return 0
+  return pendiente > 0 && pendiente < rate / 100 ? pendiente : 0
+}
+
+// Cuenta de efectivo en guaraníes para cerrar un residuo o dar el vuelto.
+export const cuentaEfectivoPyg = (cuentas) => (cuentas || []).find((a) => a.isActive && a.currency === 'PYG' && a.kind === 'CASH')
+
+// Vuelto de pagos en efectivo en moneda extranjera: lo que los pagos suman de
+// más sobre el total. Solo se acepta si ese excedente lo cubre efectivo
+// extranjero (con transferencia o tarjeta un exceso sigue siendo un error).
+export function vueltoEfectivoExtranjero(pagos, cuentas, totalGeneral) {
+  const montoPyg = (p) => (p.noPagado ? 0 : Number(String(p.monto ?? '').replace(/\D/g, '')) || 0)
+  const pagado = (pagos || []).reduce((s, p) => s + montoPyg(p), 0)
+  const exceso = pagado - totalGeneral
+  if (!(exceso > 0)) return { exceso: 0, vuelto: 0, permitido: true }
+  const efectivoExtranjero = (pagos || []).reduce((s, p) => {
+    const c = (cuentas || []).find((a) => a.id === p.accountId)
+    return c && c.kind === 'CASH' && FOREIGN(c.currency) ? s + montoPyg(p) : s
+  }, 0)
+  return { exceso, vuelto: exceso, permitido: efectivoExtranjero >= exceso }
+}
+
+// Ajusta los pagos para el servidor cuando hay vuelto: recorta el efectivo
+// extranjero del final al monto realmente aplicado (centavos hacia abajo) y
+// agrega el residuo sub-centavo como efectivo en guaraníes. Devuelve null si no
+// hay con qué registrarlo.
+export function pagosSinVuelto(pagos, cuentas, totalGeneral) {
+  let exceso = vueltoEfectivoExtranjero(pagos, cuentas, totalGeneral).exceso
+  if (!(exceso > 0)) return pagos
+  const salida = [...pagos]
+  let residuo = 0
+  for (let i = salida.length - 1; i >= 0 && exceso > 0; i--) {
+    const p = salida[i]
+    const c = (cuentas || []).find((a) => a.id === p.accountId)
+    if (!c || c.kind !== 'CASH' || !FOREIGN(c.currency) || p.noPagado) continue
+    const monto = Number(String(p.monto ?? '').replace(/\D/g, '')) || 0
+    const quitar = Math.min(exceso, monto)
+    const aplicado = monto - quitar
+    exceso -= quitar
+    if (aplicado <= 0) { salida.splice(i, 1); continue }
+    const original = montoMaximoEnMoneda(aplicado, p.exchangeRatePyg)
+    if (!original) { residuo += aplicado; salida.splice(i, 1); continue }
+    const exacto = convertirAPyg(original.replace(',', '.'), String(p.exchangeRatePyg))
+    residuo += aplicado - exacto
+    salida[i] = { ...p, originalAmount: original, monto: String(exacto) }
+  }
+  if (residuo > 0) {
+    const efectivo = cuentaEfectivoPyg(cuentas)
+    if (!efectivo) return null
+    salida.push({ medioPago: efectivo.name, cuenta: efectivo.name, accountId: efectivo.id, originalAmount: String(residuo), exchangeRatePyg: '', monto: String(residuo) })
+  }
+  return salida
 }

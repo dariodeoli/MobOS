@@ -77,10 +77,10 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(paymentsSection.getByText(/^Equivalente/)).toHaveCount(0)
   await expect(amountInputs.nth(0)).toHaveValue('25.000')
 
-  // Con un pago parcial aparece «Dividir saldo» con lo que falta y el bloque
+  // Con un pago parcial aparece «Dividir pago» junto al monto y el bloque
   // nuevo (#187). #283: la fila nueva arranca sin cuenta (solo esa muestra el
   // selector) y el monto se propone recién al elegir la cuenta.
-  const dividirSaldo = paymentsSection.getByRole('button', { name: /^Dividir saldo/ })
+  const dividirSaldo = paymentsSection.getByRole('button', { name: /^Dividir pago/ })
   await expect(dividirSaldo).toBeVisible()
   await dividirSaldo.click()
   await expect(paymentsSection.getByTestId('pago-fila-1')).toBeVisible()

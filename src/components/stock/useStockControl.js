@@ -22,6 +22,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { ultimos4 } from '@/utils/serial'
+import { mensajeReserva } from '@/utils/reserva'
 import { transferReceiveUrlFor } from '@/components/shared/OrderReceipt'
 import { qrDataUrl } from '@/lib/qr'
 import { gs } from '@/utils/calculos'
@@ -459,7 +460,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
         minutes: horas * 60,
       })
       setReserve({ serials: '', customerName: '', customerId: '', hours: '2' }); setReserveMatches([]); setReserveOpen(false)
-    }, `Reserva creada por ${horas} ${horas === 1 ? 'hora' : 'horas'}. Se liberará automáticamente al vencer.`)
+    }, mensajeReserva({ serials, cliente: reserve.customerName.trim(), horas }))
   }
   async function releaseReservation(serial) { await setAndRefresh(() => resources.inventoryReservations.release([serial]), 'Reserva liberada y unidad disponible.') }
   async function moveLocation(unit, locationId) {

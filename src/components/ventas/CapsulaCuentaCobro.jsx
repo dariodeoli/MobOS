@@ -3,6 +3,9 @@ import Icon from '@/components/shared/Icon'
 import { KIND_LABELS } from '@/lib/paymentAccounts'
 import { logoDeBanco } from '@/lib/bancosLogos'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui'
+import { copiarValor } from '@/utils/portapapeles'
+import { etiquetaAlias, filasDeCuenta, textoDatosCuenta } from '@/utils/datosCuenta'
 
 // Tarjeta de la cuenta de cobro elegida (#148 §5/§11, reordenada en #283): al
 // elegir la cuenta el buscador desaparece y queda esta cápsula con todo lo que
@@ -11,22 +14,6 @@ import { cn } from '@/lib/utils'
 // y logo. Para cambiar de cuenta se elimina el pago y se agrega otro.
 const SIMBOLO = { PYG: 'Gs', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
 const ICONO_MEDIO = { CASH: 'money', TRADE_IN: 'refresh' }
-
-const numero = (valor) => String(valor ?? '').replace(/\s+/g, '')
-
-// Datos ordenados: primero el número, después el titular y el banco/procesadora
-// (Dario, #283); llave, referencia y CI/RUC completan cuando aplican.
-function filasDeCuenta(account) {
-  const filas = []
-  if (account.accountNumber) filas.push(['Nro de cuenta', numero(account.accountNumber)])
-  if (account.holder) filas.push(['Titular', account.holder])
-  if (account.kind === 'CARD' && account.processor) filas.push(['Procesadora', account.processor])
-  else if (account.bank) filas.push(['Banco', account.bank])
-  if (account.pixKey) filas.push(['Llave Pix', account.pixKey])
-  if (account.reference) filas.push(['Referencia', account.reference])
-  if (account.kind === 'TRANSFER' && account.document) filas.push(['CI/RUC', account.document])
-  return filas
-}
 
 function extrasDeCuenta(account) {
   const partes = []
@@ -39,7 +26,8 @@ function extrasDeCuenta(account) {
   return partes
 }
 
-export default function CapsulaCuentaCobro({ account, className, acciones = null }) {
+export default function CapsulaCuentaCobro({ account, className, acciones = null, children = null }) {
+  const toast = useToast()
   if (!account) return null
   const medio = KIND_LABELS[account.kind] || account.kind
   const moneda = account.currencyLabel || SIMBOLO[account.currency] || account.currency
@@ -52,7 +40,7 @@ export default function CapsulaCuentaCobro({ account, className, acciones = null
   return (
     <div
       data-testid="cuenta-capsula"
-      className={cn('rounded-xl border border-fono/25 bg-fono/5 px-3 py-1.5', className)}
+      className={cn('rounded-xl border border-fono/25 bg-fono/5 px-2.5 py-1', className)}
     >
       <div className="flex items-center gap-2.5">
         <span className="grid h-8 min-w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-600 bg-ink-800 px-1">
@@ -62,15 +50,26 @@ export default function CapsulaCuentaCobro({ account, className, acciones = null
         </span>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
           <b className="min-w-0 truncate text-sm text-fore" data-testid="cuenta-capsula-nombre">{account.name}</b>
-          <span className="rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{moneda}</span>
-          <span className="rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{medio}</span>
+          <span className="whitespace-nowrap rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{moneda} · {medio}</span>
         </div>
         {acciones}
       </div>
+      {children}
       {(filas.length > 0 || extras.length > 0) && (
         <details className="mt-0.5">
-          <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-semibold text-fono-light hover:underline md:min-h-7">
-            Ver datos para el cliente
+          <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 text-xs font-semibold text-fono-light hover:underline md:min-h-6">
+            <span>Ver datos para el cliente</span>
+            {filas.length > 0 && (
+              <button
+                type="button"
+                data-testid="cuenta-copiar-datos"
+                className="toque-44 inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-xs font-semibold text-fono-light hover:bg-ink-700"
+                onClick={(event) => { event.preventDefault(); event.stopPropagation(); copiarValor(toast, textoDatosCuenta(account), 'Los datos de la cuenta') }}
+              >
+                <Icon name="copy" className="h-3.5 w-3.5" />Copiar datos
+              </button>
+            )}
+            {account.aliasValue && <span data-testid="cuenta-alias" className="min-w-0 truncate font-normal text-mute" title={`${etiquetaAlias(account)}: ${account.aliasValue}`}>{etiquetaAlias(account)}: <b className="font-semibold text-fore">{account.aliasValue}</b></span>}
           </summary>
           {filas.length > 0 && (
             <dl data-testid="cuenta-capsula-datos" className="space-y-0.5 pb-1">

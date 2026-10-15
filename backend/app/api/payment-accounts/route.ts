@@ -5,11 +5,18 @@ import { error, json } from '../../../lib/http'
 import { accountSnapshot, decimalInput, InputError, objectInput, textInput } from '../../../lib/payment-input'
 
 function accountData(input: Record<string, unknown>, create: boolean) {
-  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; document?: string | null; processor?: string | null; pixKey?: string | null; reference?: string | null; currencyLabel?: string | null; holderId?: string | null; companyId?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
+  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; document?: string | null; processor?: string | null; pixKey?: string | null; aliasType?: string | null; aliasValue?: string | null; reference?: string | null; currencyLabel?: string | null; holderId?: string | null; companyId?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
   if (create || input.name !== undefined) data.name = textInput(input.name, 'name', 200)
   for (const field of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel'] as const) {
     if (input[field] !== undefined) data[field] = input[field] === null || input[field] === '' ? null : textInput(input[field], field, field === 'currencyLabel' ? 12 : 200)
   }
+  if (input.aliasType !== undefined) {
+    if (input.aliasType === null || input.aliasType === '') data.aliasType = null
+    else if (['RUC', 'EMAIL', 'PHONE', 'OTHER'].includes(input.aliasType as string)) data.aliasType = input.aliasType as string
+    else throw new InputError('Tipo de alias inválido.')
+  }
+  if (input.aliasValue !== undefined) data.aliasValue = input.aliasValue === null || input.aliasValue === '' ? null : textInput(input.aliasValue, 'aliasValue', 200)
+  if (data.aliasValue === null) data.aliasType = null
   if (create || input.currency !== undefined) {
     if (!['PYG', 'USD', 'BRL', 'EUR', 'USDT'].includes(input.currency as string)) throw new InputError('Moneda inválida.')
     data.currency = input.currency as PaymentCurrency

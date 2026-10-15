@@ -1,16 +1,18 @@
+import { useState } from 'react'
 import { Input, TAMANOS_CAMPO } from 'owncoding-ui'
 // Los helpers de dinero salen del módulo del repo, no de la biblioteca: desde
 // la migración bigint de §9 (#278) los topes reales son 10B general / 99B
 // ventas y la biblioteca todavía acota al techo de 32 bits.
 import {
   LIMITE_MONTO_GENERAL,
+  borradorDecimal,
+  valorNormalizado,
   excedeMonto,
   formatGsInput,
   formatUsdInput,
   largoMaximoMonto,
   limiteMonto,
   parseGsInput,
-  parseUsdInput,
 } from '@/utils/moneda'
 import { cn } from '@/lib/utils'
 
@@ -73,10 +75,14 @@ export function Card({ className, ...props }) {
 // ── MoneyInput (local: el símbolo «Gs.» espera decisión de diseño) ──
 const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
 
-export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
+export function MoneyInput({ currency = 'PYG', symbol, decimalesFijos = true, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
   const isPyg = currency === 'PYG'
   const prefix = symbol || MONEY_SYMBOL[currency] || currency
-  const display = isPyg ? formatGsInput(value) : formatUsdInput(value)
+  // Monedas con decimales: mientras se escribe se muestra el borrador tipeado
+  // (formatear «1» como «1,00» en cada tecla comía los dígitos siguientes).
+  const [borrador, setBorrador] = useState(null)
+  const borradorVigente = !isPyg && borrador !== null && borradorDecimal(borrador).valor === valorNormalizado(value)
+  const display = isPyg ? formatGsInput(value) : borradorVigente ? borradorDecimal(borrador).texto : formatUsdInput(value, { decimalesFijos })
   const limite = limiteMonto(max)
   const excede = excedeMonto(value, limite)
   // Largo máximo del campo: el monto más grande documentado (con separadores)
@@ -100,9 +106,16 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
         inputMode={isPyg ? 'numeric' : 'decimal'}
         maxLength={topeLargo}
         value={display}
+        onBlur={(event) => { setBorrador(null); props.onBlur?.(event) }}
         onChange={(event) => {
-          const next = event.target.value.replace(/[^\d.,]/g, '')
-          onValueChange?.(isPyg ? (next.trim() ? parseGsInput(next) : '') : parseUsdInput(next))
+          let next = event.target.value.replace(/[^\d.,]/g, '')
+          if (isPyg) { onValueChange?.(next.trim() ? parseGsInput(next) : ''); return }
+          // Un punto TIPEADO (teclado numérico) es el decimal; los puntos del
+          // formato son de miles.
+          if (event.nativeEvent?.data === '.' && !next.includes(',')) next = `${next.slice(0, next.lastIndexOf('.'))},${next.slice(next.lastIndexOf('.') + 1)}`
+          const { texto, valor } = borradorDecimal(next)
+          setBorrador(texto)
+          onValueChange?.(valor)
         }}
         className={cn(TAMANOS_CAMPO.moneda, prefijoLargo ? 'pl-11' : 'pl-8', 'tabular-nums', className)}
       />
