@@ -4,11 +4,11 @@
 // Escala base para mostrar la foto ENTERA (contain) dentro del cuadrado: la
 // dimensión más larga entra justa. El zoom del usuario se multiplica por esta
 // base, así al abrir nunca hay recorte automático.
-export function escalaAjuste({ ancho, alto, lado = 240 } = {}) {
+export function escalaAjuste({ ancho, alto, lado = 240, cubrir = false } = {}) {
   const w = Number(ancho) || 0
   const h = Number(alto) || 0
   if (w <= 0 || h <= 0) return 1
-  return Math.min(lado / w, lado / h)
+  return cubrir ? Math.max(lado / w, lado / h) : Math.min(lado / w, lado / h)
 }
 
 export function recorteCuadrado({ ancho, alto, escala = 1, desplazamientoX = 0, desplazamientoY = 0, lado = 240 }) {

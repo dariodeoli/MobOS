@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Aviso, Button } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import FotoProducto from '@/components/shared/FotoProducto'
-import { fotosProducto } from '@/lib/api/productImages'
-import { ACEPTA_FOTO, MAX_FOTOS_PRODUCTO, moverFoto, prepararFotoProducto, reubicarFoto, validarArchivoFoto } from '@/utils/fotoProducto'
+import PhotoCropper from '@/components/shared/PhotoCropper'
+import { alInvalidarFotos, fotosProducto } from '@/lib/api/productImages'
+import { ACEPTA_FOTO, LADO_FOTO_PRODUCTO, MAX_FOTOS_PRODUCTO, moverFoto, prepararFotoProducto, reubicarFoto, validarArchivoFoto } from '@/utils/fotoProducto'
 import { cn } from '@/lib/utils'
 
 // #404: fotos de un producto. Con `productId` cada cambio va al servidor al
@@ -29,6 +30,9 @@ export default function GaleriaFotosProducto({ productId = null, puedeEditar = t
   const [elegida, setElegida] = useState('')
   const [arrastrando, setArrastrando] = useState(false)
   const [origenArrastre, setOrigenArrastre] = useState('')
+  const [pendientes, setPendientes] = useState([])
+  const revision = useRef(0)
+  const invalidarRevision = useCallback(() => { revision.current++ }, [])
   const entrada = useRef(null)
   const camara = useRef(null)
   const itemsRef = useRef(items)
@@ -40,13 +44,27 @@ export default function GaleriaFotosProducto({ productId = null, puedeEditar = t
 
   const cargar = useCallback(async () => {
     if (!productId) return
+    const version = revision.current
     setCargando(true); setError('')
-    try { aplicar(await fotosProducto.list(productId)) } catch (cause) {
+    try { const lista = await fotosProducto.list(productId); if (version === revision.current) aplicar(lista) } catch (cause) {
+      if (version !== revision.current) return
       console.error('[fotos-producto] no se pudieron cargar', cause)
       setError(cause?.message || 'No se pudieron cargar las fotos.')
-    } finally { setCargando(false) }
+    } finally { if (version === revision.current) setCargando(false) }
   }, [productId, aplicar])
-  useEffect(() => { cargar() }, [cargar])
+  useEffect(() => {
+    invalidarRevision()
+    itemsRef.current.forEach(item => item.local && URL.revokeObjectURL(item.src))
+    setPendientes([]); setOcupado(''); setElegida(''); setItems([]); setCargando(Boolean(productId))
+    cargar()
+    return invalidarRevision
+  }, [cargar, puedeEditar, productId, invalidarRevision])
+  useEffect(() => alInvalidarFotos(() => {
+    invalidarRevision()
+    itemsRef.current.forEach(item => item.local && URL.revokeObjectURL(item.src))
+    setPendientes([]); setOcupado(''); setItems([]); setElegida(''); setCargando(false)
+    setError('El acceso cambió. Volvé a abrir el producto para agregar fotos.')
+  }), [invalidarRevision])
 
   // Alta de producto: las fotos preparadas se entregan al padre.
   useEffect(() => { if (!productId) onChange?.(items) }, [items, productId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -54,48 +72,70 @@ export default function GaleriaFotosProducto({ productId = null, puedeEditar = t
     if (!productId) itemsRef.current.forEach((item) => item.local && URL.revokeObjectURL(item.src))
   }, [productId])
 
-  async function agregar(archivos) {
+  function cancelarRecorte() {
+    setPendientes([])
+    setOcupado('')
+  }
+
+  function agregar(archivos) {
     const lista = [...archivos]
-    if (!lista.length || ocupado) return
+    if (!lista.length || ocupado || cargando || !puedeEditar) return
     setError('')
     const cupo = MAX_FOTOS_PRODUCTO - itemsRef.current.length
     if (cupo <= 0) { setError(`Un producto admite hasta ${MAX_FOTOS_PRODUCTO} fotos.`); return }
     const aceptadas = lista.slice(0, cupo)
     if (aceptadas.length < lista.length) setError(`Solo entran ${cupo} foto(s) más: el máximo es ${MAX_FOTOS_PRODUCTO}.`)
-    for (const [indice, archivo] of aceptadas.entries()) {
+    const validas = []
+    for (const archivo of aceptadas) {
       const motivo = validarArchivoFoto(archivo)
       if (motivo) { setError(`${archivo.name || 'La foto'}: ${motivo}`); continue }
-      setOcupado(`Subiendo ${indice + 1} de ${aceptadas.length}…`)
-      try {
-        const preparada = await prepararFotoProducto(archivo)
-        if (productId) {
-          const creada = await fotosProducto.upload(productId, preparada)
-          URL.revokeObjectURL(preparada.previa)
-          setItems((actuales) => [...actuales, { id: creada.id, src: creada.thumbUrl || creada.url, isPrimary: creada.isPrimary }])
-          onCambio?.()
-        } else {
-          setItems((actuales) => [...actuales, { id: `local-${Date.now()}-${indice}`, src: preparada.previa, local: preparada, isPrimary: actuales.length === 0 }])
-        }
-      } catch (cause) {
-        console.error('[fotos-producto] no se pudo agregar la foto', cause)
-        setError(cause?.message || 'No se pudo subir la foto.')
-      }
+      validas.push({ archivo, productId, revision: revision.current })
     }
-    setOcupado('')
+    if (validas.length) { setPendientes(validas); setOcupado('Encuadrá cada foto antes de agregarla.') }
+  }
+
+  async function confirmarRecorte(recortada, entrada) {
+    const vigente = () => entrada.revision === revision.current && puedeEditar
+    if (!vigente()) return
+    let preparada, conservada = false
+    setOcupado('Preparando foto…')
+    try {
+      preparada = await prepararFotoProducto(recortada)
+      if (!vigente()) return
+      if (entrada.productId) {
+        const creada = await fotosProducto.upload(entrada.productId, preparada)
+        if (!vigente()) return
+        setItems(actuales => [...actuales, { id: creada.id, src: creada.thumbUrl || creada.url, isPrimary: creada.isPrimary }])
+        onCambio?.()
+      } else {
+        conservada = true
+        setItems(actuales => [...actuales, { id: `local-${crypto.randomUUID()}`, src: preparada.previa, local: preparada, isPrimary: actuales.length === 0 }])
+      }
+      setPendientes(actuales => actuales.slice(1))
+      setOcupado(pendientes.length > 1 ? 'Encuadrá la siguiente foto.' : '')
+    } catch (cause) {
+      console.error('[fotos-producto] no se pudo agregar la foto', cause)
+      if (vigente()) { setError(cause?.message || 'No se pudo subir la foto.'); cancelarRecorte() }
+    } finally {
+      if (preparada && !conservada) URL.revokeObjectURL(preparada.previa)
+    }
   }
 
   async function guardarOrden(nueva) {
+    const version = revision.current
     const anterior = items
     setItems(nueva)
     if (!productId) return
     setOcupado('Guardando orden…'); setError('')
-    try { aplicar(await fotosProducto.reorder(productId, nueva.map((item) => item.id))); onCambio?.() } catch (cause) {
+    try { const lista = await fotosProducto.reorder(productId, nueva.map((item) => item.id)); if (version === revision.current) { aplicar(lista); onCambio?.() } } catch (cause) {
+      if (version !== revision.current) return
       console.error('[fotos-producto] no se pudo reordenar', cause)
       setItems(anterior); setError(cause?.message || 'No se pudo guardar el orden.')
-    } finally { setOcupado('') }
+    } finally { if (version === revision.current) setOcupado('') }
   }
 
   async function hacerPrincipal(id) {
+    const version = revision.current
     if (!productId) {
       setItems((actuales) => {
         const foto = actuales.find((item) => item.id === id)
@@ -104,13 +144,15 @@ export default function GaleriaFotosProducto({ productId = null, puedeEditar = t
       return
     }
     setOcupado('Guardando…'); setError('')
-    try { aplicar(await fotosProducto.setPrimary(productId, id)); onCambio?.() } catch (cause) {
+    try { const lista = await fotosProducto.setPrimary(productId, id); if (version === revision.current) { aplicar(lista); onCambio?.() } } catch (cause) {
+      if (version !== revision.current) return
       console.error('[fotos-producto] no se pudo marcar la principal', cause)
       setError(cause?.message || 'No se pudo cambiar la foto principal.')
-    } finally { setOcupado('') }
+    } finally { if (version === revision.current) setOcupado('') }
   }
 
   async function quitar(id) {
+    const version = revision.current
     const foto = items.find((item) => item.id === id)
     if (!foto) return
     if (!productId) {
@@ -123,15 +165,16 @@ export default function GaleriaFotosProducto({ productId = null, puedeEditar = t
       return
     }
     setOcupado('Quitando…'); setError('')
-    try { await fotosProducto.remove(productId, id); setElegida(''); await cargar(); onCambio?.() } catch (cause) {
+    try { await fotosProducto.remove(productId, id); if (version !== revision.current) return; setElegida(''); await cargar(); if (version === revision.current) onCambio?.() } catch (cause) {
+      if (version !== revision.current) return
       console.error('[fotos-producto] no se pudo quitar', cause)
       setError(cause?.message || 'No se pudo quitar la foto.')
-    } finally { setOcupado('') }
+    } finally { if (version === revision.current) setOcupado('') }
   }
 
   const seleccion = items.find((item) => item.id === elegida)
   const indice = items.findIndex((item) => item.id === elegida)
-  const bloqueado = Boolean(ocupado) || !puedeEditar
+  const bloqueado = Boolean(ocupado) || cargando || !puedeEditar
   const boton = 'min-h-11 md:min-h-0'
 
   return (
@@ -196,6 +239,7 @@ export default function GaleriaFotosProducto({ productId = null, puedeEditar = t
         </div>
       )}
       {ocupado && <p className="text-xs text-mute" role="status">{ocupado}</p>}
+      {pendientes[0] && <PhotoCropper key={`${pendientes[0].archivo.name}-${pendientes.length}`} file={pendientes[0].archivo} lado={LADO_FOTO_PRODUCTO} noAmpliar cubrir onCancel={cancelarRecorte} onCropped={file => confirmarRecorte(file, pendientes[0])} />}
       {error && <Aviso tono="error" role="alert">{error}</Aviso>}
     </div>
   )

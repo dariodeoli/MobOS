@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, FormActions, Modal } from '@/components/ui'
 import { LADO_FOTO, escalaAjuste, recorteCuadrado, recortarArchivo } from '@/utils/recorte'
 
@@ -8,7 +8,7 @@ import { LADO_FOTO, escalaAjuste, recorteCuadrado, recortarArchivo } from '@/uti
 // (cuadrada) que viaja al servidor.
 const LADO_VISTA = 240
 
-export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FOTO }) {
+export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FOTO, noAmpliar = false, cubrir = false }) {
   const [url, setUrl] = useState('')
   const [tamano, setTamano] = useState({ ancho: 0, alto: 0 })
   const [zoom, setZoom] = useState(1)
@@ -16,23 +16,30 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
   const [error, setError] = useState('')
   const [recortando, setRecortando] = useState(false)
   const arrastre = useRef(null)
+  const revision = useRef(0)
+  const invalidarRevision = useCallback(() => { revision.current++ }, [])
 
   useEffect(() => {
+    invalidarRevision()
     if (!file) { setUrl(''); return }
     const objectUrl = URL.createObjectURL(file)
     setUrl(objectUrl)
     setTamano({ ancho: 0, alto: 0 })
     setZoom(1)
+    setRecortando(false)
     setDesplazamiento({ x: 0, y: 0 })
     setError('')
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [file])
+    return () => { invalidarRevision(); URL.revokeObjectURL(objectUrl) }
+  }, [file, invalidarRevision])
 
   // Base de encuadre: la foto entera dentro del cuadrado; el zoom del usuario
   // se multiplica por ella.
-  const ajuste = escalaAjuste({ ancho: tamano.ancho, alto: tamano.alto, lado: LADO_VISTA })
+  const ajuste = escalaAjuste({ ancho: tamano.ancho, alto: tamano.alto, lado: LADO_VISTA, cubrir })
   const factor = ajuste * zoom
-  const recorte = recorteCuadrado({ ancho: tamano.ancho, alto: tamano.alto, escala: factor, desplazamientoX: desplazamiento.x, desplazamientoY: desplazamiento.y, lado: LADO_VISTA })
+  const limiteX = Math.max(0, (tamano.ancho * factor - LADO_VISTA) / 2)
+  const limiteY = Math.max(0, (tamano.alto * factor - LADO_VISTA) / 2)
+  const visible = cubrir ? { x: Math.max(-limiteX, Math.min(limiteX, desplazamiento.x)), y: Math.max(-limiteY, Math.min(limiteY, desplazamiento.y)) } : desplazamiento
+  const recorte = recorteCuadrado({ ancho: tamano.ancho, alto: tamano.alto, escala: factor, desplazamientoX: visible.x, desplazamientoY: visible.y, lado: LADO_VISTA })
 
   function mover(event) {
     if (!arrastre.current) return
@@ -44,24 +51,28 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
 
   async function confirmar() {
     if (!file || !tamano.ancho) return
+    const version = revision.current
     setRecortando(true); setError('')
     try {
-      onCropped(await recortarArchivo(file, { recorte, lado }))
+      const recortada = await recortarArchivo(file, { recorte, lado: noAmpliar ? Math.max(1, Math.min(lado, Math.floor(recorte.lado))) : lado })
+      if (version === revision.current) await onCropped(recortada)
     } catch (cause) {
-      setError(cause?.message || 'No se pudo recortar la foto.')
-    } finally { setRecortando(false) }
+      console.warn('[recorte] no se pudo preparar la imagen:', cause?.name || 'Error')
+      if (version === revision.current) setError(cause?.message || 'No se pudo recortar la foto.')
+    } finally { if (version === revision.current) setRecortando(false) }
   }
 
   // El encuadre arranca centrado y sin zoom: apenas se mueve o se acerca,
   // cerrar descarta trabajo y el objeto pide confirmación (#323).
   const dirty = Boolean(file) && (zoom !== 1 || desplazamiento.x !== 0 || desplazamiento.y !== 0)
   return (
-    <Modal open={Boolean(file)} dirty={dirty} onClose={onCancel} title="Recortar foto" size="corto">
+    <Modal open={Boolean(file)} dirty={dirty} busy={recortando} onClose={onCancel} title="Recortar foto" size="corto">
       <div className="space-y-3">
-        <p className="text-sm text-mute">La foto entra completa: arrastrá para mover y usá el zoom para acercar (hasta 3×). El recorte queda cuadrado, como se ve en la app.</p>
+        <p className="text-sm text-mute">{cubrir ? 'Arrastrá para elegir el encuadre y usá el zoom para acercar (hasta 3×). Se guarda el cuadrado visible, sin deformar la foto.' : 'La foto entra completa: arrastrá para mover y usá el zoom para acercar (hasta 3×). El recorte queda cuadrado, como se ve en la app.'}</p>
         <div
+          data-testid="recorte-encuadre"
           className="relative mx-auto h-60 w-60 touch-none overflow-hidden rounded-xl border border-ink-600 bg-ink-800"
-          onPointerDown={(event) => { arrastre.current = { puntoX: event.clientX, puntoY: event.clientY, x: desplazamiento.x, y: desplazamiento.y }; event.currentTarget.setPointerCapture(event.pointerId) }}
+          onPointerDown={(event) => { arrastre.current = { puntoX: event.clientX, puntoY: event.clientY, x: visible.x, y: visible.y }; event.currentTarget.setPointerCapture(event.pointerId) }}
           onPointerMove={mover}
           onPointerUp={() => { arrastre.current = null }}
         >
@@ -70,12 +81,13 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
               src={url}
               alt="Foto a recortar"
               draggable={false}
+              onError={() => setError('No se pudo leer la imagen. Elegí otra foto.')}
               onLoad={(event) => setTamano({ ancho: event.target.naturalWidth, alto: event.target.naturalHeight })}
               className="absolute left-1/2 top-1/2 max-w-none select-none"
               style={{
                 width: tamano.ancho ? tamano.ancho * factor : LADO_VISTA * factor,
                 height: tamano.ancho ? tamano.alto * factor : LADO_VISTA * factor,
-                transform: `translate(calc(-50% + ${desplazamiento.x}px), calc(-50% + ${desplazamiento.y}px))`,
+                transform: `translate(calc(-50% + ${visible.x}px), calc(-50% + ${visible.y}px))`,
               }}
             />
           )}
@@ -83,12 +95,12 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
         </div>
         <label className="block text-xs text-mute">
           Zoom · {zoom.toFixed(1)}×
-          <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="mt-1 w-full accent-fono" />
+          <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="mt-1 min-h-11 w-full accent-fono" />
         </label>
         {error && <p role="alert" className="text-sm text-bad">{error}</p>}
         <FormActions>
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={recortando}>Cancelar</Button>
-          <Button type="button" onClick={confirmar} disabled={recortando || !tamano.ancho}>{recortando ? 'Recortando…' : 'Usar esta foto'}</Button>
+          <Button type="button" className="min-h-11 min-w-11" variant="ghost" onClick={onCancel} disabled={recortando}>Cancelar</Button>
+          <Button type="button" className="min-h-11 min-w-11" onClick={confirmar} disabled={recortando || !tamano.ancho}>{recortando ? 'Recortando…' : 'Usar esta foto'}</Button>
         </FormActions>
       </div>
     </Modal>

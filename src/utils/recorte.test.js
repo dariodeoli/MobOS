@@ -53,3 +53,10 @@ test('el zoom del usuario achica el recorte sobre la base', () => {
   assert.equal(Math.round(alMaximo.lado), 400, 'a 3× el recorte baja a 400 px de origen')
   assert.equal(Math.round(alMaximo.y), 400, 'sigue centrado')
 })
+
+test('producto: cubrir es opt-in y el cuadrado visible coincide con el recorte sin deformación', () => {
+  const escala = escalaAjuste({ ancho: 800, alto: 400, lado: 240, cubrir: true })
+  assert.equal(escala, 0.6)
+  assert.deepEqual(recorteCuadrado({ ancho: 800, alto: 400, escala, desplazamientoX: 120 }), { x: 0, y: 0, lado: 400 })
+  assert.equal(escalaAjuste({ ancho: 800, alto: 400 }), 0.3, 'perfil conserva contain por defecto')
+})
