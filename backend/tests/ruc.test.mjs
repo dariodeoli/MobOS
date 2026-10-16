@@ -20,7 +20,7 @@ function load(path, modules) {
   return exports
 }
 // Exercise the real quota algorithm without importing a database client.
-const auth = load('../lib/auth.ts', { './prisma': { prisma: {} }, bcryptjs: {}, './pin': {}, './google-oauth': {} })
+const auth = load('../lib/auth.ts', { './prisma': { prisma: {} }, bcryptjs: {}, './pin': {}, './google-oauth': {}, './membership': {} })
 const metadata = require('../lib/ruc-owndata.ts')
 const ruc = load('../lib/ruc.ts', { './prisma': { prisma: {} }, './auth': auth,
   './ruc-owndata': metadata, './sifen/cdc': require('../lib/sifen/cdc.ts') })

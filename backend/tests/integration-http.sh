@@ -37,6 +37,9 @@ if [[ ! -f "$BACKEND_ROOT/.next/BUILD_ID" ]]; then
   exit 1
 fi
 
+# RUC público demo: cuotas atómicas contra su propio PostgreSQL, proveedor mock.
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/ruc-demo-pg.mjs"
+
 # Contrato de privacidad del carrito: su propio PostgreSQL descartable evita
 # heredar una URL o contaminar los datos/contadores del arnés HTTP principal.
 echo "Carrito público: token, vencimiento y ausencia de datos internos (#403)..."
