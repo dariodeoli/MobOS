@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import PinTeclado from '@/components/shared/PinTeclado'
 import { isNativeIOS } from '@/lib/plataforma'
+import { Keyboard } from '@capacitor/keyboard'
+import { App } from '@capacitor/app'
 
 // PIN numérico en celdas iguales (4 a 6), variante de CodigoSegmentado. Un solo
 // input real cubre todo el grupo (transparente, sin cursor, a 16 px para que
@@ -22,9 +24,43 @@ export default function PinSegmentado({
   ariaLabel,
   id,
   className,
-  tecladoTactil = isNativeIOS(),
+  tecladoTactil,
+  discreto = false,
   ...inputProps
 }) {
+  const [movil, setMovil] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const actualizar = () => setMovil(media.matches)
+    media.addEventListener('change', actualizar)
+    return () => media.removeEventListener('change', actualizar)
+  }, [])
+  const tactil = tecladoTactil ?? (isNativeIOS() || movil)
+  useEffect(() => {
+    if (!tactil) return undefined
+    let vigente = true
+    let listener
+    const ocultar = () => {
+      if (!vigente || document.visibilityState === 'hidden') return
+      const activo = document.activeElement
+      if (activo?.matches('input, textarea, [contenteditable="true"]')) activo.blur()
+      if (isNativeIOS()) void Keyboard.hide().catch(error => console.error('[pin] no se pudo ocultar el teclado:', error))
+    }
+    const frame = requestAnimationFrame(ocultar)
+    document.addEventListener('visibilitychange', ocultar)
+    window.addEventListener('focus', ocultar)
+    if (isNativeIOS()) void App.addListener('appStateChange', ({ isActive }) => { if (isActive) ocultar() }).then(handle => {
+      if (vigente) listener = handle
+      else void handle.remove()
+    }).catch(error => console.error('[pin] no se pudo observar la reanudación:', error))
+    return () => {
+      vigente = false
+      cancelAnimationFrame(frame)
+      document.removeEventListener('visibilitychange', ocultar)
+      window.removeEventListener('focus', ocultar)
+      void listener?.remove()
+    }
+  }, [tactil])
   const total = Math.min(6, Math.max(4, Number(length) || 4))
   const largo = String(value || '').length
   const refGrupo = useRef(null)
@@ -52,8 +88,8 @@ export default function PinSegmentado({
       data-testid="pin-segmentado"
       data-invalido={invalido ? 'true' : undefined}
       data-exito={exito ? 'true' : undefined}
-      data-teclado-tactil={tecladoTactil ? 'true' : undefined}
-      className={cn('pin-seg relative mx-auto w-full max-w-[15rem]', className)}
+      data-teclado-tactil={tactil ? 'true' : undefined}
+      className={cn('pin-seg relative mx-auto w-full max-w-[15rem]', discreto && 'pin-seg-discreto', className)}
     >
       <div className="relative" data-testid="pin-indicadores">
       <div aria-hidden="true" className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
@@ -79,20 +115,22 @@ export default function PinSegmentado({
         {...inputProps}
         id={id}
         type="text"
-        inputMode={tecladoTactil ? 'none' : 'numeric'}
+        inputMode={tactil ? 'none' : 'numeric'}
         pattern="[0-9]*"
-        autoComplete={tecladoTactil ? 'off' : 'one-time-code'}
+        autoComplete={tactil ? 'off' : 'one-time-code'}
         maxLength={total}
         value={value}
-        autoFocus={autoFocus && !tecladoTactil}
-        readOnly={tecladoTactil}
+        autoFocus={autoFocus && !tactil}
+        readOnly={tactil}
+        tabIndex={tactil ? -1 : inputProps.tabIndex}
+        onPointerDown={(e) => { if (tactil) e.preventDefault(); inputProps.onPointerDown?.(e) }}
         disabled={disabled}
         aria-label={ariaLabel || `PIN de ${total} dígitos`}
         aria-invalid={invalido || undefined}
         onChange={(e) => actualizar(e.target.value)}
         onKeyDown={(e) => {
           inputProps.onKeyDown?.(e)
-          if (!tecladoTactil || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+          if (!tactil || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
           if (/^[0-9]$/.test(e.key)) { e.preventDefault(); actualizar(`${value}${e.key}`) }
           else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); actualizar(String(value).slice(0, -1)) }
         }}
@@ -111,7 +149,7 @@ export default function PinSegmentado({
         className="absolute inset-0 h-full w-full cursor-text border-0 bg-transparent p-0 text-base opacity-0 outline-none [caret-color:transparent]"
       />
       </div>
-      {tecladoTactil && <PinTeclado disabled={disabled || exito} completo={largo >= total} vacio={!largo} onDigito={digito => actualizar(`${value}${digito}`)} onBorrar={() => actualizar(String(value).slice(0, -1))} />}
+      {tactil && <PinTeclado disabled={disabled || exito} completo={largo >= total} vacio={!largo} onDigito={digito => actualizar(`${value}${digito}`)} onBorrar={() => actualizar(String(value).slice(0, -1))} />}
     </div>
   )
 }

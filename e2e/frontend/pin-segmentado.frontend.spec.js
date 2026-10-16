@@ -55,7 +55,7 @@ for (const [width, height] of [[375, 667], [390, 844]]) {
     expect(Math.abs(izq - der), 'grupo centrado').toBeLessThan(1.5)
 
     const solapes = await sinSolapes(page, [
-      '[data-testid="pantalla-bloqueada"] h2', '[data-testid="pin-segmentado"]', '.lock-ayuda',
+      '[data-testid="pantalla-bloqueada"] h2', '[data-testid="pin-indicadores"]', '.lock-ayuda',
       '[data-testid="pantalla-bloqueada"] button',
     ])
     expect(solapes, 'elementos superpuestos').toEqual([])
@@ -65,16 +65,19 @@ for (const [width, height] of [[375, 667], [390, 844]]) {
     await expect(page.locator('.pin-seg-punto')).toHaveCount(2)
     expect(await page.locator('#lock-pin').evaluate((el) => getComputedStyle(el).opacity)).toBe('0')
 
-    // Con el teclado (~290 px) el PIN sigue visible en la parte alta.
+    // El teclado táctil propio reemplaza al del sistema: todo cabe en la pantalla.
+    const input = page.getByTestId('pin-input')
+    await expect(input).toHaveAttribute('readonly', '')
+    await expect(input).toHaveAttribute('inputmode', 'none')
     const pin = await page.getByTestId('pin-segmentado').boundingBox()
-    expect(pin.y + pin.height, 'PIN sobre el teclado').toBeLessThanOrEqual(height - 290)
+    expect(pin.y + pin.height, 'PIN y teclado propios visibles').toBeLessThanOrEqual(height)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 
     // PIN incorrecto: rojo.
     await page.locator('#lock-pin').pressSequentially('99')
     await expect(page.getByTestId('pin-segmentado')).toHaveAttribute('data-invalido', 'true')
     await page.waitForTimeout(300)
-    await page.screenshot({ path: `${out}/bloqueo-${width}.png` })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${out}/bloqueo-${width}.png` })
   })
 }
 
