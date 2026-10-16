@@ -27,3 +27,8 @@ iOS1.0(3) es la versión229 ya distribuida y enviada a revisión manual. Esta ve
 - La impresión habitual conserva el diseño confirmado y el QR, con protección al cambiar de empresa.
 - Cambiar de vendedor usa el teclado táctil, y la demo conserva las ediciones durante la sesión.
 - Documentos públicos y plataforma mejoran legibilidad y navegación sin ampliar permisos.
+
+## CI66343fd0: espera de plataforma corregida
+CI38861065872 aprobó Frontend/Backend/Integration y los pasos browser dedicados de impresión/demo. Shard2 falló en el nuevo test de salida320px: expect usaba5s pese a timeout de test60s. Reproducción local causal: retrasar6s la autorización produce el mismo error de botón ausente; con espera20s pasa4/4. La regresión exige que el shell siga ausente antes de la autorización y conserva44px/nooverflow/logoutPOST1/shell desmontado, sin cambio de runtime ni reintento. El artefacto de fallo del config dedicado se añade al upload de CI.
+
+Guard y publicador de663 detenidos antes de merge. Este CI fallido NO acredita el candidato siguiente; requiere un nuevo SHA y ocho gates completos. Los demás shards de663 se conservan como diagnóstico mientras terminan.

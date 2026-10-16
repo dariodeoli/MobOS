@@ -284,6 +284,7 @@ jobs:
             test-results/**/test-failed-*.png
             test-results/**/error-context.md
             test-results/**/trace.zip
+            /tmp/mobos-superadmin508/results/
           if-no-files-found: ignore
           retention-days: 14
 

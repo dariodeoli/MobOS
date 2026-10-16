@@ -1,15 +1,18 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 
-async function montar(page, acceso = true) {
+async function montar(page, acceso = true, retrasoAcceso = 0) {
   const llamadas = []
   await page.route(/^https:\/\//, route => route.abort())
-  await page.route('**/api/**', route => {
+  await page.route('**/api/**', async route => {
     const req = route.request(), url = new URL(req.url())
     if (!url.pathname.startsWith('/api/')) return route.continue()
     llamadas.push({ method: req.method(), path: url.pathname, search: url.search })
     if (url.pathname === '/api/auth/me') return route.fulfill({ status: 401, json: {} })
-    if (url.pathname === '/api/superadmin/access') return route.fulfill({ status: acceso ? 200 : 404, json: acceso ? { ok: true } : {} })
+    if (url.pathname === '/api/superadmin/access') {
+      if (retrasoAcceso) await new Promise(resolve => setTimeout(resolve, retrasoAcceso))
+      return route.fulfill({ status: acceso ? 200 : 404, json: acceso ? { ok: true } : {} })
+    }
     if (url.pathname === '/api/superadmin/resumen') return route.fulfill({ json: { kpis: [], demo: { empresas: 0, usuarios: 0, pedidos: 0 }, sinDatos: true } })
     if (url.pathname === '/api/superadmin/empresas') return route.fulfill({ json: { items: [], total: 0, pagina: 1, porPagina: 30 } })
     return route.fulfill({ json: { ok: true } })
@@ -45,8 +48,9 @@ test('plegado propio conserva navegación operativa, período y autoridad del se
 
 for (const width of [320, 390]) test(`salida efectiva y controles alcanzables a ${width}`, async ({ page }) => {
   await page.setViewportSize({ width, height: 844 })
-  const llamadas = await montar(page)
+  const llamadas = await montar(page, true, width === 320 ? 6000 : 0)
   await page.goto('/superadmin')
+  if (width === 320) await expect(page.getByTestId('superadmin-shell')).toHaveCount(0)
   const salir = page.getByRole('button', { name: 'Cerrar sesión', exact: true })
   await expect(salir).toBeVisible()
   const box = await salir.boundingBox()
