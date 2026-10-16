@@ -60,3 +60,24 @@ test('al aplicar un nombre legal no se vacían las partes que el proveedor no tr
   assert.deepEqual(partesConocidas('PÉREZ, JUAN'), { lastName: 'PÉREZ', firstName: 'JUAN' })
   assert.deepEqual(partesConocidas(''), {})
 })
+
+
+test('aceptar fiscal borra todas las partes anteriores sin adivinar PERSON ni empresa', async () => {
+  const { aplicarIdentidadTitular, validarRevisionTitular } = await import('./accountNames.js')
+  const previous = { id: 'previo', firstName: 'ANTERIOR', middleName: 'VIEJO', otherName: 'TERCERO', lastName: 'APELLIDO', secondLastName: 'SEGUNDO', document: '1' }
+  for (const nameOfficial of ['PEREZ, JUAN', '  EMPRESA SIN CLASIFICAR S.A.  ']) {
+    const next = aplicarIdentidadTitular(previous, { nameOfficial, name: 'No usar alias', fullRuc: '1234567-9', identityKind: 'PERSON' })
+    assert.equal(next.nameOfficial, nameOfficial)
+    assert.equal(next.document, '1234567-9')
+    for (const field of ['firstName', 'middleName', 'otherName', 'lastName', 'secondLastName']) assert.equal(next[field], '')
+    assert.equal(Object.hasOwn(next, 'identityKind'), false)
+    assert.throws(() => validarRevisionTitular(next))
+    assert.doesNotThrow(() => validarRevisionTitular({ ...next, firstName: 'Juan', lastName: 'Perez', personConfirmed: true }))
+  }
+  assert.equal(previous.middleName, 'VIEJO')
+})
+test('revisión fiscal no altera contrato manual y rechaza nombre fiscal inválido', async () => {
+  const { validarRevisionTitular } = await import('./accountNames.js')
+  assert.doesNotThrow(() => validarRevisionTitular({ firstName: 'Manual', lastName: 'Revisado' }))
+  for (const nameOfficial of [' ', 'X'.repeat(2001), 4]) assert.throws(() => validarRevisionTitular({ nameOfficial, personConfirmed: true }))
+})

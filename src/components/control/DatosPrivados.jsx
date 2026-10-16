@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Aviso, Badge, Button, Card, Input, Label, Textarea } from '@/components/ui'
 import RucField from '@/components/shared/RucField'
 import { useSesion } from '@/lib/sesion'
-import { partesConocidas } from '@/lib/accountNames'
+import { Checkbox } from 'owncoding-ui'
+import { aplicarIdentidadTitular, validarRevisionTitular } from '@/lib/accountNames'
 import {
   createAccountHolder, createPrivateCompany, getAccountHolders, getPrivateCompanies,
   nombreCompleto, updateAccountHolder, updatePrivateCompany,
@@ -45,7 +46,8 @@ function FilaEntidad({ titulo, detalle, activo, onEditar, onAlternar, busy, aria
 }
 
 export default function DatosPrivados() {
-  const { esDemo } = useSesion()
+  const { esDemo, empresa: empresaSesion } = useSesion()
+  const opcionesDemo = { demo: esDemo, empresaId: empresaSesion?.id }
   const [holders, setHolders] = useState([])
   const [companies, setCompanies] = useState([])
   const [titular, setTitular] = useState(null)
@@ -55,11 +57,13 @@ export default function DatosPrivados() {
 
   useEffect(() => {
     let activo = true
-    Promise.all([getAccountHolders(), getPrivateCompanies()])
+    setTitular(null); setEmpresa(null); setHolders([]); setCompanies([]); setMessage(null)
+    Promise.all([getAccountHolders(opcionesDemo), getPrivateCompanies(opcionesDemo)])
       .then(([nextHolders, nextCompanies]) => { if (activo) { setHolders(nextHolders); setCompanies(nextCompanies) } })
       .catch((error) => { if (activo) setMessage({ ok: false, text: error.message || 'No se pudieron cargar los datos privados.' }) })
     return () => { activo = false }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esDemo, empresaSesion?.id])
 
   async function guardar(accion, exito, cerrar) {
     if (busy) return
@@ -74,19 +78,20 @@ export default function DatosPrivados() {
   const guardarTitular = (evento) => {
     evento.preventDefault()
     const values = titular
+    try { validarRevisionTitular(values) } catch (error) { setMessage({ ok: false, text: error.message }); return }
     guardar(
-      () => titular.id ? updateAccountHolder(titular.id, values) : createAccountHolder(values),
+      () => titular.id ? updateAccountHolder(titular.id, values, opcionesDemo) : createAccountHolder(values, opcionesDemo),
       titular.id ? 'Titular actualizado.' : 'Titular agregado.',
-      () => { setTitular(null); getAccountHolders().then(setHolders).catch(() => {}) },
+      () => { setTitular(null); getAccountHolders(opcionesDemo).then(setHolders).catch(() => {}) },
     )
   }
   const guardarEmpresa = (evento) => {
     evento.preventDefault()
     const values = empresa
     guardar(
-      () => empresa.id ? updatePrivateCompany(empresa.id, values) : createPrivateCompany(values),
+      () => empresa.id ? updatePrivateCompany(empresa.id, values, opcionesDemo) : createPrivateCompany(values, opcionesDemo),
       empresa.id ? 'Empresa actualizada.' : 'Empresa agregada.',
-      () => { setEmpresa(null); getPrivateCompanies().then(setCompanies).catch(() => {}) },
+      () => { setEmpresa(null); getPrivateCompanies(opcionesDemo).then(setCompanies).catch(() => {}) },
     )
   }
 
@@ -127,7 +132,7 @@ export default function DatosPrivados() {
             <FilaEntidad key={row.id} titulo={row.legalName} detalle={[row.ruc, row.legalAddress].filter(Boolean).join(' · ')} activo={row.isActive} busy={busy}
               ariaEditar={`Editar ${row.legalName}`} ariaAlternar={`${row.isActive ? 'Desactivar' : 'Activar'} ${row.legalName}`}
               onEditar={() => setEmpresa({ ...VACIO_EMPRESA, ...row })}
-              onAlternar={() => guardar(() => updatePrivateCompany(row.id, { isActive: !row.isActive }), row.isActive ? 'Empresa desactivada.' : 'Empresa activada.', () => getPrivateCompanies().then(setCompanies).catch(() => {}))} />
+              onAlternar={() => guardar(() => updatePrivateCompany(row.id, { isActive: !row.isActive }, opcionesDemo), row.isActive ? 'Empresa desactivada.' : 'Empresa activada.', () => getPrivateCompanies(opcionesDemo).then(setCompanies).catch(() => {}))} />
           ))}
         </div>
       </Card>
@@ -141,33 +146,35 @@ export default function DatosPrivados() {
           <Button type="button" disabled={busy || !!titular} onClick={() => setTitular({ ...VACIO_TITULAR })}>Agregar titular</Button>
         </div>
         {titular && <form onSubmit={guardarTitular} className="grid gap-3 rounded-lg border border-ink-600 p-3 sm:grid-cols-3">
-          <div><Label htmlFor="priv-first">Primer nombre</Label><Input id="priv-first" autoFocus required maxLength={80} value={titular.firstName} onChange={(e) => setTitular({ ...titular, firstName: e.target.value })} /></div>
-          <div><Label htmlFor="priv-middle">Segundo nombre</Label><Input id="priv-middle" maxLength={80} value={titular.middleName} onChange={(e) => setTitular({ ...titular, middleName: e.target.value })} /></div>
-          <div><Label htmlFor="priv-other">Tercer nombre</Label><Input id="priv-other" maxLength={80} value={titular.otherName} onChange={(e) => setTitular({ ...titular, otherName: e.target.value })} /></div>
-          <div><Label htmlFor="priv-last">Primer apellido</Label><Input id="priv-last" required maxLength={80} value={titular.lastName} onChange={(e) => setTitular({ ...titular, lastName: e.target.value })} /></div>
-          <div><Label htmlFor="priv-second-last">Segundo apellido</Label><Input id="priv-second-last" maxLength={80} value={titular.secondLastName} onChange={(e) => setTitular({ ...titular, secondLastName: e.target.value })} /></div>
+          <div><Label htmlFor="priv-first">Primer nombre</Label><Input id="priv-first" autoFocus required maxLength={80} value={titular.firstName} onChange={(e) => setTitular({ ...titular, firstName: e.target.value, personConfirmed: false })} /></div>
+          <div><Label htmlFor="priv-middle">Segundo nombre</Label><Input id="priv-middle" maxLength={80} value={titular.middleName} onChange={(e) => setTitular({ ...titular, middleName: e.target.value, personConfirmed: false })} /></div>
+          <div><Label htmlFor="priv-other">Tercer nombre</Label><Input id="priv-other" maxLength={80} value={titular.otherName} onChange={(e) => setTitular({ ...titular, otherName: e.target.value, personConfirmed: false })} /></div>
+          <div><Label htmlFor="priv-last">Primer apellido</Label><Input id="priv-last" required maxLength={80} value={titular.lastName} onChange={(e) => setTitular({ ...titular, lastName: e.target.value, personConfirmed: false })} /></div>
+          <div><Label htmlFor="priv-second-last">Segundo apellido</Label><Input id="priv-second-last" maxLength={80} value={titular.secondLastName} onChange={(e) => setTitular({ ...titular, secondLastName: e.target.value, personConfirmed: false })} /></div>
           <div><Label htmlFor="priv-doc">Cédula/RUC</Label>
             <RucField
               id="priv-doc"
               value={titular.document}
-              onChange={(valor) => setTitular((actual) => ({ ...actual, document: valor }))}
+              onChange={(valor) => setTitular((actual) => ({ ...actual, document: valor, nameOfficial: undefined, personConfirmed: false }))}
               esDemo={esDemo}
-              onAplicar={(datos) => setTitular((actual) => ({
-                ...actual,
-                ...(datos.fullRuc ? { document: datos.fullRuc } : {}),
-                ...partesConocidas(datos.name),
-              }))}
+              onAplicar={(datos) => setTitular((actual) => actual ? aplicarIdentidadTitular(actual, datos) : null)}
             />
           </div>
+          {titular.nameOfficial && <div className="space-y-2 sm:col-span-3">
+            <p className="text-xs text-mute">Nombre fiscal consultado (sin clasificar):</p>
+            <p className="whitespace-pre-wrap break-words text-sm" data-testid="titular-nombre-fiscal">{titular.nameOfficial}</p>
+            <p className="text-xs text-mute">Completá y revisá los nombres y apellidos. Para una razón social usá Empresas/personas jurídicas.</p>
+            <Checkbox label="Revisé los nombres y apellidos del titular" checked={titular.personConfirmed === true} onChange={event => setTitular(current => ({ ...current, personConfirmed: event.target.checked }))} />
+          </div>}
           <p className="text-xs text-mute sm:col-span-3">Así se va a ver: <b className="text-fore">{nombreCompleto(titular) || '—'}</b></p>
-          <div className="flex flex-wrap gap-2 sm:col-span-3"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar titular'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setTitular(null)}>Cancelar</Button></div>
+          <div className="flex flex-wrap gap-2 sm:col-span-3"><Button type="submit" disabled={busy || Boolean(titular.nameOfficial && !titular.personConfirmed)}>{busy ? 'Guardando…' : 'Guardar titular'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setTitular(null)}>Cancelar</Button></div>
         </form>}
         <div className="space-y-1.5">
           {holders.length === 0 && !titular ? <ListaVacia texto="Sin titulares registrados." /> : holders.map((row) => (
             <FilaEntidad key={row.id} titulo={nombreCompleto(row)} detalle={row.document || ''} activo={row.isActive} busy={busy}
               ariaEditar={`Editar ${nombreCompleto(row)}`} ariaAlternar={`${row.isActive ? 'Desactivar' : 'Activar'} ${nombreCompleto(row)}`}
               onEditar={() => setTitular({ ...VACIO_TITULAR, ...row })}
-              onAlternar={() => guardar(() => updateAccountHolder(row.id, { isActive: !row.isActive }), row.isActive ? 'Titular desactivado.' : 'Titular activado.', () => getAccountHolders().then(setHolders).catch(() => {}))} />
+              onAlternar={() => guardar(() => updateAccountHolder(row.id, { isActive: !row.isActive }, opcionesDemo), row.isActive ? 'Titular desactivado.' : 'Titular activado.', () => getAccountHolders(opcionesDemo).then(setHolders).catch(() => {}))} />
           ))}
         </div>
       </Card>

@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { SesionProvider, useSesion } from '../../src/lib/sesion'
 import { ToastProvider, Button } from '../../src/components/ui'
+import IdentidadCuenta from '../../src/components/control/config/IdentidadCuenta'
+import DatosPrivados from '../../src/components/control/DatosPrivados'
 import CheckoutCustomer from '../../src/components/ventas/CheckoutCustomer'
 import CustomerProfile from '../../src/components/customers/CustomerProfile'
 import { checkoutBillingPayload } from '../../src/lib/checkoutIdentity'
@@ -14,6 +16,7 @@ function Fixture() {
   const [value, setValue] = useState({ name: '', document: '', addresses: [] })
   const [billing, setBilling] = useState({ name: '', document: '' })
   const [open, setOpen] = useState(false)
+  const [configRevision, setConfigRevision] = useState(0)
   const [customer, setCustomer] = useState(client)
   useEffect(() => {
     const change = () => setCustomer({ ...client, id: 'otro-cliente-498', name: 'Otra ficha' })
@@ -21,6 +24,13 @@ function Fixture() {
     return () => window.removeEventListener('qa-cambiar-cliente', change)
   }, [])
   if (!esDemo || estado !== 'dentro') return <p>Inicializando demo fiscal</p>
+  if (new URLSearchParams(location.search).get('vista') === 'config') return <main className="mx-auto max-w-4xl p-4">
+    <Button onClick={() => setConfigRevision(value => value + 1)}>Reabrir configuración</Button>
+    <section key={configRevision} data-testid="config-fiscal-demo">
+      <IdentidadCuenta tenant={{ id: 'mobos-demo' }} />
+      <DatosPrivados />
+    </section>
+  </main>
   return <main className="mx-auto max-w-4xl p-4">
     <Button onClick={() => setOpen(true)}>Abrir ficha fiscal</Button>
     <Button onClick={() => setCustomer({ ...client, id: 'otro-cliente-498', name: 'Otra ficha' })}>Cambiar ficha</Button>

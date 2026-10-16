@@ -1,0 +1,83 @@
+import { test, expect } from '@playwright/test'
+async function enter(page, width, dark) {
+  await page.setViewportSize({ width, height: 844 })
+  const writes = []
+  await page.route(/https:\/\//, route => route.abort())
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname
+    if (!path.startsWith('/api/')) return route.continue()
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.request().method())) writes.push(path)
+    return route.fulfill({ status: 401, json: { error: 'Sin API real' } })
+  })
+  await page.addInitScript(() => {
+    sessionStorage.setItem('mobos:demo-session', 'active')
+    sessionStorage.setItem('mobos:demo-session:role', 'ADMIN')
+  })
+  await page.goto(`/e2e/fixtures/ruc498-identidad.html?vista=config&tema=${dark ? 'dark' : 'light'}`)
+  await expect(page.getByTestId('config-fiscal-demo')).toBeVisible()
+  return () => expect(writes).toEqual([])
+}
+async function extract(scope, selector) {
+  await scope.locator(selector).fill('1234567')
+  await scope.getByRole('button', { name: /Extraer/ }).click()
+  await expect(scope.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+}
+for (const [width, dark] of [[390, false], [1440, true]]) {
+  test(`498 configuración de cuenta aplica guarda y reabre demo ${width}`, async ({ page }) => {
+    const noApi = await enter(page, width, dark)
+    let account = page.getByTestId('cuenta-form')
+    await account.getByRole('button', { name: 'Editar', exact: true }).click()
+    const oldName = await account.getByLabel('Nombre de la tienda', { exact: true }).inputValue()
+    await extract(account, '#edit-ruc')
+    await expect(account.getByLabel('Nombre de la tienda', { exact: true })).toHaveValue(oldName)
+    await account.getByRole('button', { name: 'Usar estos datos' }).click()
+    const accepted = await account.getByLabel('Nombre de la tienda', { exact: true }).inputValue()
+    expect(accepted).not.toBe(oldName)
+    const ruc = await account.locator('#edit-ruc').inputValue()
+    await account.getByLabel('Correo de la empresa', { exact: true }).fill('qa@example.invalid')
+    await account.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+    await expect(account.getByTestId('datos-tienda-lectura')).toContainText(accepted)
+    await page.getByRole('button', { name: 'Reabrir configuración' }).click()
+    account = page.getByTestId('cuenta-form')
+    await expect(account.getByTestId('datos-tienda-lectura')).toContainText(ruc)
+    await account.getByRole('button', { name: 'Editar', exact: true }).click()
+    await expect(account.getByLabel('Nombre de la tienda', { exact: true })).toHaveValue(accepted.trim())
+    await expect(account.locator('#edit-ruc')).toHaveValue(ruc)
+    noApi()
+  })
+  test(`498 titular privado exige revisión sin mezclar nombres anteriores ${width}`, async ({ page }) => {
+    const noApi = await enter(page, width, dark)
+    await page.getByRole('button', { name: 'Agregar titular', exact: true }).click()
+    const form = page.locator('form').filter({ has: page.locator('#priv-first') })
+    for (const [id, value] of [['priv-first', 'ANTERIOR'], ['priv-middle', 'VIEJO'], ['priv-other', 'TERCERO'], ['priv-last', 'APELLIDO'], ['priv-second-last', 'SEGUNDO']]) await form.locator(`#${id}`).fill(value)
+    await form.getByRole('button', { name: 'Guardar titular', exact: true }).click()
+    await page.getByRole('button', { name: 'Editar ANTERIOR VIEJO TERCERO APELLIDO SEGUNDO', exact: true }).click()
+    await extract(form, '#priv-doc')
+    await expect(form.locator('#priv-middle')).toHaveValue('VIEJO')
+    await form.getByRole('button', { name: 'Usar estos datos' }).click()
+    const raw = await form.getByTestId('titular-nombre-fiscal').textContent()
+    expect(raw.length).toBeGreaterThan(0)
+    for (const id of ['priv-first', 'priv-middle', 'priv-other', 'priv-last', 'priv-second-last']) await expect(form.locator(`#${id}`)).toHaveValue('')
+    await expect(form.getByRole('button', { name: 'Guardar titular', exact: true })).toBeDisabled()
+    await form.locator('#priv-first').fill('Juan')
+    await form.locator('#priv-last').fill('Perez')
+    await expect(form.getByRole('button', { name: 'Guardar titular', exact: true })).toBeDisabled()
+    await form.getByRole('checkbox', { name: 'Revisé los nombres y apellidos del titular', exact: true }).check()
+    await form.getByRole('button', { name: 'Guardar titular', exact: true }).click()
+    await page.getByRole('button', { name: 'Reabrir configuración' }).click()
+    await page.getByRole('button', { name: 'Editar Juan Perez', exact: true }).click()
+    expect(await form.getByTestId('titular-nombre-fiscal').textContent()).toBe(raw)
+    await expect(form.locator('#priv-middle')).toHaveValue('')
+    await expect(form.locator('#priv-other')).toHaveValue('')
+    await expect(form.locator('#priv-second-last')).toHaveValue('')
+    const stored = await page.evaluate(async () => {
+      const { getAccountHolders } = await import('/src/lib/accountParties.js')
+      return { current: await getAccountHolders({ demo: true, empresaId: 'mobos-demo' }), other: await getAccountHolders({ demo: true, empresaId: 'otra-empresa-498' }) }
+    })
+    expect(stored.current).toHaveLength(1)
+    expect(stored.current[0].nameOfficial).toBe(raw)
+    expect(stored.current[0].personConfirmed).toBe(true)
+    expect(stored.other).toEqual([])
+    noApi()
+  })
+}
