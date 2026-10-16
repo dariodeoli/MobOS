@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PaletaComandos } from 'owncoding-ui'
 import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { isDemoRuntime } from '@/lib/demoMode'
@@ -19,10 +20,10 @@ const MIN_CARACTERES = 2
 // vista que abre. Los módulos de gestión solo se ofrecen si el rol los tiene
 // habilitados en su navegación (`vistas`), para no llamar endpoints ajenos.
 const GRUPOS = [
-  { id: 'clientes', titulo: 'Clientes', icon: 'users', vista: 'clientes', siempre: true },
-  { id: 'productos', titulo: 'Productos', icon: 'phone', vista: 'productos', siempre: true },
-  { id: 'pedidos', titulo: 'Pedidos', icon: 'box', vista: 'pedidos', siempre: true },
-  { id: 'cotizaciones', titulo: 'Cotizaciones', icon: 'report', vista: 'cotizaciones', siempre: true },
+  { id: 'clientes', titulo: 'Clientes', icon: 'users', vista: 'clientes' },
+  { id: 'productos', titulo: 'Productos', icon: 'phone', vista: 'productos' },
+  { id: 'pedidos', titulo: 'Pedidos', icon: 'box', vista: 'pedidos' },
+  { id: 'cotizaciones', titulo: 'Cotizaciones', icon: 'report', vista: 'cotizaciones' },
   { id: 'garantias', titulo: 'Garantías', icon: 'clock', vista: 'garantias' },
   { id: 'compras', titulo: 'Compras', icon: 'store', vista: 'compras' },
   { id: 'proveedores', titulo: 'Proveedores', icon: 'truck', vista: 'compras' },
@@ -150,9 +151,12 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwne
   // conexión. Cambiar el prop reejecuta la consulta una vez y deja el mensaje
   // correcto (el estado no vuelve a cambiar: no hay bucle).
   const [estadoError, setEstadoError] = useState('')
+  const { usuario } = useSesion()
+  const rol = usuario?.role
+  const proveedorCompleto = ['ADMIN', 'GERENTE'].includes(rol)
   const disponibles = useMemo(
-    () => GRUPOS.filter(grupo => grupo.siempre || !vistas || vistas.includes(grupo.vista)),
-    [vistas],
+    () => GRUPOS.filter(grupo => (!vistas || vistas.includes(grupo.vista)) && !(rol === 'VENDEDOR' && ['garantias', 'compras'].includes(grupo.id))),
+    [vistas, rol],
   )
 
   // Filas locales para una consulta: se proyectan y filtran igual que las del
@@ -207,45 +211,44 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwne
     // Demo (#296): la búsqueda nunca depende del backend; el catálogo local alcanza.
     if (isDemoRuntime) return [...accesos, ...ajustes, ...filasLocales(q, ids)]
 
+    // Factories: declarar fuentes no debe iniciar requests fuera de vistas.
     const busquedas = {
-      clientes: api
+      clientes: () => api
         .get(`/api/customers?q=${encodeURIComponent(q)}`)
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarCliente)),
-      productos: api
+      productos: () => api
         .get('/api/products')
         .then(filas => filas
           .filter(p => incluye(p.name || p.nombre, q) || incluye(p.sku, q))
           .slice(0, MAX_POR_GRUPO)
           .map(proyectarProducto)),
-      pedidos: api
+      pedidos: () => api
         .get('/api/orders?filtro=todos')
         .then(filas => filas
           .filter(o => incluye(o.orderNumber || o.codigo, q) || incluye(o.customer?.name || o.cliente, q))
           .slice(0, MAX_POR_GRUPO)
           .map(proyectarPedido)),
-      cotizaciones: api
+      cotizaciones: () => api
         .get(`/api/quotes?q=${encodeURIComponent(q)}`)
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarCotizacion)),
-      garantias: api
+      garantias: () => api
         .get(`/api/warranties?q=${encodeURIComponent(q)}`)
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarGarantia)),
-      compras: api
+      compras: () => api
         .get(`/api/purchases?q=${encodeURIComponent(q)}`)
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarCompra)),
-      proveedores: api
-        .get(`/api/suppliers?q=${encodeURIComponent(q)}`)
-        .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarProveedor))
-        .catch(causa => {
-          if (causa?.status !== 403) throw causa
-          return api
-            .get('/api/suppliers/badges')
-            .then(filas => filas.filter(fila => incluye(fila.code, q)).slice(0, MAX_POR_GRUPO).map(proyectarInsigniaProveedor))
-        }),
-      unidades: api
+      // Elegir la proyección antes de consultar: un403 no es una prueba de
+      // capacidades y retira correctamente todo el contexto privado (#502).
+      proveedores: () => proveedorCompleto
+        ? api.get(`/api/suppliers?q=${encodeURIComponent(q)}`)
+          .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarProveedor))
+        : api.get('/api/suppliers/badges')
+          .then(filas => filas.filter(fila => incluye(fila.code, q)).slice(0, MAX_POR_GRUPO).map(proyectarInsigniaProveedor)),
+      unidades: () => api
         .get(`/api/inventory-units?q=${encodeURIComponent(q)}`)
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarUnidad)),
     }
-    const settled = await Promise.allSettled(ids.map(id => busquedas[id]))
+    const settled = await Promise.allSettled(ids.map(id => busquedas[id]()))
     const fallos = []
     const resultados = [...accesos, ...ajustes]
     settled.forEach((resultado, indice) => {
