@@ -213,6 +213,9 @@ jobs:
           MOBOS_QA_PORT: "5334"
           MOBOS_QA_OUT: /tmp/mobos-public403-ci
         run: npx playwright test --config e2e/publicas-extra.frontend.config.js
+      - name: Global search respects role capabilities
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/busqueda510.frontend.config.js
       - name: Mobile PIN and login layout
         if: matrix.shard == 3
         env:
@@ -223,6 +226,9 @@ jobs:
         env:
           MOBOS_QA_PORT: "5345"
         run: npx playwright test --config e2e/demo461.frontend.config.js
+      - name: Demo access and public report layout
+        if: matrix.shard == 4
+        run: npx playwright test --config e2e/demo-acceso.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:

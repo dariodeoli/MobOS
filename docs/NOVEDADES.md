@@ -13,6 +13,8 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
+- **Buscador:** buscar cotizaciones conserva la sesión y consulta únicamente las secciones habilitadas para tu usuario.
+
 - **Elección de IMEI:** si cambia el acceso al stock, se cierra el selector con una explicación y la venta espera que verifiques la sesión.
 
 - **Reabrir la app:** una sesión de vendedor conserva sus pedidos y catálogo al recargar; el selector de empresas consulta solo cuando la cuenta puede gestionarlas. La foto se actualiza después de validar el contexto. La entrada demo conserva perfiles y teclado táctil sin desplazamiento en el formato móvil revisado.
