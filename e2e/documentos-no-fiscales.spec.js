@@ -5,6 +5,7 @@
 
 import { test, expect } from '@playwright/test'
 import { clickRowAction } from './helpers/row-actions.js'
+import { configurarImpresoraRaster, leerRaster } from './helpers/raster-qr.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -75,7 +76,13 @@ test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal',
 test('la remisión interna de un traslado sale por el agente con firmas', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)
+  await page.addInitScript(() => {
+    window.rasterHtml = []
+    const write = Document.prototype.write
+    Document.prototype.write = function (...args) { if (this.defaultView?.frameElement?.hasAttribute('data-png-documento')) window.top.rasterHtml.push(args.join('')); return write.apply(this, args) }
+  })
   await page.goto('/resumen')
+  await configurarImpresoraRaster(page, API)
   const marca = Date.now()
   const destino = await apiPagina(page, '/api/branches', { method: 'POST', body: JSON.stringify({ name: `Sucursal remision ${marca}` }) })
   expect(destino.status).toBe(201)
@@ -93,13 +100,16 @@ test('la remisión interna de un traslado sale por el agente con firmas', async 
 
   await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('remision')
-  const texto = textoDelTicket(capturados[0])
-  expect(texto).toMatch(/Remisi.n interna/)
-  expect(texto).toContain('Documento no fiscal')
-  // El backend normaliza el serial sin guiones; el nombre largo se envuelve.
-  expect(texto).toContain(serial.replace(/-/g, ''))
-  expect(texto).toContain('Sucursal remision')
-  expect(texto).toContain(String(marca))
+  const raster = leerRaster(capturados[0].data)
+  expect(raster.cuts).toBe(1)
+  expect(raster.pages).toHaveLength(1)
+  const html = await page.evaluate(() => window.rasterHtml[0])
+  expect(html).toMatch(/Remisi.n interna/)
+  expect(html).toContain('Documento no fiscal')
+  expect(html).toContain(serial.replace(/-/g, ''))
+  expect(html).toContain('Sucursal remision')
+  expect(html).toContain(String(marca))
+  expect(await page.evaluate(() => window.rasterHtml)).toHaveLength(1)
 })
 
 test('el recibo interno de un cobro sale por el agente con el monto', async ({ page }) => {

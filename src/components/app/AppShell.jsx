@@ -446,7 +446,7 @@ export default function AppShell({
         >
           <div className="flex h-14 min-w-0 items-center gap-1 px-3">
             {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : <img src="/mobos-icon.svg" alt="MobOS" className="h-7 w-7 shrink-0" />}
-            <div data-testid="shell-sucursal-mobile" className="flex min-w-0 flex-1 items-center">
+            <div data-testid="shell-sucursal-mobile" className="shell-header-selector flex min-w-0 flex-1 items-center">
               <SelectorSucursal className="max-w-full" />
             </div>
             {offlineButton('shell-cola-offline-pill')}
@@ -472,8 +472,8 @@ export default function AppShell({
           recordRef={setRecordSlot}
           utilities={
             <>
-              <SelectorEmpresa control={cambioEmpresa} className="shrink-0" />
-              <div data-testid="shell-sucursal-desktop" className="flex min-h-11 items-center">
+              <SelectorEmpresa control={cambioEmpresa} className="shell-header-selector shrink-0" />
+              <div data-testid="shell-sucursal-desktop" className="shell-header-selector flex min-h-11 items-center">
                 <SelectorSucursal />
               </div>
               {alertsButton()}

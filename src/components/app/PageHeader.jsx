@@ -24,7 +24,7 @@ export default function PageHeader({ title, subtitle, actions, aviso, backTo, br
         {record && utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}
       </div>
       {!record && (
-      <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${filaMovilVacia ? 'max-lg:min-h-0 lg:min-h-7' : 'min-h-7'}`}>
+      <div data-testid="shell-page-header-row" className={`shell-page-header-row flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${filaMovilVacia ? 'max-lg:min-h-0 lg:min-h-7' : 'min-h-7'}`}>
         <div className="flex min-w-0 items-center gap-2">
           {backTo && (
             <button
@@ -36,10 +36,10 @@ export default function PageHeader({ title, subtitle, actions, aviso, backTo, br
               <Icon name="back" className="h-4 w-4" />
             </button>
           )}
-          <h1 className={`min-w-0 text-[22px] font-semibold leading-7 tracking-tight ${conPestanas ? 'max-lg:sr-only' : ''}`}>{title}</h1>
+          <h1 data-testid="shell-page-title" className={`min-w-0 text-[22px] font-semibold leading-7 tracking-tight ${conPestanas ? 'max-lg:sr-only' : ''}`}>{title}</h1>
         </div>
         {(actions || utilities || aviso) && (
-          <div className="flex min-w-0 items-center gap-2">
+          <div data-testid="shell-page-header-actions" className="shell-page-header-actions flex min-w-0 items-center gap-2">
             {aviso}
             {actions}
             {utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}

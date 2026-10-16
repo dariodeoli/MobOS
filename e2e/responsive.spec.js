@@ -43,3 +43,38 @@ for (const viewport of viewports) {
     })
   })
 }
+
+for (const viewport of [
+  { name: 'mobile-alignment', width: 390, height: 844 },
+  { name: 'tablet-alignment', width: 768, height: 1024 },
+  { name: 'desktop-alignment', width: 1440, height: 900 },
+]) {
+  test.describe(`shared shell alignment ${viewport.name}`, () => {
+    test.use({ viewport: { width: viewport.width, height: viewport.height } })
+
+    test('aligns page headers, actions and branch selectors', async ({ page }) => {
+      for (const route of ['/pedidos', '/delivery/repartos']) {
+        await page.goto(route)
+        const row = page.getByTestId('shell-page-header-row')
+        await expect(row).toBeVisible()
+        const actionGroup = page.getByTestId('shell-page-header-actions')
+        if (await actionGroup.count()) {
+          const [rowBox, actionBox] = await Promise.all([row.boundingBox(), actionGroup.boundingBox()])
+          expect(actionBox.height, `${route}: acciones con altura de control común`).toBeGreaterThanOrEqual(44)
+          expect(Math.abs((rowBox.y + rowBox.height / 2) - (actionBox.y + actionBox.height / 2)), `${route}: acciones centradas en la fila del encabezado`).toBeLessThanOrEqual(8)
+        }
+
+        const selector = page.locator(viewport.width < 1024
+          ? '[data-testid="shell-sucursal-mobile"] [data-testid="sucursal-selector"], [data-testid="shell-sucursal-mobile"] [data-testid="sucursal-info"]'
+          : '[data-testid="shell-sucursal-desktop"] [data-testid="sucursal-selector"], [data-testid="shell-sucursal-desktop"] [data-testid="sucursal-info"]')
+        await expect(selector).toBeVisible()
+        const selectorBox = await selector.boundingBox()
+        expect(selectorBox.height, `${route}: selector de sucursal con altura común`).toBeGreaterThanOrEqual(44)
+        if (viewport.width >= 1024) {
+          const rowBox = await row.boundingBox()
+          expect(Math.abs((rowBox.y + rowBox.height / 2) - (selectorBox.y + selectorBox.height / 2)), `${route}: selector centrado en el encabezado`).toBeLessThanOrEqual(8)
+        }
+      }
+    })
+  })
+}

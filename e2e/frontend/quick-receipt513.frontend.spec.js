@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { leerRaster } from '../helpers/raster-qr.js'
 const token = 'Abcdefghijklmnopqrstuvwxyz0123_-'
-const order = { id: 'quick513', orderNumber: 'QA-5132', createdAt: '2026-10-15T12:00:00Z', status: 'PAID', totalPyg: 1000000, customer: { name: 'Cliente ficticio' }, items: [{ description: 'Equipo ficticio', quantity: 1, unitPricePyg: 1000000, totalPyg: 1000000 }], payments: [{ method: 'CASH', status: 'CONFIRMED', amountPyg: 1000000 }] }
+const order = { id: 'quick513', orderNumber: 'QA-5132', publicToken: token, createdAt: '2026-10-15T12:00:00Z', status: 'PAID', totalPyg: 1000000, customer: { name: 'Cliente ficticio' }, items: [{ description: 'Equipo ficticio', quantity: 1, unitPricePyg: 1000000, totalPyg: 1000000 }], payments: [{ method: 'CASH', status: 'CONFIRMED', amountPyg: 1000000 }] }
 const printer = { id: 'cmfixtureprinter00000000001', modelo: 'ZKP8008', model: 'ZKP8008', ancho: 80, width: 80, destino: 'lan:192.0.2.99:9100', destination: 'lan:192.0.2.99:9100', activa: true, isActive: true, predeterminada: true, isDefault: true, corte: true, cut: true, copias: 2, copies: 2 }
 async function setup(page, { remote = false, model = 'ZKP8008', noPrinter = false, phase, hold, duplicate = false } = {}) {
   const sent = [], tokens = []
@@ -32,6 +32,66 @@ async function setup(page, { remote = false, model = 'ZKP8008', noPrinter = fals
   return { sent, tokens }
 }
 const print = page => page.evaluate(async () => (await import('/src/components/stock/impresionStock.js')).printQuickReceipt({ sale: { orderId: 'quick513' } }))
+test('513 ubicación, remisión y regalo envían el HTML compartido con su QR de origen', async ({ page }) => {
+  const { sent } = await setup(page, { remote: true })
+  const location = { id: 'LOC-513', name: 'Estante QA', code: 'E-13', branch: { name: 'Sucursal QA' } }
+  const transfer = { id: 'transfer-513', sourceBranch: { name: 'Sucursal origen' }, destinationBranch: { name: 'Sucursal destino' }, createdAt: '2026-10-15T12:00:00Z', lines: [{ sourceProduct: { name: 'Equipo de prueba' }, quantity: 1, serials: ['QA-SERIE-513'] }] }
+  const labels = await page.evaluate(async location => {
+    const { printLocationLabel } = await import('/src/components/stock/impresionStock.js')
+    return printLocationLabel(location)
+  }, location)
+  expect(labels.ok, JSON.stringify(labels)).toBe(true)
+  const remision = await page.evaluate(async transfer => {
+    const { imprimirRemision } = await import('/src/components/stock/impresionStock.js')
+    return imprimirRemision(transfer)
+  }, transfer)
+  expect(remision.ok).toBe(true)
+  const regalo = await page.evaluate(async order => {
+    const { imprimirReciboRegalo } = await import('/src/components/shared/imprimirOperacion.js')
+    return imprimirReciboRegalo(order)
+  }, order)
+  expect(regalo.ok).toBe(true)
+  expect(sent).toHaveLength(3)
+  const decoded = sent.map(job => leerRaster(job.data || job.payload))
+  expect(decoded[0].pages.map(p => p.qr)).toEqual(['MOBOS:UBI:LOC-513'])
+  expect(decoded[2].pages.map(p => p.qr)).toEqual([`https://clientes.example.invalid/pedidos/${token}`])
+  const html = await page.evaluate(async ({ location, transfer, order }) => {
+    const receipt = await import('/src/components/shared/OrderReceipt.jsx')
+    const operation = await import('/src/components/shared/OperacionReceipt.jsx')
+    const locationHtml = window.rasterHtml[0]
+    const remisionHtml = await receipt.buildRemisionHtml(transfer, { format: 'thermal-80' })
+    const regaloHtml = await operation.buildReciboRegaloHtml(order, { format: 'thermal-80' })
+    return { locationHtml, remisionHtml, regaloHtml }
+  }, { location, transfer, order })
+  const captures = await page.evaluate(() => window.rasterHtml)
+  expect(captures).toHaveLength(3)
+  expect(captures[0]).toBe(html.locationHtml)
+  expect(captures[1]).toBe(html.remisionHtml)
+  expect(captures[2]).toBe(html.regaloHtml)
+  expect(html.remisionHtml).toContain('QA-SERIE-513')
+  expect(html.regaloHtml).toContain('RECIBO DE REGALO')
+  expect(html.regaloHtml).not.toContain('1.000.000')
+  await expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0)
+})
+test('513 las tres rutas abren su mismo documento HTML solo cuando no hay impresora', async ({ page }) => {
+  const { sent } = await setup(page, { noPrinter: true })
+  const results = await page.evaluate(async ({ order }) => {
+    const stock = await import('/src/components/stock/impresionStock.js')
+    const operation = await import('/src/components/shared/imprimirOperacion.js')
+    const location = await stock.printLocationLabel({ id: 'LOC-513', name: 'Estante QA' })
+    const transfer = await stock.imprimirRemision({ sourceBranch: { name: 'Origen QA' }, destinationBranch: { name: 'Destino QA' }, lines: [{ sourceProduct: { name: 'Equipo de prueba' }, quantity: 1, serials: ['QA-SERIE-513'] }] })
+    const regalo = await operation.imprimirReciboRegalo(order)
+    return [location, transfer, regalo]
+  }, { order })
+  expect(results.map(result => result.dialogo)).toEqual([true, true, true])
+  expect(sent).toHaveLength(0)
+  const frames = page.locator('iframe[aria-hidden="true"]')
+  await expect(frames).toHaveCount(3)
+  await expect(frames.nth(0).contentFrame().locator('body')).toContainText('Estante QA')
+  await expect(frames.nth(1).contentFrame().locator('body')).toContainText('QA-SERIE-513')
+  await expect(frames.nth(2).contentFrame().locator('body')).toContainText('RECIBO DE REGALO')
+  await expect(frames.nth(2).contentFrame().locator('body')).not.toContainText('1.000.000')
+})
 for (const remote of [false, true]) test(`513 Vendidos ${remote ? 'remoto' : 'local'} imprime el HTML premium rápido exacto y QR píxeles`, async ({ page }) => {
   const { sent, tokens } = await setup(page, { remote })
   const result = await print(page)

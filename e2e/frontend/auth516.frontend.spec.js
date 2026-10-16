@@ -46,6 +46,38 @@ for (const [width,height] of [[360,640],[390,844],[1440,900]]) for (const dark o
   }
 })
 
+for (const [width, height] of [[320, 568], [360, 640], [375, 667], [390, 667]]) test(`#520 acceso ${width}x${height}: acciones de entrar y crear visibles sin swipe`, async ({ page }) => {
+  await page.setViewportSize({ width, height })
+  await preparar(page, 'web', false)
+  const requeridos = [
+    page.getByRole('button', { name: 'Continuar con Google', exact: true }),
+    page.locator('#mail'),
+    page.locator('#pass'),
+    page.getByRole('button', { name: 'Continuar', exact: true }),
+    page.getByRole('button', { name: 'Creá tu tienda', exact: true }),
+  ]
+  for (const control of requeridos) {
+    await expect(control).toBeVisible()
+    const rect = await control.boundingBox()
+    expect(rect.y + rect.height, 'control de acceso dentro del viewport').toBeLessThanOrEqual(height)
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)).toBe(false)
+  await page.getByRole('button', { name: 'Creá tu tienda', exact: true }).click()
+  const signup = [
+    page.getByRole('button', { name: 'Crear con Google', exact: true }),
+    page.locator('#company-name'),
+    page.locator('#new-email'),
+    page.locator('#new-password'),
+    page.getByRole('button', { name: 'Crear mi tienda', exact: true }),
+    page.getByRole('button', { name: 'Entrá a tu cuenta', exact: true }),
+  ]
+  for (const control of signup) {
+    await expect(control).toBeVisible()
+    const rect = await control.boundingBox()
+    expect(rect.y + rect.height, 'control de registro dentro del viewport').toBeLessThanOrEqual(height)
+  }
+})
+
 for (const plataforma of ['web','ios']) test(`#516 ${plataforma} conserva botón y progreso mientras autentica`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 }); await preparar(page, plataforma, false)
   let start, finish
