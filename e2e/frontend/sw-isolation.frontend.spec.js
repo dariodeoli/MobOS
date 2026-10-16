@@ -39,7 +39,7 @@ function appResponse(req, res) {
   if (req.url === '/sw.js') {
     res.setHeader('Content-Type', 'application/javascript')
     res.end(state.legacy ? "self.addEventListener('install', e=>e.waitUntil(self.skipWaiting()));self.addEventListener('activate', e=>e.waitUntil(self.clients.claim()));" : sw)
-  } else if (req.url === '/src/lib/offline/snapshot.js' || req.url === '/src/lib/offline/idb') {
+  } else if (['/src/lib/offline/snapshot.js', '/src/lib/offline/idb', '/src/lib/offline/idb.js'].includes(req.url)) {
     res.setHeader('Content-Type', 'application/javascript')
     res.end(readFileSync(new URL(req.url.slice(1) + (req.url.endsWith('/idb') ? '.js' : ''), root)))
   } else if (req.url === '/export.json') {
@@ -181,23 +181,29 @@ test('501 navegación API/JSON no contamina shell y shell HTML sigue disponible 
   expect(failedNavigation, 'API offline falla; nunca devuelve shell HTML ni respuesta privada cacheada').toBe(true)
 })
 
-test('501 snapshot POS existente conserva partición por empresa en IndexedDB; no reemplaza autorización', async ({ page }) => {
+test('501 snapshot POS conserva contexto privado en IndexedDB y retira A al activar B; no reemplaza autorización', async ({ page }) => {
   await controlled(page)
   await login(page, 'A')
   await page.evaluate(async () => {
     window.snapshots = await import('/src/lib/offline/snapshot.js')
-    if (!await window.snapshots.guardarSnapshotCatalogo('EMPRESA_A', { products: [{ id: 'SOLO_A' }], orders: [], users: [], finance: [] })) throw new Error('snapshot A no guardado')
+    window.tokenA = window.snapshots.activarContextoSnapshots({ empresaId: 'EMPRESA_A', userId: 'USER_A', sucursalId: 'SUC_A', rol: 'OWNER', permisos: ['ventas', 'costos'] })
+    if (!await window.snapshots.guardarSnapshotCatalogo(window.tokenA, { products: [{ id: 'SOLO_A' }], orders: [], users: [], finance: [] })) throw new Error('snapshot A no guardado')
   })
+  expect(await page.evaluate(async () => (await window.snapshots.leerSnapshotCatalogo(window.tokenA)).products)).toEqual([{ id: 'SOLO_A' }])
   await changeSession(page)
+  await page.evaluate(() => {
+    window.tokenB = window.snapshots.activarContextoSnapshots({ empresaId: 'EMPRESA_B', userId: 'USER_B', sucursalId: 'SUC_B', rol: 'SELLER', permisos: ['ventas'] })
+  })
   state.failure = true
   expect(await request(page, '/api/products')).toEqual({ failed: true })
-  const snapshots = await page.evaluate(async () => ({ a: await window.snapshots.leerSnapshotCatalogo('EMPRESA_A'), b: await window.snapshots.leerSnapshotCatalogo('EMPRESA_B') }))
-  expect(snapshots.a.products).toEqual([{ id: 'SOLO_A' }])
+  const snapshots = await page.evaluate(async () => ({ a: await window.snapshots.leerSnapshotCatalogo(window.tokenA), b: await window.snapshots.leerSnapshotCatalogo(window.tokenB) }))
+  expect(snapshots.a).toBeNull()
   expect(snapshots.b).toBeNull()
   expect(await page.evaluate(async () => {
-    await window.snapshots.guardarSnapshotCatalogo('EMPRESA_B', { products: [{ id: 'SOLO_B' }], orders: [] })
-    return (await window.snapshots.leerSnapshotCatalogo('EMPRESA_B')).products
+    await window.snapshots.guardarSnapshotCatalogo(window.tokenB, { products: [{ id: 'SOLO_B' }], orders: [] })
+    return (await window.snapshots.leerSnapshotCatalogo(window.tokenB)).products
   })).toEqual([{ id: 'SOLO_B' }])
+  expect(await page.evaluate(() => window.snapshots.leerSnapshotCatalogo(window.tokenA))).toBeNull()
 })
 
 test('501 handlers push/click y SKIP_WAITING siguen ejecutándose en SW real sin servicios externos', async ({ page, context }) => {
