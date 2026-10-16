@@ -627,6 +627,8 @@ node "$BACKEND_ROOT/tests/customer-merge.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN
 
 echo "Multi-empresa: cambio de empresa, listado, alta, revocación y seguridad 1-8 (#377)..."
 node "$BACKEND_ROOT/tests/tenant-switch.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
+# #509: capacidad real de cuenta sin invalidar sesiones de tienda.
+node "$BACKEND_ROOT/tests/auth-context509.mjs" "$BASE_URL" "$DATABASE_URL"
 
 echo "Pedidos: cliente ocasional, crear/cambiar/quitar ficha con auditoría (#149)..."
 node "$BACKEND_ROOT/tests/orders-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN"

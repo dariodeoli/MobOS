@@ -30,7 +30,7 @@ function guardarSucursalActiva(empresaId, sucursalId) {
 }
 
 function adaptarUsuario(user) {
-  return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
+  return { ...user, canManageCompanies: user?.canManageCompanies === true, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
 }
 function adaptarEmpresa(user, tenant) {
   if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: EMPRESA_DEMO.razonSocial, slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : user.role }
@@ -50,9 +50,6 @@ export function SesionProvider({ children }) {
     const revision = ++revisionSesion.current
     const generacion = generacionSnapshots()
     const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser, tenant); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
-    // #284: la foto arranca cacheada (primer render sin flash) y se revalida en
-    // segundo plano; acá se dispara el cacheo apenas la sesión resuelve.
-    precargarAvatar(user.id)
     // Los datos reales se hidratan desde la API; el almacenamiento local queda
     // reservado al demo y a los módulos que aún están en transición.
     let listaSucursales = suc ? [suc] : []
@@ -83,6 +80,9 @@ export function SesionProvider({ children }) {
     if (revision !== revisionSesion.current || generacion !== generacionSnapshots()) return
     await setContexto({ empresaId: emp.id, sucursalId: sucursalActiva?.id || null, userId: user.id, rol: emp.rol, permisos: rawUser.permissions, fuente: prepararLegacy ? 'legacy' : 'api' })
     if (revision !== revisionSesion.current) return
+    // El contexto privado debe estar validado antes de descargar el avatar:
+    // setContexto invalida las consultas de la sesión anterior.
+    precargarAvatar(user.id)
     // Identidad del papel (#426): razón social, RUC, dirección y contacto salen
     // de la empresa de la sesión (el demo usa la ficticia).
     fijarEmpresaImpresion({ tenant: emp.id === 'mobos-demo' ? { ...EMPRESA_DEMO, name: EMPRESA_DEMO.razonSocial } : { ...(tenant || {}), name: tenant?.name || emp.nombre } })
