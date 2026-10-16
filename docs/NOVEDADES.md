@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.230 — 2026-10-16
+
+- **Impresión:** podés guardar y recuperar plantillas por empresa o sucursal, elegir medidas, orientación, márgenes y posiciones, duplicar diseños y restablecer el formato incorporado. Si otra sesión editó la plantilla, la app avisa antes de sobrescribirla.
+- **Etiquetas:** Productos, Stock y Taller permiten elegir el diseño guardado para vista previa y PDF individual o por lote, conservando medidas, códigos e IMEI. Cambiar de empresa descarta la selección anterior. El soporte y la calibración de cada impresora física siguen pendientes; una salida incompatible no se envía como si fuera compatible.
+- **Comprobantes:** el diseño personalizado conserva el contenido y los importes del comprobante existente. Cambiar el nivel durante una exportación descarta el resultado anterior y deja disponibles los controles para el intento nuevo.
+
 ## v1.0.229 — 2026-10-15
 
 - **Buscador:** buscar cotizaciones conserva la sesión y consulta únicamente las secciones habilitadas para tu usuario.
