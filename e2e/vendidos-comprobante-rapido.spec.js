@@ -1,11 +1,11 @@
 // Comprobante rápido en Vendidos (#215 §10): un clic en el ícono de la fila
 // imprime el comprobante de la venta (nivel Rápido) sin abrir la ficha ni salir
-// de la lista. Con agente se inspecciona el ticket ESC/POS; sin agente ni
+// de la lista. Con agente se decodifica el QR del raster ESC/POS; sin agente ni
 // impresora, el respaldo deja el PDF en 80 mm con OrderReceipt.
 
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
-import { SEED } from './helpers/seed-data.js'
+import { configurarImpresoraRaster, leerRaster } from './helpers/raster-qr.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 // Las evidencias versionadas viven en docs/qa/215-comprobante-rapido (commiteadas
@@ -49,7 +49,16 @@ async function agenteFalso(page, capturados) {
   })
 }
 
-const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
+async function capturarHtmlRaster(page) {
+  await page.addInitScript(() => {
+    window.htmlRaster = []
+    const write = Document.prototype.write
+    Document.prototype.write = function (...args) {
+      if (this.defaultView?.frameElement?.hasAttribute('data-png-documento')) window.top.htmlRaster.push(args.join(''))
+      return write.apply(this, args)
+    }
+  })
+}
 
 // Producto + unidad + venta: la unidad queda SOLD y con su pedido asociado.
 async function sembrarVendida(page, { marca, serial }) {
@@ -85,33 +94,41 @@ async function abrirFilaVendida(page, serial) {
 test('el ícono de Vendidos imprime el comprobante rápido (80 mm) sin abrir la ficha', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)
+  await capturarHtmlRaster(page)
   const marca = Date.now()
   const serial = `353000${String(marca).slice(-8)}`
   await page.goto('/inventario/unidades')
   await sembrarVendida(page, { marca, serial })
 
   const fila = await abrirFilaVendida(page, serial)
-  await page.screenshot({ path: `${SALIDA}/01-fila-vendidos.jpg` })
+  await configurarImpresoraRaster(page, API)
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/01-fila-vendidos.jpg` })
   // Stock: el comprobante rápido es una acción del menú de la fila (sin abrir la ficha).
   await fila.getByLabel(/^Acciones de/).click()
   const boton = page.getByRole('menuitem', { name: 'Comprobante rápido' })
   await expect(boton).toHaveAttribute('title', /comprobante/i)
+  const tokenResponse = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/access-tokens'))
   await boton.click()
   await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 30_000 })
   // El trabajo puede tardar en llegar al agente en CI: se espera antes de mirar.
   await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('comprobante')
-  const texto = textoDelTicket(capturados[0])
-  // El ticket térmico imprime el título en mayúsculas (#402).
-  expect(texto).toMatch(/comprobante de compra/i)
-  expect(texto).toContain('Documento no fiscal')
-  expect(texto).toContain('1.000.000')
-  // Nivel Rápido: el QR del nivel va con su enlace de seguimiento.
-  expect(texto).toMatch(/\/pedidos\//)
+  const token = (await (await tokenResponse).json()).token
+  expect(token).toMatch(/^[A-Za-z0-9_-]{32}$/)
+  const raster = leerRaster(capturados[0].data)
+  expect(raster.cuts).toBe(1)
+  expect(raster.pages).toHaveLength(1)
+  expect(new URL(raster.pages[0].qr).pathname).toBe(`/pedidos/${token}`)
+  expect(capturados[0].copias).toBe(1)
+  const html = await page.evaluate(() => window.htmlRaster)
+  expect(html).toHaveLength(1)
+  expect(html[0]).toMatch(/comprobante de compra/i)
+  expect(html[0]).toContain('Documento no fiscal')
+  expect(html[0]).toContain('1.000.000')
   // No se abrió la ficha: seguimos en la lista.
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(fila).toBeVisible()
-  await page.screenshot({ path: `${SALIDA}/02-impreso-sin-salir.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/02-impreso-sin-salir.jpg` })
 })
 
 test('sin agente ni impresora, el respaldo deja el PDF del comprobante en 80 mm', async ({ page }) => {
@@ -136,7 +153,7 @@ test('sin agente ni impresora, el respaldo deja el PDF del comprobante en 80 mm'
   const contenido = await marco.contentFrame().locator('body').innerText()
   expect(contenido).toContain('Documento no fiscal')
   expect(contenido).toContain('1.000.000')
-  await page.screenshot({ path: `${SALIDA}/03-respaldo-iframe.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/03-respaldo-iframe.jpg` })
 
   // PDF de 80 mm con el mismo HTML que la app manda a «Guardar como PDF».
   const html = await marco.contentFrame().locator('html').evaluate((el) => el.outerHTML)
@@ -153,10 +170,63 @@ test('sin agente ni impresora, el respaldo deja el PDF del comprobante en 80 mm'
     printBackground: true,
     margin: { top: '5mm', bottom: '5mm', left: '4mm', right: '4mm' },
   })
-  await hoja.screenshot({ path: `${SALIDA}/04-comprobante-rapido-80.jpg`, type: 'jpeg', quality: 75, fullPage: true })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await hoja.screenshot({ path: `${SALIDA}/04-comprobante-rapido-80.jpg`, type: 'jpeg', quality: 75, fullPage: true })
   await hoja.close()
 
   // Sin salir de la lista: la fila sigue visible y no hay ficha abierta.
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(fila).toBeVisible()
+})
+
+// El stock unificado solo tiene soldAt: el hook debe resolver la unidad antes
+// de imprimir. Cambiar A→B→A durante esa resolución no autoriza token ni envío.
+test('Vendidos invalida el contexto antes de resolver la unidad y permite un nuevo intento', async ({ page }) => {
+  const capturados = []
+  await agenteFalso(page, capturados)
+  const marca = Date.now()
+  const serial = `353200${String(marca).slice(-8)}`
+  await page.goto('/inventario/unidades')
+  await sembrarVendida(page, { marca, serial })
+  const fila = await abrirFilaVendida(page, serial)
+  await configurarImpresoraRaster(page, API)
+  let entered, release
+  const esperando = new Promise(resolve => { entered = resolve })
+  const liberado = new Promise(resolve => { release = resolve })
+  let retener = true
+  await page.route('**/api/inventory-units?**', async route => {
+    if (!retener || new URL(route.request().url()).searchParams.get('q') !== serial) return route.continue()
+    retener = false
+    const response = await route.fetch()
+    entered()
+    await liberado
+    await route.fulfill({ response })
+  })
+  const tokens = []
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().includes('/access-tokens')) tokens.push(request.url())
+  })
+  const acciones = fila.getByLabel(/^Acciones de/)
+  await acciones.click()
+  await page.getByRole('menuitem', { name: 'Comprobante rápido' }).click()
+  await esperando
+  await expect(acciones).toBeDisabled()
+  await page.evaluate(async () => {
+    const { usarTenantImpresoras } = await import('/src/lib/printing/agent.js')
+    const { contextoActual } = await import('/src/lib/storage.js')
+    const empresa = contextoActual().empresaId
+    usarTenantImpresoras('quick513-otra-empresa')
+    usarTenantImpresoras(empresa)
+  })
+  release()
+  // busy del consumidor vuelve a false en finally; no se usa una pausa fija.
+  await expect(acciones).toBeEnabled()
+  expect(tokens).toEqual([])
+  expect(capturados).toEqual([])
+  await expect(page.getByText(/enviada a la impresora/)).toHaveCount(0)
+  await expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0)
+  await acciones.click()
+  await page.getByRole('menuitem', { name: 'Comprobante rápido' }).click()
+  await expect.poll(() => capturados.length).toBe(1)
+  expect(tokens).toHaveLength(1)
+  expect(leerRaster(capturados[0].data).pages[0].qr).toMatch(/\/pedidos\/[A-Za-z0-9_-]{32}$/)
 })

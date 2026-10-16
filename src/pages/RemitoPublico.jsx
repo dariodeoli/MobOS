@@ -7,6 +7,7 @@ import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { CabeceraTienda, LineaTiempo } from '@/components/publico/KitPublico'
+import { useLogoDocumento } from '@/components/publico/useLogoDocumento'
 import ProductFooter from '@/components/app/ProductFooter'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
@@ -16,7 +17,10 @@ import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 // La confirmación es única: después solo se consulta.
 export default function RemitoPublico() {
   const { token } = useParams()
-  const [remito, setRemito] = useState(null)
+  const [datos, setRemito] = useState(null)
+  const [documentoCargado, setDocumentoCargado] = useState(null)
+  const remito = documentoCargado === token ? datos : null
+  const { logo, logoClaro } = useLogoDocumento({ ruta: '/api/transfers/public', token, disponible: remito?.company?.logo })
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -28,7 +32,7 @@ export default function RemitoPublico() {
     let active = true
     setError(''); setNotice(''); setRemito(null); setConfirmados({}); setNota('')
     fetch(`${API_URL}/api/transfers/public/${encodeURIComponent(token || '')}`)
-      .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Remito no encontrado.'); if (!active) return; setRemito(payload); setConfirmados(Object.fromEntries(clavesDeConfirmacion(payload).map(clave => [clave, true]))) })
+      .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Remito no encontrado.'); if (!active) return; setDocumentoCargado(token); setRemito(payload); setConfirmados(Object.fromEntries(clavesDeConfirmacion(payload).map(clave => [clave, true]))) })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar el remito.') })
     return () => { active = false }
   }, [token])
@@ -80,7 +84,7 @@ export default function RemitoPublico() {
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
-        <CabeceraTienda empresa={remito?.sourceBranch?.name} detalle={remito ? "Sucursal de origen" : undefined}>
+        <CabeceraTienda key={logo || token} logo={logo} logoClaro={logoClaro} empresa={remito?.company?.name || remito?.sourceBranch?.name} detalle={remito?.company?.name ? remito.sourceBranch?.name : remito ? "Sucursal de origen" : undefined}>
           <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Remito de traslado</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight [overflow-wrap:anywhere]">{remito ? `Hacia ${remito.destinationBranch?.name || 'Destino'}` : 'Remito'}</h1>
           {remito?.createdAt && <p className="mt-1 text-sm text-mute">Enviado el {new Date(remito.createdAt).toLocaleString('es-PY')}</p>}

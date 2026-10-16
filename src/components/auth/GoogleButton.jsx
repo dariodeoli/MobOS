@@ -13,10 +13,10 @@ export function OAuthDivider() {
   return <div className="flex items-center gap-4 py-1 text-sm font-medium text-slate-500"><span className="h-px flex-1 bg-white/10" />o<span className="h-px flex-1 bg-white/10" /></div>
 }
 
-export default function GoogleButton({ create = false, busy = false, onClick }) {
+export default function GoogleButton({ create = false, busy = false, disabled = false, onClick }) {
   const label = create ? 'Crear con Google' : 'Continuar con Google'
   return (
-    <button type="button" onClick={onClick} disabled={busy} className="group flex h-14 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px hover:border-white hover:bg-slate-50 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15D7B8] disabled:cursor-wait disabled:opacity-70 sm:rounded-full">
+    <button type="button" onClick={onClick} disabled={disabled || busy} className="group flex h-14 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-base font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px hover:border-white hover:bg-slate-50 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15D7B8] disabled:cursor-wait disabled:opacity-70 sm:rounded-full">
       {busy ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-[#4285F4]" /> : <GoogleMark />}
       <span className="ml-3">{busy ? 'Conectando con Google…' : label}</span>
     </button>

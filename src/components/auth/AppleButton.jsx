@@ -9,12 +9,12 @@ export function AppleMark() {
   )
 }
 
-export default function AppleButton({ busy = false, onClick }) {
+export default function AppleButton({ busy = false, disabled = false, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={busy}
+      disabled={disabled || busy}
       data-testid="login-apple"
       className="flex h-14 w-full items-center justify-center rounded-2xl bg-black px-5 text-base font-semibold text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15D7B8] disabled:cursor-wait disabled:opacity-70 dark:bg-white dark:text-black"
     >

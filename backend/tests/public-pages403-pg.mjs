@@ -23,7 +23,7 @@ try {
   run('pg_ctl', ['-D', pgdata, '-l', join(root, 'pg.log'), '-o', `-h 127.0.0.1 -p ${port} -k ${root}`, '-w', 'start']); started = true
   run('createdb', ['-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', 'public403_test'])
   for (const entry of readdirSync(join(backend, 'prisma/migrations'), { withFileTypes: true }).filter(entry => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) run('psql', ['-X', '-v', 'ON_ERROR_STOP=1', dbUrl], readFileSync(join(backend, 'prisma/migrations', entry.name, 'migration.sql')))
-  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_APP_URL: 'https://app.example.test', MOBOS_AUTH_SECRET: 'cd'.repeat(32) })
+  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_STORAGE_DIR: join(root, 'attachments'), MOBOS_APP_URL: 'https://app.example.test', MOBOS_AUTH_SECRET: 'cd'.repeat(32) })
   require.extensions['.ts'] = (module, path) => module._compile(ts.transpileModule(readFileSync(path, 'utf8'), { compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, path)
   ;({ prisma } = require('../lib/prisma.ts'))
   const { GET: getRemito, POST: receiveRemito } = require('../app/api/transfers/public/[token]/route.ts')
@@ -136,6 +136,51 @@ try {
   for (const handler of [cartLogo, alternativeLogo]) ok((await publicCall(handler, 'token', 'inexistente')).status === 404, 'logo rechaza token inválido')
   await prisma.stockTransferLine.create({ data: { transferId: transfer.id, sourceProductId: product.id, destinationProductId: product.id, quantity: 1, serials: [serial] } })
   noPrivate(await (await get(getRemito, transfer.publicToken)).json(), 'Remito')
+  // #403: logos de garantía/remito autorizados por sus resolutores reales.
+  const { GET: warrantyDoc } = require('../app/api/public/warranty/[token]/route.ts')
+  const { GET: warrantyLogo } = require('../app/api/public/warranty/[token]/logo/route.ts')
+  const { GET: transferLogo } = require('../app/api/transfers/public/[token]/logo/route.ts')
+  const legacy32 = 'c'.repeat(32), hashed64 = 'd'.repeat(64)
+  const warrantyA = await prisma.warrantyCase.create({ data: { id:'qa403-warranty-a', tenantId:tenant.id, branchId:branch.id, customerName:'Cliente ficticio A', serial:'QA-GAR-403-A', description:'Equipo A', publicToken:legacy32, expiresAt:new Date(Date.now()-86400000), repairCostPyg:876543210, diagnosis:privateNote } })
+  const warrantyB = await prisma.warrantyCase.create({ data: { id:'qa403-warranty-b', tenantId:other.id, branchId:otherBranch.id, customerName:'Cliente ficticio B', serial:'QA-GAR-403-B', description:'Equipo B', publicTokenHash:hash(hashed64) } })
+  const dtoA = await (await publicCall(warrantyDoc,'token',legacy32)).json()
+  ok(dtoA.company.name===tenant.name && dtoA.company.logo && dtoA.daysRemaining===0,'garantía vencida sigue visible, con marca autorizada A')
+  noPrivate(dtoA,'Garantía')
+  const backfillAntes=(await prisma.warrantyCase.findUnique({where:{id:warrantyA.id}})).publicTokenHash
+  ok(backfillAntes===hash(legacy32),'GET conserva backfill legacy existente')
+  for(const variant of ['light','dark']) {
+    await expectLogo(warrantyLogo,'token',legacy32,tenant,variant)
+    await expectLogo(warrantyLogo,'token',hashed64,other,variant)
+    await expectLogo(transferLogo,'token',transfer.publicToken,tenant,variant)
+  }
+  const docB=await (await publicCall(warrantyDoc,'token',hashed64)).json()
+  ok(docB.company.name===other.name && !JSON.stringify(docB).includes(tenant.name),'hash64 resuelve empresa B sin mezclar A')
+  const destinationB=await prisma.branch.create({data:{tenantId:other.id,name:'Destino ficticio B'}})
+  const transferB=await prisma.stockTransfer.create({data:{tenantId:other.id,sourceBranchId:otherBranch.id,destinationBranchId:destinationB.id,createdById:(await prisma.user.create({data:{tenantId:other.id,name:'Persona B',pinHash:'sin-uso',role:'ADMIN'}})).id,publicToken:'e'.repeat(32)}})
+  await expectLogo(transferLogo,'token',transferB.publicToken,other,'dark')
+  const remitoB=await (await publicCall(getRemito,'token',transferB.publicToken)).json()
+  ok(remitoB.company.name===other.name && !JSON.stringify(remitoB).includes(tenant.name),'remitoB usa empresa de fila, no inputcliente')
+  for(const [doc,logo,valid] of [[warrantyDoc,warrantyLogo,legacy32],[warrantyDoc,warrantyLogo,hashed64],[getRemito,transferLogo,transferB.publicToken]]) {
+    for(const token of ['inexistente',valid+'ÿ']) {
+      ok((await publicCall(doc,'token',token)).status===404,'documento rechaza token inválido o sufijo sin recortar')
+      const denied=await publicCall(logo,'token',token,`?tenantId=${tenant.id}`)
+      ok(denied.status===404 && denied.headers.get('Cache-Control')==='no-store','logo denegado no cachea ni acepta tenantId de query')
+    }
+  }
+  await prisma.warrantyCase.update({where:{id:warrantyB.id},data:{publicTokenHash:null}})
+  ok((await publicCall(warrantyLogo,'token',hashed64)).status===404,'revocar hash invalida logo sin backfill alternativo')
+  await prisma.stockTransfer.update({where:{id:transferB.id},data:{publicToken:null}})
+  ok((await publicCall(transferLogo,'token',transferB.publicToken)).status===404,'retirar token remito invalida imagen')
+  const warrantySinBackfill=await prisma.warrantyCase.create({data:{id:'qa403-warranty-nobackfill',tenantId:tenant.id,branchId:branch.id,customerName:'Cliente QA',serial:'QA-NOBACKFILL',description:'Equipo QA',publicToken:'f'.repeat(32)}})
+  await expectLogo(warrantyLogo,'token',warrantySinBackfill.publicToken,tenant)
+  ok((await prisma.warrantyCase.findUnique({where:{id:warrantySinBackfill.id}})).publicTokenHash===null,'GETlogo no ejecuta backfill ni muta garantía')
+  await prisma.tenantLogo.update({where:{tenantId_variant:{tenantId:tenant.id,variant:'light'}},data:{mimeType:'text/html'}})
+  ok((await publicCall(warrantyLogo,'token',legacy32)).status===404,'MIME fuera dePNG/JPEG/WebP no se entrega como imagen')
+  await prisma.tenantLogo.update({where:{tenantId_variant:{tenantId:tenant.id,variant:'light'}},data:{mimeType:'image/png'}})
+  await prisma.tenantLogo.deleteMany({where:{tenantId:tenant.id}})
+  const sinLogo=await publicCall(transferLogo,'token',transfer.publicToken)
+  ok(sinLogo.status===404 && sinLogo.headers.get('Cache-Control')==='no-store','sin imagen devuelve404honesto/no-store')
+  ok((await publicCall(getRemito,'token',transfer.publicToken)).status===200,'falta de logo no bloquea documento ni recepción anterior')
   console.log(`Públicas403/503: ${checks} checks OK`)
 
 } finally {

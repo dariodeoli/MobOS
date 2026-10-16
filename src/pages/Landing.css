@@ -178,7 +178,7 @@
   padding-block: 28px;
 }
 .landing-operation p {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
   letter-spacing: 0.1em;
 }
@@ -298,7 +298,7 @@
   gap: 8px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--landing-line);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--landing-muted);
 }
@@ -325,13 +325,13 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   font-weight: 700;
   color: var(--landing-muted);
 }
 .preview-status {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0;
   color: var(--landing-accent);
 }
@@ -360,7 +360,7 @@
 }
 .preview-product .preview-meta,
 .preview-meta {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--landing-muted);
 }
@@ -404,7 +404,7 @@
   min-width: 0;
 }
 .preview-details dt {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--landing-muted);
 }
 .preview-details dd {
@@ -425,7 +425,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--landing-muted);
 }
 .preview-timeline li::before {
@@ -445,7 +445,7 @@
   border: 1px solid var(--landing-accent);
   border-radius: 999px;
   font-family: system-ui, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   letter-spacing: 0;
   font-weight: 700;
@@ -481,7 +481,7 @@
 }
 .commercial-preview figcaption {
   padding: 12px 20px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--landing-muted);
   border-top: 1px solid var(--landing-line);
 }
@@ -595,7 +595,7 @@
     padding-bottom: 40px;
   }
   .landing-eyebrow {
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.09em;
   }
   .landing-hero h1 {

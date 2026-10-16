@@ -6,3 +6,9 @@
 @media (prefers-reduced-motion: reduce) {
   .bottom-sheet, .bottom-sheet-fondo { animation: none; transition: none; }
 }
+
+/* #516: la hoja ya aplica safe areas dentro del panel/foot. El padding
+   genérico de Modal en app-ios desplazaría h100dvh fuera de la pantalla. */
+html.app-ios .bottom-sheet-fondo.fixed.inset-0.z-50 {
+  padding: 0;
+}

@@ -13,7 +13,7 @@ import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { coincideExacto, leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
-import { puedeCaerAlDialogo } from '@/lib/printing/agent'
+import { capturarContextoImpresion, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import useValidacionFormulario from '@/hooks/useValidacionFormulario'
 import { ETIQUETAS_TRANSFERENCIA, conteoAplicable, reglasTransferencia, valoresTransferencia } from '@/lib/validacionGlobal'
 import { api, apiFetch } from '@/lib/api/client'
@@ -193,6 +193,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // abrir la ficha ni salir de la lista.
   async function imprimirComprobanteRapido(unit) {
     if (busy) return
+    const contexto = capturarContextoImpresion()
     setBusy(true); setError(''); setNotice('')
     try {
       // La lista de Stock no trae el pedido de la venta: se completa con la unidad real.
@@ -201,9 +202,11 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
         const filas = await resources.inventoryUnits.list(unit.serial, 'active')
         completa = filas.find((fila) => fila.id === unit.id) || unit
       }
-      avisarImpresion(await printQuickReceipt(completa), 'Comprobante')
+      if (contexto !== capturarContextoImpresion()) return
+      const resultado = await printQuickReceipt(completa, { contexto })
+      if (contexto === capturarContextoImpresion()) avisarImpresion(resultado, 'Comprobante')
     } catch (cause) {
-      setError(cause?.message || 'No se pudo imprimir el comprobante de la venta.')
+      if (contexto === capturarContextoImpresion()) setError(cause?.message || 'No se pudo imprimir el comprobante de la venta.')
     } finally {
       setBusy(false)
     }

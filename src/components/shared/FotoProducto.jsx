@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
-import { cargarFoto, esFuenteDirecta } from '@/lib/api/productImages'
+import { cargarFoto, esFuenteDirecta, alInvalidarFotos } from '@/lib/api/productImages'
 import { cn } from '@/lib/utils'
 
 // #404: miniatura de producto. Se baja recién cuando entra en pantalla
@@ -11,6 +11,10 @@ export default function FotoProducto({ src, alt = '', size = 40, icono = 'image'
   const [visible, setVisible] = useState(() => esFuenteDirecta(src) || typeof IntersectionObserver !== 'function')
   const [url, setUrl] = useState(() => (esFuenteDirecta(src) ? src : ''))
   const [fallo, setFallo] = useState(false)
+
+  useEffect(() => alInvalidarFotos(() => {
+    if (!esFuenteDirecta(src)) { setUrl(''); setFallo(true) }
+  }), [src])
 
   useEffect(() => {
     setFallo(false)
@@ -29,8 +33,9 @@ export default function FotoProducto({ src, alt = '', size = 40, icono = 'image'
   useEffect(() => {
     if (!visible || !src || esFuenteDirecta(src)) return undefined
     let activo = true
+    const dejar = alInvalidarFotos(() => { activo = false })
     cargarFoto(src).then((objeto) => { if (activo) setUrl(objeto) }).catch(() => { if (activo) setFallo(true) })
-    return () => { activo = false }
+    return () => { activo = false; dejar() }
   }, [visible, src])
 
   return (

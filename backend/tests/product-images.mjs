@@ -8,12 +8,13 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import sharp from 'sharp'
 
 const [baseUrl, adminToken, sellerToken, otherTenantToken, storageDir] = process.argv.slice(2)
 if (!baseUrl || !adminToken || !sellerToken || !otherTenantToken) throw new Error('Uso: product-images.mjs <baseUrl> <adminToken> <sellerToken> <otherTenantAdminToken> [storageDir]')
 
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
-const webp = Buffer.from('UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==', 'base64')
+const png = await sharp({create:{width:1200,height:600,channels:3,background:'#d63456'}}).png().toBuffer()
+const webp = await sharp({create:{width:160,height:160,channels:3,background:'#12ab34'}}).webp().toBuffer()
 const tenantHeaders = { 'x-tenant-id': 'tenant-a-it' }
 
 async function call(path, method = 'GET', body, token = adminToken) {
@@ -71,8 +72,9 @@ assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const first = result.payload
 assert.equal(first.isPrimary, true)
 assert.equal(first.position, 0)
-assert.equal(first.width, 1)
-assert.equal(first.contentType, 'image/png')
+assert.equal(first.width, 800)
+assert.equal(first.height, 800)
+assert.equal(first.contentType, 'image/webp')
 assert.ok(!('data' in first) && !('storagePath' in first), 'No se exponen bytes ni rutas.')
 result = await upload(productId, webp, 'image/webp')
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
@@ -91,19 +93,27 @@ if (storageDir) {
 // Bytes: grande, miniatura WebP, headers de caché; 304 con ETag.
 let response = await bytes(first.id, productId)
 assert.equal(response.status, 200)
-assert.equal(response.headers.get('content-type'), 'image/png')
+assert.equal(response.headers.get('content-type'), 'image/webp')
 assert.match(response.headers.get('cache-control') || '', /max-age=31536000/)
 assert.equal(response.headers.get('x-content-type-options'), 'nosniff')
-assert.deepEqual(Buffer.from(await response.arrayBuffer()), png)
+const mainBytes=Buffer.from(await response.arrayBuffer())
+assert.equal((await sharp(mainBytes).metadata()).width,800)
+assert.notDeepEqual(mainBytes,png,'Sólo se sirve el derivado, no el original PNG.')
 const etag = response.headers.get('etag')
 assert.ok(etag)
 response = await fetch(`${baseUrl}/api/products/${productId}/images/${first.id}`, { headers: { Authorization: `Bearer ${adminToken}`, ...tenantHeaders, 'If-None-Match': etag } })
 assert.equal(response.status, 304)
 response = await bytes(first.id, productId, '?size=thumb')
 assert.equal(response.headers.get('content-type'), 'image/webp')
-assert.deepEqual(Buffer.from(await response.arrayBuffer()), webp)
+const thumbBytes=Buffer.from(await response.arrayBuffer())
+const thumbMeta=await sharp(thumbBytes).metadata()
+assert.deepEqual([thumbMeta.width,thumbMeta.height,thumbMeta.format],[160,160,'webp'])
+assert.notDeepEqual(thumbBytes,webp,'El servidor no usa los píxeles verdes de la miniatura del cliente.')
+const pixel=await sharp(thumbBytes).resize(1,1).raw().toBuffer()
+assert.ok(pixel[0]>150&&pixel[1]<100,'La miniatura deriva de la foto roja original.')
 response = await bytes(second.id, productId, '?size=thumb')
-assert.equal(response.status, 200, 'Sin miniatura propia se sirve la grande.')
+assert.equal(response.status, 200, 'Sin miniatura cliente también se genera derivado160.')
+assert.equal((await sharp(Buffer.from(await response.arrayBuffer())).metadata()).width,160)
 
 // Listado de Productos: foto principal.
 result = await call('/api/products?q=Lámina%20vidrio')

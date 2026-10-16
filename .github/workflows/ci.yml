@@ -130,6 +130,11 @@ jobs:
         env:
           PG_BIN: /opt/homebrew/bin
         run: node tests/ios-backend.mjs
+      - name: Product photo derivatives and bounded uploads
+        working-directory: backend
+        env:
+          PG_BIN: /opt/homebrew/bin
+        run: env -u DATABASE_URL -u DIRECT_URL node tests/product-thumbs404-pg.mjs
 
   e2e:
     # Shards en paralelo (#CI/#333): la suite completa tarda ~48 min en un
@@ -201,6 +206,11 @@ jobs:
         env:
           MOBOS_QA_PORT: "5342"
         run: npx playwright test --config e2e/snapshot502.frontend.config.js
+      - name: Private product photo cache access isolation
+        if: matrix.shard == 1
+        env:
+          MOBOS_QA_PORT: "5354"
+        run: npx playwright test --config e2e/images404.frontend.config.js
       - name: Printed document company branding
         if: matrix.shard == 1
         env:
@@ -219,6 +229,9 @@ jobs:
       - name: Public documents wrapping, contrast and legacy tokens
         if: matrix.shard == 2
         run: npx playwright test --config e2e/publicas403-restantes.frontend.config.js
+      - name: Public warranty and transfer authorized branding
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/public-brand403.frontend.config.js
       - name: Saved print templates and PDF composition
         if: matrix.shard == 1
         run: npx playwright test --config e2e/plantillas507-adopcion.frontend.config.js
@@ -239,6 +252,32 @@ jobs:
           MOBOS_QA_PORT: "5350"
           MOBOS_QA_OUT: /tmp/mobos-pin484-ci
         run: npx playwright test --config e2e/pin-cambio484.frontend.config.js
+      - name: Mobile typography and shortcut contrast
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5353"
+        run: npx playwright test --config e2e/responsive396.frontend.config.js
+      - name: Product photo framing and access transitions
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5355"
+        run: npx playwright test --config e2e/crop404.frontend.config.js
+
+      - name: Product photos in quote summaries and protected detail
+        if: matrix.shard == 1
+        run: npx playwright test --config e2e/product-consumers404.frontend.config.js
+
+      - name: Premium quick receipts and source context
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/quick-receipt513.frontend.config.js
+      - name: Shared web and native login presentation
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5399"
+        run: npx playwright test --config e2e/auth516.frontend.config.js
+      - name: Shared mobile shell, checkout, customers and account layout
+        if: matrix.shard == 4
+        run: npx playwright test --config e2e/paridad-shell516.frontend.config.js
       - name: Demo quote, cash and reception flows
         if: matrix.shard == 4
         env:

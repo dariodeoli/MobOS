@@ -392,8 +392,9 @@ html.app-ios .auth-ios .auth-form #pass { height: 2.75rem; }
 html.app-ios .auth-ios .auth-form label[for='mail'],
 html.app-ios .auth-ios .auth-form label[for='pass'] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 html.app-ios .auth-ios .auth-form > .py-1 { padding-block: 0; }
-/* PIN de ingreso: queda arriba para que el teclado numérico no lo tape. */
-html.app-ios .auth-ios .auth-form button[type='submit']:disabled { display: none; }
+/* El PIN valida automáticamente. El login por correo conserva el botón y
+   su progreso mientras espera, igual que la web. */
+html.app-ios .auth-ios .auth-form[data-etapa='vendedor'] > button[type='submit'] { display: none; }
 
 /* ── PIN segmentado (celdas iguales, un punto por dígito) ─────────────── */
 @keyframes pin-seg-pop { 0% { transform: scale(.55); opacity: 0; } 65% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
