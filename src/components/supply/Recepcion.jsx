@@ -635,7 +635,7 @@ export default function Recepcion() {
               </div>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-mute">
                 {llegada.conImei > 0 && <span>{llegada.conImei} con IMEI</span>}
-                {llegada.pendientes > 0 && <span>{llegada.pendientes} con IMEI por completar</span>}
+                {Number(llegada.unidades) > Number(llegada.conImei || 0) && <span>{Math.max(0, Number(llegada.unidades) - Number(llegada.conImei || 0))} con IMEI por completar</span>}
                 {llegada.ubicacionSugerida?.name && <span>· depósito sugerido: <b className="text-fore">{llegada.ubicacionSugerida.name}</b></span>}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
