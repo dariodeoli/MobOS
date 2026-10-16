@@ -42,6 +42,7 @@ import EntregaPregunta from './venta/EntregaPregunta'
 import { tomarNumeroPedidoDemo } from '@/lib/demoTenant'
 import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
+import { alInvalidarSnapshots } from '@/lib/offline/snapshot'
 import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
 import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
@@ -416,6 +417,16 @@ export default function FormularioVenta({
   const catalogoServidor = usePosCatalogoServidor({ q: busquedaProducto, accesorio: accesorio === 'todas' ? '' : accesorio, habilitado: !esDemo && modoDatosActual() === 'api' })
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
+  const [accesoStockInvalidado, setAccesoStockInvalidado] = useState(false)
+  // #511: la purga privada puede retirar el producto mientras se elige IMEI.
+  // El aviso vive fuera del selector; nunca se conserva su DTO como respaldo.
+  useEffect(() => {
+    if (!imeiPara) return undefined
+    return alInvalidarSnapshots(() => {
+      setAccesoStockInvalidado(true)
+      setImeiPara(null)
+    })
+  }, [imeiPara])
   const [unidadesDeImei, setUnidadesDeImei] = useState(0)
   const [ok, setOk] = useState(false)
   const [items, setItems] = useState(() =>
@@ -920,11 +931,12 @@ export default function FormularioVenta({
   const clienteEfectivo = String(f.cliente ?? '').trim() || 'Cliente ocasional'
   const motivosBloqueo = [
     !sesion?.vendedorId && 'Ingresá con tu PIN para vender.',
+    accesoStockInvalidado && 'Verificá el acceso al stock antes de continuar.',
     cantTotal === 0 && 'Agregá al menos un producto.',
     excedePagos && 'Los pagos superan el total de la venta.',
     gsNum(descuento) > subtotal && 'El descuento supera el subtotal.',
   ].filter(Boolean)
-  const valido = sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal
+  const valido = !accesoStockInvalidado && sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
   // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
@@ -1054,7 +1066,7 @@ export default function FormularioVenta({
 
   async function guardar(e) {
     e.preventDefault()
-    if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
+    if (guardando || guardadoEnCurso.current || guardadoIncompleto || accesoStockInvalidado) return
     const lista = [...items]
     if (!sesion?.vendedorId || lista.length === 0) return
     if (excedePagos) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
@@ -2101,6 +2113,12 @@ export default function FormularioVenta({
 
   return (
     <Card className="p-3 md:p-4">
+      {accesoStockInvalidado && (
+        <Aviso tono="error" como="div" role="alert" className="mb-4" data-testid="pos-acceso-stock-invalidado">
+          <p>El acceso al stock cambió. Verificá tu sesión y sucursal antes de continuar.</p>
+          <Button type="button" variant="outline" onClick={() => window.location.reload()}>Verificar acceso</Button>
+        </Aviso>
+      )}
       {ok && !esMovil && (
         <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <CheckAnimado size={36} className="shrink-0" />
@@ -2498,7 +2516,7 @@ export default function FormularioVenta({
       </form>
 
       <Modal
-        open={Boolean(imeiPara)}
+        open={Boolean(imeiPara) && !accesoStockInvalidado}
         onClose={() => setImeiPara(null)}
         title="Elegir IMEI de esta venta" size="formulario">
         {(() => {

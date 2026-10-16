@@ -75,7 +75,7 @@ test('#286 · el selector de IMEI del POS lista la unidad de la sucursal (vended
   }
 })
 
-test('#286 · un fallo del API se explica con salida (sin texto crudo)', async ({ page, browser }) => {
+test('#286/#511 · perder acceso al stock cierra el selector y exige revalidar', async ({ page, browser }) => {
   mkdirSync(DIR, { recursive: true })
   const adminCtx = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
   const adminPage = await adminCtx.newPage()
@@ -99,25 +99,39 @@ test('#286 · un fallo del API se explica con salida (sin texto crudo)', async (
     await expect(selector).toBeVisible({ timeout: 15_000 })
     await expect(selector.getByRole('button', { name: 'Reservar este' })).toBeVisible({ timeout: 15_000 })
 
-    // El stock empieza a responder como una sucursal ajena (403): el selector
-    // recarga al reservar y ahí aparece el fallo que antes no tenía salida.
-    await page.route('**/api/inventory-units**', (ruta) => ruta.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ message: 'No autorizado para esa sucursal.' }) }))
+    // Una denegación retira todo el contexto privado (#502); el selector
+    // no puede mantener una copia del producto solo para mostrar un error.
+    const pedidosNuevos = []
+    page.on('request', request => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/orders') pedidosNuevos.push(request.url())
+    })
+    await page.route('**/api/inventory-units**', ruta => ruta.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ message: 'No autorizado para esa sucursal.' }) }))
+    const denegacion = page.waitForResponse(response => new URL(response.url()).pathname === '/api/inventory-units' && response.status() === 403)
     await selector.getByRole('button', { name: 'Reservar este' }).click()
-    const aviso = selector.getByTestId('picker-error')
-    await expect(aviso).toBeVisible({ timeout: 15_000 })
-    await expect(aviso).toContainText('No podés ver el stock de esa sucursal')
-    await expect(aviso).toContainText('sobre pedido')
+    await denegacion
+    await expect(selector).toHaveCount(0)
+    const aviso = page.getByTestId('pos-acceso-stock-invalidado')
+    await expect(aviso).toBeVisible()
+    await expect(aviso).toContainText('El acceso al stock cambió')
     await expect(aviso).not.toContainText('No autorizado para esa sucursal.')
-    await expect(aviso.getByRole('button', { name: 'Reintentar' })).toBeVisible()
+    await expect.poll(() => page.evaluate(async () => {
+      const storage = await import('/src/lib/storage.js')
+      return { products: storage.getProductos().length, orders: storage.listVentas().length }
+    })).toEqual({ products: 0, orders: 0 })
+    await expect(page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ })).toBeDisabled()
+    expect(pedidosNuevos).toEqual([])
     for (const modo of ['light', 'dark']) {
       await tema(page, modo)
       await page.screenshot({ path: join(DIR, `pos-picker-error-${modo}.png`) })
     }
-    // La salida real: reintentar cuando el stock vuelve a responder.
     await page.unroute('**/api/inventory-units**')
-    await aviso.getByRole('button', { name: 'Reintentar' }).click()
-    await expect(selector.getByTestId('picker-error')).toHaveCount(0)
-    await expect(selector.getByText(serial.slice(-4), { exact: false }).first()).toBeVisible({ timeout: 15_000 })
+    const sesionValidada = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/me' && response.status() === 200)
+    await aviso.getByRole('button', { name: 'Verificar acceso' }).click()
+    await sesionValidada
+    await expect(page.getByTestId('pos-acceso-stock-invalidado')).toHaveCount(0)
+    await page.getByPlaceholder('Buscar producto…').fill(nombre)
+    await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })
+    expect(pedidosNuevos).toEqual([])
   } finally {
     await apiPagina(adminPage, '/api/inventory-reservations', { method: 'PATCH', body: JSON.stringify({ action: 'release', serials: [serial] }) }).catch(() => {})
     if (productId) await apiPagina(adminPage, `/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE' }).catch(() => {})
