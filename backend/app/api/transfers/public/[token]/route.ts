@@ -46,9 +46,9 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     dispatchedBy: transfer.dispatchedBy?.name || null,
     receivedAt: transfer.receivedAt,
     receivedBy: receivedBy?.name || null,
-    receivedNote: transfer.receivedNote,
     aexGuide: transfer.aexGuide,
-    notes: transfer.notes,
+    // Notas del traslado/recepción comparten almacenamiento con el panel
+    // interno: nunca se publican sin una clasificación explícita de visibilidad.
     // Contacto de la sucursal que despacha, para consultar el remito por WhatsApp.
     contacto: contactoPublicoSucursal(transfer.sourceBranch),
     sourceBranch: transfer.sourceBranch,
