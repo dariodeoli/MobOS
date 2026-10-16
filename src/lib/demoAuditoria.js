@@ -2,6 +2,7 @@ import { metodoDeMedio } from './demoConciliacion.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { getDemoTenant } from './demoTenant.js'
 import { esperadoCaja, esEfectivoDemo } from './demoCash.js'
+import { diaDemo } from './demo/reloj.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
 // `/api/cash/audit` y `/api/cash/audit-operations` con las ventas demo y la
@@ -30,7 +31,13 @@ export function guardarMarcaDemo(operationKind, operationId, marca) {
 }
 
 const enRango = (valor, desde, hasta) => {
-  const clave = String(valor || '').slice(0, 10)
+  if (!valor) return false
+  const texto = String(valor)
+  const esCalendario = /^\d{4}-\d{2}-\d{2}$/.test(texto)
+  const fecha = new Date(esCalendario ? `${texto}T12:00:00Z` : valor)
+  if (Number.isNaN(fecha.getTime())) return false
+  if (esCalendario && fecha.toISOString().slice(0, 10) !== texto) return false
+  const clave = esCalendario ? texto : diaDemo(0, fecha)
   return Boolean(clave) && (!desde || clave >= desde) && (!hasta || clave <= hasta)
 }
 

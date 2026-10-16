@@ -23,6 +23,7 @@ const { getDemoCashExpected } = await import('../demoCash.js')
 const { sincronizarPedidoDemoConVenta, buscarClienteDemo } = await import('../demoClientes.js')
 const { createDemoSupplyReception, updateDemoSupplyReception, demoSupplyReceptionDetail, listDemoSupplyShipments } = await import('./abastecimiento.js')
 const { serialDemo } = await import('./iphones.js')
+const { diaDemo } = await import('./reloj.js')
 
 const legacy = ventasDemoLegacy()
 
@@ -99,18 +100,43 @@ test('Caja: el esperado y la auditoría usan UNA definición (apertura + efectiv
       { id: 'm2', kind: 'EGRESO', concept: 'Retiro', amountPyg: 150000, createdAt: hace(15) },
     ],
   }
-  const ventas = [{ id: 'v', vendedorId: 'demo-user', fecha: ahora.toLocaleDateString('sv'), pagos: [
+  const ventas = [{ id: 'v', vendedorId: 'demo-user', fecha: diaDemo(0, ahora), pagos: [
     { id: 'p1', medioPago: 'DINERO', monto: 400000, fecha: hace(10) },
     { id: 'p2', medioPago: 'UENO BANK', monto: 90000, fecha: hace(10) },
   ] }]
   const esperadoTurno = getDemoCashExpected(cash, new Date(ahora.getTime() + 60000), ventas)
   assert.equal(esperadoTurno, 500000 + 400000 + 300000 - 150000, 'apertura + efectivo + ingresos − egresos; la transferencia no entra')
-  const hoy = ahora.toLocaleDateString('sv')
-  const ayer = new Date(ahora.getTime() - 86400000).toLocaleDateString('sv')
+  const hoy = diaDemo(0, ahora)
+  const ayer = diaDemo(1, ahora)
   const { resumen } = construirDemoAuditoriaEfectivo({ ventas, cash, desde: ayer, hasta: hoy })
   assert.equal(resumen.salidasPyg, 150000)
   assert.equal(resumen.esperadoPyg, resumen.aperturaPyg + resumen.recibidoPyg - resumen.salidasPyg, 'el esperado del rango = inicial + recibido − salidas')
   assert.equal(resumen.esperadoPyg, esperadoTurno, 'con un solo turno en el día, los dos esperados coinciden')
+})
+
+test('#500: auditoría conserva el día de Paraguay después de medianoche UTC y al cambiar el día local', () => {
+  for (const [instant, day] of [
+    ['2026-10-15T23:59:00Z', '2026-10-15'],
+    ['2026-10-16T00:01:00Z', '2026-10-15'],
+    ['2026-10-16T02:59:00Z', '2026-10-15'],
+    ['2026-10-16T03:01:00Z', '2026-10-16'],
+  ]) {
+    const cash = { openingPyg: 500000, movements: [{ id: 'out', kind: 'EGRESO', amountPyg: 150000, createdAt: instant }] }
+    const ventas = [{ fecha: day, pagos: [{ id: 'in', medioPago: 'DINERO', monto: 400000, fecha: instant }] }]
+    const current = construirDemoAuditoriaEfectivo({ ventas, cash, desde: day, hasta: day }).resumen
+    assert.equal(current.salidasPyg, 150000, instant)
+    assert.equal(current.recibidoPyg, 400000, instant)
+    assert.equal(current.esperadoPyg, 750000, instant)
+    const otherDay = day === '2026-10-15' ? '2026-10-16' : '2026-10-15'
+    const excluded = construirDemoAuditoriaEfectivo({ ventas, cash, desde: otherDay, hasta: otherDay }).resumen
+    assert.equal(excluded.salidasPyg, 0, instant)
+    assert.equal(excluded.recibidoPyg, 0, instant)
+  }
+  for (const date of ['2026-10-15', '2026-02-30', 'fecha inválida']) {
+    const cash = { movements: [{ id: date, kind: 'EGRESO', amountPyg: 150000, createdAt: date }] }
+    const { resumen } = construirDemoAuditoriaEfectivo({ cash, desde: '2026-10-15', hasta: '2026-10-15' })
+    assert.equal(resumen.salidasPyg, date === '2026-10-15' ? 150000 : 0, date)
+  }
 })
 
 test('numeración demo: nunca repite un número ya usado (sembrado o guardado) y no se hace pasar por otro', () => {
