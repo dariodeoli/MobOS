@@ -219,6 +219,9 @@ jobs:
       - name: Public documents wrapping, contrast and legacy tokens
         if: matrix.shard == 2
         run: npx playwright test --config e2e/publicas403-restantes.frontend.config.js
+      - name: Public warranty and transfer authorized branding
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/public-brand403.frontend.config.js
       - name: Saved print templates and PDF composition
         if: matrix.shard == 1
         run: npx playwright test --config e2e/plantillas507-adopcion.frontend.config.js
@@ -239,6 +242,11 @@ jobs:
           MOBOS_QA_PORT: "5350"
           MOBOS_QA_OUT: /tmp/mobos-pin484-ci
         run: npx playwright test --config e2e/pin-cambio484.frontend.config.js
+      - name: Mobile typography and shortcut contrast
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5353"
+        run: npx playwright test --config e2e/responsive396.frontend.config.js
       - name: Demo quote, cash and reception flows
         if: matrix.shard == 4
         env:
