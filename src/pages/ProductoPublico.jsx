@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Badge, Card, Money, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import FotoProducto from '@/components/shared/FotoProducto'
 import AccesoRequerido from '@/components/shared/AccesoRequerido'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import { useSesion } from '@/lib/sesion'
@@ -25,9 +26,12 @@ function FichaProducto({ producto }) {
     <div className="space-y-4">
       <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className={ROTULO_SECCION}>Producto</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere]">{producto.name}</h1>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <FotoProducto src={producto.thumbUrl || producto.imageUrl} size={64} alt={`Foto de ${producto.name}`} />
+            <div className="min-w-0 flex-1">
+              <p className={ROTULO_SECCION}>Producto</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere]">{producto.name}</h1>
+            </div>
           </div>
           <Badge color={stock > 0 ? 'green' : 'red'}>{stock > 0 ? `${stock} en stock` : 'Sin stock'}</Badge>
         </div>

@@ -471,6 +471,10 @@ export default function SellerQuotes() {
                 const articulos = (row.items || [])
                   .map(item => `${item.quantity} × ${item.description}`)
                   .join(' · ')
+                // Una sola referencia visual: primer artículo vinculado, sin
+                // adivinar productos por descripción ni alterar el orden del resumen.
+                const primerVinculado = (row.items || []).find(item => item.productId)
+                const productoVinculado = primerVinculado ? productos.find(producto => producto.id === primerVinculado.productId) : null
                 const vence = vencimiento(row)
                 const actions = quoteActions(row, estado)
                 const extras = [
@@ -515,9 +519,12 @@ export default function SellerQuotes() {
                     <span className="ventas-f3-quote-code font-mono text-xs font-semibold">
                       {row.number}
                     </span>
-                    <div className="ventas-f3-quote-identity">
-                      <p className="ventas-f3-name">{cliente}</p>
-                      <p className="ventas-f3-description">{articulos || 'Sin artículos'}</p>
+                    <div className="ventas-f3-quote-identity flex min-w-0 items-center gap-2">
+                      {primerVinculado && <FotoProducto src={productoVinculado?.thumbUrl || productoVinculado?.imagenes?.[0]} size={36} alt={`Foto de ${productoVinculado?.nombre || primerVinculado.description || 'producto'}`} />}
+                      <div className="min-w-0 flex-1">
+                        <p className="ventas-f3-name">{cliente}</p>
+                        <p className="ventas-f3-description">{articulos || 'Sin artículos'}</p>
+                      </div>
                     </div>
                     <span
                       className={cn(
