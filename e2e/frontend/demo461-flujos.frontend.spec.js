@@ -182,6 +182,8 @@ test('461-4 recepción rechaza999 y confirmar manifiesto suma exactamente unidad
 })
 
 test('451-5 conciliación demo verifica día con declaración propia y nota de diferencia', async ({ page }) => {
+  // Este conteo independiente corresponde al seed del15/10, no a cualquier día.
+  await page.clock.setFixedTime(new Date('2026-10-15T15:00:00Z'))
   const clean = await enter(page)
   await openShellDestination(page, 'Finanzas')
   await selectFinanceSection(page, 'Conciliación')
@@ -270,4 +272,53 @@ test('461-8 recepción: contador IMEI faltantes coincide con manifiesto real del
   expect(actualMissing).toBe(5)
   expect(reportedMissing).toBe(actualMissing)
   clean()
+})
+
+// #500/#451: el historial cambia por calendario de Paraguay, nunca por UTC.
+// Oráculos independientes: sumar pagos originales por etiqueta/cuenta, sin usar
+// construirDemoConciliacionDia/evaluarConciliacionDia ni leer montos del panel.
+test.describe('451 conciliación al cambiar el día de Paraguay', () => {
+  test.use({ timezoneId: 'UTC' })
+  for (const [instant, day, cash, historicalAccount, historicalAmount] of [
+    ['2026-10-15T23:59:59Z', '2026-10-15', 9900000, 'Ueno · Caja de ahorro', 3050000],
+    ['2026-10-16T00:00:00Z', '2026-10-15', 9900000, 'Ueno · Caja de ahorro', 3050000],
+    ['2026-10-16T02:59:59Z', '2026-10-15', 9900000, 'Ueno · Caja de ahorro', 3050000],
+    ['2026-10-16T03:00:00Z', '2026-10-16', 10110000, 'Continental · Cuenta corriente', 719000],
+    ['2026-10-16T03:24:00Z', '2026-10-16', 10110000, 'Continental · Cuenta corriente', 719000],
+  ]) test(`conteo propio ${instant}`, async ({ page }) => {
+    await page.clock.setFixedTime(new Date(instant))
+    const clean = await enter(page)
+    const ledger = await page.evaluate(async day => {
+      const sales = (await import('/src/lib/storage.js')).listVentas()
+      const format = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Asuncion', year: 'numeric', month: '2-digit', day: '2-digit' })
+      const amounts = {}
+      const paymentIds = []
+      for (const sale of sales) for (const p of sale.pagos || []) {
+        if (format.format(new Date(p.fecha)) !== day) continue
+        // Los seed actuales de estos dos días tienen CASH/CARD/TRANSFER y
+        // crédito de tienda (este último se excluye: no es dinero recibido).
+        if (!['DINERO', 'POS UENO', 'TARJETA', 'UENO BANK', 'TRANSFERENCIA'].includes(p.medioPago)) continue
+        const label = p.medioPago === 'DINERO' ? 'Efectivo' : p.cuenta
+        amounts[label] = (amounts[label] || 0) + Number(p.monto)
+        paymentIds.push(p.id)
+      }
+      return { amounts, paymentIds, before: JSON.stringify(sales) }
+    }, day)
+    const declared = { Efectivo: cash, [historicalAccount]: historicalAmount, 'Caja · Guaraníes': 30000, 'Itaú · Cuenta corriente': 3250000 }
+    expect(ledger.amounts).toEqual(declared)
+    expect(new Set(ledger.paymentIds).size).toBe(ledger.paymentIds.length)
+    await openShellDestination(page, 'Finanzas')
+    await selectFinanceSection(page, 'Conciliación')
+    await page.getByRole('button', { name: 'Verificar día por sucursal', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Conciliar día por sucursal' })
+    await expect(dialog.getByLabel('Día de Paraguay', { exact: true })).toHaveValue(day)
+    const inputs = dialog.getByRole('textbox', { name: /^Recibido en Gs:/ })
+    await expect(inputs).toHaveCount(Object.keys(declared).length)
+    for (const [label, amount] of Object.entries(declared)) await dialog.getByRole('textbox', { name: `Recibido en Gs: ${label} (PYG)`, exact: true }).fill(String(amount))
+    await dialog.getByRole('button', { name: 'Verificar día', exact: true }).click()
+    await expect(dialog.getByTestId('conciliacion-dia-estado')).toHaveText('Verificado')
+    expect(await page.evaluate(async () => JSON.stringify((await import('/src/lib/storage.js')).listVentas()))).toBe(ledger.before)
+    console.log('QA451-DIA', JSON.stringify({ instant, day, declared, total: Object.values(declared).reduce((a,b) => a+b,0), businessDelta: 0 }))
+    clean()
+  })
 })
