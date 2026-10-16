@@ -26,6 +26,7 @@ export default defineConfig({
     'stock-layout.frontend.spec.js',
     'reconciliation-day.frontend.spec.js',
     'stock-policy.frontend.spec.js',
+    'images404.frontend.spec.js',
     'planilla-unidades.frontend.spec.js',
     'verificacion-stock.frontend.spec.js',
     'ficha-unidad.frontend.spec.js',
