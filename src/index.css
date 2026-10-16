@@ -511,3 +511,10 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login-pin:has(details[open]) [data-testid='pin-teclado'] { row-gap: 4px; margin-top: 8px; }
   .auth-login-pin:has(details[open]) .pin-seg { margin-block: 6px; }
 }
+
+/* Acceso demo: conservar perfiles, PIN táctil y pie completos (#328/#504). */
+@media (max-width: 767px) {
+  .auth-login .demo-acceso .pin-seg { margin-top: 6px; }
+  .auth-login .demo-acceso [data-testid="pin-teclado"] { margin-top: 8px; gap: 4px 24px; }
+  .auth-login .demo-acceso .pin-tecla { width: 44px; height: 44px; font-size: 1.25rem; }
+}

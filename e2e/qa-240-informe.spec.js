@@ -209,7 +209,8 @@ test('demo: el portal abre el informe sin haber pasado por /demo (link del subdo
   await enlace.click()
   // El informe repite el nombre de la tienda (título, cuerpo y pie): se apunta
   // al encabezado para no caer en strict mode.
-  await expect(page.getByRole('heading', { name: 'Aurora Móviles' })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('cabecera-tienda').getByText('Aurora Móviles', { exact: true })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: 'Informe de dispositivo', exact: true, level: 1 })).toBeVisible()
   await expect(page.getByText(/iPhone 15/).first()).toBeVisible()
   await expect(page.getByText(/No es un certificado oficial/)).toBeVisible()
   await contexto.close()

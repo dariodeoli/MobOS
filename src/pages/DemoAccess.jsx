@@ -64,12 +64,13 @@ export default function DemoAccess() {
 
   return (
     <AuthLayout
+      compacto
       eyebrow="Demo interactiva"
       titulo={<>Entrá al sistema.<br /><span className="text-fono-dark">Probá el flujo real.</span></>}
       subtitulo="Usá los mismos menús de MobOS con datos ficticios aislados. Nada se envía a una tienda real."
     >
-      <AuthPanel className="p-4 sm:p-6 lg:p-7">
-        <AuthPanelHeader volver={publicUrls.landing} volverLabel="Volver a la landing" subtitulo="Demo interactiva · datos ficticios" />
+      <AuthPanel className="demo-acceso p-4 sm:p-6 lg:p-7">
+        <AuthPanelHeader compacto volver={publicUrls.landing} volverLabel="Volver a la landing" subtitulo="Demo interactiva · datos ficticios" />
 
         <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Elegí un perfil y entrá</h1>
         <p className="mb-3 text-xs leading-5 text-mute sm:mb-4 sm:text-sm">Todo queda guardado solo en este navegador.</p>
@@ -105,6 +106,7 @@ export default function DemoAccess() {
           </label>
           <PinSegmentado
             id="demo-pin"
+            discreto
             disabled={busy}
             value={pin}
             onChange={(next) => { setError(''); setPin(next) }}

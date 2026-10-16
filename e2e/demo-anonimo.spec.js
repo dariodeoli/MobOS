@@ -431,7 +431,11 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await expect(page).toHaveURL(/\/login$/)
   const trasSalir = await instantaneaNavegador(page)
   expect(trasSalir.sesion.filter((clave) => clave.startsWith('mobos:demo-session')), 'marca de demo').toEqual([])
-  expect(nuevas(inicial.local, trasSalir.local), 'localStorage tras salir').toEqual([])
+  // #502 difunde el logout con un UUID opaco para invalidar otras pestañas.
+  // No contiene datos de la demo ni permite conservar ningún otro registro.
+  const marcador = 'mobos:private-snapshot-invalidation'
+  expect(nuevas(inicial.local, trasSalir.local).filter(clave => clave !== marcador), 'localStorage de datos tras salir').toEqual([])
+  expect(await page.evaluate(clave => localStorage.getItem(clave), marcador), 'marcador opaco de invalidación').toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
 })
 
 test('la marca de demo no se filtra al login real de la misma pestaña', async ({ page }) => {
