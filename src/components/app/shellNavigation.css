@@ -26,6 +26,28 @@
   outline: 2px solid rgb(var(--c-fono));
   outline-offset: 2px;
 }
+/* Shared alignment contract for every authenticated page: the page title,
+   page actions and shell selectors sit on the same 44px control rhythm. */
+.shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']:not(.sr-only)),
+.shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions) {
+  min-height: 44px;
+}
+.shell-nav-v2 .shell-page-header-actions {
+  min-height: 44px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+.shell-nav-v2 .shell-header-selector {
+  min-height: 44px;
+  align-items: center;
+}
+.shell-nav-v2 .shell-header-selector [data-testid='sucursal-selector'],
+.shell-nav-v2 .shell-header-selector [data-testid='sucursal-info'] {
+  height: 44px;
+  min-height: 44px;
+}
 /* Primary action colors only; semantic green statuses and the logo stay intact. */
 .shell-nav-v2 button.bg-fono:not([role='switch']) {
   background: rgb(var(--c-fore));
