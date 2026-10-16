@@ -13,6 +13,8 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
+- **Ingreso móvil:** el PIN usa una pantalla completa con tienda, sucursal y teclado circular propio; tocarlo no abre el teclado del teléfono. El login normal cabe sin deslizar y mantiene visibles la demo, recuperación y avisos legales. El texto ampliado y el alta extensa conservan desplazamiento accesible.
+
 - **Enlaces de clientes:** carrito, informe y alternativa muestran la marca y el contacto de su sucursal. Los logos respetan el acceso del documento y el vencimiento o revocación del enlace; el checkout usa el teléfono de la sucursal.
 
 - **Remitos compartidos:** las observaciones internas del traslado y la recepción permanecen en la gestión privada; el enlace del cliente conserva la confirmación de recepción.

@@ -213,6 +213,11 @@ jobs:
           MOBOS_QA_PORT: "5334"
           MOBOS_QA_OUT: /tmp/mobos-public403-ci
         run: npx playwright test --config e2e/publicas-extra.frontend.config.js
+      - name: Mobile PIN and login layout
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5344"
+        run: npx playwright test --config e2e/pin-login504.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:
