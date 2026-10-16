@@ -8,7 +8,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { demoGarantiaPayload } from '@/lib/demoGarantia'
 import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
-import { BotonWhatsApp } from '@/components/publico/KitPublico'
+import { BotonWhatsApp, CabeceraTienda } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 
 
@@ -47,17 +47,18 @@ export default function GarantiaPublica() {
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
-        <header className="mb-5 rounded-2xl border border-ink-600 bg-ink-900 p-4 text-center" data-testid="cabecera-tienda">
-          {warranty?.store?.name && <p className="text-sm font-bold [overflow-wrap:anywhere]">{warranty.store.name}</p>}
-          <p className="mt-1 text-xs font-bold uppercase tracking-[.16em] text-fono-light">Garantía oficial</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{warranty?.productName || 'Tu equipo'}</h1>
-          {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {codigoPedido(warranty.orderNumber)}</p>}
-          {warranty && (
-            <p data-testid="estado-garantia" className={`mx-auto mt-3 inline-flex min-h-11 items-center rounded-xl border px-4 text-base font-bold ${days === 0 ? 'border-bad/40 bg-bad/10 text-bad' : days != null && days <= 15 ? 'border-warn/40 bg-warn/10 text-warn' : 'border-ok/40 bg-ok/10 text-ok'}`}>
-              {days === 0 ? 'Garantía vencida' : 'Garantía vigente'}
-            </p>
-          )}
-        </header>
+        <div className="mb-5">
+          <CabeceraTienda empresa={warranty?.store?.name} detalle={warranty?.store?.city}>
+            <p className="mt-1 text-xs font-bold uppercase tracking-[.16em] text-fono-light">Garantía oficial</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{warranty?.productName || 'Tu equipo'}</h1>
+            {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {codigoPedido(warranty.orderNumber)}</p>}
+            {warranty && (
+              <p data-testid="estado-garantia" className={`mx-auto mt-3 inline-flex min-h-11 items-center rounded-xl border px-4 text-base font-bold ${days === 0 ? 'border-bad/40 bg-bad/10 text-bad' : days != null && days <= 15 ? 'border-warn/40 bg-warn/10 text-warn' : 'border-ok/40 bg-ok/10 text-ok'}`}>
+                {days === 0 ? 'Garantía vencida' : 'Garantía vigente'}
+              </p>
+            )}
+          </CabeceraTienda>
+        </div>
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {warranty && (
           <div className="space-y-4">
@@ -79,7 +80,7 @@ export default function GarantiaPublica() {
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{warranty.purchasedAt ? new Date(warranty.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
                 <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Vence</p><p className="mt-1 font-semibold">{warranty.expiresAt ? new Date(warranty.expiresAt).toLocaleDateString('es-PY') : '—'}</p></div>
-                <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Serial / IMEI</p><p className="mt-1 truncate font-mono text-xs font-semibold">{serial}</p></div>
+                <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Serial / IMEI</p><p className="mt-1 break-all font-mono text-xs font-semibold">{serial}</p></div>
                 <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Estado del caso</p><p className="mt-1 font-semibold">{ESTADO_GARANTIA[warranty.status] || warranty.status}</p></div>
               </div>
             </section>

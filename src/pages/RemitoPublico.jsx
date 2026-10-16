@@ -6,7 +6,7 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
-import { LineaTiempo } from '@/components/publico/KitPublico'
+import { CabeceraTienda, LineaTiempo } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
@@ -80,11 +80,11 @@ export default function RemitoPublico() {
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
-        <header className="mb-8 text-center">
+        <CabeceraTienda empresa={remito?.sourceBranch?.name} detalle={remito ? "Sucursal de origen" : undefined}>
           <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Remito de traslado</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">{remito ? `${remito.sourceBranch?.name || 'Origen'} → ${remito.destinationBranch?.name || 'Destino'}` : 'Remito'}</h1>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight [overflow-wrap:anywhere]">{remito ? `Hacia ${remito.destinationBranch?.name || 'Destino'}` : 'Remito'}</h1>
           {remito?.createdAt && <p className="mt-1 text-sm text-mute">Enviado el {new Date(remito.createdAt).toLocaleString('es-PY')}</p>}
-        </header>
+        </CabeceraTienda>
 
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {notice && <Aviso tono="ok" className="px-4 py-3 text-sm rounded-xl text-center">{notice}</Aviso>}
