@@ -186,6 +186,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+      - name: Private API service worker isolation
+        if: matrix.shard == 1
+        run: npx playwright test --config e2e/sw-isolation.frontend.config.js
       - name: RUC demo and mobile regressions
         if: matrix.shard == 1
         env:
