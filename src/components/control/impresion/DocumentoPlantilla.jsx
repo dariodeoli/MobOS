@@ -14,6 +14,7 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
     [busy, setBusy] = useState(false)
   const serialized = JSON.stringify(data)
   const rows = useMemo(() => JSON.parse(serialized), [serialized])
+  const exportAttempt = useRef(null)
   const epoch = useRef(0),
     identity = useRef(store.signature)
   identity.current = store.signature
@@ -28,6 +29,7 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
   useEffect(() => onMode?.(mode), [mode, onMode])
   useEffect(() => {
     epoch.current++
+    exportAttempt.current = null
     setSelected(null)
     setRender(null)
     setBusy(false)
@@ -40,6 +42,10 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
   useEffect(() => {
     const counter = epoch
     const request = ++counter.current
+    // El documento anterior ya no es exportable. Su finally no es dueño del
+    // próximo intento: puede seguir renderizando, pero no descargar ni liberarlo.
+    exportAttempt.current = null
+    setBusy(false)
     setRender(null)
     setError('')
     setOverflow([])
@@ -58,12 +64,15 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
       })
     return () => {
       counter.current++
+      exportAttempt.current = null
     }
   }, [template, rows, kind, premiumBuilder, dataError])
   async function download() {
-    if (busy || !render || mode !== 'custom' || dataError) return
+    if (exportAttempt.current || busy || !render || mode !== 'custom' || dataError) return
     const context = store.signature,
-      request = epoch.current
+      request = epoch.current,
+      attempt = Symbol('pdf')
+    exportAttempt.current = attempt
     setBusy(true)
     setError('')
     try {
@@ -77,7 +86,10 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
     } catch (err) {
       if (identity.current === context && request === epoch.current) setError(err.message)
     } finally {
-      if (identity.current === context && request === epoch.current) setBusy(false)
+      if (exportAttempt.current === attempt) {
+        exportAttempt.current = null
+        if (identity.current === context && request === epoch.current) setBusy(false)
+      }
     }
   }
   return (

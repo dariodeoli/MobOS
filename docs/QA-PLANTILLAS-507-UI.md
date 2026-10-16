@@ -81,3 +81,30 @@ Los browser de adopción usan el cliente demo aislado (datos ficticios) y compon
 operativos reales; no constituyen una nueva prueba PG del backend ni una
 validación física. Stock prueba el selector operativo mixto con defaults y su entrada real desde
 3filas→formato habitual en U3; Taller y Comprobante se recorren completos.
+
+
+## Corrección QA: exportación invalidada por cambio de nivel
+
+Se reprodujo el P2 contra `e9bed995`: iniciar PDF A, cambiar el nivel del
+comprobante y esperar su nueva composición dejaba el botón en «Generando PDF…».
+El epoch invalidaba correctamente la descarga A, pero su `finally` ya no podía
+limpiar el booleano y el siguiente intento quedaba bloqueado.
+
+`DocumentoPlantilla` ahora asigna un dueño único a cada intento. Al invalidar
+composición/datos/builder se retira ese dueño y se libera el estado; el `finally`
+de A solo limpia si todavía posee el intento, sin liberar B. Las guardas de
+identidad/contexto y epoch para impedir descargas viejas se conservan; el ref
+también impide iniciar dos intentos simultáneos en el mismo render.
+
+Regresión determinista: el browser intercepta únicamente el módulo servido en
+la prueba y demora la devolución del PDF real ya generado, sin hooks en código
+productivo ni Blob ficticio. A inicia, cambia nivel, B inicia; resolver A deja
+B/selector bloqueados y cero descargas; resolver B descarga un PDF válido de
+una página y vuelve a habilitar selector y descarga. El mismo test final fue
+RED contra `e9bed995` (no se habilita la segunda descarga) y GREEN con el fix.
+
+Verificación: matriz relacionada Chromium puerto5364 **14/14 PASS**;
+`plantillas.test.js` **24/24 PASS**; ESLint de la fuente exit0; build FE exit0,
+artefactos en `/tmp/mobos507-busy-dist`. Sin repetir fullFE/BE, sin DB, capturas,
+red de negocio, push ni impresión física. Los límites funcionales de #507
+indicados arriba continúan vigentes.

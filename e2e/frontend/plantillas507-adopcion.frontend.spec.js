@@ -118,10 +118,83 @@ test('507 cambio de empresa invalida la selección abierta del Taller', async ({
   await expect(modal.locator('iframe')).toBeVisible()
   // Cambio del contexto proveedor aunque exista un modal abierto: simula cierre
   // de sesión/sucursal externo, sin reutilizar el callback de impresión.
-  await page.getByRole('button', { name: 'Cambiar empresa fixture' }).evaluate(button => button.click())
+  await page
+    .getByRole('button', { name: 'Cambiar empresa fixture' })
+    .evaluate(button => button.click())
   await expect(modal).toHaveCount(0)
   await page.getByTestId('rack-imprimir-serie').click()
   await expect(modal.getByLabel('Plantilla del PDF')).toHaveValue('')
   await expect(modal.getByTestId('rack-imprimir-serie-confirmar')).toBeEnabled()
   await expect(page.getByTestId('legacy-calls')).toHaveText('0')
+})
+
+test('507 exportación retardada pierde vigencia al cambiar nivel y no desbloquea el intento nuevo', async ({
+  page,
+}) => {
+  // Demoramos la función PDF real en el módulo servido por Vite. No cambiamos
+  // el componente ni simulamos un Blob exitoso: B debe producir el PDF real.
+  await page.route('**/src/lib/printing/renderPlantilla.js', async route => {
+    const response = await route.fetch()
+    const source = await response.text()
+    const marker = 'export async function pdfPlantilla(render, { entorno = globalThis } = {}) {'
+    expect(source).toContain(marker)
+    await route.fulfill({
+      response,
+      body:
+        source.replace(
+          marker,
+          marker.replace('export async function pdfPlantilla', 'async function pdfPlantillaReal'),
+        ) +
+        `
+export async function pdfPlantilla(...args) {
+  const blob = await pdfPlantillaReal(...args);
+  await globalThis.__qa507DemorarPdf?.();
+  return blob;
+}`,
+    })
+  })
+  await page.addInitScript(() => {
+    window.__qa507Pdf = { attempts: 0, finished: 0, releases: [] }
+    window.__qa507DemorarPdf = () =>
+      new Promise(resolve => {
+        const state = window.__qa507Pdf
+        state.attempts++
+        state.releases.push(() => {
+          state.finished++
+          resolve()
+        })
+      })
+  })
+  const downloads = []
+  page.on('download', download => downloads.push(download))
+  await enter(page)
+  await preset(page, 'comprobante', 'Carrera PDF')
+  await page.getByRole('button', { name: 'Comprobante del pedido fixture', exact: true }).click()
+  const modal = page.getByRole('dialog', { name: 'Comprobante', exact: true })
+  const exportar = () =>
+    modal.getByRole('button', { name: 'Descargar PDF con plantilla', exact: true })
+  await exportar().click()
+  await expect.poll(() => page.evaluate(() => window.__qa507Pdf.attempts)).toBe(1)
+  await expect(modal.getByRole('button', { name: 'Generando PDF…', exact: true })).toBeDisabled()
+  const otherLevel = modal
+    .getByRole('radiogroup', { name: 'Tipo de comprobante' })
+    .getByRole('radio', { checked: false })
+    .first()
+  await otherLevel.click()
+  await expect(exportar()).toBeEnabled()
+  await exportar().click()
+  await expect.poll(() => page.evaluate(() => window.__qa507Pdf.attempts)).toBe(2)
+  // A termina mientras B espera: A no descarga ni habilita el selector/B.
+  await page.evaluate(() => window.__qa507Pdf.releases[0]())
+  await expect.poll(() => page.evaluate(() => window.__qa507Pdf.finished)).toBe(1)
+  await expect(modal.getByRole('button', { name: 'Generando PDF…', exact: true })).toBeDisabled()
+  await expect(modal.getByLabel('Plantilla del PDF')).toBeDisabled()
+  expect(downloads).toHaveLength(0)
+  const downloaded = page.waitForEvent('download')
+  await page.evaluate(() => window.__qa507Pdf.releases[1]())
+  const result = await readFile(await (await downloaded).path(), 'latin1')
+  expect(result).toContain('/Count 1')
+  expect(downloads).toHaveLength(1)
+  await expect(exportar()).toBeEnabled()
+  await expect(modal.getByLabel('Plantilla del PDF')).toBeEnabled()
 })
