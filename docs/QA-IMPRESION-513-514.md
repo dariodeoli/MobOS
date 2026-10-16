@@ -43,3 +43,20 @@ Fuente primaria de geometría/capacidad: [ZKTeco ZKP8008](https://www.zkteco.com
 
 - Comprobante y etiquetas habituales pueden enviar a una ZKP8008 de80mm el diseño que se ve en la vista previa, conservando el QR y las copias del lote.
 - Si el equipo, papel o tamaño no está acreditado, se avisa antes de enviar y se ofrece el mismo diseño mediante PDF/diálogo. La prueba con su impresora física sigue pendiente.
+
+## Seguimiento de regresiones E2E después de integrar #513
+
+Unidad exclusivamente de tests/documentación sobre `6f1863b7`; sin cambios de runtime, capacidades ni fallback.
+
+- Góndola: elegir la acción manual existente «Más acciones»→«Descargar PDF» (`conDialogo`), conservar SKU completo, Gs45.000 y exactamente2etiquetas; exigir cero POST al agente o a trabajos remotos. No se fuerza retorno automático al formato anterior.
+- Fixtures remotos: declarar ZKTeco/ZKP8008/80mm tanto al crear como al reutilizar impresora, conservando puente y sucursal. La captura reclamada por el puente se reconstruye como imagen y se decodifica con jsQR; URL `/pedidos/<token32>` exactamente igual al token emitido por la API del fixture,1documento/1corte/1trabajo/copia1, puente correcto y cero diálogos.
+- Duplicado: primer intento crea1pendiente; segundo bloquea sin agregar; «Reimprimir igual» crea exactamente2, conserva puente/copias y no abre diálogo. Limpieza cancela ambos como antes.
+- Se revisaron otras aserciones: tickets de prueba, IMEI y etiquetas de traslado conservan su pipeline anterior y sus oráculos de texto. No se tocaron qa250 ni sus caminos.
+- Resultado final: **22/22 PASS**,0flaky, en `work/513-regresiones-remota-3203.log`. Incluye21tests de impresión remota y1góndola. PostgreSQL5584, API3203, WEB5386, backend prod con BUILD_ID conservado `gap2rP0SUT8b1IO5giNWb`; cluster y servidores propios detenidos por teardown. Sin suite global adicional ni capturas nuevas.
+- Reproducción: `MOBOS_E2E_BACKEND=prod MOBOS_E2E_API_PORT=3203 MOBOS_E2E_WEB_PORT=5386 MOBOS_E2E_PGPORT=5584 MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-print513-regresiones MOBOS_E2E_DB=mobos_print513_regresiones npx playwright test e2e/etiquetas-gondola.spec.js e2e/impresion-remota.spec.js`.
+- Corrida previa3202 conservada en `work/513-regresiones-remota.log`: se abortó tras identificar servidor ajeno Agendese en ese puerto/IPv4; el middleware de nuestro servidor llegaba a ese proyecto y devolvía404HTML. No es evidencia de fallo de impresión ni se cuenta como PASS. No se tocó el proceso ajeno; se cambió únicamente nuestro puerto. El selector de menú se corrigió al nombre real visible «Más acciones».
+
+Novedades para el dueño:
+
+- La prueba de comprobante remoto ahora comprueba que el QR del diseño enviado lleva exactamente al enlace emitido para ese pedido ficticio.
+- La opción manual de góndola conserva precio, código y cantidad sin enviar nada a una impresora; duplicados, copias y selección de sucursal siguen verificados.
