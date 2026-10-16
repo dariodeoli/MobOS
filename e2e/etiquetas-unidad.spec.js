@@ -8,6 +8,7 @@
 
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
+import { leerRaster, urlsUnidades, configurarImpresoraRaster } from './helpers/raster-qr.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -47,7 +48,6 @@ async function agenteFalso(page, capturados) {
   })
 }
 
-const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
 
 // Crea un producto con una unidad física y devuelve el serial usado.
 async function sembrarUnidad(page, { marca, serial, branchId = 'e2e-branch-1' }) {
@@ -80,6 +80,7 @@ test('la etiqueta de una unidad sale directo por el agente con el contenido #220
   await page.getByLabel('Buscar en inventario').fill(serial)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
+  await configurarImpresoraRaster(page, API)
   await fila.click()
 
   const ficha = page.getByRole('dialog')
@@ -90,18 +91,8 @@ test('la etiqueta de una unidad sale directo por el agente con el contenido #220
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiqueta-stock')
-  const texto = textoDelTicket(capturados[0])
-  expect(texto).toContain('ETIQUETA DE UNIDAD')
-  expect(texto).toContain('iPhone 15 Pro')
-  expect(texto).toContain('IDENTIFICADOR')
-  expect(texto).toContain(serial.slice(-4))
-  expect(texto).toContain('IMEI / SERIAL')
-  // El serial completo viaja en el papel (no enmascarado ni cortado).
-  expect(texto).toContain(serial)
-  // Las vocales acentuadas viajan en CP850: se comparan sin el acento.
-  expect(texto).toContain('DIGO QR')
-  expect(texto).toContain('DIGO DE UNIDAD')
-  expect(texto).toContain(`MOBOS:${serial}`)
+  expect(urlsUnidades(capturados[0])).toEqual([serial])
+  expect(leerRaster(capturados[0].data).cuts).toBe(1)
   await sinDialogo(page)
 })
 
@@ -118,18 +109,19 @@ test('las etiquetas de las unidades seleccionadas salen en un solo trabajo direc
   await page.reload()
   await page.getByLabel('Buscar en inventario').fill(String(marca))
   await expect(page.getByText(serialA)).toBeVisible({ timeout: 20_000 })
+  await configurarImpresoraRaster(page, API)
   await page.getByRole('checkbox', { name: new RegExp(`Seleccionar Equipo etiqueta ${marca}.*${serialA}`) }).first().check()
   await page.getByRole('checkbox', { name: new RegExp(`Seleccionar Equipo etiqueta ${marca}.*${serialB}`) }).first().check()
+  const orden = await page.getByTestId('inventario-fila').allTextContents().then(rows => rows.flatMap(row => [serialA, serialB].filter(serial => row.includes(serial))))
+  expect(orden).toHaveLength(2)
   await page.getByRole('button', { name: 'Imprimir etiquetas' }).click()
+  await page.getByRole('dialog', { name: 'Etiquetas de Stock' }).getByRole('button', { name: 'Continuar con formato habitual' }).click()
   await expect(page.getByText('2 etiquetas enviadas a la impresora.')).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiquetas-stock')
-  const texto = textoDelTicket(capturados[0])
-  expect(texto).toContain(serialA)
-  expect(texto).toContain(serialB)
-  expect(texto).toContain(`MOBOS:${serialA}`)
-  expect(texto).toContain(`MOBOS:${serialB}`)
+  expect(urlsUnidades(capturados[0])).toEqual(orden)
+  expect(leerRaster(capturados[0].data).cuts).toBe(2)
   await sinDialogo(page)
 })
 
@@ -166,6 +158,7 @@ test('al llegar a otra sucursal se reimprime la etiqueta desde la recepción', a
   await page.getByLabel('Buscar en inventario').fill(serial)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
+  await configurarImpresoraRaster(page, API)
   await fila.click()
 
   const ficha = page.getByRole('dialog')
@@ -186,8 +179,7 @@ test('al llegar a otra sucursal se reimprime la etiqueta desde la recepción', a
     await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 5_000 })
   }).toPass({ timeout: 30_000 })
   expect(capturados[0].tipo).toBe('etiqueta-stock')
-  const texto = textoDelTicket(capturados[0])
-  expect(texto).toContain('ETIQUETA DE UNIDAD')
-  expect(texto).toContain(serial)
+  expect(urlsUnidades(capturados[0])).toEqual([serial])
+  expect(leerRaster(capturados[0].data).cuts).toBe(1)
   await sinDialogo(page)
 })

@@ -13,20 +13,15 @@ import {
   nivelPreferido,
   recordarPreferencia,
   tokenDeNivel,
-  accessUrlFor,
-  trackingUrlFor,
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
-import { getLogoDataUrl } from '@/lib/tenantLogo'
-import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
-import { logoRasterDesdeDataUrl } from '@/lib/printing/logoRaster'
 import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
 import { printingApi } from '@/lib/api/printing'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { encolarComprobanteDemo } from '@/lib/printing/demo'
 import { formatoDeTipo, formatosVisibles, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
 import useFormato58 from '@/hooks/useFormato58'
-import { ticketComprobante } from '@/lib/printing/tickets'
+import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
 import { documentoDeVenta } from '@/lib/printing/ventaComprobanteLocal'
 import { imprimirReciboRegalo } from './imprimirOperacion'
 import { useSesion } from '@/lib/sesion'
@@ -71,7 +66,6 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
   const [formato, setFormato] = useState(inicial)
   const [html, setHtml] = useState('')
   const [htmlPlantilla, setHtmlPlantilla] = useState('')
-  const [link, setLink] = useState('')
   const [cargando, setCargando] = useState(false)
   const [agente, setAgente] = useState(false)
   // Con impresora configurada en la empresa se puede imprimir aunque este
@@ -129,7 +123,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
       const token = await tokenDeNivel(documento.id, nivel)
       const built = await buildOrderReceiptHtml(documento, { level: nivel, format: formato, token, contexto })
       const builtPlantilla = formato === 'thermal-80' ? built : await buildOrderReceiptHtml(documento, { level: nivel, format: 'thermal-80', token, contexto })
-      if (active) { setHtmlPlantilla(builtPlantilla); setHtml(built); setLink(token ? accessUrlFor(token) : trackingUrlFor(documento)); setCargando(false) }
+      if (active) { setHtmlPlantilla(builtPlantilla); setHtml(built); setCargando(false) }
     })()
     return () => { active = false }
   }, [open, documento, contexto, nivel, formato])
@@ -182,12 +176,8 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
   }
 
   async function imprimirDirecto(reimprimir = false) {
-    if (enviando || !documento) return
+    if (enviando || cargando || !documento || !html) return
     setEnviando(true)
-    const { ancho } = configImpresora()
-    // Logo de la empresa en el encabezado térmico: variante oscura (papel
-    // blanco) convertida a mapa de bits 1-bit para GS v 0.
-    const logo = await logoRasterDesdeDataUrl(await getLogoDataUrl('light'), { anchoMax: ancho === 80 ? 512 : 320 })
     // El pedido identifica el trabajo en la cola y alimenta el guarda
     // anti-duplicados (#128): un click repetido se bloquea y, si la persona
     // confirma, sale como reimpresión explícita.
@@ -202,8 +192,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
       toast.success(reimprimir ? 'Reimpresión encolada (demo)' : 'Comprobante encolado (demo)', 'Dato ficticio: no se envió nada al puente.')
       return
     }
-    const politica = await getPoliticasImpresion()
-    const resultado = await imprimirDocumento(ticketComprobante(documento, { nivel, ancho, link: link || politica.url, logo, politica }), { tipo: 'comprobante', ref: referencia, reimprimir })
+    const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
     if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }
     if (!resultado.ok) { avisar.fallo('imprimir', resultado.error || 'Revisá la impresora.'); return }

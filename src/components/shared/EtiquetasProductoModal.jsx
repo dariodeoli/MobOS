@@ -7,7 +7,7 @@ import SearchField from '@/components/shared/SearchField'
 import { gs } from '@/utils/calculos'
 import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
-import { ticketEtiquetasProducto } from '@/lib/printing/tickets'
+import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
 import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
 import { useCompartirImagen } from '@/components/shared/CompartirImagen'
 import MenuSecundario from '@/components/shared/MenuSecundario'
@@ -82,7 +82,10 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
     setEnviando(true)
     try {
       const { ancho } = configImpresora()
-      const resultado = await imprimirDocumento(ticketEtiquetasProducto(items, { ancho }), { tipo: 'etiquetas-producto' })
+      const resultado = await imprimirDocumento(async ({ impresora }) => {
+        const html = await buildProductLabelsHtml(items, { format: formatosPorAncho(ancho) })
+        return ticketsDesdeHtml(html, { impresora, formato: formatosPorAncho(ancho), etiquetas: true })
+      }, { tipo: 'etiquetas-producto' })
       if (resultado?.ok) {
         if (resultado.encolado) avisar.impreso('Etiquetas', resultado.remoto ? 'Quedaron en la cola del puente: las imprime cuando las reclame.' : 'La impresora no respondió; se reintenta solo.')
         else avisar.impreso('Etiquetas', `${totalEtiquetas} etiqueta(s) de ${items.length} producto(s).`)

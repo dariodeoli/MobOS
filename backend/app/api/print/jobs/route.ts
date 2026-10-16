@@ -9,12 +9,15 @@ import {
   ESTADOS_RESULTADO,
   ESTADOS_TRABAJO,
   MAX_ABIERTOS_POR_EMPRESA,
+  MAX_BYTES_ABIERTOS_POR_EMPRESA,
+  leerTrabajoJson,
   MAX_SUFIJO,
   buscarDuplicadoAbierto,
   hashSufijo,
   shapePublico,
   textoOpcional,
   validarPayload,
+  validarRasterV1,
 } from '../../../../lib/print-jobs'
 
 // Cola de impresión de la empresa. La sesión encola trabajos remotos (con
@@ -24,9 +27,10 @@ export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const tenantId = session.user.tenantId
-  const body = await request.json().catch(() => null)
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return error('Datos del trabajo inválidos.')
-  const entrada = body as Record<string, unknown>
+  let entrada: Record<string, unknown>
+  try { entrada = await leerTrabajoJson(request) } catch (cause) {
+    return cause instanceof InputError ? error(cause.message, cause.status) : error('Datos del trabajo inválidos.')
+  }
   const tomar = (ingles: string, espanol: string) => (entrada[ingles] !== undefined ? entrada[ingles] : entrada[espanol])
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } })
@@ -58,6 +62,10 @@ export async function POST(request: Request) {
     let state: PrintJobState = 'PENDIENTE'
     if (camino === 'REMOTO') {
       payload = validarPayload(tomar('payload', 'data'))
+      if (entrada.rasterVersion !== undefined) {
+        if (entrada.rasterVersion !== 1) throw new InputError('Versión raster no compatible.')
+        validarRasterV1(payload)
+      }
     } else {
       const crudo = tomar('payload', 'data')
       if (crudo !== undefined && crudo !== null && crudo !== '') throw new InputError('Un trabajo LOCAL no lleva payload.')
@@ -121,12 +129,25 @@ export async function POST(request: Request) {
       }
     }
 
-    if (camino === 'REMOTO') {
-      const abiertos = await prisma.printJob.count({ where: { tenantId, state: { in: [...ESTADOS_ABIERTOS] } } })
-      if (abiertos >= MAX_ABIERTOS_POR_EMPRESA) throw new InputError(`La empresa ya tiene ${MAX_ABIERTOS_POR_EMPRESA} trabajos en cola.`, 429)
-    }
-
     creado = await prisma.$transaction(async tx => {
+      // Serializa cuotas por empresa: dos solicitudes no pueden superar el cap.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`print-quota:${tenantId}`}, 0))`
+      if (idempotencyKey) {
+        const existing = await tx.printJob.findFirst({ where: { tenantId, idempotencyKey } })
+        if (existing) return existing
+      }
+      if (sourceJobId) {
+        const existing = await tx.printJob.findFirst({ where: { tenantId, sourceJobId } })
+        if (existing) return existing
+      }
+      if (camino === 'REMOTO') {
+        const quota = await tx.printJob.aggregate({ where: { tenantId, state: { in: [...ESTADOS_ABIERTOS] } }, _count: { _all: true }, _sum: { payloadBytes: true } })
+        if (quota._count._all >= MAX_ABIERTOS_POR_EMPRESA) throw new InputError(`La empresa ya tiene ${MAX_ABIERTOS_POR_EMPRESA} trabajos en cola.`, 429)
+        if ((quota._sum.payloadBytes || 0) + Buffer.from(payload!, 'base64').length > MAX_BYTES_ABIERTOS_POR_EMPRESA)
+          throw new InputError('La cola de la empresa alcanzó el límite de 20 MiB. Esperá o revisá los pendientes.', 429)
+        if (!forzado && await buscarDuplicadoAbierto(tx, tenantId, { kind, printerId, destination, reference, idempotencyKey }))
+          throw new InputError('Ya hay una impresión pendiente para este documento. Revisá la cola antes de repetir.', 409)
+      }
       const job = await tx.printJob.create({
         data: {
           tenantId,

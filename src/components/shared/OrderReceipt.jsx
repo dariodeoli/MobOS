@@ -1,3 +1,4 @@
+import { htmlConAreaTermica } from '@/lib/printing/papelTermico'
 import { gs } from '@/utils/calculos'
 import { qrDataUrl } from '@/lib/qr'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
@@ -102,7 +103,7 @@ export async function buildProductLabelsHtml(items = [], { format = 'thermal-58'
   const anchoCuerpo = width ? `${width - 4}mm` : '186mm'
   const cuerpo = width ? 'display:block' : 'display:grid;grid-template-columns:repeat(3,1fr);gap:4mm'
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de producto</title><style>@page{size:${anchoHoja};margin:${margenHoja}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoCuerpo};font:11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720;${cuerpo}}.label{page-break-after:always;border-bottom:1px dashed #999;padding:1mm 0 2mm;text-align:center}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.name{font-size:12px;font-weight:800;min-height:2.4em}.price{font-size:22px;font-weight:900;margin:1mm 0}.list{font-size:8px;color:#555}.sku{font-size:8px;color:#555}.barcode{margin-top:1.5mm}.barcode svg{width:100%;height:auto;max-height:14mm}.code-label{display:block;font-size:6.5px;letter-spacing:.14em;color:#66707a}footer{margin-top:1mm;font-size:7px;color:#66707a}@media print{.label{margin-bottom:0;padding-bottom:1.5mm}}</style></head><body>${etiquetas.join('')}</body></html>`
-  return html
+  return htmlConAreaTermica(html, format)
 }
 
 // Compatibilidad: la etiqueta de precio clásica ahora es la de producto con
@@ -125,7 +126,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
     const contexto = contextoEtiquetaUnidad(datos)
     let qr = ''
     try {
-      if (datos.enlace) qr = await qrDataUrl(datos.enlace, { margen: 0 })
+      if (datos.enlace) qr = await qrDataUrl(datos.enlace, { margen: 4 })
     } catch { /* sin QR queda el código de barras y el código de unidad como texto */ }
     let barras = ''
     if (datos.codigo) {
@@ -146,7 +147,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
     </section>`)
   }
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#66707a;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
-  return html
+  return htmlConAreaTermica(html, `thermal-${anchoMm}`)
 }
 
 // Etiquetas del lote del abastecimiento (#250 §11): una por unidad comprada,
@@ -507,7 +508,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const fila = (rotulo, valor, clase = '') => `<tr${clase ? ` class="${clase}"` : ''}><td>${escapeHtml(rotulo)}</td><td class="num">${valor}</td></tr>`
   const columnas = termico ? '' : '<thead><tr><th>Producto</th><th class="cant">Cant.</th><th class="num">Precio</th><th class="num">Total</th></tr></thead>'
 
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(format, acento)}</style></head><body class="${termico ? `rollo t${thermalWidth(format)}` : 'hoja a4'}">
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(format, acento)}</style></head><body class="${termico ? `rollo t${thermalWidth(format)}` : 'hoja a4'}">
     ${header('Comprobante de compra', cuando, logo, empresa, { razon: empresa || APP_NAME, numero: codigoPedido(order.orderNumber || order.codigo) || 'Pedido', lineas: lineasEmpresa })}
     <div class="cols">${clienteCard}${pedidoCard}</div>
     <table>${columnas}<tbody>${itemsRows || `<tr><td colspan="${termico ? 2 : 4}" class="muted">Sin artículos detallados.</td></tr>`}</tbody></table>
@@ -534,6 +535,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     </div>
     ${footer('', empresa)}
   </body></html>`
+  return htmlConAreaTermica(html, format)
 }
 
 export async function printOrderReceipt(order, options = {}) {

@@ -297,11 +297,12 @@ export const imprimirConDestino = (store, sucursalId = null) => {
 // ── Compatibilidad con el flujo viejo ──────────────────────────────────────
 // Otros componentes leen configImpresora(): devuelve la impresora
 // predeterminada del tenant (o vacío) con la URL y el token del agente.
+let revisionContextoImpresion = 0
 let tenantActivo = null
 let sucursalActiva = null
-export function usarTenantImpresoras(tenantId) { tenantActivo = tenantId || null }
+export function usarTenantImpresoras(tenantId) { const next = tenantId || null; if (tenantActivo !== next) revisionContextoImpresion++; tenantActivo = next }
 // La sucursal de la sesión: la app prefiere la impresora de esa sucursal.
-export function usarSucursalImpresoras(branchId) { sucursalActiva = branchId || null }
+export function usarSucursalImpresoras(branchId) { const next = branchId || null; if (sucursalActiva !== next) revisionContextoImpresion++; sucursalActiva = next }
 
 // Impresora predeterminada de la empresa en ESTE dispositivo (caché local).
 export const impresoraPredeterminada = () => imprimirConDestino(cargarImpresoras(tenantActivo), sucursalActiva).predeterminada || null
@@ -454,6 +455,7 @@ export async function encolarRemoto(ticket, { impresora, copias, usuario = '', t
     path: 'REMOTO',
     destination: String(impresora?.destino || ''),
     payload: ticket.base64(),
+    ...(ticket.rasterVersion === 1 ? { rasterVersion: 1 } : {}),
     kind: String(tipo || 'prueba').slice(0, 40),
     validation: String(ticket?.validacion || '').slice(0, 12),
     suffix: sufijo.slice(0, 8),
@@ -499,7 +501,7 @@ export async function imprimirTicketRouter(ticket, { store, impresora, copias, u
       copias,
       impresora: impresora?.destino,
       usuario,
-      ref: ticket?.ref,
+      ref: ref || ticket?.ref,
       tipo,
       validacion: ticket?.validacion,
       sufijo: ticket?.sufijo,
@@ -591,9 +593,11 @@ export async function imprimirTicketDirecto(ticket, opciones = {}) {
 //   ok + directo    → salió por el agente local
 //   ok + encolado   → quedó en la cola local o en la del puente (remoto)
 //   !ok + motivo    → fallo/sin-impresora/agente-no-disponible/incierto/en-cola
-export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuario = '', copias, store = null, impresora = null, ref = '', reimprimir = false } = {}) {
+export const capturarContextoImpresion = () => revisionContextoImpresion
+export async function imprimirDocumento(ticket, { contexto = revisionContextoImpresion, tipo = '', equipo = '', usuario = '', copias, store = null, impresora = null, ref = '', reimprimir = false } = {}) {
   // Demo (#194): se avisa claro en vez de pegarle al backend real.
   if (isDemoRuntime) return { ok: false, camino: 'demo', motivo: 'demo', error: 'Datos ficticios de demostración: la impresión no está disponible en el demo.' }
+  const revision = contexto
   const estado = await estadoAgente()
   // Sin agente local, la configuración del backend manda: el celular puede
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
@@ -604,6 +608,21 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
   // Una impresora explícita del llamador siempre gana.
   const recordada = tipo ? (actual.impresoras || []).find((item) => item.activa && item.destino === impresoraDeTipo(tipo)) : null
   const elegida = impresora || recordada || imprimirConDestino(actual, sucursalActiva).predeterminada
+  if (revision !== revisionContextoImpresion) return { ok: false, motivo: 'contexto-cambiado', error: 'El contexto cambió. Volvé a abrir el documento; no se envió nada.' }
+  if (typeof ticket === 'function') {
+    try {
+      if (revision !== revisionContextoImpresion) throw Error('El contexto cambió. Volvé a abrir el documento.')
+      const preparados = await ticket({ impresora: elegida })
+      if (revision !== revisionContextoImpresion) throw Error('El contexto cambió. No se envió el documento anterior.')
+      const lote = Array.isArray(preparados) ? preparados : [preparados]
+      if (!lote.length || lote.some(item => typeof item?.base64 !== 'function')) throw Error('No hay documentos completos para enviar.')
+      if (lote.length !== 1) throw Error('El lote debe prepararse completo en un único trabajo. Usá PDF/diálogo; no se envió nada.')
+      const item = lote[0]
+      return await imprimirDocumento(item, { tipo, equipo, usuario, copias, store: actual, impresora: elegida, contexto: revision, ref: ref || item.rasterReference || '', reimprimir })
+    } catch (cause) {
+      return { ok: false, motivo: 'preparacion-documento', error: cause.message || 'No se pudo preparar el documento.' }
+    }
+  }
   const recordarUsada = () => { if (tipo && elegida?.destino) recordarImpresoraDeTipo(tipo, { destino: elegida.destino, ancho: elegida.ancho }) }
   const puente = puenteDe(actual, elegida)
   const { camino } = resolverCamino(actual, elegida, { disponible: Boolean(estado?.disponible) })
@@ -614,7 +633,7 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
       impresora: elegida?.destino,
       usuario,
       tipo,
-      ref: ticket?.ref,
+      ref: ref || ticket?.ref,
       validacion: ticket?.validacion,
       sufijo: ticket?.sufijo,
       puente: puente?.nombre || '',
@@ -630,6 +649,7 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
         motivo: local.incierto ? 'incierto' : local.encolado ? 'en-cola' : '',
       }
     }
+    if (revision !== revisionContextoImpresion) return { ok: false, motivo: 'contexto-cambiado', error: 'El contexto cambió. No se encoló el documento anterior.' }
     // El agente local rechazó ANTES de aceptar: recién ahí vale el remoto.
     if (elegida?.destino) {
       const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente, ref, reimprimir })

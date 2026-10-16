@@ -1,7 +1,8 @@
-import { configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
+import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
+import { capturarContextoImpresion, configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { formatoPermitido } from '@/lib/printing/preferencias'
 import { accessUrlFor, buildProductLabelsHtml, buildUnitLabelsHtml, printOrderReceipt, printRemisionReceipt, tokenDeNivel } from '@/components/shared/OrderReceipt'
-import { ticketComprobante, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketEtiquetasUnidad, ticketRemision } from '@/lib/printing/tickets'
+import { ticketComprobante, ticketEtiquetaUbicacion, ticketRemision } from '@/lib/printing/tickets'
 import { qrDataUrl } from '@/lib/qr'
 import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { APP_NAME } from '@/lib/brand'
@@ -14,10 +15,11 @@ import { safe } from './stockHelpers'
 // impresora configurada (agente o puente) y el diálogo queda solo como respaldo
 // de un fallo claro. Una página por etiqueta, con el ancho real del rollo.
 export async function printLabels(units = []) {
+  const contexto = capturarContextoImpresion()
   if (!units.length) return
   const { ancho } = configImpresora()
   const html = await buildUnitLabelsHtml(units, { ancho })
-  const resultado = await imprimirDocumento(ticketEtiquetasUnidad(units, { ancho }), { tipo: 'etiquetas-stock' })
+  const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato: `thermal-${ancho}`, etiquetas: true }), { contexto, tipo: 'etiquetas-stock' })
   // Diálogo solo si el fallo fue CLARO (nada se envió ni quedó en cola):
   // tras un resultado incierto o encolado abrirlo podría duplicar el ticket.
   if (puedeCaerAlDialogo(resultado)) imprimirConDialogo(html)
@@ -38,9 +40,10 @@ export async function printLocationLabel(location) {
 // configurada, sin diálogo; el respaldo abre el HTML solo ante un fallo claro.
 // La usa la ficha y la recepción en tránsito (reimprimir al llegar).
 export async function printLabel(unit) {
+  const contexto = capturarContextoImpresion()
   const { ancho } = configImpresora()
   const html = await buildUnitLabelsHtml([unit], { ancho })
-  const resultado = await imprimirDocumento(ticketEtiquetaUnidad(unit, { ancho }), { tipo: 'etiqueta-stock' })
+  const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato: `thermal-${ancho}`, etiquetas: true }), { contexto, tipo: 'etiqueta-stock' })
   // Diálogo solo si el fallo fue CLARO (nada se envió ni quedó en cola):
   // tras un resultado incierto o encolado abrirlo podría duplicar el ticket.
   if (puedeCaerAlDialogo(resultado)) imprimirConDialogo(html)
@@ -86,12 +89,16 @@ export async function imprimirRemision(transfer) {
 // cae al diálogo con el mismo HTML de etiquetas de la app. Si la selección está
 // vacía lanza EtiquetasStockError y el llamador muestra su mensaje tal cual.
 export async function imprimirEtiquetasStock(filas = []) {
+  const contexto = capturarContextoImpresion()
   const { ancho } = configImpresora()
   const { trabajos, total, items } = etiquetasDeFilasStock(filas, { ancho })
   const resultados = []
   for (const trabajo of trabajos) {
     const esUnidad = trabajo.tipo === 'unidad'
-    const resultado = await imprimirDocumento(trabajo.ticket, { tipo: esUnidad ? 'etiquetas-stock' : 'etiquetas-producto' })
+    const html = esUnidad
+      ? await buildUnitLabelsHtml(items.filter(item => item.tipo === 'unidad').map(item => item.unit), { ancho })
+      : await buildProductLabelsHtml(items.filter(item => item.tipo === 'producto').map(item => ({ product: item.product, cantidad: item.cantidad })), { format: `thermal-${ancho}` })
+    const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato: `thermal-${ancho}`, etiquetas: true }), { contexto, tipo: esUnidad ? 'etiquetas-stock' : 'etiquetas-producto' })
     // Diálogo solo si el fallo fue CLARO: tras un resultado incierto o encolado
     // abrirlo podría duplicar el papel.
     if (puedeCaerAlDialogo(resultado)) {
@@ -101,6 +108,7 @@ export async function imprimirEtiquetasStock(filas = []) {
       imprimirConDialogo(html)
     }
     resultados.push({ tipo: trabajo.tipo, etiquetas: trabajo.etiquetas, resultado })
+    if (!resultado.ok) break // no continuar otro grupo tras un rechazo o envío incierto
   }
   return { total, resultados }
 }

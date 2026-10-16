@@ -7,6 +7,7 @@
 // del seed ni del estado que dejaron otras corridas.
 import { test, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { leerRaster, urlsUnidades, configurarImpresoraRaster } from './helpers/raster-qr.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -35,7 +36,6 @@ async function agenteFalso(page, capturados) {
   })
 }
 
-const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
 
 // Crea (o reutiliza) una ubicación propia del spec para no depender del seed.
 async function preparar(page, marca) {
@@ -254,13 +254,13 @@ test('la reparación del taller se pasa al costo real de la unidad', async ({ pa
     await expect(reparaciones).toContainText(/125\.000/)
     mkdirSync('test-results/qa-240-reparaciones-unidad', { recursive: true })
     await reparaciones.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: 'test-results/qa-240-reparaciones-unidad/01-reparacion-pendiente.jpg', type: 'jpeg', quality: 75 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-reparaciones-unidad/01-reparacion-pendiente.jpg', type: 'jpeg', quality: 75 })
     await reparaciones.getByRole('button', { name: 'Pasar al costo' }).click()
     await expect(page.getByText(/Reparación aplicada: .*costo real del equipo/)).toBeVisible({ timeout: 15_000 })
     await expect(reparaciones.getByText('Aplicada', { exact: true })).toBeVisible()
     await expect(reparaciones.getByRole('button', { name: 'Pasar al costo' })).toHaveCount(0)
     await reparaciones.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: 'test-results/qa-240-reparaciones-unidad/02-reparacion-aplicada.jpg', type: 'jpeg', quality: 75 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-reparaciones-unidad/02-reparacion-aplicada.jpg', type: 'jpeg', quality: 75 })
 
     // El costo queda persistido en la inspección y la orden vinculada a la unidad.
     const estado = await page.evaluate(async ({ api, serial, orderId }) => {
@@ -545,7 +545,7 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     mkdirSync('test-results/qa-240-taller', { recursive: true })
     await page.goto('/inventario/unidades')
     await expect(page.getByRole('heading', { name: 'Unidades' })).toBeVisible()
-    await page.screenshot({ path: 'test-results/qa-240-taller/01-antes-inventario.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/01-antes-inventario.jpg', type: 'jpeg', quality: 70 })
 
     await page.goto('/stock/taller')
     const rack = page.getByTestId('rack-taller')
@@ -559,48 +559,57 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
       // Stepper del flujo: recién recibidas arrancan en el paso 1.
       await expect(tile.getByTestId('rack-pasos')).toHaveAttribute('data-paso', '1')
     }
-    await page.screenshot({ path: 'test-results/qa-240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
 
     // Estaciones: una sola a la vez.
     await page.getByTestId('rack-estacion-por-verificar').click()
     await expect(page.getByTestId('rack-columna-por-verificar')).toBeVisible()
     await expect(page.getByTestId('rack-columna-listo')).toHaveCount(0)
-    await page.screenshot({ path: 'test-results/qa-240-taller/04-rack-estacion.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/04-rack-estacion.jpg', type: 'jpeg', quality: 70 })
     await page.getByTestId('rack-estacion-todas').click()
     await expect(page.getByTestId('rack-columna-listo')).toBeVisible()
 
     // Filtros: búsqueda por IMEI (y ubicación) sobre el rack.
     await page.getByLabel('Buscar en el taller').fill(datos.unidades[0].serial)
     await expect(page.getByTestId('rack-equipo')).toHaveCount(1)
-    await page.screenshot({ path: 'test-results/qa-240-taller/05-rack-busqueda.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/05-rack-busqueda.jpg', type: 'jpeg', quality: 70 })
     await page.getByLabel('Buscar en el taller').fill('')
     await page.getByLabel('Filtrar por ubicación').selectOption({ label: datos.locationName })
     await expect(page.getByTestId('rack-equipo').filter({ hasText: datos.unidades[0].serial })).toBeVisible()
     await page.getByLabel('Filtrar por ubicación').selectOption('')
+    // Acotar estación a las tres unidades propias; otros tests también reciben stock.
+    await page.getByLabel('Filtrar por ubicación').selectOption({ label: datos.locationName })
 
     // Selección de las unidades nuevas.
     for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
     await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')
 
     // Impresión por estación: el «Imprimir (3)» del carril manda el trabajo
-    // directo (sin modal ni diálogo) con las etiquetas de toda la estación.
+    // por el selector explícito de formato y con las etiquetas de toda la estación.
+    await configurarImpresoraRaster(page, API)
+    const ordenEstacion = await page.getByTestId('rack-columna-por-verificar').getByTestId('rack-equipo').allTextContents().then(rows => rows.flatMap(row => datos.unidades.map(u => u.serial).filter(serial => row.includes(serial))))
+    expect(ordenEstacion).toHaveLength(3)
     await page.getByTestId('rack-imprimir-por-verificar').click()
+    const modalImpresion = page.getByRole('dialog', { name: 'Imprimir en serie' })
+    await expect(modalImpresion).toBeVisible()
+    await expect(page.getByTestId('rack-impresion-resumen')).toContainText('3 etiqueta')
+    await page.getByTestId('rack-imprimir-serie-confirmar').click()
     await expect(page.getByText('Etiquetas se envió a la impresora')).toBeVisible({ timeout: 15_000 })
     expect(capturados).toHaveLength(1)
     expect(capturados[0].tipo).toBe('etiquetas-stock')
-    const textoEstacion = textoDelTicket(capturados[0])
-    for (const unidad of datos.unidades) expect(textoEstacion).toContain(unidad.serial)
+    expect(urlsUnidades(capturados[0])).toEqual(ordenEstacion)
+    expect(leerRaster(capturados[0].data).cuts).toBe(3)
+    for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
 
     // Impresión en serie: carril completo y modal con alcance (selección,
     // estación o todo lo filtrado) + hoja de estación.
     await page.getByTestId('rack-imprimir-serie').click()
-    const modalImpresion = page.getByRole('dialog', { name: 'Imprimir en serie' })
     await expect(modalImpresion).toBeVisible()
     await expect(page.getByTestId('rack-alcance-seleccion')).toHaveAttribute('aria-checked', 'true')
     await expect(page.getByTestId('rack-alcance-filtrados')).toBeVisible()
     await expect(page.getByTestId('rack-impresion-resumen')).toContainText('3 etiqueta')
     await expect(page.getByTestId('rack-hoja-estacion')).toBeEnabled()
-    await page.screenshot({ path: 'test-results/qa-240-taller/06-rack-imprimir-serie.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/06-rack-imprimir-serie.jpg', type: 'jpeg', quality: 70 })
 
     // Hoja de estación: el A4 del alcance elegido sale con los 3 equipos
     // (mismo camino que usa la app: printHtml sobre el iframe oculto).
@@ -624,14 +633,11 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     await page.getByTestId('rack-imprimir-serie-confirmar').click()
     await expect.poll(() => capturados.length).toBe(2)
     expect(capturados[1].tipo).toBe('etiquetas-stock')
-    const textoLote = textoDelTicket(capturados[1])
-    for (const unidad of datos.unidades) {
-      expect(textoLote).toContain(unidad.serial)
-      expect(textoLote).toContain(`MOBOS:${unidad.serial}`)
-    }
+    expect(urlsUnidades(capturados[1])).toEqual(datos.unidades.map(u => u.serial))
+    expect(leerRaster(capturados[1].data).cuts).toBe(3)
     // La impresión directa no deja el respaldo del diálogo abierto.
     await expect(marco).toHaveCount(0)
-    await page.screenshot({ path: 'test-results/qa-240-taller/08-rack-etiquetas-enviadas.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/08-rack-etiquetas-enviadas.jpg', type: 'jpeg', quality: 70 })
 
     // Verificación en serie de las 3 unidades (la impresión limpió la selección).
     for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
@@ -645,7 +651,7 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
       await expect(tile).toBeVisible({ timeout: 20000 })
       await expect(tile.getByTestId('rack-pasos')).toHaveAttribute('data-paso', '2')
     }
-    await page.screenshot({ path: 'test-results/qa-240-taller/03-rack-verificado.jpg', type: 'jpeg', quality: 70 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-240-taller/03-rack-verificado.jpg', type: 'jpeg', quality: 70 })
   } finally {
     await limpiar(page, datos)
   }
@@ -705,7 +711,7 @@ test('recepción: buscador de proveedores por abreviatura y últimos usados (#25
     await expect(lista.getByRole('option').first()).toContainText(`Distribuidora Beta QA ${id} ${sufijo}`)
     await expect(lista.getByRole('option').first()).toContainText(codigoBeta)
     mkdirSync('test-results/qa-259-proveedores', { recursive: true })
-    await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-filtro-abreviatura.jpg', type: 'jpeg', quality: 78 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-filtro-abreviatura.jpg', type: 'jpeg', quality: 78 })
 
     // Elegir completa el campo con abreviatura + nombre.
     await lista.getByRole('option').first().click()
@@ -733,7 +739,7 @@ test('recepción: buscador de proveedores por abreviatura y últimos usados (#25
     await expect(lista2).toBeVisible()
     await expect(lista2.getByText('Últimos usados')).toBeVisible()
     await expect(lista2.getByRole('option').first()).toContainText(`Distribuidora Beta QA ${id} ${sufijo}`)
-    await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-ultimos-usados.jpg', type: 'jpeg', quality: 78 })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-ultimos-usados.jpg', type: 'jpeg', quality: 78 })
     await page.keyboard.press('Escape')
   } finally {
     await page.evaluate(async ({ api, serial, ids, productId }) => {
