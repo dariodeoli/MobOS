@@ -207,6 +207,12 @@ jobs:
           MOBOS_QA_PORT: "5341"
           MOBOS_QA_OUT: /tmp/mobos-print402-ci
         run: npx playwright test --config e2e/printing402.frontend.config.js
+      - name: Public document branding and privacy UI
+        if: matrix.shard == 2
+        env:
+          MOBOS_QA_PORT: "5334"
+          MOBOS_QA_OUT: /tmp/mobos-public403-ci
+        run: npx playwright test --config e2e/publicas-extra.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:

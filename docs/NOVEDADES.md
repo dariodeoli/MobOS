@@ -13,6 +13,8 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
+- **Enlaces de clientes:** carrito, informe y alternativa muestran la marca y el contacto de su sucursal. Los logos respetan el acceso del documento y el vencimiento o revocación del enlace; el checkout usa el teléfono de la sucursal.
+
 - **Remitos compartidos:** las observaciones internas del traslado y la recepción permanecen en la gestión privada; el enlace del cliente conserva la confirmación de recepción.
 
 - **Accesibilidad:** al abrir un editor sobre una ficha, se anuncia una sola ventana activa. Al cerrarlo, el foco vuelve al botón que lo abrió.
