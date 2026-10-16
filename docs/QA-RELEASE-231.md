@@ -25,6 +25,12 @@ Ejecutados con runtime combinado de `3d8515f5`; `f7d09f04` posterior agrega sola
 
 Logs en carpeta de coordinacion `work/release231-full-*`, `release231-public-brand403.log`, `release231-responsive396.log` y `release231-images515.log`.
 
+### Registro de las nuevas pruebas integradas
+
+La corrida completa anterior fue previa a agregar `fotos-producto.spec.js`. Al componer la nueva prueba, ciHarness detecto que faltaba asignarla a un shard. Ademas su importacion inmediata de Sharp dependia de instalar backend/node_modules, algo que el job Frontend no hace. Se conserva el fallo: `release231-ciHarness-red.log` (4/5, archivo sin asignar), mas el fallo root-only observado por los autores de las unidades siguientes. No se cuenta instalar backend como arreglo del job Frontend.
+
+Se asigna exclusivamente el nuevo spec al shard4, que tenia la menor carga calculada; se preservan todos los demas archivos y el limite de balance. Sharp se carga solo dentro de la ejecucion de los helpers de imagen, conservando los oraculos reales de pixeles. `release231-ciHarness-green.log`: 5/5 PASS. La misma prueba con un hook que rechaza cualquier carga de Sharp durante el listado tambien pasa (`release231-ciHarness-root-only-green.log`). Los siguientes cambios de producto deben acreditar su composicion final antes de publicar; estos resultados no son CI remoto.
+
 ## Limites
 
 Faltan rebase final, CI protegido, merge, deploy y nuevo build nativo. No se afirma cierre completo de #403/#404 ni pruebas fisicas de camara, impresoras, OAuth o VoiceOver. TestFlight1.0(3) conserva la publicacion anterior verificada229.

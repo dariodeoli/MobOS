@@ -3,7 +3,10 @@
 import { test, expect, request as pwRequest } from '@playwright/test'
 import { openShellDestination } from './helpers/shell-navigation.js'
 import { createRequire } from 'node:module'
-const sharp = createRequire(new URL('../backend/package.json', import.meta.url))('sharp')
+const requireBackend = createRequire(new URL('../backend/package.json', import.meta.url))
+// --list tambien corre en el job frontend, que no instala dependencias backend.
+// Cargar Sharp solo al ejecutar la prueba integrada, sin omitir sus oraculos.
+const sharp = (...args) => requireBackend('sharp')(...args)
 import { SEED } from './helpers/seed-data.js'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 async function api(page, path, method = 'GET', body) {

@@ -162,6 +162,7 @@
         "dsn-241-a11y.spec.js",
         "equipo-invitaciones.spec.js",
         "finanzas-comisiones.spec.js",
+        "fotos-producto.spec.js",
         "imei-mock.spec.js",
         "inventario-pos-sync.spec.js",
         "inventario-unidades.spec.js",
@@ -202,8 +203,8 @@
         "seguridad-cuenta.spec.js",
         "selector-sucursal.spec.js"
       ],
-      "tests": 213,
-      "ms": 1150002
+      "tests": 215,
+      "ms": 1158290
     }
   ],
   "generado": "2026-10-03T11:17:45.546Z"
