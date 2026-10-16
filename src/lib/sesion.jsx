@@ -9,6 +9,7 @@ import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { esDenegacionPrivada, generacionSnapshots } from './offline/snapshot'
 import { consumirPinTrasCambio } from '@/lib/api/session'
+import { crearRetornoGoogle, esRetornoGoogle } from './inicioSesion'
 import { marcarPinVigente } from '@/lib/nativo/bloqueo'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
@@ -43,6 +44,13 @@ function adaptarEmpresa(user, tenant) {
 
 export function SesionProvider({ children }) {
   const revisionSesion = useRef(0)
+  const [retornoGoogle] = useState(() => esRetornoGoogle(globalThis.location) ? crearRetornoGoogle(generacionSnapshots) : null)
+  const sondeoInicial = useRef({ cancelar: () => Promise.resolve() })
+  const prepararIngreso = useCallback(async () => {
+    revisionSesion.current++
+    await sondeoInicial.current.cancelar()
+    setEstado(actual => actual === 'cargando' ? 'fuera' : actual)
+  }, [])
   const [estado, setEstado] = useState('cargando')
   const [usuario, setUsuario] = useState(null); const [empresas, setEmpresas] = useState([]); const [empresa, setEmpresa] = useState(null); const [sucursales, setSucursales] = useState([]); const [sucursal, setSucursal] = useState(null); const [vendedores, setVendedores] = useState([])
   const [perfilEmpresa, setPerfilEmpresa] = useState(() => getCompanyContext()?.profile || null)
@@ -99,6 +107,16 @@ export function SesionProvider({ children }) {
   useEffect(() => {
     let vivo = true
     let intentos = 0
+    let temporizador
+    let consulta = Promise.resolve()
+    const controller = new AbortController()
+    const cancelar = () => {
+      vivo = false
+      clearTimeout(temporizador)
+      controller.abort()
+      return consulta.catch(() => {})
+    }
+    sondeoInicial.current = { cancelar }
     if (isDemoRuntime) {
       // /login es el acceso real: la marca de demo de esta pestaña se limpia y
       // se recarga para re-evaluar el modo (si no, el API real seguiría
@@ -111,24 +129,27 @@ export function SesionProvider({ children }) {
       if (demoSessionActive()) entrarDemo(); else setEstado('fuera')
       return () => { vivo = false }
     }
+    // La cookie de retorno Google no es una sesión de vendedor: primero se
+    // completa la identidad OAuth y luego se exige el PIN normal.
+    if (retornoGoogle) { setEstado('fuera'); return cancelar }
     // Un error de red no debe expulsar al usuario: se reintenta la validación
     // unas veces y solo se cierra la sesión visual ante un 401 real.
     const validar = async () => {
       try {
-        const result = await sessionApi.me()
+        const result = await sessionApi.me({ signal: controller.signal })
         if (!vivo) return
         if (result?.user) await activarSesion(result.user, { tenant: result.tenant, perfil: combinarPerfil(result.ownerProfile, getCompanyContext()?.profile || null) })
         else { if (!consumirPinTrasCambio()) clearSession(); setEstado('fuera') }
       } catch (error) {
         if (!vivo) return
         if (error?.status === 401) { if (!consumirPinTrasCambio()) clearSession(); setEstado('fuera') }
-        else if (intentos < 4) { intentos += 1; setTimeout(() => { if (vivo) validar() }, 3000) }
+        else if (intentos < 4) { intentos += 1; temporizador = setTimeout(() => { if (vivo) consulta = validar() }, 3000) }
         else { console.error('[sesion] no se pudo validar la sesión real:', error); setEstado('fuera') }
       }
     }
-    validar()
-    return () => { vivo = false }
-  }, [activarSesion, entrarDemo])
+    consulta = validar()
+    return cancelar
+  }, [activarSesion, entrarDemo, retornoGoogle])
   useEffect(() => { setActor(usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, esPropietario: empresa?.rol === 'dueno' } : null) }, [usuario, empresa])
   // En render (no en effect) para que los componentes que leen configImpresora()
   // vean el tenant/sucursal correctos desde su primer render.
@@ -176,6 +197,6 @@ export function SesionProvider({ children }) {
     setUsuario(current => current ? { ...current, name: nombre, user_metadata: { ...(current.user_metadata || {}), nombre } } : current)
   }
   const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
-  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, actualizarNombreUsuario, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
+  return <SesionContext.Provider value={{ estado, retornoGoogle, prepararIngreso, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, actualizarNombreUsuario, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
 export function useSesion() { return useContext(SesionContext) }

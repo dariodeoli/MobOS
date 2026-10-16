@@ -14,4 +14,10 @@ const memoria = new Map()
 usarAlmacen({ get: async key => memoria.get(key), set: async (key, value) => memoria.set(key, value), remove: async key => memoria.delete(key) })
 document.documentElement.classList.toggle('app-ios', ios)
 aplicarTema(localStorage.getItem('mobos:theme') === 'dark')
-createRoot(document.getElementById('root')).render(<BrowserRouter><SesionProvider><Login /></SesionProvider></BrowserRouter>)
+function Fixture() {
+  const [visible, setVisible] = React.useState(true)
+  const desmontable = new URLSearchParams(location.search).has('desmontable')
+  return <BrowserRouter><SesionProvider>{desmontable && <button type="button" data-testid="desmontar-login" onClick={() => setVisible(false)}>Desmontar acceso de prueba</button>}{visible && <Login />}</SesionProvider></BrowserRouter>
+}
+const Contenedor = new URLSearchParams(location.search).has('strict') ? React.StrictMode : React.Fragment
+createRoot(document.getElementById('root')).render(<Contenedor><Fixture /></Contenedor>)

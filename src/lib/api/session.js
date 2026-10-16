@@ -76,18 +76,19 @@ export const sessionApi = {
     if (!status?.configured) throw new Error('El acceso con Google todavía no está configurado.')
     window.location.assign(`${API_URL}/api/auth/google?intent=${create ? 'create' : 'login'}`)
   },
-  completeGoogle: async (body) => {
+  completeGoogle: async (body, { aplicarContexto = fn => fn() } = {}) => {
     const session = await api.post('/api/auth/google/complete', body, { credentials: 'include', headers: { Authorization: '' } })
-    if (session?.storeRequired) {
-      // La persona tiene varias tiendas y todavía no eligió una: no hay sesión
-      // de empresa todavía, solo se recuerdan las tiendas para el selector.
-      const anterior = getCompanyContext() || {}
-      setCompanyContext({ ...anterior, stores: session.stores || [] })
+    return aplicarContexto(() => {
+      if (session?.storeRequired) {
+        // La identidad OAuth todavía no es una sesión de empresa. No mezclar
+        // vendedores, tenant ni perfil guardados de una sesión anterior.
+        setCompanyContext({ stores: session.stores || [] })
+        return session
+      }
+      clearSession()
+      setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, stores: session.stores || [], cookieSession: true })
       return session
-    }
-    clearSession()
-    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, stores: session.stores || [], cookieSession: true })
-    return session
+    })
   },
   resetPassword: async ({ token, password }) => {
     const session = await api.post('/api/auth/password-reset', { token, password })

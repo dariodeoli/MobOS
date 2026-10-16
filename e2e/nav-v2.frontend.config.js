@@ -34,6 +34,7 @@ export default defineConfig({
     'graficos.frontend.spec.js',
     'login-codigos.frontend.spec.js',
     'auth516.frontend.spec.js',
+    'oauth517.frontend.spec.js',
     'redirecciones-seguras.frontend.spec.js',
     'multiempresa.frontend.spec.js',
     'delivery-scope.frontend.spec.js',
