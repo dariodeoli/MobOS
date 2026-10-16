@@ -222,6 +222,9 @@ jobs:
       - name: Saved print templates and PDF composition
         if: matrix.shard == 1
         run: npx playwright test --config e2e/plantillas507-adopcion.frontend.config.js
+      - name: Printed raster QR and tenant context isolation
+        if: matrix.shard == 1
+        run: npx playwright test --config e2e/print513.frontend.config.js
       - name: Platform navigation and session controls
         if: matrix.shard == 2
         run: npx playwright test --config e2e/superadmin508.frontend.config.js

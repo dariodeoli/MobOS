@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test'
 export default defineConfig({
+  forbidOnly: Boolean(process.env.CI),
   testDir: './frontend',
   testMatch: 'print513.frontend.spec.js',
   workers: 1,
