@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import sharp from 'sharp'
 
 // #404: validación de fotos de producto. Mismos tipos y tope que los adjuntos
 // (JPG/PNG/WebP, 5 MiB, magic bytes); además se leen las dimensiones del propio
@@ -11,8 +12,8 @@ export const MAX_IMAGE_SIDE = 8000
 const EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
 export class ProductImageError extends Error {
-  public readonly status: 400 | 413 | 415
-  constructor(status: 400 | 413 | 415, message: string) {
+  public readonly status: 400 | 413 | 415 | 429
+  constructor(status: 400 | 413 | 415 | 429, message: string) {
     super(message)
     this.status = status
   }
@@ -82,6 +83,83 @@ export async function readProductImage(value: FormDataEntryValue | null, { maxBy
   const size = imageDimensions(bytes, mimeType)
   if (!size || size.width < 1 || size.height < 1 || size.width > MAX_IMAGE_SIDE || size.height > MAX_IMAGE_SIDE) throw new ProductImageError(400, 'No se pudo leer el tamaño de la imagen o es demasiado grande.')
   return { data: bytes, mimeType, sizeBytes: bytes.byteLength, width: size.width, height: size.height, sha256: createHash('sha256').update(bytes).digest('hex'), extension: EXTENSION[mimeType] }
+}
+
+/** Cota real del multipart aun sin Content-Length o con cabecera falsa. */
+export async function readProductImageFormData(request: Request, maxBytes: number): Promise<FormData> {
+  const reader = request.body?.getReader()
+  if (!reader) throw new ProductImageError(400, 'No se pudo leer la foto.')
+  const chunks: Uint8Array[] = []
+  let length = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      length += value.byteLength
+      if (length > maxBytes) {
+        await reader.cancel()
+        throw new ProductImageError(413, 'La foto supera el límite de 5 MiB.')
+      }
+      chunks.push(value)
+    }
+    const bytes = new Uint8Array(length)
+    let offset = 0
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength }
+    return await new Response(bytes, { headers: { 'Content-Type': request.headers.get('content-type') || '' } }).formData()
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+// Límites por proceso: no se encolan decodificaciones sin cota ni se libera
+// un cupo por un timer JS mientras libvips todavía trabaja.
+export const MAX_PRODUCT_IMAGE_PIXELS = 16_000_000
+const MAX_CONVERSIONS = 2
+let conversions = 0
+
+function derivative(data: Uint8Array<ArrayBuffer>, width: number, height: number): ValidatedImage {
+  return { data, width, height, mimeType: 'image/webp', extension: 'webp', sizeBytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex') }
+}
+
+function animatedHeader(input: ValidatedImage) {
+  if (input.mimeType === 'image/webp') return ascii(input.data, 12, 16) === 'VP8X' && Boolean(input.data[20] & 0x02)
+  if (input.mimeType !== 'image/png') return false
+  const view = new DataView(input.data.buffer, input.data.byteOffset, input.data.byteLength)
+  for (let offset = 8; offset + 12 <= input.data.length;) {
+    const length = view.getUint32(offset)
+    if (ascii(input.data, offset + 4, offset + 8) === 'acTL') return true
+    if (length > input.data.length - offset - 12) break
+    offset += length + 12
+  }
+  return false
+}
+
+/** Sólo los derivados decodificados se persisten; nunca EXIF ni bytes originales. */
+export async function generateProductImages(value: FormDataEntryValue | null): Promise<{ image: ValidatedImage; thumb: ValidatedImage }> {
+  const input = await readProductImage(value)
+  if (animatedHeader(input)) throw new ProductImageError(400, 'La foto debe ser una imagen estática.')
+  if (input.width * input.height > MAX_PRODUCT_IMAGE_PIXELS) throw new ProductImageError(400, 'La foto supera los 16 megapíxeles. Recórtela o reduzca su resolución.')
+  if (conversions >= MAX_CONVERSIONS) throw new ProductImageError(429, 'Se están procesando otras fotos. Intente de nuevo en unos segundos.')
+  conversions += 1
+  try {
+    const pipeline = sharp(input.data, { failOn: 'warning', limitInputPixels: MAX_PRODUCT_IMAGE_PIXELS, limitInputChannels: 4, sequentialRead: true })
+    const metadata = await pipeline.metadata()
+    if (metadata.format !== ({ 'image/png': 'png', 'image/jpeg': 'jpeg', 'image/webp': 'webp' } as Record<string, string>)[input.mimeType]
+      || !metadata.width || !metadata.height || metadata.width > MAX_IMAGE_SIDE || metadata.height > MAX_IMAGE_SIDE
+      || metadata.width * metadata.height > MAX_PRODUCT_IMAGE_PIXELS || (metadata.pages ?? 1) !== 1) {
+      throw new ProductImageError(400, 'La foto debe ser una imagen estática de hasta 16 megapíxeles.')
+    }
+    // timeout() es nativo de sharp/libvips; await espera su finalización real.
+    const main = await pipeline.rotate().resize(800, 800, { fit: 'cover', position: 'centre' }).webp({ quality: 82, effort: 3 }).timeout({ seconds: 3 }).toBuffer({ resolveWithObject: true })
+    const small = await sharp(main.data, { failOn: 'warning', limitInputPixels: 800 * 800 }).resize(160, 160).webp({ quality: 78, effort: 3 }).timeout({ seconds: 3 }).toBuffer({ resolveWithObject: true })
+    if (main.data.length > MAX_PRODUCT_IMAGE_BYTES || small.data.length > MAX_PRODUCT_THUMB_BYTES) throw new ProductImageError(413, 'La foto procesada supera el tamaño permitido.')
+    return { image: derivative(new Uint8Array(main.data), main.info.width, main.info.height), thumb: derivative(new Uint8Array(small.data), small.info.width, small.info.height) }
+  } catch (cause) {
+    if (cause instanceof ProductImageError) throw cause
+    throw new ProductImageError(400, 'No se pudo decodificar la foto. Use una imagen JPG, PNG o WEBP estática y completa.')
+  } finally {
+    conversions -= 1
+  }
 }
 
 /** URLs relativas de la API; el cliente las baja con sesión y las cachea. */

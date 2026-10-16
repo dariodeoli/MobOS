@@ -3,7 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../../lib/auth'
 import { deleteAttachment, saveAttachment } from '../../../../../lib/attachment-storage'
 import { sucursalEfectiva } from '../../../../../lib/sucursal-efectiva'
-import { MAX_PRODUCT_IMAGES, MAX_PRODUCT_THUMB_BYTES, ProductImageError, readProductImage, serializeProductImage } from '../../../../../lib/product-images'
+import { MAX_PRODUCT_IMAGES, MAX_PRODUCT_THUMB_BYTES, ProductImageError, generateProductImages, readProductImage, readProductImageFormData, serializeProductImage } from '../../../../../lib/product-images'
 import { MAX_MULTIPART_BODY_BYTES } from '../../../payments/_lib'
 
 type RouteContext = { params: Promise<{ id?: string }> }
@@ -50,18 +50,21 @@ export async function POST(request: Request, props: RouteContext) {
   const contentLength = Number(request.headers.get('content-length'))
   if (Number.isFinite(contentLength) && contentLength > MAX_MULTIPART_BODY_BYTES + MAX_PRODUCT_THUMB_BYTES) return error('La foto supera el límite de 5 MiB.', 413)
   let form: FormData
-  try { form = await request.formData() } catch { return error('No se pudo leer la foto.', 400) }
+  try { form = await readProductImageFormData(request, MAX_MULTIPART_BODY_BYTES + MAX_PRODUCT_THUMB_BYTES) } catch (cause) {
+    if (cause instanceof ProductImageError) return error(cause.message, cause.status)
+    return error('No se pudo leer la foto.', 400)
+  }
 
   let image: Awaited<ReturnType<typeof readProductImage>>
   let thumb: Awaited<ReturnType<typeof readProductImage>> | null = null
   try {
-    image = await readProductImage(form.get('file'))
     const rawThumb = form.get('thumb')
-    // La miniatura la genera el cliente (WebP chico); si falta, la grande hace de miniatura.
+    // Compatibilidad: validar el campo opcional, pero nunca usar sus píxeles.
     if (rawThumb) {
-      thumb = await readProductImage(rawThumb, { maxBytes: MAX_PRODUCT_THUMB_BYTES, label: 'La miniatura' })
-      if (thumb.mimeType !== 'image/webp') throw new ProductImageError(415, 'La miniatura debe ser WEBP.')
+      const suppliedThumb = await readProductImage(rawThumb, { maxBytes: MAX_PRODUCT_THUMB_BYTES, label: 'La miniatura' })
+      if (suppliedThumb.mimeType !== 'image/webp') throw new ProductImageError(415, 'La miniatura debe ser WEBP.')
     }
+    ;({ image, thumb } = await generateProductImages(form.get('file')))
   } catch (cause) {
     if (cause instanceof ProductImageError) return error(cause.message, cause.status)
     console.error('[product-images] no se pudo leer la foto', cause)
@@ -72,10 +75,11 @@ export async function POST(request: Request, props: RouteContext) {
   const activas = await prisma.productImage.count({ where: { tenantId, productId, deletedAt: null } })
   if (activas >= MAX_PRODUCT_IMAGES) return error(`Un producto admite hasta ${MAX_PRODUCT_IMAGES} fotos.`, 409)
 
-  const name = `foto.${image.extension}`
-  const stored = await saveAttachment({ tenantId, area: AREA, fileName: name, mimeType: image.mimeType, sha256: image.sha256, data: image.data })
-  const storedThumb = thumb ? await saveAttachment({ tenantId, area: AREA, fileName: `mini.${thumb.extension}`, mimeType: thumb.mimeType, sha256: thumb.sha256, data: thumb.data }) : { storageKey: null }
+  let stored: { storageKey: string | null } = { storageKey: null }
+  let storedThumb: { storageKey: string | null } = { storageKey: null }
   try {
+    stored = await saveAttachment({ tenantId, area: AREA, fileName: `foto.${image.extension}`, mimeType: image.mimeType, sha256: image.sha256, data: image.data })
+    storedThumb = thumb ? await saveAttachment({ tenantId, area: AREA, fileName: `mini.${thumb.extension}`, mimeType: thumb.mimeType, sha256: thumb.sha256, data: thumb.data }) : { storageKey: null }
     const created = await prisma.$transaction(async tx => {
       const last = await tx.productImage.findFirst({ where: { tenantId, productId, deletedAt: null }, orderBy: { position: 'desc' }, select: { position: true } })
       const hasPrimary = (await tx.productImage.count({ where: { tenantId, productId, deletedAt: null, isPrimary: true } })) > 0

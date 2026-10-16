@@ -28,7 +28,7 @@ export async function GET(request: Request, props: RouteContext) {
     ? { storageKey: image.thumbPath, data: image.thumbData ?? image.data ?? new Uint8Array() }
     : { storageKey: image.storagePath, data: image.data ?? new Uint8Array() })
   if (!bytes.byteLength) return error('Foto no encontrada.', 404)
-  // La miniatura del cliente siempre es WebP; la grande conserva su tipo.
+  // Nuevas miniaturas servidor WebP; los archivos históricos mantienen su tipo.
   const contentType = useThumb ? 'image/webp' : image.contentType
   return new Response(bytes, { headers: { ...headers, 'Content-Type': contentType, 'Content-Length': String(bytes.byteLength), 'Content-Disposition': `inline; filename="foto.${EXTENSION[contentType] || 'webp'}"` } })
 }
