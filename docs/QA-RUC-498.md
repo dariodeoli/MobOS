@@ -1,3 +1,5 @@
+> Alcance vigente: Dario pidió consulta **OwnData real en demo**, sustituyendo la suposición inicial de datos ficticios. Los resultados de simulación de este informe son históricos y no acreditan ese nuevo criterio. El teclado fue aprobado nativamente en b5b604ac; la conexión real y publicación siguen en preparación bajo #498.
+
 # RUC en POS y guardado fiscal demo — #498
 
 Unidad de escritura desde77ea29ae, sin backend, base de datos, proveedor real ni capturas. El inventario completo de consumidores está en el mapa de coordinación `work/ruc498-mapa.md`; esta entrega corrige POS cliente/titular y Ficha del cliente.
@@ -54,3 +56,11 @@ Nota separada de accesibilidad: al comprobar anidación aparecen dos aria-modal=
 - Frontend conjunto:1502/1502 unitarios PASS;7/7 funcionales de identidad fiscal PASS, incluidos375/390 con viewport reducido y foco/scroll/Escape. Lint0errores,1advertencia previa DeliveryOperations.
 - Se conserva evidencia previa33/33 RUC+POS; el ajuste nuevo solo modifica geometría del editor fiscal. QA nativa del nuevo ajuste pendiente, sin afirmar TestFlight actualizado.
 - Dos aria-modal=true preexistentes registrados en #499. No se cambió biblioteca ownUI ni se afirmó bypass.
+
+## Candidata OwnData real — verificación conjunta
+- Transporte frontend específico GET/api/public/ruc, credentials:omit, no-store, redirect:error, cancelación/timeout; barrera API general demo intacta. Sin fallback a datos ficticios.
+- Servidor mantiene la clave existente y el piloto privado; la consulta pública tiene proyección mínima, origen admitido y cuotas persistentes global90/24h y red12/h, con locks y relojDB. Sin IP confiable se comparte un bucket limitado. No se crean datos comerciales.
+- Backendda8a0568 y frontendf36e4f08/b822c95b, pruebas78c5295f: revisión independiente APPROVE. Unitarios públicos143, privados188 y24casosPG aislados acreditan contrato/cuotas; sin proveedor real.
+- Integrador:1511/1511unitarios frontend;330backendPASS+1SQLskip;31/31funcionalesRUC con respuestasOwnData mock y todaslas escrituras comerciales bloqueadas; ambosbuildsPASS/BUILD_ID yPrismaValidatePASS. CIshard1 ejecuta estos31; ruc-demo4casos sigue en suitegeneral.
+- Primerfullfrontend de1510 encontró el bugnocturno de Caja#500. Corrección3bf0c646 revisadaAPPROVE;10/10relacionados y fullposterior1511/1511PASS. No se ocultó el fallo ni se aflojaron montos.
+- Teclado nativo aprobado b5b604ac; consulta entonces simulada, no acredita conexión OwnData real. Falta comprobación real acotada después del deploy y nuevo build/TestFlight; no declarar completo #344 ni trackers de hardware.
