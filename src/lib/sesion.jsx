@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
 import { fijarEmpresaImpresion } from './printing/empresaImpresion'
@@ -7,6 +7,7 @@ import { perfilDemo } from './demo/equipo.js'
 import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
+import { esDenegacionPrivada, generacionSnapshots } from './offline/snapshot'
 import { consumirPinTrasCambio } from '@/lib/api/session'
 import { marcarPinVigente } from '@/lib/nativo/bloqueo'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
@@ -41,17 +42,19 @@ function adaptarEmpresa(user, tenant) {
 
 
 export function SesionProvider({ children }) {
+  const revisionSesion = useRef(0)
   const [estado, setEstado] = useState('cargando')
   const [usuario, setUsuario] = useState(null); const [empresas, setEmpresas] = useState([]); const [empresa, setEmpresa] = useState(null); const [sucursales, setSucursales] = useState([]); const [sucursal, setSucursal] = useState(null); const [vendedores, setVendedores] = useState([])
   const [perfilEmpresa, setPerfilEmpresa] = useState(() => getCompanyContext()?.profile || null)
   const activarSesion = useCallback(async (rawUser, { tenant, prepararLegacy = false, perfil } = {}) => {
+    const revision = ++revisionSesion.current
+    const generacion = generacionSnapshots()
     const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser, tenant); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
     // #284: la foto arranca cacheada (primer render sin flash) y se revalida en
     // segundo plano; acá se dispara el cacheo apenas la sesión resuelve.
     precargarAvatar(user.id)
     // Los datos reales se hidratan desde la API; el almacenamiento local queda
     // reservado al demo y a los módulos que aún están en transición.
-    await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
     let listaSucursales = suc ? [suc] : []
     let sucursalActiva = suc
     // Demo (#213): sucursales ficticias visibles y elegibles, sin tocar la API.
@@ -72,10 +75,14 @@ export function SesionProvider({ children }) {
           sucursalActiva = branches.find((b) => b.id === guardada) || branches.find((b) => b.id === rawUser.branchId) || (branches.length === 1 ? branches[0] : null)
           if (sucursalActiva) guardarSucursalActiva(emp.id, sucursalActiva.id)
         }
-      } catch {
+      } catch (error) {
+        if (esDenegacionPrivada(error) || error?.code === 'CONTEXT_CHANGED') throw error
         // Sin catálogo de sucursales la sesión sigue siendo válida.
       }
     }
+    if (revision !== revisionSesion.current || generacion !== generacionSnapshots()) return
+    await setContexto({ empresaId: emp.id, sucursalId: sucursalActiva?.id || null, userId: user.id, rol: emp.rol, permisos: rawUser.permissions, fuente: prepararLegacy ? 'legacy' : 'api' })
+    if (revision !== revisionSesion.current) return
     // Identidad del papel (#426): razón social, RUC, dirección y contacto salen
     // de la empresa de la sesión (el demo usa la ficticia).
     fijarEmpresaImpresion({ tenant: emp.id === 'mobos-demo' ? { ...EMPRESA_DEMO, name: EMPRESA_DEMO.razonSocial } : { ...(tenant || {}), name: tenant?.name || emp.nombre } })
@@ -129,13 +136,28 @@ export function SesionProvider({ children }) {
   useEffect(() => { fijarEmpresaImpresion({ branch: sucursal }) }, [sucursal])
   usarSucursalImpresoras(sucursal?.id)
   async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
-  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
-  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
+  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(error => { if (esDenegacionPrivada(error)) throw error; return null }); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
+  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(error => { if (esDenegacionPrivada(error)) throw error; return null }); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
   async function entrar(session) { if (!session?.user) throw new Error('Usá el flujo de autenticación de MobOS.'); await activarSesion(session.user) }
-  async function salir() { limpiarAvatarCache(); marcarPinVigente(false); if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setPerfilEmpresa(null); setEstado('fuera'); window.location.assign('/login') }
+  async function salir() { revisionSesion.current++; limpiarAvatarCache(); marcarPinVigente(false); if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setPerfilEmpresa(null); setEstado('fuera'); window.location.assign('/login') }
   async function cambiarSucursal(sucursalId) {
     const destino = sucursales.find((s) => s.id === sucursalId)
     if (!destino) return
+    const revision = ++revisionSesion.current
+    if (!isDemoRuntime) {
+      // Las cookies pueden haber cambiado en otra pestaña. No reactivar un
+      // contexto elegido desde el estado anterior de React sin validarlo.
+      const actual = await sessionApi.me({ cacheMs: 0 })
+      if (revision !== revisionSesion.current) return
+      const mismosPermisos = JSON.stringify([...(actual?.user?.permissions || [])].sort()) === JSON.stringify([...(usuario?.permissions || [])].sort())
+      if (actual?.user?.id !== usuario?.id || actual?.user?.tenantId !== empresa?.id || actual?.user?.role !== usuario?.role || !mismosPermisos) {
+        clearSession()
+        throw new Error('La sesión cambió. Volvé a ingresar antes de cambiar de sucursal.')
+      }
+    }
+    // Vacía/hidrata la copia privada del contexto antes de mostrar otra sucursal.
+    await setContexto({ empresaId: empresa?.id, sucursalId: destino.id, userId: usuario?.id, rol: empresa?.rol, permisos: usuario?.permissions, fuente: isDemoRuntime ? 'legacy' : 'api' })
+    if (revision !== revisionSesion.current) return
     setSucursal(destino)
     guardarSucursalActiva(empresa?.id, destino.id)
   }

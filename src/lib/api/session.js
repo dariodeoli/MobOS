@@ -1,6 +1,7 @@
 import { api, API_URL, invalidarConsultas } from './client'
 import { limpiarTokens, cabecerasNativas } from './nativo'
 import { isNativeIOS } from '../plataforma'
+import { invalidarSnapshotsPrivados } from '../offline/snapshot'
 import { desactivarPush } from '../nativo/push'
 
 const COMPANY_CONTEXT_KEY = 'owncoding_hub_company_context'
@@ -27,6 +28,7 @@ export function clearCompanyToken() {
   try { localStorage.removeItem(COMPANY_CONTEXT_KEY); clearLegacyTokens() } catch {}
   // Cambiar de empresa no puede dejar consultas de la anterior en memoria.
   invalidarConsultas()
+  void invalidarSnapshotsPrivados()
 }
 
 export function clearSession() {
@@ -169,12 +171,14 @@ export const sessionApi = {
   },
   // Alias temporal para consumidores que ya conocen el flujo PIN.
   login: (credentials) => sessionApi.loginSeller(credentials),
-  me: () => api.get('/api/auth/me'),
+  me: (options) => api.get('/api/auth/me', options),
   logoutSeller: () => api.post('/api/auth/logout'),
   logoutCompany: () => {
     return getCompanyContext()?.cookieSession ? api.post('/api/auth/logout') : Promise.resolve({ ok: true })
   },
   logout: async () => {
+    // Retirar datos privados al solicitar la salida, sin esperar a la red.
+    void invalidarSnapshotsPrivados()
     if (isNativeIOS()) {
       // Capturar ambos permisos antes de borrar el Keychain. La salida local
       // no depende de que haya señal; las revocaciones conservan su Bearer.
