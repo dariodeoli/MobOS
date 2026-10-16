@@ -1,12 +1,12 @@
+import JsBarcode from 'jsbarcode'
 import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
 import { capturarContextoImpresion, configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { formatoPermitido } from '@/lib/printing/preferencias'
-import { buildOrderReceiptHtml, buildProductLabelsHtml, buildUnitLabelsHtml, printRemisionReceipt, tokenDeNivel } from '@/components/shared/OrderReceipt'
-import { ticketEtiquetaUbicacion, ticketRemision } from '@/lib/printing/tickets'
+import { buildOrderReceiptHtml, buildProductLabelsHtml, buildRemisionHtml, buildUnitLabelsHtml, tokenDeNivel } from '@/components/shared/OrderReceipt'
 import { qrDataUrl } from '@/lib/qr'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api/client'
-import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { imprimirHtmlComun } from '@/lib/printing/documentos'
 import { etiquetasDeFilasStock } from '@/lib/printing/etiquetasStock'
 import { safe } from './stockHelpers'
 
@@ -25,15 +25,18 @@ export async function printLabels(units = []) {
   return resultado
 }
 export async function printLocationLabel(location) {
+  const contexto = capturarContextoImpresion()
+  const { ancho } = configImpresora()
   const code = `MOBOS:UBI:${location.id}`
   let qr = ''
   try { qr = await qrDataUrl(code, { margen: 0, ancho: 190 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ubicación ${safe(location.name)}</title><style>@page{size:58mm auto;margin:2mm}*{box-sizing:border-box}body{width:54mm;margin:0;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720;text-align:center}.brand{display:flex;justify-content:space-between;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2.5mm}.name{font-size:15px;font-weight:900;letter-spacing:-.01em}.meta{font-size:8.5px;color:#66707a;margin-top:1mm}.qr{width:26mm;height:26mm;margin:3mm auto 2mm;display:block}footer{margin-top:2mm;border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;color:#66707a}</style></head><body><div class="brand"><span>${safe(APP_NAME)} · UBICACIÓN</span><span>STOCK</span></div><div class="name">${safe(location.name)}</div><div class="meta">${safe(location.branch?.name || '')}${location.code ? ` · ${safe(location.code)}` : ''}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}<footer>Escaneá al recibir o trasladar para asignar esta ubicación.</footer></body></html>`
-  const resultado = await imprimirDocumento(ticketEtiquetaUbicacion(location), { tipo: 'etiqueta-ubicacion' })
-  // Diálogo solo si el fallo fue CLARO (nada se envió ni quedó en cola):
-  // tras un resultado incierto o encolado abrirlo podría duplicar el ticket.
-  if (puedeCaerAlDialogo(resultado)) imprimirConDialogo(html)
-  return resultado
+  const barcode = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  JsBarcode(barcode, code, { format: 'CODE128', displayValue: false, width: 1.4, height: 38, margin: 0 })
+  const barras = barcode.outerHTML
+  const anchoUtil = ancho === 80 ? 72 : 48
+  const margen = (ancho - anchoUtil) / 2
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ubicación ${safe(location.name)}</title><style>@page{size:${ancho}mm auto;margin:0}*{box-sizing:border-box}body{width:${anchoUtil}mm;margin:0 ${margen}mm;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720;text-align:center}.brand{display:flex;justify-content:space-between;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2.5mm}.name{font-size:15px;font-weight:900;letter-spacing:-.01em}.meta{font-size:8.5px;color:#66707a;margin-top:1mm}.qr{width:26mm;height:26mm;margin:3mm auto 2mm;display:block}.barcode{margin-top:2mm}.barcode svg{width:100%;height:auto;max-height:12mm}footer{margin-top:2mm;border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;color:#66707a}</style></head><body><div class="brand"><span>${safe(APP_NAME)} · UBICACIÓN</span><span>STOCK</span></div><div class="name">${safe(location.name)}</div><div class="meta">${safe(location.branch?.name || '')}${location.code ? ` · ${safe(location.code)}` : ''}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}<div class="barcode">${barras}<span>${safe(code)}</span></div><footer>Escaneá al recibir o trasladar para asignar esta ubicación.</footer></body></html>`
+  return imprimirHtmlComun(html, { contexto, tipo: 'etiqueta-ubicacion', formato: `thermal-${ancho}` })
 }
 // Reimprimir la etiqueta de una unidad (#220): sale directo por la impresora
 // configurada, sin diálogo; el respaldo abre el HTML solo ante un fallo claro.
@@ -66,11 +69,8 @@ export async function printQuickReceipt(unit, { contexto = capturarContextoImpre
   const token = await tokenDeNivel(orden.id, 'rapido')
   if (!vigente()) return cancelado()
   const html = await buildOrderReceiptHtml(orden, { level: 'rapido', format: formato, token })
-  const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato }), { contexto, tipo: 'comprobante', ref: orden.orderNumber || venta.orderNumber || '' })
-  if (resultado?.ok || !puedeCaerAlDialogo(resultado)) return resultado
-  // Reusar exactamente el HTML preparado; no reconstruirlo tras otro await.
   if (!vigente()) return cancelado()
-  return { ...resultado, dialogo: Boolean(imprimirConDialogo(html)) }
+  return imprimirHtmlComun(html, { contexto, tipo: 'comprobante', formato, ref: orden.orderNumber || venta.orderNumber || '' })
 }
 // Resultado ficticio del demo para las impresiones que no están disponibles:
 // el rack del taller lo anuncia con el texto canónico de fallo (#323).
@@ -79,11 +79,11 @@ export const IMPRESION_DEMO = { ok: false, motivo: 'demo', error: 'La impresión
 // si el fallo fue claro cae al diálogo con el A4. Tras encolar o un resultado
 // incierto no se abre nada: el reintento podría duplicar el papel.
 export async function imprimirRemision(transfer) {
+  const contexto = capturarContextoImpresion()
   const { ancho } = configImpresora()
-  return imprimirDocumentoNoFiscal(ticketRemision(transfer, { ancho }), {
-    tipo: 'remision',
-    respaldo: () => printRemisionReceipt(transfer, { format: 'a4' }),
-  })
+  const formato = formatoPermitido(ancho === 58 ? 'thermal-58' : 'thermal-80')
+  const html = await buildRemisionHtml(transfer, { format: formato })
+  return imprimirHtmlComun(html, { contexto, tipo: 'remision', formato })
 }
 
 // U4b: etiquetas de las filas elegidas en la lista de Stock. Una sola función

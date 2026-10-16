@@ -4,11 +4,11 @@
 // agente podría duplicar el papel.
 import { api } from '@/lib/api'
 import { formatoPermitido } from '@/lib/printing/preferencias'
-import { configImpresora } from '@/lib/printing/agent'
-import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
-import { documentoCambio, documentoDevolucion, documentoRegalo, documentoTarjetaRegalo } from '@/lib/printing/operacionPapel'
-import { ticketCambio, ticketDevolucion, ticketRegalo, ticketTarjetaRegalo } from '@/lib/printing/ticketsOperacion'
-import { printCambio, printDevolucion, printReciboRegalo, printTarjetaRegalo } from './OperacionReceipt'
+import { capturarContextoImpresion, configImpresora } from '@/lib/printing/agent'
+import { imprimirDocumentoNoFiscal, imprimirHtmlComun } from '@/lib/printing/documentos'
+import { documentoCambio, documentoDevolucion, documentoTarjetaRegalo } from '@/lib/printing/operacionPapel'
+import { ticketCambio, ticketDevolucion, ticketTarjetaRegalo } from '@/lib/printing/ticketsOperacion'
+import { buildReciboRegaloHtml, printCambio, printDevolucion, printTarjetaRegalo } from './OperacionReceipt'
 import { trackingUrlFor } from './OrderReceipt'
 
 const formatoDe = (ancho) => formatoPermitido(ancho === 58 ? 'thermal-58' : 'thermal-80')
@@ -35,11 +35,11 @@ export async function imprimirCambio(orden, datos = {}) {
 }
 
 export async function imprimirReciboRegalo(orden) {
+  const contexto = capturarContextoImpresion()
   const { ancho } = configImpresora()
-  return imprimirDocumentoNoFiscal(ticketRegalo(documentoRegalo(orden, { enlace: trackingUrlFor(orden) }), { ancho }), {
-    tipo: 'recibo-regalo',
-    respaldo: () => printReciboRegalo(orden, { format: formatoDe(ancho) }),
-  })
+  const formato = formatoDe(ancho)
+  const html = await buildReciboRegaloHtml(orden, { format: formato })
+  return imprimirHtmlComun(html, { contexto, tipo: 'recibo-regalo', formato })
 }
 
 export async function imprimirTarjetaRegalo(tarjeta, contexto = {}) {
