@@ -35,6 +35,14 @@ Se asigna exclusivamente el nuevo spec al shard4, que tenia la menor carga calcu
 
 Faltan rebase final, CI protegido, merge, deploy y nuevo build nativo. No se afirma cierre completo de #403/#404 ni pruebas fisicas de camara, impresoras, OAuth o VoiceOver. TestFlight1.0(3) conserva la publicacion anterior verificada229.
 
+## Composicion final ampliada antes del PR
+
+Se incorporaron dos unidades del reporte original despues de su revision cruzada, antes de publicar el PR de 231: `b7f372a6` comprobante rapido de Vendidos y `6f30c8b7` fotos en resumen de cotizacion/ficha protegida. No se modifico el candidato230 ni se considero publicado este trabajo. Se agrupan para evitar distribuir otro build con ese camino de comprobante todavia antiguo. Ver `QA-COMPROBANTE-RAPIDO-513.md` y `QA-PRODUCT-CONSUMERS-404.md`.
+
+Root repitio la composicion final: frontend1563/1563, backend332PASS+1skip condicional, lint0errores, buildsFE/BE0 y Prisma0. Integracion HTTP completa exit0, limpieza de cluster/servidor propios, BUILD_ID `z13b75lUHaNGkJu5b3i7G`. Browser nuevos sobre el arbol combinado: consumers19/19 y QuickReceipt9/9 PASS. Logs `work/release231-composed-final-*`. Fuente de producto congelada en `6f30c8b7`; cambios posteriores de este cierre son workflow/notas/documentacion.
+
+El nuevo pedido #516 (paridad visual webmovil/iOS) se audita en otras ramas. No se atribuye a 231 ningun cambio aun no revisado de esa tarea.
+
 ## Novedades para el dueño
 
 - Se puede elegir el encuadre de cada foto antes de subirla y cancelar sin cargar archivos.

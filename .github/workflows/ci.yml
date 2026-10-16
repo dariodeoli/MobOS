@@ -262,6 +262,14 @@ jobs:
         env:
           MOBOS_QA_PORT: "5355"
         run: npx playwright test --config e2e/crop404.frontend.config.js
+
+      - name: Product photos in quote summaries and protected detail
+        if: matrix.shard == 1
+        run: npx playwright test --config e2e/product-consumers404.frontend.config.js
+
+      - name: Premium quick receipts and source context
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/quick-receipt513.frontend.config.js
       - name: Demo quote, cash and reception flows
         if: matrix.shard == 4
         env:
