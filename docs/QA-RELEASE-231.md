@@ -1,0 +1,37 @@
+# Validacion integrada de 1.0.231
+
+Preparacion local; aun no es una publicacion. Base de 230: `0331b606`, cuyo CI fallo y cuyo merge permanece detenido. Antes de entregar 231 se debe incorporar el arreglo revisado de 230 y actualizar la base al main protegido, sin resolver conflictos silenciosamente.
+
+## Cambios
+
+- #403: marca en garantia y remito publicos, con resolucion segura y proteccion contra respuestas tardias.
+- #396: tipografia y contraste de controles pequenos en movil/escritorio.
+- #515: invalidacion inmediata de fotos privadas al cambiar empresa, sesion, sucursal o permisos; conserva la deduplicacion de solicitudes validas.
+- #404: encuadre explicito por foto y derivados servidor WebP800/160 desde la misma imagen validada. Perfil mantiene su contrato anterior.
+
+## Gates de la composicion
+
+Ejecutados con runtime combinado de `3d8515f5`; `f7d09f04` posterior agrega solamente tests/config/docs de integracion de fotos.
+
+- Frontend: 1563/1563 PASS.
+- Backend: 332 PASS, un salto SQL condicional previo.
+- Lint: exit0; se conserva advertencia previa, no errores.
+- Builds frontend y backend: exit0. BUILD_ID backend `rilC8XsDuaqRoSMkV4XCk` presente.
+- Prisma validate: PASS.
+- Integracion HTTP completa: exit0, cluster propio descartable y limpieza completa; incluye migraciones, conciliacion de esquema, auth/tenant, imagenes, pedidos, pagos, reportes, cola y portal. Ninguna consulta OwnData real.
+- El primer intento de unitarios backend encontro cliente Prisma no generado tras npmci local; se genero y se repitio la suite completa con resultado verde. No se modifico codigo para eludirlo.
+- Browser de composicion: marca publica10, responsive12, privacidad de fotos13 PASS. Recorte19 y derivados51 HTTP por autores con revisiones independientes APPROVE.
+- Nueva integracion real de fotos: dos recorridos Next/PostgreSQL y uno de perfil PASS; ver `QA-FOTOS-404-INTEGRACION.md`.
+
+Logs en carpeta de coordinacion `work/release231-full-*`, `release231-public-brand403.log`, `release231-responsive396.log` y `release231-images515.log`.
+
+## Limites
+
+Faltan rebase final, CI protegido, merge, deploy y nuevo build nativo. No se afirma cierre completo de #403/#404 ni pruebas fisicas de camara, impresoras, OAuth o VoiceOver. TestFlight1.0(3) conserva la publicacion anterior verificada229.
+
+## Novedades para el dueño
+
+- Se puede elegir el encuadre de cada foto antes de subirla y cancelar sin cargar archivos.
+- Foto y miniatura guardadas conservan el mismo encuadre.
+- Las fotos privadas se ocultan al cambiar de sesion, empresa o permisos.
+- Garantias y remitos muestran la marca correspondiente; mejoran textos pequenos y contraste.
