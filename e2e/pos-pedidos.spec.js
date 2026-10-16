@@ -211,21 +211,33 @@ test('sesión #509 vendedor sin cuenta conserva Pedidos tras recarga y DTO malfo
 })
 
 test('sesión #509 revocada realmente retira datos y respaldo sin perder cola',async({page,context})=>{
+  // Empresa/PIN propios: logout también revoca la cookie COMPANY. El estado
+  // sembrado es compartido con admin.json y no se debe revocar desde este test.
+  const login=await page.request.post(`${API}/api/auth/login`,{data:{email:SEED.company.email,password:SEED.company.password,deviceId:`qa509-revocation-${Date.now()}`}})
+  expect(login.status()).toBe(200)
+  const seller=(await login.json()).sellers.find(s=>s.name===SEED.sellers[0].name)
+  expect(seller?.id).toBeTruthy()
+  const pin=await page.request.post(`${API}/api/auth/pin`,{headers:{Origin:process.env.MOBOS_APP_URL},data:{sellerId:seller.id,pin:SEED.sellers[0].pin}})
+  expect(pin.status()).toBe(200)
   await page.goto('/pedidos')
   await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
   await page.evaluate(async()=>{
     const store=(await import('/src/lib/offline/idb.js')).crearStoreDeCola()
     await store.guardar({id:'queue509',idempotencyKey:'keep509',payload:{total:1234}})
   })
+  const real401=page.waitForResponse(r=>r.url().startsWith(API+'/api/')&&r.status()===401)
   const response=await page.request.post(`${API}/api/auth/logout`,{headers:{Origin:new URL(page.url()).origin}})
   expect(response.status()).toBe(200)
+  // Una consulta en background puede invalidar antes del refresco explícito.
+  // Acreditamos el401 HTTP real y la purga, no el orden de dos rechazos.
+  await page.evaluate(async()=>{await(await import('/src/lib/api/client.js')).api.get('/api/auth/me',{cacheMs:0}).catch(()=>{})})
+  expect((await real401).status()).toBe(401)
   const denied=await page.evaluate(async()=>{
     const storage=await import('/src/lib/storage.js')
-    let status
-    try{await storage.refrescar()}catch(error){status=error.status}
-    return{status,products:storage.getProductos(),orders:storage.listVentas()}
+    await storage.refrescar().catch(()=>{})
+    return{products:storage.getProductos(),orders:storage.listVentas()}
   })
-  expect(denied).toEqual({status:401,products:[],orders:[]})
+  expect(denied).toEqual({products:[],orders:[]})
   await context.setOffline(true)
   const offline=await page.evaluate(async()=>{
     const storage=await import('/src/lib/storage.js')
