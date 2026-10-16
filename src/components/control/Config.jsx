@@ -142,11 +142,11 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
   }, [esDueno, esDemo, empresa?.nombre, hidratarFormulario])
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    if (!account?.tenant?.logo?.updatedAt) { setLogos({ light: '', dark: '' }); return }
+    if (!demo && !account?.tenant?.logo?.updatedAt) { setLogos({ light: '', dark: '' }); return }
     let vigente = true
     Promise.all([getLogoDataUrl('light'), getLogoDataUrl('dark')]).then(([light, dark]) => { if (vigente) setLogos({ light, dark }) })
     return () => { vigente = false }
-  }, [account?.tenant?.logo?.updatedAt])
+  }, [account?.tenant?.logo?.updatedAt, demo])
 
   async function subirLogo(file, variant = 'light') {
     if (logoBusy) return
@@ -281,6 +281,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           {org === 'identidad' && esDueno && <Card data-config-anchor="logo" className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
+            {demo && <p className="text-xs text-mute">Marca ficticia local. Para subir o quitar logos usá una empresa real.</p>}
             <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
             <Button type="button" variant="ghost" className="mt-1 min-h-11 px-0 text-xs text-fono-light md:min-h-0" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
@@ -295,10 +296,10 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
                     : <span className="text-[10px] text-mute">Sin logo</span>}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <AttachmentInput onSelect={(file) => setLogoAConfirmar({ file, variant })} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
-                    <Button type="button" variant="outline" disabled={logoBusy}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
+                  <AttachmentInput onSelect={(file) => setLogoAConfirmar({ file, variant })} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy || demo}>
+                    <Button type="button" variant="outline" disabled={logoBusy || demo}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
                   </AttachmentInput>
-                  {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => quitarLogo(variant)}>Quitar</Button>}
+                  {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy || demo} onClick={() => quitarLogo(variant)}>Quitar</Button>}
                 </div>
               </div>
             ))}

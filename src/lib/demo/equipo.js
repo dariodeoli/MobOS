@@ -46,3 +46,16 @@ export const PERFILES_DEMO = ROLE_ORDER.map((rol) => {
   const texto = DESCRIPCIONES[rol]
   return { rol, nombre: texto.nombre, description: texto.description, permissions: texto.permissions, pin: perfil.pin, persona: perfil.nombre }
 }).filter(Boolean)
+
+// Completa campos nuevos sin pisar ediciones de una demostración ya utilizada.
+export function completarEquipoDemo(guardados = []) {
+  const existentes = new Map(guardados.map(persona => [persona.id, persona]))
+  const ids = new Set(EQUIPO_DEMO.map(persona => persona.id))
+  return [
+    ...guardados.filter(persona => !ids.has(persona.id)),
+    ...EQUIPO_DEMO.map(base => {
+      const actual = existentes.get(base.id)
+      return { ...base, ...actual, role: actual?.role ?? actual?.rol ?? base.role }
+    }),
+  ]
+}

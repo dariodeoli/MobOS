@@ -1,3 +1,4 @@
+import { completarEquipoDemo } from './demo/equipo.js'
 // ════════════════════════════════════════════════════════════════════
 // CAPA DE COMPATIBILIDAD LOCAL — MobOS
 // El backend productivo es la API propia sobre PostgreSQL. Esta capa mantiene
@@ -816,8 +817,7 @@ export function prepararDatosDemo() {
       }
     })
     // Equipo demo (#213): 6 usuarios con rol, correo y PIN ficticios.
-    const idsEquipo = new Set(EQUIPO_DEMO.map(usuario => usuario.id))
-    cache.vendedores = [...cache.vendedores.filter(usuario => !idsEquipo.has(usuario.id)), ...EQUIPO_DEMO]
+    cache.vendedores = completarEquipoDemo(cache.vendedores)
     // Idempotente por id: los pedidos nuevos entran una sola vez.
     cache.ventas = [...ventasDemo.filter(item => !cache.ventas.some(actual => actual.id === item.id)), ...cache.ventas]
     // #324: Seguridad y auditoría también arranca con actividad ficticia: el

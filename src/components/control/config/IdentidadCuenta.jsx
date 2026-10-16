@@ -32,7 +32,7 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
   const toast = useToast()
   const { empresa, actualizarEmpresa, esDemo } = useSesion()
   const demoGuardado = esDemo ? leerIdentidadCuentaDemo(empresa?.id) : {}
-  const empresaGuardada = { ...empresa, nombre: demoGuardado.name ?? empresa?.nombre, email: demoGuardado.email ?? empresa?.email }
+  const empresaGuardada = { ...empresa, nombre: demoGuardado.name ?? empresa?.nombre, email: demoGuardado.email ?? empresa?.email ?? (esDemo ? tenant?.email : undefined) }
   const tenantGuardado = { ...tenant, ...demoGuardado }
   const contextoGuardado = { empresa: empresaGuardada, tenant: tenantGuardado }
   const formularioGuardado = () => ({ ...formularioIdentidad(contextoGuardado), ...(demoGuardado.nameOfficial === undefined ? {} : { nameOfficial: demoGuardado.nameOfficial }) })

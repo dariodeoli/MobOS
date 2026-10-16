@@ -24,14 +24,15 @@ export const IPHONES_DEMO = [
 // 2005 técnico y 2007 delivery.
 // `hasAvatar: true` habilita la foto ficticia del modo demo (#219): el retrato
 // sale de `demo/avatares.js` (data URI local, determinista por id).
+// Contactos ficticios para probar la ficha; no deben usarse para llamar ni enviar mensajes.
 export const EQUIPO_DEMO = [
-  { id: 'demo-user', nombre: 'Hernán Acosta', rol: 'ADMIN', email: '35800101@correo.com.py', pin: '3001', metaDiaria: 0, activo: true, hasAvatar: true },
-  { id: 'demo-user-gerente', nombre: 'Ana Giménez', rol: 'GERENTE', email: '35800102@correo.com.py', pin: '2002', metaDiaria: 3000000, activo: true, hasAvatar: true },
-  { id: 'demo-user-vendedor', nombre: 'Diego López', rol: 'VENDEDOR', email: '35800103@correo.com.py', pin: '2001', metaDiaria: 1500000, activo: true, hasAvatar: true },
-  { id: 'demo-user-cajera', nombre: 'María Benítez', rol: 'CAJERA', email: '35800104@correo.com.py', pin: '2004', metaDiaria: 0, activo: true, hasAvatar: true },
-  { id: 'demo-user-tecnico', nombre: 'Jorge Villalba', rol: 'TECNICO', email: '35800105@correo.com.py', pin: '2005', metaDiaria: 0, activo: true, hasAvatar: true },
-  { id: 'demo-user-vendedora', nombre: 'Sofía Cáceres', rol: 'VENDEDOR', email: '35800106@correo.com.py', pin: '2006', metaDiaria: 1200000, activo: true, hasAvatar: true },
-  { id: 'demo-user-repartidor', nombre: 'Marcos Aquino', rol: 'REPARTIDOR', email: '35800107@correo.com.py', pin: '2007', metaDiaria: 0, activo: true, hasAvatar: true },
+  { id: 'demo-user', nombre: 'Hernán Acosta', rol: 'ADMIN', role: 'ADMIN', email: '35800101@correo.com.py', phone: '+595 981 000 101', branchId: 'mobos-demo-central', pin: '3001', metaDiaria: 0, activo: true, hasAvatar: true },
+  { id: 'demo-user-gerente', nombre: 'Ana Giménez', rol: 'GERENTE', role: 'GERENTE', email: '35800102@correo.com.py', phone: '+595 981 000 102', branchId: 'mobos-demo-central', pin: '2002', metaDiaria: 3000000, activo: true, hasAvatar: true },
+  { id: 'demo-user-vendedor', nombre: 'Diego López', rol: 'VENDEDOR', role: 'VENDEDOR', email: '35800103@correo.com.py', phone: '+595 981 000 103', branchId: 'mobos-demo-central', pin: '2001', metaDiaria: 1500000, activo: true, hasAvatar: true },
+  { id: 'demo-user-cajera', nombre: 'María Benítez', rol: 'CAJERA', role: 'CAJERA', email: '35800104@correo.com.py', phone: '+595 981 000 104', branchId: 'mobos-demo-central', pin: '2004', metaDiaria: 0, activo: true, hasAvatar: true },
+  { id: 'demo-user-tecnico', nombre: 'Jorge Villalba', rol: 'TECNICO', role: 'TECNICO', email: '35800105@correo.com.py', phone: '+595 981 000 105', branchId: 'mobos-demo-central', pin: '2005', metaDiaria: 0, activo: true, hasAvatar: true },
+  { id: 'demo-user-vendedora', nombre: 'Sofía Cáceres', rol: 'VENDEDOR', role: 'VENDEDOR', email: '35800106@correo.com.py', phone: '+595 981 000 106', branchId: 'mobos-demo-central', pin: '2006', metaDiaria: 1200000, activo: true, hasAvatar: true },
+  { id: 'demo-user-repartidor', nombre: 'Marcos Aquino', rol: 'REPARTIDOR', role: 'REPARTIDOR', email: '35800107@correo.com.py', phone: '+595 981 000 107', branchId: 'mobos-demo-central', pin: '2007', metaDiaria: 0, activo: true, hasAvatar: true },
 ]
 
 // IMEIs del modo demo (#450): 15 dígitos con aspecto real (TAC 35xxxxxx de

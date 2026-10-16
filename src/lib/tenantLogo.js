@@ -1,4 +1,6 @@
 import { apiFetch } from '@/lib/api/client'
+import { isDemoRuntime } from './demoMode'
+import { logoAurora } from './demo/identidadVisual'
 
 // Logo de la empresa para comprobantes y documentos, por variante ('light' =
 // para modo claro, 'dark' = para modo oscuro). Se pide una sola vez por pestaña
@@ -22,6 +24,8 @@ async function cargarLogo(variant) {
 }
 
 export function getLogoDataUrl(variant = 'light') {
+  // La demo usa su marca local antes de la caché/red de una empresa real.
+  if (isDemoRuntime) return Promise.resolve(logoAurora(variant))
   if (!cache.has(variant)) cache.set(variant, cargarLogo(variant))
   return cache.get(variant)
 }
