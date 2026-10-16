@@ -34,3 +34,17 @@ Unidad de escritura desde77ea29ae, sin backend, base de datos, proveedor real ni
 - El POS conserva tal cual la razón social que aceptás del extractor, tanto para el cliente como para otro titular.
 - En la demo podés guardar una identidad fiscal, cerrar la ficha y volver a abrirla para verla o editarla.
 - Descartar la sugerencia o cambiar de ficha no aplica ni guarda datos de la consulta anterior.
+
+## Seguimiento de teclado nativo
+
+- QA nativa ad16 reprodujo Ficha → Datos → Agregar identidad: con teclado numérico solo quedaba visible el encabezado. Capacitor está configurado con Keyboard.resize=body, mientras el Modal es fixed y se alinea al pie del layout viewport.
+- Baseline automatizado RED en375/390: reducir solo body/visualViewport a340/400 sin cambiar innerHeight dejaba el borde del diálogo en655/832. No se redujo artificialmente toda la ventana para simular el teclado.
+- Fix acotado al editor fiscal: clase propia y observador visualViewport + eventos nativos Will/DidShow/Hide; altura limitada al borde del teclado menos offsetTop y safe areas. Al ocultar/cerrar se recupera la geometría y se eliminan los listeners, incluso un registro nativo que resuelve tarde.
+- Se conserva el foco/modal de ownUI y su único cuerpo desplazable. El ajuste solo desplaza ese cuerpo para revelar el campo enfocado; no agrega un segundo contenedor de scroll ni otro focus trap. Header no encoge con teclado.
+- Regresión real de componentes con modal anidado: RUC/lupa, Usar estos datos y Guardar caben o se alcanzan mediante el scroll existente; guarda y vuelve a editar después de ocultar teclado.375x667 claro y390x844 oscuro, cero capturas.
+- Verificación:55/55 unitarios relacionados; matriz7/7 frontend; comprobación específica375 con espera explícita de data-teclado-visible y geometría estricta3/3. Lint sin errores (warning previo Delivery); build frontend aprobado.
+- Discrepancia documentada: la primera corrida posterior al fix falló375 mostrando el borde anterior655; no se capturó entonces el estado CSS/observer y no hay causa exacta demostrada. No se contó esa corrida como aprobación. La reproducción individual, matriz7 y tres repeticiones focalizadas posteriores pasaron; el test ahora espera explícitamente el resize/rAF aplicado antes de exigir geometría, sin relajar límites. La confirmación nativa de la fuente nueva sigue siendo necesaria.
+
+Novedad: el editor fiscal aprovecha el espacio sobre el teclado del iPhone y permite llegar al extractor y Guardar sin cerrar manualmente el teclado.
+
+Nota separada de accesibilidad: al comprobar anidación aparecen dos aria-modal=true declarados por los dos Modal existentes. No se atribuye al observador nuevo ni demuestra dos traps activos. La regresión comprueba que el teclado no agrega diálogos, conserva un solo cuerpo desplazable del editor, Tab queda dentro y Escape cierra solo el editor. La biblioteca externa queda intacta.

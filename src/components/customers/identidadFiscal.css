@@ -1,0 +1,11 @@
+/* Solo el editor fiscal anidado: la biblioteca conserva modal/foco/cuerpo
+   desplazable. En WKWebView body-resize no mueve overlays fixed. */
+.identidad-fiscal-dialog[data-teclado-visible='true'] {
+  position: fixed;
+  top: calc(var(--identidad-viewport-top) + max(.75rem, env(safe-area-inset-top, 0px)));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 1.5rem);
+  max-height: calc(var(--identidad-viewport-height) - max(.75rem, env(safe-area-inset-top, 0px)) - max(.75rem, env(safe-area-inset-bottom, 0px)));
+}
+.identidad-fiscal-dialog[data-teclado-visible='true'] > div:first-child { flex-shrink: 0; }

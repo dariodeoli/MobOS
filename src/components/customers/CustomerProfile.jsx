@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
 import { api } from '@/lib/api/client'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
@@ -28,6 +28,8 @@ import Icon from '@/components/shared/Icon'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_CUSTOMER_TEMPLATES, ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
+import { ajustarDialogoAlTeclado } from '@/lib/nativo/teclado'
+import './identidadFiscal.css'
 import { guardarIdentidadFacturacionDemo } from '@/lib/demoBillingIdentities'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
@@ -584,6 +586,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [identitiesError, setIdentitiesError] = useState('')
   const [identityForm, setIdentityForm] = useState(null)
   const [identityBusy, setIdentityBusy] = useState(false)
+  const identityFormRef = useRef(null)
+  const identityOpen = Boolean(identityForm)
+  useLayoutEffect(() => identityOpen ? ajustarDialogoAlTeclado(identityFormRef.current) : undefined, [identityOpen])
   // Cambiar de ficha/contexto descarta el formulario y su consulta pendiente.
   useLayoutEffect(() => { setIdentityForm(null) }, [open, customer?.id, esDemo, empresa?.id])
   // Informe de dispositivo (#240 ítem 3): link público por serial + WhatsApp.
@@ -2309,9 +2314,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(identityForm)}
         onClose={() => { if (!identityBusy) setIdentityForm(null) }}
-        title={identityForm?.id ? 'Editar identidad' : 'Agregar identidad'} size="formulario">
+        title={identityForm?.id ? 'Editar identidad' : 'Agregar identidad'} size="formulario" className="identidad-fiscal-dialog">
         {identityForm && (
-          <form onSubmit={guardarIdentidad} className="space-y-4">
+          <form ref={identityFormRef} onSubmit={guardarIdentidad} className="space-y-4">
             <FormField label="Razón social" htmlFor="profile-identity-name">
               <Input
                 id="profile-identity-name"

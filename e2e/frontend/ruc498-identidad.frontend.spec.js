@@ -110,3 +110,68 @@ test('498 descartar/cancelar no guarda y cambiar ficha invalida consulta pendien
   await expect(page.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
   noApi()
 })
+
+for (const [width, height, visibleHeight, dark] of [[375, 667, 340, false], [390, 844, 400, true]]) {
+  test(`498 teclado reduce solo viewport visual y body, modal anidado ${width}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      const viewport = new EventTarget()
+      Object.assign(viewport, { height: innerHeight, width: innerWidth, offsetTop: 0, offsetLeft: 0, scale: 1 })
+      Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
+      window.qaKeyboardViewport = (height) => {
+        viewport.height = height
+        document.body.style.height = `${height}px`
+        viewport.dispatchEvent(new Event('resize'))
+      }
+    })
+    const noApi = await enter(page, width, dark)
+    await page.setViewportSize({ width, height })
+    await page.evaluate(() => document.documentElement.classList.add('app-ios'))
+    await page.getByRole('button', { name: 'Abrir ficha fiscal' }).click()
+    const profile = page.getByRole('dialog', { name: 'Cliente: Cliente ficticio 498', exact: true })
+    await profile.getByRole('button', { name: 'Agregar identidad', exact: true }).click()
+    const editor = page.getByRole('dialog', { name: 'Agregar identidad', exact: true })
+    const ruc = editor.getByRole('textbox', { name: 'RUC / documento', exact: true })
+    const dialogsBeforeKeyboard = await page.locator('[role=dialog]').count()
+    await ruc.focus()
+    await page.evaluate(height => window.qaKeyboardViewport(height), visibleHeight)
+    expect(await page.evaluate(() => innerHeight)).toBe(height)
+    await expect(editor).toHaveAttribute('data-teclado-visible', 'true')
+    const withinKeyboard = async locator => {
+      await locator.scrollIntoViewIfNeeded()
+      const box = await locator.boundingBox()
+      expect(box.y).toBeGreaterThanOrEqual(0)
+      expect(box.y + box.height).toBeLessThanOrEqual(visibleHeight)
+    }
+    await expect.poll(async () => {
+      const box = await editor.boundingBox()
+      return box.y + box.height
+    }).toBeLessThanOrEqual(visibleHeight)
+    // Los dos Modal existentes declaran aria-modal; el teclado no agrega otro.
+    await expect(page.locator('[role=dialog]')).toHaveCount(dialogsBeforeKeyboard)
+    for (let index = 0; index < 8; index++) {
+      await page.keyboard.press('Tab')
+      await expect(editor.locator(':focus')).toHaveCount(1)
+    }
+    expect(await editor.evaluate(el => [...el.querySelectorAll('*')].filter(child => ['auto', 'scroll'].includes(getComputedStyle(child).overflowY)).length)).toBe(1)
+    await withinKeyboard(ruc)
+    await withinKeyboard(editor.getByRole('button', { name: /Extraer/ }))
+    await ruc.fill('1234567')
+    await editor.getByRole('button', { name: /Extraer/ }).click()
+    const accept = editor.getByRole('button', { name: 'Usar estos datos' })
+    await expect(accept).toBeVisible()
+    await withinKeyboard(accept)
+    await accept.click()
+    const save = editor.getByRole('button', { name: 'Guardar', exact: true })
+    await withinKeyboard(save)
+    await save.click()
+    await expect(profile.getByTestId('perfil-facturacion-fila')).toHaveCount(1)
+    await page.evaluate(height => window.qaKeyboardViewport(height), height)
+    await profile.getByTestId('perfil-facturacion-fila').getByRole('button', { name: 'Editar', exact: true }).click()
+    const reopened = page.getByRole('dialog', { name: 'Editar identidad', exact: true })
+    await expect(reopened).not.toHaveAttribute('data-teclado-visible', 'true')
+    await page.keyboard.press('Escape')
+    await expect(reopened).toHaveCount(0)
+    await expect(profile).toBeVisible()
+    noApi()
+  })
+}
