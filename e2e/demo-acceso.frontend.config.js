@@ -1,0 +1,3 @@
+import { defineConfig } from '@playwright/test'
+const port = Number(process.env.MOBOS_QA_PORT || 5358)
+export default defineConfig({ testDir: '.', testMatch: ['qa-328-demo-acceso.spec.js', 'qa-240-informe.spec.js'], grep: /#328|demo: el portal abre el informe sin haber pasado/, forbidOnly: Boolean(process.env.CI), workers: 1, use: { baseURL: `http://127.0.0.1:${port}`, screenshot: 'off', trace: 'off', video: 'off' }, webServer: { command: `VITE_API_URL=http://127.0.0.1:1 npm run dev -- --host 127.0.0.1 --port ${port} --strictPort`, url: `http://127.0.0.1:${port}/demo`, reuseExistingServer: false } })

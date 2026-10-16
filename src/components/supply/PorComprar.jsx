@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import BottomSheet from '@/components/shared/BottomSheet'
+import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
+import './compras.css'
+import { Checkbox } from 'owncoding-ui'
 import { resources } from '@/lib/api'
 import { contextoActual, getProductos } from '@/lib/storage'
 import { suppliersApi } from '@/lib/api/suppliers'
@@ -92,6 +96,8 @@ export default function PorComprar() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [vista, setVista] = useState('pendientes')
+  const movil = usePantallaAngosta('(min-width: 768px)')
+  const [verFiltros, setVerFiltros] = useState(false)
   const [prioridad, setPrioridad] = useState('todas')
   const [centro, setCentro] = useState('todos')
   const [sinAsignar, setSinAsignar] = useState(false)
@@ -277,9 +283,36 @@ export default function PorComprar() {
     ['sin-asignar', `Sin asignar (${contadores?.sinAsignar ?? 0})`, sinAsignar, () => setSinAsignar((valor) => !valor)],
     ['vencidas', `Vencidas (${contadores?.vencidas ?? 0})`, vencidas, () => setVencidas((valor) => !valor)],
   ]
+  const filtrosActivos = Number(sinAsignar) + Number(vencidas) + Number(prioridad !== 'todas') + Number(centro !== 'todos')
+  const camposFiltros = (
+    <>
+      {chipsCola.map(([id, label, activo, alternar]) => (
+        <button key={id} type="button" aria-pressed={activo} onClick={alternar}
+          className={`min-h-11 rounded-lg border px-3 text-xs font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}>
+          {label}
+        </button>
+      ))}
+      <label className="grid gap-1 text-xs text-mute">
+        <span>Prioridad</span>
+        <Select aria-label="Prioridad" className="w-full" value={prioridad} onChange={evento => setPrioridad(evento.target.value)}>
+          <option value="todas">Todas las prioridades</option>
+          {Object.entries(PRIORIDAD).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </Select>
+      </label>
+      <label className="grid gap-1 text-xs text-mute">
+        <span>Centro de compra</span>
+        <Select aria-label="Centro de compra" className="w-full" value={centro} onChange={evento => setCentro(evento.target.value)}>
+          <option value="todos">Todos los centros</option>
+          {centros.map(valor => <option key={valor} value={valor}>{valor}</option>)}
+          <option value="sin-centro">Sin centro</option>
+        </Select>
+      </label>
+    </>
+  )
+
 
   return (
-    <div className="space-y-4" data-testid="por-comprar">
+    <div className="compras-flujo space-y-4" data-testid="por-comprar">
       <Card className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           {totales && (
@@ -322,26 +355,11 @@ export default function PorComprar() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {chipsCola.map(([id, label, activo, alternar]) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={activo}
-              onClick={alternar}
-              className={`min-h-11 rounded-lg border px-3 text-xs lg:min-h-9 lg:px-2.5 font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
-            >
-              {label}
-            </button>
-          ))}
-          <Select aria-label="Prioridad" className="w-auto" value={prioridad} onChange={(evento) => setPrioridad(evento.target.value)}>
-            <option value="todas">Todas las prioridades</option>
-            {Object.entries(PRIORIDAD).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </Select>
-          <Select aria-label="Centro de compra" className="w-auto" value={centro} onChange={(evento) => setCentro(evento.target.value)}>
-            <option value="todos">Todos los centros</option>
-            {centros.map((valor) => <option key={valor} value={valor}>{valor}</option>)}
-            <option value="sin-centro">Sin centro</option>
-          </Select>
+          {movil ? (
+            <Button type="button" variant="outline" aria-expanded={verFiltros} onClick={() => setVerFiltros(true)}>
+              <Icon name="filter" className="h-4 w-4" />Filtros{filtrosActivos > 0 ? ` (${filtrosActivos})` : ''}
+            </Button>
+          ) : camposFiltros}
           <Input
             aria-label="Buscar producto"
             placeholder="Buscar producto o cliente…"
@@ -351,6 +369,13 @@ export default function PorComprar() {
           />
         </div>
       </div>
+
+      {movil && (
+        <BottomSheet open={verFiltros} onClose={() => setVerFiltros(false)} title="Filtros de compras"
+          footer={<div className="flex gap-2"><Button type="button" variant="outline" onClick={() => { setSinAsignar(false); setVencidas(false); setPrioridad('todas'); setCentro('todos') }}>Limpiar filtros</Button><Button type="button" onClick={() => setVerFiltros(false)}>Ver resultados</Button></div>}>
+          <div className="grid gap-3">{camposFiltros}</div>
+        </BottomSheet>
+      )}
 
       {seleccionadas.length > 0 && (
         <div data-testid="seleccion-lote" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/40 bg-fono/10 px-3 py-2 text-sm">
@@ -388,13 +413,9 @@ export default function PorComprar() {
               >
                 <div className="flex min-w-0 items-start gap-2">
                   {enPendientes && (
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 min-h-0 w-4 shrink-0"
-                      aria-label={`Seleccionar ${grupo.producto || 'el producto'}`}
-                      checked={marcado}
-                      onChange={() => alternarSeleccion(grupo)}
-                    />
+                    <label className="grid h-11 w-11 shrink-0 cursor-pointer place-items-center">
+                      <Checkbox ariaLabel={`Seleccionar ${grupo.producto || 'el producto'}`} checked={marcado} onChange={() => alternarSeleccion(grupo)} />
+                    </label>
                   )}
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <p className={cn(CELDA_IDENTIDAD, 'max-w-full')} title={grupo.producto}>{grupo.producto || 'Producto'}</p>

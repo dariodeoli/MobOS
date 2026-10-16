@@ -28,7 +28,7 @@ export function mensajeErrorCambio(cause) {
 }
 
 export function useCambioEmpresa() {
-  const { esDemo, empresa } = useSesion()
+  const { esDemo, empresa, usuario } = useSesion()
   const toast = useToast()
   const [sinCuenta, setSinCuenta] = useState(false)
   const [datos, setDatos] = useState({ tenants: [], canCreate: false })
@@ -37,9 +37,13 @@ export function useCambioEmpresa() {
   const [error, setError] = useState('')
   const [nombre, setNombre] = useState('')
   const empresaId = empresa?.id
+  const puedeGestionarEmpresas = usuario?.canManageCompanies === true
+  const usuarioId = usuario?.id
 
   useEffect(() => {
-    if (esDemo || !empresaId) { setDatos({ tenants: [], canCreate: false }); setSinCuenta(false); return undefined }
+    // La sesión de tienda no equivale a una cuenta personal multiempresa.
+    // Consultar ese endpoint sin capacidad devuelve401 y revoca el contexto privado.
+    if (esDemo || !empresaId || !puedeGestionarEmpresas) { setDatos({ tenants: [], canCreate: false }); setSinCuenta(!esDemo && Boolean(empresaId)); return undefined }
     let vivo = true
     sessionApi.listTenants()
       .then((respuesta) => { if (vivo) { setSinCuenta(false); setDatos({ tenants: Array.isArray(respuesta?.tenants) ? respuesta.tenants : [], canCreate: Boolean(respuesta?.canCreate) }) } })
@@ -49,7 +53,7 @@ export function useCambioEmpresa() {
         if (vivo && (cause?.status === 401 || cause?.status === 403)) setSinCuenta(true)
       })
     return () => { vivo = false }
-  }, [esDemo, empresaId])
+  }, [esDemo, empresaId, usuarioId, puedeGestionarEmpresas])
 
   const visible = !esDemo && (datos.tenants.length >= 2 || datos.canCreate)
   const actualId = datos.tenants.find((item) => item.current)?.id || empresaId

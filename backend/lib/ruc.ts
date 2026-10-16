@@ -84,7 +84,7 @@ function unavailable(code = 'provider_unavailable') {
   return new RucLookupError(code, 'La consulta RUC no está disponible. Complete o revise los datos manualmente.', 503)
 }
 
-export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fetch; now?: Date } = {}) {
+export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fetch; now?: Date; rejectSimulated?: boolean } = {}) {
   const query = normalizeRuc(input)
   const key = process.env.RUC_API_KEY?.trim()
   if (!key) throw unavailable('provider_not_configured')
@@ -107,6 +107,7 @@ export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fe
   let payload: Record<string, unknown>
   try { payload = await readBoundedJson(response, signal) } catch { throw unavailable('provider_invalid') }
   const data = payload.data as Record<string, unknown> | undefined
+  if (options.rejectSimulated && (payload.simulated === true || payload.simulado === true || data?.simulated === true || data?.simulado === true)) throw unavailable('provider_invalid')
   const base = query.lookup.split('-')[0]
   const dv = String(digitoVerificadorModulo11(base))
   if (!data || typeof data !== 'object' || Array.isArray(data)

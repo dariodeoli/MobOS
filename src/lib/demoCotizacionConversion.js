@@ -44,6 +44,9 @@ export function convertirDemoCotizacion(id, { vendedorId, vendedorNombre } = {})
       serials: [],
     }
   })
+  const subtotal = lineas.reduce((suma, linea) => suma + linea.totalPyg, 0)
+  const descuento = Math.min(subtotal, Math.max(0, Math.round(Number(cotizacion.discountPyg) || 0)))
+  const total = Math.max(0, subtotal - descuento)
   addVenta({
     orderNumber,
     vendedorId: vendedor.id,
@@ -53,7 +56,11 @@ export function convertirDemoCotizacion(id, { vendedorId, vendedorNombre } = {})
     productoId: lineas[0]?.productoId || null,
     productoNombre: lineas.map((linea) => linea.description).filter(Boolean).join(', '),
     items: lineas,
-    precio: lineas.reduce((suma, linea) => suma + linea.totalPyg, 0),
+    subtotalPyg: subtotal,
+    descuento,
+    discountPyg: descuento,
+    totalPyg: total,
+    precio: total,
     fecha: fechaHoy(),
     entrega: 'Retiro en tienda',
     estadoPago: 'Pendiente',
@@ -63,7 +70,7 @@ export function convertirDemoCotizacion(id, { vendedorId, vendedorNombre } = {})
   if (cotizacion.customerId) {
     registrarPedidoDemoDeVenta(cotizacion.customerId, {
       numero: orderNumber,
-      total: cotizacion.totalPyg,
+      total,
       pagado: 0,
       fecha: fechaHoy(),
       vendedor: vendedor.nombre,

@@ -9,6 +9,7 @@ import PhoneField from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
+import { leerIdentidadCuentaDemo, guardarIdentidadCuentaDemo } from '@/lib/demoAccountIdentity'
 import { cambiosIdentidad, formularioIdentidad } from '@/lib/identidadCuenta'
 
 // Datos de la tienda. Dos modos:
@@ -30,6 +31,11 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
   const ver = (campo) => !visibles || visibles.includes(campo)
   const toast = useToast()
   const { empresa, actualizarEmpresa, esDemo } = useSesion()
+  const demoGuardado = esDemo ? leerIdentidadCuentaDemo(empresa?.id) : {}
+  const empresaGuardada = { ...empresa, nombre: demoGuardado.name ?? empresa?.nombre, email: demoGuardado.email ?? empresa?.email }
+  const tenantGuardado = { ...tenant, ...demoGuardado }
+  const contextoGuardado = { empresa: empresaGuardada, tenant: tenantGuardado }
+  const formularioGuardado = () => ({ ...formularioIdentidad(contextoGuardado), ...(demoGuardado.nameOfficial === undefined ? {} : { nameOfficial: demoGuardado.nameOfficial }) })
   const guardado = useGuardadoCuenta({ id: 'datos-tienda', onReauth: onReauthValid })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -37,7 +43,7 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
   // datos y «Editar»; la edición reemplaza la misma tarjeta, con la barra de
   // «Guardar cambios» visible solo cuando hay diferencias reales.
   const [editando, setEditando] = useState(enVentana)
-  const [form, setForm] = useState(() => formularioIdentidad({ empresa, tenant }))
+  const [form, setForm] = useState(() => formularioGuardado())
   // La hidratación no puede pisar lo que la persona ya escribió: el formulario
   // se rellena con lo guardado solo mientras nadie lo tocó.
   const tocado = useRef(false)
@@ -47,22 +53,30 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
   }
   useEffect(() => {
     if (tocado.current) return
-    setForm(formularioIdentidad({ empresa, tenant }))
+    setForm(formularioGuardado())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.id, tenant?.address, tenant?.city, tenant?.department, tenant?.phone, tenant?.ruc, empresa?.nombre, empresa?.email])
+  }, [tenant?.id, tenantGuardado.address, tenantGuardado.city, tenantGuardado.department, tenantGuardado.phone, tenantGuardado.ruc, empresaGuardada.nombre, empresaGuardada.email])
+  useEffect(() => {
+    tocado.current = false
+    setForm(formularioGuardado())
+    setError('')
+    // El contexto cambia aunque el borrador anterior estuviera tocado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresa?.id])
 
-  const hayCambios = Object.keys(cambiosIdentidad(form, { empresa, tenant })).length > 0
+  const hayFiscalDemo = esDemo && form.nameOfficial !== undefined && (form.nameOfficial ?? undefined) !== (demoGuardado.nameOfficial ?? undefined)
+  const hayCambios = Object.keys(cambiosIdentidad(form, contextoGuardado)).length > 0 || hayFiscalDemo
 
   function abrirEdicion() {
     tocado.current = false
-    setForm(formularioIdentidad({ empresa, tenant }))
+    setForm(formularioGuardado())
     setError('')
     setEditando(true)
   }
   function cancelar() {
     if (busy) return
     tocado.current = false
-    setForm(formularioIdentidad({ empresa, tenant }))
+    setForm(formularioGuardado())
     setError('')
     setEditando(enVentana)
     onCerrar?.()
@@ -86,8 +100,8 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
     if (busy) return
     // Sin diferencias no hay acción: el criterio es que «Guardar» exista solo
     // con cambios.
-    const pendientes = cambiosIdentidad(form, { empresa, tenant })
-    if (!Object.keys(pendientes).length) return
+    const pendientes = cambiosIdentidad(form, contextoGuardado)
+    if (!Object.keys(pendientes).length && !hayFiscalDemo) return
     const nombre = form?.name?.trim() || ''
     const correo = form?.email?.trim() || ''
     if (nombre.length < 2 || nombre.length > 120) { setError('El nombre de la tienda debe tener entre 2 y 120 caracteres.'); return }
@@ -95,19 +109,21 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
     setBusy(true); setError('')
     try {
       await guardado.ejecutar(
-        () => api.patch('/api/account', { action: 'updateProfile', ...pendientes }),
+        () => esDemo
+          ? Promise.resolve(guardarIdentidadCuentaDemo(empresa?.id, { ...pendientes, ...(form.nameOfficial !== undefined ? { nameOfficial: form.nameOfficial } : {}) }))
+          : api.patch('/api/account', { action: 'updateProfile', ...pendientes }),
         { etiqueta: 'los datos de la tienda', onExito: aplicarGuardado },
       )
     } finally { setBusy(false) }
   }
 
   const lecturas = [
-    ['Nombre de la tienda', empresa?.nombre],
-    ['Correo de la empresa', empresa?.email],
-    ['RUC', tenant?.ruc],
-    ['Teléfono', tenant?.phone],
-    ['Ciudad', tenant?.city],
-    ['Departamento', tenant?.department],
+    ['Nombre de la tienda', empresaGuardada.nombre],
+    ['Correo de la empresa', empresaGuardada.email],
+    ['RUC', tenantGuardado.ruc],
+    ['Teléfono', tenantGuardado.phone],
+    ['Ciudad', tenantGuardado.city],
+    ['Departamento', tenantGuardado.department],
   ]
   const Envoltorio = enVentana ? 'div' : Card
   const propsEnvoltorio = enVentana ? { 'data-testid': 'cuenta-form-ventana', className: 'space-y-3' } : { id: 'cuenta-form', 'data-testid': 'cuenta-form', className: 'space-y-3' }
@@ -133,7 +149,7 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
           ))}
           <div className="rounded-xl border border-ink-600 p-3 sm:col-span-2">
             <dt className="text-xs font-semibold uppercase tracking-wider text-mute">Dirección</dt>
-            <dd className="mt-0.5 text-sm text-fore">{tenant?.address || '—'}</dd>
+            <dd className="mt-0.5 text-sm text-fore">{tenantGuardado.address || '—'}</dd>
           </div>
         </dl>
       )}
@@ -143,13 +159,13 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
           {/* #298: formulario en 2 columnas; la dirección va a ancho completo. */}
           <div className={GRILLA_DOS_COLUMNAS}>
             {ver('name') && <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
-              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value })} placeholder="Nombre de la tienda" />
+              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value, nameOfficial: null })} placeholder="Nombre de la tienda" />
             </FormField>}
             {ver('email') && <FormField label="Correo de la empresa" htmlFor="edit-correo">
               <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
             </FormField>}
             {ver('ruc') && <FormField label="RUC" htmlFor="edit-ruc">
-              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc })} onAplicar={(datos) => { tocado.current = true; setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc })) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
+              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc, nameOfficial: null })} onAplicar={(datos) => { tocado.current = true; setForm(current => ({ ...current, name: datos.nameOfficial ?? datos.name ?? current.name, nameOfficial: datos.nameOfficial ?? datos.name, ruc: datos.fullRuc || current.ruc })) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
             </FormField>}
             {ver('phone') && <FormField label="Teléfono">
               <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />

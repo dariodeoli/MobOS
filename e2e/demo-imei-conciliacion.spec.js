@@ -57,8 +57,8 @@ test('la demo permite reportar un problema de una consulta desde el registro', a
 })
 
 // #257 (demo): las unidades del inventario demo tienen que verse en el POS.
-// El modelo «iPhone 12 128GB Verde» nace con una unidad disponible: el POS lo
-// muestra con stock y al recibir otra unidad el stock sube sin recargar.
+// El POS debe coincidir con las unidades disponibles del inventario, también
+// al crecer el catálogo demo; recibir una unidad aumenta el stock en exactamente una.
 test('la demo muestra en el POS el stock de las unidades del inventario (#257)', async ({ page }) => {
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).first().click()
@@ -68,11 +68,20 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   const buscador = () => page.getByPlaceholder('Buscar producto…')
   const tarjeta = () => page.getByRole('button', { name: /^iPhone 12 128GB/ }).first()
 
-  // El POS arranca solo: el stock sale de las unidades disponibles del demo (1).
+  const disponiblesDeLaFamilia = () => page.evaluate(async () => {
+    const { listDemoUnits } = await import('/src/lib/demoInventory.js')
+    return listDemoUnits().filter(unit => unit.status === 'AVAILABLE'
+      && /^iPhone 12 128GB(?:\s|$)/.test(unit.product?.nombre || unit.product?.name || ''))
+      .map(unit => ({ id: unit.id, serial: unit.serial }))
+  })
+  // Oráculo independiente: contar unidades, nunca leer la etiqueta del POS.
+
   await page.goto('/pos')
   await expect(buscador()).toBeVisible({ timeout: 25_000 })
   await buscador().fill('iPhone 12 128GB')
-  await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })
+  const antes = await disponiblesDeLaFamilia()
+  expect(antes.length).toBeGreaterThan(0)
+  await expect(tarjeta()).toContainText(`${antes.length} en stock`, { timeout: 20_000 })
 
   // Se recibe una unidad desde Inventario (misma sesión, sin recargar el POS).
   await openShellDestination(page, 'Unidades (IMEI)')
@@ -87,11 +96,15 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await modal.getByRole('button', { name: 'Guardar unidad' }).click()
   await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 20_000 })
 
-  // Al volver al POS el stock ya es 2: la unidad nueva es vendible.
+  const despues = await disponiblesDeLaFamilia()
+  expect(despues).toHaveLength(antes.length + 1)
+  for (const unidad of antes) expect(despues).toContainEqual(unidad)
+  expect(despues.filter(unit => unit.serial === serialDemo(99))).toHaveLength(1)
+  // La recepción se refleja sin recargar ni duplicar la unidad.
   await openShellDestination(page, 'POS')
   await expect(buscador()).toBeVisible({ timeout: 20_000 })
   await buscador().fill('iPhone 12 128GB')
-  await expect(tarjeta()).toContainText('2 en stock', { timeout: 20_000 })
+  await expect(tarjeta()).toContainText(`${despues.length} en stock`, { timeout: 20_000 })
   mkdirSync('test-results/qa-257-demo', { recursive: true })
-  await page.screenshot({ path: 'test-results/qa-257-demo/unidad-demo-en-pos.jpg', type: 'jpeg', quality: 78 })
+  if (process.env.MOBOS_QA_SCREENSHOTS !== '0') await page.screenshot({ path: 'test-results/qa-257-demo/unidad-demo-en-pos.jpg', type: 'jpeg', quality: 78 })
 })

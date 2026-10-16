@@ -1,6 +1,6 @@
 import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
-import { nombreCompleto, textoBuscable } from './accountNames'
+import { nombreCompleto, textoBuscable, validarRevisionTitular } from './accountNames'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 
 export { nombreCompleto, textoBuscable }
@@ -23,6 +23,7 @@ const TEXTO = (valor, max, mensaje) => {
 }
 
 function validarTitular(data, partial = false) {
+  validarRevisionTitular(data)
   const result = partial ? {} : { ...HOLDER_DEFAULTS }
   for (const key of Object.keys(HOLDER_DEFAULTS)) {
     if (!Object.hasOwn(data, key)) continue
@@ -60,7 +61,7 @@ function demoStore(clave) {
   return {
     read() {
       try {
-        const raw = leerDemo(clave)
+        const raw = leerDemo(clave, { demo: true })
         if (raw === null) return []
         const rows = JSON.parse(raw)
         if (!Array.isArray(rows)) throw new Error()
@@ -68,15 +69,17 @@ function demoStore(clave) {
       } catch { throw new Error('Los datos privados guardados no son válidos. No se sobrescribieron.') }
     },
     write(rows) {
-      try { guardarDemo(clave, JSON.stringify(rows)) }
+      try { guardarDemo(clave, JSON.stringify(rows), { demo: true }) }
       catch { throw new Error('No se pudieron guardar los datos privados en este navegador.') }
       return rows
     },
   }
 }
 
-const demoHolders = demoStore(HOLDERS_DEMO_KEY)
-const demoCompanies = demoStore(COMPANIES_DEMO_KEY)
+const scope = empresaId => encodeURIComponent(empresaId || 'mobos-demo')
+const demoHolders = empresaId => demoStore(`${HOLDERS_DEMO_KEY}:${scope(empresaId)}`)
+const demoCompanies = empresaId => demoStore(`${COMPANIES_DEMO_KEY}:${scope(empresaId)}`)
+const fiscalDemo = data => Object.hasOwn(data, 'nameOfficial') ? { nameOfficial: data.nameOfficial, personConfirmed: data.personConfirmed === true } : {}
 
 const listaDe = (payload) => {
   const rows = payload?.data ?? payload
@@ -91,51 +94,51 @@ const entidadDe = (payload) => {
 }
 
 // ── Titulares ─────────────────────────────────────────────────────────
-export async function getAccountHolders() {
-  if (isDemoRuntime) return demoHolders.read()
+export async function getAccountHolders({ demo = isDemoRuntime, empresaId } = {}) {
+  if (demo) return demoHolders(empresaId).read()
   return listaDe(await api.get(HOLDERS_ENDPOINT))
 }
 
-export async function createAccountHolder(data) {
+export async function createAccountHolder(data, { demo = isDemoRuntime, empresaId } = {}) {
   const values = validarTitular(data)
-  if (!isDemoRuntime) return entidadDe(await api.post(HOLDERS_ENDPOINT, values))
-  const row = { ...values, id: `demo-${globalThis.crypto.randomUUID()}` }
-  demoHolders.write([...demoHolders.read(), row])
+  if (!demo) return entidadDe(await api.post(HOLDERS_ENDPOINT, values))
+  const row = { ...values, ...fiscalDemo(data), id: `demo-${globalThis.crypto.randomUUID()}` }
+  demoHolders(empresaId).write([...demoHolders(empresaId).read(), row])
   return row
 }
 
-export async function updateAccountHolder(id, data) {
+export async function updateAccountHolder(id, data, { demo = isDemoRuntime, empresaId } = {}) {
   if (typeof id !== 'string' || !id.trim()) throw new Error('Identificador de titular inválido.')
   const values = validarTitular(data, true)
-  if (!isDemoRuntime) return entidadDe(await api.patch(HOLDERS_ENDPOINT, { ...values, id }))
-  const rows = demoHolders.read()
+  if (!demo) return entidadDe(await api.patch(HOLDERS_ENDPOINT, { ...values, id }))
+  const rows = demoHolders(empresaId).read()
   if (!rows.some((row) => row.id === id)) throw new Error('El titular ya no está disponible.')
-  const updated = { ...rows.find((row) => row.id === id), ...values, id }
-  demoHolders.write(rows.map((row) => (row.id === id ? updated : row)))
+  const updated = { ...rows.find((row) => row.id === id), ...values, ...fiscalDemo(data), id }
+  demoHolders(empresaId).write(rows.map((row) => (row.id === id ? updated : row)))
   return updated
 }
 
 // ── Empresas/personas jurídicas privadas ──────────────────────────────
-export async function getPrivateCompanies() {
-  if (isDemoRuntime) return demoCompanies.read()
+export async function getPrivateCompanies({ demo = isDemoRuntime, empresaId } = {}) {
+  if (demo) return demoCompanies(empresaId).read()
   return listaDe(await api.get(COMPANIES_ENDPOINT))
 }
 
-export async function createPrivateCompany(data) {
+export async function createPrivateCompany(data, { demo = isDemoRuntime, empresaId } = {}) {
   const values = validarEmpresa(data)
-  if (!isDemoRuntime) return entidadDe(await api.post(COMPANIES_ENDPOINT, values))
+  if (!demo) return entidadDe(await api.post(COMPANIES_ENDPOINT, values))
   const row = { ...values, id: `demo-${globalThis.crypto.randomUUID()}` }
-  demoCompanies.write([...demoCompanies.read(), row])
+  demoCompanies(empresaId).write([...demoCompanies(empresaId).read(), row])
   return row
 }
 
-export async function updatePrivateCompany(id, data) {
+export async function updatePrivateCompany(id, data, { demo = isDemoRuntime, empresaId } = {}) {
   if (typeof id !== 'string' || !id.trim()) throw new Error('Identificador de empresa inválido.')
   const values = validarEmpresa(data, true)
-  if (!isDemoRuntime) return entidadDe(await api.patch(COMPANIES_ENDPOINT, { ...values, id }))
-  const rows = demoCompanies.read()
+  if (!demo) return entidadDe(await api.patch(COMPANIES_ENDPOINT, { ...values, id }))
+  const rows = demoCompanies(empresaId).read()
   if (!rows.some((row) => row.id === id)) throw new Error('La empresa ya no está disponible.')
   const updated = { ...rows.find((row) => row.id === id), ...values, id }
-  demoCompanies.write(rows.map((row) => (row.id === id ? updated : row)))
+  demoCompanies(empresaId).write(rows.map((row) => (row.id === id ? updated : row)))
   return updated
 }

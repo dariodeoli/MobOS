@@ -81,7 +81,7 @@ const PASOS_FLUJO = [
   ['Entrega', ['ENTREGADO']],
 ]
 
-export default function ServicioTecnico() {
+export default function ServicioTecnico({ accionesVista = [] }) {
   const toast = useToast()
   const { empresa, esDemo } = useSesion()
   const [rows, setRows] = useState([])
@@ -652,6 +652,7 @@ export default function ServicioTecnico() {
             acciones={[
               { label: 'Actualizar', icon: 'refresh', disabled: loading || advanceBusy, onClick: load },
               { label: 'Catálogo de servicios', icon: 'list', onClick: () => setCatalogoOpen(true) },
+              ...accionesVista,
               { label: modoSeleccion ? 'Salir de la selección' : 'Seleccionar órdenes', icon: 'check', onClick: alternarSeleccion },
             ]}
           />

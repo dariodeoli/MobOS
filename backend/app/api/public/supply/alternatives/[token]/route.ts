@@ -1,7 +1,9 @@
+import { cargarAlternativaPublica } from '../../../../../../lib/public-alternative'
+import { contactoPublicoSucursal } from '../../../../../../lib/public-contact'
 import { prisma } from '../../../../../../lib/prisma'
 import { error, json } from '../../../../../../lib/http'
 import { InputError, objectInput } from '../../../../../../lib/payment-input'
-import { estadoNecesidadTras, hashToken, otpValido, otpVigente, requiereAprobacionCliente, resumenAlternativa } from '../../../../../../lib/supply-alternatives'
+import { estadoNecesidadTras, otpValido, otpVigente, requiereAprobacionCliente, resumenAlternativa } from '../../../../../../lib/supply-alternatives'
 import { OTP_MAX_INTENTOS } from '../../../../../../lib/supply-alternatives'
 
 // A5 (#279) · El **cliente aprueba** por el enlace público (sin sesión): ve la
@@ -9,14 +11,6 @@ import { OTP_MAX_INTENTOS } from '../../../../../../lib/supply-alternatives'
 // diferencia, confirma con el OTP. La necesidad original se libera recién al
 // aceptar. Nunca se sustituye automáticamente.
 
-async function alternativaPorToken(token: string) {
-  return prisma.supplyAlternative.findFirst({
-    where: { publicTokenHash: hashToken(token.slice(0, 200)) },
-    include: {
-      supplyNeed: { select: { id: true, productId: true, condition: true, quantity: true, promisedAt: true, status: true, customer: { select: { name: true } }, product: { select: { name: true, sku: true } } } },
-    },
-  })
-}
 
 const versionesDe = (supplyNeedId: string) => prisma.supplyAlternative.findMany({
   where: { supplyNeedId },
@@ -26,9 +20,11 @@ const versionesDe = (supplyNeedId: string) => prisma.supplyAlternative.findMany(
 
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params
-  const alternativa = await alternativaPorToken(token)
+  const alternativa = await cargarAlternativaPublica(token)
   if (!alternativa) return error('Propuesta no encontrada.', 404)
   return json({
+    store: { name: alternativa.tenant.name, branch: alternativa.supplyNeed.branch?.tenantId === alternativa.tenantId ? alternativa.supplyNeed.branch.name : null },
+    contacto: contactoPublicoSucursal(alternativa.supplyNeed.branch?.tenantId === alternativa.tenantId ? alternativa.supplyNeed.branch : null),
     alternative: {
       id: alternativa.id,
       version: alternativa.version,
@@ -60,7 +56,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params
   try {
-    const alternativa = await alternativaPorToken(token)
+    const alternativa = await cargarAlternativaPublica(token)
     if (!alternativa) return error('Propuesta no encontrada.', 404)
     const body = objectInput(await request.json())
     if (Object.keys(body).some((key) => !['decision', 'otp', 'motivo'].includes(key))) throw new InputError('Campo no admitido.')

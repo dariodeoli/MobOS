@@ -158,7 +158,7 @@ export default function PortalCliente() {
                       {garantias.map((garantia, index) => (
                         <div key={`${garantia.serial}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
                           <div className="flex items-center justify-between gap-3">
-                            <span className="min-w-0 truncate">{garantia.producto || 'Equipo'}</span>
+                            <span className="min-w-0 break-words">{garantia.producto || 'Equipo'}</span>
                             <PortalEstado tono={tonoGarantia(garantia.estado)}>{ESTADO_GARANTIA[garantia.estado] || garantia.estado}</PortalEstado>
                           </div>
                           <p className="mt-1 font-mono text-xs text-mute">{garantia.serial}</p>

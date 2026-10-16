@@ -69,3 +69,14 @@ test('se puede descartar el borrador (al crear la ficha)', () => {
   assert.equal(quedan.length, 1)
   assert.equal(quedan[0].name, 'Dario Oliveira')
 })
+
+
+test('borrador fiscal conserva nombre oficial exacto separado del nombre de mostrador', () => {
+  const official = '  GONZALEZ BENITEZ MARIA FERNANDA; S.A.  '
+  guardarPreCliente('empresa-498', { name: 'NO NORMALIZAR FISCAL', nameOfficial: official, displayName: 'Nombre manual', document: '80012345-0' })
+  const [restored] = listarPreClientes('empresa-498')
+  assert.equal(restored.nameOfficial, official)
+  assert.equal(restored.name, official)
+  assert.equal(restored.displayName, 'Nombre manual')
+  assert.equal(listarPreClientes('empresa-ajena-498').length, 0)
+})

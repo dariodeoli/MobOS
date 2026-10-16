@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Popover } from 'owncoding-ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
@@ -67,13 +68,29 @@ export const AYUDA_FLUJO = {
 
 /** Recorrido con el paso actual marcado; los pasos con ruta se pueden abrir. */
 export function RecorridoFlujo({ actual, onIr, className }) {
+  const recorrido = useRef(null)
+  useEffect(() => {
+    const nav = recorrido.current
+    const mostrarPaso = () => {
+      const paso = nav?.querySelector('[aria-current="step"]')
+      if (!paso) return
+      const marco = nav.getBoundingClientRect()
+      const activo = paso.getBoundingClientRect()
+      if (activo.right > marco.right) nav.scrollLeft += activo.right - marco.right
+      else if (activo.left < marco.left) nav.scrollLeft -= marco.left - activo.left
+    }
+    mostrarPaso()
+    const observer = new ResizeObserver(mostrarPaso)
+    if (nav) observer.observe(nav)
+    return () => observer.disconnect()
+  }, [actual])
   return (
-    <nav aria-label="Recorrido del abastecimiento" data-testid="recorrido-abastecimiento" className={cn('flex flex-wrap items-center gap-1 text-xs', className)}>
+    <nav ref={recorrido} aria-label="Recorrido del abastecimiento" data-testid="recorrido-abastecimiento" className={cn('flex min-w-0 items-center gap-1 overflow-x-auto text-xs sm:flex-wrap', className)}>
       {PASOS_FLUJO.map((paso, indice) => {
         const activo = paso.id === actual
-        const clase = cn('inline-flex min-h-8 items-center rounded-full border px-2.5 font-medium', activo ? 'border-fono bg-fono/10 text-fono-light' : 'border-ink-600 text-mute')
+        const clase = cn('inline-flex min-h-11 items-center whitespace-nowrap rounded-full border px-2.5 font-medium', activo ? 'border-fono bg-fono/10 text-fono-light' : 'border-ink-600 text-mute')
         return (
-          <span key={paso.id} className="inline-flex items-center gap-1">
+          <span key={paso.id} className="inline-flex shrink-0 items-center gap-1">
             {indice > 0 && <Icon name="arrowRight" className="h-3 w-3 text-mute" />}
             {activo || !onIr
               ? <span className={clase} aria-current={activo ? 'step' : undefined}>{paso.corto}</span>
@@ -91,8 +108,8 @@ export default function EncabezadoFlujo({ paso, onIr, className }) {
   if (!ayuda) return null
   return (
     <div className={cn('space-y-2', className)} data-testid="encabezado-flujo">
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 text-sm text-mute" data-testid="flujo-linea">{ayuda.linea}</p>
+      <div className="flex min-w-0 items-center gap-2">
+        <RecorridoFlujo actual={paso} onIr={onIr} className="flex-1" />
         <Popover
           label={`Ayuda: ${ayuda.titulo}`}
           side="bottom"
@@ -109,7 +126,7 @@ export default function EncabezadoFlujo({ paso, onIr, className }) {
           </div>
         </Popover>
       </div>
-      <RecorridoFlujo actual={paso} onIr={onIr} />
+      <p className="hidden text-sm text-mute sm:block" data-testid="flujo-linea">{ayuda.linea}</p>
     </div>
   )
 }

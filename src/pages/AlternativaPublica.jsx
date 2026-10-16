@@ -6,6 +6,9 @@ import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { formatGs } from '@/utils/moneda'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import { CabeceraTienda } from '@/components/publico/KitPublico'
+import { varianteDeTema } from '@/lib/tenantLogo'
 
 
 // A5 (#279) · Variante agotada → alternativas: el cliente abre el enlace del
@@ -61,14 +64,13 @@ export default function AlternativaPublica() {
 
   return (
     <main className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
-      <header className="rounded-2xl border border-ink-600 bg-ink-900 p-4">
-        <p className={ROTULO_SECCION}>Propuesta de alternativa</p>
-        <h1 className="mt-1 text-lg font-semibold">{necesidad?.product || 'Tu pedido'}{necesidad?.sku ? ` · ${necesidad.sku}` : ''}</h1>
-        <p className="mt-1 text-sm text-mute">
-          {/* La variante original se agotó: esta es una opción, nada se cambia sin tu OK. */}
-          La variante que pediste se agotó. Te proponemos una alternativa: nada se cambia sin tu confirmación.
-        </p>
-      </header>
+      <CabeceraTienda empresa={datos?.store?.name} detalle={datos?.store?.branch}
+        logo={datos ? `${API_URL}/api/public/supply/alternatives/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}` : null}
+        logoClaro={datos ? `${API_URL}/api/public/supply/alternatives/${encodeURIComponent(token || '')}/logo?variant=light` : null}>
+        <p className={`mt-3 ${ROTULO_SECCION}`}>Propuesta de alternativa</p>
+        <h1 className="mt-1 break-words text-lg font-semibold">{necesidad?.product || 'Tu pedido'}{necesidad?.sku ? ` · ${necesidad.sku}` : ''}</h1>
+        <p className="mt-1 text-sm text-mute">La variante que pediste se agotó. Te proponemos una alternativa: nada se cambia sin tu confirmación.</p>
+      </CabeceraTienda>
 
       {error && <Aviso tono="error" className="rounded-xl p-3">{error}</Aviso>}
       {notice && <Aviso tono="ok" className="rounded-xl p-3">{notice}</Aviso>}
@@ -97,8 +99,8 @@ export default function AlternativaPublica() {
                 <Input maxLength={300} value={motivo} onChange={(event) => setMotivo(event.target.value)} placeholder="Comentario para el equipo" aria-label="Comentario" />
               </label>
               <div className={PIE_ACCIONES}>
-                <Button type="button" variant="outline" disabled={busy} data-testid="alternativa-rechazar" onClick={() => responder('RECHAZAR')}>Rechazar</Button>
-                <Button type="button" disabled={busy || (alternativa.requiereOtp && otp.trim().length !== 6)} data-testid="alternativa-aceptar" onClick={() => responder('ACEPTAR')}>
+                <Button type="button" variant="outline" className="min-h-11" disabled={busy} data-testid="alternativa-rechazar" onClick={() => responder('RECHAZAR')}>Rechazar</Button>
+                <Button type="button" className="min-h-11" disabled={busy || (alternativa.requiereOtp && otp.trim().length !== 6)} data-testid="alternativa-aceptar" onClick={() => responder('ACEPTAR')}>
                   {busy ? 'Enviando…' : alternativa.requiereOtp ? 'Aprobar con el código' : 'Aprobar la alternativa'}
                 </Button>
               </div>
@@ -122,6 +124,7 @@ export default function AlternativaPublica() {
         </section>
       )}
       {!datos && !error && <p className="text-sm text-mute">Cargando la propuesta…</p>}
+      <WhatsAppSucursal contacto={datos?.contacto} />
       <ProductFooter />
     </main>
   )

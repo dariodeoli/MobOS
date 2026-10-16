@@ -144,7 +144,7 @@ export default function RemitoPublico() {
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
               <h2 className="font-semibold">Foto del remito</h2>
               <p className="mt-1 text-xs text-mute">Adjuntá la foto del remito firmado o del paquete recibido.</p>
-              <div className="mt-3">
+              <div className="mt-3 [&_button]:min-h-11">
                 <AttachmentInput className="block w-full text-xs" disabled={subiendo || recibido} onSelect={subirFoto} onError={setError} />
               </div>
               {subiendo && <p className="mt-2 text-xs text-mute">Subiendo foto…</p>}
@@ -175,7 +175,7 @@ export default function RemitoPublico() {
                 <label className="block text-xs text-mute">Nota de recepción (opcional)
                   <Textarea rows={2} maxLength={500} value={nota} onChange={event => setNota(event.target.value)} className="mt-1.5 rounded-xl px-3 py-2 text-sm" placeholder="Ej: llegó completo, caja golpeada, falta un cargador…" />
                 </label>
-                <button type="button" disabled={busy || pendientes.length > 0} onClick={recibir} className="mt-3 inline-flex w-full items-center justify-center gap-2 min-h-11 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" disabled={busy || pendientes.length > 0} onClick={recibir} className="mt-3 inline-flex w-full items-center justify-center gap-2 min-h-11 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-on-ok transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
                   <Icon name="check" className="h-4 w-4" />{busy ? 'Registrando…' : 'Confirmar recepción'}
                 </button>
               </section>

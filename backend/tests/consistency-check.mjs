@@ -25,12 +25,14 @@ try {
     FROM "CashSession"
     WHERE ("closedAt" IS NOT NULL AND ("countedPyg" IS NULL OR "expectedPyg" IS NULL))
        OR ("closedAt" IS NULL AND ("countedPyg" IS NOT NULL OR "expectedPyg" IS NOT NULL))
-       OR "countedPyg" < 0 OR "expectedPyg" < 0
+       OR "countedPyg" < 0
     LIMIT 200`
   for (const fila of cierres) {
     fallos.push(`caja ${fila.id}: cierre incoherente (estado ${fila.status}, contado ${fila.countedPyg}, esperado ${fila.expectedPyg}, cerrada ${fila.closedAt ? 'sí' : 'no'})`)
   }
-  // ── Caja: el esperado de un turno cerrado se reconstruye desde la apertura (sin los pagos de correcciones de turnos ya cerrados, #393),
+  // El esperado puede ser negativo por egresos/ajustes de cobros anteriores;
+  // se exige su coincidencia exacta con el ledger, no un signo arbitrario.
+  // ── Caja: el esperado de un turno cerrado se reconstruye desde la apertura (excluyendo solo correcciones legacy sin drawerImpact, #393),
   //    los cobros en efectivo del responsable y sus movimientos de caja ──
   const turnos = await prisma.$queryRaw`
     SELECT s."id", s."tenantId", s."branchId", s."openedById", s."openingPyg", s."expectedPyg", s."openedAt", s."closedAt",

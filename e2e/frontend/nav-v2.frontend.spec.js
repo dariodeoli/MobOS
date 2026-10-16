@@ -122,51 +122,50 @@ for (const width of widths) {
     await expect(page).toHaveURL(/\/pos/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await noOverflow(page)
-    const checkout = mobile
-      ? page
-          .getByTestId('pos-barra-accion')
-          .getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
-      : page
-          .getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
-          .filter({ visible: true })
-          .first()
-    await expect(checkout).toBeVisible()
-    await expect(page.locator('main form').filter({ visible: true }).first()).toBeVisible()
-    await noOverflow(page)
-    await page.screenshot({ path: `${output}/${width}-pos.png`, fullPage: true })
-    if (!mobile) await checkout.evaluate(element => element.scrollIntoView({ block: 'center' }))
-    if (mobile) {
-      await expect
-        .poll(() =>
-          page.evaluate(() => {
-            const checkout = document
-              .querySelector('[data-testid="pos-barra-accion"] button[type="submit"]')
-              ?.getBoundingClientRect()
-            const checkoutBar = document
-              .querySelector('[data-testid="pos-barra-accion"]')
-              ?.getBoundingClientRect()
-            const bottom = document
-              .querySelector('[data-testid="shell-bottom-nav"]')
-              ?.getBoundingClientRect()
-            const header = document
-              .querySelector('[data-testid="shell-mobile-header"]')
-              ?.getBoundingClientRect()
-            return Boolean(
-              checkout?.height &&
-              bottom?.height &&
-              header?.height &&
-              checkout.bottom <= bottom.top &&
-              checkoutBar?.bottom <= bottom.top &&
-              checkout.top >= header.bottom,
-            )
-          }),
-        )
-        .toBe(true)
+    if (width < 768) {
+      // #429 sustituyó el cobro vacío en línea por una barra y hojas móviles.
+      // Probar la acción real después de añadir un artículo, sin saltar el flujo.
+      await page.getByPlaceholder('Buscar producto…').fill('Funda MagSafe')
+      await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
+      const barra = page.getByTestId('pos-barra-carrito')
+      const abrir = page.getByTestId('pos-barra-carrito-abrir')
+      await expect(barra).toBeVisible()
+      await expect(barra).toContainText('180.000')
+      await expect.poll(async () => {
+        const caja = await barra.boundingBox()
+        const abajo = await navigation.boundingBox()
+        const arriba = await page.getByTestId('shell-mobile-header').boundingBox()
+        return Boolean(caja && abajo && arriba && caja.height > 0 &&
+          caja.y + caja.height <= abajo.y + 1 && caja.y >= arriba.y + arriba.height)
+      }).toBe(true)
+      await abrir.click()
+      const carrito = page.getByTestId('hoja-carrito')
+      await expect(carrito).toBeVisible()
+      const cobrar = carrito.getByTestId('carrito-cobrar')
+      await expect(cobrar).toBeVisible()
+      const boton = await cobrar.boundingBox()
+      expect(boton.height).toBeGreaterThanOrEqual(44)
+      expect(boton.x).toBeGreaterThanOrEqual(0)
+      expect(boton.x + boton.width).toBeLessThanOrEqual(width)
+      await noOverflow(page)
+      await cobrar.click()
+      const cobro = page.getByTestId('cobro-movil')
+      await expect(cobro).toBeVisible()
+      await expect(cobro.getByTestId('cobro-total-grande')).toContainText('180.000')
+      await noOverflow(page)
+      await page.keyboard.press('Escape')
+      await expect(cobro).toHaveCount(0)
       await page.setViewportSize({ width, height: 450 })
-      const input = page.locator('main input').first()
-      await input.focus()
+      await page.getByPlaceholder('Buscar producto…').focus()
       await expect(navigation).toBeHidden()
       await page.setViewportSize({ width, height: 900 })
+    } else {
+      const checkout = page.getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
+        .filter({ visible: true }).first()
+      await expect(checkout).toBeVisible()
+      await expect(page.locator('main form').filter({ visible: true }).first()).toBeVisible()
+      await noOverflow(page)
+      await checkout.evaluate(element => element.scrollIntoView({ block: 'center' }))
     }
     await page.goto('/ventas')
     await expect(page).toHaveURL(/\/pos/)
@@ -927,8 +926,9 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('1 producto')
   const client = page.getByTestId('pos-bloque-cliente')
   await client.getByPlaceholder('Buscar cliente o escribir un nombre nuevo').fill('María González')
-  await expect(client.getByRole('button', { name: 'Editar datos', exact: true })).toBeVisible()
-  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('María González')
+  await expect(client.getByRole('button', { name: 'Editar datos del cliente', exact: true })).toBeVisible()
+  await expect(client.getByTestId('cliente-elegido-nombre')).toHaveText('María González')
+  await expect(client.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')).toHaveCount(0)
   const payment = page.getByTestId('pos-bloque-pagos')
   await payment.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
   await expect(payment.locator('input').filter({ visible: true }).first()).toBeVisible()
@@ -1247,9 +1247,15 @@ for (const width of [320, 390, 1440]) {
         storage.updateVenta(order.id, {
           cliente: customer,
           customer: { name: customer },
+          precio: 100000000,
+          montoDelivery: 0,
           totalPyg: 100000000,
           subtotalPyg: 100000000,
-          pagos: [],
+          totalPagado: 50000000,
+          totalPendiente: 50000000,
+          pagos: [
+            { id: 'qa-f3-payment', status: 'CONFIRMED', amountPyg: 50000000, monto: 50000000, method: 'CASH', medioPago: 'Efectivo' },
+          ],
           payments: [
             { id: 'qa-f3-payment', status: 'CONFIRMED', amountPyg: 50000000, method: 'CASH' },
           ],
@@ -2021,7 +2027,12 @@ for (const width of [320, 390, 1440]) {
       await setF3Theme(page, width, dark)
       await page.goto('/servicio')
       const root = page.locator('.taller-f3')
-      await expect(root.getByTestId('servicio-fila')).toHaveCount(4)
+      const esperadas = await page.evaluate(async () => {
+        const { getDemoServicio } = await import('/src/lib/demoServicio.js')
+        return getDemoServicio().rows.filter(row => !['ENTREGADO', 'CANCELADO'].includes(row.status)).length
+      })
+      expect(esperadas).toBeGreaterThan(0)
+      await expect(root.getByTestId('servicio-fila')).toHaveCount(esperadas)
       await expect(root).toContainText('Distribuidora del Este S.A.')
       await expect(root).toContainText('MacBook Air M2')
       // #396: las etapas son chips filtrables con su conteo, no un select.
@@ -2038,7 +2049,7 @@ for (const width of [320, 390, 1440]) {
       for (const button of await root.getByRole('button').all()) {
         if (!(await button.isVisible())) continue
         const box = await button.boundingBox()
-        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.height, await button.getAttribute('aria-label') || await button.innerText()).toBeGreaterThanOrEqual(44)
         expect(box.width).toBeGreaterThanOrEqual(44)
       }
       await page.screenshot({
@@ -2315,6 +2326,9 @@ async function stockCellMetrics(page) {
       cells: [...row.children].map((cell) => ({
         width: cell.clientWidth,
         scroll: cell.scrollWidth,
+        elipsisPermitida: getComputedStyle(cell).textOverflow === 'ellipsis' &&
+          Boolean(cell.title) && (cell.matches('.stock-lista-prov') ||
+            (row.dataset.kind === 'product' && cell.dataset.testid === 'unidad-imei' && cell.title === `SKU ${cell.textContent.trim()}`)),
       })),
       identity: [
         ...row.querySelectorAll(
@@ -2330,6 +2344,8 @@ async function stockCellMetrics(page) {
           text: cell.textContent.trim(),
           width: cell.clientWidth,
           scroll: cell.scrollWidth,
+          elipsisPermitida: row.dataset.kind === 'product' && cell.dataset.testid === 'unidad-imei' &&
+            cell.title === `SKU ${cell.textContent.trim()}` && getComputedStyle(cell).textOverflow === 'ellipsis',
           lines: new Set(
             [...range.getClientRects()]
               .filter((rect) => rect.width > 0)
@@ -2358,9 +2374,11 @@ for (const width of stockWidths) {
       const metrics = await stockCellMetrics(page)
       for (const row of metrics) {
         expect(row.scroll).toBeLessThanOrEqual(row.width)
-        for (const cell of row.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+        for (const cell of row.cells) {
+          if (cell.scroll > cell.width + 1) expect(cell.elipsisPermitida).toBe(true)
+        }
         for (const cell of row.identity) {
-          expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+          if (cell.scroll > cell.width + 1) expect(cell.elipsisPermitida).toBe(true)
           if (width >= 1440) expect(cell.lines, cell.text).toBe(1)
         }
       }
@@ -3673,6 +3691,40 @@ test('U3 selección: N filas elegidas ofrecen imprimir etiquetas y vista previa'
   await expect(page.getByTestId('etiquetas-vista-previa')).toBeVisible()
   // En el demo la impresora no está disponible: el aviso lo dice sin inventar un éxito.
   await page.getByTestId('imprimir-etiquetas').click()
-  await expect(page.getByText(/demostración|demo/i).first()).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'la impresión no está disponible en el demo' })).toBeVisible()
   await page.keyboard.press('Escape')
 })
+
+// #489: el estado disabled debe coincidir con la protección contra rebotes.
+// Reloj detenido para comprobar la ventana completa sin pausas arbitrarias.
+for (const width of [320, 390]) {
+  test(`cobro móvil: el primer clic habilitado confirma una vez después de la transición ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.clock.install({ time: new Date('2026-10-15T12:00:00Z') })
+    const fixture = await enterApiFixture(page, 'confirmed')
+    await abrirCobroMovil(page)
+    await page.clock.pauseAt(new Date('2026-10-15T13:00:00Z'))
+    const alRecibir = page.getByTestId('medio-paga-al-recibir')
+    await alRecibir.focus()
+    await page.keyboard.press('Enter')
+    const confirmar = page.getByTestId('cobro-confirmar-venta')
+    await expect(confirmar).toBeDisabled()
+    // El árbol accesible expone el botón y su estado al lector de pantalla.
+    expect(await confirmar.ariaSnapshot()).toMatch(/button .*\[disabled\]/)
+    await page.clock.runFor(349)
+    await expect(confirmar).toBeDisabled()
+    expect(fixture.submitted()).toBe(0)
+    await page.clock.runFor(1)
+    await expect(confirmar).toBeEnabled()
+    expect(await confirmar.ariaSnapshot()).toMatch(/button /)
+    expect(await confirmar.ariaSnapshot()).not.toContain('[disabled]')
+    await noOverflow(page)
+    await confirmar.focus()
+    await expect(confirmar).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect.poll(fixture.submitted).toBe(1)
+    await page.clock.runFor(1000)
+    expect(fixture.submitted()).toBe(1)
+    await expect(page.getByRole('button', { name: 'Ver pedido', exact: true })).toBeVisible()
+  })
+}

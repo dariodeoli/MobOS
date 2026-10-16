@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { RucField as CampoRuc } from 'owncoding-ui'
-import { api } from '@/lib/api/client'
-import { consultarRucDemo } from '@/lib/demoRuc'
+import { api, API_URL } from '@/lib/api/client'
+import { consultarRucDemoReal } from '@/lib/rucDemoRequest'
 import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
 import { cn } from '@/lib/utils'
 import { ANCHO_CAMPO } from './anchoCampos'
-import { admitRucResponse, createRucRequestGuard, formatRucInput, lookupDemoRuc, parseRucInput } from './rucLookup.js'
+import { admitRucResponse, createRucRequestGuard, formatRucInput, parseRucInput } from './rucLookup.js'
 
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -30,11 +30,12 @@ export default function RucField({
     const identity = parseRucInput(texto)
     if (!identity) throw new Error('Ingresá un RUC de 1 a 9 dígitos y, si incluís el guion, un dígito verificador válido. Podés completar los datos manualmente.')
     const request = guard.current.begin(scope.current)
-    const result = demo
-      ? await lookupDemoRuc(identity, consultarRucDemo)
-      : admitRucResponse(await api.get(`/api/ruc?ruc=${encodeURIComponent(identity.query)}`, {
+    const payload = demo
+      ? await consultarRucDemoReal(identity.query, { apiUrl: API_URL, signal: request.signal })
+      : await api.get(`/api/ruc?ruc=${encodeURIComponent(identity.query)}`, {
         signal: request.signal, cacheMs: 0, cache: 'no-store',
-      }), identity)
+      })
+    const result = admitRucResponse(payload, identity)
     if (!request.isCurrent(scope.current)) return null
     if (!result) throw new Error('No se recibieron datos verificables para ese RUC.')
     // name solo adapta la presentación; datos conserva nameOfficial y toda la

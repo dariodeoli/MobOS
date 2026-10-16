@@ -58,7 +58,7 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 - **Consistencia** (`stock-consistency.mjs` + `consistency-check.mjs`): stock vs unidades, espejo de seriales de venta, caja, créditos, comisiones, promociones y garantías.
 - **Plantillas de WhatsApp** por contexto (clientes, pedidos, servicio técnico) administrables en Configuración con variables e interpolación.
 - **Formularios de configuración**: `shared/PanelDerecho` (contenido a la izquierda y formulario fijo a la derecha en escritorio, apilado en móvil); usado en Equipo, Sucursales, Negocio e Identidad. Densidad y objetos: `docs/PLANTILLA-OBJETOS.md` (#147).
-- **Demo pública**: modo local con guardia central en el cliente del API (`request`/`apiFetch` fallan con `DEMO_MODE`), presencia/avatares/logos sin red y aviso de guardado simulado; `docs/qa/196-demo/` guarda la evidencia del recorrido.
+- **Demo pública**: modo local con guardia central en el cliente del API (`request`/`apiFetch` fallan con `DEMO_MODE`), presencia/avatares/logos sin red y aviso de guardado local; única consulta real permitida: RUC de OwnData mediante transporte público específico sin credenciales, con cuotas de servidor (#498); `docs/qa/196-demo/` guarda la evidencia del recorrido.
 
 ## 3. Estado, módulos y seguridad
 

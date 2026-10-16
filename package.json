@@ -1,7 +1,7 @@
 {
   "name": "mobos",
   "private": true,
-  "version": "1.0.228",
+  "version": "1.0.229",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -55,7 +55,7 @@
     "html-to-image": "^1.11.11",
     "jsbarcode": "^3.11.6",
     "lucide-react": "^0.456.0",
-    "owncoding-ui": "https://github.com/dariodeoli/owncoding-ui/archive/refs/tags/v0.68.12.tar.gz",
+    "owncoding-ui": "https://github.com/dariodeoli/owncoding-ui/archive/refs/tags/v0.68.13.tar.gz",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

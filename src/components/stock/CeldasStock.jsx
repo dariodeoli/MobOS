@@ -17,7 +17,7 @@ export function EstadoStock({ item, className }) {
       tono={tonoEstadoStock(item.status)}
       icono={ICONO_ESTADO[item.status] || 'info'}
       title={item.kind === 'product' ? `${texto} (${etiquetaEstadoStock(item.status)})` : texto}
-      className={className ? `w-fit whitespace-nowrap ${className}` : 'w-fit whitespace-nowrap'}
+      className={`w-fit whitespace-nowrap ${item.status === 'reservado' ? '!bg-ink-900' : ''} ${className || ''}`}
     />
   )
 }

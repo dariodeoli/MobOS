@@ -519,3 +519,34 @@ for (const width of [360, 390]) test(`#485 ${width}: confirmación con cliente, 
   await expect(hoja.getByTestId('exito-listo')).toHaveText('Nueva venta')
   await sinScrollHorizontal(page, width)
 })
+
+// Bloquear debe ocultar los datos también al cambiar de usuario o pedir salir.
+for (const [width, dark] of [[390, false], [1440, true]]) {
+  test(`PIN ${width}: diálogos conservan una superficie opaca sobre ventas`, async ({ page }) => {
+    await enterPos(page, width, 900, dark)
+    await page.getByTestId(width < 1024 ? 'shell-perfil-mobile' : 'shell-perfil').click()
+    await page.getByTestId('shell-bloquear').click()
+    const pin = page.getByTestId('pantalla-bloqueada')
+    await expect(pin).toBeVisible()
+    for (const [action, title] of [['Cambiar de usuario', 'Cambiar vendedor'], ['Cerrar sesión', '¿Cerrar sesión?']]) {
+      await pin.getByRole('button', { name: action, exact: true }).click()
+      const cover = page.getByTestId('bloqueo-fondo-opaco')
+      const dialog = cover.getByRole('dialog', { name: title, exact: true })
+      await expect(dialog).toBeVisible()
+      await expect(pin).toHaveCount(0)
+      const protection = await cover.evaluate(el => {
+        const r = el.getBoundingClientRect(), style = getComputedStyle(el)
+        return { x: r.x, y: r.y, width: r.width, height: r.height, color: style.backgroundColor, z: Number(style.zIndex), focusInside: el.contains(document.activeElement) }
+      })
+      expect(protection).toMatchObject({ x: 0, y: 0, width, height: 900, focusInside: true })
+      expect(protection.z).toBeGreaterThanOrEqual(70)
+      expect(protection.color).toMatch(/^rgb\(/) // sin canal alpha: opaco en ambos temas
+      await page.keyboard.press('Escape')
+      await expect(pin).toBeVisible()
+      await expect(cover).toHaveCount(0)
+    }
+    await pin.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
+    await page.getByRole('dialog', { name: '¿Cerrar sesión?', exact: true }).getByRole('button', { name: 'Salir', exact: true }).click()
+    await expect(page.getByTestId('shell')).toHaveCount(0)
+  })
+}

@@ -12,7 +12,7 @@ export const PUNTOS_DEMO = [
   {
     icono: 'box',
     titulo: 'Datos ficticios',
-    texto: 'La tienda, los clientes, los productos y las unidades son de mentira; los IMEI son DEMO.',
+    texto: 'Los datos iniciales de la tienda, los clientes, los productos y las unidades son ficticios; los IMEI son DEMO.',
   },
   {
     icono: 'lock',
@@ -31,8 +31,8 @@ export const PUNTOS_DEMO = [
   },
   {
     icono: 'search',
-    titulo: 'RUC simulado',
-    texto: 'El extractor de RUC devuelve una razón social de ejemplo marcada como simulada: no consulta el registro real y los datos se aplican solo si los confirmás.',
+    titulo: 'Consulta real de RUC',
+    texto: 'El extractor consulta datos reales en OwnData. Revisá el resultado y confirmá antes de aplicarlo; lo que guardes sigue siendo local a la demo.',
   },
 ]
 

@@ -18,7 +18,8 @@ import { tomarNumeroPedidoDemo, registrarNumerosUsadosDemo } from './demoTenant.
 import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
 import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
-import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
+import { guardarSnapshotCatalogo, leerSnapshotCatalogo, activarContextoSnapshots, invalidarSnapshotsPrivados, alInvalidarSnapshots, esDenegacionPrivada, permiteRespaldoOffline } from './offline/snapshot'
+import { invalidarConsultas } from './api/client'
 import { skuDemo } from './demo/sku.js'
 import { stockDePedidoDemo } from './demo/pedidoPos.js'
 import { garantiaDiasDemo, ventasDemoLegacy } from './demo/ventas.js'
@@ -71,7 +72,9 @@ const FEEDS = new Set(['ventas', 'gastos', 'ads', 'auditoria'])
 // ── Contexto: a qué empresa y sucursal pertenece lo que se lee y escribe ──
 // Lo setea setContexto() después del login. Sin empresa, la capa de datos
 // queda inerte: no lee ni escribe nada.
-const ctx = { empresaId: null, sucursalId: null, userId: null, rol: null }
+const ctx = { empresaId: null, sucursalId: null, userId: null, rol: null, permisos: null }
+let tokenSnapshot = null
+let contextoApiValidado = false
 let fuenteDatos = 'legacy'
 export const modoDatosActual = () => fuenteDatos
 const apiMode = () => fuenteDatos === 'api'
@@ -192,7 +195,7 @@ function notify() {
 // Sync entre pestañas del mismo dispositivo para el demo/local.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', e => {
-    if (ctx.empresaId && e.key === mirrorKey()) {
+    if (!apiMode() && ctx.empresaId && e.key === mirrorKey()) {
       const m = safeParse(e.newValue)
       if (m && typeof m === 'object') {
         Object.assign(cache, m)
@@ -228,11 +231,16 @@ function entDelete(collection, id) {
   avisarGuardadoDemo()
 }
 let apiHydrationVersion = 0
-// #247: identidades ya hidratadas en esta carga de la app. La PRIMERA usa la
-// foto local (si hay) para pintar al instante y refresca en segundo plano; las
-// siguientes (mutaciones, refresco periódico) esperan al API como siempre.
-const identidadesHidratadas = new Set()
-let primeraIdentidad = null
+// Cualquier denegación/logout/contexto invalida datos privados visibles y carreras.
+alInvalidarSnapshots(() => {
+  invalidarConsultas()
+  apiHydrationVersion += 1
+  tokenSnapshot = null
+  contextoApiValidado = false
+  identidadesFinanzas.clear()
+  vaciarCache()
+  notify()
+})
 
 // El catálogo puede superar la página del API: el POS necesita el espejo
 // completo para buscar y vender, así que se recorren las páginas con el tope
@@ -251,7 +259,7 @@ async function todosLosProductos({ fresco = false } = {}) {
   return todos
 }
 
-const identidadActual = () => `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
+const identidadActual = () => JSON.stringify(ctx)
 
 // #247: las finanzas dejaron de viajar en la hidratación global (se pedían en
 // todas las pantallas). Se hidratan al entrar a finanzas/análisis y, desde ahí,
@@ -276,34 +284,39 @@ function aplicarHidratacion({ products, orders, users, finance }) {
   notify()
 }
 
-async function hydrateDesdeApi(version, identity) {
-  const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(ctx.rol)
+async function hydrateDesdeApi(version, identity, snapshot) {
+  const rol = ctx.rol
+  const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(rol)
   const conFinanzas = puedeVerFinanzas && (rutaFinanciera() || identidadesFinanzas.has(identity))
+  const vigente = () => apiMode() && contextoApiValidado && version === apiHydrationVersion && identity === identidadActual()
   let products; let orders; let users; let finance
+  let desdeFoto = false
   try {
     ;[products, orders, users, finance] = await Promise.all([
-      todosLosProductos(),
-      api.get('/api/orders?filtro=todos'),
-      ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
-      conFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
+      todosLosProductos({ fresco: true }),
+      api.get('/api/orders?filtro=todos', { cacheMs: 0 }),
+      rol === 'dueno' ? api.get('/api/users', { cacheMs: 0 }) : Promise.resolve([]),
+      conFinanzas ? api.get('/api/finance', { cacheMs: 0 }).catch(error => { if (esDenegacionPrivada(error)) throw error; return null }) : Promise.resolve(null),
     ])
   } catch (error) {
-    // Sin conexión al arrancar (POS offline-first): se hidrata con la última
-    // foto local del catálogo y los pedidos. Sin foto, el error sigue su curso.
-    const foto = await leerSnapshotCatalogo(ctx.empresaId)
+    if (!apiMode() || identity !== identidadActual()) return
+    if (esDenegacionPrivada(error)) {
+      if (vigente()) await invalidarSnapshotsPrivados()
+      throw error
+    }
+    if (!vigente()) return
+    // Solo fallo de transporte; jamás una respuesta HTTP o denegación explícita.
+    if (!permiteRespaldoOffline(error)) throw error
+    const foto = await leerSnapshotCatalogo(snapshot)
+    if (!vigente()) return
     if (!foto) throw error
     ;({ products, orders, users, finance } = foto)
+    desdeFoto = true
   }
-  if (
-    !apiMode() ||
-    version !== apiHydrationVersion ||
-    identity !== identidadActual()
-  )
-    return
+  if (!vigente()) return
   if (conFinanzas) identidadesFinanzas.add(identity)
   aplicarHidratacion({ products, orders, users, finance })
-  // Foto para el próximo arranque sin conexión (no bloquea la UI).
-  guardarSnapshotCatalogo(ctx.empresaId, { products, orders, users, finance })
+  if (!desdeFoto) await guardarSnapshotCatalogo(snapshot, { products, orders, users, finance })
 }
 
 // #257 (demo): el catálogo del POS y el inventario serializado son dos stores
@@ -346,24 +359,28 @@ export function refrescarCatalogo({ forzar = false } = {}) {
     sincronizarCatalogoDemo()
     return Promise.resolve()
   }
-  if (!ctx.empresaId || !apiMode()) return Promise.resolve()
+  if (!ctx.empresaId || !apiMode() || !contextoApiValidado) return Promise.resolve()
   if (!forzar && Date.now() - ultimoRefrescoCatalogo < 2500) return Promise.resolve()
   const version = apiHydrationVersion
   const identity = identidadActual()
   const anterior = refrescoCatalogoEnCurso
   refrescoCatalogoEnCurso = (async () => {
     await anterior.catch(() => {})
-    if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+    if (!apiMode() || !contextoApiValidado || version !== apiHydrationVersion || identity !== identidadActual()) return
     try {
       // Sin caché de consultas: el refresco existe justamente para ver lo que se
       // cargó fuera de esta pestaña, así que va sí o sí contra la red (#257).
       const products = await todosLosProductos({ fresco: true })
-      if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+      if (!apiMode() || !contextoApiValidado || version !== apiHydrationVersion || identity !== identidadActual()) return
       cache.productos = (Array.isArray(products) ? products : []).map(mapProductoApi)
       ultimoRefrescoCatalogo = Date.now()
       notify()
-    } catch {
-      /* sin conexión: la UI sigue con el espejo anterior */
+    } catch (error) {
+      if (esDenegacionPrivada(error)) {
+        if (identity === identidadActual() && version === apiHydrationVersion) await invalidarSnapshotsPrivados()
+        throw error
+      }
+      // Solo un corte de red conserva datos del contexto vigente.
     }
   })()
   return refrescoCatalogoEnCurso
@@ -372,13 +389,20 @@ export function refrescarCatalogo({ forzar = false } = {}) {
 // Hidrata las finanzas al entrar a su pantalla (una sola consulta) y las deja
 // incluidas en los refrescos siguientes (#247).
 export async function hidratarFinanzas() {
-  if (!ctx.empresaId || !apiMode()) return
+  if (!ctx.empresaId || !apiMode() || !contextoApiValidado) return
   const identity = identidadActual()
   if (identidadesFinanzas.has(identity) && cache.gastos.length) return
   identidadesFinanzas.add(identity)
   const version = apiHydrationVersion
-  const finance = await api.get('/api/finance').catch(() => null)
-  if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+  let finance
+  try { finance = await api.get('/api/finance') } catch (error) {
+    if (esDenegacionPrivada(error)) {
+      if (identity === identidadActual() && version === apiHydrationVersion) await invalidarSnapshotsPrivados()
+      throw error
+    }
+    return
+  }
+  if (!apiMode() || !contextoApiValidado || version !== apiHydrationVersion || identity !== identidadActual()) return
   if (finance !== null && finance !== undefined) {
     cache.gastos = mapGastosApi(finance)
     notify()
@@ -386,23 +410,10 @@ export async function hidratarFinanzas() {
 }
 
 async function hydrateApi() {
-  if (!apiMode()) return
-  const identity = identidadActual()
-  const version = apiHydrationVersion
-  // #247: en la primera hidratación de la sesión, si hay foto local se pinta
-  // al instante y el API refresca atrás (la pantalla no espera al catálogo).
-  const esArranque = primeraIdentidad === null || primeraIdentidad === identity
-  if (esArranque) primeraIdentidad = identity
-  if (esArranque && !identidadesHidratadas.has(identity)) {
-    identidadesHidratadas.add(identity)
-    const foto = await leerSnapshotCatalogo(ctx.empresaId)
-    if (foto) {
-      if (version === apiHydrationVersion && identity === identidadActual()) aplicarHidratacion(foto)
-      hydrateDesdeApi(version, identity).catch(() => { /* la foto ya quedó pintada */ })
-      return
-    }
-  }
-  await hydrateDesdeApi(version, identity)
+  if (!apiMode() || !contextoApiValidado) return
+  // No pintar una foto antes de conocer el resultado del API: un401/403 nunca
+  // debe mostrar por un instante datos de una sesión ya rechazada.
+  await hydrateDesdeApi(apiHydrationVersion, identidadActual(), tokenSnapshot)
 }
 
 // El costo del producto vive en la API como `costPyg`. Sin este mapeo la
@@ -514,25 +525,24 @@ export async function refrescar() {
 const SUC_KEY = 'fono:sucursal'
 
 // Entra a una empresa/sucursal y carga la fuente de datos correspondiente.
-export async function setContexto({ empresaId, sucursalId, userId, rol, fuente = 'legacy' }) {
+export async function setContexto({ empresaId, sucursalId, userId, rol, permisos = null, fuente = 'legacy' }) {
   apiHydrationVersion += 1
-  const cambioEmpresa = ctx.empresaId !== empresaId
-  if (cambioEmpresa) registrarCambioDeEmpresa(empresaId)
-  if (fuente === 'api' && (ctx.userId !== userId || ctx.rol !== rol || cambioEmpresa)) vaciarCache()
-  ctx.empresaId = empresaId || null
-  ctx.sucursalId = sucursalId || null
-  ctx.userId = userId || null
-  ctx.rol = rol || null
-  fuenteDatos = fuente === 'api' ? 'api' : 'legacy'
-  if (sucursalId) {
-    // En demo no se guarda ni la sucursal ficticia (#204).
-    guardarDemo(SUC_KEY, sucursalId)
-  }
-  if (!ctx.empresaId) {
+  const siguiente = { empresaId: empresaId || null, sucursalId: sucursalId || null, userId: userId || null, rol: rol || null, permisos: Array.isArray(permisos) ? [...new Set(permisos)].sort() : null }
+  const modo = fuente === 'api' ? 'api' : 'legacy'
+  const cambioEmpresa = ctx.empresaId !== siguiente.empresaId
+  const cambio = identidadActual() !== JSON.stringify(siguiente) || fuenteDatos !== modo
+  if (cambio) {
+    invalidarConsultas()
+    if (ctx.empresaId || !siguiente.empresaId) void invalidarSnapshotsPrivados()
     vaciarCache()
-    notify()
-    return
   }
+  if (cambioEmpresa) registrarCambioDeEmpresa(empresaId)
+  Object.assign(ctx, siguiente)
+  fuenteDatos = modo
+  tokenSnapshot = apiMode() ? activarContextoSnapshots(ctx) : null
+  contextoApiValidado = apiMode() && Boolean(ctx.empresaId && ctx.userId && ctx.rol)
+  if (sucursalId) guardarDemo(SUC_KEY, sucursalId)
+  if (!ctx.empresaId) { vaciarCache(); notify(); return }
   if (cambioEmpresa && !apiMode()) bootFromMirror()
   notify()
   if (apiMode()) await hydrateApi()
@@ -611,6 +621,7 @@ export function listAuditoria() {
 
 // ── PRODUCTOS ───────────────────────────────────────────────────────
 export function getProductos() {
+  if (!ctx.empresaId) return []
   if (apiMode()) return cache.productos
   // Modo local: sembramos defaults la primera vez.
   if (!isDemoRuntime && cache.productos.length === 0) {

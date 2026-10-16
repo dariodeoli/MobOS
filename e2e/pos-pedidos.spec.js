@@ -1,6 +1,7 @@
 import { test, expect } from './helpers/seller-test.js'
 import { openShellDestination } from './helpers/shell-navigation.js'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { codigoPedido } from '../src/utils/pedido.js'
 import { SEED } from './helpers/seed-data.js'
 
@@ -182,4 +183,75 @@ test('pedidos: la nota del pedido se edita desde el detalle', async ({ page }) =
   await page.getByLabel('Nota del pedido').fill(nota)
   await page.getByRole('button', { name: 'Guardar nota' }).click()
   await expect(page.getByTestId("pedido-notas").getByText(nota)).toBeVisible({ timeout: 15_000 })
+})
+
+// #509: el selector de empresas no debe consultar autorización de cuenta
+// personal cuando la sesión real de tienda no tiene esa capacidad.
+test('sesión #509 vendedor sin cuenta conserva Pedidos tras recarga y DTO malformado no habilita empresas', async ({page}) => {
+  const listado=[]
+  page.on('request',r=>{if(new URL(r.url()).pathname==='/api/auth/tenants')listado.push(r.url())})
+  const me=await page.request.get(`${API}/api/auth/me`,{headers:{Origin:process.env.MOBOS_APP_URL}})
+  expect(me.status()).toBe(200)
+  expect((await me.json()).user.canManageCompanies).toBe(false)
+  await page.goto('/pedidos')
+  await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
+  await page.reload()
+  await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
+  for(const malformed of ['true',1,null]){
+    await page.route('**/api/auth/me',async route=>{
+      const response=await route.fetch(),body=await response.json()
+      body.user.canManageCompanies=malformed
+      await route.fulfill({response,json:body})
+    })
+    await page.reload()
+    await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
+    await page.unroute('**/api/auth/me')
+  }
+  expect(listado).toEqual([])
+})
+
+test('sesión #509 revocada realmente retira datos y respaldo sin perder cola',async({page,context})=>{
+  // Empresa/PIN propios: logout también revoca la cookie COMPANY. El estado
+  // sembrado es compartido con admin.json y no se debe revocar desde este test.
+  const login=await page.request.post(`${API}/api/auth/login`,{data:{email:SEED.company.email,password:SEED.company.password,deviceId:`qa509-revocation-${Date.now()}`}})
+  expect(login.status()).toBe(200)
+  const seller=(await login.json()).sellers.find(s=>s.name===SEED.sellers[0].name)
+  expect(seller?.id).toBeTruthy()
+  const pin=await page.request.post(`${API}/api/auth/pin`,{headers:{Origin:process.env.MOBOS_APP_URL},data:{sellerId:seller.id,pin:SEED.sellers[0].pin}})
+  expect(pin.status()).toBe(200)
+  await page.goto('/pedidos')
+  await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
+  await page.evaluate(async()=>{
+    const store=(await import('/src/lib/offline/idb.js')).crearStoreDeCola()
+    await store.guardar({id:'queue509',idempotencyKey:'keep509',payload:{total:1234}})
+  })
+  const real401=page.waitForResponse(r=>r.url().startsWith(API+'/api/')&&r.status()===401)
+  const response=await page.request.post(`${API}/api/auth/logout`,{headers:{Origin:new URL(page.url()).origin}})
+  expect(response.status()).toBe(200)
+  // Una consulta en background puede invalidar antes del refresco explícito.
+  // Acreditamos el401 HTTP real y la purga, no el orden de dos rechazos.
+  await page.evaluate(async()=>{await(await import('/src/lib/api/client.js')).api.get('/api/auth/me',{cacheMs:0}).catch(()=>{})})
+  expect((await real401).status()).toBe(401)
+  const denied=await page.evaluate(async()=>{
+    const storage=await import('/src/lib/storage.js')
+    await storage.refrescar().catch(()=>{})
+    return{products:storage.getProductos(),orders:storage.listVentas()}
+  })
+  expect(denied).toEqual({products:[],orders:[]})
+  await context.setOffline(true)
+  const offline=await page.evaluate(async()=>{
+    const storage=await import('/src/lib/storage.js')
+    await storage.refrescar()
+    return{products:storage.getProductos(),orders:storage.listVentas(),queue:await(await import('/src/lib/offline/idb.js')).crearStoreDeCola().listar()}
+  })
+  expect(offline.products).toEqual([]);expect(offline.orders).toEqual([])
+  expect(offline.queue).toEqual([expect.objectContaining({id:'queue509',idempotencyKey:'keep509'})])
+  await context.setOffline(false)
+})
+
+
+test('sesión #509 capacidad server y alcance de cuenta personal con HTTP/PG reales',async()=>{
+  const databaseUrl=`postgresql://postgres@127.0.0.1:${process.env.MOBOS_E2E_PGPORT}/${process.env.MOBOS_E2E_DB}`
+  const result=execFileSync(process.execPath,['backend/tests/auth-context509.mjs',API,databaseUrl],{encoding:'utf8'})
+  expect(result).toContain('8 checks PASS')
 })

@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     amountPyg: methods.reduce((sum, row) => sum + row.amountPyg, 0),
     count: methods.reduce((sum, row) => sum + row.count, 0),
   }
-  // Correcciones de pagos de turnos cerrados: no tocan el efectivo del día pero se informan.
+  // Correcciones tardías: se informa el ajuste y si ya afectó la caja de hoy (legados pueden ser solo informativos).
   const corrections = await dayCorrections(prisma, tenant, branchId, start, endDay)
   // Efectivo del día por moneda (#455): lo realmente entregado menos reembolsos y vuelto, sin apertura.
   const cashByCurrency = await cashExpectedByCurrency(prisma, tenant, branchId, start, new Date(endDay.getTime() - 1))

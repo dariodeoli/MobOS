@@ -10,7 +10,7 @@ export default function WhatsAppSucursal({ contacto, className = '' }) {
         target="_blank"
         rel="noreferrer"
         data-testid="publico-whatsapp"
-        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ok px-5 py-2 text-sm font-semibold text-black"
+        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ok px-5 py-2 text-sm font-semibold text-on-ok"
       >
         Escribir por WhatsApp{contacto.sucursal ? ` · ${contacto.sucursal}` : ''}
       </a>

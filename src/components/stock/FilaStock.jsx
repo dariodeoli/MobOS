@@ -452,8 +452,8 @@ export function FilaStock({ colores, item, vista = 'unidades', verCosto = false,
       ) : null}
       {verCosto ? <span className="flex items-center justify-end text-right"><CostoStock item={item} /></span> : null}
       <span className="flex items-center pl-1"><EstadoStock item={item} /></span>
-      {vista === 'vendidos' ? <span className="text-xs text-mute" title={`Vendido el ${fechaVentaStock(item)}`}>{fechaVentaStock(item)}</span> : null}
-      {vista === 'eliminados' ? <span className="truncate text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
+      {vista === 'vendidos' ? <span className="text-xs pl-sec" title={`Vendido el ${fechaVentaStock(item)}`}>{fechaVentaStock(item)}</span> : null}
+      {vista === 'eliminados' ? <span className="truncate text-[11px] pl-sec">Conserva su historial de auditoría</span> : null}
       <span className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
         {vista === 'eliminados' && onRestaurar ? (
           <Button type="button" className="min-h-11 px-3 text-xs" disabled={busy} onClick={onRestaurar}>Restaurar</Button>

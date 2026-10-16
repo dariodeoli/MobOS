@@ -11,6 +11,35 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.229 — 2026-10-15
+
+- **Buscador:** buscar cotizaciones conserva la sesión y consulta únicamente las secciones habilitadas para tu usuario.
+
+- **Elección de IMEI:** si cambia el acceso al stock, se cierra el selector con una explicación y la venta espera que verifiques la sesión.
+
+- **Reabrir la app:** una sesión de vendedor conserva sus pedidos y catálogo al recargar; el selector de empresas consulta solo cuando la cuenta puede gestionarlas. La foto se actualiza después de validar el contexto. La entrada demo conserva perfiles y teclado táctil sin desplazamiento en el formato móvil revisado.
+
+- **Cotizaciones y recepción:** convertir una cotización demo conserva su descuento en el pedido, saldo y ficha del cliente. La tarjeta de recepción cuenta solo los IMEI que faltan completar.
+
+- **Ingreso móvil:** el PIN usa una pantalla completa con tienda, sucursal y teclado circular propio; tocarlo no abre el teclado del teléfono. El login normal cabe sin deslizar y mantiene visibles la demo, recuperación y avisos legales. El texto ampliado y el alta extensa conservan desplazamiento accesible.
+
+- **Enlaces de clientes:** carrito, informe y alternativa muestran la marca y el contacto de su sucursal. Los logos respetan el acceso del documento y el vencimiento o revocación del enlace; el checkout usa el teléfono de la sucursal.
+
+- **Remitos compartidos:** las observaciones internas del traslado y la recepción permanecen en la gestión privada; el enlace del cliente conserva la confirmación de recepción.
+
+- **Accesibilidad:** al abrir un editor sobre una ficha, se anuncia una sola ventana activa. Al cerrarlo, el foco vuelve al botón que lo abrió.
+
+- **Datos sin conexión:** la copia privada queda separada por usuario, empresa, sucursal y permisos. Salir o perder acceso retira los datos privados y conserva las ventas pendientes de sincronizar. Las respuestas de la sesión anterior no alimentan la nueva.
+
+- **Impresión:** las hojas, recibos y etiquetas toman el color de la empresa; los colores demasiado claros o inválidos conservan el color legible de respaldo. Las hojas de estación usan la misma identidad.
+- **Seguridad web:** cambiar de sesión ya no permite recuperar respuestas privadas del caché del navegador. La página inicial sigue disponible sin conexión.
+
+- **Celular, tablet y escritorio:** Taller muestra antes las órdenes y vuelve desde arriba; Productos cabe en tablet. Clientes y Stock conservan filas compactas, controles cómodos y estados legibles en ambos temas. Vender conserva íconos por categoría cuando falta la foto. Las vistas de clientes revisadas mejoran contraste, botones y nombres completos sin cambiar los impresos. La demo consulta RUC reales en OwnData y conserva el nombre fiscal aceptado; permite guardar, reabrir y editar identidades localmente. El editor fiscal se adapta al teclado del iPhone para mantener alcanzables los campos y Guardar.
+- **Compras y demo:** los filtros se reúnen en una hoja del celular, el paso actual queda visible y preparación/recepción tienen controles táctiles de 44 px. La revisión del IMEI se explica con palabras simples. Las demos nuevas incluyen 60 teléfonos y las sesiones guardadas se conservan.
+- **Cobrar:** los botones indican cuándo están listos al cambiar de paso; el primer toque disponible avanza y se mantiene la protección contra cobros duplicados.
+- **Caja:** la auditoría demo respeta el día de Paraguay también después de las 21:00. Corregir un pago de una caja cerrada aplica el ajuste al efectivo de hoy del cobrador original, conserva el cierre anterior y no cuenta otra venta. Abrir, cerrar y corregir al mismo tiempo se coordinan para conservar el saldo. El motivo y quién corrigió quedan en el historial.
+- **Acceso y políticas:** al pedir salir o cambiar usuario desde el PIN, los datos de ventas permanecen ocultos. Los enlaces de vuelta del login y las notificaciones rechazan destinos que escapan de MobOS. Editar las políticas exige la cuenta propietaria vinculada al perfil activo de esa empresa; el rol administrador por sí solo no alcanza. La página pública mantiene el acceso sin sesión.
+
 ## v1.0.228 — 2026-10-15
 
 - **Reparto:** tarifas con vigencia, varios viajes por pedido y cierre semanal del repartidor; los ajustes dejan motivo e historial y el cobro al cliente se mantiene separado.

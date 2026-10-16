@@ -46,7 +46,7 @@ const usd = (row) => Number(row?.priceUsd ?? 0)
 
 // Tabla compacta del catálogo: una fila por producto, encabezados ordenables y
 // el precio/stock siempre en la misma columna.
-const GRID_CATALOGO = 'grid min-w-[61rem] grid-cols-[1.5rem_minmax(9rem,1.6fr)_7rem_6.5rem_8rem_6.5rem_5.5rem_7rem_4.5rem] items-center gap-x-2'
+const GRID_CATALOGO = 'grid min-w-0 grid-cols-[2.75rem_minmax(0,1.6fr)_5rem_6.5rem_minmax(0,1fr)_8rem_3rem] xl:grid-cols-[2.75rem_minmax(0,1.6fr)_5rem_6.5rem_minmax(0,1fr)_8rem_5.5rem_8rem_3rem] items-center gap-x-2'
 const usdTexto = (row) => usd(row) > 0 ? montoUsd(usd(row)) : '—'
 
 // Sin condición cargada el catálogo dice «Nuevo»; el color de la fila también.
@@ -63,19 +63,19 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar, colores 
       tabIndex={0}
       data-testid="producto-fila"
       onClick={onClick}
-      onKeyDown={(event) => { if (event.key === 'Enter') onClick?.() }}
-      className={cn(GRID_CATALOGO, 'cond-color cursor-pointer rounded-lg px-3.5 py-1.5 transition hover:border-fono/40')}
+      onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onClick?.() } }}
+      className={cn(GRID_CATALOGO, 'cond-color min-h-11 cursor-pointer rounded-lg px-3.5 py-px transition hover:border-fono/40')}
     >
-      <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
+      <label className="flex h-11 w-11 items-center justify-center" onClick={(event) => event.stopPropagation()}>
         <input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
-      </span>
+      </label>
       <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}><FotoProducto src={fotoDe(row)} size={24} icono={categoriaMeta(row).icon} className="mr-1.5 align-middle" />{row.name}{textoCompatibilidad(row) && <span className="ml-1.5 text-[11px] font-normal text-mute">{textoCompatibilidad(row)}</span>}</span>
       <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{categoriaMeta(row).label}</span>
       <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
       <span className="truncate font-mono text-[11px] text-mute" title={row.sku || undefined}>{row.sku || 'Sin SKU'}</span>
-      <span className="truncate text-right text-[11px] tabular-nums text-mute">{mayorista(row) > 0 ? gs(mayorista(row)) : '—'}</span>
-      <span className="truncate text-right text-[11px] tabular-nums text-mute">{usdTexto(row)}</span>
-      <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
+      <span className="hidden whitespace-nowrap text-right text-xs tabular-nums text-mute xl:block">{mayorista(row) > 0 ? gs(mayorista(row)) : '—'}</span>
+      <span className="hidden whitespace-nowrap text-right text-xs tabular-nums text-mute xl:block">{usdTexto(row)}</span>
+      <span className="whitespace-nowrap text-right text-sm font-bold tabular-nums text-fore">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
       <span className={cn('justify-self-end rounded-md border px-1.5 py-0.5 text-[10px] font-bold tabular-nums', stock > 0 ? 'border-ok/25 bg-ok/10 font-bold text-fore' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock}</span>
     </div>
   )
@@ -153,7 +153,7 @@ export default function SellerCatalog() {
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: ['mayorista', 'usd', 'precio', 'stock'].includes(key) ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
-    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('min-h-11 flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
       {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
     </button>
   )
@@ -228,7 +228,7 @@ export default function SellerCatalog() {
   const hayCosto = data.rows.some((fila) => (fila.costPyg ?? fila.precioCosto) != null)
   const valorCosto = data.rows.reduce((suma, fila) => suma + Number(fila.costPyg ?? fila.precioCosto ?? 0) * Number(fila.stock || 0), 0)
 
-  return <SellerSection title="Productos">
+  return <SellerSection title="Productos"><div data-testid="catalogo-productos" className="min-w-0 space-y-3 max-lg:[&_button]:min-h-11 max-lg:[&_button]:min-w-11">
     {/* #256: barra de módulo única (identidad + acciones juntas). */}
     <BarraModulo
       icono="phone"
@@ -271,12 +271,12 @@ export default function SellerCatalog() {
       </form>
       <Select aria-label="Filtrar por categoría" className="w-auto" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
       <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
-      <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition md:min-h-9', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
+      <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition lg:min-h-9', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
       {!movil && <ListGridToggle value={vista} onChange={cambiarVista} />}
     {chipsAcc.length > 0 && (
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="chips-accesorio">
         {[{ clave: 'todas', label: 'Todos', icon: 'grid' }, ...chipsAcc].map((chip) => (
-          <button key={chip.clave} type="button" aria-pressed={accesorio === chip.clave} onClick={() => setAccesorio(chip.clave)} className={cn('inline-flex min-h-11 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition md:min-h-8', accesorio === chip.clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>
+          <button key={chip.clave} type="button" aria-pressed={accesorio === chip.clave} onClick={() => setAccesorio(chip.clave)} className={cn('inline-flex min-h-11 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition lg:min-h-8', accesorio === chip.clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>
             <Icon name={chip.icon} className="h-3.5 w-3.5" />{chip.label}{chip.cantidad != null && <span className="tabular-nums opacity-70">{chip.cantidad}</span>}
           </button>
         ))}
@@ -285,26 +285,26 @@ export default function SellerCatalog() {
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
-      <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={() => setEtiquetasOpen(true)}>Etiquetas</button>
-      <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={() => setPreviewPrecios(true)} data-testid="copiar-precios">Copiar precios</button>
-      <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={exportarSeleccionados}>Exportar CSV</button>
+      <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore lg:min-h-0" onClick={() => setEtiquetasOpen(true)}>Etiquetas</button>
+      <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore lg:min-h-0" onClick={() => setPreviewPrecios(true)} data-testid="copiar-precios">Copiar precios</button>
+      <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore lg:min-h-0" onClick={exportarSeleccionados}>Exportar CSV</button>
     </BarraLote>
-    {!data.loading && !data.error && rows.length > 0 && vista === 'list' && <div className="overflow-x-auto" data-testid="catalogo-tabla">
+    {!data.loading && !data.error && rows.length > 0 && vista === 'list' && <div className="min-w-0" data-testid="catalogo-tabla">
       <div className={cn(GRID_CATALOGO, 'px-3.5 pb-2 pt-1')}>
-        <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={ordenadas.length > 0 && seleccionados.length === ordenadas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(ordenadas, actuales))} />
+        <label className="flex h-11 w-11 items-center justify-center"><input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={ordenadas.length > 0 && seleccionados.length === ordenadas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(ordenadas, actuales))} /></label>
         {encabezado('producto', 'Producto')}
         {encabezado('categoria', 'Categoría')}
         {encabezado('condicion', 'Condición')}
         {encabezado('sku', 'SKU')}
-        {encabezado('mayorista', 'Mayorista', 'justify-end')}
-        {encabezado('usd', 'USD', 'justify-end')}
+        {encabezado('mayorista', 'Mayorista', 'hidden justify-end xl:flex')}
+        {encabezado('usd', 'USD', 'hidden justify-end xl:flex')}
         {encabezado('precio', 'Precio', 'justify-end')}
         {encabezado('stock', 'Stock', 'justify-end')}
       </div>
       <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} colores={colores} />)}</div>
     </div>}
     {!data.loading && !data.error && vista === 'grid' && <div className={cn('grid grid-cols-1 gap-2 md:grid-cols-2 min-[1200px]:grid-cols-3', movil && 'gap-2')}>{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 lg:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={rows} seleccionInicial={seleccionados} />
     {/* #307: copiar precios muestra antes lo que se copia; nada sobrescribe sin preview. */}
@@ -326,5 +326,5 @@ export default function SellerCatalog() {
       </div>
     </Modal>
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
-  </SellerSection>
+  </div></SellerSection>
 }

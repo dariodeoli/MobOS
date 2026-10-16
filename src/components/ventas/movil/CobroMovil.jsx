@@ -117,6 +117,10 @@ export default function CobroMovil({
   const [teclado, setTeclado] = useState('pago') // 'pago' | 'recibido'
   const [parcialAbierto, setParcialAbierto] = useState(false)
   const cambioDePaso = useRef(0)
+  const esperaPaso = useRef(null)
+  const [esperandoPaso, setEsperandoPaso] = useState(false)
+
+  useEffect(() => () => clearTimeout(esperaPaso.current), [])
 
   // Filas vacías (p. ej. USD/BRL sin cotización ni importe) no son pagos.
   const reales = pagos.filter(pagoReal)
@@ -128,6 +132,10 @@ export default function CobroMovil({
 
   function irA(siguiente) {
     cambioDePaso.current = Date.now()
+    clearTimeout(esperaPaso.current)
+    // La UI debe mostrar el mismo bloqueo que aplica el guard de doble toque.
+    setEsperandoPaso(true)
+    esperaPaso.current = setTimeout(() => setEsperandoPaso(false), MS_ANTIREBOTE)
     setPaso(siguiente)
   }
   const tocoRapido = () => Date.now() - cambioDePaso.current < MS_ANTIREBOTE
@@ -349,7 +357,7 @@ export default function CobroMovil({
                 type="button"
                 data-testid="teclado-aceptar"
                 className="min-h-14 text-base"
-                disabled={(() => {
+                disabled={esperandoPaso || (() => {
                   const monto = montoDeTeclado(digitos)
                   return teclado === 'recibido' ? monto < aPagar || monto <= 0 : monto <= 0 || monto > saldo
                 })()}
@@ -378,6 +386,7 @@ export default function CobroMovil({
             <Button
               type="button"
               data-testid="recibido-exacto"
+              disabled={esperandoPaso || guardando}
               className="min-h-14 w-full text-base"
               onClick={() => agregarPago(medio, aPagar, aPagar)}
             >
@@ -387,12 +396,13 @@ export default function CobroMovil({
               type="button"
               variant="outline"
               data-testid="recibido-otro"
+              disabled={esperandoPaso || guardando}
               className="min-h-14 w-full text-base"
               onClick={sinRebote(() => abrirTeclado('recibido', 0))}
             >
               Otro monto
             </Button>
-            <Button type="button" variant="ghost" className="min-h-11 w-full" onClick={sinRebote(volverAMedios)}>
+            <Button type="button" variant="ghost" className="min-h-11 w-full" disabled={esperandoPaso || guardando} onClick={sinRebote(volverAMedios)}>
               Cancelar
             </Button>
           </div>
@@ -410,12 +420,13 @@ export default function CobroMovil({
             <Button
               type="button"
               data-testid="cuenta-marcar-pagado"
+              disabled={esperandoPaso || guardando}
               className="min-h-14 w-full text-base"
               onClick={() => agregarPago(medio, aPagar)}
             >
               Marcar como pagado
             </Button>
-            <Button type="button" variant="ghost" data-testid="cuenta-cancelar" className="min-h-14 w-full text-base font-bold text-bad-text" onClick={sinRebote(volverAMedios)}>
+            <Button type="button" variant="ghost" data-testid="cuenta-cancelar" className="min-h-14 w-full text-base font-bold text-bad-text" disabled={esperandoPaso || guardando} onClick={sinRebote(volverAMedios)}>
               Cancelar
             </Button>
           </div>
@@ -475,7 +486,7 @@ export default function CobroMovil({
               variant="primary"
               data-testid="cobro-confirmar-venta"
               className="h-auto min-h-14 w-full px-5 py-3 text-base"
-              disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
+              disabled={esperandoPaso || !valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
               onClick={event => { if (tocoRapido()) event.preventDefault() }}
             >
               <span className="font-bold">{etiquetaConfirmar}</span>

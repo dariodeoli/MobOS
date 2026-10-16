@@ -1,3 +1,4 @@
+import './compras.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { resources } from '@/lib/api'
@@ -125,7 +126,7 @@ export default function ComprasCentro() {
   }
 
   return (
-    <div className="space-y-4" data-testid="compras-centro">
+    <div className="compras-flujo space-y-4" data-testid="compras-centro">
       <BarraModulo icono="store" titulo="Compras del Centro" testId="barra-compras-centro">
         <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
           <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
@@ -155,7 +156,7 @@ export default function ComprasCentro() {
             const activa = compra.status === 'COMPRADA'
             const cancelable = ['COMPRADA', 'PREPARANDO', 'EN_TRANSITO'].includes(compra.status)
             return (
-              <Card key={compra.id} className="px-3 py-1.5" data-testid="compra-centro-fila">
+              <Card key={compra.id} className={`px-3 ${expandida ? 'py-1.5' : 'py-px'}`} data-testid="compra-centro-fila">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <div className="min-w-[14rem] flex-1">
                     <p className={CELDA_IDENTIDAD} title={`${compra.code} · ${compra.supplierName || compra.supplier?.name || 'Sin proveedor'}`}>

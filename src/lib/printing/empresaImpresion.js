@@ -24,6 +24,7 @@ export function normalizarTenant(tenant = null) {
   return {
     name,
     ruc: texto(tenant.ruc),
+    brandColor: texto(tenant.brandColor || tenant.primaryColor || tenant.colorMarca),
     address: texto(tenant.address || tenant.direccion),
     city: texto(tenant.city || tenant.ciudad),
     department: texto(tenant.department),

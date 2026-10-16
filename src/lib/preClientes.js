@@ -51,12 +51,14 @@ function escribir(empresaId, filas) {
 // nada útil que ofrecer después, así que se ignora.
 export function guardarPreCliente(empresaId, datos, { dias = DIAS_DEFAULT, ahora = () => Date.now() } = {}) {
   const documento = normalizarDocumento(datos?.document)
-  const nombre = normalizarNombre(datos?.name)
-  if (!empresaId || !documento || !nombre) return null
+  const official = typeof datos?.nameOfficial === 'string' ? datos.nameOfficial : undefined
+  const nombre = official ?? normalizarNombre(datos?.name)
+  if (!empresaId || !documento || !nombre.trim()) return null
   const filas = leer(empresaId, { ahora }).filter((fila) => normalizarDocumento(fila.document) !== documento)
   const borrador = {
     document: String(datos.document).trim(),
     name: nombre,
+    ...(official === undefined ? {} : { nameOfficial: official, displayName: datos.displayName || '' }),
     ...(datos.phone ? { phone: String(datos.phone).trim() } : {}),
     ...(datos.countryCode ? { countryCode: String(datos.countryCode).trim() } : {}),
     ...(datos.email ? { email: String(datos.email).trim() } : {}),

@@ -1,18 +1,9 @@
-// #234: en la demo pública el extractor de RUC funciona sin llamar al API:
-// resuelve con un resultado ficticio marcado como simulado (mismo patrón que el
-// IMEI, #219) y los datos se aplican solo al confirmar ("Usar estos datos").
+// #498: demo consulta GET público OwnData (mock QA), sin escrituras de negocio.
 import { test, expect } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
-import { join } from 'node:path'
 import { silenciarAvisoMetricas } from './helpers/demo.js'
+import { mockRucPublic } from './helpers/ruc-public.js'
 
 test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
-
-const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
-// La medición anónima de la demo (/api/public/track, #438) es la única llamada permitida.
-const esLlamadaApi = (url) => (url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')) && !url.includes('/api/public/track')
-const DIR = join('test-results', 'qa-234')
-mkdirSync(DIR, { recursive: true })
 
 // La guía "Cómo funciona la demo" se abre sola en la primera visita y tapa la
 // pantalla: se espera a que aparezca (no siempre está al primer render) y se
@@ -25,15 +16,17 @@ async function cerrarGuia(page) {
   await expect(guia).toBeHidden()
 }
 
-test('demo: el extractor de RUC simula el resultado y espera confirmación', async ({ page }) => {
-  const llamadas = []
-  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+test('demo: el extractor de RUC consulta OwnData público y espera confirmación', async ({ page }) => {
+  const api = await mockRucPublic(page)
 
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await expect(page).toHaveURL(/\/pos$/)
-  const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
-  if (await guia.count()) await expect(guia.getByText('RUC simulado')).toBeVisible()
+  await page.getByRole('button', { name: 'Cómo funciona', exact: true }).click()
+  const guide = page.getByRole('dialog', { name: 'Cómo funciona la demo', exact: true })
+  await expect(guide.getByText('Consulta real de RUC', { exact: true })).toBeVisible()
+  await expect(guide.getByText(/El extractor consulta datos reales en OwnData/)).toBeVisible()
+  await expect(guide.getByText('RUC simulado', { exact: true })).toHaveCount(0)
   await cerrarGuia(page)
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
@@ -48,28 +41,28 @@ test('demo: el extractor de RUC simula el resultado y espera confirmación', asy
   await expect(boton).toBeEnabled()
   await boton.click()
 
-  // Mismo recorrido que la consulta real: "Consultando…" con spinner y después
-  // el resultado, acá ficticio y marcado como simulado.
-  await expect(raiz.getByText('Consultando…')).toBeVisible()
-  await expect(raiz.getByText('Simulada en demo')).toBeVisible()
-  const nombreSimulado = (await raiz.locator('b').first().innerText()).trim()
-  expect(nombreSimulado).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
-  await raiz.screenshot({ path: join(DIR, '234-demo-pos-simulado-despues.png') })
+  // La respuesta mínima pública se admite, pero exige consentimiento.
+  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+  await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
+  const nombreOficial = (await raiz.locator('b').first().innerText()).trim()
+  expect(nombreOficial).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
 
   // Sin confirmación no se pisa nada.
   await expect(cliente).toHaveValue('Cliente Demo QA234')
   await expect(ruc).toHaveValue('80012345-0')
 
-  // Con "Usar estos datos" entra la razón social simulada (el RUC ya estaba).
+  // Con "Usar estos datos" entra la razón social oficial del mock QA.
   await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
   await expect(raiz.getByText('Simulada en demo')).toBeHidden()
-  await expect(cliente).toHaveValue(nombreSimulado)
+  await expect(cliente).toHaveValue(nombreOficial)
   await expect(ruc).toHaveValue('80012345-0')
 
-  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+  expect(api.calls.length).toBeGreaterThan(0)
+  api.assertClean()
 })
 
-test('demo: un RUC inválido se rechaza con el mensaje del proveedor', async ({ page }) => {
+test('demo: DV inválido se rechaza antes de consultar OwnData', async ({ page }) => {
+  const api = await mockRucPublic(page)
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await cerrarGuia(page)
@@ -82,13 +75,13 @@ test('demo: un RUC inválido se rechaza con el mensaje del proveedor', async ({ 
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
   await expect(raiz.getByRole('alert')).toHaveText(/RUC/)
+  expect(api.calls).toEqual([])
+  api.assertClean()
 })
 
-// #234 · seguimiento: la empresa privada (Config → Negocio) también simula en
-// demo y aplica la razón social solo al confirmar.
-test('demo: la empresa privada extrae simulada y no pisa sin confirmar', async ({ page }) => {
-  const llamadas = []
-  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+// La empresa privada consulta el mismo endpoint público y espera confirmación.
+test('demo: la empresa privada consulta OwnData público y no pisa sin confirmar', async ({ page }) => {
+  const api = await mockRucPublic(page)
 
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
@@ -104,24 +97,24 @@ test('demo: la empresa privada extrae simulada y no pisa sin confirmar', async (
   await ruc.fill('80012345-0')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
-  await expect(raiz.getByText('Simulada en demo')).toBeVisible()
-  const razonSimulada = (await raiz.locator('b').first().innerText()).trim()
-  expect(razonSimulada).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
-  await raiz.screenshot({ path: join(DIR, '234-demo-privados-empresa-despues.png') })
+  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+  await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
+  const razonOficial = (await raiz.locator('b').first().innerText()).trim()
+  expect(razonOficial).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
 
   // Sin confirmación el nombre cargado no se toca.
   await expect(nombre).toHaveValue('EMPRESA CARGADA A MANO')
   await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
-  await expect(nombre).toHaveValue(razonSimulada)
-  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+  await expect(nombre).toHaveValue(razonOficial)
+  expect(api.calls.length).toBeGreaterThan(0)
+  api.assertClean()
 })
 
-// Demo: una CI sin guion también extrae simulada y "Usar estos datos" completa
+// Demo: una CI sin guion también consulta OwnData público y "Usar estos datos" completa
 // el formulario; la ciudad del mismo formulario sugiere ciudades de Paraguay
 // (catálogo de la biblioteca, sin API) y completa el departamento.
-test('demo: CI en Clientes extrae simulada y la ciudad autocompleta con departamento', async ({ page }) => {
-  const llamadas = []
-  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+test('demo: CI en Clientes consulta OwnData público y la ciudad autocompleta con departamento', async ({ page }) => {
+  const api = await mockRucPublic(page)
 
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
@@ -132,14 +125,15 @@ test('demo: CI en Clientes extrae simulada y la ciudad autocompleta con departam
   await ruc.fill('1234567')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
-  await expect(raiz.getByText('Simulada en demo')).toBeVisible()
+  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+  await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
   await expect(raiz.getByText('RUC 1234567-9')).toBeVisible()
-  const nombreSimulado = (await raiz.locator('b').first().innerText()).trim()
+  const nombreOficial = (await raiz.locator('b').first().innerText()).trim()
   await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
   await expect(raiz.getByText('Simulada en demo')).toBeHidden()
   // La razón social queda como nombre fiscal del formulario y el RUC se completa con su DV.
   await expect(ruc).toHaveValue('1234567-9')
-  expect(nombreSimulado).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
+  expect(nombreOficial).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
 
   const ciudad = page.getByPlaceholder('Ej: Asunción, Ciudad del Este…').or(page.getByPlaceholder('Ciudad')).first()
   await ciudad.fill('Ciudad del')
@@ -148,5 +142,6 @@ test('demo: CI en Clientes extrae simulada y la ciudad autocompleta con departam
   await opcion.click()
   await expect(ciudad).toHaveValue('Ciudad del Este')
   await expect(page.getByText('Departamento: Alto Paraná')).toBeVisible()
-  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+  expect(api.calls.length).toBeGreaterThan(0)
+  api.assertClean()
 })

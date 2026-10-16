@@ -1,4 +1,5 @@
 import { isNativeIOS } from '../plataforma.js'
+import { rutaInterna } from '../urls.js'
 
 // Notificaciones push (APNs) de la app de iPhone. El permiso se pide en
 // contexto, después del primer ingreso y con un aviso previo propio (ver
@@ -41,7 +42,8 @@ export function rutaDeNotificacion(datos) {
       const url = new URL(ruta, 'https://app.moboss.online')
       if (/(^|\.)moboss\.online$/.test(url.hostname)) ruta = `${url.pathname}${url.search}${url.hash}`
     } catch { /* ruta relativa o inválida */ }
-    if (ruta.startsWith('/') && !ruta.startsWith('//')) return ruta
+    const interna = rutaInterna(ruta)
+    if (interna) return interna
   }
   const id = datos.orderId || datos.pedidoId
   if (typeof id === 'string' && /^[\w-]{1,64}$/.test(id)) return `/pedidos/${encodeURIComponent(id)}`

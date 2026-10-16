@@ -202,8 +202,9 @@
     justify-content: flex-end;
   }
   .taller-f3-money { display: flex; align-items: baseline; gap: 12px; }
-  .taller-f3 .taller-f3-row button { min-height: 0; min-width: 32px; }
-  .taller-f3 .taller-f3-actions button { height: 32px; }
+  .taller-f3 .taller-f3-row { padding-block: 1px; }
+  .taller-f3 .taller-f3-row button { min-height: 44px; min-width: 44px; }
+  .taller-f3 .taller-f3-actions button { height: 44px; }
 }
 
 .taller-f3 [data-testid='resumen-taller'] p {

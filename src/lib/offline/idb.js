@@ -67,6 +67,7 @@ export function crearStoreDeCola() {
 export function crearStoreDeSnapshots() {
   return {
     leer: (clave) => leerDe(SNAPSHOTS, clave),
+    limpiar: () => conAlmacen(SNAPSHOTS, 'readwrite', almacen => almacen.clear()),
     guardar: (clave, datos) => guardarEn(SNAPSHOTS, { clave, datos, guardadoEn: Date.now() }),
     borrar: (clave) => borrarDe(SNAPSHOTS, clave),
   }

@@ -74,7 +74,7 @@
   text-transform: none;
   letter-spacing: normal;
 }
-/* Catálogo denso: nombre en 2 líneas, precio y stock en una, sin tile de icono. */
+/* Catálogo: nombre en 2 líneas; la miniatura no reduce su ancho en celular. */
 .pos-product-name {
   display: -webkit-box;
   -webkit-line-clamp: 2;

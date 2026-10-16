@@ -131,7 +131,7 @@ test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ p
 
   // La primera columna es iPhone 15 Pro Max y toma el color de la foto subida.
   await openShellDestination(page, 'Comparador')
-  await page.getByRole('button', { name: 'Titanio', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Color Titanio', exact: true }).first().click()
   await expect(page.locator('main img[alt="iPhone 15 Pro Max Titanio"]:visible')).toBeVisible()
   await page.screenshot({ path: join(DIR, 'comparador-con-foto-1280-light.png') })
 })

@@ -6,8 +6,8 @@ import { mkdir } from 'node:fs/promises'
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-login-qa'
 
 async function tema(page, oscuro) {
-  // Sin backend: toda llamada a la API responde 503 y la sesión queda «fuera».
-  await page.route('**/api/**', (route) => !new URL(route.request().url()).pathname.startsWith('/api/') ? route.continue() : route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Frontend-only harness"}' }))
+  // Sin backend: /auth/me responde401 (sesión ausente); los demás endpoints503.
+  await page.route('**/api/**', (route) => !new URL(route.request().url()).pathname.startsWith('/api/') ? route.continue() : route.fulfill({ status: new URL(route.request().url()).pathname === '/api/auth/me' ? 401 : 503, contentType: 'application/json', body: '{"error":"Frontend-only harness"}' }))
   await page.route(/https:\/\//, (route) => route.abort())
   await page.emulateMedia({ colorScheme: oscuro ? 'dark' : 'light' })
   await page.addInitScript((d) => { try { localStorage.setItem('mobos:theme', d ? 'dark' : 'light') } catch { /* sin storage */ } document.documentElement.classList.toggle('dark', d) }, oscuro)
@@ -46,7 +46,7 @@ for (const [width, nombre] of [[1440, 'login-1440'], [375, 'login-375']]) {
       // El ThemeToggle y el Google button son compartidos; se exige a lo propio del acceso.
       expect(m.chicos.filter((x) => !/tema|modo|claro|oscuro/i.test(x.n)), JSON.stringify(m.chicos)).toEqual([])
       expect(m.bajos, JSON.stringify(m.bajos)).toEqual([])
-      await page.screenshot({ path: `${out}/${nombre}${oscuro ? '-dark' : ''}.png` })
+      if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${out}/${nombre}${oscuro ? '-dark' : ''}.png` })
     })
   }
 }
@@ -58,12 +58,13 @@ for (const width of [1440, 375]) {
     await page.goto('/demo', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Elegí un perfil y entrá' })).toBeVisible()
     await expect(page.getByRole('button', { name: /Entrar como/ })).toHaveCount(6)
-    await page.getByLabel('Ingresar otro PIN').fill('9999')
+    if (width < 768) { for (const d of '9999') await page.getByRole('button', { name: `Dígito ${d}`, exact: true }).click() }
+    else await page.getByLabel('Ingresar otro PIN').fill('9999')
     await expect(page.locator('#demo-pin-status')).toContainText('PIN incorrecto')
     const m = await medir(page)
     expect(m.scroll).toBeLessThanOrEqual(m.ancho)
     expect(m.chicos.filter((x) => !/tema|modo|claro|oscuro/i.test(x.n)), JSON.stringify(m.chicos)).toEqual([])
-    await page.screenshot({ path: `${out}/demo-${width}.png` })
+    if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${out}/demo-${width}.png` })
   })
 }
 

@@ -5,6 +5,11 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 // La búsqueda global (Ctrl+K) cubre cotizaciones: el resultado aparece
 // agrupado por tipo y Enter abre el listado con el filtro aplicado.
 test('búsqueda global: encuentra una cotización por su número y la abre filtrada', async ({ page }) => {
+  const consultasNoAutorizadas = []
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname
+    if (['/api/warranties', '/api/purchases', '/api/suppliers', '/api/suppliers/badges', '/api/inventory-units'].includes(path)) consultasNoAutorizadas.push(path)
+  })
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
@@ -49,4 +54,5 @@ test('búsqueda global: encuentra una cotización por su número y la abre filtr
 
   await expect(page).toHaveURL(/\/cotizaciones\?q=/)
   await expect(page.getByText(cotizacion.number).first()).toBeVisible()
+  expect(consultasNoAutorizadas, '#510: buscar no consulta fuentes fuera del menú del vendedor').toEqual([])
 })

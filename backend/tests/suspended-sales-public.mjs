@@ -49,10 +49,15 @@ try {
 
   const interna = 'NOTA-INTERNA-QUE-NO-SE-EXPONE'
   const telefonoCliente = '0981555000'
+  const proveedorPrivado = 'PROVEEDOR-PRIVADO-CANARIO-403'
+  const codigoMovPrivado = 'MOV-CANARIO-INTERNO-403'
   const borrador = await prisma.suspendedSale.create({ data: {
     tenantId: tenant.id, branchId: branch.id, userId: vendedor.id, label: 'Carrito E2E',
-    payload: { items: [{ productoId: 'p1', nombre: 'iPhone E2E', quantity: 2, precio: 500000, descuento: 0, costo: 300000 }], descuento: '0', montoDelivery: '0', observacion: 'Entregar por la tarde', interno: interna },
+    payload: { items: [{ productoId: 'p1', nombre: 'iPhone E2E', quantity: 2, precio: 500000, descuento: 0, costo: 300000, supplierName: proveedorPrivado, supplier: { name: proveedorPrivado }, internalCode: codigoMovPrivado }], descuento: '0', montoDelivery: '0', observacion: 'Entregar por la tarde', interno: interna, customerPhone: telefonoCliente, supplierName: proveedorPrivado, internalCode: codigoMovPrivado },
   } })
+  const privadoGuardado = JSON.stringify(borrador.payload)
+  ok(privadoGuardado.includes(proveedorPrivado) && privadoGuardado.includes(codigoMovPrivado), 'los canarios de proveedor y MOV existen en el borrador privado')
+  ok(privadoGuardado.includes(telefonoCliente) && privadoGuardado.includes(interna), 'teléfono y nota privada están presentes para que sus negativos no sean vacíos')
   const ajeno = await prisma.suspendedSale.create({ data: { tenantId: otroTenant.id, branchId: otroBranch.id, userId: otroUser.id, payload: { items: [] } } })
 
   const sinSesion = await PATCH(new Request('https://api.example.test/api/suspended-sales', { method: 'PATCH', headers: { origin: 'https://app.example.test', 'content-type': 'application/json' }, body: JSON.stringify({ id: borrador.id }) }))
@@ -73,6 +78,8 @@ try {
   const serializado = JSON.stringify(carrito)
   ok(!serializado.includes(interna) && !serializado.includes(telefonoCliente), 'no expone notas internas ni teléfono del cliente')
   ok(!('payload' in carrito) && !serializado.includes('costo') && !serializado.includes('publicTokenHash'), 'no expone payload, costos ni el hash')
+  ok(!serializado.includes(proveedorPrivado), 'el nombre real del proveedor no aparece en ninguna parte del carrito público')
+  ok(!serializado.includes(codigoMovPrivado), 'el código MOV interno no aparece en ninguna parte del carrito público')
   ok('expiresAt' in carrito, 'la vista informa el vencimiento')
 
   await prisma.$executeRaw`UPDATE "SuspendedSale" SET "publicTokenExpiresAt" = now() - interval '1 minute' WHERE "id" = ${borrador.id}`

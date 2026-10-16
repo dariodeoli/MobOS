@@ -162,3 +162,41 @@ test('pedido: línea de tiempo con los cuatro pasos, WhatsApp de la tienda y tot
   await expect(page.getByTestId('resumen-totales')).toContainText('8.050.000')
   await expect(page.getByTestId('resumen-totales')).not.toContainText('…')
 })
+
+// #403/#370: datos válidos largos e importes habituales de Gs 100 millones.
+// Medir el contenido, no ocultar el desborde en el viewport.
+for (const ancho of [320, 375, 768, 1280]) {
+  for (const esquema of ['light', 'dark']) {
+    test(`pedido público con textos largos e importe completo ${ancho}px ${esquema}`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 850 })
+      await page.emulateMedia({ colorScheme: esquema })
+      const largo = 'ImportadoraInternacionalDeEquiposYServicioTecnicoEspecializadoParaguay'
+      const payload = {
+        ...pedido,
+        company: { name: largo },
+        branch: { ...branch, name: largo, address: 'https://tienda.example/servicio-tecnico-y-entregas/asuncion/consultas-y-garantias' },
+        orderNumber: 'PEDIDO-ASUNCION-0000000123',
+        customerName: largo,
+        items: [{ ...items[0], description: largo, unitPricePyg: 100000000, totalPyg: 100000000 }],
+        totalPyg: 100000000, subtotalPyg: 100000000, paidPyg: 0, pendingPyg: 100000000,
+        payments: [],
+      }
+      await preparar(page, { ...PAGINAS[0], payload })
+      await page.goto(PAGINAS[0].ruta, { waitUntil: 'domcontentloaded' })
+      await expect(page.getByTestId('estado-pedido')).toBeVisible()
+      const medidas = await medir(page)
+      expect(medidas.desborde, 'datos largos sin scroll horizontal').toBeLessThanOrEqual(0)
+      const total = page.getByTestId('resumen-totales')
+      await expect(total).toContainText('100.000.000')
+      await expect(total).not.toContainText('…')
+      const fuera = await total.evaluate(el => {
+        const caja = el.getBoundingClientRect()
+        return [...el.querySelectorAll('span, p, dd')].filter(n => {
+          const r = n.getBoundingClientRect()
+          return r.width && (r.right > caja.right + 1 || r.left < caja.left - 1 || n.scrollWidth > n.clientWidth + 1)
+        }).map(n => n.textContent)
+      })
+      expect(fuera, 'todos los importes caben completos en su contenedor').toEqual([])
+    })
+  }
+}

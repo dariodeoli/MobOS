@@ -37,6 +37,14 @@ if [[ ! -f "$BACKEND_ROOT/.next/BUILD_ID" ]]; then
   exit 1
 fi
 
+# RUC público demo: cuotas atómicas contra su propio PostgreSQL, proveedor mock.
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/ruc-demo-pg.mjs"
+
+# Contrato de privacidad del carrito: su propio PostgreSQL descartable evita
+# heredar una URL o contaminar los datos/contadores del arnés HTTP principal.
+echo "Carrito público: token, vencimiento y ausencia de datos internos (#403)..."
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/suspended-sales-public.mjs"
+
 free_port() {
   node -e "const net=require('net'); const s=net.createServer(); s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port)); s.close();});"
 }
@@ -619,6 +627,8 @@ node "$BACKEND_ROOT/tests/customer-merge.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN
 
 echo "Multi-empresa: cambio de empresa, listado, alta, revocación y seguridad 1-8 (#377)..."
 node "$BACKEND_ROOT/tests/tenant-switch.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
+# #509: capacidad real de cuenta sin invalidar sesiones de tienda.
+node "$BACKEND_ROOT/tests/auth-context509.mjs" "$BASE_URL" "$DATABASE_URL"
 
 echo "Pedidos: cliente ocasional, crear/cambiar/quitar ficha con auditoría (#149)..."
 node "$BACKEND_ROOT/tests/orders-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN"
@@ -848,6 +858,9 @@ node "$BACKEND_ROOT/tests/arrivals-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_
 echo "Verificación de stock: check por fila, deshacer 1 minuto y sesión por escaneo..."
 node "$BACKEND_ROOT/tests/stock-verification-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$ADMIN_TOKEN_C" "$DATABASE_URL"
 
+# Políticas públicas: dueño real, datos mínimos sin sesión y borradores privados (#433).
+node "$BACKEND_ROOT/tests/policies-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$ADMIN_TOKEN_C" "$DATABASE_URL"
+
 echo "Cobro del POS: paga al recibir, encomienda y cliente bloqueado (#399)..."
 node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN"
 
@@ -933,5 +946,8 @@ node "$BACKEND_ROOT/tests/gift-cards.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
 echo "Datos y plata consistentes (#461): saldos en todas las pantallas, esperado de caja, numeración, residuo y comprobante..."
 node "$BACKEND_ROOT/tests/datos-consistentes.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
+echo "Remito público: las observaciones internas no salen del registro privado (#503)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/public-pages403-pg.mjs"
 
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito, gift cards y logout."

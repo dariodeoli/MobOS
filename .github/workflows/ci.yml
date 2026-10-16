@@ -186,6 +186,49 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+      - name: Private API service worker isolation
+        if: matrix.shard == 1
+        run: npx playwright test --config e2e/sw-isolation.frontend.config.js
+      - name: RUC demo and mobile regressions
+        if: matrix.shard == 1
+        env:
+          MOBOS_QA_PORT: "5297"
+          MOBOS_QA_OUT: /tmp/mobos-ruc498-ci
+          MOBOS_QA_SCREENSHOTS: "0"
+        run: npx playwright test --config e2e/ruc498-all.frontend.config.js
+      - name: Private POS snapshot context isolation
+        if: matrix.shard == 1
+        env:
+          MOBOS_QA_PORT: "5342"
+        run: npx playwright test --config e2e/snapshot502.frontend.config.js
+      - name: Printed document company branding
+        if: matrix.shard == 1
+        env:
+          MOBOS_QA_PORT: "5341"
+          MOBOS_QA_OUT: /tmp/mobos-print402-ci
+        run: npx playwright test --config e2e/printing402.frontend.config.js
+      - name: Public document branding and privacy UI
+        if: matrix.shard == 2
+        env:
+          MOBOS_QA_PORT: "5334"
+          MOBOS_QA_OUT: /tmp/mobos-public403-ci
+        run: npx playwright test --config e2e/publicas-extra.frontend.config.js
+      - name: Global search respects role capabilities
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/busqueda510.frontend.config.js
+      - name: Mobile PIN and login layout
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5344"
+        run: npx playwright test --config e2e/pin-login504.frontend.config.js
+      - name: Demo quote, cash and reception flows
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5345"
+        run: npx playwright test --config e2e/demo461.frontend.config.js
+      - name: Demo access and public report layout
+        if: matrix.shard == 4
+        run: npx playwright test --config e2e/demo-acceso.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:

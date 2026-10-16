@@ -3,6 +3,7 @@ import { CACHE_GET_MS, cacheDeConsultas } from './requestCache'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { guardarTokens, opcionesDeSesion } from './nativo'
 import { isNativeIOS } from '../plataforma'
+import { generacionSnapshots, invalidarSnapshotsPrivados, esDenegacionPrivada } from '../offline/snapshot'
 
 // La variable del Hub tiene prioridad, salvo el host legado: un build con la
 // URL anterior provoca un redirect entre orígenes y el navegador bloquea el
@@ -41,7 +42,10 @@ function controlDeEspera(signal, timeoutMs) {
 }
 
 // Vacía la caché de consultas (logout, cambio de empresa o de vendedor).
+let revisionConsultas = 0
 export function invalidarConsultas() {
+  revisionConsultas++
+  consultasEnVuelo.clear()
   cacheDeConsultas.invalidarTodo()
 }
 
@@ -60,9 +64,9 @@ const consultasEnVuelo = new Map()
 
 /** Cliente fetch aislado. No reemplaza ni conoce la implementación de storage.js. */
 export function request(path, options = {}) {
-  // Demo pública (#192): el panel funciona con datos locales y ninguna llamada
-  // puede salir al API real. Los componentes que necesitan datos usan el modo
-  // demo de storage.js; acá queda la barrera central.
+  // Demo pública (#192): las operaciones de tienda usan datos locales y esta
+  // barrera permanece cerrada. La consulta real RUC (#498) tiene un transporte
+  // público específico, sin sesión; nunca usa una excepción genérica aquí.
   if (isDemoRuntime) {
     return Promise.reject(new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' }))
   }
@@ -91,13 +95,15 @@ export function request(path, options = {}) {
   if (compartible) {
     consultasEnVuelo.set(clave, promesa)
     // Limpieza sin propagar el rechazo a nadie: cada llamador recibe la suya.
-    const limpiar = () => consultasEnVuelo.delete(clave)
+    const limpiar = () => { if (consultasEnVuelo.get(clave) === promesa) consultasEnVuelo.delete(clave) }
     promesa.then(limpiar, limpiar)
   }
   return promesa
 }
 
 async function ejecutarConsulta({ path, init, body, headers, metodo, clave, ventana, signal, timeoutMs }) {
+  const revision = revisionConsultas
+  const generacion = generacionSnapshots()
   const espera = controlDeEspera(signal, timeoutMs)
   const multipart = typeof FormData !== 'undefined' && body instanceof FormData
   const sesion = opcionesDeSesion(path)
@@ -133,16 +139,26 @@ async function ejecutarConsulta({ path, init, body, headers, metodo, clave, vent
     espera.limpiar()
   }
 
-  const payload = await readBody(response)
+  if (revision !== revisionConsultas) throw new ApiError('El contexto de acceso cambió.', { code: 'CONTEXT_CHANGED' })
+  // El estado HTTP deniega aunque el cuerpo esté vacío o tenga JSON inválido.
+  const denegadoPorEstado = CODIGOS_QUE_INVALIDAN.has(response.status)
+  if (denegadoPorEstado) { invalidarConsultas(); await invalidarSnapshotsPrivados({ siGeneracion: generacion }) }
+  let payload
+  try { payload = await readBody(response) } catch (error) {
+    if (!denegadoPorEstado) throw error
+    payload = null
+  }
+  if (!denegadoPorEstado && revision !== revisionConsultas) throw new ApiError('El contexto de acceso cambió.', { code: 'CONTEXT_CHANGED' })
   if (signal?.aborted) throw new ApiError('La solicitud fue cancelada.', { code: 'REQUEST_ABORTED' })
-  if (!response.ok) {
-    if (CODIGOS_QUE_INVALIDAN.has(response.status)) cacheDeConsultas.invalidarTodo()
+  const denegado = denegadoPorEstado || esDenegacionPrivada(payload)
+  if (!response.ok || denegado) {
+    if (denegado && !denegadoPorEstado) { invalidarConsultas(); await invalidarSnapshotsPrivados({ siGeneracion: generacion }) }
     const retryAfter = response.status === 429 ? Number(response.headers.get('retry-after')) : 0
     const retryHint = Number.isFinite(retryAfter) && retryAfter > 0
       ? ` Reintentá en ${Math.ceil(retryAfter)} s.`
       : response.status === 429 ? ' Reintentá en unos segundos.' : ''
     throw new ApiError(`${payload?.message || `La API respondió con ${response.status}.`}${retryHint}`, {
-      status: response.status,
+      status: response.ok && denegado ? 403 : response.status,
       code: payload?.code || (response.status === 401 ? 'UNAUTHORIZED' : 'API_ERROR'),
       details: payload?.details ?? payload,
     })
@@ -175,11 +191,16 @@ export async function apiFetch(path, options = {}) {
     throw new ApiError('VITE_API_URL no está configurada.', { code: 'API_NOT_CONFIGURED' })
   }
   const sesion = opcionesDeSesion(path)
-  return fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, {
+  const revision = revisionConsultas
+  const generacion = generacionSnapshots()
+  const response = await fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, {
     credentials: sesion.credentials,
     ...options,
     headers: { ...sesion.headers, ...(options.headers || {}) },
   })
+  if (revision !== revisionConsultas) throw new ApiError('El contexto de acceso cambió.', { code: 'CONTEXT_CHANGED' })
+  if (CODIGOS_QUE_INVALIDAN.has(response.status)) { invalidarConsultas(); await invalidarSnapshotsPrivados({ siGeneracion: generacion }) }
+  return response
 }
 
 export { API_URL }

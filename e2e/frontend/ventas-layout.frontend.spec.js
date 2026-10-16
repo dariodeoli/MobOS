@@ -401,3 +401,100 @@ for (const [width, height] of [
     await page.screenshot({ path: `${out}/pedido-pro-${width}.png`, fullPage: true })
   })
 }
+
+
+// #396/#370: controles utilizables y contenido dentro de la pantalla en cada breakpoint.
+for (const dark of [false, true]) {
+  test(`#396 responsive de Taller, Productos y Comparador ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    test.setTimeout(120_000)
+    await enterDemo(page)
+    if (dark) await setDark(page)
+    for (const width of [375, 390, 768, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const [ruta, selector] of [['/servicio', '.taller-f3'], ['/productos', '[data-testid="seller-section"]'], ['/comparador', '[data-testid="barra-comparador"]']]) {
+        await page.goto(ruta)
+        await settle(page)
+        const root = ruta === '/servicio' ? page.locator(selector) : page.locator('main').first()
+        await expect(root).toBeVisible()
+        const medidas = await root.evaluate(el => {
+          const visible = nodo => nodo.getClientRects().length && getComputedStyle(nodo).visibility !== 'hidden'
+          const botones = [...el.querySelectorAll('button')].filter(visible)
+          return {
+            scroll: document.documentElement.scrollWidth > innerWidth,
+            interiores: [...el.querySelectorAll('[data-testid="catalogo-tabla"], [data-testid="servicio-tabla"]')].filter(visible).map(nodo => ({ ancho: nodo.clientWidth, contenido: nodo.scrollWidth })),
+            pequenos: botones.filter(nodo => { const r = nodo.getBoundingClientRect(); return r.height < 43.9 || r.width < 43.9 }).map(nodo => nodo.getAttribute('aria-label') || nodo.textContent.trim() || nodo.title),
+            primeraOrden: el.querySelector('[data-testid="servicio-fila"]')?.getBoundingClientRect().top,
+          }
+        })
+        const etiqueta = `${ruta} ${width}px ${dark ? 'dark' : 'light'}`
+        console.log('RESPONSIVE', etiqueta, JSON.stringify({ ...medidas, pequenos: width < 1024 ? medidas.pequenos : undefined }))
+        expect.soft(medidas.scroll, etiqueta).toBe(false)
+        for (const caja of medidas.interiores) expect.soft(caja.contenido, etiqueta).toBeLessThanOrEqual(caja.ancho)
+        if (width < 1024) expect.soft(medidas.pequenos, etiqueta).toEqual([])
+        if (ruta === '/servicio' && width < 640) expect.soft(medidas.primeraOrden, 'Primera orden accesible sin nueve filas de controles').toBeLessThanOrEqual(430)
+      }
+    }
+  })
+}
+
+
+test('#448 Taller vuelve a Servicio y arriba al regresar desde otra sección', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await enterDemo(page)
+  await openShellDestination(page, 'Taller y garantías')
+  await page.locator('.taller-f3').getByRole('button', { name: 'Más acciones', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Ver tablero', exact: true }).click()
+  await expect(page.getByRole('group', { name: 'Ver taller o garantías', exact: true }).getByRole('button', { name: 'Tablero', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.evaluate(() => window.scrollTo(0, 900))
+  await openShellDestination(page, 'Inicio')
+  await openShellDestination(page, 'Taller y garantías')
+  await expect(page.locator('.taller-f3')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Ver taller o garantías', exact: true })).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+})
+
+
+test('#396 Productos tablet: selección accesible independiente de abrir la ficha', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await enterDemo(page)
+  await openShellDestination(page, 'Productos')
+  const fila = page.getByTestId('producto-fila').first()
+  const casilla = fila.getByRole('checkbox')
+  await casilla.focus()
+  await page.keyboard.press('Space')
+  await expect(casilla).toBeChecked()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await fila.focus()
+  await page.keyboard.press('Space')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+
+for (const dark of [false, true]) {
+  test(`#396 Configuración móvil y aviso demo legibles ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await enterDemo(page)
+    if (dark) await setDark(page)
+    for (const width of [375, 390, 768]) {
+      await page.setViewportSize({ width, height: 900 })
+      await openShellDestination(page, 'Configuración')
+      const lista = page.getByTestId('config-grupos')
+      await expect(lista.locator('[data-tab-id]')).toHaveCount(7)
+      for (const item of await lista.locator('[data-tab-id]').all()) {
+        expect((await item.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      }
+      const aviso = page.getByTestId('demo-aviso')
+      const marco = await aviso.boundingBox()
+      for (const boton of await aviso.getByRole('button').all()) {
+        const caja = await boton.boundingBox()
+        // Los enlaces compactos usan la superficie táctil ::after del kit compartido.
+        const altoTactil = await boton.evaluate(el => Math.max(el.getBoundingClientRect().height, parseFloat(getComputedStyle(el, '::after').height) || 0))
+        expect(altoTactil).toBeGreaterThanOrEqual(44)
+        expect(caja.x).toBeGreaterThanOrEqual(marco.x)
+        expect(caja.x + caja.width).toBeLessThanOrEqual(marco.x + marco.width)
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+    }
+  })
+}

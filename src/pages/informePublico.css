@@ -1,0 +1,14 @@
+/* #403: legibilidad del informe en pantalla. La ficha premium conserva sus
+   tamaños y composición originales al imprimir; no cambia owncoding-ui. */
+@media screen {
+  .informe-publico [class~="text-[11px]"] {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .informe-publico h2.truncate {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+}

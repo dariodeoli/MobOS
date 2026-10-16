@@ -86,3 +86,17 @@ export function nombreSugeridoDeCuenta(valores = {}) {
   if (valores.accountNumber) partes.push(`Cuenta ${valores.accountNumber}`)
   return partes.filter(Boolean).join(' - ')
 }
+
+// El extractor no acredita PERSON ni separa nombres. Aplicar exige revisar
+// todos los campos, sin conservar fragmentos del titular anterior.
+export function aplicarIdentidadTitular(current, result) {
+  const official = result?.nameOfficial ?? result?.name
+  if (typeof official !== 'string' || !official.trim()) return current
+  return { ...current, firstName: '', middleName: '', otherName: '', lastName: '', secondLastName: '',
+    document: result.fullRuc || current.document, nameOfficial: official, personConfirmed: false }
+}
+export function validarRevisionTitular(data) {
+  if (data.nameOfficial === undefined) return
+  if (typeof data.nameOfficial !== 'string' || !data.nameOfficial.trim() || data.nameOfficial.length > 2000) throw new Error('Revisá el nombre fiscal consultado (hasta 2000 caracteres).')
+  if (!data.personConfirmed) throw new Error('Revisá y confirmá los nombres y apellidos antes de guardar el titular.')
+}

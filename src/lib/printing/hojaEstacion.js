@@ -3,6 +3,7 @@ import { estadoInventario } from '../../utils/inventario.js'
 import { bateriaDe, gradoDe } from '../tallerRack.js'
 import { APP_NAME } from '../brand.js'
 import { datosEncabezado } from './empresaImpresion.js'
+import { acentoDeEmpresa } from './ventaPapel.js'
 import { CONDICIONES, pieDocumentoHtml } from './bloquesDocumento.js'
 
 // Hoja de estación del modo taller (#240 §4): lista imprimible de los equipos
@@ -13,22 +14,22 @@ import { CONDICIONES, pieDocumentoHtml } from './bloquesDocumento.js'
 // - `buildStationSheetHtml(unidades, { estacion })`: una hoja (uso clásico).
 // - `buildStationSheetsHtml(grupos, { fecha })`: **en serie**, una hoja por
 //   estación en un solo documento (cada carril sale en su propia página).
-export function buildStationSheetHtml(unidades = [], { estacion = 'Taller', fecha = new Date(), logo = '' } = {}) {
-  return documentoDeHojas([{ estacion, unidades }], { fecha, logo })
+export function buildStationSheetHtml(unidades = [], { estacion = 'Taller', fecha = new Date(), logo = '', tenant } = {}) {
+  return documentoDeHojas([{ estacion, unidades }], { fecha, logo, tenant })
 }
 
-export function buildStationSheetsHtml(grupos = [], { fecha = new Date(), logo = '' } = {}) {
+export function buildStationSheetsHtml(grupos = [], { fecha = new Date(), logo = '', tenant } = {}) {
   const lista = (Array.isArray(grupos) ? grupos : [])
     .map(({ estacion, unidades } = {}) => ({ estacion: estacion || 'Taller', unidades: Array.isArray(unidades) ? unidades : [] }))
     .filter((grupo) => grupo.unidades.length)
-  return documentoDeHojas(lista.length ? lista : [{ estacion: 'Taller', unidades: [] }], { fecha, logo })
+  return documentoDeHojas(lista.length ? lista : [{ estacion: 'Taller', unidades: [] }], { fecha, logo, tenant })
 }
 
 const fechaLarga = (fecha) => (fecha instanceof Date && !Number.isNaN(fecha.getTime())
   ? fecha.toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '')
 
-function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha, logo = '' } = {}) {
+function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha, logo = '', tenant } = {}) {
   const filas = unidades.map((unit, indice) => {
     const nombre = unit?.product?.name || unit?.product?.nombre || 'Equipo'
     const estado = estadoInventario(unit)
@@ -45,7 +46,7 @@ function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha, lo
     </tr>`
   }).join('')
   const fechaTexto = fechaLarga(fecha)
-  const empresa = datosEncabezado()
+  const empresa = datosEncabezado({ tenant })
 
   return `<section class="hoja">
 <div class="brand"><div class="emp">${logo ? `<img class="logo" src="${escapeHtml(logo)}" alt="">` : ''}<div class="rz">${escapeHtml(empresa.razon || APP_NAME)}</div>${empresa.lineas.map((linea) => `<div class="sub">${escapeHtml(linea)}</div>`).join('')}</div><div class="doc"><div class="tipo">Hoja de estación</div><div class="num">${escapeHtml(estacion)}</div>${fechaTexto ? `<div class="cuando">${escapeHtml(fechaTexto)}</div>` : ''}</div></div>
@@ -57,8 +58,9 @@ ${pieDocumentoHtml({ condiciones: CONDICIONES.estacion, tieneQr: false, aviso: '
 </section>`
 }
 
-function documentoDeHojas(grupos, { fecha, logo = '' } = {}) {
-  const hojas = grupos.map((grupo) => hojaDeEstacion(grupo, { fecha, logo })).join('')
+function documentoDeHojas(grupos, { fecha, logo = '', tenant } = {}) {
+  const acento = acentoDeEmpresa(datosEncabezado({ tenant }).tenant)
+  const hojas = grupos.map((grupo) => hojaDeEstacion(grupo, { fecha, logo, tenant })).join('')
   const titulo = grupos.length === 1 ? `Hoja de estación · ${grupos[0].estacion}` : `Hojas de estación (${grupos.length})`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title><style>
 @page{size:A4;margin:18mm 14mm 14mm}
@@ -66,13 +68,13 @@ function documentoDeHojas(grupos, { fecha, logo = '' } = {}) {
 body{margin:0;font:12px/1.45 ui-sans-serif,system-ui,sans-serif;color:#10161f}
 .hoja{page-break-after:always}
 .hoja:last-child{page-break-after:auto}
-.brand{display:flex;justify-content:space-between;gap:18px;border-bottom:2px solid #0c8876;padding-bottom:10px;margin-bottom:14px}
+.brand{display:flex;justify-content:space-between;gap:18px;border-bottom:2px solid ${acento};padding-bottom:10px;margin-bottom:14px}
 .brand .logo{display:block;height:15mm;max-width:60mm;object-fit:contain;margin:0 0 5px}
 .brand .rz{font-size:15px;font-weight:800;line-height:1.25;overflow-wrap:anywhere;max-width:100%}
 .pie-doc{border-top:1px solid #d9dde1;margin-top:12px;padding-top:10px;break-inside:avoid}.pie-doc .condiciones{font-size:10px;color:#3b424a;line-height:1.5}.pie-doc .condiciones strong{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:#666d75;margin-bottom:2px}
 .brand .sub{font-size:10.5px;color:#3b424a;line-height:1.45}
 .brand .doc{text-align:right}
-.brand .tipo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#0c8876}
+.brand .tipo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:${acento}}
 .brand .num{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
 .brand .cuando{font-size:10.5px;color:#666d75;margin-top:2px}
 .meta{color:#5b6570;font-size:11px;margin-bottom:12px}

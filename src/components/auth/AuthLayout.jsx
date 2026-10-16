@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+import { geometriaDialogoTeclado } from '@/lib/nativo/teclado'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
@@ -23,9 +25,55 @@ export default function AuthLayout({
   titulo = null,
   subtitulo = 'POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.',
   className,
+  compacto = false,
+  pin = false,
 }) {
+  const main = useRef(null)
+  useEffect(() => {
+    if (!compacto) return undefined
+    const node = main.current
+    const viewport = window.visualViewport
+    const layoutHeight = window.innerHeight
+    let keyboardHeight = 0
+    let frame
+    const update = () => {
+      const geometry = geometriaDialogoTeclado({ layoutHeight: Math.max(layoutHeight, window.innerHeight), visualHeight: viewport?.height || window.innerHeight, offsetTop: viewport?.offsetTop || 0, keyboardHeight, bodyHeight: Number.parseFloat(document.body.style.height) || 0 })
+      node.dataset.tecladoVisible = String(geometry.visible)
+      node.style.setProperty('--auth-viewport-height', `${geometry.height}px`)
+      const field = document.activeElement
+      if (geometry.visible && node.contains(field) && field.matches('input, textarea, select')) {
+        const rect = field.getBoundingClientRect(), area = node.getBoundingClientRect()
+        if (rect.bottom > area.bottom - 8) node.scrollTop += rect.bottom - area.bottom + 8
+        else if (rect.top < area.top + 8) node.scrollTop += rect.top - area.top - 8
+      }
+    }
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update) }
+    const show = event => { keyboardHeight = Number(event.keyboardHeight ?? event.detail?.keyboardHeight) || 0; schedule() }
+    const hide = () => { keyboardHeight = 0; schedule() }
+    viewport?.addEventListener('resize', schedule)
+    viewport?.addEventListener('scroll', schedule)
+    window.addEventListener('resize', schedule)
+    node.addEventListener('focusin', schedule)
+    for (const event of ['keyboardWillShow', 'keyboardDidShow']) window.addEventListener(event, show)
+    for (const event of ['keyboardWillHide', 'keyboardDidHide']) window.addEventListener(event, hide)
+    const observer = new MutationObserver(schedule)
+    observer.observe(document.body, { attributes: true, attributeFilter: ['style'] })
+    update()
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      viewport?.removeEventListener('resize', schedule)
+      viewport?.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      node.removeEventListener('focusin', schedule)
+      for (const event of ['keyboardWillShow', 'keyboardDidShow']) window.removeEventListener(event, show)
+      for (const event of ['keyboardWillHide', 'keyboardDidHide']) window.removeEventListener(event, hide)
+      delete node.dataset.tecladoVisible
+      node.style.removeProperty('--auth-viewport-height')
+    }
+  }, [compacto])
   return (
-    <main className={cn('auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore', isNativeIOS() && 'auth-ios')}>
+    <main ref={main} className={cn('auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore', isNativeIOS() && 'auth-ios', compacto && 'auth-login', pin && 'auth-login-pin')}>
       <div className="absolute right-4 top-4 z-20">
         <ThemeToggle />
       </div>
@@ -74,10 +122,19 @@ export function AuthPanel({ children, className }) {
 }
 
 /** Encabezado del panel: volver + logo + subtítulo (misma jerarquía siempre). */
-export function AuthPanelHeader({ volver = publicUrls.landing, volverLabel = 'Volver al inicio', subtitulo = 'Sistema de ventas para tiendas' }) {
+export function AuthPanelHeader({ volver = publicUrls.landing, volverLabel = 'Volver al inicio', subtitulo = 'Sistema de ventas para tiendas', compacto = false }) {
   // App de iPhone: sin landing a la que volver y con el logo chico para que el
   // ingreso entre en una sola pantalla (iPhone SE incluido).
   if (isNativeIOS()) return <ThemeLogo className="mb-3 w-32" />
+  if (compacto) return (
+    <div className="auth-header-compacto">
+      <div className="auth-header-fila">
+        <a href={volver} className="inline-flex min-h-11 items-center text-sm font-semibold text-fono-dark">← {volverLabel}</a>
+        <ThemeLogo className="h-7 w-auto" />
+      </div>
+      <p className="auth-header-subtitulo mb-5 text-sm text-mute">{subtitulo}</p>
+    </div>
+  )
   return (
     <>
       <a href={volver} className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← {volverLabel}</a>

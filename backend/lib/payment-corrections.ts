@@ -1,3 +1,4 @@
+import { lockCashSessionDomain } from './cash-session-lock'
 import { createHash } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { InputError, normalizePayment, objectInput, textInput } from './payment-input'
@@ -9,12 +10,8 @@ import { canCorrectPayment, staffCorrectsPaymentsFrom } from './payment-correcti
 // edita: se agrega una reversión (monto negativo, mismo medio y cuenta) y N pagos
 // nuevos que suman exactamente el original. Σ CONFIRMED del pedido no cambia.
 
-/**
- * Qué pasa con el efectivo cuando el pago salió de un turno de caja ya cerrado.
- * false = la corrección solo afecta reportes (el cierre guardado y el arqueo de
- * hoy no se tocan). Pendiente de confirmación del dueño: cambiar acá basta.
- */
-export const CLOSED_SHIFT_AFFECTS_DRAWER = false
+/** Los ajustes se registran hoy en el ledger; nunca se reescribe un cierre anterior. */
+export const CLOSED_SHIFT_AFFECTS_DRAWER = true
 
 /** Medios que v1 no corrige (422): se pagan con otro activo o tienen su propio ciclo. */
 export const UNSUPPORTED_METHODS = ['TRADE_IN', 'STORE_CREDIT', 'GIFT_CARD', 'CREDIT', 'CRYPTO'] as const
@@ -111,6 +108,19 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
 
   // Turno de origen: el del responsable del cobro que contenía la hora del pago.
   const collector = original.userId ?? original.createdById
+  // Un cierre bloquea CashSession antes de sumar pagos. Tomamos esos mismos
+  // locks (origen y turno vigente del responsable) antes de clasificar y fechar
+  // el ajuste: así nunca cae detrás de un snapshot ya calculado. El orden por
+  // id evita ciclos entre correcciones de pagos de distintos turnos.
+  if (collector && order.branchId) {
+    await lockCashSessionDomain(tx, tenantId, order.branchId, collector)
+    await tx.$queryRaw`
+      SELECT "id" FROM "CashSession"
+      WHERE "tenantId" = ${tenantId} AND "branchId" = ${order.branchId} AND "openedById" = ${collector}
+        AND (("openedAt" <= ${original.paidAt} AND ("closedAt" IS NULL OR "closedAt" >= ${original.paidAt}))
+          OR "status" = 'OPEN')
+      ORDER BY "id" FOR UPDATE`
+  }
   const originSession = collector && order.branchId
     ? await tx.cashSession.findFirst({
         where: { tenantId, branchId: order.branchId, openedById: collector, openedAt: { lte: original.paidAt }, OR: [{ closedAt: null }, { closedAt: { gte: original.paidAt } }] },
@@ -165,7 +175,12 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
     amountPyg: row.amountPyg, toDriver: row.toDriver,
   }))
   const flags = drawerFlags(originSessionOpen)
-  const now = new Date()
+  // Cash usa corte inclusivo (paidAt <= closedAt). Incluso dentro del mismo
+  // milisegundo, un ajuste posterior al cierre debe quedar fuera del snapshot.
+  const lastClosed = collector && order.branchId
+    ? await tx.cashSession.findFirst({ where: { tenantId, branchId: order.branchId, openedById: collector, closedAt: { not: null } }, orderBy: { closedAt: 'desc' }, select: { closedAt: true } })
+    : null
+  const now = new Date(Math.max(Date.now(), lastClosed?.closedAt ? lastClosed.closedAt.getTime() + 1 : 0))
 
   const correction = await tx.paymentCorrection.create({
     data: { tenantId, branchId: order.branchId, orderId: order.id, reason, createdById: actor.id, idempotencyKey, requestHash, before, after, ...flags },

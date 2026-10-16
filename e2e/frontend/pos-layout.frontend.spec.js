@@ -339,11 +339,11 @@ for (const ancho of [375, 1440]) {
   test(`miniaturas de producto: la tarjeta no crece más de 8 px (${ancho}px)`, async ({ page }) => {
     await mkdir(out, { recursive: true })
     await enterPos(page, ancho, 900)
-    const conFoto = page.locator('.pos-product-card:has([data-testid="foto-producto"])')
+    const conFoto = page.locator('.pos-product-card:has([data-testid="foto-producto"] img)')
     await expect.poll(() => conFoto.count()).toBeGreaterThan(0)
     const medidas = await page.locator('.pos-product-card').evaluateAll(tarjetas => tarjetas.map(tarjeta => {
       const foto = tarjeta.querySelector('[data-testid="foto-producto"]')
-      return { foto: Boolean(foto), alto: tarjeta.getBoundingClientRect().height, lado: foto ? Math.round(foto.getBoundingClientRect().width) : 0 }
+      return { foto: Boolean(foto?.querySelector('img')), alto: tarjeta.getBoundingClientRect().height, lado: foto ? Math.round(foto.getBoundingClientRect().width) : 0 }
     }))
     const actuales = medidas.filter(m => !m.foto).map(m => m.alto)
     expect(actuales.length).toBeGreaterThan(0)
@@ -355,5 +355,28 @@ for (const ancho of [375, 1440]) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho)
     await page.screenshot({ path: `${out}/${ancho}-pos-miniaturas.png` })
+  })
+}
+
+// #492: Vender conserva un icono de categoría cuando el producto no tiene foto.
+for (const width of [320, 390, 1440]) for (const dark of [false, true]) {
+  test(`#492 iconos de productos ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await enterPos(page, width, 900, dark)
+    const cards = page.locator('.pos-product-card')
+    await expect(cards.first()).toBeVisible()
+    const sinFoto = cards.filter({ hasNot: page.locator('img') })
+    expect(await sinFoto.count()).toBeGreaterThan(0)
+    for (const card of await sinFoto.all()) {
+      const icono = card.getByTestId('foto-producto').locator('svg')
+      await expect(icono).toBeVisible()
+      const box = await icono.boundingBox()
+      expect(box.width).toBeGreaterThan(0)
+      expect(box.height).toBeGreaterThan(0)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    for (const card of await cards.all()) {
+      const medida = await card.evaluate(el => ({ ok: el.scrollWidth <= el.clientWidth + 1, texto: el.innerText, ancho: el.clientWidth, contenido: el.scrollWidth, hijos: [...el.querySelectorAll('strong, b, span')].filter(n => n.scrollWidth > n.clientWidth + 1).map(n => ({ texto: n.textContent, ancho: n.clientWidth, contenido: n.scrollWidth, clase: n.className })) }))
+      expect(medida.ok, `tarjeta sin recorte: ${JSON.stringify(medida)}`).toBe(true)
+    }
   })
 }

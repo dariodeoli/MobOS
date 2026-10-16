@@ -140,3 +140,78 @@ test('mobile 390: Preparar compra sin scroll horizontal y con objetivos de 44 px
   await expect(page.getByTestId('preparar-compra-estado')).toBeVisible()
   expect(await sinScrollHorizontal(page)).toBe(true)
 })
+
+
+for (const dark of [false, true]) for (const width of [360, 390, 768, 1280]) {
+  test(`#396 compras: controles y contenido a ${width}px ${dark ? 'oscuro' : 'claro'}`, async ({ page }) => {
+    await entrar(page, { width, height: 900 })
+    await page.evaluate(dark => document.documentElement.classList.toggle('dark', dark), dark)
+    for (const destino of ['Por comprar', 'Preparar compra', 'Compras del Centro', 'Recepción']) {
+      await openShellDestination(page, destino)
+      const fila = { 'Por comprar': 'por-comprar-fila', 'Preparar compra': 'preparar-compra-fila', 'Compras del Centro': 'compra-centro-fila', 'Recepción': 'recepcion-llegada' }[destino]
+      await expect(page.getByTestId(fila).first()).toBeVisible()
+      expect(await sinScrollHorizontal(page), destino).toBe(true)
+      const recorrido = page.getByTestId('recorrido-abastecimiento')
+      if (await recorrido.count()) {
+        await expect.poll(() => recorrido.evaluate(nav => {
+          const activo = nav.querySelector('[aria-current="step"]').getBoundingClientRect()
+          const marco = nav.getBoundingClientRect()
+          return activo.left >= marco.left - 1 && activo.right <= marco.right + 1
+        }), { message: `${destino}: paso actual visible` }).toBe(true)
+      }
+      const medidas = await page.locator('main').last().evaluate(main => {
+        const controles = [...main.querySelectorAll('button,input,select')].filter(el => el.getClientRects().length && !el.disabled)
+        return controles.flatMap(el => {
+          const target = el.type === 'checkbox' || el.type === 'radio' ? el.closest('label') || el : el
+          const rect = target.getBoundingClientRect()
+          return rect.width < 43.5 || rect.height < 43.5 ? [{ control: el.getAttribute('aria-label') || el.textContent?.trim().slice(0, 30), width: rect.width, height: rect.height }] : []
+        })
+      })
+      expect(medidas, `${destino}: objetivos táctiles44px`).toEqual([])
+    }
+  })
+}
+
+test('#396 Por comprar: filtros móviles en hoja, conserva selección y cierra con Esc', async ({ page }) => {
+  await entrar(page, { width: 360, height: 800 })
+  await openShellDestination(page, 'Por comprar')
+  await expect(page.getByTestId('por-comprar-fila').first()).toBeVisible()
+  await expect(page.getByLabel('Prioridad', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: /^Filtros/ }).click()
+  const hoja = page.getByRole('dialog', { name: 'Filtros de compras' })
+  await hoja.getByLabel('Prioridad', { exact: true }).selectOption('ALTA')
+  await page.keyboard.press('Escape')
+  await expect(hoja).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Filtros/ })).toContainText('1')
+  await page.getByRole('button', { name: /^Filtros/ }).click()
+  await expect(hoja.getByLabel('Prioridad', { exact: true })).toHaveValue('ALTA')
+})
+
+
+test('#450 cámara continua: QR de prueba rechazado y siguiente IMEI visible sin reabrir cámara', async ({ page }) => {
+  await entrar(page)
+  await openShellDestination(page, 'Preparar compra')
+  const compra = page.getByTestId('preparar-compra-fila').filter({ hasText: 'CMP-AUR-0001' })
+  await compra.getByRole('button', { name: 'Preparar IMEI' }).click()
+  await page.evaluate(() => {
+    window.lecturasCamaraQA = []
+    window.iniciosCamaraQA = 0
+    window.BarcodeDetector = class { async detect() { const rawValue = window.lecturasCamaraQA.shift(); return rawValue ? [{ rawValue }] : [] } }
+    navigator.mediaDevices.getUserMedia = async () => { window.iniciosCamaraQA++; return new MediaStream() }
+    HTMLMediaElement.prototype.play = async () => {}
+  })
+  const antes = await page.getByTestId('escaneo-serial').count()
+  await page.getByTestId('preparar-compra-camara').click()
+  await expect(page.getByText('Escaneá cada equipo, uno tras otro. Se registran solos.')).toBeVisible()
+  const inicios = await page.evaluate(() => window.iniciosCamaraQA)
+  expect(inicios).toBeGreaterThan(0)
+  await page.evaluate(valor => window.lecturasCamaraQA.push(valor), PRUEBA)
+  await expect(page.getByTestId('preparar-compra-estado-texto')).toContainText('hoja de prueba de la impresora')
+  await expect(page.getByTestId('escaneo-serial')).toHaveCount(antes)
+  const imei = imeiDemo(751)
+  await page.evaluate(valor => window.lecturasCamaraQA.push(valor), imei)
+  await expect(page.getByTestId('preparar-compra-estado-texto')).toContainText(`IMEI ${imei} agregado`)
+  await expect(page.getByTestId('escaneo-serial').filter({ hasText: imei })).toBeVisible()
+  await expect(page.getByTestId('escaneo-serial')).toHaveCount(antes + 1)
+  expect(await page.evaluate(() => window.iniciosCamaraQA)).toBe(inicios)
+})

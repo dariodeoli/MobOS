@@ -1,4 +1,4 @@
-import { requireSession } from '../../../../lib/auth'
+import { requireSession, requireAccountContext } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { sucursalEfectiva } from '../../../../lib/sucursal-efectiva'
@@ -13,5 +13,7 @@ export async function GET(request: Request) {
   // primera creada) para que el POS resuelva catálogo, unidades y venta.
   const efectiva = session.user.branchId ? null : await sucursalEfectiva(session)
   const usuario = efectiva ? { ...session.user, branchId: efectiva } : session.user
-  return json({ user: usuario, tenant: tenant ? { id: tenant.id, name: tenant.name, slug: tenant.slug, email: tenant.email, expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct } : null, ownerProfile: identity ? { name: identity.name, picture: identity.picture } : null })
+  const cuenta = session.accountId ? await requireAccountContext(request) : null
+  const canManageCompanies = Boolean(cuenta && cuenta.tenantId === usuario.tenantId && cuenta.sellerUserId === usuario.id)
+  return json({ user: { ...usuario, canManageCompanies }, tenant: tenant ? { id: tenant.id, name: tenant.name, slug: tenant.slug, email: tenant.email, expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct } : null, ownerProfile: identity ? { name: identity.name, picture: identity.picture } : null })
 }

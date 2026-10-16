@@ -23,9 +23,9 @@ function causaRaiz(cause: unknown) {
 
 // 499 es el código convencional para "el cliente cerró la conexión": no es un
 // error del servidor, así que no se registra como error ni se responde 5xx.
-function clienteCortado(requestId: string, origin: string, ms: number) {
+function clienteCortado(requestId: string, origin: string, ms: number, publicRuc = false) {
   logInfo('middleware_client_abort', { requestId, ms })
-  return applyResponseHeaders(new NextResponse(null, { status: 499 }), origin, requestId)
+  return applyResponseHeaders(new NextResponse(null, { status: 499 }), origin, requestId, undefined, publicRuc)
 }
 
 function resolveRequestId(request: NextRequest) {
@@ -52,16 +52,17 @@ function configuredAppOrigin() {
   try { return new URL(value).origin } catch { return '' }
 }
 
-function applyResponseHeaders(response: NextResponse, origin: string, requestId: string, cacheControl = 'no-store') {
+function applyResponseHeaders(response: NextResponse, origin: string, requestId: string, cacheControl = 'no-store', publicRuc = false) {
   if (origin && ((MOBOS_ALLOWED_APP_ORIGINS as readonly string[]).includes(origin) || origin === configuredAppOrigin())) response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Idempotency-Key, X-MobOS-Client, X-Request-Id')
   response.headers.set('Vary', 'Origin')
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
+  if (publicRuc) response.headers.delete('Access-Control-Allow-Credentials')
+  else response.headers.set('Access-Control-Allow-Credentials', 'true')
   // Defensa en profundidad para toda respuesta del API. La autorización vive
   // en cada ruta; estos encabezados reducen vectores del navegador sin
   // flexibilizar CORS ni exponer información de sesión.
-  response.headers.set('Cache-Control', cacheControl)
+  response.headers.set('Cache-Control', publicRuc ? 'private, no-store' : cacheControl)
   response.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('X-Content-Type-Options', 'nosniff')
@@ -78,6 +79,10 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   const path = new URL(request.url).pathname
   const forwardHeaders = new Headers(requestHeaders)
   forwardHeaders.delete('host')
+  if (path === '/api/public/ruc') {
+    forwardHeaders.delete('authorization')
+    forwardHeaders.delete('cookie')
+  }
   // La cookie no sobrevive al fetch interno (undici la descarta): viaja por
   // un header propio. La IP real del cliente se preserva aparte porque el
   // salto interno se presenta con 127.0.0.1 en X-Forwarded-For.
@@ -119,7 +124,7 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   // #404: los bytes de una foto de producto tienen id inmutable y la ruta los declara
   // privados con caché larga; es la única excepción al no-store del API.
   const cacheFoto = method === 'GET' && status < 400 && /^\/api\/products\/[^/]+\/images\/[^/]+$/.test(path) && /^private, max-age=\d+(, immutable)?$/.test(upstream.headers.get('cache-control') || '') ? upstream.headers.get('cache-control') || undefined : undefined
-  const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId, cacheFoto)
+  const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId, cacheFoto, path === '/api/public/ruc')
   const ms = Date.now() - startedAt
   if (status >= 500) logError('request_error', { requestId, method, path, status, ms })
   // Diagnóstico temporal de accesos con cookie: un 401 inesperado en flujos
@@ -150,13 +155,14 @@ export async function middleware(request: NextRequest) {
   }
 
   const origin = request.headers.get('origin') || ''
+  const publicRuc = new URL(request.url).pathname === '/api/public/ruc'
   const requestId = resolveRequestId(request)
   const startedAt = Date.now()
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-request-id', requestId)
 
   if (request.method === 'OPTIONS') {
-    return applyResponseHeaders(new NextResponse(null, { status: 204 }), origin, requestId)
+    return applyResponseHeaders(new NextResponse(null, { status: 204 }), origin, requestId, undefined, publicRuc)
   }
 
   try {
@@ -172,13 +178,13 @@ export async function middleware(request: NextRequest) {
     return await proxyPass(request, requestHeaders, requestId, origin, startedAt)
   } catch (cause) {
     const ms = Date.now() - startedAt
-    if (request.signal.aborted) return clienteCortado(requestId, origin, ms)
+    if (request.signal.aborted) return clienteCortado(requestId, origin, ms, publicRuc)
     logError('middleware_error', {
       requestId, method: request.method, path: new URL(request.url).pathname, ms,
       error: cause instanceof Error ? cause.message : String(cause),
       causa: causaRaiz(cause) ?? null,
     })
-    return applyResponseHeaders(new NextResponse('Internal Server Error', { status: 500 }), origin, requestId)
+    return applyResponseHeaders(new NextResponse('Internal Server Error', { status: 500 }), origin, requestId, undefined, publicRuc)
   }
 }
 

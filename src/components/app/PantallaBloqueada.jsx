@@ -3,7 +3,6 @@ import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import PinSegmentado from '@/components/shared/PinSegmentado'
-import { isNativeIOS } from '@/lib/plataforma'
 import { Button, Eyebrow } from '@/components/ui'
 import { identidadDeUsuario } from '@/lib/identidad'
 import { vibrar } from '@/lib/nativo/haptics'
@@ -29,7 +28,7 @@ export default function PantallaBloqueada({
   error,
   esDemo = false,
   faceId = null,
-  tecladoTactil = isNativeIOS(),
+  tecladoTactil,
 }) {
   const [logoEmpresa, setLogoEmpresa] = useState('')
   // Identidad unificada (#211): nombre visible, primer nombre y foto con el
@@ -54,14 +53,15 @@ export default function PantallaBloqueada({
   if (!abierto) return null
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-paper p-4 [padding-top:max(1rem,env(safe-area-inset-top))]">
+    <div className="lock-overlay fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-paper p-4 [padding-top:max(1rem,env(safe-area-inset-top))]">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="lock-title"
         data-testid="pantalla-bloqueada"
-        className="mx-auto w-full max-w-sm rounded-3xl border border-ink-600 bg-ink p-5 text-center shadow-float [@media(min-height:760px)]:mt-[6vh] [@media(min-height:760px)]:p-6"
+        className="lock-screen mx-auto w-full max-w-sm rounded-3xl border border-ink-600 bg-ink p-5 text-center shadow-float [@media(min-height:760px)]:mt-[6vh] [@media(min-height:760px)]:p-6"
       >
+        <header className="lock-identidad">
         <ThemeLogo className="lock-logo mx-auto h-7 w-auto" />
 
         <span className="lock-icono mx-auto mt-4 grid [@media(max-height:760px)]:hidden h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
@@ -77,15 +77,18 @@ export default function PantallaBloqueada({
               className="h-6 w-auto max-w-[7rem] shrink-0 object-contain"
             />
           )}
-          <span className="truncate">{empresa || 'MobOS'}</span>
+          <span className="break-words">{empresa || 'MobOS'}</span>
         </h2>
         <p className="lock-sucursal mt-1 text-xs text-mute">{sucursal ? `Sucursal ${sucursal}` : 'Todas las sucursales'}</p>
 
-        <div className="mt-4 flex flex-col items-center gap-2">
+        </header>
+        <div className="lock-acceso">
+        <div className="lock-persona mt-4 flex flex-col items-center gap-2">
           <PersonaChip
             user={{ id: usuario?.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar }}
             picture={identidad.picture}
             size="xl"
+            avatarClassName="lock-avatar"
             nombreCorto
             title={identidad.nombre}
             className="justify-center"
@@ -106,6 +109,7 @@ export default function PantallaBloqueada({
               <>
               <PinSegmentado
                 id="lock-pin"
+                discreto
                 autoFocus
                 disabled={busy}
                 tecladoTactil={tecladoTactil}
@@ -119,7 +123,7 @@ export default function PantallaBloqueada({
               </>
             )}
             {esDemo && (
-              <p className="mt-3 rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-3 py-2 text-[11px] leading-4 text-mute">
+              <p className="lock-demo mt-3 rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-3 py-2 text-[11px] leading-4 text-mute">
                 Demo: PIN vendedor <strong className="text-fore">2001</strong> · dueño <strong className="text-fore">3001</strong>
               </p>
             )}
@@ -135,7 +139,7 @@ export default function PantallaBloqueada({
           </>
         )}
 
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <div className="lock-acciones mt-4 flex flex-wrap justify-center gap-2">
           {onCambiarUsuario && (
             <Button type="button" variant="outline" onClick={onCambiarUsuario}>
               Cambiar de usuario
@@ -146,6 +150,7 @@ export default function PantallaBloqueada({
               Cerrar sesión
             </Button>
           )}
+        </div>
         </div>
       </section>
     </div>

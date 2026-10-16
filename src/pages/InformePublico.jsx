@@ -1,3 +1,4 @@
+import './informePublico.css'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { codigoPedido } from '@/utils/pedido'
 import { useEffect, useState } from 'react'
@@ -15,6 +16,9 @@ import FichaCertificado from '@/components/shared/FichaCertificado'
 import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
 import { etiquetaCondicionUnidad } from '@/utils/inventario'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import { CabeceraTienda } from '@/components/publico/KitPublico'
+import { varianteDeTema } from '@/lib/tenantLogo'
 
 
 // Semáforo del checklist en el informe público (mismos tonos que la ficha).
@@ -113,12 +117,12 @@ export default function InformePublico() {
   const locksCertificado = (unit.controles || []).map((control) => ({ clave: control.clave, estado: control.ok ? 'libre' : 'activo', detalle: `${control.label}: ${control.valor}` }))
 
   return (
-    <main className={`${marco} space-y-4 pt-8`}>
-      <header className="text-center">
-        <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
-        <h1 className="mt-1 text-2xl font-bold">{store.name}</h1>
-        {store.branch && <p className="text-sm text-mute">{store.branch}</p>}
-      </header>
+    <main className={`informe-publico ${marco} space-y-4 pt-8`}>
+      <CabeceraTienda empresa={store.name} detalle={store.branch}
+        logo={isDemoRuntime || demoDelEnlace ? null : `${API_URL}/api/public/units/${encodeURIComponent(serial || '')}/logo?variant=${varianteDeTema()}`}
+        logoClaro={isDemoRuntime || demoDelEnlace ? null : `${API_URL}/api/public/units/${encodeURIComponent(serial || '')}/logo?variant=light`}>
+        <h1 className="mt-3 text-xs font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</h1>
+      </CabeceraTienda>
 
       {/* #240: certificado del dispositivo con los objetos compartidos (DSN/CMP). */}
       {/* `estado`, `puntaje`, `condicion` y `repuestos*` llegan con owncoding-ui
@@ -212,13 +216,14 @@ export default function InformePublico() {
       <p className="text-center text-xs text-mute">{disclaimer}</p>
 
       <div className="flex flex-wrap justify-center gap-2">
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={copiarEnlace}>
+        <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={copiarEnlace}>
           <Icon name="copy" className="h-4 w-4" />{copiado ? 'Enlace copiado' : 'Copiar enlace'}
         </button>
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={() => window.print()}>
+        <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 px-3 py-2 text-sm font-semibold transition hover:border-fono" onClick={() => window.print()}>
           <Icon name="printer" className="h-4 w-4" />Imprimir
         </button>
       </div>
+      <WhatsAppSucursal contacto={informe?.contacto} />
       <ProductFooter />
     </main>
   )

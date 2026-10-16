@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import pg from 'pg'
 
 // #393-B: los consumidores de pagos CONFIRMED netean las correcciones sin doble
 // conteo. Caja (turno abierto netea; turno cerrado no toca el cierre guardado y
@@ -34,8 +35,8 @@ async function ok(path, token, method, body, expected = 200, headers) {
 }
 const igual = (actual, esperado, mensaje) => { assert.equal(actual, esperado, mensaje); checks++ }
 const clave = (etiqueta) => `pcb-${sufijo}-${etiqueta}-${++secuencia}`.padEnd(16, '0')
-const corregir = (token, orderId, paymentId, body, expected = 201) =>
-  call(`/api/orders/${orderId}/payments/${paymentId}/correction`, token, 'POST', body, { 'Idempotency-Key': clave('k') })
+const corregir = (token, orderId, paymentId, body, expected = 201, operationKey = clave('k')) =>
+  call(`/api/orders/${orderId}/payments/${paymentId}/correction`, token, 'POST', body, { 'Idempotency-Key': operationKey })
     .then((result) => { assert.equal(result.status, expected, `corrección: ${JSON.stringify(result.payload)}`); checks++; return result.payload })
 
 const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10)
@@ -64,22 +65,22 @@ const baseMonto = 70000 + (Date.now() % 9000) * 10
 // Cálculo independiente de la auditoría del día en JS sobre las filas crudas de la
 // base (no repite el SQL de la ruta): suma por medio y conteo de pagos vigentes.
 function filasDelDia() {
-  const crudo = sql(`SELECT p."id", p."method", p."status", p."amountPyg", COALESCE(p."reversalOfId",''), COALESCE(c."drawerImpact"::text,''), COALESCE(p."correctionId",'')
+  const crudo = sql(`SELECT p."id", p."method", p."status", p."amountPyg", COALESCE(p."reversalOfId",''), COALESCE(c."drawerImpact"::text,''), COALESCE(p."correctionId",''), COALESCE(c."originSessionClosed"::text,'')
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId" LEFT JOIN "PaymentCorrection" c ON c."id" = p."correctionId"
     WHERE p."tenantId"='${TENANT}' AND o."branchId"='${rama}' AND p."paidAt" >= '${inicioDia}' AND p."paidAt" < '${finDia}'`.replace(/\s+/g, ' '))
   return crudo.split('\n').filter(Boolean).map((linea) => {
-    const [id, method, status, amount, reversalOfId, drawerImpact] = linea.split('|')
-    return { id, method, status, amount: Number(amount), reversalOfId, sinCajon: drawerImpact === 'false' }
+    const [id, method, status, amount, reversalOfId, drawerImpact, correctionId, originSessionClosed] = linea.split('|')
+    return { id, method, status, amount: Number(amount), reversalOfId, correctionId, tardia: originSessionClosed === 'true', sinCajon: drawerImpact === 'false' }
   })
 }
 function auditoriaEsperada() {
   const filas = filasDelDia().filter((fila) => fila.status === 'CONFIRMED' && !fila.sinCajon)
-  const revertidoConCajon = new Set(filas.filter((fila) => fila.reversalOfId).map((fila) => fila.reversalOfId))
+  const revertidoConCajon = new Set(filas.filter((fila) => fila.reversalOfId && !fila.tardia).map((fila) => fila.reversalOfId))
   const porMedio = {}
   for (const fila of filas) {
     const grupo = (porMedio[fila.method] ??= { amountPyg: 0, count: 0 })
     grupo.amountPyg += fila.amount
-    if (!fila.reversalOfId && !revertidoConCajon.has(fila.id)) grupo.count += 1
+    if (!fila.reversalOfId && !fila.tardia && !revertidoConCajon.has(fila.id)) grupo.count += 1
   }
   const totales = Object.values(porMedio).reduce((total, grupo) => ({ amountPyg: total.amountPyg + grupo.amountPyg, count: total.count + grupo.count }), { amountPyg: 0, count: 0 })
   return { porMedio, totales }
@@ -105,44 +106,57 @@ const dos = await pedidoPagado(cajera, baseMonto + 1000, efectivo, 'CASH')
 const turnoBId = (await caja()).id
 const cierre = await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 })
 const esperadoGuardado = Number(cierre.expectedPyg)
+const snapshotCierreB = sql(`SELECT row_to_json(s)::text FROM "CashSession" s WHERE s."id"='${turnoBId}'`)
 const turnoC = await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'open', openingPyg: 50000 }, 201)
 const esperadoTurnoC = Number((await caja()).expectedPyg)
 const filaBantes = (await sesiones()).find((fila) => fila.id === turnoBId)
 const auditoriaAntesC2 = await auditar()
-const c2 = await corregir(admin, dos.order.id, dos.payment.id, { reason: 'Corrección tardía', payments: [{ accountId: transferencia.id, amount: baseMonto + 1000 }] })
-igual(c2.correction.drawerImpact, false)
+const cuerpoTardio = { reason: 'Corrección tardía', payments: [{ accountId: transferencia.id, amount: baseMonto + 1000 }] }
+const claveTardia = clave('tardia')
+const c2 = await corregir(admin, dos.order.id, dos.payment.id, cuerpoTardio, 201, claveTardia)
+igual(c2.correction.drawerImpact, true)
+igual(c2.reversal.userId, dos.payment.userId, 'el responsable original conserva su atribución')
+igual(sql(`SELECT "createdById" FROM "PaymentCorrection" WHERE "id"='${c2.correction.id}'`), 'user-admin-it', 'el actor de la corrección queda auditado')
+const cajaTrasAjustar = Number((await caja()).expectedPyg)
+const replay = await corregir(admin, dos.order.id, dos.payment.id, cuerpoTardio, 200, claveTardia)
+igual(replay.correction.id, c2.correction.id, 'replay devuelve la misma corrección')
+igual(Number((await caja()).expectedPyg), cajaTrasAjustar, 'replay no vuelve a aplicar el ajuste')
+igual(Number(sql(`SELECT count(*) FROM "Payment" WHERE "correctionId"='${c2.correction.id}'`)), 2, 'solo reversión y reemplazo, sin movimiento duplicado')
+igual(sql(`SELECT row_to_json(s)::text FROM "CashSession" s WHERE s."id"='${turnoBId}'`), snapshotCierreB, 'la fila completa del cierre anterior queda idéntica')
 {
   // Efectivo cerrado de 1 venta corregido a transferencia: la venta no se duplica ni se pierde en la auditoría.
   const despues = await auditar()
   igual(despues.totals.amountPyg, auditoriaAntesC2.totals.amountPyg, 'auditoría: total del día igual tras corregir un turno cerrado')
   igual(despues.totals.count, auditoriaAntesC2.totals.count, 'auditoría: conteo igual tras corregir un turno cerrado')
-  for (const medio of ['CASH', 'TRANSFER']) igual(despues.methods.find((fila) => fila.method === medio).amountPyg, auditoriaAntesC2.methods.find((fila) => fila.method === medio).amountPyg, `auditoría ${medio}: sin cambios`)
+  for (const medio of ['CASH', 'TRANSFER']) igual(despues.methods.find((fila) => fila.method === medio).amountPyg, auditoriaAntesC2.methods.find((fila) => fila.method === medio).amountPyg + (medio === 'CASH' ? -1 : 1) * (baseMonto + 1000), `auditoría ${medio}: ajuste de hoy`)
 }
 igual(Number(sql(`SELECT "expectedPyg" FROM "CashSession" WHERE "id"='${turnoBId}'`)), esperadoGuardado, 'el cierre guardado no cambia')
-igual(Number((await caja()).expectedPyg), esperadoTurnoC, 'el turno vigente no recibe la reversión de un turno cerrado')
+igual(Number((await caja()).expectedPyg), esperadoTurnoC - baseMonto - 1000, 'la caja vigente del responsable original recibe el ajuste de hoy')
 const filas = await sesiones()
 const filaB = filas.find((fila) => fila.id === turnoBId)
 igual(filaB.efectivoPyg, filaBantes.efectivoPyg, 'el efectivo del turno cerrado queda igual')
 igual(filaB.esperadoPyg, esperadoGuardado)
-igual(filas.find((fila) => fila.id === turnoC.id).efectivoPyg, 0, 'el turno vigente no suma la reversión')
+igual(filas.find((fila) => fila.id === turnoC.id).efectivoPyg, -baseMonto - 1000, 'el ajuste sale en el corte del turno vigente')
 const ajustes = (await caja()).corrections
 const ajuste = ajustes.items.find((item) => item.orderId === dos.order.id)
 assert.ok(ajuste, 'aparece en Ajustes por corrección'); checks++
 igual(ajuste.cashDeltaPyg, -(baseMonto + 1000), 'el ajuste saca el efectivo del pago original')
-igual(ajuste.drawerImpact, false)
+igual(ajuste.drawerImpact, true)
 assert.ok(ajustes.count >= 1 && ajustes.cashDeltaPyg <= ajuste.cashDeltaPyg); checks++
 
 // Caso inverso: transferencia cobrada en un turno ya cerrado, corregida a efectivo.
 const tr = await pedidoPagado(cajera, baseMonto + 3000, transferencia, 'TRANSFER')
 await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 })
 await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'open', openingPyg: 50000 }, 201)
+const cajaAntesInverso = Number((await caja()).expectedPyg)
 const auditoriaAntesInverso = await auditar()
 const cInv = await corregir(admin, tr.order.id, tr.payment.id, { reason: 'Era efectivo', payments: [{ accountId: efectivo.id, amount: baseMonto + 3000 }] })
-igual(cInv.correction.drawerImpact, false)
+igual(cInv.correction.drawerImpact, true)
+igual(Number((await caja()).expectedPyg), cajaAntesInverso + baseMonto + 3000, 'transferencia corregida a efectivo entra a la caja vigente')
 const auditoriaInversa = await auditar()
 igual(auditoriaInversa.totals.amountPyg, auditoriaAntesInverso.totals.amountPyg, 'auditoría inversa: el total no se anula ni se duplica')
 igual(auditoriaInversa.totals.count, auditoriaAntesInverso.totals.count)
-igual(auditoriaInversa.methods.find((fila) => fila.method === 'CASH').amountPyg, auditoriaAntesInverso.methods.find((fila) => fila.method === 'CASH').amountPyg, 'el efectivo del cajón cerrado no cambia')
+igual(auditoriaInversa.methods.find((fila) => fila.method === 'CASH').amountPyg, auditoriaAntesInverso.methods.find((fila) => fila.method === 'CASH').amountPyg + baseMonto + 3000, 'el ajuste inverso entra al efectivo actual')
 
 // ── 3. Auditoría de caja: efectivo del día contra la base ──
 const dentroDelDia = `p."paidAt" >= '${inicioDia}' AND p."paidAt" < '${finDia}'`
@@ -200,6 +214,94 @@ assert.equal((await call('/api/finance/reconciliation', admin, 'POST', { action:
 assert.equal((await call(`/api/payments/${tres.payment.id}/reconciliation`, admin, 'PATCH', { state: 'VERIFIED' })).status, 409, 'ni se concilia a mano'); checks++
 // La transferencia nueva del primer caso sí queda pendiente.
 assert.ok((await pendientes()).some((item) => item.id === c1.payments[0].id), 'la transferencia nueva está por conciliar'); checks++
+
+// Corrección de un día anterior: el ajuste pertenece a hoy; el día viejo no cambia.
+const anterior = await abrirTurno()
+const pAnterior = await pedidoPagado(cajera, 91000, efectivo, 'CASH')
+await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 })
+const ayer = new Date(Date.parse(inicioDia) - 86400000).toISOString().slice(0, 10)
+sql(`UPDATE "CashSession" SET "openedAt"='${ayer}T10:00:00-03:00',"closedAt"='${ayer}T11:00:00-03:00' WHERE "id"='${anterior.id}'`)
+sql(`UPDATE "Payment" SET "paidAt"='${ayer}T10:30:00-03:00' WHERE "id"='${pAnterior.payment.id}'`)
+const auditoriaAyer = await ok(`/api/cash/audit?branchId=${rama}&date=${ayer}`, cajera)
+const snapshotAnterior = sql(`SELECT row_to_json(s)::text FROM "CashSession" s WHERE s."id"='${anterior.id}'`)
+await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'open', openingPyg: 50000 }, 201)
+const cajaAntesAnterior = Number((await caja()).expectedPyg)
+const ajusteAnterior = await corregir(admin, pAnterior.order.id, pAnterior.payment.id, { reason: 'Reclasificar un pago de ayer', payments: [{ accountId: transferencia.id, amount: 91000 }] })
+igual(ajusteAnterior.correction.originSessionClosed, true)
+igual(Number((await caja()).expectedPyg), cajaAntesAnterior - 91000, 'solo la caja de hoy recibe el delta de ayer')
+const auditoriaAyerDespues = await ok(`/api/cash/audit?branchId=${rama}&date=${ayer}`, cajera)
+assert.deepEqual(auditoriaAyerDespues.methods, auditoriaAyer.methods, 'métodos/conteos históricos intactos'); checks++
+assert.deepEqual(auditoriaAyerDespues.cashByCurrency, auditoriaAyer.cashByCurrency, 'monedas históricas intactas'); checks++
+igual(sql(`SELECT row_to_json(s)::text FROM "CashSession" s WHERE s."id"='${anterior.id}'`), snapshotAnterior)
+assert.ok(ajusteAnterior.reversal.paidAt >= inicioDia && ajusteAnterior.payments[0].paidAt >= inicioDia, 'ambas filas de ajuste pertenecen a hoy'); checks++
+
+// Dos transacciones HTTP reales compiten por el mismo cajón. Una conexión de
+// control retiene el dominio y pg_blocking_pids confirma el orden de llegada;
+// no se adivina la carrera mediante esperas de una duración fija.
+async function competir(primera, segunda) {
+  const control = new pg.Client({ connectionString: databaseUrl })
+  const observador = new pg.Client({ connectionString: databaseUrl })
+  await control.connect(); await observador.connect()
+  let a, b
+  try {
+    await control.query('BEGIN')
+    const pid = (await control.query('SELECT pg_backend_pid() AS pid')).rows[0].pid
+    await control.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [JSON.stringify(['cash-session', TENANT, rama, 'user-cajera-it'])])
+    async function esperar(n) {
+      const limite = Date.now() + 4000
+      while (Date.now() < limite) {
+        const waiting = (await observador.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))', [pid])).rows[0].n
+        if (waiting >= n) return
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      throw new Error(`No llegaron ${n} operaciones al lock del cajón`)
+    }
+    a = primera(); await esperar(1)
+    b = segunda(); await esperar(2)
+    await control.query('COMMIT')
+    return await Promise.all([a,b])
+  } finally {
+    await control.query('ROLLBACK').catch(() => {})
+    await Promise.allSettled([a,b].filter(Boolean))
+    await control.end(); await observador.end()
+  }
+}
+for (const cierrePrimero of [false, true]) {
+  const turno = await abrirTurno()
+  const pago = await pedidoPagado(cajera, 81000, efectivo, 'CASH')
+  const esperado = Number((await caja()).expectedPyg)
+  const corregirAhora = () => corregir(admin, pago.order.id, pago.payment.id, { reason: 'Corrección concurrente con cierre', payments: [{ accountId: transferencia.id, amount: 81000 }] })
+  const cerrarAhora = () => ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 })
+  const resultados = await competir(...(cierrePrimero ? [cerrarAhora, corregirAhora] : [corregirAhora, cerrarAhora]))
+  const correccion = resultados[cierrePrimero ? 1 : 0]
+  const cierre = resultados[cierrePrimero ? 0 : 1]
+  igual(correccion.correction.originSessionClosed, cierrePrimero, 'clasificación después del lock')
+  igual(Number(cierre.expectedPyg), esperado - (cierrePrimero ? 0 : 81000), 'snapshot respeta orden efectivo de commit')
+  igual(sql(`SELECT "expectedPyg" FROM "CashSession" WHERE "id"='${turno.id}'`), String(cierre.expectedPyg))
+  assert.ok(cierrePrimero ? Date.parse(correccion.reversal.paidAt) > Date.parse(cierre.closedAt) : Date.parse(correccion.reversal.paidAt) <= Date.parse(cierre.closedAt), 'paidAt queda del lado correcto del corte'); checks++
+}
+// Origen cerrado, pero el ajuste debe serializar también la caja vigente distinta.
+await abrirTurno()
+const pagoViejo = await pedidoPagado(cajera, 82000, efectivo, 'CASH')
+await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 })
+await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'open', openingPyg: 50000 }, 201)
+const vigenteAntes = Number((await caja()).expectedPyg)
+const [ajusteVigente, cierreVigente] = await competir(
+  () => corregir(admin, pagoViejo.order.id, pagoViejo.payment.id, { reason: 'Ajuste de turno anterior durante cierre vigente', payments: [{ accountId: transferencia.id, amount: 82000 }] }),
+  () => ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 }),
+)
+igual(ajusteVigente.correction.originSessionClosed, true)
+igual(Number(cierreVigente.expectedPyg), vigenteAntes - 82000, 'cierre vigente incluye ajuste de otro turno confirmado primero')
+
+// Sin turno vigente: la apertura también participa del dominio y no puede
+// insertar una caja fantasma a mitad del ajuste.
+const sinTurno = await pedidoPagado(cajera, 83000, efectivo, 'CASH')
+const [ajusteSinTurno, aperturaPosterior] = await competir(
+  () => corregir(admin, sinTurno.order.id, sinTurno.payment.id, { reason: 'Corrección antes de abrir caja', payments: [{ accountId: transferencia.id, amount: 83000 }] }),
+  () => ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'open', openingPyg: 50000 }, 201),
+)
+assert.ok(Date.parse(aperturaPosterior.openedAt) >= Date.parse(ajusteSinTurno.reversal.paidAt), 'apertura posterior al ajuste'); checks++
+igual(Number((await caja()).expectedPyg), 50000, 'ajuste anterior a la apertura no cambia su fondo')
 
 // ── 6. Invariantes de la base con correcciones presentes ──
 igual(Number(sql(`SELECT COUNT(*) FROM "Payment" r WHERE r."reversalOfId" IS NOT NULL AND (r."amountPyg" >= 0 OR NOT EXISTS (SELECT 1 FROM "Payment" o WHERE o."id" = r."reversalOfId" AND o."amountPyg" = -r."amountPyg"))`)), 0, 'toda reversión es el negativo exacto de su original')

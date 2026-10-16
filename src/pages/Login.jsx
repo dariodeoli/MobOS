@@ -298,22 +298,22 @@ export default function Login() {
   const crear = modo === 'crear' && !ios
 
   return (
-    <AuthLayout>
+    <AuthLayout compacto pin={modo === 'entrar' && ['vendedor', 'setup'].includes(etapa)}>
       <AuthPanel>
         {verificandoSesion && (
           <p role="status" className="mb-3 flex items-center gap-2 text-xs text-mute motion-reduce:[&>span]:animate-none">
             <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-fono" />Verificando tu sesión…
           </p>
         )}
-        <AuthPanelHeader />
+        <AuthPanelHeader compacto />
 
         <h1 className={cn('mb-1 text-2xl font-semibold sm:text-[1.7rem]', ios && 'mb-3 text-xl sm:text-xl')}>
-          {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
+          {crear ? 'Creá la cuenta de tu tienda' : <><span className={['vendedor', 'setup'].includes(etapa) ? 'login-pin-titulo-base' : undefined}>Entrá a tu tienda</span>{['vendedor', 'setup'].includes(etapa) && <span className="login-pin-tienda">{nombreEmpresa || 'Tu tienda'}</span>}</>}
         </h1>
-        {!crear && etapa !== 'tienda' && !ios && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
+        {!crear && etapa !== 'tienda' && !ios && <p className="login-intro mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
         {crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Empezá con Google o creá tu acceso con correo.</p>}
 
-        <form onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
+        <form data-etapa={etapa} onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
           {crear && !googleReady && <><GoogleButton create busy={cargando} onClick={() => iniciarGoogle(true)} /><OAuthDivider /></>}
           {!crear && etapa === 'empresa' && (ios
             ? <><AppleButton busy={cargando} onClick={() => iniciarApple()} />{googleNativoDisponible() && <GoogleButton busy={cargando} onClick={() => iniciarGoogleNativo()} />}<OAuthDivider /></>
@@ -326,7 +326,7 @@ export default function Login() {
           </>}
 
           {modo === 'entrar' && etapa === 'setup' ? (
-            <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PinSegmentado id="setup-pin" disabled={cargando} autoFocus value={setupPin} onChange={(next) => { setError(''); setSetupPin(next) }} className="mt-2" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
+            <><div className="login-tienda-resumen rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PinSegmentado id="setup-pin" discreto disabled={cargando} autoFocus value={setupPin} onChange={(next) => { setError(''); setSetupPin(next) }} className="mt-2" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
           ) : modo === 'entrar' && etapa === 'tienda' ? (
             <div className="space-y-2">
               <p className="text-sm leading-6 text-mute">{ios ? 'Tu cuenta' : 'Tu cuenta de Google'} tiene acceso a más de una tienda. Elegí con cuál querés entrar.</p>
@@ -344,8 +344,8 @@ export default function Login() {
             </div>
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
-              <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div>
-              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinSegmentado id="seller-pin" disabled={cargando} autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} invalido={Boolean(error)} className="mt-2" /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
+              <div className="login-tienda-resumen rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div>
+              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinSegmentado id="seller-pin" discreto disabled={cargando} autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} invalido={Boolean(error)} className="mt-2" /><p className="login-pin-ayuda mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
               <details className="group">
                 <summary className="cursor-pointer text-center text-xs text-mute hover:text-fore">¿No sabés tu PIN? Elegí tu usuario</summary>
                 <Select id="seller" aria-label="Elegí tu usuario" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-2 w-full"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</Select>
@@ -380,7 +380,7 @@ export default function Login() {
             />
           </div>
           {/* Llevamos el correo ya escrito para no volver a tipearlo en recuperación. */}
-          <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link>{!ios && <Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link>}</div>
+          <div className="login-recuperar -mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link>{!ios && <Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link>}</div>
           </>}
 
           {error && (
@@ -399,10 +399,12 @@ export default function Login() {
           {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base md:h-12 md:min-h-12" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
             {cargando && <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}{cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
           </Button>}
-          {!ios && (crear || etapa === 'empresa') && <p className="pt-1 text-center text-sm text-mute">
-            {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
+          <div className="login-opciones space-y-4" hidden={!(crear || etapa === 'empresa')}>
+          {!ios && (crear || etapa === 'empresa') && <p className="login-crear pt-1 text-center text-sm text-mute">
+            {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <><span className="login-invitacion">¿Sos nuevo en MobOS? </span><button type="button" onClick={() => cambiarModo('crear')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
           </p>}
-          {!crear && etapa === 'empresa' && <p className="text-center text-sm text-mute">¿Querés verlo primero? <Link to="/demo" data-testid="login-probar-demo" className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Probar la demo</Link></p>}
+          {!crear && etapa === 'empresa' && <p className="login-demo text-center text-sm text-mute"><span className="login-invitacion">¿Querés verlo primero? </span><Link to="/demo" data-testid="login-probar-demo" className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Probar la demo</Link></p>}
+          </div>
         </form>
         {ios && (
           <p className="mt-4 text-center text-xs text-mute" data-testid="login-legal-ios">

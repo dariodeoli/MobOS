@@ -48,7 +48,12 @@ let consultaTenantId: string | null = null
 let auditorias = 0
 const tenantSettings: Record<string, unknown> = { policies: { garantia: { content: 'Garantía 30 días', published: true, updatedAt: '2026-10-14T00:00:00.000Z' } } }
 let rol = 'ADMIN'
+const cuentaPropietaria = { accountId: 'account-A', tenantId: 'tenant-A', sellerUserId: 'u1' }
+let cuenta: typeof cuentaPropietaria | null = cuentaPropietaria
+let membership = { accountId: 'account-A', tenantId: 'tenant-A', userId: 'u1', role: 'OWNER', revokedAt: null as Date | null }
 const prismaFalso = {
+  tenantMembership: { findFirst: async ({ where }: { where: Record<string, unknown> }) =>
+    Object.entries(where).every(([key, value]) => membership[key as keyof typeof membership] === value) ? { id: 'membership-qa' } : null },
   tenant: {
     findUnique: async (args: { where: { id: string } }) => { consultaTenantId = args.where.id; return { slug: 'mi-tienda', settings: tenantSettings } },
     update: async (args: { data: { settings: Record<string, unknown> } }) => { settingsGuardados = args.data.settings },
@@ -57,8 +62,13 @@ const prismaFalso = {
   $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaFalso),
 }
 const http = { json: (data: unknown, init?: ResponseInit) => Response.json(data, init), error: (message: string, status = 400) => Response.json({ message }, { status }) }
-const auth = { requireSession: async () => ({ user: { id: 'u1', tenantId: 'tenant-A', role: rol } }) }
+const auth = { requireSession: async () => ({ user: { id: 'u1', tenantId: 'tenant-A', role: rol } }), requireAccountContext: async () => cuenta }
+const accesoPropietario = cargar('../lib/stock-verification-policy.ts', {
+  './auth': auth, './prisma': { prisma: prismaFalso }, './payment-input': {},
+})
 const baseModulos = {
+  '../../../../lib/stock-verification-policy': accesoPropietario,
+  '../../../../../lib/stock-verification-policy': accesoPropietario,
   '../../../../lib/prisma': { prisma: prismaFalso },
   '../../../../../lib/prisma': { prisma: prismaFalso },
   '../../../../lib/http': http,
@@ -85,6 +95,7 @@ async function main() {
   // Solo el dueño lee completas y edita.
   for (const otro of ['GERENTE', 'VENDEDOR', 'CAJERA', 'REPARTIDOR']) {
     rol = otro
+    cuenta = null
     assert.equal((await lista(new Request('https://api.test/api/tenant/policies'))).status, 403)
     assert.equal((await put('garantia', { content: 'x', published: true })).status, 403)
   }
@@ -92,6 +103,7 @@ async function main() {
   assert.equal(auditorias, 0)
 
   rol = 'ADMIN'
+  cuenta = cuentaPropietaria
   assert.equal((await put('inexistente', { content: 'x', published: false })).status, 404)
   assert.equal((await put('garantia', { content: 'x' })).status, 400)
   assert.equal((await put('garantia', { content: '   ', published: true })).status, 400)
@@ -106,6 +118,24 @@ async function main() {
   assert.equal(guardadas.cambios.published, true)
   assert.equal(guardadas.garantia.content, 'Garantía 30 días', 'no pisa las otras políticas')
   assert.equal(auditorias, 1)
+
+  // ADMIN con contraseña compartida, cuenta ajena o pertenencia revocada no es dueño.
+  const auditoriasAntes = auditorias
+  for (const invalida of [null, { ...cuentaPropietaria, tenantId: 'tenant-B' }, { ...cuentaPropietaria, sellerUserId: 'u2' }, { ...cuentaPropietaria, accountId: 'account-B' }]) {
+    cuenta = invalida
+    assert.equal((await lista(new Request('https://api.test/api/tenant/policies'))).status, 403)
+    assert.equal((await put('garantia', { content: 'No autorizado', published: true })).status, 403)
+  }
+  cuenta = cuentaPropietaria
+  for (const invalida of [{ ...membership, role: 'MEMBER' }, { ...membership, revokedAt: new Date() }, { ...membership, userId: 'u2' }]) {
+    const anterior = membership
+    membership = invalida
+    assert.equal((await put('garantia', { content: 'No autorizado', published: true })).status, 403)
+    membership = anterior
+  }
+  assert.equal(auditorias, auditoriasAntes, 'los rechazos no escriben ni auditan una edición')
+  rol = 'GERENTE'
+  assert.equal((await put('privacidad', { content: 'Política de la cuenta dueña', published: false })).status, 200, 'la propiedad real autoriza sin depender del rótulo ADMIN')
 
   // Comprobantes: cualquier rol, solo lo publicado y resumido.
   rol = 'VENDEDOR'
@@ -160,6 +190,6 @@ async function main() {
   assert.equal((await indicePublico(new Request('https://api.test/x'), ctx({ slug: '../etc' }))).status, 404)
   assert.equal(slugsConsultados.includes('../etc'), false, 'un slug inválido ni llega a la base')
 
-  console.log('policies: sanitize, settings, permisos ADMIN y tenancy OK')
+  console.log('policies: sanitize, settings, propiedad real vinculada, roles y tenancy OK')
 }
 main().catch((failure) => { console.error(failure); process.exitCode = 1 })
