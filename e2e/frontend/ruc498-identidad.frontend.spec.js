@@ -1,17 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { mockRucPublic } from '../helpers/ruc-public.js'
 
-async function enter(page, width, dark) {
+async function enter(page, width, dark, mockOptions) {
   await page.setViewportSize({ width, height: 844 })
-  let rucCalls = 0
-  let customerWrites = 0
-  await page.route(/https:\/\//, route => route.abort())
-  await page.route('**/api/**', route => {
-    if (!new URL(route.request().url()).pathname.startsWith('/api/')) return route.continue()
-    const path = new URL(route.request().url()).pathname
-    if (path === '/api/ruc') rucCalls++
-    if (path.startsWith('/api/customers') && route.request().method() !== 'GET') customerWrites++
-    return route.fulfill({ status: 401, json: { error: 'Fixture local sin API real' } })
-  })
+  const api = await mockRucPublic(page, mockOptions)
   await page.addInitScript(() => {
     sessionStorage.setItem('mobos:demo-guia-vista', '1')
     sessionStorage.setItem('mobos:demo-session', 'active')
@@ -20,7 +12,7 @@ async function enter(page, width, dark) {
   await page.goto(`/e2e/fixtures/ruc498-identidad.html?tema=${dark ? 'dark' : 'light'}`)
   await expect(page.getByRole('button', { name: 'Abrir ficha fiscal' })).toBeVisible()
   expect(await page.locator('html').evaluate(el => el.classList.contains('dark'))).toBe(dark)
-  return () => { expect(rucCalls).toBe(0); expect(customerWrites).toBe(0) }
+  return () => api.assertClean()
 }
 async function extract(scope, label, doc) {
   await scope.getByRole('textbox', { name: label, exact: true }).fill(doc)
@@ -29,7 +21,7 @@ async function extract(scope, label, doc) {
 }
 for (const [width, dark] of [[390, false], [1440, true]]) {
   test(`498 ficha aplicar guardar cerrar y reabrir ${width}`, async ({ page }) => {
-    const noApi = await enter(page, width, dark)
+    const verifyApi = await enter(page, width, dark)
     await page.getByRole('button', { name: 'Abrir ficha fiscal' }).click()
     let profile = page.getByRole('dialog', { name: 'Cliente: Cliente ficticio 498', exact: true })
     await profile.getByRole('button', { name: 'Agregar identidad', exact: true }).click()
@@ -60,10 +52,10 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     await editor.getByRole('button', { name: 'Guardar', exact: true }).click()
     await row.getByRole('button', { name: 'Editar', exact: true }).click()
     await expect(editor.getByLabel('Razón social', { exact: true })).toHaveValue('  RAZÓN FISCAL EXACTA S.A.  ')
-    noApi()
+    verifyApi()
   })
   test(`498 POS y titular preservan fiscal y serialización ${width}`, async ({ page }) => {
-    const noApi = await enter(page, width, dark)
+    const verifyApi = await enter(page, width, dark)
     await page.getByText('Datos de contacto, RUC/CI y direcciones', { exact: true }).click()
     await extract(page.locator('section[aria-label="Identidad"]'), 'CI o RUC del cliente', '1234567')
     const state = () => page.getByTestId('estado-fiscal').textContent().then(JSON.parse)
@@ -81,12 +73,15 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     expect(saved.payload).toEqual({ name: saved.billing.nameOfficial, document: saved.billing.document })
     await billing.getByRole('textbox', { name: 'Nombre del titular de factura' }).fill('Otro titular')
     expect((await state()).billing.nameOfficial).toBeUndefined()
-    noApi()
+    verifyApi()
   })
 }
 
 test('498 descartar/cancelar no guarda y cambiar ficha invalida consulta pendiente', async ({ page }) => {
-  const noApi = await enter(page, 390, false)
+  let release
+  const pending = new Promise(resolve => { release = resolve })
+  let calls = 0
+  const verifyApi = await enter(page, 390, false, { respond: async () => { if (++calls === 2) await pending; return null } })
   await page.getByRole('button', { name: 'Abrir ficha fiscal' }).click()
   const profile = page.getByRole('dialog', { name: 'Cliente: Cliente ficticio 498', exact: true })
   await profile.getByRole('button', { name: 'Agregar identidad', exact: true }).click()
@@ -99,16 +94,17 @@ test('498 descartar/cancelar no guarda y cambiar ficha invalida consulta pendien
   await expect(profile.getByTestId('perfil-facturacion-fila')).toHaveCount(0)
   await profile.getByRole('button', { name: 'Agregar identidad', exact: true }).click()
   await editor.getByRole('textbox', { name: 'RUC / documento', exact: true }).fill('1234567')
-  await page.clock.install()
   await editor.getByRole('button', { name: /Extraer/ }).click()
+  await expect.poll(() => calls).toBe(2)
   // Modela el cambio de customer prop del host, sin interacción con el modal viejo.
   await page.evaluate(() => window.dispatchEvent(new Event('qa-cambiar-cliente')))
   await expect(editor).toHaveCount(0)
   await expect(page.getByRole('dialog', { name: 'Cliente: Otra ficha', exact: true })).toBeVisible()
-  await page.clock.runFor(1000)
+  release()
+  await page.waitForLoadState('networkidle')
   await expect(editor).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
-  noApi()
+  verifyApi()
 })
 
 for (const [width, height, visibleHeight, dark, bodyOnly] of [[375, 667, 340, false, false], [390, 844, 400, true, false], [390, 844, 400, false, true]]) {
@@ -123,7 +119,7 @@ for (const [width, height, visibleHeight, dark, bodyOnly] of [[375, 667, 340, fa
         if (!bodyOnly) viewport.dispatchEvent(new Event('resize'))
       }
     }, bodyOnly)
-    const noApi = await enter(page, width, dark)
+    const verifyApi = await enter(page, width, dark)
     await page.setViewportSize({ width, height })
     await page.evaluate(() => document.documentElement.classList.add('app-ios'))
     await page.getByRole('button', { name: 'Abrir ficha fiscal' }).click()
@@ -173,6 +169,45 @@ for (const [width, height, visibleHeight, dark, bodyOnly] of [[375, 667, 340, fa
     await page.keyboard.press('Escape')
     await expect(reopened).toHaveCount(0)
     await expect(profile).toBeVisible()
-    noApi()
+    verifyApi()
   })
 }
+
+for (const status of [429, 503]) {
+  test(`498 OwnData ${status}: error honesto sin resultado ficticio y carga manual disponible`, async ({ page }) => {
+    const verifyApi = await enter(page, 390, false, { respond: () => ({ status, headers: status === 429 ? { 'Retry-After': '17' } : {}, json: { message: status === 429 ? 'Cuota QA agotada.' : 'OwnData QA no disponible.', code: status === 429 ? 'demo_rate_limited' : 'ruc_unavailable' } }) })
+    await page.getByRole('button', { name: 'Abrir ficha fiscal' }).click()
+    const profile = page.getByRole('dialog', { name: 'Cliente: Cliente ficticio 498', exact: true })
+    await profile.getByRole('button', { name: 'Agregar identidad', exact: true }).click()
+    const editor = page.getByRole('dialog', { name: 'Agregar identidad', exact: true })
+    await editor.getByRole('textbox', { name: 'RUC / documento', exact: true }).fill('1234567')
+    await editor.getByRole('button', { name: /Extraer/ }).click()
+    await expect(editor.getByRole('alert')).toContainText(status === 429 ? '17 s' : 'OwnData QA no disponible.')
+    await expect(editor.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
+    await expect(editor.getByText('Simulada en demo')).toHaveCount(0)
+    await expect(editor.getByLabel('Razón social', { exact: true })).toHaveValue('')
+    await editor.getByLabel('Razón social', { exact: true }).fill('RAZÓN MANUAL QA')
+    await editor.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await expect(editor).toHaveCount(0)
+    const row = profile.getByTestId('perfil-facturacion-fila')
+    await expect(row).toContainText('RAZÓN MANUAL QA')
+    await row.getByRole('button', { name: 'Editar', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: 'Editar identidad', exact: true }).getByLabel('Razón social', { exact: true })).toHaveValue('RAZÓN MANUAL QA')
+    verifyApi()
+  })
+}
+
+test('498 respuesta pública sin evidencia verificable no admite fallback ficticio', async ({ page }) => {
+  const verifyApi = await enter(page, 390, false, { respond: () => ({ status: 200, json: { result: { name: 'RESULTADO FICTICIO PROHIBIDO', simulado: true } } }) })
+  await page.getByText('Datos de contacto, RUC/CI y direcciones', { exact: true }).click()
+  const identity = page.locator('section[aria-label="Identidad"]')
+  await identity.getByRole('textbox', { name: 'CI o RUC del cliente', exact: true }).fill('1234567')
+  await identity.getByRole('button', { name: /Extraer/ }).click()
+  await expect(identity.getByRole('alert')).toContainText('No se recibieron datos verificables')
+  await expect(identity.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
+  await expect(page.getByText('RESULTADO FICTICIO PROHIBIDO')).toHaveCount(0)
+  const state = JSON.parse(await page.getByTestId('estado-fiscal').textContent())
+  expect(state.value.name).toBe('')
+  expect(state.value.nameOfficial).toBeUndefined()
+  verifyApi()
+})

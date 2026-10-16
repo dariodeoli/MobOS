@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { mockRucPublic } from '../helpers/ruc-public.js'
 
 async function demo(page, width) {
-  const apiCalls = [], errors = []
+  const errors = []
+  const api = await mockRucPublic(page)
   await page.setViewportSize({ width, height: 900 })
   page.on('pageerror', error => errors.push(error.message))
-  await page.route('**/api/**', route => {
-    const path = new URL(route.request().url()).pathname
-    if (!path.startsWith('/api/')) return route.fallback()
-    apiCalls.push(`${route.request().method()} ${path}`)
-    return route.fulfill({ status: 503, json: { error: 'QA local sin servidor' } })
-  })
-  await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(dark => {
     sessionStorage.setItem('mobos:demo-guia-vista', '1')
     localStorage.setItem('mobos:theme', dark ? 'dark' : 'light')
@@ -20,7 +15,8 @@ async function demo(page, width) {
   await expect(page.getByTestId('shell')).toBeVisible()
   expect(await page.locator('html').evaluate(el => el.classList.contains('dark'))).toBe(width === 1440)
   return () => {
-    expect(apiCalls.filter(call => !call.includes('/api/public/track')), 'ninguna llamada de datos a API').toEqual([])
+    api.assertClean()
+    expect(api.calls.length).toBeGreaterThan(0)
     expect(errors, 'sin errores React').toEqual([])
   }
 }
@@ -30,7 +26,8 @@ async function extraer(page, field, name) {
   await field.fill('80012345-0')
   const root = field.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await root.getByRole('button', { name: 'Extraer los datos del RUC', exact: true }).click()
-  await expect(root.getByText('Simulada en demo', { exact: true })).toBeVisible()
+  await expect(root.getByRole('button', { name: 'Usar estos datos', exact: true })).toBeVisible()
+  await expect(root.getByText('Simulada en demo', { exact: true })).toHaveCount(0)
   await expect(name, 'preview no cambia campo').toHaveValue(before)
   const official = await root.locator('b').first().innerText()
   await root.getByRole('button', { name: 'Usar estos datos', exact: true }).click()
@@ -41,7 +38,7 @@ async function extraer(page, field, name) {
 
 for (const width of [390, 1440]) {
   test(`#498 proveedor extrae, guarda y reabre en demo ${width}`, async ({ page }) => {
-    const noApi = await demo(page, width)
+    const verifyApi = await demo(page, width)
     await page.goto('/compras')
     await page.getByRole('button', { name: 'Proveedores', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Proveedores', exact: true })
@@ -57,11 +54,11 @@ for (const width of [390, 1440]) {
     await saved.getByRole('button', { name: `Editar ${official}`, exact: true }).click()
     await expect(name).toHaveValue(official)
     await expect(form.getByRole('textbox', { name: 'RUC del proveedor', exact: true })).toHaveValue('80012345-0')
-    noApi()
+    verifyApi()
   })
 
   test(`#498 cuenta extrae, guarda y reabre en demo ${width}`, async ({ page }) => {
-    const noApi = await demo(page, width)
+    const verifyApi = await demo(page, width)
     await page.goto('/finanzas/bancos')
     const row = page.getByTestId('cuenta-fila').filter({ hasText: 'Transferencia' }).first()
     await expect(row).toBeVisible()
@@ -75,11 +72,11 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: editName, exact: true }).click()
     await expect(form.locator('#pa-holder')).toHaveValue(official)
     await expect(form.locator('#pa-document')).toHaveValue('80012345-0')
-    noApi()
+    verifyApi()
   })
 
   test(`#498 empresa privada extrae, guarda y reabre en demo ${width}`, async ({ page }) => {
-    const noApi = await demo(page, width)
+    const verifyApi = await demo(page, width)
     await page.goto('/configuracion/negocio')
     await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Datos fiscales', exact: true }).click()
     await page.getByRole('button', { name: 'Agregar empresa', exact: true }).click()
@@ -91,6 +88,6 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: `Editar ${official}`, exact: true }).click()
     await expect(name).toHaveValue(official)
     await expect(page.locator('#priv-ruc')).toHaveValue('80012345-0')
-    noApi()
+    verifyApi()
   })
 }

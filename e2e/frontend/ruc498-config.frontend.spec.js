@@ -1,21 +1,15 @@
 import { test, expect } from '@playwright/test'
+import { mockRucPublic } from '../helpers/ruc-public.js'
 async function enter(page, width, dark, vista = 'config') {
   await page.setViewportSize({ width, height: 844 })
-  const writes = []
-  await page.route(/https:\/\//, route => route.abort())
-  await page.route('**/api/**', route => {
-    const path = new URL(route.request().url()).pathname
-    if (!path.startsWith('/api/')) return route.continue()
-    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.request().method())) writes.push(path)
-    return route.fulfill({ status: 401, json: { error: 'Sin API real' } })
-  })
+  const api = await mockRucPublic(page)
   await page.addInitScript(() => {
     sessionStorage.setItem('mobos:demo-session', 'active')
     sessionStorage.setItem('mobos:demo-session:role', 'ADMIN')
   })
   await page.goto(`/e2e/fixtures/ruc498-identidad.html?vista=${vista}&tema=${dark ? 'dark' : 'light'}`)
   await expect(page.getByTestId(vista === 'config' ? 'config-fiscal-demo' : 'empresa-activa')).toBeVisible()
-  return () => expect(writes).toEqual([])
+  return () => api.assertClean()
 }
 async function extract(scope, selector) {
   await scope.locator(selector).fill('1234567')
@@ -24,7 +18,7 @@ async function extract(scope, selector) {
 }
 for (const [width, dark] of [[390, false], [1440, true]]) {
   test(`498 configuración de cuenta aplica guarda y reabre demo ${width}`, async ({ page }) => {
-    const noApi = await enter(page, width, dark)
+    const verifyApi = await enter(page, width, dark)
     let account = page.getByTestId('cuenta-form')
     await account.getByRole('button', { name: 'Editar', exact: true }).click()
     const oldName = await account.getByLabel('Nombre de la tienda', { exact: true }).inputValue()
@@ -43,10 +37,10 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     await account.getByRole('button', { name: 'Editar', exact: true }).click()
     await expect(account.getByLabel('Nombre de la tienda', { exact: true })).toHaveValue(accepted.trim())
     await expect(account.locator('#edit-ruc')).toHaveValue(ruc)
-    noApi()
+    verifyApi()
   })
   test(`498 titular privado exige revisión sin mezclar nombres anteriores ${width}`, async ({ page }) => {
-    const noApi = await enter(page, width, dark)
+    const verifyApi = await enter(page, width, dark)
     await page.getByRole('button', { name: 'Agregar titular', exact: true }).click()
     const form = page.locator('form').filter({ has: page.locator('#priv-first') })
     for (const [id, value] of [['priv-first', 'ANTERIOR'], ['priv-middle', 'VIEJO'], ['priv-other', 'TERCERO'], ['priv-last', 'APELLIDO'], ['priv-second-last', 'SEGUNDO']]) await form.locator(`#${id}`).fill(value)
@@ -78,7 +72,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     expect(stored.current[0].nameOfficial).toBe(raw)
     expect(stored.current[0].personConfirmed).toBe(true)
     expect(stored.other).toEqual([])
-    noApi()
+    verifyApi()
   })
 }
 

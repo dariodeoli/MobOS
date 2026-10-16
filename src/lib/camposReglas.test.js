@@ -17,8 +17,7 @@ function archivosFuente() {
 }
 
 test('la consulta de RUC vive solo en el objeto compartido RucField', () => {
-  // `demoRuc.js` es el mock del navegador que usa el campo en la demo (#234):
-  // no consulta el API, solo nombra el endpoint en su comentario.
+  // La ruta privada sigue centralizada; la demo usa transporte público exclusivo (#498).
   const permitidos = new Set(['components/shared/RucField.jsx', 'lib/demoRuc.js'])
   const culpables = archivosFuente()
     .filter((archivo) => /api\/ruc/.test(archivo.contenido) && !permitidos.has(archivo.ruta))
@@ -32,9 +31,10 @@ test('el extractor de RUC vive dentro del input y se ve en todos los lugares, ta
   const rucField = leerBiblioteca('RucField.jsx')
   assert.ok(rucField.includes('BotonDentroCampo'), 'el botón de extraer vive dentro del campo (objeto compartido)')
   assert.ok(!rucField.includes('<Button'), 'no vuelve un botón externo al lado del input')
-  assert.ok(rucField.includes('Simulada en demo'), 'el resultado simulado se marca como tal')
+  assert.ok(rucField.includes('Usar estos datos'), 'ningún resultado se aplica sin aceptación')
   const adaptador = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
-  assert.ok(adaptador.includes('consultarRucDemo'), 'en demo resuelve contra el mock del navegador, sin /api/ruc')
+  assert.ok(adaptador.includes('consultarRucDemoReal'), 'la demo consulta el transporte público OwnData')
+  assert.ok(!adaptador.includes('lookupDemoRuc'), 'no vuelve al resultado ficticio ante error')
   assert.ok(adaptador.includes('api.get(`/api/ruc'), 'en real consulta el endpoint con cuota y auditoría')
 
   const usos = archivosFuente().filter((archivo) => /<RucField/.test(archivo.contenido))
@@ -178,8 +178,9 @@ test('RucField adapta la variante compacta conservando admisión fiscal y acepta
   assert.match(source, /<CampoRuc\b/)
   assert.doesNotMatch(source, /<input\b|<Input\b/)
   assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
-  assert.match(source, /lookupDemoRuc\(identity, consultarRucDemo\)/)
-  assert.match(source, /admitRucResponse\(await api\.get\(`\/api\/ruc\?ruc=/)
+  assert.match(source, /consultarRucDemoReal\(identity\.query, \{ apiUrl: API_URL, signal: request\.signal \}\)/)
+  assert.match(source, /await api\.get\(`\/api\/ruc\?ruc=/)
+  assert.match(source, /admitRucResponse\(payload, identity\)/)
   assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
   assert.match(source, /if \(!request\.isCurrent\(scope\.current\)\) return/)
   const extractStart = source.indexOf('const consultar = useCallback')
