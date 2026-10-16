@@ -48,3 +48,9 @@ Unidad de escritura desde77ea29ae, sin backend, base de datos, proveedor real ni
 Novedad: el editor fiscal aprovecha el espacio sobre el teclado del iPhone y permite llegar al extractor y Guardar sin cerrar manualmente el teclado.
 
 Nota separada de accesibilidad: al comprobar anidación aparecen dos aria-modal=true declarados por los dos Modal existentes. No se atribuye al observador nuevo ni demuestra dos traps activos. La regresión comprueba que el teclado no agrega diálogos, conserva un solo cuerpo desplazable del editor, Tab queda dentro y Escape cierra solo el editor. La biblioteca externa queda intacta.
+
+## Integración del ajuste de teclado
+- Revisión independiente ea09d668: APPROVE, sin hallazgos accionables. Integrado f9e23c2e sobre4c343e90.
+- Frontend conjunto:1502/1502 unitarios PASS;7/7 funcionales de identidad fiscal PASS, incluidos375/390 con viewport reducido y foco/scroll/Escape. Lint0errores,1advertencia previa DeliveryOperations.
+- Se conserva evidencia previa33/33 RUC+POS; el ajuste nuevo solo modifica geometría del editor fiscal. QA nativa del nuevo ajuste pendiente, sin afirmar TestFlight actualizado.
+- Dos aria-modal=true preexistentes registrados en #499. No se cambió biblioteca ownUI ni se afirmó bypass.
