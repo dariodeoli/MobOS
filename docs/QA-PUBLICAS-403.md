@@ -57,3 +57,7 @@ La Entrada no requirió cambio de fuente: el supuesto contraste incorrecto fue u
 Novedades para el dueño:
 - Carrito, informe y alternativa muestran la tienda y su logo, con WhatsApp de la sucursal correcta cuando está configurado.
 - Las notas internas de los traslados ya no se entregan en el enlace público del remito; el registro y la recepción siguen disponibles para el equipo.
+
+## Validación del integrador, con biblioteca0.68.13
+
+Fuente743f6f56 + gatea4c2d456. Backend332PASS+1skipSQLprevio; buildNext0conBUILD_ID. HTTP completo aislado PASS, incluida conciliaciónPrisma sin diferencias y117checks de public-pages403-pg.mjs. Navegador público completo69/69PASS, con0.68.13 instalada. QA independiente de helpers/DTO/logos/#503APPROVE,6unitarios+aserciones de contacto PASS. Sin hardware ni producción; sigue pendiente publicación. El alcance global restante de403 se conserva, no se atribuye esta prueba a11páginas con marca/contacto nuevos.
