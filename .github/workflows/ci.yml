@@ -196,6 +196,11 @@ jobs:
           MOBOS_QA_OUT: /tmp/mobos-ruc498-ci
           MOBOS_QA_SCREENSHOTS: "0"
         run: npx playwright test --config e2e/ruc498-all.frontend.config.js
+      - name: Private POS snapshot context isolation
+        if: matrix.shard == 1
+        env:
+          MOBOS_QA_PORT: "5342"
+        run: npx playwright test --config e2e/snapshot502.frontend.config.js
       - name: Printed document company branding
         if: matrix.shard == 1
         env:
