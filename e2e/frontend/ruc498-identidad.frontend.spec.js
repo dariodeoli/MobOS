@@ -143,7 +143,7 @@ for (const [width, height, visibleHeight, dark, bodyOnly] of [[375, 667, 340, fa
       const box = await editor.boundingBox()
       return box.y + box.height
     }).toBeLessThanOrEqual(visibleHeight)
-    // Los dos Modal existentes declaran aria-modal; el teclado no agrega otro.
+    // Los dos Modal siguen montados; el teclado no agrega otro diálogo.
     await expect(page.locator('[role=dialog]')).toHaveCount(dialogsBeforeKeyboard)
     for (let index = 0; index < 8; index++) {
       await page.keyboard.press('Tab')
@@ -211,3 +211,29 @@ test('498 respuesta pública sin evidencia verificable no admite fallback fictic
   expect(state.value.nameOfficial).toBeUndefined()
   verifyApi()
 })
+
+// #499: contrato del paquete publicado, no copia del Modal compartido.
+for (const [width, dark] of [[390, false], [1440, true]]) {
+  test(`499 un modal activo y foco restaurado ${width}`, async ({ page }) => {
+    const verifyApi = await enter(page, width, dark)
+    await page.getByRole('button', { name: 'Abrir ficha fiscal' }).click()
+    const profile = page.getByRole('dialog', { name: 'Cliente: Cliente ficticio 498', exact: true })
+    const trigger = profile.getByRole('button', { name: 'Agregar identidad', exact: true })
+    await trigger.click()
+    const editor = page.getByRole('dialog', { name: 'Agregar identidad', exact: true })
+    await expect(editor).toHaveAttribute('aria-modal', 'true')
+    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(1)
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press(i % 2 ? 'Shift+Tab' : 'Tab')
+      expect(await editor.evaluate(el => el.contains(document.activeElement))).toBe(true)
+    }
+    await page.keyboard.press('Escape')
+    await expect(editor).toHaveCount(0)
+    await expect(profile).toHaveAttribute('aria-modal', 'true')
+    await expect(trigger).toBeFocused()
+    await trigger.click()
+    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(1)
+    await expect(editor).toHaveAttribute('aria-modal', 'true')
+    await verifyApi()
+  })
+}

@@ -13,6 +13,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
+- **Accesibilidad:** al abrir un editor sobre una ficha, se anuncia una sola ventana activa. Al cerrarlo, el foco vuelve al botón que lo abrió.
+
+- **Datos sin conexión:** la copia privada queda separada por usuario, empresa, sucursal y permisos. Salir o perder acceso retira los datos privados y conserva las ventas pendientes de sincronizar. Las respuestas de la sesión anterior no alimentan la nueva.
+
 - **Impresión:** las hojas, recibos y etiquetas toman el color de la empresa; los colores demasiado claros o inválidos conservan el color legible de respaldo. Las hojas de estación usan la misma identidad.
 - **Seguridad web:** cambiar de sesión ya no permite recuperar respuestas privadas del caché del navegador. La página inicial sigue disponible sin conexión.
 
