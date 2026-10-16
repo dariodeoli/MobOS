@@ -16,6 +16,9 @@ import FichaCertificado from '@/components/shared/FichaCertificado'
 import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
 import { etiquetaCondicionUnidad } from '@/utils/inventario'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import { CabeceraTienda } from '@/components/publico/KitPublico'
+import { varianteDeTema } from '@/lib/tenantLogo'
 
 
 // Semáforo del checklist en el informe público (mismos tonos que la ficha).
@@ -115,11 +118,11 @@ export default function InformePublico() {
 
   return (
     <main className={`informe-publico ${marco} space-y-4 pt-8`}>
-      <header className="text-center">
-        <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
-        <h1 className="mt-1 text-2xl font-bold">{store.name}</h1>
-        {store.branch && <p className="text-sm text-mute">{store.branch}</p>}
-      </header>
+      <CabeceraTienda empresa={store.name} detalle={store.branch}
+        logo={isDemoRuntime || demoDelEnlace ? null : `${API_URL}/api/public/units/${encodeURIComponent(serial || '')}/logo?variant=${varianteDeTema()}`}
+        logoClaro={isDemoRuntime || demoDelEnlace ? null : `${API_URL}/api/public/units/${encodeURIComponent(serial || '')}/logo?variant=light`}>
+        <h1 className="mt-3 text-xs font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</h1>
+      </CabeceraTienda>
 
       {/* #240: certificado del dispositivo con los objetos compartidos (DSN/CMP). */}
       {/* `estado`, `puntaje`, `condicion` y `repuestos*` llegan con owncoding-ui
@@ -220,6 +223,7 @@ export default function InformePublico() {
           <Icon name="printer" className="h-4 w-4" />Imprimir
         </button>
       </div>
+      <WhatsAppSucursal contacto={informe?.contacto} />
       <ProductFooter />
     </main>
   )

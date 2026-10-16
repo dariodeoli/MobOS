@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { vistas, fichaProducto, informe } from '../fixtures/publicas-extra.js'
+import { vistas, fichaProducto, informe, nombre, contacto } from '../fixtures/publicas-extra.js'
 
 const medidas = [[360, 780], [390, 844], [1440, 1000]]
 
-async function preparar(page, vista, tema = 'light', { error = false, responder } = {}) {
+async function preparar(page, vista, tema = 'light', { error = false, responder, logoAusente = false } = {}) {
   const errores = []
   const productos = []
   page.on('pageerror', causa => errores.push(causa.message))
@@ -21,6 +21,7 @@ async function preparar(page, vista, tema = 'light', { error = false, responder 
     if (url.pathname === '/api/products') productos.push(url.searchParams.get('q'))
     if (url.pathname === '/api/auth/me') return route.fulfill({ status: vista.autenticado ? 200 : 401, json: vista.autenticado ? { user: { id: 'qa-usuario', tenantId: 'qa-tienda', branchId: 'qa-sucursal', role: 'ADMIN', name: 'Usuario local' }, tenant: { id: 'qa-tienda', name: 'Tienda local' } } : { error: 'Sin sesión' } })
     if (vista.autenticado && ['/api/orders', '/api/users', '/api/inventory/branches', '/api/inventory-branches'].includes(url.pathname)) return route.fulfill({ json: [] })
+    if (url.pathname === `${vista.api}/logo` && ['carrito', 'informe', 'alternativa'].includes(vista.id)) return logoAusente ? route.fulfill({ status: 404, body: '' }) : route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j5l8AAAAASUVORK5CYII=', 'base64') })
     if (url.pathname === vista.api) {
       if (request.method() === 'POST' && responder) return responder(route)
       return route.fulfill({ status: error ? 404 : 200, json: error ? { message: 'Este enlace no está disponible.' } : vista.payload })
@@ -92,6 +93,11 @@ for (const vista of vistas) for (const [width, height] of medidas) for (const te
   test(`#403 ${vista.id} ${width}px ${tema}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     const { errores, productos } = await preparar(page, vista, tema)
+    if (['carrito', 'informe', 'alternativa'].includes(vista.id)) {
+      await expect(page.getByTestId('cabecera-tienda')).toContainText(nombre)
+      await expect(page.getByTestId('cabecera-tienda').getByRole('img', { name: `Logo de ${nombre}`, exact: true })).toBeVisible()
+      await expect(page.getByTestId('publico-whatsapp')).toHaveAttribute('href', contacto.whatsappUrl)
+    }
     if (['carrito', 'producto', 'portal', 'alternativa'].includes(vista.id)) await expect(page.locator('main')).toContainText('100.000.000')
     if (vista.id === 'producto') expect(productos).toContain(fichaProducto.sku)
     if (vista.id === 'cuenta') {
@@ -199,3 +205,17 @@ test('#403 certificado: ajustes de legibilidad solo en pantalla, impresión cons
   await expect(texto).toHaveCSS('font-size', '11px')
   await expect(page.locator('.informe-publico h2').first()).toHaveCSS('white-space', 'nowrap')
 })
+
+for (const id of ['carrito', 'informe', 'alternativa']) {
+  test(`#403 contacto ausente ${id}: no inventa WhatsApp y conserva documento sin logo`, async ({ page }) => {
+    const vista = vistas.find(vista => vista.id === id)
+    await page.setViewportSize({ width: 360, height: 780 })
+    // El error de imagen ocurre antes del handler genérico: logo opcional,
+    // sin recurrir al endpoint privado de tenant ni a URL inventada.
+    const { errores } = await preparar(page, { ...vista, payload: { ...vista.payload, contacto: null } }, 'light', { logoAusente: true })
+    await expect(page.getByTestId('publico-whatsapp')).toHaveCount(0)
+    await expect(page.getByTestId('cabecera-tienda').getByRole('img', { name: `Logo de ${nombre}`, exact: true })).toHaveCount(0)
+    await expect(page.getByTestId('cabecera-tienda')).toContainText(nombre)
+    expect(errores).toEqual([])
+  })
+}

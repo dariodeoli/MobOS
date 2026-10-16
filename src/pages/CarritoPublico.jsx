@@ -8,6 +8,9 @@ import { Aviso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import { CabeceraTienda } from '@/components/publico/KitPublico'
+import { varianteDeTema } from '@/lib/tenantLogo'
 
 
 // Carrito público de un borrador (#154): sin sesión, con el enlace privado que
@@ -46,18 +49,18 @@ export default function CarritoPublico() {
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
-        <header className="mb-6 text-center">
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Carrito de compra</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">{carrito?.company?.name || 'Tu carrito'}</h1>
-          {carrito?.branch && <p className="mt-1 text-xs text-mute">{carrito.branch}{carrito.company?.city ? ` · ${carrito.company.city}` : ''}</p>}
+        <CabeceraTienda empresa={carrito?.company?.name || 'Tu carrito'} detalle={[carrito?.branch, carrito?.company?.city].filter(Boolean).join(' · ')}
+          logo={carrito ? `${API_URL}/api/suspended-sales/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}` : null}
+          logoClaro={carrito ? `${API_URL}/api/suspended-sales/public/${encodeURIComponent(token || '')}/logo?variant=light` : null}>
+          <h1 className="mt-3 text-xs font-bold uppercase tracking-[.2em] text-fono-light">Carrito de compra</h1>
           {carrito?.customerName && <p className="mt-2 text-sm text-mute">Preparado para {carrito.customerName}</p>}
           {carrito?.label && <p className="mt-1 text-xs text-mute">{carrito.label}</p>}
-        </header>
+        </CabeceraTienda>
 
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
 
         {carrito && (
-          <div className="space-y-4">
+          <div className="mt-4 space-y-4">
             <section className="overflow-hidden rounded-2xl border border-ink-600 bg-ink-900">
               <h2 className={cn('border-b border-ink-600 px-5 py-3', ROTULO_SECCION)}>Productos</h2>
               <div className="divide-y divide-ink-600">
@@ -128,6 +131,7 @@ export default function CarritoPublico() {
           </div>
         )}
       </div>
+      <WhatsAppSucursal contacto={carrito?.contacto} />
       <ProductFooter />
     </main>
   )

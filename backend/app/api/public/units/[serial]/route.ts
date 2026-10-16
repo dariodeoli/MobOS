@@ -1,3 +1,5 @@
+import { cargarUnidadInforme } from '../../../../../lib/public-unit'
+import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
@@ -27,29 +29,10 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
   const serial = String(crudo || '').trim().slice(0, 64)
   if (serial.length < 6) return error('Serial inválido.', 400)
 
-  // El serial es único por empresa: si varias lo comparten, se prefiere la que
-  // lo vendió (con pedido) y, si no, la verificación más reciente.
-  const unidades = await prisma.inventoryUnit.findMany({
-    where: { serial: { equals: serial, mode: 'insensitive' } },
-    include: {
-      product: { select: { name: true } },
-      branch: { select: { name: true } },
-      tenant: { select: { name: true } },
-      lastVerifiedBy: { select: { name: true } },
-    },
-    take: 10,
-  })
-  if (!unidades.length) return error('Equipo no encontrado.', 404)
-
-  const ventas = await prisma.orderItemSerial.findMany({
-    where: { serial: { in: unidades.map((unidad) => unidad.serial) } },
-    include: { orderItem: { include: { order: { select: { tenantId: true, orderNumber: true, createdAt: true, customerId: true, branch: { select: { name: true } } } } } } },
-    orderBy: { orderItem: { order: { createdAt: 'desc' } } },
-    take: 10,
-  })
-  const ventaDe = (unidad: (typeof unidades)[number]) => ventas.find((venta) => venta.serial.toLowerCase() === unidad.serial.toLowerCase() && venta.orderItem.order.tenantId === unidad.tenantId) || null
-  const elegida = unidades.find((unidad) => ventaDe(unidad)) || [...unidades].sort((a, b) => (b.lastVerifiedAt?.getTime() || 0) - (a.lastVerifiedAt?.getTime() || 0))[0]
-  const venta = ventaDe(elegida)
+  const seleccion = await cargarUnidadInforme(prisma, serial)
+  if (!seleccion) return error('Equipo no encontrado.', 404)
+  const { elegida, venta } = seleccion
+  const sucursal = elegida.branch || venta?.orderItem.order.branch || null
   const inspeccion = (elegida.inspection || {}) as Record<string, any>
 
   const [check, garantia] = await Promise.all([
@@ -75,6 +58,7 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
   }
 
   return json({
+    contacto: contactoPublicoSucursal(sucursal?.tenantId === elegida.tenantId ? sucursal : null),
     store: { name: elegida.tenant?.name || 'Tienda', branch: elegida.branch?.name || venta?.orderItem.order.branch?.name || null },
     unit: {
       model: elegida.product?.name || 'Equipo',

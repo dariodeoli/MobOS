@@ -1,4 +1,5 @@
-import { createHash } from 'node:crypto'
+import { cargarCarritoPublico } from '../../../../../lib/public-cart'
+import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
@@ -23,25 +24,10 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const limited = enforceRateLimit(request, 'suspended-public', 30, 60_000)
   if (limited) return limited
   const { token } = await context.params
-  // El token es aleatorio de 64 hex: cualquier otra cosa no puede existir.
-  if (!token || !/^[a-f0-9]{64}$/.test(token)) return error('Carrito no encontrado.', 404)
-  const publicTokenHash = createHash('sha256').update(token).digest('hex')
-  const [estado] = await prisma.$queryRaw<Array<{ expira: Date | null; vencido: boolean }>>`
-    SELECT "publicTokenExpiresAt" AS "expira",
-           ("publicTokenExpiresAt" IS NOT NULL AND "publicTokenExpiresAt" <= now()) AS "vencido"
-    FROM "SuspendedSale" WHERE "publicTokenHash" = ${publicTokenHash}
-  `
-  if (!estado) return error('Carrito no encontrado.', 404)
-  if (estado.vencido) return error('Este enlace venció. Pedí uno nuevo a la tienda.', 410)
-  const row = await prisma.suspendedSale.findFirst({
-    where: { publicTokenHash },
-    include: {
-      tenant: { select: { name: true, phone: true, city: true, address: true } },
-      branch: { select: { name: true, city: true, phone: true } },
-      customer: { select: { name: true } },
-    },
-  })
-  if (!row) return error('Carrito no encontrado.', 404)
+  const access = await cargarCarritoPublico(token)
+  if (!access.ok) return error(access.message, access.status)
+  const { row, expiresAt } = access
+  const contacto = contactoPublicoSucursal(row.branch?.tenantId === row.tenantId ? row.branch : null)
 
   const payload = (row.payload && typeof row.payload === 'object' ? row.payload : {}) as Record<string, unknown>
   const crudos = Array.isArray(payload.items) ? (payload.items as Record<string, unknown>[]) : []
@@ -71,7 +57,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const deliveryPyg = money(Number(String(payload.montoDelivery ?? '').replace(/\D/g, '')) || 0)
   const totalPyg = money(subtotalPyg - discountPyg + deliveryPyg)
   const empresa = row.tenant?.name || 'la tienda'
-  const telefonoTienda = String(row.tenant?.phone || row.branch?.phone || '').replace(/\D/g, '')
+  const telefonoTienda = contacto?.whatsapp || ''
   const checkoutUrl = telefonoTienda
     ? `https://wa.me/${telefonoTienda}?text=${encodeURIComponent(`Hola ${empresa}, quiero confirmar el carrito${row.label ? ` "${row.label}"` : ''} por ${new Intl.NumberFormat('es-PY').format(totalPyg)} Gs.`)}`
     : null
@@ -91,7 +77,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     notes: typeof payload.observacion === 'string' && payload.observacion.trim() ? payload.observacion.trim() : null,
     conditions: 'Precios y disponibilidad sujetos a confirmación al cerrar la compra.',
     issuedAt: row.publicTokenIssuedAt,
-    expiresAt: estado.expira,
+    expiresAt,
+    contacto,
     checkoutUrl,
   })
 }
