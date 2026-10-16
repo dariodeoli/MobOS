@@ -12,6 +12,8 @@ import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import Cronologia from '@/components/shared/Cronologia'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
+import { SUCURSALES_DEMO } from '@/lib/demo/empresa'
+import { telefonoVisible } from '@/utils/telefono'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO } from '@/components/shared/tabla'
@@ -119,7 +121,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   // Nombre de sucursal para la ficha: la API de usuarios solo trae branchId.
   const [sucursales, setSucursales] = useState([])
   useEffect(() => {
-    if (esDemo) return undefined
+    if (esDemo) { setSucursales(SUCURSALES_DEMO); return undefined }
     let vivo = true
     api.get('/api/branches').then(lista => { if (vivo) setSucursales(lista || []) }).catch(() => {})
     return () => { vivo = false }
@@ -406,6 +408,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
         </div>
       </div>
       <div className="space-y-2.5">
+        {esDemo && <p className="text-xs text-mute">Datos ficticios para probar: no llames ni envíes mensajes a estos contactos. La comisión se calcula con las ventas, sin alterar sus importes.</p>}
         {integrantesDeTab.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); const meta = num(v.metaDiaria); const pct = meta > 0 ? Math.round((t.hoy / meta) * 100) : null; return (
           <div key={v.id} data-testid="integrante-fila" className={cn('rounded-2xl border border-ink-600 p-3 transition hover:border-fono/40', v2 && 'v2-tile')}>
             <span className="sr-only">{v.nombre}</span>
@@ -415,6 +418,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
                 <div className="min-w-0">
                   <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono md:min-h-7" />
                   {v.email && <p className={CELDA_DATO}>{v.email}</p>}
+                  {v.phone && <p className={CELDA_DATO}>{telefonoVisible(v.phone)}</p>}
                   <p className={CELDA_DATO}>{v.branchId ? (sucursales.find(s => s.id === v.branchId)?.name || 'Sucursal') : 'Sin sucursal'}</p>
                 </div>
               </div>

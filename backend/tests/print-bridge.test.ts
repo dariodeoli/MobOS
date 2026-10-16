@@ -39,6 +39,10 @@ import {
   shapePublico,
   sufijoCoincide,
   validarPayload,
+  validarRasterV1,
+  leerTrabajoJson,
+  PRINT_BODY_MAX_BYTES,
+  MAX_BYTES_ABIERTOS_POR_EMPRESA,
 } from '../lib/print-jobs'
 
 async function main() {
@@ -175,10 +179,26 @@ async function main() {
 
   // ── Payload del trabajo ──────────────────────────────────────────────────
   assert.equal(validarPayload('QUJDRA=='), 'QUJDRA==', 'acepta base64 del ticket')
-  assert.equal(PAYLOAD_MAX_B64, 131072, 'el tope de payload son 128 KB base64')
+  assert.equal(PAYLOAD_MAX_B64, 524288, 'el tope de payload son 512 KiB base64')
+  assert.equal(Buffer.from(validarPayload('A'.repeat(PAYLOAD_MAX_B64)), 'base64').length, 393216, 'límite exacto en bytes decodificados')
+  for (const invalid of ['A', 'AA=', 'A===', 'AAAA=AAA', 'AAAA\n', 'AB==']) assert.throws(() => validarPayload(invalid), /mal formado|vacío/)
+  assert.equal(MAX_BYTES_ABIERTOS_POR_EMPRESA, 20 * 1024 * 1024)
+  const parsed = await leerTrabajoJson(new Request('http://localhost/', { method: 'POST', body: JSON.stringify({ payload: 'A'.repeat(PAYLOAD_MAX_B64) }) }))
+  assert.equal(String(parsed.payload).length, PAYLOAD_MAX_B64)
+  await assert.rejects(leerTrabajoJson(new Request('http://localhost/', { method: 'POST', body: 'x'.repeat(PRINT_BODY_MAX_BYTES + 1) })), (cause: unknown) => cause instanceof InputError && cause.status === 413)
+  let cancelled = false
+  const stream = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(PRINT_BODY_MAX_BYTES)); controller.enqueue(new Uint8Array(1)) }, cancel() { cancelled = true } })
+  await assert.rejects(leerTrabajoJson(new Request('http://localhost/', { method: 'POST', body: stream, duplex: 'half' } as RequestInit)), (cause: unknown) => cause instanceof InputError && cause.status === 413)
+  assert.equal(cancelled, true, 'stream cortado al superar el límite sin Content-Length')
+
   assert.throws(() => validarPayload(''), /vacío/, 'rechaza payload vacío')
   assert.throws(() => validarPayload('no-es-base64!'), /vacío/, 'rechaza payload con símbolos')
   assert.throws(() => validarPayload('A'.repeat(PAYLOAD_MAX_B64 + 1)), (cause: unknown) => cause instanceof InputError && cause.status === 413, 'el payload sobre el tope da 413')
+
+  const label = Buffer.from([27,64,27,116,2,27,97,0,27,97,1,29,118,48,0,72,0,1,0,...new Array(72).fill(0),27,100,2,29,86,0])
+  for (const count of [1,2,3]) validarRasterV1(Buffer.concat(new Array(count).fill(label)).toString('base64'))
+  validarRasterV1(Buffer.concat([label.subarray(0,-3),label.subarray(0,-3)]).toString('base64'))
+  for (const malformed of [label.subarray(0,-5),Buffer.concat([label,Buffer.from([255])]),Buffer.concat([label,Buffer.from([27,64])])]) assert.throws(() => validarRasterV1(malformed.toString('base64')), /mal formado/)
 
   // ── Sufijo de confirmación ───────────────────────────────────────────────
   assert.equal(hashSufijo('7'), hashToken('7'), 'el sufijo se guarda hasheado con SHA-256')

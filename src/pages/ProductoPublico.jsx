@@ -27,7 +27,7 @@ function FichaProducto({ producto }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className={ROTULO_SECCION}>Producto</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">{producto.name}</h1>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere]">{producto.name}</h1>
           </div>
           <Badge color={stock > 0 ? 'green' : 'red'}>{stock > 0 ? `${stock} en stock` : 'Sin stock'}</Badge>
         </div>

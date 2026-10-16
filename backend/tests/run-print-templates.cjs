@@ -1,0 +1,1 @@
+const ts=require('typescript'),fs=require('node:fs');require.extensions['.ts']=(m,p)=>m._compile(ts.transpileModule(fs.readFileSync(p,'utf8'),{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,resolveJsonModule:true}}).outputText,p);require('./print-templates.test.ts');

@@ -14,10 +14,11 @@ import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import VistaErrorBoundary from '@/components/app/VistaErrorBoundary'
-import { ConfirmDialog, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
+import PinSegmentado from '@/components/shared/PinSegmentado'
 import { vibrar } from '@/lib/nativo/haptics'
 import { isNativeIOS, moduloDisponible } from '@/lib/plataforma'
 import ProximamenteIOS from '@/components/nativo/ProximamenteIOS'
@@ -456,6 +457,7 @@ export default function PanelVendedor() {
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
   const [sellerId, setSellerId] = useState('')
   const [pin, setPin] = useState('')
+  const [cambioPinInvalido, setCambioPinInvalido] = useState(false)
   const [cambiando, setCambiando] = useState(false)
   // Menú lateral plegado: último usado como predeterminado (#209).
   const [sidebarCollapsed, recordarSidebar] = useUltimoUsado('shell:menu-plegado', false)
@@ -813,6 +815,7 @@ export default function PanelVendedor() {
     if (esDemo && (!elegido?.pin || pin !== elegido.pin)) {
       toast.error('PIN demo inválido.', elegido ? `Usá el PIN de ${elegido.nombre || elegido.name} (el de su tarjeta en /demo).` : undefined)
       setPin('')
+      setCambioPinInvalido(true)
       setCambiando(false)
       cambioEnCurso.current = false
       return
@@ -838,6 +841,7 @@ export default function PanelVendedor() {
       .catch(err => {
         toast.error(err?.message || 'PIN inválido. Probá de nuevo.')
         setPin('')
+        setCambioPinInvalido(true)
       })
       .finally(() => {
         cambioEnCurso.current = false
@@ -1047,7 +1051,7 @@ export default function PanelVendedor() {
       <div className={locked && cambiarAbierto ? 'fixed inset-0 z-[70] bg-paper' : undefined} data-testid={locked && cambiarAbierto ? 'bloqueo-fondo-opaco' : undefined}>
       <Modal
         open={cambiarAbierto}
-        onClose={() => !cambiando && setCambiarAbierto(false)}
+        onClose={() => { if (!cambiando) { setCambiarAbierto(false); setPin(''); setCambioPinInvalido(false) } }}
         title="Cambiar vendedor" size="corto">
         <p className="mt-2 text-sm text-mute">
           Elegí quién registra la próxima venta y confirmá su PIN.
@@ -1058,7 +1062,7 @@ export default function PanelVendedor() {
         <Select
           id="seller-switch"
           value={sellerId}
-          onChange={event => setSellerId(event.target.value)}
+          onChange={event => { setSellerId(event.target.value); setPin(''); setCambioPinInvalido(false) }}
           disabled={cambiando}
           className="mt-2 w-full"
         >
@@ -1068,41 +1072,28 @@ export default function PanelVendedor() {
             </option>
           ))}
         </Select>
-        {esDemo ? (
-          <>
-            <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
-              Perfiles demo: <strong className="text-fore">2001</strong> vendedor ·{' '}
-              <strong className="text-fore">2002</strong> gerente · <strong className="text-fore">2004</strong> caja ·{' '}
-              <strong className="text-fore">2005</strong> técnico · <strong className="text-fore">2007</strong> delivery ·{' '}
-              <strong className="text-fore">3001</strong> dueño
-            </p>
-            <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
-              PIN demo
-            </label>
-            <PinInput
-              id="seller-switch-pin"
-              autoFocus
-              length={pinLengthCambio}
-              value={pin}
-              onChange={next => setPin(next)}
-              className="mt-2 disabled:opacity-50"
-            />{' '}
-          </>
-        ) : (
-          <>
-            <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
-              PIN del vendedor
-            </label>
-            <PinInput
-              id="seller-switch-pin"
-              autoFocus
-              length={pinLengthCambio}
-              value={pin}
-              onChange={next => setPin(next)}
-              className="mt-2 disabled:opacity-50"
-            />{' '}
-          </>
+        {esDemo && (
+          <p className="mt-3 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-2 text-xs text-mute">
+            Perfiles demo: <strong className="text-fore">2001</strong> vendedor ·{' '}
+            <strong className="text-fore">2002</strong> gerente · <strong className="text-fore">2004</strong> caja ·{' '}
+            <strong className="text-fore">2005</strong> técnico · <strong className="text-fore">2007</strong> delivery ·{' '}
+            <strong className="text-fore">3001</strong> dueño
+          </p>
         )}
+        <label htmlFor="seller-switch-pin" className="mt-3 block text-sm font-semibold">
+          {esDemo ? 'PIN demo' : 'PIN del vendedor'}
+        </label>
+        <PinSegmentado
+          id="seller-switch-pin"
+          autoFocus
+          length={pinLengthCambio}
+          value={pin}
+          disabled={cambiando}
+          invalido={cambioPinInvalido}
+          discreto={angosta || isNativeIOS()}
+          onChange={next => { setPin(next); setCambioPinInvalido(false) }}
+          className="mt-2 [&_.pin-tecla]:!h-11 [&_.pin-tecla]:!w-11"
+        />
         <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
       </Modal>
       </div>
@@ -1123,6 +1114,7 @@ export default function PanelVendedor() {
           setCambiarAbierto(true)
           setSellerId(sesion?.vendedorId || '')
           setPin('')
+          setCambioPinInvalido(false)
         }}
         onSalir={() => setSalirAbierto(true)}
         faceId={faceIdPendiente ? { onReintentar: pedirFaceId } : null}

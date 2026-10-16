@@ -24,6 +24,7 @@ import Avatar from '@/components/shared/Avatar'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
+import PlantillasImpresion from './PlantillasImpresion'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -62,6 +63,7 @@ const hace = (valor) => {
 // las pruebas; el monitoreo global de la empresa (servicios, cola y correo)
 // vive en Estado del sistema, sin repetir lo mismo en los dos lados.
 const PANELES = [
+  { id: 'plantillas', label: 'Plantillas', icon: 'report', detalle: 'Medidas y distribución de etiquetas; PDF manual con el mismo render de la vista previa.' },
   { id: 'impresoras', label: 'Impresoras', icon: 'printer', detalle: 'Agregá, editá y probá cada impresora. La prueba imprime un número secreto que se confirma en Cola e historial.' },
   { id: 'puentes', label: 'Puentes', icon: 'send', detalle: 'Computadoras con el agente que reclaman los trabajos en remoto; se vinculan con un código de un solo uso.' },
   { id: 'formatos', label: 'Ruteo de documentos', icon: 'list', detalle: 'Qué impresora recuerda cada tipo de documento (comprobante, etiquetas, informes…).' },
@@ -973,6 +975,7 @@ export default function Impresoras() {
       </nav>
       <p className="text-xs text-mute" data-testid="panel-detalle">{PANELES.find(({ id }) => id === panel)?.detalle}</p>
 
+      {panel === 'plantillas' && <PlantillasImpresion />}
       {panel === 'formatos' && (Object.keys(memoriaImpresion).length > 0 ? (
         <Card className="space-y-3" data-testid="formatos-impresion">
           <div>

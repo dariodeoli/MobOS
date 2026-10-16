@@ -4,6 +4,7 @@
 
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
+import { leerRaster } from './helpers/raster-qr.js'
 import { SEED } from './helpers/seed-data.js'
 import { crearPuenteFalso, parearPuente } from './helpers/fake-bridge.mjs'
 
@@ -175,10 +176,10 @@ async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId, branch
   const lista = await apiImpresion(page, '/api/print/printers')
   const existente = (lista.datos?.printers || []).find((impresora) => impresora.destination === destino)
   if (existente) {
-    if (existente.bridgeId === bridgeId && (existente.branchId || null) === branchId) return existente
+    if (existente.bridgeId === bridgeId && (existente.branchId || null) === branchId && existente.brand === 'ZKTeco' && existente.model === 'ZKP8008' && existente.width === 80) return existente
     const actualizada = await apiImpresion(page, `/api/print/printers/${existente.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ bridgeId, branchId }),
+      body: JSON.stringify({ bridgeId, branchId, brand: 'ZKTeco', model: 'ZKP8008', width: 80 }),
     })
     if (actualizada.status !== 200) throw new Error(`no se pudo asignar la impresora al puente: HTTP ${actualizada.status}`)
     return actualizada.datos
@@ -187,8 +188,8 @@ async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId, branch
     method: 'POST',
     body: JSON.stringify({
       name: nombre,
-      brand: 'E2E',
-      model: 'Puente',
+      brand: 'ZKTeco',
+      model: 'ZKP8008',
       location: SEED.branchName,
       connection: 'lan',
       destination: destino,
@@ -205,6 +206,22 @@ async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId, branch
   })
   if (creada.status !== 201) throw new Error(`no se pudo crear la impresora remota E2E: HTTP ${creada.status}`)
   return creada.datos
+}
+
+// Cada caso declara su impresora de la sucursal, sin heredar el destino de
+// etiquetas-unidad. Al terminar restaura branch/default de la configuración.
+async function destinoComprobante(page, bridgeId) {
+  const anteriores = (await apiImpresion(page, '/api/print/printers')).datos.printers
+  const anterior = anteriores.find(p => p.destination === DESTINO_REMOTO)
+  const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId, branchId: SEED.branchId })
+  const updated = await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })
+  expect(updated.status).toBe(200)
+  return async () => {
+    expect((await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ branchId: anterior?.branchId || null, isDefault: anterior?.isDefault || false }) })).status).toBe(200)
+    for (const p of anteriores.filter(p => p.isDefault && p.id !== impresora.id)) {
+      expect((await apiImpresion(page, `/api/print/printers/${p.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })).status).toBe(200)
+    }
+  }
 }
 
 test.describe('impresión remota: configuración', () => {
@@ -471,26 +488,34 @@ test.describe('impresión remota: cola con puente falso', () => {
     const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
     const puente = crearPuenteFalso({ api: API, token })
     puente.iniciar()
+    let restaurar = async () => {}
     try {
-      const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
-      // La predeterminada de la empresa define el destino del comprobante.
-      const predeterminada = await apiImpresion(page, `/api/print/printers/${impresora.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isDefault: true }),
-      })
-      expect(predeterminada.status).toBe(200)
+      restaurar = await destinoComprobante(page, bridgeId)
       await page.reload()
 
       await page.goto('/pedidos')
       await page.getByTestId('pedido-fila').first().click()
       await expect(page.getByText('Artículos preparados')).toBeVisible()
+      const tokenEmitido = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/orders\/[^/]+\/access-tokens$/.test(new URL(r.url()).pathname)).then(r => r.json())
       await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+      const { token: tokenQr } = await tokenEmitido
+      expect(tokenQr).toMatch(/^[A-Za-z0-9_-]{32}$/)
       await page.getByRole('button', { name: 'Impresión directa' }).click()
 
       // El puente falso lo reclama y reporta: el trabajo queda en la cola
       // remota con su tipo, sin abrir el diálogo del navegador.
       const trabajo = await puente.esperarTrabajo((item) => item.destination === DESTINO_REMOTO)
       const detalle = await apiImpresion(page, `/api/print/jobs/${trabajo.id}`)
+      const raster = leerRaster(trabajo.payload)
+      expect(raster.cuts).toBe(1)
+      expect(raster.pages).toHaveLength(1)
+      const qr = new URL(raster.pages[0].qr)
+      expect(['http:', 'https:']).toContain(qr.protocol)
+      expect(qr.username + qr.password).toBe('')
+      expect(qr.pathname).toBe(`/pedidos/${tokenQr}`)
+      expect(detalle.datos?.job?.bridgeId).toBe(bridgeId)
+      expect(trabajo.copies).toBe(1)
+      expect(puente.trabajos().filter(item => item.destination === DESTINO_REMOTO)).toHaveLength(1)
       expect(detalle.datos?.job?.kind).toBe('comprobante')
       expect(detalle.datos?.job?.path).toBe('REMOTO')
       expect(detalle.datos?.job?.state).toBe('ACEPTADO')
@@ -498,10 +523,12 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(await page.evaluate(() => window.__dialogosImpresion)).toBe(0)
     } finally {
       puente.detener()
+      await restaurar()
     }
   })
 
   test('el comprobante repetido avisa del duplicado y «Reimprimir igual» lo encola', async ({ page }) => {
+    await page.addInitScript(() => { window.top.__dialogosImpresion = 0; window.print = () => { window.top.__dialogosImpresion++ } })
     // Sin agente local: el comprobante sale por el puente. No hay puente falso
     // reclamando, así que el trabajo queda PENDIENTE y actúa el guarda.
     await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
@@ -515,9 +542,8 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
     const codigo = await crearPuentePorUi(page, `Puente duplicado E2E ${Date.now()}`)
     const { bridgeId } = await parearPuente({ api: API, code: codigo })
-    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
-    const predeterminada = await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })
-    expect(predeterminada.status).toBe(200)
+    const restaurar = await destinoComprobante(page, bridgeId)
+    try {
     await page.reload()
 
     await page.goto('/pedidos')
@@ -536,11 +562,15 @@ test.describe('impresión remota: cola con puente falso', () => {
     const pendientesDe = async () => ((await apiImpresion(page, '/api/print/jobs?state=PENDIENTE&limit=100')).datos?.jobs || []).filter((job) => job.destination === DESTINO_REMOTO)
     // El primer click dejó un pendiente y el segundo NO agregó otro (guardado).
     expect((await pendientesDe()).length).toBe(1)
+    expect((await pendientesDe())[0].copies).toBe(1)
 
     // "Reimprimir igual" es la confirmación explícita: crea un trabajo nuevo.
     await reimprimir.click()
     await expect(page.getByText('Comprobante se envió a la impresora')).toBeVisible({ timeout: 15_000 })
     await expect.poll(async () => (await pendientesDe()).length, { timeout: 10_000 }).toBe(2)
+
+    expect((await pendientesDe()).every(job => job.copies === 1 && job.bridgeId === bridgeId)).toBe(true)
+    expect(await page.evaluate(() => window.__dialogosImpresion)).toBe(0)
 
     // Limpieza: este test encola pendientes a propósito; si quedan, en la
     // próxima corrida el guarda bloquea al test anterior (mismo documento e
@@ -549,6 +579,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       await apiImpresion(page, `/api/print/jobs/${job.id}/cancel`, { method: 'POST', body: JSON.stringify({}) })
     }
     await expect.poll(async () => (await pendientesDe()).length, { timeout: 10_000 }).toBe(0)
+    } finally { await restaurar() }
   })
 
   test('la cola del monitor cancela un pendiente y el puente no lo recibe', async ({ page }) => {
@@ -932,7 +963,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       const detalle = await apiImpresion(page, `/api/print/jobs/${trabajo.id}`)
       expect(detalle.datos?.job?.kind).toBe('imei-check')
       expect(detalle.datos?.job?.state).toBe('ACEPTADO')
-      await page.screenshot({ path: '/tmp/qa203-imei-impreso.png' })
+      if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: '/tmp/qa203-imei-impreso.png' })
     } finally {
       puente.detener()
     }

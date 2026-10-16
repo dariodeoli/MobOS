@@ -43,7 +43,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const productoParam = searchParams.get('producto') || ''
   const [products, setProducts] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([]), [cargandoUnidades, setCargandoUnidades] = useState(true)
   const apiMode = modoDatosActual() === 'api'
-  const { sesion, usuario, sucursal, sucursales, esDemo } = useSesion()
+  const { sesion, usuario, empresa, sucursal, sucursales, esDemo } = useSesion()
   // Las sucursales ya vienen hidratadas en la sesión (el selector del shell las
   // consulta una sola vez): se reusan para los modales en lugar de repetir la
   // consulta en cada carga del inventario (#247).
@@ -68,6 +68,9 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [crearVariante, setCrearVariante] = useState(false)
   const [modeloNuevo, setModeloNuevo] = useState('')
   const [gondolaOpen, setGondolaOpen] = useState(false)
+  const [etiquetasPlantilla, setEtiquetasPlantilla] = useState(null)
+  const scopeEtiquetas = JSON.stringify([empresa?.id, sucursal?.id, usuario?.id, sesion?.usuarioId, usuario?.role, usuario?.permissions, esDemo])
+  useEffect(() => setEtiquetasPlantilla(null), [scopeEtiquetas])
   // Las filas elegidas salen de la lista de Stock (paginada por cursor) y, en las
   // pestañas con unidades completas, de `units`; el serial y el estado son los
   // mismos que usan los diálogos y la ficha.
@@ -917,8 +920,12 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // U4b: imprime (o previsualiza) las etiquetas de las filas elegidas con la
   // misma función pura que arma el trabajo de impresora y el PDF. Los mensajes
   // de EtiquetasStockError se muestran tal cual.
-  async function imprimirEtiquetasSeleccion(items = itemsElegidos(), { vistaPrevia = false } = {}) {
+  async function imprimirEtiquetasSeleccion(items = itemsElegidos(), { vistaPrevia = false, habitual = false } = {}) {
     if (busy) return
+    if (!habitual) {
+      setEtiquetasPlantilla({ scope: scopeEtiquetas, items, filas: filasEtiquetasDeItems(items, products), vistaPrevia })
+      return
+    }
     setBusy(true); setError(''); setNotice('')
     try {
       const filas = filasEtiquetasDeItems(items, products)
@@ -1195,7 +1202,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     itemsElegidos,
     setUnidadesPedidas,
     abrirDetalleItem,
-    imprimirEtiquetasSeleccion,
+    imprimirEtiquetasSeleccion, etiquetasPlantilla: etiquetasPlantilla?.scope === scopeEtiquetas ? etiquetasPlantilla : null, setEtiquetasPlantilla,
     transferDeArrival,
     locationsFor,
     grantedIds,

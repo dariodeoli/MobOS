@@ -3691,6 +3691,9 @@ test('U3 selección: N filas elegidas ofrecen imprimir etiquetas y vista previa'
   await expect(page.getByTestId('etiquetas-vista-previa')).toBeVisible()
   // En el demo la impresora no está disponible: el aviso lo dice sin inventar un éxito.
   await page.getByTestId('imprimir-etiquetas').click()
+  const etiquetas = page.getByRole('dialog', { name: 'Etiquetas de Stock', exact: true })
+  await expect(etiquetas).toBeVisible()
+  await etiquetas.getByRole('button', { name: 'Continuar con formato habitual', exact: true }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'la impresión no está disponible en el demo' })).toBeVisible()
   await page.keyboard.press('Escape')
 })

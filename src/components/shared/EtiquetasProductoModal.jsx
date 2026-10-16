@@ -7,12 +7,13 @@ import SearchField from '@/components/shared/SearchField'
 import { gs } from '@/utils/calculos'
 import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
-import { ticketEtiquetasProducto } from '@/lib/printing/tickets'
+import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
 import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
 import { useCompartirImagen } from '@/components/shared/CompartirImagen'
 import MenuSecundario from '@/components/shared/MenuSecundario'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import EtiquetasPlantillaProducto from '@/components/control/impresion/EtiquetasPlantillaProducto'
 
 // Etiquetas de producto/góndola: se eligen productos (o un rango por búsqueda),
 // se define cuántas etiquetas por producto y salen por la térmica configurada
@@ -30,6 +31,8 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
   const [elegidos, setElegidos] = useState([])
   const [cantidades, setCantidades] = useState({})
   const [enviando, setEnviando] = useState(false)
+  const [modoPlantilla, setModoPlantilla] = useState('loading')
+  const formatoHabitual = modoPlantilla === 'legacy'
 
   // La selección inicial se lee al abrir: el llamador puede recrear el array
   // en cada render (ids derivados de la lista visible) y no debe pisar la
@@ -70,15 +73,19 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
     formato: formatosPorAncho(configImpresora().ancho),
   })
   async function conDialogo() {
+    if (!formatoHabitual) return
     const { ancho } = configImpresora()
     await printHtml(await buildProductLabelsHtml(items, { format: formatosPorAncho(ancho) }))
   }
   async function imprimir() {
-    if (!items.length || enviando) return
+    if (!items.length || enviando || !formatoHabitual) return
     setEnviando(true)
     try {
       const { ancho } = configImpresora()
-      const resultado = await imprimirDocumento(ticketEtiquetasProducto(items, { ancho }), { tipo: 'etiquetas-producto' })
+      const resultado = await imprimirDocumento(async ({ impresora }) => {
+        const html = await buildProductLabelsHtml(items, { format: formatosPorAncho(ancho) })
+        return ticketsDesdeHtml(html, { impresora, formato: formatosPorAncho(ancho), etiquetas: true })
+      }, { tipo: 'etiquetas-producto' })
       if (resultado?.ok) {
         if (resultado.encolado) avisar.impreso('Etiquetas', resultado.remoto ? 'Quedaron en la cola del puente: las imprime cuando las reclame.' : 'La impresora no respondió; se reintenta solo.')
         else avisar.impreso('Etiquetas', `${totalEtiquetas} etiqueta(s) de ${items.length} producto(s).`)
@@ -94,7 +101,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
   return (
     <VentanaDetalle open={open} onClose={onClose} title="Etiquetas de góndola" size="lg">
       <div className="space-y-4">
-        <p className="text-sm text-mute">Elegí los productos y cuántas etiquetas de cada uno. El código de barras sale sobre el SKU (EAN-13 si el SKU lo es; si no, CODE128) y el precio es el de venta del producto.</p>
+        <p className="text-sm text-mute">Elegí los productos y cuántas etiquetas de cada uno. El código de barras usa el SKU completo y el precio de venta. El formato habitual usa EAN-13 cuando corresponde; las plantillas PDF usan CODE128.</p>
         <SearchField ariaLabel="Buscar por nombre o SKU" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
         <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-ink-600 p-2">
           {visibles.map((product) => {
@@ -103,7 +110,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
             const marcado = elegidos.includes(id)
             return (
               <div key={id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-2 transition ${marcado ? 'border-fono/40 bg-fono/5' : 'border-ink-600'}`}>
-                <label className="flex min-w-0 flex-1 items-center gap-2.5">
+                <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5">
                   <input type="checkbox" className="h-4 w-4 shrink-0 accent-fono" checked={marcado} onChange={() => alternar(id)} aria-label={`Seleccionar ${nombreDe(product)}`} />
                   <span className="min-w-0">
                     <span className={cn('block', CELDA_IDENTIDAD_GRANDE)} title={nombreDe(product)}>{nombreDe(product)}</span>
@@ -112,7 +119,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
                 </label>
                 <label className="flex shrink-0 items-center gap-1.5 text-[11px] text-mute">
                   Etiquetas
-                  <Input className="h-8 w-14 text-center" inputMode="numeric" maxLength={2} disabled={!marcado} aria-label={`Cantidad de etiquetas de ${nombreDe(product)}`} value={cantidades[id] ?? '1'} onChange={(event) => setCantidad(id, event.target.value)} />
+                  <Input className="min-h-11 w-14 text-center" inputMode="numeric" maxLength={2} disabled={!marcado} aria-label={`Cantidad de etiquetas de ${nombreDe(product)}`} value={cantidades[id] ?? '1'} onChange={(event) => setCantidad(id, event.target.value)} />
                 </label>
               </div>
             )
@@ -120,19 +127,20 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
           {!visibles.length && <p className="px-2 py-6 text-center text-sm text-mute">Ningún producto coincide con la búsqueda.</p>}
         </div>
         {items.length > 0 && <p className="text-xs text-mute">{items.length} producto(s) · {totalEtiquetas} etiqueta(s) en total.</p>}
+        {open && <EtiquetasPlantillaProducto items={items} onMode={setModoPlantilla} />}
         <FormActions>
-          <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button type="button" className="min-h-11" variant="ghost" onClick={onClose}>Cancelar</Button>
           <MenuSecundario
             ariaLabel="Más acciones de etiquetas"
             acciones={[
-              { icon: 'share', label: compartir.generando === 'compartir' ? 'Generando…' : 'Compartir imagen', disabled: !items.length || enviando || compartir.ocupado, onClick: compartir.compartir },
-              { icon: 'download', label: compartir.generando === 'descargar' ? 'Generando…' : 'Descargar PNG', disabled: !items.length || enviando || compartir.ocupado, onClick: compartir.descargar },
-              { icon: 'copy', label: compartir.generando === 'copiar' ? 'Copiando…' : 'Copiar imagen', disabled: !items.length || enviando || compartir.ocupado, onClick: compartir.copiar },
+              { icon: 'share', label: compartir.generando === 'compartir' ? 'Generando…' : 'Compartir imagen', disabled: !formatoHabitual || !items.length || enviando || compartir.ocupado, onClick: compartir.compartir },
+              { icon: 'download', label: compartir.generando === 'descargar' ? 'Generando…' : 'Descargar PNG', disabled: !formatoHabitual || !items.length || enviando || compartir.ocupado, onClick: compartir.descargar },
+              { icon: 'copy', label: compartir.generando === 'copiar' ? 'Copiando…' : 'Copiar imagen', disabled: !formatoHabitual || !items.length || enviando || compartir.ocupado, onClick: compartir.copiar },
               { separador: true },
-              { icon: 'report', label: 'Descargar PDF', disabled: !items.length || enviando, onClick: conDialogo },
+              { icon: 'report', label: 'Descargar PDF', disabled: !formatoHabitual || !items.length || enviando, onClick: conDialogo },
             ]}
           />
-          <Button type="button" disabled={!items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>
+          <Button type="button" className="min-h-11" disabled={!formatoHabitual || !items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>
         </FormActions>
       </div>
     </VentanaDetalle>

@@ -7,8 +7,10 @@ import type { PrismaClient, PrintJob, PrintJobPath, PrintJobState } from '@prism
 import { hashToken } from './auth'
 import { InputError } from './payment-input'
 
-// Base64 de 128 KB (~96 KB crudos), espejo del tope del agente (server.mjs:268).
-export const PAYLOAD_MAX_B64 = 131072
+// Documento raster completo; el agente admite un body máximo de 5 MiB.
+export const PAYLOAD_MAX_B64 = 524288
+export const MAX_BYTES_ABIERTOS_POR_EMPRESA = 20 * 1024 * 1024
+export const PRINT_BODY_MAX_BYTES = PAYLOAD_MAX_B64 + 8192
 export const MAX_ABIERTOS_POR_EMPRESA = 200
 export const MAX_INTENTOS_IMPRESION = 3
 export const RETENCION_METADATOS_DIAS = 180
@@ -39,9 +41,55 @@ const MOTIVO_LEASE_VENCIDO = 'Vencido el plazo de impresión sin respuesta del p
  */
 export function validarPayload(valor: unknown): string {
   if (typeof valor !== 'string' || !valor) throw new InputError('El ticket llegó vacío o mal formado.')
-  if (valor.length > PAYLOAD_MAX_B64) throw new InputError('El ticket supera el máximo de 128 KB.', 413)
-  if (!PAYLOAD_RE.test(valor)) throw new InputError('El ticket llegó vacío o mal formado.')
+  if (valor.length > PAYLOAD_MAX_B64) throw new InputError('El ticket supera el máximo de 512 KiB base64.', 413)
+  if (!PAYLOAD_RE.test(valor) || valor.length % 4 !== 0 || Buffer.from(valor, 'base64').toString('base64') !== valor) throw new InputError('El ticket llegó vacío o mal formado.')
   return valor
+}
+
+/** Perfil raster-v1 emitido por el navegador: framing completo, sin ejecutar
+ * contenido después de una imagen truncada ni permitir sufijos arbitrarios. */
+export function validarRasterV1(payload: string): void {
+  const b = Buffer.from(payload, 'base64')
+  const fail = () => { throw new InputError('El documento raster llegó incompleto o mal formado.') }
+  if (!b.subarray(0, 8).equals(Buffer.from([27,64,27,116,2,27,97,0]))) fail()
+  let i = 8, chunks = 0, width = 0, feeding = false
+  while (i < b.length) {
+    if (feeding && b.subarray(i, i+8).equals(Buffer.from([27,64,27,116,2,27,97,0]))) { i += 8; chunks = 0; width = 0; feeding = false; continue }
+    if (b[i] === 27 && b[i+1] === 97 && [0,1].includes(b[i+2])) { i += 3; continue }
+    if (b[i] === 29 && b[i+1] === 118 && b[i+2] === 48 && b[i+3] === 0 && i+8 <= b.length && !feeding) {
+      const w = b.readUInt16LE(i+4), h = b.readUInt16LE(i+6)
+      if (![48,72].includes(w) || !h || h > 256 || (width && width !== w) || i+8+w*h > b.length) fail()
+      width = w; chunks++; i += 8+w*h; continue
+    }
+    if (b[i] === 27 && b[i+1] === 100 && b[i+2] > 0 && chunks) { feeding = true; i += 3; continue }
+    if (b[i] === 29 && b[i+1] === 86 && [0,1].includes(b[i+2]) && feeding && (i+3 === b.length || b.subarray(i+3,i+11).equals(Buffer.from([27,64,27,116,2,27,97,0])))) { i += 3; continue }
+    fail()
+  }
+  if (!chunks || !feeding) fail()
+}
+
+export async function leerTrabajoJson(request: Request): Promise<Record<string, unknown>> {
+  const advertised = Number(request.headers.get('content-length'))
+  if (Number.isFinite(advertised) && advertised > PRINT_BODY_MAX_BYTES) throw new InputError('El cuerpo supera el límite permitido.', 413)
+  const reader = request.body?.getReader()
+  if (!reader) throw new InputError('Datos del trabajo inválidos.')
+  const chunks: Uint8Array[] = []
+  let bytes = 0
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes > PRINT_BODY_MAX_BYTES) { await reader.cancel(); throw new InputError('El cuerpo supera el límite permitido.', 413) }
+      chunks.push(value)
+    }
+    const body: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new InputError('Datos del trabajo inválidos.')
+    return body as Record<string, unknown>
+  } catch (cause) {
+    if (cause instanceof InputError) throw cause
+    throw new InputError('Datos del trabajo inválidos.')
+  } finally { reader.releaseLock() }
 }
 
 export function textoOpcional(valor: unknown, maximo: number): string {

@@ -240,8 +240,8 @@ assert.ok(!/"payload":|"suffixHash":|"leaseId":/.test(JSON.stringify(resultado.p
 resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: 'QUJDRA==', idempotencyKey: 'it-job-key-1' } })
 assert.equal(resultado.status, 200, 'repetir la clave devuelve el mismo trabajo')
 assert.equal(resultado.payload.job.id, job.id, 'la clave de idempotencia no crea otro trabajo')
-resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: 'A'.repeat(131073) } })
-assert.equal(resultado.status, 413, 'el payload sobre 128 KB da 413')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: 'A'.repeat(524289) } })
+assert.equal(resultado.status, 413, 'el payload de 512 KiB base64 más un byte da 413')
 resultado = await request('/api/print/jobs', { method: 'POST', body: { path: 'LOCAL', destination: 'lan:10.0.0.11:9100', sourceJobId: 'it-local-1', state: 'ACEPTADO', validation: '4321', suffix: '3' } })
 assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
 const espejo = resultado.payload.job

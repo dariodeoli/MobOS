@@ -1,3 +1,4 @@
+import DocumentoPlantilla from '@/components/control/impresion/DocumentoPlantilla'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Aviso, Button, ConfirmDialog, FormActions, useResultado, useToast } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
@@ -12,20 +13,15 @@ import {
   nivelPreferido,
   recordarPreferencia,
   tokenDeNivel,
-  accessUrlFor,
-  trackingUrlFor,
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
-import { getLogoDataUrl } from '@/lib/tenantLogo'
-import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
-import { logoRasterDesdeDataUrl } from '@/lib/printing/logoRaster'
 import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
 import { printingApi } from '@/lib/api/printing'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { encolarComprobanteDemo } from '@/lib/printing/demo'
 import { formatoDeTipo, formatosVisibles, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
 import useFormato58 from '@/hooks/useFormato58'
-import { ticketComprobante } from '@/lib/printing/tickets'
+import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
 import { documentoDeVenta } from '@/lib/printing/ventaComprobanteLocal'
 import { imprimirReciboRegalo } from './imprimirOperacion'
 import { useSesion } from '@/lib/sesion'
@@ -69,7 +65,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
   const [nivel, setNivel] = useState(nivelPreferido)
   const [formato, setFormato] = useState(inicial)
   const [html, setHtml] = useState('')
-  const [link, setLink] = useState('')
+  const [htmlPlantilla, setHtmlPlantilla] = useState('')
   const [cargando, setCargando] = useState(false)
   const [agente, setAgente] = useState(false)
   // Con impresora configurada en la empresa se puede imprimir aunque este
@@ -126,7 +122,8 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
     ;(async () => {
       const token = await tokenDeNivel(documento.id, nivel)
       const built = await buildOrderReceiptHtml(documento, { level: nivel, format: formato, token, contexto })
-      if (active) { setHtml(built); setLink(token ? accessUrlFor(token) : trackingUrlFor(documento)); setCargando(false) }
+      const builtPlantilla = formato === 'thermal-80' ? built : await buildOrderReceiptHtml(documento, { level: nivel, format: 'thermal-80', token, contexto })
+      if (active) { setHtmlPlantilla(builtPlantilla); setHtml(built); setCargando(false) }
     })()
     return () => { active = false }
   }, [open, documento, contexto, nivel, formato])
@@ -141,6 +138,10 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
     const alto = Math.max(doc.documentElement?.scrollHeight || 0, doc.body?.scrollHeight || 0)
     if (alto > 0) marco.style.height = `${alto + 2}px`
   }, [])
+
+  const [modoPlantilla, setModoPlantilla] = useState('loading')
+  const premiumActual = useCallback(async () => htmlPlantilla, [htmlPlantilla])
+  const datosPlantilla = useMemo(() => documento && htmlPlantilla && !cargando ? [documento] : [], [documento, htmlPlantilla, cargando])
 
   function imprimir() {
     if (!html) return
@@ -175,12 +176,8 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
   }
 
   async function imprimirDirecto(reimprimir = false) {
-    if (enviando || !documento) return
+    if (enviando || cargando || !documento || !html) return
     setEnviando(true)
-    const { ancho } = configImpresora()
-    // Logo de la empresa en el encabezado térmico: variante oscura (papel
-    // blanco) convertida a mapa de bits 1-bit para GS v 0.
-    const logo = await logoRasterDesdeDataUrl(await getLogoDataUrl('light'), { anchoMax: ancho === 80 ? 512 : 320 })
     // El pedido identifica el trabajo en la cola y alimenta el guarda
     // anti-duplicados (#128): un click repetido se bloquea y, si la persona
     // confirma, sale como reimpresión explícita.
@@ -195,8 +192,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
       toast.success(reimprimir ? 'Reimpresión encolada (demo)' : 'Comprobante encolado (demo)', 'Dato ficticio: no se envió nada al puente.')
       return
     }
-    const politica = await getPoliticasImpresion()
-    const resultado = await imprimirDocumento(ticketComprobante(documento, { nivel, ancho, link: link || politica.url, logo, politica }), { tipo: 'comprobante', ref: referencia, reimprimir })
+    const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
     if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }
     if (!resultado.ok) { avisar.fallo('imprimir', resultado.error || 'Revisá la impresora.'); return }
@@ -283,13 +279,13 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
           titulo="Comprobante de compra"
           texto={`Comprobante ${documento?.orderNumber || documento?.codigo || ''}`.trim()}
           formato={formato}
-          disabled={!html || cargando}
+          disabled={!html || cargando || modoPlantilla !== 'legacy'}
         />
         <span className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={imprimirRegalo} disabled={cargando || enviando || !documento}>Imprimir recibo de regalo</Button>
-          <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
-          {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
-          <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
+          <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando || modoPlantilla !== 'legacy'}>Descargar PDF</Button>
+          {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando || modoPlantilla !== 'legacy'}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
+          <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando || modoPlantilla !== 'legacy'}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
         </span>
       </div>
     </div>
@@ -341,14 +337,15 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
         <p className="text-[11px] text-mute">
           El comprobante muestra la información del nivel elegido. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
         </p>
-        <VistaPreviaPapel
+        {open && <DocumentoPlantilla kind="comprobante" data={datosPlantilla} premiumBuilder={premiumActual} onMode={setModoPlantilla} />}
+        {modoPlantilla === 'legacy' && <VistaPreviaPapel
           formato={formato}
           contenido={html}
           titulo="Vista previa del comprobante"
           alto="h-auto"
           className="min-h-[320px]"
           onLoad={ajustarAltoAlContenido}
-        />
+        />}
         {/* #318 + #323: acciones en el pie fijo del modal estándar. */}
         <FormActions>{acciones}</FormActions>
       </div>

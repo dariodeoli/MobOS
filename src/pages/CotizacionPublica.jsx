@@ -104,8 +104,8 @@ export default function CotizacionPublica() {
                   <h1 className="text-2xl font-bold tracking-tight">{quote.number || 'Cotización'}</h1>
                   <span data-testid="estado-cotizacion" className={`rounded-lg border px-3 py-1.5 text-sm font-bold ${TONO[estado] || 'border-warn/30 bg-warn/10 text-warn'}`}>{ESTADO[estado] || estado}</span>
                 </div>
-                {quote.customerName && <p className="mt-1 text-sm text-mute">Para {quote.customerName}</p>}
-                {quote.validUntil && <p className="mt-1 text-sm text-mute">Válida hasta {new Date(quote.validUntil).toLocaleDateString('es-PY')}</p>}
+                {quote.customerName && <p className="mt-1 text-sm text-mute [overflow-wrap:anywhere]">Para {quote.customerName}</p>}
+                {quote.validUntil && <p className="mt-1 text-sm text-mute [overflow-wrap:anywhere]">Válida hasta {new Date(quote.validUntil).toLocaleDateString('es-PY')}</p>}
               {quote.version && (
                 <p data-testid="aprobacion-version" className="mt-2 text-xs uppercase tracking-wider text-mute">
                   Versión {quote.version.number} · congelada {new Date(quote.version.frozenAt).toLocaleString('es-PY')}
@@ -127,7 +127,7 @@ export default function CotizacionPublica() {
                 {items.map((item, index) => (
                   <div key={index} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="min-w-0 truncate">{item.description}</span>
+                      <span className="min-w-0 break-words">{item.description}</span>
                       <span className="shrink-0 text-mute">× {item.quantity}</span>
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-3 text-xs text-mute">
@@ -202,9 +202,9 @@ export default function CotizacionPublica() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 flex flex-col items-center gap-3">
+                  <div className="mt-4 flex flex-col items-center gap-3 [&_button]:min-h-11">
                     <div className="flex flex-wrap justify-center gap-2">
-                      <button type="button" disabled={busy} onClick={() => resolver('accept')} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:opacity-60"><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aceptar cotización'}</button>
+                      <button type="button" disabled={busy} onClick={() => resolver('accept')} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-on-ok transition hover:opacity-90 disabled:opacity-60"><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aceptar cotización'}</button>
                       <button type="button" disabled={busy} onClick={() => setRechazando(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-bad/40 px-5 py-2.5 text-sm font-semibold text-bad transition hover:bg-bad/10 disabled:opacity-60"><Icon name="close" className="h-4 w-4" />Rechazar</button>
                     </div>
                     {/* #261: el cliente baja o comparte el A4 de marca (misma proforma). */}
@@ -229,7 +229,7 @@ export default function CotizacionPublica() {
               </section>
             )}
 
-            <p className="pt-2 text-center text-xs text-mute">Documento no fiscal · Generado por MobOS para {quote.company?.name || 'la tienda'}</p>
+            <p className="pt-2 text-center text-xs text-mute [overflow-wrap:anywhere]">Documento no fiscal · Generado por MobOS para {quote.company?.name || 'la tienda'}</p>
             <EnlacePoliticas slug={quote.company?.policiesSlug} />
           </div>
         )}

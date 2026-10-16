@@ -661,6 +661,8 @@ MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" node "$BACKEND_ROOT/tests/email-e
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/quote-email.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/collections-marketing.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-installments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+echo "Raster513: payload, aislamiento, idempotencia y cuota atómica..."
+MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/print513-pg.cjs"
 echo "Conciliación por cuenta/procesadora: lote recibido vs esperado, diferencia y trazabilidad..."
 node "$BACKEND_ROOT/tests/reconciliation-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"

@@ -5,18 +5,18 @@
 // Fuera de la demo delega en localStorage: los módulos que todavía tienen un
 // camino local (offline/legacy) siguen funcionando igual.
 import { isDemoRuntime } from './demoMode.js'
+import { contextoDemo } from './demo/contexto.js'
+import { crearAlmacenDemo } from './demo/memoria.js'
 
-const memoria = new Map()
+const memoria = crearAlmacenDemo(contextoDemo)
 
 /** Objeto compatible con la API de storage (getItem/setItem/removeItem). */
 export function almacenamientoDemo(opciones = {}) {
   const demo = opciones.demo ?? isDemoRuntime
   if (demo) {
-    return {
-      getItem: (clave) => (memoria.has(clave) ? memoria.get(clave) : null),
-      setItem: (clave, valor) => { memoria.set(clave, String(valor)) },
-      removeItem: (clave) => { memoria.delete(clave) },
-    }
+    // Quien continúa después de un await debe pasar el token capturado antes.
+    // Una fachada retenida también queda invalidada al cambiar usuario/sucursal.
+    return memoria.almacen(opciones.contexto)
   }
   try {
     if (typeof window !== 'undefined' && window.localStorage) return window.localStorage
@@ -51,7 +51,8 @@ export function borrarDemo(clave, opciones) {
   }
 }
 
-/** Solo para pruebas: vacía la memoria de la demo. */
+/** Vacía solo la memoria demo e invalida las fachadas retenidas (salida/reset). */
 export function limpiarMemoriaDemo() {
-  memoria.clear()
+  memoria.limpiar()
+  contextoDemo.invalidar()
 }

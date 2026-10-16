@@ -51,7 +51,7 @@ export default function General({ tenant, onTenantChange, onReauthValid, onIrANu
   const prefijo = prefijoEfectivo(tenant?.orderPrefix)
   const siguiente = Number(tenant?.orderNextNumber) > 0 ? Number(tenant.orderNextNumber) : 1
   const direccion = [tenant?.address, tenant?.city, tenant?.department].filter(Boolean).join(', ')
-  const contacto = [empresa?.email, tenant?.phone].filter(Boolean).join(' · ')
+  const contacto = [empresa?.email || (esDemo ? tenant?.email : ''), tenant?.phone].filter(Boolean).join(' · ')
   const cerrar = () => setVentana(null)
   const props = { tenant, onReauthValid, onGuardado: onTenantChange, modo: 'ventana', onCerrar: cerrar }
 

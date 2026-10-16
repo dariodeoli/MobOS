@@ -1,0 +1,333 @@
+[
+  {
+    "kind": "comprobante",
+    "name": "Comprobante premium",
+    "definition": {
+      "schemaVersion": 1,
+      "page": {
+        "widthMm": 80,
+        "heightMm": null,
+        "orientation": 0,
+        "margins": {
+          "top": 2,
+          "right": 2,
+          "bottom": 2,
+          "left": 2
+        }
+      },
+      "profile": {
+        "deviceFamily": "generic",
+        "output": "document",
+        "dpi": 203,
+        "printableWidthMm": 76,
+        "offsetXmm": 2,
+        "offsetYmm": 0
+      },
+      "elements": [
+        {
+          "id": "brand",
+          "binding": "brand",
+          "type": "logo",
+          "xMm": 2,
+          "yMm": 2,
+          "widthMm": 76,
+          "heightMm": 12,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "documentTitle",
+          "binding": "documentTitle",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 14,
+          "widthMm": 76,
+          "heightMm": 6,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "documentNumber",
+          "binding": "documentNumber",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 20,
+          "widthMm": 76,
+          "heightMm": 8,
+          "fontSizePt": 12,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "date",
+          "binding": "date",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 28,
+          "widthMm": 76,
+          "heightMm": 6,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "customer",
+          "binding": "customer",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 34,
+          "widthMm": 76,
+          "heightMm": 10,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "items",
+          "binding": "items",
+          "type": "block",
+          "xMm": 2,
+          "yMm": 44,
+          "widthMm": 76,
+          "heightMm": 30,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "payments",
+          "binding": "payments",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 74,
+          "widthMm": 76,
+          "heightMm": 12,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "warranty",
+          "binding": "warranty",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 86,
+          "widthMm": 76,
+          "heightMm": 10,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "total",
+          "binding": "total",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 96,
+          "widthMm": 76,
+          "heightMm": 10,
+          "fontSizePt": 12,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "nonFiscal",
+          "binding": "nonFiscal",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 106,
+          "widthMm": 76,
+          "heightMm": 6,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "qr",
+          "binding": "qr",
+          "type": "qr",
+          "xMm": 2,
+          "yMm": 112,
+          "widthMm": 16,
+          "heightMm": 16,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        }
+      ]
+    }
+  },
+  {
+    "kind": "etiquetas-producto",
+    "name": "Producto horizontal",
+    "definition": {
+      "schemaVersion": 1,
+      "page": {
+        "widthMm": 110,
+        "heightMm": 60,
+        "orientation": 0,
+        "margins": {
+          "top": 2,
+          "right": 2,
+          "bottom": 2,
+          "left": 2
+        }
+      },
+      "profile": {
+        "deviceFamily": "3nstar-ltt214",
+        "output": "document",
+        "dpi": 203,
+        "printableWidthMm": 108,
+        "offsetXmm": 1,
+        "offsetYmm": 0
+      },
+      "elements": [
+        {
+          "id": "product",
+          "binding": "product",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 2,
+          "widthMm": 106,
+          "heightMm": 12,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "price",
+          "binding": "price",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 14,
+          "widthMm": 106,
+          "heightMm": 8,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "sku",
+          "binding": "sku",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 22,
+          "widthMm": 106,
+          "heightMm": 6,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "barcode",
+          "binding": "barcode",
+          "type": "barcode",
+          "xMm": 2,
+          "yMm": 28,
+          "widthMm": 106,
+          "heightMm": 14,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        }
+      ]
+    }
+  },
+  {
+    "kind": "etiquetas-stock",
+    "name": "Unidad horizontal",
+    "definition": {
+      "schemaVersion": 1,
+      "page": {
+        "widthMm": 110,
+        "heightMm": 60,
+        "orientation": 0,
+        "margins": {
+          "top": 2,
+          "right": 2,
+          "bottom": 2,
+          "left": 2
+        }
+      },
+      "profile": {
+        "deviceFamily": "3nstar-ltt214",
+        "output": "document",
+        "dpi": 203,
+        "printableWidthMm": 108,
+        "offsetXmm": 1,
+        "offsetYmm": 0
+      },
+      "elements": [
+        {
+          "id": "model",
+          "binding": "model",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 2,
+          "widthMm": 106,
+          "heightMm": 12,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "serial",
+          "binding": "serial",
+          "type": "text",
+          "xMm": 2,
+          "yMm": 14,
+          "widthMm": 106,
+          "heightMm": 6,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "qr",
+          "binding": "qr",
+          "type": "qr",
+          "xMm": 2,
+          "yMm": 20,
+          "widthMm": 16,
+          "heightMm": 16,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": "barcode",
+          "binding": "barcode",
+          "type": "barcode",
+          "xMm": 2,
+          "yMm": 36,
+          "widthMm": 106,
+          "heightMm": 14,
+          "fontSizePt": 8,
+          "alignment": "left",
+          "rotation": 0,
+          "visible": true
+        }
+      ]
+    }
+  }
+]

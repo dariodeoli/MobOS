@@ -16,8 +16,8 @@ export function PortalEncabezado({ eyebrow = 'Mi cuenta', titulo, saludo, logoUr
         <img src={logoUrl} alt={logoAlt || 'Logo de la tienda'} onError={onLogoError} className="mx-auto mb-3 h-12 w-auto max-w-[170px] object-contain sm:mb-4 sm:h-14" />
       )}
       <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">{eyebrow}</p>
-      <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">{titulo}</h1>
-      {saludo && <p className="mt-1 text-sm text-mute">{saludo}</p>}
+      <h1 className="mt-1.5 text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{titulo}</h1>
+      {saludo && <p className="mt-1 text-sm text-mute [overflow-wrap:anywhere]">{saludo}</p>}
     </header>
   )
 }
@@ -71,7 +71,7 @@ export function PortalFallo({ mensaje, ayuda = 'Pedile un enlace nuevo a la tien
 export function PortalPie({ tienda, actualizado, politicasSlug }) {
   return (
     <>
-      <p className="pt-1 text-center text-xs text-mute">
+      <p className="pt-1 text-center text-xs text-mute [overflow-wrap:anywhere]">
         {actualizado ? `Actualizado ${actualizado} · ` : ''}Documento no fiscal · Generado por MobOS para {tienda || 'la tienda'}
       </p>
       <EnlacePoliticas slug={politicasSlug} />

@@ -129,6 +129,8 @@ model Tenant {
   customerBillingIdentities CustomerBillingIdentity[]
   deviceReportShares      DeviceReportShare[]
   printBridges            PrintBridge[]
+  printTemplates          PrintTemplate[]
+  printTemplateDefaults   PrintTemplateDefault[]
   printers                PrintPrinter[]
   printJobs               PrintJob[]
   customerPortalTokens    CustomerPortalToken[]
@@ -354,6 +356,7 @@ model Branch {
   @@unique([tenantId, name])
   @@index([tenantId])
   printBridges   PrintBridge[]  @relation("PrintBridgeBranch")
+  printTemplateDefaults PrintTemplateDefault[]
   printPrinters  PrintPrinter[] @relation("PrintPrinterBranch")
   supplyNeeds SupplyNeed[]
   supplyPurchases SupplyPurchase[]
@@ -4232,4 +4235,39 @@ model ReconciliationDayRevision {
   createdAt DateTime @default(now())
   @@unique([tenantId, requestId])
   @@unique([dayId, version])
+}
+
+// Declarative layouts contain bindings/configuration only, never business data.
+model PrintTemplate {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind String
+  name String
+  revision Int @default(1)
+  definition Json
+  createdByUserId String
+  updatedByUserId String
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  defaults PrintTemplateDefault[]
+  @@index([tenantId, kind, archivedAt])
+}
+
+model PrintTemplateDefault {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scopeKey String
+  branchId String?
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  kind String
+  templateId String
+  template PrintTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  updatedByUserId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId, scopeKey, kind])
+  @@index([tenantId, branchId])
 }

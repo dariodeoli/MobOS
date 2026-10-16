@@ -1,3 +1,4 @@
+import { EMPRESA_DEMO } from './demo/empresa.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { VENTAS_DEMO } from './demo/ventas.js'
 // Ajustes ficticios de la empresa en modo demo (#194): se guardan solo en este
@@ -6,7 +7,17 @@ import { VENTAS_DEMO } from './demo/ventas.js'
 
 const KEY = 'mobos:demo-tenant:v1'
 
+// Solo datos ficticios: los valores guardados por la persona siempre prevalecen.
 const DEFAULTS = {
+  id: EMPRESA_DEMO.id,
+  name: EMPRESA_DEMO.razonSocial,
+  email: EMPRESA_DEMO.email,
+  phone: EMPRESA_DEMO.telefono,
+  ruc: EMPRESA_DEMO.ruc,
+  address: EMPRESA_DEMO.direccion,
+  city: EMPRESA_DEMO.city,
+  department: EMPRESA_DEMO.department,
+  instagram: EMPRESA_DEMO.instagram,
   insurancePct: 0,
   expenseLimitPyg: 1000000,
   purchaseCreditLimitPyg: 5000000,
