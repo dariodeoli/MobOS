@@ -25,3 +25,13 @@ Base exacta `0331b606`, rama aislada `codex/print-ci230`. Refs #513/#514. Sin pu
 - Las pruebas distinguen la impresora de cada sucursal y comprueban el QR y los seriales del artefacto enviado, conservando el bloqueo de duplicados y la recepción del lote.
 
 No acredita papel/firmware real ni agrega compatibilidad de Brother, Star o TSPL. Guards/publicador del candidato siguen bajo control exclusivo del integrador.
+
+## Segundo fallo de CI: una accion dentro de expect.toPass
+
+CI38865843526 / fuente13ad809b fallo unicamente en la reimpresion de recepcion de `etiquetas-unidad.spec.js`: esperaba1 captura y recibio2. Los154 casos restantes del shard2 pasaron sin flaky; frontend/backend/integracion y shards1/3/4 aprobaron. El agregado queda fallido: no es una aprobacion del candidato.
+
+Los traces de ambos intentos muestran dos clicks de Reimprimir etiqueta, separados162ms y169ms. El test ejecutaba el click dentro de expect.toPass y repetia mientras la preparacion raster seguia pendiente y capturados seguia vacio. No se atribuye a una duplicacion espontanea del runtime.
+
+Root reprodujo causalmente en el backend production aislado: crypto.subtle.digest conserva su resultado real, pero espera700ms para representar preparacion lenta; con el test anterior, expected1/received3. Se conserva `work/ci230-print-once-red.log` y el resumen seguro `ci230-13ad-multiple-click-proof.json`. Cambiar solo la observacion del test para esperar el boton, pulsar UNA vez y luego esperar capturas=1 corrige el caso; el retardo queda como regresion. No hay cambios de producto ni de idempotencia, protocolos o QR.
+
+`work/ci230-print-once-green.log`: spec completo **3/3PASS,0flaky**, incluyendo unidad individual, lote exacto/orden y recepcion con preparacion demorada. Se conservan captura unica, tipo, QR leido de pixeles, corte unico y ausencia de dialogo. PG5595/API3212/WEB5408 propios limpiados; build backend existente de13ad. El siguiente SHA requiere nuevamente los ocho gates protegidos, sin omitir este recorrido ni publicar el CI fallido.

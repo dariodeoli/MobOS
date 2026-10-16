@@ -159,6 +159,15 @@ test('al llegar a otra sucursal se reimprime la etiqueta desde la recepción', a
   // recepción se reimprime la etiqueta sin depender del origen.
   sembrarUnidadEnTransito({ marca, serial })
 
+  // Preparacion asincrona lenta: una sola accion del usuario debe seguir
+  // produciendo una etiqueta. El hash conserva su resultado real.
+  await page.addInitScript(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle)
+    crypto.subtle.digest = async (...args) => {
+      await new Promise(resolve => setTimeout(resolve, 700))
+      return digest(...args)
+    }
+  })
   await page.goto('/inventario/unidades?tab=transito')
   await page.getByLabel('Buscar en inventario').fill(serial)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
@@ -173,16 +182,15 @@ test('al llegar a otra sucursal se reimprime la etiqueta desde la recepción', a
     await ficha.getByRole('button', { name: 'Recibir en sucursal' }).click()
     await expect(llegada).toBeVisible({ timeout: 4000 })
   }).toPass({ timeout: 30_000 })
-  // El click de reimpresión también puede perderse si el modal se re-renderiza
-  // al abrir (visto en CI y 1/6 en local: modal abierto, sin aviso ni trabajo).
-  // Se reintenta solo si el agente todavía no recibió nada, y se exige 1 trabajo.
-  await expect(async () => {
-    if (!capturados.length) {
-      await llegada.getByRole('button', { name: 'Reimprimir etiqueta' }).click({ timeout: 5_000 })
-    }
-    expect(capturados.length).toBe(1)
-    await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 5_000 })
-  }).toPass({ timeout: 30_000 })
+  // Una accion por impresion: reintentar el click mientras se prepara el
+  // raster manda varias solicitudes antes de que llegue la primera captura.
+  // El locator espera el boton; despues solo se observa el resultado.
+  const reimprimir = llegada.getByRole('button', { name: 'Reimprimir etiqueta' })
+  await expect(reimprimir).toBeEnabled()
+  await reimprimir.click()
+  await expect.poll(() => capturados.length, { timeout: 15_000 }).toBe(1)
+  await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 5_000 })
+  expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiqueta-stock')
   expect(urlsUnidades(capturados[0])).toEqual([serial])
   expect(leerRaster(capturados[0].data).cuts).toBe(1)
