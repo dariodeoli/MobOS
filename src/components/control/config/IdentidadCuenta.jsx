@@ -159,7 +159,7 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
           {/* #298: formulario en 2 columnas; la dirección va a ancho completo. */}
           <div className={GRILLA_DOS_COLUMNAS}>
             {ver('name') && <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
-              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value })} placeholder="Nombre de la tienda" />
+              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value, nameOfficial: null })} placeholder="Nombre de la tienda" />
             </FormField>}
             {ver('email') && <FormField label="Correo de la empresa" htmlFor="edit-correo">
               <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />

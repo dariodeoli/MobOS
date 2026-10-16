@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-async function enter(page, width, dark) {
+async function enter(page, width, dark, vista = 'config') {
   await page.setViewportSize({ width, height: 844 })
   const writes = []
   await page.route(/https:\/\//, route => route.abort())
@@ -13,8 +13,8 @@ async function enter(page, width, dark) {
     sessionStorage.setItem('mobos:demo-session', 'active')
     sessionStorage.setItem('mobos:demo-session:role', 'ADMIN')
   })
-  await page.goto(`/e2e/fixtures/ruc498-identidad.html?vista=config&tema=${dark ? 'dark' : 'light'}`)
-  await expect(page.getByTestId('config-fiscal-demo')).toBeVisible()
+  await page.goto(`/e2e/fixtures/ruc498-identidad.html?vista=${vista}&tema=${dark ? 'dark' : 'light'}`)
+  await expect(page.getByTestId(vista === 'config' ? 'config-fiscal-demo' : 'empresa-activa')).toBeVisible()
   return () => expect(writes).toEqual([])
 }
 async function extract(scope, selector) {
@@ -81,3 +81,63 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     noApi()
   })
 }
+
+for (const [kind, name] of [['titular', 'Ana Prueba'], ['empresa', 'Empresa Ficticia QA']]) {
+  test(`498 vincula ${kind} creado en empresa activa no predeterminada`, async ({ page }) => {
+    const noWrites = await enter(page, 390, false, 'partes-cuentas')
+    await page.getByRole('button', { name: 'Cambiar a empresa QA', exact: true }).click()
+    await expect(page.getByTestId('empresa-activa')).toHaveText('empresa-qa-498')
+    await page.getByRole('button', { name: `Agregar ${kind}`, exact: true }).click()
+    if (kind === 'titular') {
+      await page.locator('#priv-first').fill('Ana')
+      await page.locator('#priv-last').fill('Prueba')
+    } else await page.locator('#priv-legal-name').fill(name)
+    await page.getByRole('button', { name: `Guardar ${kind}`, exact: true }).click()
+    await expect(page.getByRole('button', { name: `Editar ${name}`, exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Abrir cuentas', exact: true }).click()
+    await page.getByRole('button', { name: 'Añadir cuenta', exact: true }).first().click()
+    await page.locator('#pa-kind').selectOption('PIX')
+    await page.locator('#pa-holder').fill(name)
+    await expect(page.getByRole('option', { name: new RegExp(name) })).toBeVisible()
+    await page.getByRole('option', { name: new RegExp(name) }).click()
+    await expect(page.locator('#pa-holder')).toHaveValue(name)
+    await expect(page.getByText(`${kind === 'titular' ? 'Titular registrado' : 'Empresa registrada'} · se completa solo`, { exact: true })).toBeVisible()
+    const stored = await page.evaluate(async () => {
+      const { getAccountHolders, getPrivateCompanies } = await import('/src/lib/accountParties.js')
+      return { active: [await getAccountHolders({ demo: true, empresaId: 'empresa-qa-498' }), await getPrivateCompanies({ demo: true, empresaId: 'empresa-qa-498' })], other: [await getAccountHolders({ demo: true, empresaId: 'mobos-demo' }), await getPrivateCompanies({ demo: true, empresaId: 'mobos-demo' })] }
+    })
+    expect(stored.active[kind === 'titular' ? 0 : 1]).toHaveLength(1)
+    expect(stored.other).toEqual([[], []])
+    await page.locator('#pa-name').fill(`Cuenta QA ${kind}`)
+    await page.getByRole('button', { name: 'Guardar cuenta', exact: true }).click()
+    await expect(page.getByRole('button', { name: `Editar Cuenta QA ${kind}`, exact: true })).toBeVisible()
+    await page.getByRole('button', { name: `Editar Cuenta QA ${kind}`, exact: true }).click()
+    await expect(page.locator('#pa-holder')).toHaveValue(name)
+    await expect(page.getByText(`${kind === 'titular' ? 'Titular registrado' : 'Empresa registrada'} · se completa solo`, { exact: true })).toBeVisible()
+    const accounts = await page.evaluate(async () => (await import('/src/lib/paymentAccounts.js')).getPaymentAccounts())
+    const linked = accounts.find(account => account.name === `Cuenta QA ${kind}`)
+    expect(linked[kind === 'titular' ? 'holderId' : 'companyId']).toBe(stored.active[kind === 'titular' ? 0 : 1][0].id)
+    expect(linked[kind === 'titular' ? 'companyId' : 'holderId'] || '').toBe('')
+    noWrites()
+  })
+}
+
+test('498 edición manual del nombre elimina identidad fiscal anterior al guardar', async ({ page }) => {
+  const noWrites = await enter(page, 390, false)
+  const account = page.getByTestId('cuenta-form')
+  await account.getByRole('button', { name: 'Editar', exact: true }).click()
+  await extract(account, '#edit-ruc')
+  await account.getByRole('button', { name: 'Usar estos datos' }).click()
+  await account.getByLabel('Correo de la empresa', { exact: true }).fill('qa@example.invalid')
+  await account.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+  const read = () => page.evaluate(async () => (await import('/src/lib/demoAccountIdentity.js')).leerIdentidadCuentaDemo('mobos-demo'))
+  expect((await read()).nameOfficial).toBeTruthy()
+  await account.getByRole('button', { name: 'Editar', exact: true }).click()
+  await account.getByLabel('Nombre de la tienda', { exact: true }).fill('Nombre manual QA')
+  await account.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+  await expect(account.getByTestId('datos-tienda-lectura')).toContainText('Nombre manual QA')
+  expect(await read()).not.toHaveProperty('nameOfficial')
+  await page.getByRole('button', { name: 'Reabrir configuración' }).click()
+  await expect(account.getByTestId('datos-tienda-lectura')).toContainText('Nombre manual QA')
+  noWrites()
+})

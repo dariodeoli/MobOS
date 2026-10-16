@@ -109,19 +109,18 @@ function porcentaje(valor) {
 }
 
 export default function PaymentAccounts() {
-  const { sesion, empresa } = useSesion()
+  const { sesion, empresa, esDemo } = useSesion()
   // Remount al cambiar de empresa para no mostrar cuentas del contexto anterior.
   if (!sesion?.esPropietario) return null
-  return <AccountManager key={empresa?.id || 'default'} />
+  return <AccountManager key={empresa?.id || 'default'} empresaId={empresa?.id} esDemo={esDemo} />
 }
 
-function AccountManager() {
+function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
   const [accounts, setAccounts] = useState([])
   // Vista previa v2 (#241 · lote D): resumen en tiles de consola con números
   // grandes. Es solo lectura de lo ya cargado: sin el flag no cambia nada.
   const v2 = temaV2Activo()
   // #234: el documento de la cuenta usa el campo compartido de RUC (Extraer).
-  const esDemo = isDemoRuntime
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
@@ -139,11 +138,11 @@ function AccountManager() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getAccountHolders(), getPrivateCompanies()])
+    Promise.all([getAccountHolders({ demo: esDemo, empresaId }), getPrivateCompanies({ demo: esDemo, empresaId })])
       .then(([nextHolders, nextCompanies]) => { if (!cancelled) { setHolders(nextHolders); setCompanies(nextCompanies) } })
       .catch(() => { /* los buscadores quedan vacíos; el titular se escribe a mano */ })
     return () => { cancelled = true }
-  }, [])
+  }, [empresaId, esDemo])
 
   useEffect(() => {
     let cancelled = false
