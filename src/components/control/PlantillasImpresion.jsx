@@ -12,7 +12,18 @@ import {
 import { avisoSalidaPlantilla } from '@/lib/printing/perfiles'
 import { renderPlantilla, pdfPlantilla } from '@/lib/printing/renderPlantilla'
 import { descargarArchivo } from '@/utils/descargarArchivo'
+import { baseDeApp, qrProducto, qrUnidad } from '@/lib/printing/qr'
 
+const qrDeMuestra = (crear, valor) => {
+  const base = baseDeApp()
+  try {
+    const url = new URL(base)
+    if (!/^https?:\/\//i.test(base) || /[\s\\]/.test(base) || url.username || url.password || url.search || url.hash) return ''
+    return crear(valor, base)
+  } catch {
+    return ''
+  }
+}
 const sample = kind =>
   kind === 'comprobante'
     ? [
@@ -42,7 +53,7 @@ const sample = kind =>
             model: 'iPhone 15 · 128 GB',
             serial: '350000000000000',
             barcode: '350000000000000',
-            qr: 'MOBOS:UNIDAD-QA-507',
+            qr: qrDeMuestra(qrUnidad, '350000000000000'),
             condition: 'Usado',
             battery: '90%',
             location: 'Sucursal de muestra',
@@ -57,7 +68,7 @@ const sample = kind =>
             barcode: 'SKU-QA-001',
             price: 'Gs 4.850.000',
             brand: 'MobOS',
-            qr: 'SKU-QA-001',
+            qr: qrDeMuestra(qrProducto, 'SKU-QA-001'),
           },
         ]
 export default function PlantillasImpresion() {

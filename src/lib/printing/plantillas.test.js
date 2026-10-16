@@ -143,7 +143,8 @@ test('nombres y cantidades no aceptan valores ejecutables ni pérdida de copias'
     },
   ])
   assert.equal(result.length, 2)
-  assert.equal(result[0].qr, 'FND-1')
+  assert.equal(result[0].qr, '')
+  assert.equal(result[0].barcode, 'FND-1')
   assert.equal(result[0].brand, 'MobOS')
   assert.deepEqual(Object.keys(result[0]).sort(), [
     'barcode',
@@ -228,4 +229,37 @@ test('PDF usa MediaBox exacto 110×60, 25×90 y una página por etiqueta', () =>
     assert.ok(pdf.includes(`/MediaBox [0 0 ${mmAPuntos(w).toFixed(2)} ${mmAPuntos(h).toFixed(2)}]`))
     assert.match(pdf, /\/Count 2/)
   }
+})
+
+function productoConQr() {
+  const d = product()
+  d.elements.push({ id: 'qr', binding: 'qr', type: 'qr', xMm: 2, yMm: 42, widthMm: 16, heightMm: 16, fontSizePt: 8, alignment: 'left', rotation: 0, visible: true })
+  return d
+}
+test('QR canónico de producto escapa SKU, conserva barras y no proyecta datos privados', async () => {
+  const data = datosProductoPlantilla([{ product: { name: 'Funda', sku: 'QA /#?ñ', precioPyg: 180000, customer: 'PRIVADO', supplierName: 'PRIVADO', costPyg: 7 }, cantidad: 1 }], { base: 'https://app.example.test/' })
+  assert.equal(data[0].qr, 'https://app.example.test/producto/QA%20%2F%23%3F%C3%B1')
+  assert.equal(data[0].barcode, 'QA /#?ñ')
+  assert.doesNotMatch(JSON.stringify(data), /PRIVADO|costPyg|supplierName|customer/)
+  // El render puede generar ese QR; las barras conservan su propio payload SKU.
+  const safe = { ...data[0], barcode: 'QA-1' }
+  const result = await renderPlantilla({ kind: 'etiquetas-producto', definition: productoConQr(), data: [safe] })
+  assert.match(result.html, /data-tipo="qr"/)
+  assert.match(result.html, /data:image\/png;base64/)
+})
+test('base ausente o inválida deja QR vacío y bloquea solo cuando se pide QR visible', async () => {
+  for (const base of [undefined, '', 'SKU', 'javascript:alert(1)', 'capacitor://localhost', 'https://user:secret@app.example.test', 'https://app.example.test?query=1', 'https://app.example.test/#fragment', 'https://']) {
+    const data = datosProductoPlantilla([{ product: { name: 'Funda', sku: 'QA-1' }, cantidad: 1 }], { base })
+    assert.equal(data[0].qr, '', String(base))
+    assert.equal(data[0].barcode, 'QA-1')
+    await assert.rejects(renderPlantilla({ kind: 'etiquetas-producto', definition: productoConQr(), data }), /HTTP\(S\).*sin credenciales/)
+    assert.equal((await renderPlantilla({ kind: 'etiquetas-producto', definition: product(), data })).count, 1)
+  }
+})
+test('render QR rechaza payload crudo, esquemas no web y credenciales antes de codificar', async () => {
+  for (const qr of ['QA-1', 'MOBOS:PROD:QA-1', 'javascript:alert(1)', 'capacitor://localhost/producto/QA-1', 'https://user:secret@app.example.test/p', '//app.example.test/p', 'https:app.example.test/p', 'https://app.example.test/with space', '']) {
+    await assert.rejects(renderPlantilla({ kind: 'etiquetas-producto', definition: productoConQr(), data: [{ ...row, qr }] }), /HTTP\(S\).*sin credenciales/)
+  }
+  const data = [{ ...row, qr: 'http://localhost:5364/producto/QA-1' }]
+  assert.equal((await renderPlantilla({ kind: 'etiquetas-producto', definition: productoConQr(), data })).count, 1)
 })

@@ -1,6 +1,7 @@
 import JsBarcode from 'jsbarcode'
 import { toJpeg } from 'html-to-image'
 import { qrDataUrl } from '../qr.js'
+import { baseDeApp, qrProducto } from './qr.js'
 import { documentoImagen } from './compartirDocumento.js'
 import { pdfDeJpegPaginas } from './pdfDocumento.js'
 import { erroresPlantilla } from './plantillas.js'
@@ -11,7 +12,21 @@ const escape = v =>
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   )
 export const MAX_PAGINAS_PLANTILLA = 200
-export function datosProductoPlantilla(items = [], { brand = 'MobOS' } = {}) {
+function urlQrValida(value) {
+  if (typeof value !== 'string' || !/^https?:\/\//i.test(value) || /[\s\\]/.test(value)) return false
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+export function datosProductoPlantilla(items = [], { brand = 'MobOS', base } = {}) {
+  const candidate = base === undefined ? baseDeApp() : base
+  // Una base inválida no activa el respaldo legacy MOBOS: del helper global.
+  const validBase = urlQrValida(candidate) && !new URL(candidate).search && !new URL(candidate).hash
+    ? candidate
+    : ''
   const pages = []
   for (const { product = {}, cantidad = 1 } of items) {
     if (!Number.isInteger(Number(cantidad)) || Number(cantidad) < 1 || Number(cantidad) > 99)
@@ -28,7 +43,7 @@ export function datosProductoPlantilla(items = [], { brand = 'MobOS' } = {}) {
       product: product.name || product.nombre || '',
       sku: product.sku || '',
       barcode: product.sku || '',
-      qr: product.sku || '',
+      qr: validBase ? qrProducto(product.sku, validBase) : '',
       brand: String(brand),
       price: price == null ? '' : `Gs ${new Intl.NumberFormat('es-PY').format(Number(price))}`,
     }
@@ -86,6 +101,8 @@ export async function renderPlantilla({ kind, definition, data = [], premiumBuil
     const pieces = []
     for (const element of definition.elements.filter(e => e.visible)) {
       const value = row[element.binding]
+      if (element.type === 'qr' && !urlQrValida(value))
+        throw Error('El QR requiere un enlace HTTP(S) absoluto sin credenciales. Revisá la base de la app; no se genera un código ficticio.')
       if (
         (value === null || value === undefined || String(value) === '') &&
         ['product', 'sku', 'barcode', 'model', 'serial', 'qr'].includes(element.binding)

@@ -31,3 +31,14 @@ Base fd1135c9, rama codex/plantillas-507-ui. Contrato backend compañero e50274d
 - Podés crear y guardar tamaños/distribuciones de etiquetas en milímetros, con una vista previa que coincide con el PDF.
 - Productos permite usar tu plantilla de empresa/sucursal y descargar un lote con una etiqueta por página; no envía formatos personalizados a una impresora incompatible.
 - Si un dato no cabe o un código pierde legibilidad por densidad, el sistema explica el problema antes de exportar.
+
+## Corrección QA · QR canónico de producto y muestras (#507)
+
+- El hallazgo P2 se corrigió en `datosProductoPlantilla`: usa `qrProducto` con `baseDeApp` o base explícita de test. Conserva el SKU completo en barras. Rechaza como base esquemas no HTTP(S), credenciales, fragmentos/consulta y valores inválidos; sin base válida deja `qr:''`, sin fallback ficticio `MOBOS:`.
+- El render valida cada QR visible antes de codificar: exige URL absoluta HTTP(S) sin credenciales ni whitespace/backslash. Si falta o es crudo/javascript/capacitor, bloquea con error claro. Un QR opcional no visible no impide una etiqueta sin QR. Ningún dato privado adicional se proyecta ni se persiste en definition.
+- Las dos muestras del editor usan los helpers canónicos `qrUnidad`/`qrProducto`, solo con origen de app válido y valores ficticios. No navegan ni consultan esas URLs. Con base capacitor inválida conservan el error honesto; se necesita base web válida, no se inventa soporte nativo.
+- `node --test src/lib/modalReglas.test.js src/lib/printing/plantillas.test.js`: 31 PASS; nuevas regresiones URL `/producto/QA%20%2F%23%3F%C3%B1`, barras SKU intactas, whitelist sin datos privados, base ausente/inválida y QR visible, esquemas/credenciales rechazados. Lint selectivo de los tres archivos fuente/test: exit0.
+- Chromium focal en5364: QR opcional real de producto + PDF110×60/una página +4bases inválidas +sin datos privados PASS. Imagen QR generada por el render (no captura) decodificada con Vision de macOS: URL exacta `https://app.example.test/producto/QA%20%2F%23%3F%C3%B1`.
+- Chromium focal muestra Stock: editor/preview sin error, QR generado decodificado con Vision como `http://127.0.0.1:5364/u/350000000000000`, valor ficticio. Red externa y rutas API bloqueadas; sin DB, capturas, impresión ni suite completa.
+- El primer intento del smoke de muestra Stock abortó por error de arnés: interceptaba también módulos Vite `/src/lib/api/*`, dejando la página vacía. Se acotó la interceptación scratch a pathname `/api/`; retest del único caso afectado PASS. No se cambió producto para resolver ese timeout.
+- #507 sigue parcial según pendientes anteriores; esta corrección no añade transporte ni publicación229.
