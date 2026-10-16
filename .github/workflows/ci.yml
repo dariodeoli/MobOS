@@ -218,6 +218,11 @@ jobs:
         env:
           MOBOS_QA_PORT: "5344"
         run: npx playwright test --config e2e/pin-login504.frontend.config.js
+      - name: Demo quote, cash and reception flows
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5345"
+        run: npx playwright test --config e2e/demo461.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:
