@@ -201,6 +201,11 @@ jobs:
         env:
           MOBOS_QA_PORT: "5342"
         run: npx playwright test --config e2e/snapshot502.frontend.config.js
+      - name: Private product photo cache access isolation
+        if: matrix.shard == 1
+        env:
+          MOBOS_QA_PORT: "5354"
+        run: npx playwright test --config e2e/images404.frontend.config.js
       - name: Printed document company branding
         if: matrix.shard == 1
         env:
