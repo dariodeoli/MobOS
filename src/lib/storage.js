@@ -1,4 +1,6 @@
 import { completarEquipoDemo } from './demo/equipo.js'
+import { contextoDemo } from './demo/contexto.js'
+import { crearCacheDemo } from './demo/memoria.js'
 // ════════════════════════════════════════════════════════════════════
 // CAPA DE COMPATIBILIDAD LOCAL — MobOS
 // El backend productivo es la API propia sobre PostgreSQL. Esta capa mantiene
@@ -17,7 +19,7 @@ import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
 import { tomarNumeroPedidoDemo, registrarNumerosUsadosDemo } from './demoTenant.js'
 import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
-import { guardarDemo } from './demoStorage.js'
+import { guardarDemo, limpiarMemoriaDemo } from './demoStorage.js'
 import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo, activarContextoSnapshots, invalidarSnapshotsPrivados, alInvalidarSnapshots, esDenegacionPrivada, permiteRespaldoOffline } from './offline/snapshot'
 import { invalidarConsultas } from './api/client'
@@ -104,6 +106,7 @@ const MIRROR_BASE = 'fono:cache:v3'
 const mirrorKey = () => `${MIRROR_BASE}:${ctx.empresaId || 'sin-empresa'}`
 
 const clone = x => JSON.parse(JSON.stringify(x))
+const cacheDemoPorEmpresa = crearCacheDemo(contextoDemo)
 function safeParse(raw) {
   if (raw == null) return null
   try {
@@ -527,6 +530,9 @@ const SUC_KEY = 'fono:sucursal'
 
 // Entra a una empresa/sucursal y carga la fuente de datos correspondiente.
 export async function setContexto({ empresaId, sucursalId, userId, rol, permisos = null, fuente = 'legacy' }) {
+  // Validar/guardar la rama demo antes de cambiar su contexto. No modifica API502.
+  if (isDemoRuntime && !contextoDemo.permite(empresaId || null)) throw new Error('Empresa de demostración no disponible.')
+  if (isDemoRuntime && ctx.empresaId) cacheDemoPorEmpresa.guardar(contextoDemo.capturar(), cache)
   apiHydrationVersion += 1
   const siguiente = { empresaId: empresaId || null, sucursalId: sucursalId || null, userId: userId || null, rol: rol || null, permisos: Array.isArray(permisos) ? [...new Set(permisos)].sort() : null }
   const modo = fuente === 'api' ? 'api' : 'legacy'
@@ -534,8 +540,14 @@ export async function setContexto({ empresaId, sucursalId, userId, rol, permisos
   const cambio = identidadActual() !== JSON.stringify(siguiente) || fuenteDatos !== modo
   if (cambio) {
     invalidarConsultas()
-    if (ctx.empresaId || !siguiente.empresaId) void invalidarSnapshotsPrivados()
+    if (!isDemoRuntime && (ctx.empresaId || !siguiente.empresaId)) void invalidarSnapshotsPrivados()
     vaciarCache()
+  }
+  if (isDemoRuntime) {
+    const anterior = contextoDemo.capturar()
+    const actual = contextoDemo.activar({ empresaId: siguiente.empresaId, sucursalId: siguiente.sucursalId, userId: siguiente.userId })
+    // Cambiar solo rol/permisos/fuente también retira continuaciones anteriores.
+    if (cambio && actual === anterior) contextoDemo.invalidar()
   }
   if (cambioEmpresa) registrarCambioDeEmpresa(empresaId)
   Object.assign(ctx, siguiente)
@@ -543,8 +555,14 @@ export async function setContexto({ empresaId, sucursalId, userId, rol, permisos
   tokenSnapshot = apiMode() ? activarContextoSnapshots(ctx) : null
   contextoApiValidado = apiMode() && Boolean(ctx.empresaId && ctx.userId && ctx.rol)
   if (sucursalId) guardarDemo(SUC_KEY, sucursalId)
-  if (!ctx.empresaId) { vaciarCache(); notify(); return }
-  if (cambioEmpresa && !apiMode()) bootFromMirror()
+  if (!ctx.empresaId) {
+    if (isDemoRuntime) { cacheDemoPorEmpresa.limpiar(); limpiarMemoriaDemo() }
+    vaciarCache(); notify(); return
+  }
+  if (isDemoRuntime && cambio) {
+    const guardado = cacheDemoPorEmpresa.leer(contextoDemo.capturar())
+    if (guardado) Object.assign(cache, guardado)
+  } else if (cambioEmpresa && !apiMode()) bootFromMirror()
   notify()
   if (apiMode()) await hydrateApi()
 }

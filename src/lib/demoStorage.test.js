@@ -47,3 +47,15 @@ test('sin almacenamiento disponible no rompe y devuelve null', () => {
   assert.equal(leerDemo('clave', { demo: false }), null)
   assert.equal(almacenamientoDemo({ demo: false }), null)
 })
+
+test('#350-A: reset borra solo memoria y una fachada antigua no la repuebla', () => {
+  const viejo = almacenamientoDemo({ demo: true })
+  viejo.setItem('recurso:1', 'antes')
+  limpiarMemoriaDemo()
+  viejo.setItem('recurso:1', 'respuesta tardía')
+  assert.equal(viejo.getItem('recurso:1'), null)
+  assert.equal(leerDemo('recurso:1', { demo: true }), null)
+  guardarDemo('recurso:1', 'nuevo', { demo: true })
+  assert.equal(leerDemo('recurso:1', { demo: true }), 'nuevo')
+  limpiarMemoriaDemo()
+})
