@@ -1,10 +1,9 @@
 import { ticketsDesdeHtml } from '@/lib/printing/htmlEscpos'
 import { capturarContextoImpresion, configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { formatoPermitido } from '@/lib/printing/preferencias'
-import { accessUrlFor, buildProductLabelsHtml, buildUnitLabelsHtml, printOrderReceipt, printRemisionReceipt, tokenDeNivel } from '@/components/shared/OrderReceipt'
-import { ticketComprobante, ticketEtiquetaUbicacion, ticketRemision } from '@/lib/printing/tickets'
+import { buildOrderReceiptHtml, buildProductLabelsHtml, buildUnitLabelsHtml, printRemisionReceipt, tokenDeNivel } from '@/components/shared/OrderReceipt'
+import { ticketEtiquetaUbicacion, ticketRemision } from '@/lib/printing/tickets'
 import { qrDataUrl } from '@/lib/qr'
-import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api/client'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -53,20 +52,25 @@ export async function printLabel(unit) {
 // Vendidos sin abrir la ficha. Reutiliza el mismo comprobante que el resto de
 // la app (nivel Rápido): directo por la impresora configurada (80 mm por
 // defecto) y, ante un fallo claro, el PDF con OrderReceipt.
-export async function printQuickReceipt(unit) {
+export async function printQuickReceipt(unit, { contexto = capturarContextoImpresion() } = {}) {
+  const vigente = () => contexto === capturarContextoImpresion()
+  const cancelado = () => ({ ok: false, motivo: 'contexto-cambiado', error: 'El contexto cambió. Volvé a abrir el comprobante.' })
+  if (!vigente()) return cancelado()
   const venta = unit?.sale
   if (!venta?.orderId) return { ok: false, motivo: 'sin-pedido', error: 'La unidad no tiene un pedido asociado.' }
   const { ancho } = configImpresora()
   const formato = formatoPermitido(ancho === 58 ? 'thermal-58' : 'thermal-80')
   const orden = await api.get(`/api/orders/${encodeURIComponent(venta.orderId)}`)
-  // El QR del nivel rápido: mismo token de impresión que emite el comprobante.
+  if (!vigente()) return cancelado()
+  // Token impreso del nivel rápido, sin rotar ni reutilizar el del panel.
   const token = await tokenDeNivel(orden.id, 'rapido')
-  const politica = await getPoliticasImpresion()
-  const link = token ? accessUrlFor(token) : ''
-  const resultado = await imprimirDocumento(ticketComprobante(orden, { nivel: 'rapido', ancho, link: link || politica.url, politica }), { tipo: 'comprobante', ref: orden.orderNumber || venta.orderNumber || '' })
+  if (!vigente()) return cancelado()
+  const html = await buildOrderReceiptHtml(orden, { level: 'rapido', format: formato, token })
+  const resultado = await imprimirDocumento(({ impresora }) => ticketsDesdeHtml(html, { impresora, formato }), { contexto, tipo: 'comprobante', ref: orden.orderNumber || venta.orderNumber || '' })
   if (resultado?.ok || !puedeCaerAlDialogo(resultado)) return resultado
-  const abierto = await printOrderReceipt(orden, { level: 'rapido', format: formato, token })
-  return { ...resultado, dialogo: Boolean(abierto) }
+  // Reusar exactamente el HTML preparado; no reconstruirlo tras otro await.
+  if (!vigente()) return cancelado()
+  return { ...resultado, dialogo: Boolean(imprimirConDialogo(html)) }
 }
 // Resultado ficticio del demo para las impresiones que no están disponibles:
 // el rack del taller lo anuncia con el texto canónico de fallo (#323).
