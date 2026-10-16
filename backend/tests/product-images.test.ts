@@ -17,8 +17,9 @@ assert.deepEqual(imageDimensions(jpeg, 'image/jpeg'), { width: 3, height: 2 })
 
 const file = (bytes: Uint8Array, type: string, name = 'f') => new File([bytes as BlobPart], name, { type })
 async function rejects(value: File | null | string, status: number, options?: Parameters<typeof readProductImage>[1]) {
-  await assert.rejects(() => readProductImage(value, options), (error: any) => error.status === status)
+  await assert.rejects(() => readProductImage(value, options), (error: unknown) => error instanceof Error && 'status' in error && error.status === status)
 }
+const statusIs = (status: number) => (error: unknown) => error instanceof Error && 'status' in error && error.status === status
 
 async function main() {
   const ok = await readProductImage(file(png, 'image/png'))
@@ -57,11 +58,11 @@ async function main() {
     assert.match(output.sha256, /^[0-9a-f]{64}$/)
   }
   // Firma/cabecera sola no prueban que haya píxeles decodificables.
-  await assert.rejects(() => generateProductImages(file(source.subarray(0, 33), 'image/png')), error => error.status === 400)
+  await assert.rejects(() => generateProductImages(file(source.subarray(0, 33), 'image/png')), statusIs(400))
   const bomb = Buffer.from(source); bomb.writeUInt32BE(8000, 16); bomb.writeUInt32BE(8000, 20)
-  await assert.rejects(() => generateProductImages(file(bomb, 'image/png')), error => error.status === 400)
+  await assert.rejects(() => generateProductImages(file(bomb, 'image/png')), statusIs(400))
   const apng = Buffer.concat([source.subarray(0,33),Buffer.from('000000086163544c000000020000000000000000','hex'),source.subarray(33)])
-  await assert.rejects(() => generateProductImages(file(apng,'image/png')), error => error.status === 400)
+  await assert.rejects(() => generateProductImages(file(apng,'image/png')), statusIs(400))
   const withExif = await sharp(source).jpeg().withMetadata({ orientation: 6 }).toBuffer()
   const oriented = await generateProductImages(file(withExif, 'image/jpeg'))
   assert.equal((await sharp(oriented.image.data).metadata()).orientation, undefined)
@@ -71,8 +72,8 @@ async function main() {
 
   const animated = await sharp(Buffer.from([...Array(12).fill(0), ...Array(12).fill(255)]), { raw: { width:2, height:4, channels:3, pageHeight:2 } }).webp({loop:0,delay:[100,100]}).toBuffer()
   assert.equal((await sharp(animated).metadata()).pages, 2)
-  await assert.rejects(() => generateProductImages(file(animated, 'image/webp')), error => error.status === 400)
-  await assert.rejects(() => generateProductImages(file(source, 'image/webp')), error => error.status === 415)
+  await assert.rejects(() => generateProductImages(file(animated, 'image/webp')), statusIs(400))
+  await assert.rejects(() => generateProductImages(file(source, 'image/webp')), statusIs(415))
   const simultaneous = await Promise.allSettled([1,2,3].map(() => generateProductImages(file(source,'image/png'))))
   assert.equal(simultaneous.filter(r => r.status === 'fulfilled').length, 2)
   assert.equal(simultaneous.filter(r => r.status === 'rejected' && r.reason.status === 429).length, 1)
@@ -82,7 +83,7 @@ async function main() {
     let canceled = false
     const stream = new ReadableStream({ pull(controller) { controller.enqueue(new Uint8Array(20)) }, cancel() { canceled = true } })
     const request = new Request('http://localhost/upload', { method:'POST', headers, body:stream, duplex:'half' } as RequestInit)
-    await assert.rejects(() => readProductImageFormData(request,32), error => error.status === 413)
+    await assert.rejects(() => readProductImageFormData(request,32), statusIs(413))
     assert.equal(canceled,true,'se cancela el stream al pasar la cota, sin confiar Content-Length')
   }
   const form = new FormData(); form.append('file',file(source,'image/png'));form.append('variantKey','negro')
