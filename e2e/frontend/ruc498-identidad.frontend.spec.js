@@ -111,18 +111,18 @@ test('498 descartar/cancelar no guarda y cambiar ficha invalida consulta pendien
   noApi()
 })
 
-for (const [width, height, visibleHeight, dark] of [[375, 667, 340, false], [390, 844, 400, true]]) {
-  test(`498 teclado reduce solo viewport visual y body, modal anidado ${width}`, async ({ page }) => {
-    await page.addInitScript(() => {
+for (const [width, height, visibleHeight, dark, bodyOnly] of [[375, 667, 340, false, false], [390, 844, 400, true, false], [390, 844, 400, false, true]]) {
+  test(`498 teclado reduce solo viewport visual y body, modal anidado ${width}${bodyOnly ? ' body-only' : ''}`, async ({ page }) => {
+    await page.addInitScript(bodyOnly => {
       const viewport = new EventTarget()
       Object.assign(viewport, { height: innerHeight, width: innerWidth, offsetTop: 0, offsetLeft: 0, scale: 1 })
       Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
       window.qaKeyboardViewport = (height) => {
-        viewport.height = height
+        if (!bodyOnly) viewport.height = height
         document.body.style.height = `${height}px`
-        viewport.dispatchEvent(new Event('resize'))
+        if (!bodyOnly) viewport.dispatchEvent(new Event('resize'))
       }
-    })
+    }, bodyOnly)
     const noApi = await enter(page, width, dark)
     await page.setViewportSize({ width, height })
     await page.evaluate(() => document.documentElement.classList.add('app-ios'))
@@ -132,6 +132,7 @@ for (const [width, height, visibleHeight, dark] of [[375, 667, 340, false], [390
     const editor = page.getByRole('dialog', { name: 'Agregar identidad', exact: true })
     const ruc = editor.getByRole('textbox', { name: 'RUC / documento', exact: true })
     const dialogsBeforeKeyboard = await page.locator('[role=dialog]').count()
+    await expect(editor).toHaveAttribute('data-teclado-visible', 'false')
     await ruc.focus()
     await page.evaluate(height => window.qaKeyboardViewport(height), visibleHeight)
     expect(await page.evaluate(() => innerHeight)).toBe(height)
