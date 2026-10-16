@@ -11,7 +11,13 @@ async function preparar(page, plataforma, dark) {
   await page.goto(`/e2e/fixtures/auth516.html?plataforma=${plataforma}`)
   await expect(page.getByRole('heading', { name: 'Entrá a tu tienda', exact: true })).toBeVisible()
   await expect(page.getByText('Verificando tu sesión…')).toHaveCount(0)
+  await verificarPlataforma(page, plataforma)
 }
+async function verificarPlataforma(page, plataforma) {
+  expect(await page.evaluate(async () => (await import('/src/lib/plataforma.js')).isNativeIOS())).toBe(plataforma === 'ios')
+  expect(await page.locator('html').evaluate(el => el.classList.contains('app-ios'))).toBe(plataforma === 'ios')
+}
+
 for (const [width,height] of [[360,640],[390,844],[1440,900]]) for (const dark of [false,true]) test(`#516 mismas bases visuales auth ${width} ${dark ? 'oscuro' : 'claro'}`, async ({ page }) => {
   await page.setViewportSize({ width, height })
   const medidas = {}
@@ -52,7 +58,10 @@ for (const plataforma of ['web','ios']) test(`#516 ${plataforma} conserva botón
   await page.getByRole('button', { name: 'Continuar', exact: true }).click(); await started
   await expect(page.getByRole('button', { name: 'Un momento…', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Un momento…', exact: true })).toBeDisabled()
-  if (process.env.MOBOS_QA_VISUAL === '1') await page.screenshot({ path: testInfo.outputPath(`login-${plataforma}-progreso.png`) })
+  await expect(page.getByRole('button', { name: 'Continuar con Google', exact: true })).toBeDisabled()
+  if (plataforma === 'ios') await expect(page.getByRole('button', { name: 'Continuar con Apple', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /Conectando con/ })).toHaveCount(0)
+  if (process.env.MOBOS_QA_VISUAL === '1' || process.env.MOBOS_QA_VISUAL === plataforma) await page.screenshot({ path: testInfo.outputPath(`login-${plataforma}-progreso.png`) })
   finish()
   await expect(page.getByRole('alert')).toContainText('Credenciales de fixture inválidas')
   await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeVisible()
@@ -64,6 +73,7 @@ for (const [width,height] of [[360,640],[390,844]]) for (const plataforma of ['w
   await page.route('**/api/auth/pin', r => r.fulfill({ status: 400, json: { message: 'PIN de fixture inválido' } }))
   await page.locator('#mail').fill('fixture@example.invalid'); await page.locator('#pass').fill('Fixture516!')
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+  await verificarPlataforma(page, plataforma)
   const pin = page.locator('#seller-pin')
   await expect(pin).toHaveAttribute('readonly',''); await expect(pin).toHaveAttribute('inputmode','none')
   await expect(page.getByTestId('pin-teclado')).toBeVisible()
@@ -98,3 +108,93 @@ for (const plataforma of ['web', 'ios']) test(`#516 teclado ${plataforma}: campo
   await expect(main).toHaveAttribute('data-teclado-visible', 'false')
   expect((await main.boundingBox()).height).toBeLessThanOrEqual(845)
 })
+
+// Se sustituye solo la entrada del adaptador nativo: nunca se invoca el plugin
+// ni se valida identidad real. El Login y el cliente API siguen siendo reales.
+async function simularProveedor(page, proveedor) {
+  await page.route(`**/src/lib/nativo/${proveedor}.js*`, route => {
+    if (route.request().url().includes('fixture-original')) return route.continue()
+    const nombre = proveedor === 'apple' ? 'Apple' : 'Google'
+    return route.fulfill({ contentType: 'application/javascript', body: `
+      export * from '/src/lib/nativo/${proveedor}.js?fixture-original';
+      ${proveedor === 'google' ? 'export function googleNativoDisponible() { return true }' : ''}
+      export async function iniciarSesionCon${nombre}() {
+        const r = await fetch('/api/fixture516/${proveedor}');
+        const body = await r.json();
+        if (!r.ok) throw Object.assign(new Error(body.message), body);
+        return body;
+      }
+    ` })
+  })
+}
+
+for (const proveedor of ['apple', 'google']) test(`#516 ${proveedor} nativo: solo el proveedor activo conecta y el error libera controles`, async ({ page }) => {
+  await simularProveedor(page, proveedor)
+  await preparar(page, 'ios', false)
+  let start, finish
+  const started = new Promise(resolve => start = resolve)
+  await page.route(`**/api/fixture516/${proveedor}`, async route => {
+    start(); await new Promise(resolve => finish = resolve)
+    await route.fulfill({ status: 400, json: { message: `Error ficticio ${proveedor}` } })
+  })
+  const nombre = proveedor === 'apple' ? 'Apple' : 'Google'
+  const otro = proveedor === 'apple' ? 'Google' : 'Apple'
+  await page.getByRole('button', { name: `Continuar con ${nombre}`, exact: true }).click()
+  await started
+  await verificarPlataforma(page, 'ios')
+  await expect(page.getByRole('button', { name: `Conectando con ${nombre}…`, exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: `Continuar con ${otro}`, exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /Conectando con/ })).toHaveCount(1)
+  finish()
+  await expect(page.getByRole('alert')).toContainText(`Error ficticio ${proveedor}`)
+  for (const servicio of ['Apple','Google']) await expect(page.getByRole('button', { name: `Continuar con ${servicio}`, exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeEnabled()
+})
+
+for (const crear of [false, true]) test(`#516 Google web ${crear ? 'crear' : 'entrar'}: progreso exclusivo y error recuperable`, async ({ page }) => {
+  await preparar(page, 'web', false)
+  if (crear) await page.getByRole('button', { name: 'Creá tu tienda', exact: true }).click()
+  let start, finish
+  const started = new Promise(resolve => start = resolve)
+  await page.route('**/api/auth/google?status=1', async route => {
+    start(); await new Promise(resolve => finish = resolve)
+    await route.fulfill({ status: 400, json: { message: 'Google ficticio no disponible' } })
+  })
+  const normal = crear ? 'Crear con Google' : 'Continuar con Google'
+  const correo = crear ? 'Crear mi tienda' : 'Continuar'
+  await page.getByRole('button', { name: normal, exact: true }).click()
+  await started
+  await expect(page.getByRole('button', { name: 'Conectando con Google…', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: correo, exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Un momento…', exact: true })).toHaveCount(0)
+  finish()
+  await expect(page.getByRole('alert')).toContainText('Google ficticio no disponible')
+  await expect(page.getByRole('button', { name: normal, exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: correo, exact: true })).toBeEnabled()
+})
+
+for (const proveedor of ['apple', 'google']) test(`#516 ${proveedor}: conserva progreso entre hoja y respuesta API`, async ({ page }) => {
+  await simularProveedor(page, proveedor)
+  await preparar(page, 'ios', false)
+  const nonce = 'a'.repeat(64)
+  await page.route(`**/api/fixture516/${proveedor}`, route => route.fulfill({ json: proveedor === 'apple' ? { identityToken: 'fixture-token', authorizationCode: 'fixture-code', nonce } : { idToken: 'fixture-token', nonce } }))
+  let start, finish
+  const started = new Promise(resolve => start = resolve)
+  const ruta = proveedor === 'apple' ? 'apple' : 'google/native'
+  await page.route(`**/api/auth/${ruta}`, async route => {
+    expect(route.request().postDataJSON().nonce).toBe(nonce)
+    start(); await new Promise(resolve => finish = resolve)
+    await route.fulfill({ status: 400, json: { message: 'API de fixture rechaza la credencial' } })
+  })
+  const nombre = proveedor === 'apple' ? 'Apple' : 'Google'
+  await page.getByRole('button', { name: `Continuar con ${nombre}`, exact: true }).click()
+  await started
+  await expect(page.getByRole('button', { name: `Conectando con ${nombre}…`, exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /Conectando con/ })).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Un momento…', exact: true })).toHaveCount(0)
+  finish()
+  await expect(page.getByRole('alert')).toContainText('API de fixture rechaza la credencial')
+  for (const servicio of ['Apple','Google']) await expect(page.getByRole('button', { name: `Continuar con ${servicio}`, exact: true })).toBeEnabled()
+})
+

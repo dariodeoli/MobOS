@@ -33,6 +33,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [metodoCargando, setMetodoCargando] = useState(null)
   const [etapa, setEtapa] = useState('empresa')
   const [vendedores, setVendedores] = useState([])
   const [tiendas, setTiendas] = useState([])
@@ -48,6 +49,11 @@ export default function Login() {
   const [signupTouched, setSignupTouched] = useState({})
   const [errorSoporte, setErrorSoporte] = useState(false)
   const appleRef = useRef(null)
+
+  function comenzarCarga(metodo = 'correo') {
+    setMetodoCargando(metodo)
+    setCargando(true)
+  }
 
   // Si la sesión sigue viva se entra directo a la app: el login queda solo para
   // quien tiene que autenticarse. El destino guardado (`next`) manda.
@@ -89,7 +95,7 @@ export default function Login() {
       setError(params.get('auth_error') === 'cancelled' ? 'Cancelaste el acceso con Google. Podés volver a intentarlo.' : 'No se pudo verificar el acceso con Google. Volvé a intentarlo; si persiste, revisá la configuración del servidor.')
     }
     if (params.get('google') === 'ready') {
-      setCargando(true)
+      comenzarCarga('google')
       sessionApi.completeGoogle({ action: 'login' }).then(result => {
         if (result?.storeRequired) {
           setTiendas(result.stores || [])
@@ -147,7 +153,7 @@ export default function Login() {
   async function iniciarGoogle(create = false) {
     setError('')
     setOk('')
-    setCargando(true)
+    comenzarCarga('google')
     try {
       await sessionApi.startGoogle(create)
     } catch (err) {
@@ -160,7 +166,7 @@ export default function Login() {
     setError('')
     setErrorSoporte(false)
     setOk('')
-    setCargando(true)
+    comenzarCarga('google')
     try {
       // El nonce del servidor es de un solo uso: al elegir tienda se pide una credencial nueva.
       const credencial = { ...(await iniciarSesionConGoogle()), proveedor: 'google' }
@@ -187,7 +193,7 @@ export default function Login() {
     setError('')
     setErrorSoporte(false)
     setOk('')
-    setCargando(true)
+    comenzarCarga('apple')
     try {
       // El nonce del servidor es de un solo uso: al elegir tienda se pide una credencial nueva.
       const credencial = { ...(await iniciarSesionConApple()), proveedor: 'apple' }
@@ -216,7 +222,7 @@ export default function Login() {
     if (appleRef.current) { await iniciarApple(storeId); return }
     setError('')
     setOk('')
-    setCargando(true)
+    comenzarCarga('google')
     try {
       const result = await sessionApi.completeGoogle({ action: 'login', storeId })
       if (result?.storeRequired) {
@@ -232,7 +238,7 @@ export default function Login() {
   useEffect(() => {
     if (modo !== 'entrar' || etapa !== 'vendedor' || pin.length !== 4 || cargando || pinSubmit.current) return
     pinSubmit.current = true
-    setCargando(true)
+    comenzarCarga()
     entrarVendedor(vendedorId ? { sellerId: vendedorId, pin } : { pin }).catch((err) => {
       setError(err?.message || 'PIN inválido. Probá de nuevo.')
       setPin('')
@@ -246,7 +252,7 @@ export default function Login() {
 
     if (modo === 'crear') {
       if (!googleReady && !validateSignup()) return
-      setCargando(true)
+      comenzarCarga()
       try {
         if (googleReady) showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa }))
         else {
@@ -260,7 +266,7 @@ export default function Login() {
     }
     if (etapa === 'setup') {
       if (setupPin.length !== 4 || !vendedorId) { setError('Elegí un PIN de 4 dígitos para activar tu tienda.'); return }
-      setCargando(true)
+      comenzarCarga()
       try {
         const result = await sessionApi.completeOnboarding({ pin: setupPin })
         await entrarVendedor({ sellerId: result.admin.id, pin: setupPin })
@@ -275,7 +281,7 @@ export default function Login() {
       return
     }
 
-    setCargando(true)
+    comenzarCarga()
     try {
       if (modo === 'entrar') {
         const dispositivo = deviceId()
@@ -296,6 +302,7 @@ export default function Login() {
   }
 
   const crear = modo === 'crear' && !ios
+  const enviandoFormulario = cargando && metodoCargando === 'correo'
 
   return (
     <AuthLayout compacto pin={modo === 'entrar' && ['vendedor', 'setup'].includes(etapa)}>
@@ -314,10 +321,10 @@ export default function Login() {
         {crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Empezá con Google o creá tu acceso con correo.</p>}
 
         <form data-etapa={etapa} onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
-          {crear && !googleReady && <><GoogleButton create busy={cargando} onClick={() => iniciarGoogle(true)} /><OAuthDivider /></>}
+          {crear && !googleReady && <><GoogleButton create disabled={cargando} busy={cargando && metodoCargando === 'google'} onClick={() => iniciarGoogle(true)} /><OAuthDivider /></>}
           {!crear && etapa === 'empresa' && (ios
-            ? <><AppleButton busy={cargando} onClick={() => iniciarApple()} />{googleNativoDisponible() && <GoogleButton busy={cargando} onClick={() => iniciarGoogleNativo()} />}<OAuthDivider /></>
-            : <><GoogleButton busy={cargando} onClick={() => iniciarGoogle()} /><OAuthDivider /></>)}
+            ? <><AppleButton disabled={cargando} busy={cargando && metodoCargando === 'apple'} onClick={() => iniciarApple()} />{googleNativoDisponible() && <GoogleButton disabled={cargando} busy={cargando && metodoCargando === 'google'} onClick={() => iniciarGoogleNativo()} />}<OAuthDivider /></>
+            : <><GoogleButton disabled={cargando} busy={cargando && metodoCargando === 'google'} onClick={() => iniciarGoogle()} /><OAuthDivider /></>)}
 
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" placeholder="Nombre de tu tienda" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
@@ -397,7 +404,7 @@ export default function Login() {
           )}
 
           {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base md:h-12 md:min-h-12" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
-            {cargando && <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}{cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
+            {enviandoFormulario && <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}{enviandoFormulario ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
           </Button>}
           <div className="login-opciones space-y-4" hidden={!(crear || etapa === 'empresa')}>
           {!ios && (crear || etapa === 'empresa') && <p className="login-crear pt-1 text-center text-sm text-mute">
