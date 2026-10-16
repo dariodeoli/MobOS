@@ -37,3 +37,9 @@ No prueba OAuth físico, cuentas Google/Apple reales, dispositivo iPhone, provee
 - El regreso de Google abre la tienda y pide el PIN sin competir con una comprobación de sesión prematura.
 - Un acceso viejo no puede completar su respuesta después de salir o cambiar de contexto.
 - Se mantienen el PIN y las denegaciones de acceso del servidor.
+
+## Refuerzo de observabilidad del desmontaje
+
+Followup sólo de prueba: con `observarOAuth`, el fixture decora completeGoogle y devuelve EXACTAMENTE su promesa original, sin modificar argumentos/resultados/rechazos. Al asentarse registra contador y código de resultado en html. Los dos casos de desmontaje esperan esa señal después de liberar la respuesta (`1` inicial o `2` tras selección), y exigen `CONTEXT_CHANGED` antes de comprobar que el contexto sigue vacío o conserva sólo stores. Así se acredita que el cliente procesó la respuesta tardía; no basta el fulfill de red o un heading que ya había desaparecido.
+
+Dirigidos `--grep '#517.*(unmount|desmontaje)'`: **2/2PASS**,6,3s; unitarios inicioSesion **8/8PASS**; lint **0errores** y advertencia previa DeliveryOperations42. Sin fuente de producto modificada ni repetición de suite global.

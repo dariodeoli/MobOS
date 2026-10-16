@@ -69,7 +69,7 @@ for (const cambio of ['A-B-A', 'rol', 'logout', 'unmount']) test(`#517 ${cambio}
     started.resolve(); await release.promise
     await route.fulfill({ json: empresa }); ended.resolve()
   })
-  await page.goto(`/login?plataforma=web&google=ready${cambio === 'unmount' ? '&desmontable=1' : ''}`)
+  await page.goto(`/login?plataforma=web&google=ready${cambio === 'unmount' ? '&desmontable=1&observarOAuth=1' : ''}`)
   await started.promise
   if (cambio === 'unmount') await page.getByTestId('desmontar-login').click()
   else if (cambio === 'logout') {
@@ -84,7 +84,11 @@ for (const cambio of ['A-B-A', 'rol', 'logout', 'unmount']) test(`#517 ${cambio}
   }, cambio)
   release.resolve(); await ended.promise
   if (cambio !== 'unmount') await expect(page.getByRole('alert')).toContainText('El contexto de acceso cambió.')
-  else await expect(page.getByRole('heading', { name: 'Entrá a tu tienda' })).toHaveCount(0)
+  else {
+    await expect(page.locator('html')).toHaveAttribute('data-oauth-finalizado', '1')
+    await expect(page.locator('html')).toHaveAttribute('data-oauth-resultado', 'CONTEXT_CHANGED')
+    await expect(page.getByRole('heading', { name: 'Entrá a tu tienda' })).toHaveCount(0)
+  }
   expect(await contexto(page)).toBeNull()
   if (salida) { salidaLiberada.resolve(); await salida }
 })
@@ -100,11 +104,14 @@ test('#517 continuación selección y desmontaje: no guarda empresa de respuesta
     started.resolve(); await release.promise
     await route.fulfill({ json: empresa }); ended.resolve()
   })
-  await page.goto('/login?plataforma=web&google=ready&desmontable=1')
+  await page.goto('/login?plataforma=web&google=ready&desmontable=1&observarOAuth=1')
   await page.getByRole('button', { name: empresa.tenant.name, exact: true }).click()
   await started.promise
+  await expect(page.locator('html')).toHaveAttribute('data-oauth-finalizado', '1')
   await page.getByTestId('desmontar-login').click()
   release.resolve(); await ended.promise
+  await expect(page.locator('html')).toHaveAttribute('data-oauth-finalizado', '2')
+  await expect(page.locator('html')).toHaveAttribute('data-oauth-resultado', 'CONTEXT_CHANGED')
   await expect(page.getByRole('heading', { name: 'Entrá a tu tienda' })).toHaveCount(0)
   expect(await contexto(page)).toEqual({ stores })
   expect(llamadas).toBe(2)
