@@ -94,3 +94,55 @@ for(const height of [640,844])for(const dark of [false,true])test(`#516 hojas au
   }
  }finally{for(const f of pages)await f.context.close()}
 })
+
+async function irRuta516(page,path){
+ await page.evaluate(path=>{history.pushState(null,'',path);dispatchEvent(new PopStateEvent('popstate'))},path)
+ await expect.poll(()=>page.evaluate(()=>location.pathname)).toBe(path)
+}
+async function geometria516(locator){return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}
+async function campo516(locator,width){
+ await expect(locator).toBeVisible()
+ const r=await locator.boundingBox();expect(r.width).toBeGreaterThanOrEqual(44);expect(r.height).toBeGreaterThanOrEqual(44)
+ expect(r.x).toBeGreaterThanOrEqual(0);expect(r.x+r.width).toBeLessThanOrEqual(width+1)
+ expect(await locator.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12)
+ await locator.focus();await expect(locator).toBeFocused()
+}
+for(const width of [360,390,1440])for(const dark of [false,true])test(`#516 Clientes y Configuración pareados ${width} ${dark?'oscuro':'claro'}`,async({browser,baseURL})=>{
+ const pairs=[]
+ try{
+  for(const ios of [false,true]){
+   const f=await preparar(browser,baseURL,{width,dark,ios});pairs.push(f)
+   await irRuta516(f.page,'/clientes')
+   const search=f.page.getByRole('textbox',{name:'Buscar clientes',exact:true})
+   await campo516(search,width)
+   await expect(f.page.getByTestId('resumen-clientes')).toBeVisible()
+   await campo516(f.page.getByRole('button',{name:'+ Crear cliente',exact:true}),width)
+   await search.fill('María');await expect(search).toHaveValue('María');await search.fill('')
+   f.clientes={barra:await geometria516(f.page.getByTestId('barra-clientes')),resumen:await geometria516(f.page.getByTestId('resumen-clientes'))}
+   expect(await f.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
+   await irRuta516(f.page,width<1024?'/configuracion':'/configuracion/mi-cuenta')
+   await expect(f.page.getByTestId('config-pagina')).toBeVisible()
+   if(width<1024){
+    const secciones=f.page.getByRole('navigation',{name:'Secciones de Configuración',exact:true})
+    await campo516(secciones.getByRole('button',{name:'Mi cuenta',exact:true}),width)
+    await secciones.getByRole('button',{name:'Mi cuenta',exact:true}).click()
+   }else await irRuta516(f.page,'/configuracion/mi-cuenta')
+   await expect(f.page.getByTestId('mi-cuenta-perfil')).toBeVisible()
+   // El bloque propio del equipo iPhone añade altura; no se exige altura
+   // total idéntica ni se eliminan controles nativos para igualar la web.
+   await expect(f.page.getByTestId('mi-cuenta-iphone')).toHaveCount(ios?1:0)
+   const nombre=f.page.getByRole('textbox',{name:'Nombre',exact:true})
+   await campo516(nombre,width);await expect(nombre).toHaveValue(/Hernán/)
+   f.config={pagina:await geometria516(f.page.getByTestId('config-pagina')),perfil:await geometria516(f.page.getByTestId('mi-cuenta-perfil')),nombre:await geometria516(nombre)}
+   expect(await f.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
+   expect(await f.page.evaluate(async()=> (await import('/src/lib/plataforma.js')).isNativeIOS())).toBe(ios)
+   expect(await f.page.locator('html').evaluate(el=>el.classList.contains('app-ios'))).toBe(ios)
+  }
+  expect(pairs[1].clientes).toEqual(pairs[0].clientes)
+  expect(pairs[1].config.perfil).toEqual(pairs[0].config.perfil)
+  expect(pairs[1].config.nombre).toEqual(pairs[0].config.nombre)
+  expect(pairs[1].config.pagina.x).toBe(pairs[0].config.pagina.x)
+  expect(pairs[1].config.pagina.width).toBe(pairs[0].config.pagina.width)
+  console.log('PARIDAD516_CLIENTES_CONFIG',JSON.stringify({width,dark,clientes:pairs[0].clientes,config:pairs[0].config}))
+ }finally{for(const f of pairs)await f.context.close()}
+})

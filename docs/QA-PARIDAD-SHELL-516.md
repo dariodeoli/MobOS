@@ -23,3 +23,10 @@ Base: 6f30c8b7; rama codex/paridad-shell516. Comparación de la misma fuente, em
 ## Novedades para el dueño
 - El cobro móvil ocupa correctamente toda la pantalla también en la versión iPhone.
 - Compartir muestra un aviso coherente con las opciones de compartir, sin afirmar que el enlace ya se envió.
+
+## Extensión Clientes y Configuración
+- 6 pares nuevos360/390/1440 claro/oscuro, cada uno web+iOS simulado, sin nuevas capturas ni cambios de producto. Log /tmp/mobos-shell516-clientes-config-final.log.
+- Clientes: ruta, búsqueda por nombre y limpieza, resumen, botón Crear, barra y resumen con igual geometría. Configuración: lista móvil y acceso Mi cuenta, nombre demo Hernán, tarjeta perfil y campo con igual geometría; nombres accesibles, foco de teclado, fuente>=12px, controles medidos>=44px y ningún overflow horizontal.
+- La tarjeta Este iPhone existe sólo en iOS, intencionalmente; añade altura total (212px a390) sin cambiar ancho, tarjeta común ni campo. Se afirma presencia/ausencia explícita. El escritorio redirige Configuración a Organización; móvil conserva lista: el recorrido respeta ese contrato.
+- No se pulsan Guardar/Crear, permisos, notificaciones ni Face ID; no se acredita funcionamiento de plugins. No se exige igualdad de secciones restringidas ni altura total con bloques específicos de plataforma. No se probaron todos los subapartados de Configuración.
+- Primera corrida nueva:6 fallos por exigir misma altura total y ruta sin redirección desktop; se corrigió el oráculo según los contratos explícitos anteriores, sin parche de producto. Segunda6/6PASS; después aserción explícita Este iPhone,6/6PASS final.
