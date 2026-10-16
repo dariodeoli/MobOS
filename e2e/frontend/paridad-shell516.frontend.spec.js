@@ -99,6 +99,29 @@ async function irRuta516(page,path){
  await page.evaluate(path=>{history.pushState(null,'',path);dispatchEvent(new PopStateEvent('popstate'))},path)
  await expect.poll(()=>page.evaluate(()=>location.pathname)).toBe(path)
 }
+test('#516 el shell móvil recupera el espacio inferior al abrir y cerrar el teclado',async({browser,baseURL})=>{
+ const pages=[]
+ try{
+  for(const ios of [false,true]){
+   const f=await preparar(browser,baseURL,{width:390,dark:false,ios});pages.push(f)
+   await f.page.setViewportSize({width:390,height:430})
+   await irRuta516(f.page,'/clientes')
+   const nav=f.page.getByTestId('shell-bottom-nav')
+   const body=f.page.locator('.shell-body')
+   const search=f.page.getByRole('textbox',{name:'Buscar clientes',exact:true})
+   await expect(nav).toBeVisible()
+   await expect.poll(()=>body.evaluate(el=>getComputedStyle(el).paddingBottom)).toBe('56px')
+   await search.focus()
+   await expect(nav).toBeHidden()
+   await expect.poll(()=>body.evaluate(el=>getComputedStyle(el).paddingBottom)).toBe('0px')
+   const fontSize=await search.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))
+   expect(fontSize,'los campos en iOS evitan zoom al abrir teclado').toBeGreaterThanOrEqual(ios?16:12)
+   await search.blur()
+   await expect(nav).toBeVisible()
+   await expect.poll(()=>body.evaluate(el=>getComputedStyle(el).paddingBottom)).toBe('56px')
+  }
+ }finally{for(const f of pages)await f.context.close()}
+})
 async function geometria516(locator){return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}
 async function campo516(locator,width){
  await expect(locator).toBeVisible()

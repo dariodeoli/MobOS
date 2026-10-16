@@ -51,6 +51,9 @@
   .shell-nav-v2:has(input:focus, textarea:focus) .shell-bottom-nav {
     display: none;
   }
+  .shell-nav-v2:has(input:focus, textarea:focus) .shell-body {
+    padding-bottom: 0;
+  }
 }
 /* Neutral selected navigation, with green retained only on the active icon. */
 .shell-nav-v2.tema-v2 nav [aria-current='page'] {
