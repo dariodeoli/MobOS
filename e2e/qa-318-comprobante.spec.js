@@ -16,7 +16,7 @@ mkdirSync(SALIDA, { recursive: true })
 
 const VENTA = {
   cliente: 'María González',
-  numero: 'demo-venta-extra-1',
+  numero: 'AUR-0004',
   producto: 'iPhone 15 Pro Max 256GB Titanio Natural',
   total: 'Gs 7.250.000',
 }
@@ -29,7 +29,14 @@ async function entrarDemo(page) {
 
 async function abrirComprobante(page) {
   await page.goto('/pedidos')
-  await page.getByTestId('pedido-fila').filter({ hasText: VENTA.cliente }).first().click()
+  // La misma clienta tiene varios pedidos: identificar el pedido público exacto,
+  // nunca el primer resultado por nombre (el orden cambia al renovar el demo).
+  const fila = page.getByTestId('pedido-fila').and(page.getByRole('button', { name: `Abrir pedido ${VENTA.numero}`, exact: true }))
+  await expect(fila).toHaveCount(1)
+  await expect(fila).toContainText(VENTA.cliente)
+  await expect(fila).toContainText(VENTA.producto)
+  await expect(fila).toContainText(VENTA.total)
+  await fila.click()
   await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
   await page.getByLabel('Tipo de comprobante').waitFor()
   const iframe = page.locator('iframe[title="Vista previa del comprobante"]')
@@ -37,7 +44,18 @@ async function abrirComprobante(page) {
   return iframe
 }
 
-const textoDelComprobante = (iframe) => iframe.evaluate((frame) => frame.contentDocument.body.innerText)
+const textoDelComprobante = (iframe) => iframe.evaluate((frame) => frame.contentDocument?.body?.innerText || '')
+
+async function verificarVenta(iframe) {
+  await expect.poll(async () => textoDelComprobante(iframe)).toContain(VENTA.numero)
+  const texto = await textoDelComprobante(iframe)
+  expect(texto).toMatch(/^Aurora Móviles S\.A\.\s+Casa Central/)
+  expect(texto).toContain(VENTA.cliente)
+  expect(texto).toContain(VENTA.producto)
+  expect(texto).toContain(VENTA.total)
+  expect(texto).toMatch(/Cantidad de\s*ítems\s*1/)
+  expect(texto).not.toContain('Consumidor final')
+}
 
 // Captura el comprobante suelto (todo el papel, sin el modal) reabriendo su
 // HTML en una pestaña limpia: es la evidencia de que el impreso completo lleva
@@ -115,9 +133,11 @@ test.describe('#318 comprobante con datos reales', () => {
 
     // Cambiar de formato rearma la vista con el ancho real de cada papel.
     await page.getByLabel('Formato de impresión').getByRole('radio', { name: 'Formato A4' }).click()
-    await expect.poll(async () => textoDelComprobante(iframe)).toContain(VENTA.producto)
+    await verificarVenta(iframe)
     await page.screenshot({ path: `${SALIDA}/modal-claro.png` })
     await capturarComprobante(page, `${SALIDA}/comprobante-claro.png`)
+    await page.getByLabel('Formato de impresión').getByRole('radio', { name: 'Formato 80 mm', exact: true }).click()
+    await verificarVenta(iframe)
   })
 
   test('en móvil el pie queda usable y el comprobante se recorre sin cortes', async ({ page }) => {
@@ -125,7 +145,7 @@ test.describe('#318 comprobante con datos reales', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await entrarDemo(page)
     const iframe = await abrirComprobante(page)
-    await expect.poll(async () => textoDelComprobante(iframe)).toContain(VENTA.cliente)
+    await verificarVenta(iframe)
 
     const dialogo = page.getByRole('dialog')
     // #323 adoptó el Modal de la biblioteca (header/pie fijos, cuerpo scrollable).
