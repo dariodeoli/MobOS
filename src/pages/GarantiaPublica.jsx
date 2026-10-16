@@ -9,6 +9,7 @@ import { demoGarantiaPayload } from '@/lib/demoGarantia'
 import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { BotonWhatsApp, CabeceraTienda } from '@/components/publico/KitPublico'
+import { useLogoDocumento } from '@/components/publico/useLogoDocumento'
 import ProductFooter from '@/components/app/ProductFooter'
 
 
@@ -20,26 +21,30 @@ function bulletList(text) {
 export default function GarantiaPublica() {
   const { token } = useParams()
   const [searchParams] = useSearchParams()
-  const [warranty, setWarranty] = useState(null)
+  const [datos, setWarranty] = useState(null)
+  const [documentoCargado, setDocumentoCargado] = useState(null)
   const [error, setError] = useState('')
   // Garantía demo (#240 → portal): el enlace del portal viaja con `?demo=1`
   // para resolverla con los datos del navegador, igual que el informe.
   const demoDelEnlace = searchParams.get('demo') === '1'
   const demo = isDemoRuntime || demoDelEnlace
+  const documentoActual = `${token}:${demo}`
+  const warranty = documentoCargado === documentoActual ? datos : null
+  const { logo, logoClaro } = useLogoDocumento({ ruta: '/api/public/warranty', token, disponible: warranty?.company?.logo, demo })
   useEffect(() => {
     let active = true
     setError(''); setWarranty(null)
     if (demo) {
       const local = demoGarantiaPayload(token)
-      if (local) setWarranty(local)
+      if (local) { setDocumentoCargado(documentoActual); setWarranty(local) }
       else setError('Garantía no encontrada.')
       return () => { active = false }
     }
     fetch(`${API_URL}/api/public/warranty/${encodeURIComponent(token || '')}`)
-      .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Garantía no encontrada.'); if (active) setWarranty(payload) })
+      .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Garantía no encontrada.'); if (active) { setDocumentoCargado(documentoActual); setWarranty(payload) } })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar la garantía.') })
     return () => { active = false }
-  }, [token, demo])
+  }, [token, demo, documentoActual])
   const days = warranty?.daysRemaining ?? null
   const total = warranty?.warrantyDays ?? null
   const pct = days != null && total ? Math.min(100, Math.max(0, Math.round((days / total) * 100))) : null
@@ -48,7 +53,7 @@ export default function GarantiaPublica() {
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
         <div className="mb-5">
-          <CabeceraTienda empresa={warranty?.store?.name} detalle={warranty?.store?.city}>
+          <CabeceraTienda key={logo || documentoActual} logo={logo} logoClaro={logoClaro} empresa={warranty?.company?.name || warranty?.store?.name} detalle={[warranty?.company?.name ? warranty?.store?.name : null, warranty?.store?.city].filter(Boolean).join(' · ')}>
             <p className="mt-1 text-xs font-bold uppercase tracking-[.16em] text-fono-light">Garantía oficial</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{warranty?.productName || 'Tu equipo'}</h1>
             {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {codigoPedido(warranty.orderNumber)}</p>}

@@ -3,6 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { serialKey } from '../../../../../lib/validation'
 import { changeStock } from '../../../../../lib/stock'
+import { cargarRemitoPublico } from '../../../../../lib/public-transfer'
 import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 
 // Vista pública del remito de traslado: origen, destino, líneas con IMEI y
@@ -11,23 +12,10 @@ import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 const text = (value: unknown, max = 300) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : ''
 const ORIGIN = 'public'
 
-async function porToken(token: string) {
-  if (!token || token.length > 200) return null
-  return prisma.stockTransfer.findUnique({
-    where: { publicToken: token },
-    include: {
-      sourceBranch: { select: { name: true, address: true, city: true, department: true, phone: true } },
-      destinationBranch: { select: { name: true, address: true, city: true, department: true, phone: true } },
-      createdBy: { select: { name: true } },
-      dispatchedBy: { select: { name: true } },
-      lines: { include: { sourceProduct: { select: { name: true, sku: true } } } },
-    },
-  })
-}
 
 export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params
-  const transfer = await porToken(text(token, 200))
+  const transfer = await cargarRemitoPublico(token)
   if (!transfer) return error('Remito no encontrado.', 404)
 
   const [photos, receivedBy] = await Promise.all([
@@ -40,6 +28,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   ])
 
   return json({
+    company: { name: transfer.tenant.name, logo: Boolean(transfer.tenant.logos.length) },
     status: transfer.receivedAt ? 'RECEIVED' : 'IN_TRANSIT',
     createdAt: transfer.createdAt,
     eta: transfer.eta,

@@ -1,7 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
-import { buscarPorTokenPublico } from '../../../../../lib/public-token'
+import { cargarGarantiaPublica } from '../../../../../lib/public-warranty'
 import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 
 // Página pública de garantía: el token opaco del QR muestra modelo, días
@@ -10,12 +10,6 @@ import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 // Seguridad (#172/#178): rate limit como el resto de las páginas públicas y
 // resolución por hash (los enlaces legacy en claro siguen funcionando mientras
 // dura la rotación; al primer uso se les guarda el hash).
-const SELECT = {
-  id: true, customerName: true, serial: true, description: true, status: true, createdAt: true, expiresAt: true,
-  warrantyDays: true, coverage: true, exclusions: true,
-  branch: { select: { name: true, phone: true, city: true } },
-  orderItem: { select: { description: true, product: { select: { name: true } }, order: { select: { createdAt: true, orderNumber: true } } } },
-} as const
 
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
   const limited = enforceRateLimit(request, 'public-warranty', 30, 60_000)
@@ -23,11 +17,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
   const { token } = await context.params
   if (!token || token.length > 200) return error('Garantía no encontrada.', 404)
-  const { row: warranty, hash, legacy } = await buscarPorTokenPublico(
-    token,
-    (publicTokenHash) => prisma.warrantyCase.findUnique({ where: { publicTokenHash }, select: SELECT }),
-    (publicToken) => prisma.warrantyCase.findUnique({ where: { publicToken }, select: SELECT }),
-  )
+  const { row: warranty, hash, legacy } = await cargarGarantiaPublica(token)
   if (!warranty) return error('Garantía no encontrada.', 404)
   // Backfill del hash para enlaces legacy: no invalida el QR ya impreso.
   if (legacy && hash) {
@@ -37,6 +27,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const expiresAt = warranty.expiresAt ? new Date(warranty.expiresAt).getTime() : null
   const daysRemaining = expiresAt ? Math.max(0, Math.ceil((expiresAt - now) / 86400000)) : null
   return json({
+    company: { name: warranty.tenant.name, logo: Boolean(warranty.tenant.logos.length) },
     customerName: warranty.customerName,
     serial: warranty.serial,
     productName: warranty.orderItem?.product?.name || warranty.orderItem?.description || warranty.description,
