@@ -270,6 +270,14 @@ jobs:
       - name: Premium quick receipts and source context
         if: matrix.shard == 2
         run: npx playwright test --config e2e/quick-receipt513.frontend.config.js
+      - name: Shared web and native login presentation
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5399"
+        run: npx playwright test --config e2e/auth516.frontend.config.js
+      - name: Shared mobile shell, checkout, customers and account layout
+        if: matrix.shard == 4
+        run: npx playwright test --config e2e/paridad-shell516.frontend.config.js
       - name: Demo quote, cash and reception flows
         if: matrix.shard == 4
         env:

@@ -1,6 +1,6 @@
 # Validacion integrada de 1.0.231
 
-Preparacion local; aun no es una publicacion. Base de 230: `0331b606`, cuyo CI fallo y cuyo merge permanece detenido. Antes de entregar 231 se debe incorporar el arreglo revisado de 230 y actualizar la base al main protegido, sin resolver conflictos silenciosamente.
+Preparacion local; aun no es una publicacion. PR512/230 aprobo los ocho gates en dd065cb8 y se integro en main2cd8d549. Su CI de main38871096292 sigue en curso al registrar esta nota. 231 ya contiene el arreglo de impresion y debe actualizar su base al main protegido antes de entregar; no se resuelven conflictos silenciosamente.
 
 ## Cambios
 
@@ -41,7 +41,7 @@ Se incorporaron dos unidades del reporte original despues de su revision cruzada
 
 Root repitio la composicion final: frontend1563/1563, backend332PASS+1skip condicional, lint0errores, buildsFE/BE0 y Prisma0. Integracion HTTP completa exit0, limpieza de cluster/servidor propios, BUILD_ID `z13b75lUHaNGkJu5b3i7G`. Browser nuevos sobre el arbol combinado: consumers19/19 y QuickReceipt9/9 PASS. Logs `work/release231-composed-final-*`. Fuente de producto congelada en `6f30c8b7`; cambios posteriores de este cierre son workflow/notas/documentacion.
 
-El nuevo pedido #516 (paridad visual webmovil/iOS) se audita en otras ramas. No se atribuye a 231 ningun cambio aun no revisado de esa tarea.
+El pedido #516 se incorporo posteriormente tras revision independiente: CSS de progreso de acceso, metodo activo Apple/Google/email, padding de Cobrar y mensaje nativo de Compartir. Root ejecuto 20 casos auth y 10 shell combinados; la extension Clientes/Mi cuenta agrega seis pares. La simulacion Chromium no acredita plugins ni iOS fisico. #517, detectado durante la auditoria de acceso, sigue en otra rama hasta revision y composicion; los gates completos anteriores no acreditan ese cambio.
 
 ## Novedades para el dueño
 

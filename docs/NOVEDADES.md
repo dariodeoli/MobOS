@@ -13,6 +13,8 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.231 — 2026-10-16
 
+- **Diseño en web móvil y iPhone:** el acceso conserva el aviso de espera correcto y muestra progreso solo en el método elegido. Cobrar ocupa toda la pantalla sin desplazarse fuera del borde; Clientes y Mi cuenta mantienen alineación y controles comunes, conservando las opciones propias del iPhone.
+
 - **Fotos privadas:** cambiar de empresa, sucursal, usuario o permisos retira las fotos del acceso anterior, también al cerrar sesión. Una descarga anterior no vuelve a mostrarlas ni reemplaza una imagen recién autorizada.
 - **Garantías y remitos:** el documento muestra la marca autorizada de su empresa, con la variante apropiada para el tema. Cambiar de enlace retira el contenido y el logo anteriores mientras carga el documento nuevo.
 - **Lectura en celular:** los textos pequeños de la landing y los datos de IMEI tienen un tamaño más legible. Los atajos del punto de venta conservan contraste en ambos temas sin cambiar las acciones.
