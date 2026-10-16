@@ -14,6 +14,10 @@
 - `npm run lint`:0errores; warning previo DeliveryOperations.jsx42. `npm run build`:exit0; aviso habitual por chunks.
 - Specs previos conservan validación, máscara, error, pegado, borrar, foco, objetivos y contraste. El fixture de sesión anónima responde401 solo para auth/me (no503/reintentos); otros endpoints503. Capturas antiguas quedan opt-in, no se eliminaron assertions.
 
+## Integración y revisión independiente
+- Árbol integrado7d8c2222: `npm test`1522/1522 PASS; lint0errores1warning previo y buildFEexit0.
+- QA independiente APPROVE, sin P1/P2 nuevo. Subset12/12PASS: móvil320 claro/oscuro, selector y texto200%, foco al reanudar, teclado físico, FaceID/busy simulado, resize/restauración, error recuperable y logout sin esperar red. Fondo opaco493 intacto. No amplía la evidencia física nativa.
+
 ## Nativo: evidencia y límites
 - Scaffold propio `work/ios-pin504-simulator`, copiado solo ios desde scaffold conocido sinMLKit, sin copiar .env; node_modules enlazado a este worktree. Vite iOS con API loopback127.0.0.1:1, sin servicio real; xcodebuild Debug simulador exit0 e instalado.
 - Dispositivo propio «MobOS PIN QA504», SE3/iOS27, UDID BBABF196-C4C2-4C39-9067-A4A7ADCAA09F. Device Hub muestra login completo, controles y legales visibles en SE; demo abre. Este artefacto precede al ajuste final de geometría/selector, no se presenta como build final distribuido.
