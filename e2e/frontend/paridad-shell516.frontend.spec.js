@@ -1,0 +1,96 @@
+import {test,expect} from '@playwright/test'
+import {mkdir} from 'node:fs/promises'
+const out='/Users/dario/Documents/Codex/2026-10-15/gi/outputs/QA-516-shell'
+async function preparar(browser,baseURL,{width,dark,ios}){
+ const context=await browser.newContext({viewport:{width,height:900},baseURL})
+ const page=await context.newPage(),requests=[]
+ await page.addInitScript(dark=>{localStorage.setItem('mobos:theme',dark?'dark':'light');sessionStorage.setItem('mobos:demo-guia-vista','1')},dark)
+ await page.route(/https:\/\//,r=>r.abort())
+ await page.route('**/api/**',r=>{if(!new URL(r.request().url()).pathname.startsWith('/api/'))return r.continue();requests.push(r.request().method()+' '+new URL(r.request().url()).pathname);return r.fulfill({status:503,json:{error:'Demo local aislada516'}})})
+ if(ios){
+  // Persisten a través de la navegación completa de entrarDemo. Sólo flags de
+  // interfaz: arranque/Keychain/plugins reales quedan reemplazados en el arnés.
+  await page.route(/\/src\/lib\/plataforma\.js(?:\?.*)?$/,async r=>{const response=await r.fetch();const source=await response.text();const body=source.replace('function isNativeIOS(capacitor = Capacitor) {','function isNativeIOS(capacitor = Capacitor) { return true;');expect(body).not.toBe(source);await r.fulfill({response,body})})
+  await page.route(/\/src\/lib\/nativo\/arranque\.js(?:\?.*)?$/,async r=>{const response=await r.fetch();const source=await response.text();const body=source.replace('async function prepararNativo() {','async function prepararNativo() { document.documentElement.classList.add("app-ios"); return;').replace('async function mostrarApp() {','async function mostrarApp() { return;');expect(body).not.toBe(source);await r.fulfill({response,body})})
+  await page.route(/\/src\/lib\/api\/nativo\.js(?:\?.*)?$/,async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text())+'\nconst qa516Store=new Map();usarAlmacen({get:async key=>qa516Store.get(key)||null,set:async(key,value)=>qa516Store.set(key,value),remove:async key=>qa516Store.delete(key)});\n'})})
+ }
+ await page.goto('/demo',{waitUntil:'domcontentloaded'})
+ await expect(page.getByRole('button',{name:'Entrar como Dueño',exact:true})).toBeVisible()
+ expect(await page.evaluate(async()=> (await import('/src/lib/plataforma.js')).isNativeIOS())).toBe(ios)
+ if(ios)expect(await page.evaluate(async()=>{const p=await import('/src/lib/plataforma.js');return {vender:p.moduloDisponible('cargar'),inventario:p.moduloDisponible('inventario'),finanzas:p.moduloDisponible('finanzas')}})).toEqual({vender:true,inventario:false,finanzas:false})
+ await page.getByRole('button',{name:'Entrar como Dueño',exact:true}).click()
+ await expect(page.getByTestId('shell')).toBeVisible()
+ const nav=width<1024?page.getByTestId('shell-bottom-nav'):page.getByTestId('shell-lateral').getByRole('navigation',{name:'Navegación principal',exact:true})
+ await nav.getByRole('button',{name:'Vender',exact:true}).click()
+ await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+ expect(await page.evaluate(async()=> (await import('/src/lib/plataforma.js')).isNativeIOS())).toBe(ios)
+ expect(await page.locator('html').evaluate(el=>el.classList.contains('app-ios'))).toBe(ios)
+ expect(await page.locator('html').evaluate(el=>el.classList.contains('dark'))).toBe(dark)
+ return {context,page,requests}
+}
+async function medir(page){return page.evaluate(()=>{
+ const box=selector=>{const el=document.querySelector(selector);if(!el)return null;const r=el.getBoundingClientRect();return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}}
+ const smallTouch=[...document.querySelectorAll('[data-testid="shell-mobile-header"] button,[data-testid="pos-acciones-movil"] button,[data-testid="cobro-medios"] button')].filter(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(r.width<43.5||r.height<43.5)}).map(el=>el.textContent.trim())
+ return {smallTouch,overflow:document.documentElement.scrollWidth>innerWidth,header:box(innerWidth<1024?'[data-testid="shell-mobile-header"]':'div:has(> [data-testid="shell-breadcrumb"])'),productos:box('[data-testid="pos-bloque-productos"]'),foto:box('[data-testid="pos-bloque-productos"] [data-testid="foto-producto"]'),busqueda:[...document.querySelectorAll('input')].filter(el=>el.placeholder==='Buscar producto…').map(el=>({height:Math.round(el.getBoundingClientRect().height),font:getComputedStyle(el).fontSize})),cobro:box(innerWidth<768?'[data-testid="cobro-movil"]':'[data-testid="pos-cobro"]'),total:box('[data-testid="cobro-total-grande"]'),pedido:box('[data-testid="pedido-fila"]')}
+})}
+async function agregarYCobrar(page,width){
+ const prod=await page.evaluate(async()=>{const s=await import('/src/lib/storage.js'),{agruparProductos}=await import('/src/utils/colores.js');const f=agruparProductos(s.getProductos().filter(p=>p.activo)).find(f=>f.items.length===1&&Number(f.items[0].stock)>=2&&/Funda|Cargador/.test(f.base));return {nombre:f.base,precio:Number(f.items[0].precioVenta)}})
+ await page.getByPlaceholder('Buscar producto…').fill(prod.nombre)
+ await page.locator('.pos-product-card',{hasText:prod.nombre}).first().click()
+ if(width<768){await page.getByTestId('pos-barra-carrito-abrir').click();await page.getByTestId('carrito-cobrar').click();await expect(page.getByTestId('cobro-movil')).toBeVisible();await expect.poll(async()=>Math.round((await page.getByTestId('cobro-movil').boundingBox()).y)).toBe(0);await expect(page.getByTestId('cobro-total-grande')).toContainText(prod.precio.toLocaleString('es-PY'))}
+ else await expect(page.getByTestId('pos-cobro')).toBeVisible()
+ return prod
+}
+for(const width of [360,390,1440])for(const dark of [false,true])test(`#516 misma fuente web/iOS simulado ${width} ${dark?'oscuro':'claro'}`,async({browser,baseURL})=>{
+ const web=await preparar(browser,baseURL,{width,dark,ios:false}),ios=await preparar(browser,baseURL,{width,dark,ios:true})
+ try{
+  const a=await medir(web.page),b=await medir(ios.page)
+  expect(a.overflow).toBe(false);expect(b.overflow).toBe(false)
+  if(width<1024){expect(a.smallTouch).toEqual([]);expect(b.smallTouch).toEqual([])}
+  expect(b.header,'cabecera compartida, safeareas0 en Chromium').toEqual(a.header)
+  expect(b.productos,'misma tarjeta catálogo').toEqual(a.productos)
+  expect(b.foto,'mismo icono/foto').toEqual(a.foto)
+  const wa=await agregarYCobrar(web.page,width),ia=await agregarYCobrar(ios.page,width);expect(ia).toEqual(wa)
+  const ca=await medir(web.page),cb=await medir(ios.page)
+  expect(cb.cobro).toEqual(ca.cobro);expect(cb.total).toEqual(ca.total)
+  expect(ca.overflow).toBe(false);expect(cb.overflow).toBe(false)
+  if(width<1024){expect(ca.smallTouch).toEqual([]);expect(cb.smallTouch).toEqual([])}
+  if(width===390&&dark&&process.env.MOBOS_516_SHOTS==='1'){await mkdir(out,{recursive:true});await ios.page.screenshot({path:out+'/390-oscuro-cobro-ios-simulado.png'})}
+  if(width<768)for(const p of [web.page,ios.page])await p.getByRole('dialog').getByRole('button',{name:/Cerrar/}).first().click()
+  for(const p of [web.page,ios.page]){await p.evaluate(()=>{history.pushState(null,'','/pedidos');dispatchEvent(new PopStateEvent('popstate'))});await expect(p.getByTestId('pedido-fila').first()).toBeVisible()}
+  const pa=await medir(web.page),pb=await medir(ios.page);expect({x:pb.pedido.x,width:pb.pedido.width,height:pb.pedido.height}).toEqual({x:pa.pedido.x,width:pa.pedido.width,height:pa.pedido.height}); // y cambia al ocultar pestañas de módulos no disponibles en iOS
+  expect(pa.overflow).toBe(false);expect(pb.overflow).toBe(false)
+  console.log('PARIDAD516',JSON.stringify({width,dark,web:a,ios:b,cobroWeb:ca.cobro,cobroIOS:cb.cobro,pedidoWeb:pa.pedido,pedidoIOS:pb.pedido,webRequests:web.requests.length,iosRequests:ios.requests.length}))
+ }finally{await web.context.close();await ios.context.close()}
+})
+
+async function esperarAnimacion(sheet){await expect(sheet).toBeVisible();await expect.poll(()=>sheet.evaluate(el=>Math.round(new DOMMatrixReadOnly(getComputedStyle(el).transform).m42))).toBe(0)}
+async function comprobarControles(sheet,height,cta){
+ const close=sheet.getByRole('button',{name:'Cerrar',exact:true});const targets=cta?[close,sheet.getByTestId(cta)]:[close]
+ for(const target of targets){const r=await target.boundingBox();expect(r.width).toBeGreaterThanOrEqual(44);expect(r.height).toBeGreaterThanOrEqual(44);expect(r.x).toBeGreaterThanOrEqual(0);expect(r.y).toBeGreaterThanOrEqual(0);expect(r.y+r.height).toBeLessThanOrEqual(height)}
+}
+for(const height of [640,844])for(const dark of [false,true])test(`#516 hojas auto/full ${height} ${dark?'oscuro':'claro'}: cabecera, CTA, teclado y cambio de altura`,async({browser,baseURL})=>{
+ const pages=[]
+ try{
+  for(const ios of [false,true]){
+   const f=await preparar(browser,baseURL,{width:390,dark,ios});pages.push(f)
+   await f.page.setViewportSize({width:390,height})
+   const nombre=await f.page.evaluate(async()=>{const {getProductos}=await import('/src/lib/storage.js'),{agruparProductos}=await import('/src/utils/colores.js');return agruparProductos(getProductos().filter(p=>p.activo)).find(f=>f.items.length===1&&Number(f.items[0].stock)>=2&&/Funda|Cargador/.test(f.base)).base})
+   await f.page.getByPlaceholder('Buscar producto…').fill(nombre);await f.page.locator('.pos-product-card',{hasText:nombre}).first().click()
+   await f.page.getByTestId('pos-barra-carrito-abrir').click()
+   const auto=f.page.getByTestId('hoja-carrito');await esperarAnimacion(auto);await comprobarControles(auto,height,'carrito-cobrar')
+   await auto.getByTestId('carrito-cobrar').click()
+   const full=f.page.getByTestId('cobro-movil');await esperarAnimacion(full)
+   expect(Math.round((await full.boundingBox()).y)).toBe(0);expect(Math.round((await full.boundingBox()).height)).toBe(height)
+   await comprobarControles(full,height)
+   await full.getByTestId('cobro-dividir').click();await expect(full.getByTestId('cobro-teclado')).toBeVisible()
+   await comprobarControles(full,height,'teclado-aceptar')
+   const rotated=height===640?844:640;await f.page.setViewportSize({width:390,height:rotated})
+   expect(Math.round((await full.boundingBox()).y)).toBe(0);expect(Math.round((await full.boundingBox()).height)).toBe(rotated)
+   await comprobarControles(full,rotated,'teclado-aceptar')
+   await f.page.keyboard.press('Tab');expect(await full.evaluate(el=>el.contains(document.activeElement))).toBe(true)
+   await f.page.keyboard.press('Escape');await expect(full).toHaveCount(0)
+   expect(await f.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false)
+  }
+ }finally{for(const f of pages)await f.context.close()}
+})

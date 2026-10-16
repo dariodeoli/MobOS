@@ -2740,7 +2740,18 @@ export default function FormularioVenta({
                     <p className="truncate rounded-lg border border-ink-600 bg-ink-800 px-2 py-1.5 font-mono text-[11px] text-fono-light">{enlacePublico.url}</p>
                     {avisoEnlace && <p role="status" className="text-xs text-ok">{avisoEnlace}</p>}
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button type="button" variant="outline" onClick={() => (isNativeIOS() ? compartirNativo({ titulo: 'Carrito', url: enlacePublico.url, dialogo: 'Compartir carrito' }) : copiarAlPortapapeles(enlacePublico.url)).then((ok) => setAvisoEnlace(ok ? 'Enlace copiado: mandalo al cliente para que confirme.' : 'No se pudo copiar el enlace.'))}>{isNativeIOS() ? 'Compartir' : 'Copiar'}</Button>
+                      <Button type="button" variant="outline" onClick={() => {
+                        const nativo = isNativeIOS()
+                        const accion = nativo ? compartirNativo({ titulo: 'Carrito', url: enlacePublico.url, dialogo: 'Compartir carrito' }) : copiarAlPortapapeles(enlacePublico.url)
+                        accion.then(ok => {
+                          if (nativo) {
+                            // El helper también atiende cancelación: no afirmar envío.
+                            setAvisoEnlace(ok ? 'Se abrieron las opciones para compartir.' : 'No se pudo compartir el enlace.')
+                          } else {
+                            setAvisoEnlace(ok ? 'Enlace copiado: mandalo al cliente para que confirme.' : 'No se pudo copiar el enlace.')
+                          }
+                        })
+                      }}>{isNativeIOS() ? 'Compartir' : 'Copiar'}</Button>
                       <a
                         className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore"
                         href={whatsappUrl(suspendida.customer?.phone, `Hola${suspendida.customer?.name ? ` ${suspendida.customer.name}` : ''}, te comparto el carrito${suspendida.label ? ` "${suspendida.label}"` : ''}: ${enlacePublico.url}`, suspendida.customer?.countryCode)}
