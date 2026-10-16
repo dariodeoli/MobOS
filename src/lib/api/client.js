@@ -60,9 +60,9 @@ const consultasEnVuelo = new Map()
 
 /** Cliente fetch aislado. No reemplaza ni conoce la implementación de storage.js. */
 export function request(path, options = {}) {
-  // Demo pública (#192): el panel funciona con datos locales y ninguna llamada
-  // puede salir al API real. Los componentes que necesitan datos usan el modo
-  // demo de storage.js; acá queda la barrera central.
+  // Demo pública (#192): las operaciones de tienda usan datos locales y esta
+  // barrera permanece cerrada. La consulta real RUC (#498) tiene un transporte
+  // público específico, sin sesión; nunca usa una excepción genérica aquí.
   if (isDemoRuntime) {
     return Promise.reject(new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' }))
   }
