@@ -252,6 +252,11 @@ jobs:
         env:
           MOBOS_QA_PORT: "5351"
         run: npx playwright test --config e2e/demo350.frontend.config.js
+      - name: Demo memory context and reload isolation
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5352"
+        run: npx playwright test --config e2e/demo350-scope.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:

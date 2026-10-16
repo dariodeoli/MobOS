@@ -15,6 +15,7 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 - **Cambiar de usuario:** el PIN del vendedor usa el teclado táctil de MobOS también al elegir otra persona. Cambiar de persona limpia el código anterior y una verificación en curso evita envíos duplicados.
 - **Demo:** los perfiles de Aurora muestran teléfonos, sucursales, roles y la información comercial disponible. La marca se adapta al tema claro y oscuro; los cambios de la sesión se conservan al volver a preparar sus datos.
+- **Datos de la demo:** cambiar de usuario o sucursal conserva las ediciones de la demostración en memoria. Salir o recargar vuelve a los datos iniciales; todavía solo está habilitada Aurora.
 - **Centro de control:** el menú de plataforma se puede plegar, conserva el período elegido al cambiar de sección y permite cerrar sesión desde el encabezado. Su preferencia de menú es independiente de la gestión de la empresa.
 - **Documentos de clientes:** nombres y números de serie largos se muestran completos. Garantías y remitos identifican la sucursal disponible, y la cotización conserva botones e importes legibles en celular y escritorio.
 - **Impresión:** podés guardar y recuperar plantillas por empresa o sucursal, elegir medidas, orientación, márgenes y posiciones, duplicar diseños y restablecer el formato incorporado. Si otra sesión editó la plantilla, la app avisa antes de sobrescribirla.
