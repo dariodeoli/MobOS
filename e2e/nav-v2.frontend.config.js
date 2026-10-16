@@ -20,6 +20,7 @@ export default defineConfig({
     'config-layout.frontend.spec.js',
     'config-nav.frontend.spec.js',
     'campos-ancho.frontend.spec.js',
+    'ruc498-consumidores.frontend.spec.js',
     'config-secciones.frontend.spec.js',
     'stock-layout.frontend.spec.js',
     'reconciliation-day.frontend.spec.js',
