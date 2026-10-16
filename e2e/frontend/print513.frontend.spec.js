@@ -311,3 +311,60 @@ test('513 rechazo local tardío no encola en la empresa siguiente', async ({ pag
   expect(result.motivo).toBe('contexto-cambiado')
   expect(queued).toHaveLength(0)
 })
+
+
+test('513 sin impresora conserva respaldo del mismo HTML y no intenta raster ni jobs', async ({ page }) => {
+  const posts = []
+  await page.route('**/api/**', route => {
+    if (!new URL(route.request().url()).pathname.startsWith('/api/')) return route.continue()
+    if (route.request().method() === 'POST') posts.push(route.request().url())
+    return route.fulfill({ status: 200, json: { printers: [], bridges: [], remoteEnabled: true } })
+  })
+  await page.route('http://127.0.0.1:17890/**', route => route.abort())
+  await page.goto('/e2e/fixtures/plantillas507.html')
+  const result = await page.evaluate(async () => {
+    const { usarTenantImpresoras, imprimirDocumento } = await import('/src/lib/printing/agent.js')
+    const { printLabels } = await import('/src/components/stock/impresionStock.js')
+    usarTenantImpresoras('fixture-sin-impresora')
+    let intentos = 0
+    await imprimirDocumento(() => { intentos++; throw Error('No debe preparar raster') }, { store: { impresoras: [] } })
+    const result = await printLabels([1,2].map(n => ({ serial: `35000000000000${n}`, product: { name: 'Equipo ficticio' } })))
+    return { ...result, intentos }
+  })
+  expect(result.ok).toBe(false)
+  expect(result.motivo).toBe('sin-impresora')
+  expect(result.intentos).toBe(0)
+  const paper = page.locator('iframe[aria-hidden="true"]').last().contentFrame()
+  await expect(paper.locator('.etiqueta')).toHaveCount(2)
+  for (const n of [1,2]) await expect(paper.locator('body')).toContainText(`35000000000000${n}`)
+  expect(posts).toEqual([])
+})
+
+
+test('513 cambio de contexto durante búsqueda sin impresora no abre respaldo ni envía', async ({ page }) => {
+  let started, release
+  const ready = new Promise(resolve => started = resolve), posts = []
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (!path.startsWith('/api/')) return route.continue()
+    if (route.request().method() === 'POST') posts.push(path)
+    if (path === '/api/print/printers') { started(); await new Promise(resolve => release = resolve) }
+    return route.fulfill({ status: 200, json: { printers: [], bridges: [], remoteEnabled: true } })
+  })
+  await page.route('http://127.0.0.1:17890/**', route => route.abort())
+  await page.goto('/e2e/fixtures/plantillas507.html')
+  const pending = page.evaluate(async () => {
+    const agent = await import('/src/lib/printing/agent.js')
+    const { printLabels } = await import('/src/components/stock/impresionStock.js')
+    agent.usarTenantImpresoras('fixture-A')
+    return printLabels([{ serial: '350000000000001', product: { name: 'Equipo ficticio' } }])
+  })
+  await ready
+  await page.evaluate(async () => (await import('/src/lib/printing/agent.js')).usarTenantImpresoras('fixture-B'))
+  release()
+  const result = await pending
+  expect(result.ok).toBe(false)
+  expect(result.motivo).toBe('contexto-cambiado')
+  await expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0)
+  expect(posts).toEqual([])
+})

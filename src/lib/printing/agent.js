@@ -609,6 +609,8 @@ export async function imprimirDocumento(ticket, { contexto = revisionContextoImp
   const recordada = tipo ? (actual.impresoras || []).find((item) => item.activa && item.destino === impresoraDeTipo(tipo)) : null
   const elegida = impresora || recordada || imprimirConDestino(actual, sucursalActiva).predeterminada
   if (revision !== revisionContextoImpresion) return { ok: false, motivo: 'contexto-cambiado', error: 'El contexto cambió. Volvé a abrir el documento; no se envió nada.' }
+  // Sin destino no hay protocolo que preparar; conservar el respaldo HTML seguro.
+  if (typeof ticket === 'function' && !elegida?.destino) return { ok: false, motivo: 'sin-impresora', error: 'No hay impresora configurada.' }
   if (typeof ticket === 'function') {
     try {
       if (revision !== revisionContextoImpresion) throw Error('El contexto cambió. Volvé a abrir el documento.')

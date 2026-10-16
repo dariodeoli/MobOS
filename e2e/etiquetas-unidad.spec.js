@@ -112,8 +112,13 @@ test('las etiquetas de las unidades seleccionadas salen en un solo trabajo direc
   await configurarImpresoraRaster(page, API)
   await page.getByRole('checkbox', { name: new RegExp(`Seleccionar Equipo etiqueta ${marca}.*${serialA}`) }).first().check()
   await page.getByRole('checkbox', { name: new RegExp(`Seleccionar Equipo etiqueta ${marca}.*${serialB}`) }).first().check()
-  const orden = await page.getByTestId('inventario-fila').allTextContents().then(rows => rows.flatMap(row => [serialA, serialB].filter(serial => row.includes(serial))))
-  expect(orden).toHaveLength(2)
+  let orden = []
+  // La selección puede refrescar la lista: esperar las filas, no leer un DOM transitorio vacío.
+  await expect.poll(async () => {
+    orden = await page.getByTestId('inventario-fila').allTextContents().then(rows => rows.flatMap(row => [serialA, serialB].filter(serial => row.includes(serial))))
+    return orden
+  }).toHaveLength(2)
+  expect([...orden].sort()).toEqual([serialA, serialB].sort())
   await page.getByRole('button', { name: 'Imprimir etiquetas' }).click()
   await page.getByRole('dialog', { name: 'Etiquetas de Stock' }).getByRole('button', { name: 'Continuar con formato habitual' }).click()
   await expect(page.getByText('2 etiquetas enviadas a la impresora.')).toBeVisible({ timeout: 15_000 })

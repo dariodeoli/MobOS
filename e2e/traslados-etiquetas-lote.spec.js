@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
+import { urlsUnidades, leerRaster, configurarImpresoraRaster } from './helpers/raster-qr.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -48,7 +49,6 @@ async function agenteFalso(page, capturados) {
   })
 }
 
-const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
 
 // Deja el lote "en destino": unidades EN_TRANSIT en la sucursal activa y el
 // traslado apuntando desde la sucursal 2, con los seriales en la línea. El
@@ -112,21 +112,25 @@ test('desde el destino se reimprimen las etiquetas del lote completo (sin depend
   await sembrarLote(page, { marca, seriales })
 
   const fila = await filaDelLote(page, marca)
+  await configurarImpresoraRaster(page, API)
+  // El lote imprime en el orden de las unidades de inventario (status/updatedAt),
+  // no en el orden en que el fixture creó sus seriales. Oráculo API independiente.
+  const listado = await apiPagina(page, `/api/inventory-units?branchId=${encodeURIComponent(SEED.branchId)}`)
+  expect(listado.status).toBe(200)
+  const orden = listado.datos.filter(unit => seriales.includes(unit.serial)).map(unit => unit.serial)
+  expect([...orden].sort()).toEqual([...seriales].sort())
   const boton = fila.getByRole('button', { name: 'Etiquetas', exact: true })
   await expect(boton).toHaveAttribute('title', /Reimprimir las etiquetas de todas las unidades del lote/i)
-  await page.screenshot({ path: `${SALIDA}/01-traslado-en-destino.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/01-traslado-en-destino.jpg` })
   await boton.click()
   await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiquetas-stock')
-  const texto = textoDelTicket(capturados[0])
-  for (const serial of seriales) {
-    expect(texto).toContain(serial)
-    expect(texto).toContain(`MOBOS:${serial}`)
-  }
-  expect(texto).toContain('ETIQUETA DE UNIDAD')
-  await page.screenshot({ path: `${SALIDA}/02-lote-impreso.jpg` })
+  expect(urlsUnidades(capturados[0])).toEqual(orden)
+  expect(leerRaster(capturados[0].data).cuts).toBe(2)
+  expect(capturados[0].copias).toBe(1)
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/02-lote-impreso.jpg` })
 })
 
 test('desde la recepción del destino se reimprime la etiqueta de una unidad', async ({ page }) => {
@@ -141,6 +145,7 @@ test('desde la recepción del destino se reimprime la etiqueta de una unidad', a
   await page.getByLabel('Buscar en tránsito').fill(serial)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
+  await configurarImpresoraRaster(page, API)
   await fila.click()
   const ficha = page.getByRole('dialog')
   const llegada = page.getByRole('dialog', { name: 'Recibir equipo en tránsito' })
@@ -149,15 +154,15 @@ test('desde la recepción del destino se reimprime la etiqueta de una unidad', a
     await ficha.getByRole('button', { name: 'Recibir en sucursal' }).click()
     await expect(llegada).toBeVisible({ timeout: 4000 })
   }).toPass({ timeout: 30_000 })
-  await page.screenshot({ path: `${SALIDA}/03-recepcion-destino.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/03-recepcion-destino.jpg` })
   await llegada.getByRole('button', { name: 'Reimprimir etiqueta' }).click()
   await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiqueta-stock')
-  const texto = textoDelTicket(capturados[0])
-  expect(texto).toContain(serial)
-  expect(texto).toContain(`MOBOS:${serial}`)
+  expect(urlsUnidades(capturados[0])).toEqual([serial])
+  expect(leerRaster(capturados[0].data).cuts).toBe(1)
+  expect(capturados[0].copias).toBe(1)
 })
 
 test('la recepción del lote lo deja disponible en stock del destino', async ({ page }) => {
@@ -184,7 +189,7 @@ test('la recepción del lote lo deja disponible en stock del destino', async ({ 
     opciones = await deposito.locator('option').evaluateAll((nodos) => nodos.map((nodo) => nodo.value).filter(Boolean))
   }
   await deposito.selectOption(opciones[0])
-  await page.screenshot({ path: `${SALIDA}/06-recepcion-lote.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/06-recepcion-lote.jpg` })
   await modal.getByRole('button', { name: 'Recibir todo el lote' }).click()
   await expect(page.getByText(/Lote recibido: \d+ equipo\(s\) disponibles en stock/)).toBeVisible({ timeout: 20_000 })
 
@@ -194,7 +199,7 @@ test('la recepción del lote lo deja disponible en stock del destino', async ({ 
   const unidad = page.getByTestId('inventario-fila').filter({ hasText: seriales[0] }).first()
   await expect(unidad).toBeVisible({ timeout: 20_000 })
   await expect(unidad).toContainText('Disponible')
-  await page.screenshot({ path: `${SALIDA}/07-lote-recibido.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/07-lote-recibido.jpg` })
 })
 
 test('el lote muestra ETA y quién despachó/recibió, y la ETA se ajusta desde la tabla', async ({ page }) => {
@@ -224,7 +229,7 @@ test('el lote muestra ETA y quién despachó/recibió, y la ETA se ajusta desde 
   const modal = page.getByRole('dialog', { name: 'ETA del lote' })
   await expect(modal).toBeVisible()
   await modal.getByLabel('Día estimado').fill(enCincoDias)
-  await page.screenshot({ path: `${SALIDA}/08-eta-lote.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/08-eta-lote.jpg` })
   await modal.getByRole('button', { name: 'Guardar ETA' }).click()
   await expect(page.getByText('ETA del lote actualizada.')).toBeVisible({ timeout: 15_000 })
 
@@ -242,7 +247,7 @@ test('el lote muestra ETA y quién despachó/recibió, y la ETA se ajusta desde 
   const despacho = filaRecibida.locator('span[title^="Despachó:"]')
   await expect(despacho).toContainText('Administrador')
   await expect(despacho).toHaveAttribute('title', /Recibió: Administrador/)
-  await page.screenshot({ path: `${SALIDA}/09-lote-eta-despacho.jpg` })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/09-lote-eta-despacho.jpg` })
 })
 
 test('sin impresora, el lote deja el PDF de 80 mm con las dos etiquetas', async ({ page }) => {
@@ -264,7 +269,8 @@ test('sin impresora, el lote deja el PDF de 80 mm con las dos etiquetas', async 
   await marco.waitFor({ state: 'attached', timeout: 10_000 })
   const contenido = await marco.contentFrame().locator('body').innerText()
   for (const serial of seriales) expect(contenido).toContain(serial)
-  await page.screenshot({ path: `${SALIDA}/04-respaldo-lote.jpg` })
+  await expect(marco.contentFrame().locator('.etiqueta')).toHaveCount(2)
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await page.screenshot({ path: `${SALIDA}/04-respaldo-lote.jpg` })
 
   // PDF de 80 mm con el mismo HTML que la app manda a «Guardar como PDF».
   const html = await marco.contentFrame().locator('html').evaluate((el) => el.outerHTML)
@@ -281,6 +287,6 @@ test('sin impresora, el lote deja el PDF de 80 mm con las dos etiquetas', async 
     printBackground: true,
     margin: { top: '5mm', bottom: '5mm', left: '4mm', right: '4mm' },
   })
-  await hoja.screenshot({ path: `${SALIDA}/05-etiquetas-lote-80.jpg`, type: 'jpeg', quality: 75, fullPage: true })
+  if (process.env.MOBOS_QA_SCREENSHOTS === '1') await hoja.screenshot({ path: `${SALIDA}/05-etiquetas-lote-80.jpg`, type: 'jpeg', quality: 75, fullPage: true })
   await hoja.close()
 })

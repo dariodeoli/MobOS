@@ -208,6 +208,22 @@ async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId, branch
   return creada.datos
 }
 
+// Cada caso declara su impresora de la sucursal, sin heredar el destino de
+// etiquetas-unidad. Al terminar restaura branch/default de la configuración.
+async function destinoComprobante(page, bridgeId) {
+  const anteriores = (await apiImpresion(page, '/api/print/printers')).datos.printers
+  const anterior = anteriores.find(p => p.destination === DESTINO_REMOTO)
+  const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId, branchId: SEED.branchId })
+  const updated = await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })
+  expect(updated.status).toBe(200)
+  return async () => {
+    expect((await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ branchId: anterior?.branchId || null, isDefault: anterior?.isDefault || false }) })).status).toBe(200)
+    for (const p of anteriores.filter(p => p.isDefault && p.id !== impresora.id)) {
+      expect((await apiImpresion(page, `/api/print/printers/${p.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })).status).toBe(200)
+    }
+  }
+}
+
 test.describe('impresión remota: configuración', () => {
   test('dos dispositivos ven la misma configuración del backend', async ({ page, browser }) => {
     await page.goto('/configuracion/dispositivos')
@@ -472,14 +488,9 @@ test.describe('impresión remota: cola con puente falso', () => {
     const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
     const puente = crearPuenteFalso({ api: API, token })
     puente.iniciar()
+    let restaurar = async () => {}
     try {
-      const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
-      // La predeterminada de la empresa define el destino del comprobante.
-      const predeterminada = await apiImpresion(page, `/api/print/printers/${impresora.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isDefault: true }),
-      })
-      expect(predeterminada.status).toBe(200)
+      restaurar = await destinoComprobante(page, bridgeId)
       await page.reload()
 
       await page.goto('/pedidos')
@@ -512,6 +523,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(await page.evaluate(() => window.__dialogosImpresion)).toBe(0)
     } finally {
       puente.detener()
+      await restaurar()
     }
   })
 
@@ -530,9 +542,8 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
     const codigo = await crearPuentePorUi(page, `Puente duplicado E2E ${Date.now()}`)
     const { bridgeId } = await parearPuente({ api: API, code: codigo })
-    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
-    const predeterminada = await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })
-    expect(predeterminada.status).toBe(200)
+    const restaurar = await destinoComprobante(page, bridgeId)
+    try {
     await page.reload()
 
     await page.goto('/pedidos')
@@ -568,6 +579,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       await apiImpresion(page, `/api/print/jobs/${job.id}/cancel`, { method: 'POST', body: JSON.stringify({}) })
     }
     await expect.poll(async () => (await pendientesDe()).length, { timeout: 10_000 }).toBe(0)
+    } finally { await restaurar() }
   })
 
   test('la cola del monitor cancela un pendiente y el puente no lo recibe', async ({ page }) => {
