@@ -154,9 +154,10 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwne
   const { usuario } = useSesion()
   const rol = usuario?.role
   const proveedorCompleto = ['ADMIN', 'GERENTE'].includes(rol)
+  const vistasPermitidas = useMemo(() => Array.isArray(vistas) ? vistas : [], [vistas])
   const disponibles = useMemo(
-    () => GRUPOS.filter(grupo => (!vistas || vistas.includes(grupo.vista)) && !(rol === 'VENDEDOR' && ['garantias', 'compras'].includes(grupo.id))),
-    [vistas, rol],
+    () => GRUPOS.filter(grupo => vistasPermitidas.includes(grupo.vista) && !(rol === 'VENDEDOR' && ['garantias', 'compras'].includes(grupo.id))),
+    [vistasPermitidas, rol],
   )
 
   // Filas locales para una consulta: se proyectan y filtran igual que las del
@@ -187,7 +188,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwne
   async function buscar(q) {
     const ids = disponibles.map(grupo => grupo.id)
     const accesos = ACCESOS
-      .filter(acceso => !vistas || vistas.includes(acceso.vista))
+      .filter(acceso => vistasPermitidas.includes(acceso.vista))
       .filter(acceso => incluye(acceso.titulo, q) || incluye(acceso.detalle, q))
       .map(acceso => ({
         id: `acceso:${acceso.id}`,

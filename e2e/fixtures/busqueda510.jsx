@@ -15,6 +15,12 @@ function Fixture() {
       : role === 'TECNICO'
         ? ['servicio']
         : ['clientes', 'productos', 'pedidos', 'cotizaciones']
+  const vistasActuales =
+    params.get('vistas') === 'null'
+      ? null
+      : params.get('vistas') === 'undefined'
+        ? undefined
+        : vistas
   if (estado !== 'dentro') return <p>Preparando sesión ficticia</p>
   return (
     <>
@@ -22,7 +28,7 @@ function Fixture() {
       <GlobalSearch
         open
         onClose={() => {}}
-        vistas={vistas}
+        vistas={vistasActuales}
         esOwner={role === 'ADMIN'}
         onNavigate={(view, values) => setDestination(JSON.stringify({ view, values }))}
       />

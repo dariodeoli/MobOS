@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-async function prepare(page, role = 'VENDEDOR') {
+async function prepare(page, role = 'VENDEDOR', vistas = 'validas') {
   const calls = []
   await page.route('**/*', route => {
     const u = new URL(route.request().url()),
@@ -35,7 +35,7 @@ async function prepare(page, role = 'VENDEDOR') {
     }
     return route.fulfill({ status, json: body })
   })
-  await page.goto(`/e2e/fixtures/busqueda510.html?role=${role}`)
+  await page.goto(`/e2e/fixtures/busqueda510.html?role=${role}&vistas=${vistas}`)
   await expect(page.getByRole('combobox', { name: 'Buscar en toda la tienda' })).toBeVisible()
   await page.waitForLoadState('networkidle')
   calls.length = 0 // Medir búsqueda, no hidratación inicial del proveedor de sesión.
@@ -96,3 +96,25 @@ test('510 técnico no consulta módulos ocultos por navegación', async ({ page 
     ),
   ).toEqual([])
 })
+
+for (const vistas of ['null', 'undefined'])
+  test(`510 vistas ${vistas} no habilitan ninguna fuente`, async ({ page }) => {
+    const calls = await prepare(page, 'ADMIN', vistas)
+    await page.getByRole('combobox', { name: 'Buscar en toda la tienda' }).fill('COT-QA510')
+    await expect(page.getByText('Sin resultados', { exact: true })).toBeVisible()
+    expect(
+      calls.filter(path =>
+        [
+          '/api/customers',
+          '/api/products',
+          '/api/orders',
+          '/api/quotes',
+          '/api/warranties',
+          '/api/purchases',
+          '/api/suppliers',
+          '/api/suppliers/badges',
+          '/api/inventory-units',
+        ].includes(path),
+      ),
+    ).toEqual([])
+  })
