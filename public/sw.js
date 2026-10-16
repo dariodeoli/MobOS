@@ -64,7 +64,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response && response.ok) {
+          // El shell es HTML de esta app, nunca JSON/archivos de una navegación.
+          if (response && response.ok && (response.headers.get('content-type') || '').includes('text/html')) {
             caches
               .open(CACHE_VERSION)
               .then((cache) => cache.put('/index.html', response.clone()))
