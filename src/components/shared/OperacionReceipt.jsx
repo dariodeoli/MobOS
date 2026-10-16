@@ -17,7 +17,7 @@ async function envolver(doc, cuerpo, { format = 'a4' } = {}) {
   const cuando = doc.fecha ? new Date(doc.fecha).toLocaleString('es-PY') : ''
   const termico = Boolean(ANCHOS[format])
   const numero = doc.tipo === 'giftcard' ? '' : doc.pedido || ''
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(doc.titulo)} ${escapeHtml(numero)}</title><style>${styles(format, acentoDeEmpresa(doc.tenant))}</style></head><body class="${termico ? `rollo t${ANCHOS[format]}` : 'hoja a4'}">
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(doc.titulo)} ${escapeHtml(numero)}</title><style>${styles(format, acentoDeEmpresa(encabezado.tenant))}</style></head><body class="${termico ? `rollo t${ANCHOS[format]}` : 'hoja a4'}">
     ${header(doc.titulo, cuando, logo, doc.empresa, { razon: encabezado.razon || doc.empresa, numero, lineas: encabezado.lineas })}
     ${cuerpo}
     ${pieOperacionHtml(doc)}

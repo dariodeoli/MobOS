@@ -13,6 +13,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
+- **Impresión:** las hojas, recibos y etiquetas toman el color de la empresa; los colores demasiado claros o inválidos conservan el color legible de respaldo. Las hojas de estación usan la misma identidad.
+- **Seguridad web:** cambiar de sesión ya no permite recuperar respuestas privadas del caché del navegador. La página inicial sigue disponible sin conexión.
+
 - **Celular, tablet y escritorio:** Taller muestra antes las órdenes y vuelve desde arriba; Productos cabe en tablet. Clientes y Stock conservan filas compactas, controles cómodos y estados legibles en ambos temas. Vender conserva íconos por categoría cuando falta la foto. Las vistas de clientes revisadas mejoran contraste, botones y nombres completos sin cambiar los impresos. La demo consulta RUC reales en OwnData y conserva el nombre fiscal aceptado; permite guardar, reabrir y editar identidades localmente. El editor fiscal se adapta al teclado del iPhone para mantener alcanzables los campos y Guardar.
 - **Compras y demo:** los filtros se reúnen en una hoja del celular, el paso actual queda visible y preparación/recepción tienen controles táctiles de 44 px. La revisión del IMEI se explica con palabras simples. Las demos nuevas incluyen 60 teléfonos y las sesiones guardadas se conservan.
 - **Cobrar:** los botones indican cuándo están listos al cambiar de paso; el primer toque disponible avanza y se mantiene la protección contra cobros duplicados.

@@ -16,7 +16,7 @@ import { garantiaConPolitica } from '@/lib/politicas'
 import { getPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { CONDICIONES, pieDocumentoHtml } from '@/lib/printing/bloquesDocumento'
 import { datosEncabezado } from '@/lib/printing/empresaImpresion'
-import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeItem, garantiaDeVenta, pagoEnMonedaOriginal, pagosParaPapel, serialesDeItem } from '@/lib/printing/ventaPapel'
+import { acentoDeEmpresa, desgloseVenta, garantiaDeItem, garantiaDeVenta, pagoEnMonedaOriginal, pagosParaPapel, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
@@ -101,7 +101,7 @@ export async function buildProductLabelsHtml(items = [], { format = 'thermal-58'
   const margenHoja = width ? '2mm' : '12mm'
   const anchoCuerpo = width ? `${width - 4}mm` : '186mm'
   const cuerpo = width ? 'display:block' : 'display:grid;grid-template-columns:repeat(3,1fr);gap:4mm'
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de producto</title><style>@page{size:${anchoHoja};margin:${margenHoja}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoCuerpo};font:11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720;${cuerpo}}.label{page-break-after:always;border-bottom:1px dashed #999;padding:1mm 0 2mm;text-align:center}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.name{font-size:12px;font-weight:800;min-height:2.4em}.price{font-size:22px;font-weight:900;margin:1mm 0}.list{font-size:8px;color:#555}.sku{font-size:8px;color:#555}.barcode{margin-top:1.5mm}.barcode svg{width:100%;height:auto;max-height:14mm}.code-label{display:block;font-size:6.5px;letter-spacing:.14em;color:#66707a}footer{margin-top:1mm;font-size:7px;color:#66707a}@media print{.label{margin-bottom:0;padding-bottom:1.5mm}}</style></head><body>${etiquetas.join('')}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de producto</title><style>@page{size:${anchoHoja};margin:${margenHoja}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoCuerpo};font:11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720;${cuerpo}}.label{page-break-after:always;border-bottom:1px dashed #999;padding:1mm 0 2mm;text-align:center}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.name{font-size:12px;font-weight:800;min-height:2.4em}.price{font-size:22px;font-weight:900;margin:1mm 0}.list{font-size:8px;color:#555}.sku{font-size:8px;color:#555}.barcode{margin-top:1.5mm}.barcode svg{width:100%;height:auto;max-height:14mm}.code-label{display:block;font-size:6.5px;letter-spacing:.14em;color:#66707a}footer{margin-top:1mm;font-size:7px;color:#66707a}@media print{.label{margin-bottom:0;padding-bottom:1.5mm}}</style></head><body>${etiquetas.join('')}</body></html>`
   return html
 }
 
@@ -145,7 +145,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
       <div class="pie">Escaneá el QR para abrir la unidad o usá el código de barras en el local.</div>
     </section>`)
   }
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#66707a;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#66707a;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
   return html
 }
 
@@ -186,7 +186,7 @@ export async function buildEtiquetasLoteHtml(etiquetas = [], { ancho = 80, compr
       <div class="pie">${datos.pendiente ? 'Unidad sin IMEI: completalo antes de despachar.' : 'Escaneá el código en la preparación y el despacho.'}</div>
     </section>`)
   }
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas del lote (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm}.posicion{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.pendiente{font-size:18px;font-weight:800;color:#9a6a00;margin-top:.6mm;text-transform:uppercase}.datos{text-align:left}.fila{display:flex;justify-content:space-between;gap:2mm;font-size:8px;line-height:1.5}.fila span:first-child{color:#66707a}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${partes.join('')}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas del lote (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm}.posicion{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.pendiente{font-size:18px;font-weight:800;color:#9a6a00;margin-top:.6mm;text-transform:uppercase}.datos{text-align:left}.fila{display:flex;justify-content:space-between;gap:2mm;font-size:8px;line-height:1.5}.fila span:first-child{color:#66707a}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${partes.join('')}</body></html>`
   return html
 }
 
@@ -224,7 +224,7 @@ const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
 // tipográfica, grises neutros y un único acento (el color de la marca de la
 // empresa). Legible en blanco y negro: el acento solo marca la regla del
 // encabezado y el tipo de documento; nada depende del color para entenderse.
-export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
+export const styles = (format, acento = acentoDeEmpresa(datosEncabezado().tenant)) => {
   const width = thermalWidth(format)
   // Cada formato reserva su propio margen: A4 respira a los lados y arriba/abajo;
   // las térmicas centran la columna en el rollo con padding parejo (el papel
@@ -449,7 +449,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const desglose = desgloseVenta(order)
   // Con redondeo de efectivo lo pendiente se mide contra el total ajustado.
   const pendiente = desglose.mostrarRedondeo ? desglose.saldo : pendienteBruto
-  const acento = acentoDeEmpresa(order.tenant)
+  const acento = acentoDeEmpresa(datosEncabezado({ tenant: order.tenant }).tenant)
   const nombreItem = (item) => escapeHtml(item.description || item.nombre || 'Producto')
   const seriales = (item) => serialesDeItem(item).map(serie => `<span class="imei">IMEI/Serie ${escapeHtml(serie)}</span>`).join('')
     + (garantiaDeItem(item) ? `<span class="imei">${escapeHtml(garantiaDeItem(item))}</span>` : '')
@@ -549,7 +549,7 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
   const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const logo = await getLogoDataUrl()
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: order?.tenant }).tenant))}</style></head><body>
     ${header('Recibo de pago', new Date(fecha).toLocaleString('es-PY'), logo, '', { numero: codigoPedido(order?.orderNumber || order?.codigo) || 'Pedido' })}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
@@ -582,7 +582,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
   const cliente = quote.customer?.name || quote.customerName || 'Consumidor final'
   const contactoCliente = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(quote.customer.countryCode || '')} ${escapeHtml(quote.customer.phone)}` : ''}</div></div>`
   const descuento = Number(quote.discountPyg || 0)
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cotización ${escapeHtml(quote.number || '')}</title><style>${styles(format)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cotización ${escapeHtml(quote.number || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: quote?.tenant }).tenant))}</style></head><body>
     ${header('Cotización', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
     ${empresaCard}
     ${contactoCliente}
@@ -605,7 +605,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
 // el vencimiento para retirar o liberar.
 export async function printReservationReceipt(reservation, { format = 'a4' } = {}) {
   const logo = await getLogoDataUrl()
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>${styles(format)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: reservation?.tenant }).tenant))}</style></head><body>
     ${header('Comprobante de reserva', reservation.reservedUntil ? `Vence ${new Date(reservation.reservedUntil).toLocaleString('es-PY')}` : '', logo)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(reservation.reservationCustomer || reservation.customerName || '—')}</strong></div></div>
     <table class="totals">
@@ -636,7 +636,7 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
   const direccion = order.deliveryAddress ? [order.deliveryAddress.address, order.deliveryAddress.city, order.deliveryAddress.department].filter(Boolean).join(', ') : (cliente?.addresses?.[0] ? [cliente.addresses[0].address, cliente.addresses[0].city, cliente.addresses[0].department].filter(Boolean).join(', ') : '')
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${cliente?.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente?.phone ? `<br>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}` : ''}${direccion ? `<br>${escapeHtml(direccion)}` : ''}</div></div>`
   const entregaNotas = order.deliveryType || order.deliveryNotes ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>` : ''
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(format)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: order?.tenant }).tenant))}</style></head><body>
     ${header('Nota de entrega', when ? new Date(when).toLocaleString('es-PY') : '', logo, '', { numero: codigoPedido(order.orderNumber || order.codigo) || 'Pedido' })}
     ${avisoNoFiscal()}
     ${empresaCard}
@@ -665,7 +665,7 @@ export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
   }).join('')
   const logo = await getLogoDataUrl()
   const empresa = transfer.tenant?.name || ''
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remisión interna</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remisión interna</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: transfer?.tenant }).tenant))}
     .items{margin:10px 0;border-top:1px dashed #d5dbe0}.item{padding:8px 0;border-bottom:1px dashed #d5dbe0}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}
     @media print{.items,.item{border-color:#000}}
   </style></head><body>
@@ -696,7 +696,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
   const logo = await getLogoDataUrl()
   const empresa = order?.tenant?.name || order?.empresaNombre || ''
   const cliente = order?.customer?.name || order?.cliente || 'Consumidor final'
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo interno ${escapeHtml(numero)}</title><style>${styles(format)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo interno ${escapeHtml(numero)}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: order?.tenant }).tenant))}</style></head><body>
     ${header('Recibo interno', new Date(when).toLocaleString('es-PY'), logo, '', { numero })}
     ${avisoNoFiscal()}
     <div class="card"><div class="label">Recibí de</div><div><strong>${escapeHtml(cliente)}</strong><br>Concepto: cobro del pedido ${escapeHtml(pedido)}</div></div>
@@ -733,7 +733,7 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
   const validez = quote.validUntil ? `Válida hasta el ${new Date(quote.validUntil).toLocaleDateString('es-PY')}` : 'Sin vencimiento'
   const empresaCard = `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${sucursal?.name ? ` · ${escapeHtml(sucursal.name)}` : ''}${quote.seller?.name ? `<br>Vendedor: ${escapeHtml(quote.seller.name)}` : ''}</div></div>`
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(`${quote.customer.countryCode || ''} ${quote.customer.phone}`.trim())}` : ''}</div></div>`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Proforma ${escapeHtml(quote.number || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Proforma ${escapeHtml(quote.number || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: quote?.tenant }).tenant))}
     .qr-fila{display:flex;align-items:center;gap:10px}.qr-fila .qr{width:24mm;margin:0;flex:0 0 auto}.qr-fila .small{text-align:left;margin:0}
     /* A4 compacto (como el resto de los impresos): la cotización entra en una
        hoja aunque sume el QR de aceptación y las firmas. */
@@ -779,7 +779,7 @@ export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
   const movimientosRows = movimientos.map((movimiento) => `<tr><td>${escapeHtml(movimiento.descripcion || 'Movimiento')}${movimiento.cuenta ? `<br><span class="muted">${escapeHtml(movimiento.cuenta)}</span>` : ''}</td><td class="num">${escapeHtml(hora(movimiento.fecha))}</td><td class="num">${movimiento.direccion === 'OUT' ? '−' : '+'} ${escapeHtml(gs(movimiento.montoPyg))}</td></tr>`).join('')
   const cobrosRows = cobros.map((cobro) => `<tr><td>${escapeHtml(cobro.label || cobro.method || 'Pago')}${cobro.count ? ` <span class="muted">· ${escapeHtml(String(cobro.count))} cobro(s)</span>` : ''}</td><td class="num">${escapeHtml(gs(cobro.montoPyg))}</td></tr>`).join('')
   const firma = firmas([{ rol: 'Responsable del arqueo' }, { rol: 'Control' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(format)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: cierre?.tenant }).tenant))}</style></head><body>
     ${header('Cierre de caja', `Apertura ${hora(cierre.abiertoEn)}${cerrada ? ` · Cierre ${hora(cierre.cerradoEn)}` : ' · sesión abierta'}`, logo)}
     <div class="card"><div class="label">Sesión</div><div><strong>${escapeHtml(cierre.empresa || APP_NAME)}</strong>${cierre.sucursal ? `<br>${escapeHtml(cierre.sucursal)}` : ''}${cierre.usuario ? `<br>Generado por: ${escapeHtml(cierre.usuario)}` : ''}${cierre.notas ? `<br>Notas: ${escapeHtml(cierre.notas)}` : ''}</div></div>
     <table class="totals">
@@ -814,7 +814,7 @@ export async function buildResumenDiaHtml(resumen = {}, { format = 'a4' } = {}) 
   const topRows = top.slice(0, 10).map((producto) => `<tr><td>${escapeHtml(producto.nombre || 'Producto')}</td><td class="num">${escapeHtml(String(producto.cantidad))}</td><td class="num">${escapeHtml(gs(producto.montoPyg))}</td></tr>`).join('')
   const mediosRows = medios.map((medio) => `<tr><td>${escapeHtml(medio.medio || '—')}</td><td class="num">${escapeHtml(gs(medio.monto))}</td></tr>`).join('')
   const etiqueta = resumen.etiqueta || `${new Date(resumen.rango?.desde || Date.now()).toLocaleDateString('es-PY')} a ${new Date(resumen.rango?.hasta || Date.now()).toLocaleDateString('es-PY')}`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Resumen del día</title><style>${styles(format)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Resumen del día</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: resumen?.tenant }).tenant))}</style></head><body>
     ${header('Resumen del día', etiqueta, logo)}
     <table class="totals">
       <tr><td>Ventas</td><td class="num">${escapeHtml(String(resumen.ventas ?? 0))}</td></tr>
@@ -878,7 +878,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
     ${fila('Repuestos no OEM', inspeccion.repuestosNoOem)}
     ${itemsHtml}
     ${!itemsChecklist.length && !inspeccion.verificador && !inspeccion.grado ? '<p class="muted">Sin verificación física registrada.</p>' : ''}`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.imei || datos.identificador || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.imei || datos.identificador || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .campos-informe{margin-top:6px;border-top:1px dashed #d5dbe0;padding-top:6px}
@@ -951,7 +951,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     ? `<div class="checklist-dos">${tablaItems(items.slice(0, mitadItems))}${tablaItems(items.slice(mitadItems))}</div>`
     : tablaItems(items)
   const controles = (datos.controles || []).map((control) => `<span class="control ${control.estado === 'sin-dato' ? 'sin-dato' : control.ok ? 'ok' : 'no-ok'}">${escapeHtml(control.label)} · ${escapeHtml(estadoControl(control.estado))}${control.valor ? ` · ${escapeHtml(control.valor)}` : ''}</span>`).join(' ')
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Certificado de inspección')} ${escapeHtml(datos.serialEnmascarado || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Certificado de inspección')} ${escapeHtml(datos.serialEnmascarado || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .grado{text-align:center;margin:4px 0 0}
@@ -1065,7 +1065,7 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
   const tablaLineas = a4
     ? `<table class="lista"><thead><tr><th class="marca"></th><th>Producto</th><th class="num">Cantidad</th><th>Prioridad / contexto</th><th class="num">IMEI</th></tr></thead><tbody>${lineas.map((linea) => `<tr><td class="marca">☐</td><td><strong>${escapeHtml(linea.producto || 'Producto')}</strong>${linea.variante ? `<br><span class="muted">${escapeHtml(linea.variante)}</span>` : ''}${linea.condicion ? `<br><span class="muted">${escapeHtml(linea.condicion)}</span>` : ''}</td><td class="num">${escapeHtml(String(linea.cantidad))}</td><td class="ctx">${escapeHtml(contexto(linea).join(' · '))}</td><td class="num">${escapeHtml(imei(linea))}</td></tr>`).join('') || '<tr><td class="muted" colspan="5">Sin productos en la compra.</td></tr>'}</tbody></table>`
     : `<div class="lineas-lista">${lineas.map((linea) => `<div class="linea-lista"><strong>☐ ${escapeHtml([linea.producto || 'Producto', linea.variante].filter(Boolean).join(' · '))}</strong>${linea.condicion ? ` · ${escapeHtml(linea.condicion)}` : ''}<div class="cuenta">${escapeHtml(String(linea.cantidad))} u${contexto(linea).length ? ` · <span class="marca-prioridad">${escapeHtml(contexto(linea).join(' · '))}</span>` : ''}</div>${linea.conImei || linea.pendientes ? `<div class="cuenta">IMEI ${escapeHtml(imei(linea))}</div>` : ''}</div>`).join('') || '<p class="muted">Sin productos en la compra.</p>'}</div>`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Lista de compra ${escapeHtml(datos.code || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Lista de compra ${escapeHtml(datos.code || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .lista td,.lista th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
@@ -1134,7 +1134,7 @@ export async function buildListaPreciosHtml(datos = {}, { format = 'a4', colores
     datos.garantia ? `<strong>Garantía</strong>${escapeHtml(datos.garantia).replace(/\n/g, '<br>')}` : '',
     `<strong style="margin-top:${datos.garantia ? '6px' : '0'}">Vigencia</strong>${escapeHtml(datos.vigencia || '')}${usd && datos.cotizacion ? `<br>US$ 1 = ${escapeHtml(gs(datos.cotizacion))}` : ''}`,
   ].filter(Boolean).join('')
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Lista de precios')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Lista de precios')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     body{padding-top:18px}
     .lp-bloque{margin:12px 0 4px}
     .lp-titulo{display:flex;justify-content:space-between;align-items:baseline;border:1px solid;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
@@ -1187,7 +1187,7 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
   const tablaLineas = a4
     ? `<table class="manifiesto"><thead><tr><th>Producto</th><th>Condición</th><th class="num">Unid.</th><th>IMEI / pendientes</th></tr></thead><tbody>${lineas.map((linea) => `<tr><td><strong>${escapeHtml(linea.producto)}</strong>${linea.capacidad ? `<br><span class="muted">${escapeHtml(linea.capacidad)}</span>` : ''}</td><td>${escapeHtml(linea.condicion)}</td><td class="num">${escapeHtml(String(linea.cantidad))}</td><td class="imeis-celda">${imeisHtml(linea) || '—'}</td></tr>`).join('') || '<tr><td class="muted" colspan="4">El lote no lleva unidades.</td></tr>'}</tbody></table>`
     : `<div class="lineas-lista">${lineas.map((linea) => `<div class="linea-lista"><strong>${escapeHtml([linea.producto, linea.capacidad].filter(Boolean).join(' · '))} × ${escapeHtml(String(linea.cantidad))}</strong>${linea.condicion ? ` · ${escapeHtml(linea.condicion)}` : ''}<div class="cuenta">${imeisHtml(linea) || 'Sin unidades'}</div></div>`).join('') || '<p class="muted">El lote no lleva unidades.</p>'}</div>`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Manifiesto ${escapeHtml(datos.code || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Manifiesto ${escapeHtml(datos.code || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .manifiesto td,.manifiesto th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
@@ -1292,7 +1292,7 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
     : ''
   // En A4 el envío y el panel van lado a lado: el comprobante entra en una hoja.
   const cabecera = a4 && cardPanel ? `<div class="dos-columnas">${cardEnvio}${cardPanel}</div>` : `${cardEnvio}${cardPanel}`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante de recepción ${escapeHtml(datos.envio || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante de recepción ${escapeHtml(datos.envio || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .recepcion td,.recepcion th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px}

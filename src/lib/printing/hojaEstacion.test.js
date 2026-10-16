@@ -59,3 +59,22 @@ test('sin equipos la serie no rompe: una hoja vacía y honesta', () => {
   assert.match(html, /Sin equipos en esta estación\./)
   assert.match(html, /Total: 0 equipo/)
 })
+
+// #402: identidad de sesión y documento explícito comparten el acento validado.
+test('hojas individuales y en serie respetan marca y descartan CSS no válido', async () => {
+  const { fijarEmpresaImpresion } = await import('./empresaImpresion.js')
+  fijarEmpresaImpresion({ tenant: { name: 'Empresa actual', brandColor: '#AA3300' } })
+  try {
+    assert.match(buildStationSheetHtml([]), /color:#aa3300/)
+    const explicita = buildStationSheetsHtml([], { tenant: { name: 'Otra empresa', primaryColor: '#223388' } })
+    assert.match(explicita, /Otra empresa/)
+    assert.match(explicita, /color:#223388/)
+    assert.ok(!explicita.includes('Empresa actual'))
+    for (const brandColor of ['#ffffff', 'red; background:url(x)']) {
+      const html = buildStationSheetHtml([], { tenant: { name: 'Segura', brandColor } })
+      assert.match(html, /color:#0c8876/)
+      assert.ok(!html.includes('background:url(x)'))
+    }
+  } finally { fijarEmpresaImpresion({ tenant: null, branch: null }) }
+  assert.match(buildStationSheetHtml([]), /color:#0c8876/)
+})
