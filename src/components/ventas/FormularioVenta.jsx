@@ -135,7 +135,7 @@ const MS_CONFIRMACION_ANTES_DEL_DETALLE = 1500
 function Atajo({ k, label }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">
+      <kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 font-mono text-xs text-fono-light">
         {k}
       </kbd>
       <span>{label}</span>
@@ -2322,8 +2322,8 @@ export default function FormularioVenta({
             />)}
 
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
-            <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
-              <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
+            <div className="hidden items-center gap-x-4 gap-y-1.5 text-xs text-mute md:flex">
+              <span className="font-semibold uppercase tracking-wider text-mute">Atajos</span>
               <Atajo k="F2" label="Buscar producto" />
               <Atajo k="Ctrl+S" label="Guardar venta" />
               <Atajo k="Esc" label="Cerrar ventana" />

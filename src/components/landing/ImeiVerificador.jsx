@@ -35,9 +35,9 @@ function CampoResultado({ campo, indice }) {
   const hora = campo.hora ? fechaHora(campo.hora, '') : ''
   return (
     <div className="mobos-aparece rounded-xl border border-fore/[.08] bg-fore/[.025] p-3" style={{ animationDelay: `${indice * 70}ms` }}>
-      <p className="text-[10px] font-bold uppercase tracking-[.14em] text-mute">{campo.etiqueta}</p>
+      <p className="text-xs font-bold uppercase tracking-[.14em] text-mute">{campo.etiqueta}</p>
       <p className="mt-1 text-sm font-semibold">{campo.valor}</p>
-      <p className="mt-0.5 text-[10px] text-mute">{campo.fuente}{hora ? ` · ${hora}` : ''}</p>
+      <p className="mt-0.5 text-xs text-mute">{campo.fuente}{hora ? ` · ${hora}` : ''}</p>
     </div>
   )
 }
@@ -102,7 +102,7 @@ export default function ImeiVerificador() {
   return (
     <div className="grid gap-8 lg:grid-cols-[.95fr_1.05fr] lg:items-start">
       <div>
-        <p className="inline-flex items-center gap-2 rounded-full border border-fono/25 bg-fono/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-fono-dark">
+        <p className="inline-flex items-center gap-2 rounded-full border border-fono/25 bg-fono/[.08] px-3 py-1.5 text-xs font-bold uppercase tracking-[.16em] text-fono-dark">
           <ScanLine size={13} />
           Verificación de IMEI
         </p>
@@ -133,7 +133,7 @@ export default function ImeiVerificador() {
       <div className="rounded-[1.75rem] border border-fore/10 bg-ink p-5 shadow-card sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <b className="font-display text-lg">Probá la ficha de verificación</b>
-          <span className="rounded-full border border-warn/40 bg-warn/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-warn">
+          <span className="rounded-full border border-warn/40 bg-warn/10 px-2.5 py-1 text-xs font-bold uppercase tracking-[.12em] text-warn">
             Ejemplo simulado
           </span>
         </div>
@@ -161,8 +161,8 @@ export default function ImeiVerificador() {
           </div>
           <p id="imei-estado" role="status" data-testid="imei-estado" className={`mt-1.5 min-h-4 text-xs ${estadoImei.tono === 'bad' ? 'text-bad' : estadoImei.tono === 'ok' ? 'text-ok' : 'text-mute'}`}>{estadoImei.texto}</p>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <p id="imei-ayuda" className="text-[11px] text-mute">Ejemplo precargado · {IMEI_EJEMPLO}</p>
-            <div className="flex flex-wrap gap-3 text-[11px]">
+            <p id="imei-ayuda" className="text-xs text-mute">Ejemplo precargado · {IMEI_EJEMPLO}</p>
+            <div className="flex flex-wrap gap-3 text-xs">
               <button type="button" onClick={otroEjemplo} className="inline-flex min-h-11 items-center gap-1 font-semibold text-fono-dark transition hover:text-fono">
                 <RefreshCw size={12} /> Otro ejemplo
               </button>
@@ -185,7 +185,7 @@ export default function ImeiVerificador() {
             <div className="relative overflow-hidden rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.10] to-transparent p-4">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-sm tracking-[.18em] text-mute">{enmascararImeiDemo(imei.replace(/\D/g, '') || IMEI_EJEMPLO)}</span>
-                <span className="text-[10px] font-bold uppercase tracking-[.16em] text-fono-dark">Escaneando</span>
+                <span className="text-xs font-bold uppercase tracking-[.16em] text-fono-dark">Escaneando</span>
               </div>
               <div className="pointer-events-none absolute inset-x-0 top-0 h-16 mobos-escaneo bg-[linear-gradient(180deg,transparent,rgb(var(--c-fono)/.28),transparent)]" />
             </div>
@@ -196,7 +196,7 @@ export default function ImeiVerificador() {
                 const actual = paso === indice
                 return (
                   <li key={texto} className={`flex items-center gap-3 ${hecho || actual ? 'text-fore' : 'text-mute'}`}>
-                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] ${hecho ? 'border-fono bg-fono text-onbrand' : actual ? 'border-fono text-fono-dark' : 'border-fore/15'}`}>
+                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-xs ${hecho ? 'border-fono bg-fono text-onbrand' : actual ? 'border-fono text-fono-dark' : 'border-fore/15'}`}>
                       {hecho ? <Check size={12} /> : indice + 1}
                     </span>
                     {texto}
@@ -219,7 +219,7 @@ export default function ImeiVerificador() {
                   <span className="font-mono text-xs text-mute">{consulta.imeiMasked}</span>
                 </div>
               </div>
-              <div className="text-right text-[10px] text-mute">
+              <div className="text-right text-xs text-mute">
                 <p className="font-semibold text-fore">{consulta.fuente}</p>
                 <p>{fechaHora(consulta.fecha)}</p>
               </div>
@@ -230,12 +230,12 @@ export default function ImeiVerificador() {
             </div>
 
             {verificado && (
-              <p className="mt-3 rounded-xl border border-fore/10 bg-fore/[.02] p-3 text-[11px] leading-5 text-mute">
+              <p className="mt-3 rounded-xl border border-fore/10 bg-fore/[.02] p-3 text-xs leading-5 text-mute">
                 Listo para la nota del cliente: <b className="text-fore">“IMEI verificado: sin reportes al {fechaDia(consulta.fecha)} — fuente {FUENTE_DEMO}”</b>
               </p>
             )}
 
-            <p className="mt-3 text-[11px] leading-5 text-mute">
+            <p className="mt-3 text-xs leading-5 text-mute">
               Demostración visual con datos ficticios: acá no se consulta al proveedor ni se cobra. En la
               tienda, la consulta se confirma antes de ejecutarse, queda auditada y lo pendiente, parcial
               o sin dato queda como <b className="text-fore">“No verificado”</b>.
