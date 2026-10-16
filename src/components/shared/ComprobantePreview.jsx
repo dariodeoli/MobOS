@@ -135,6 +135,18 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
     const marco = evento?.currentTarget
     const doc = marco?.contentDocument
     if (!doc) return
+    // Los documentos de impresión conservan sus medidas físicas. En el iframe
+    // de lectura, el viewport por defecto de 980 px provoca paneo horizontal en
+    // móviles aunque el papel se adapte al marco. Declarar el viewport del
+    // dispositivo hace que las reglas fluidas del documento usen el ancho real;
+    // se deja el zoom de usuario habilitado para ampliar texto/QR.
+    let viewport = doc.querySelector('meta[name="viewport"]')
+    if (!viewport) {
+      viewport = doc.createElement('meta')
+      viewport.name = 'viewport'
+      doc.head?.prepend(viewport)
+    }
+    if (viewport) viewport.content = 'width=device-width, initial-scale=1'
     const alto = Math.max(doc.documentElement?.scrollHeight || 0, doc.body?.scrollHeight || 0)
     if (alto > 0) marco.style.height = `${alto + 2}px`
   }, [])

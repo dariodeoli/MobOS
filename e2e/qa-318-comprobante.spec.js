@@ -147,6 +147,20 @@ test.describe('#318 comprobante con datos reales', () => {
     const iframe = await abrirComprobante(page)
     await verificarVenta(iframe)
 
+    // A4 es más ancho que un teléfono. El iframe debe adoptar el viewport
+    // disponible y dejar que el gesto de zoom siga ampliando el documento.
+    await page.getByLabel('Formato de impresión').getByRole('radio', { name: 'Formato A4' }).click()
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await expect.poll(async () => iframe.evaluate(frame => frame.contentDocument?.querySelector('meta[name="viewport"]')?.content || '')).toBe('width=device-width, initial-scale=1')
+      const anchoInterno = await iframe.evaluate(frame => ({
+        cliente: frame.contentDocument.documentElement.clientWidth,
+        contenido: frame.contentDocument.documentElement.scrollWidth,
+      }))
+      expect(anchoInterno.contenido).toBeLessThanOrEqual(anchoInterno.cliente + 1)
+      await expect(page.getByRole('button', { name: 'Imprimir con diálogo' })).toBeVisible()
+    }
+
     const dialogo = page.getByRole('dialog')
     // #323 adoptó el Modal de la biblioteca (header/pie fijos, cuerpo scrollable).
     const cuerpo = dialogo.locator('div.overflow-y-auto').first()
