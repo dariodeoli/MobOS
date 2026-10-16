@@ -945,4 +945,7 @@ node "$BACKEND_ROOT/tests/gift-cards.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Datos y plata consistentes (#461): saldos en todas las pantallas, esperado de caja, numeración, residuo y comprobante..."
 node "$BACKEND_ROOT/tests/datos-consistentes.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Remito público: las observaciones internas no salen del registro privado (#503)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/public-pages403-pg.mjs"
+
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito, gift cards y logout."

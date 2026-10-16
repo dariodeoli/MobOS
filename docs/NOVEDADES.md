@@ -13,6 +13,8 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ## v1.0.229 — 2026-10-15
 
+- **Remitos compartidos:** las observaciones internas del traslado y la recepción permanecen en la gestión privada; el enlace del cliente conserva la confirmación de recepción.
+
 - **Accesibilidad:** al abrir un editor sobre una ficha, se anuncia una sola ventana activa. Al cerrarlo, el foco vuelve al botón que lo abrió.
 
 - **Datos sin conexión:** la copia privada queda separada por usuario, empresa, sucursal y permisos. Salir o perder acceso retira los datos privados y conserva las ventas pendientes de sincronizar. Las respuestas de la sesión anterior no alimentan la nueva.
