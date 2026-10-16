@@ -25,3 +25,5 @@ El seed canónico `src/lib/demo/ventas.js` conserva `demo-venta-extra-1` como AU
 
 - La revisión del comprobante identifica el pedido correcto aunque un cliente tenga varias compras.
 - Se comprueban los mismos datos completos en A4, ticket de 80 mm y pantalla móvil.
+
+Revisión independiente estática del commit aa32192214463c24d9bb85c2a955bae2aa786c3b: APPROVE. El seed conserva AUR-0004/María/ProMax7.250.000; selector exacto y assertions refuerzan los datos de fila y el contenido80mm/A4/móvil. No se modificó el renderer ni se atribuye impresión física.

@@ -26,3 +26,6 @@ El integrador ordenó detener la corrida13 por carga extrema (loadaverage380); a
 
 - La prueba de conciliación declara importes correspondientes al día que está verificando.
 - Los bordes UTC y medianoche de Paraguay quedan cubiertos con conteos independientes, sin alterar cobros ni las semillas de la demo.
+
+## Revalidación del integrador
+Después de bajar la carga y con la etiqueta final correcta, el integrador ejecutó únicamente los seis escenarios afectados en su árbol unido: original451-5 más cinco bordes UTC/PY. **6/6PASS**, puerto5345, salidaúnica /tmp/mobos-demo500-final-artifacts, log /tmp/mobos-demo500-root-final.log. Acreditados16.230.000 para15 y14.109.000 para16, Verificado y ventas sin cambios en todos los bordes; la corrida anterior6/7fallida se conserva como historial, ya no quedan esos tres casos sin revalidación local. CI completo del nuevo SHA sigue siendo obligatorio. QA independiente estática APPROVE exacto29e9b99a/cherryeb61d6fd.
