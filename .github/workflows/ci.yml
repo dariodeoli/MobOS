@@ -130,6 +130,11 @@ jobs:
         env:
           PG_BIN: /opt/homebrew/bin
         run: node tests/ios-backend.mjs
+      - name: Product photo derivatives and bounded uploads
+        working-directory: backend
+        env:
+          PG_BIN: /opt/homebrew/bin
+        run: env -u DATABASE_URL -u DIRECT_URL node tests/product-thumbs404-pg.mjs
 
   e2e:
     # Shards en paralelo (#CI/#333): la suite completa tarda ~48 min en un
@@ -252,6 +257,11 @@ jobs:
         env:
           MOBOS_QA_PORT: "5353"
         run: npx playwright test --config e2e/responsive396.frontend.config.js
+      - name: Product photo framing and access transitions
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5355"
+        run: npx playwright test --config e2e/crop404.frontend.config.js
       - name: Demo quote, cash and reception flows
         if: matrix.shard == 4
         env:
