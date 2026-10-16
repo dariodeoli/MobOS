@@ -12,9 +12,9 @@ Implementado:
 
 Verificación:
 
-- Cuatro Chromium PASS: plegado/recarga/preservación preferencia operativa/período; salida con POSTlogout exactamente una vez y llegada a login en320/390; denegación404 no monta panel ni consulta resumen. Son fixtures HTTP locales, no pruebas de permisos en producción ni OAuth.
+- Cuatro Chromium PASS: plegado/recarga/preservación preferencia operativa/período; salida con POSTlogout exactamente una vez y llegada a login en320/390; denegación404 no monta panel ni consulta resumen. Son fixtures HTTP locales en tema claro y usuario nulo, no pruebas de permisos en producción ni OAuth, avatar autenticado, oscuro completo o VoiceOver. El POSTlogout único corresponde a esa fixture; la sesión real puede revocar dos permisos según su contrato existente.
 - ESLint: cero errores, un warning previo en DeliveryOperations sin modificar. Build frontend exit0.
-- FullFE inicial1521/1522 detectó color de error fuera de tokens. Se reemplazó por Aviso compartido;45reglas de objetos PASS. Gate final completo pendiente tras revisión independiente, sin presentar el full inicial como verde.
+- FullFE inicial1521/1522 detectó color de error fuera de tokens. Se reemplazó por Aviso compartido;45reglas de objetos PASS. Revisión independiente APPROVE del commitc8c44d4e, sin ampliar evidencia de fixtures. Gate final completo posterior:1522/1522PASS y buildFE exit0; el full inicial fallido se conserva como historial.
 - Imagen opcional de fixture sin datos reales: `outputs/QA-SUPERADMIN-508/plataforma-plegada.png` en coordinación.
 
 Pendiente de #508: shell compartido opt-in completo, menú contextual por módulo/subpestañas y lateral complementario, identidad fija en el menú móvil, directorios con propietarios/fotos, contratos de métricas/presencia/reportes/comunicaciones/mantenimiento y pruebas de servidor correspondientes. No cerrar #508 por esta unidad. No se desplegó ni se alteró la compilación iOS3.
