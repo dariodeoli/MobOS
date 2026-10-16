@@ -216,11 +216,26 @@ jobs:
       - name: Global search respects role capabilities
         if: matrix.shard == 2
         run: npx playwright test --config e2e/busqueda510.frontend.config.js
+      - name: Public documents wrapping, contrast and legacy tokens
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/publicas403-restantes.frontend.config.js
+      - name: Saved print templates and PDF composition
+        if: matrix.shard == 1
+        run: npx playwright test --config e2e/plantillas507-adopcion.frontend.config.js
+      - name: Platform navigation and session controls
+        if: matrix.shard == 2
+        run: npx playwright test --config e2e/superadmin508.frontend.config.js
       - name: Mobile PIN and login layout
         if: matrix.shard == 3
         env:
           MOBOS_QA_PORT: "5344"
         run: npx playwright test --config e2e/pin-login504.frontend.config.js
+      - name: Tactile PIN while changing seller
+        if: matrix.shard == 3
+        env:
+          MOBOS_QA_PORT: "5350"
+          MOBOS_QA_OUT: /tmp/mobos-pin484-ci
+        run: npx playwright test --config e2e/pin-cambio484.frontend.config.js
       - name: Demo quote, cash and reception flows
         if: matrix.shard == 4
         env:
@@ -229,6 +244,11 @@ jobs:
       - name: Demo access and public report layout
         if: matrix.shard == 4
         run: npx playwright test --config e2e/demo-acceso.frontend.config.js
+      - name: Demo profiles and theme branding
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5351"
+        run: npx playwright test --config e2e/demo350.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:
