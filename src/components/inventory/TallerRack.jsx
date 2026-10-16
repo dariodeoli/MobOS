@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, FormActions, Modal, Select, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import EtiquetasPlantillaUnidad from '@/components/control/impresion/EtiquetasPlantillaUnidad'
 import SearchField from '@/components/shared/SearchField'
 import PasosEquipo from '@/components/shared/PasosEquipo'
 import { buildUnitLabelsHtml } from '@/components/shared/OrderReceipt'
@@ -8,6 +9,7 @@ import CompartirImagen from '@/components/shared/CompartirImagen'
 import { BarraLote, ConteoChecklist, ContadorLote, TileEquipo, VistaPreviaPapel } from 'owncoding-ui'
 import { cn } from '@/lib/utils'
 import { configImpresora } from '@/lib/printing/agent'
+import { useSesion } from '@/lib/sesion'
 import { agruparRack, bateriaDe, checklistDe, conCosto, ESTACIONES, estadoEnRack, ETIQUETA_RACK, filtrarRack, gradoDe, locksDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
 
 function nombreUnidad(unit) {
@@ -24,9 +26,14 @@ const FORMATO_PAPEL = { 80: 'thermal-80', 58: 'thermal-58', 55: 'thermal-55' }
 // de owncoding-ui — `TileEquipo`, `BarraLote`, `ContadorLote`,
 // `ConteoChecklist` y `VistaPreviaPapel` — más las acciones en serie
 // (verificar, etiquetas del alcance elegido y hoja de estación). La impresión
-// sigue saliendo por el camino de siempre (agente/puente, etiquetas 80/58 mm
-// con QR); la vista previa muestra el rollo real configurado.
-export default function TallerRack({
+// permite conservar el formato habitual o adoptar el PDF de la plantilla
+// guardada; el agente permanece bloqueado para una composición personalizada.
+export default function TallerRack(props) {
+  const { empresa, sucursal, usuario } = useSesion()
+  const scope = JSON.stringify([empresa?.id, sucursal?.id, usuario?.id, usuario?.role, usuario?.permissions])
+  return <TallerRackContexto key={scope} {...props} />
+}
+function TallerRackContexto({
   unidades = [],
   ubicaciones = [],
   busy = false,
@@ -41,10 +48,12 @@ export default function TallerRack({
   const [seleccionados, setSeleccionados] = useState([])
   const [imprimirAbierto, setImprimirAbierto] = useState(false)
   const [alcance, setAlcance] = useState('seleccion')
+  const [directas, setDirectas] = useState(null)
   const [estacion, setEstacion] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
   const [ubicacionId, setUbicacionId] = useState('')
   const [vistaHtml, setVistaHtml] = useState('')
+  const [modoPlantilla, setModoPlantilla] = useState('loading')
   const avisar = useResultado()
 
   // Resultado canónico de las impresiones en serie (#323): un solo lugar decide
@@ -79,6 +88,7 @@ export default function TallerRack({
   const elegidas = seleccionados.map((id) => porId.get(id)).filter(Boolean)
   const visibles = estacion === 'todas' ? ORDEN_RACK : [estacion]
   const opcionesImpresion = [
+    ...(directas ? [{ id: 'directas', label: 'Equipos elegidos', lista: directas }] : []),
     ...(elegidas.length ? [{ id: 'seleccion', label: 'Selección', lista: elegidas }] : []),
     ...(estacion !== 'todas' ? [{ id: 'estacion', label: `Estación «${ETIQUETA_RACK[estacion]}»`, lista: grupos[estacion] }] : []),
     { id: 'filtrados', label: 'Todo lo filtrado', lista: filtradas },
@@ -110,6 +120,7 @@ export default function TallerRack({
   }, [imprimirAbierto, claveObjetivo, ancho])
 
   const abrirImpresion = () => {
+    setDirectas(null)
     setAlcance(elegidas.length ? 'seleccion' : estacion !== 'todas' ? 'estacion' : 'filtrados')
     setImprimirAbierto(true)
   }
@@ -255,7 +266,7 @@ export default function TallerRack({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => imprimirEnSerie(() => onEtiquetasLote?.(lista), 'Etiquetas', `${lista.length} etiqueta(s) · rollo de ${ancho} mm`)}
+                      onClick={() => { setDirectas(lista); setAlcance('directas'); setImprimirAbierto(true) }}
                       className="toque-44 text-[11px] font-semibold text-fono-light hover:underline disabled:opacity-50"
                       title={`Imprimir las etiquetas de los ${lista.length} equipos de esta estación`}
                       data-testid={`rack-imprimir-${estado}`}
@@ -322,7 +333,7 @@ export default function TallerRack({
                                 variant="ghost"
                                 className="toque-44 h-8 px-2 text-xs"
                                 disabled={busy}
-                                onClick={() => onEtiqueta?.(unit)}
+                                onClick={() => { setDirectas([unit]); setAlcance('directas'); setImprimirAbierto(true) }}
                                 title="Imprimir etiqueta"
                               >
                                 Etiqueta
@@ -372,7 +383,8 @@ export default function TallerRack({
           {objetivo.length} etiqueta(s): {objetivo.slice(0, 6).map((unit) => `${nombreUnidad(unit)} ${String(unit.serial || '').slice(-4)}`).join(' · ')}
           {objetivo.length > 6 ? ` · +${objetivo.length - 6}` : ''}
         </p>
-        {vistaHtml && (
+        {imprimirAbierto && <EtiquetasPlantillaUnidad units={objetivo} onMode={setModoPlantilla} />}
+        {modoPlantilla === 'legacy' && vistaHtml && (
           <div className="mt-4" data-testid="rack-vista-previa">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-mute">Vista previa · rollo de {ancho} mm</span>
@@ -394,7 +406,7 @@ export default function TallerRack({
             titulo="Etiquetas del taller"
             texto={`${objetivo.length} etiqueta(s) · rollo de ${ancho} mm`}
             formato={FORMATO_PAPEL[ancho] || 'thermal-80'}
-            disabled={!objetivo.length || busy}
+            disabled={!objetivo.length || busy || modoPlantilla !== 'legacy'}
           />
           <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { imprimirEnSerie(() => onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]), 'Hoja de estación'); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
             Hoja de estación
@@ -407,7 +419,7 @@ export default function TallerRack({
           <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Certificado de inspección de cada equipo, uno por página" onClick={() => { imprimirEnSerie(() => onCertificados?.(objetivo), 'Certificados', `${objetivo.length} documento(s)`); setImprimirAbierto(false) }} data-testid="rack-certificados">
             Certificados ({objetivo.length})
           </Button>
-          <Button type="button" disabled={!objetivo.length || busy} onClick={() => { imprimirEnSerie(() => onEtiquetasLote?.(objetivo), 'Etiquetas', `${objetivo.length} etiqueta(s) · rollo de ${ancho} mm`); setSeleccionados([]); setImprimirAbierto(false) }} data-testid="rack-imprimir-serie-confirmar">
+          <Button type="button" disabled={!objetivo.length || busy || modoPlantilla !== 'legacy'} onClick={() => { imprimirEnSerie(() => objetivo.length === 1 && onEtiqueta ? onEtiqueta(objetivo[0]) : onEtiquetasLote?.(objetivo), 'Etiquetas', `${objetivo.length} etiqueta(s) · rollo de ${ancho} mm`); setSeleccionados([]); setImprimirAbierto(false) }} data-testid="rack-imprimir-serie-confirmar">
             <Icon name="printer" className="h-4 w-4" /> Etiquetas ({objetivo.length})
           </Button>
         </FormActions>

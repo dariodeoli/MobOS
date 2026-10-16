@@ -168,7 +168,7 @@ export default function PlantillasImpresion() {
       <h2 className="text-lg font-semibold">Plantillas de impresión</h2>
       <p className="text-sm text-mute">
         Papel, márgenes y contenido de cada documento. Las etiquetas de productos usan la plantilla
-        predeterminada al descargar el PDF desde Productos.
+        predeterminada al descargar el PDF desde Productos, Stock, Taller y el comprobante de Pedidos.
       </p>
       <p className="text-sm text-mute">{avisoSalidaPlantilla()}</p>
       {store.esDemo && (

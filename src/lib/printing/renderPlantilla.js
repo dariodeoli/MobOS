@@ -2,6 +2,7 @@ import JsBarcode from 'jsbarcode'
 import { toJpeg } from 'html-to-image'
 import { qrDataUrl } from '../qr.js'
 import { baseDeApp, qrProducto } from './qr.js'
+import { datosEtiquetaUnidad } from './etiquetaUnidad.js'
 import { documentoImagen } from './compartirDocumento.js'
 import { pdfDeJpegPaginas } from './pdfDocumento.js'
 import { erroresPlantilla } from './plantillas.js'
@@ -13,10 +14,16 @@ const escape = v =>
   )
 export const MAX_PAGINAS_PLANTILLA = 200
 function urlQrValida(value) {
-  if (typeof value !== 'string' || !/^https?:\/\//i.test(value) || /[\s\\]/.test(value)) return false
+  if (typeof value !== 'string' || !/^https?:\/\//i.test(value) || /[\s\\]/.test(value))
+    return false
   try {
     const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password
+    return (
+      ['http:', 'https:'].includes(url.protocol) &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password
+    )
   } catch {
     return false
   }
@@ -24,9 +31,10 @@ function urlQrValida(value) {
 export function datosProductoPlantilla(items = [], { brand = 'MobOS', base } = {}) {
   const candidate = base === undefined ? baseDeApp() : base
   // Una base inválida no activa el respaldo legacy MOBOS: del helper global.
-  const validBase = urlQrValida(candidate) && !new URL(candidate).search && !new URL(candidate).hash
-    ? candidate
-    : ''
+  const validBase =
+    urlQrValida(candidate) && !new URL(candidate).search && !new URL(candidate).hash
+      ? candidate
+      : ''
   const pages = []
   for (const { product = {}, cantidad = 1 } of items) {
     if (!Number.isInteger(Number(cantidad)) || Number(cantidad) < 1 || Number(cantidad) > 99)
@@ -54,6 +62,29 @@ export function datosProductoPlantilla(items = [], { brand = 'MobOS', base } = {
       `El PDF admite hasta ${MAX_PAGINAS_PLANTILLA} etiquetas por lote; dividí la selección.`,
     )
   return pages
+}
+export function datosUnidadPlantilla(units = [], { brand = 'MobOS', base } = {}) {
+  if (!Array.isArray(units) || units.length > MAX_PAGINAS_PLANTILLA)
+    throw Error('El lote admite hasta 200 unidades.')
+  const candidate = base === undefined ? baseDeApp() : base
+  const validBase =
+    urlQrValida(candidate) && !new URL(candidate).search && !new URL(candidate).hash
+      ? candidate
+      : ''
+  return units.map(unit => {
+    const d = datosEtiquetaUnidad(unit, { base: validBase })
+    return {
+      model: d.modelo,
+      serial: d.serial,
+      barcode: d.codigo,
+      qr: validBase ? d.enlace : '',
+      brand: String(brand),
+      condition: d.condicion,
+      battery: d.bateria,
+      location: d.ubicacion,
+      supplierCode: d.proveedor,
+    }
+  })
 }
 function barcodeSvg(value, widthMm, dpi) {
   const encoded = {}
@@ -102,7 +133,9 @@ export async function renderPlantilla({ kind, definition, data = [], premiumBuil
     for (const element of definition.elements.filter(e => e.visible)) {
       const value = row[element.binding]
       if (element.type === 'qr' && !urlQrValida(value))
-        throw Error('El QR requiere un enlace HTTP(S) absoluto sin credenciales. Revisá la base de la app; no se genera un código ficticio.')
+        throw Error(
+          'El QR requiere un enlace HTTP(S) absoluto sin credenciales. Revisá la base de la app; no se genera un código ficticio.',
+        )
       if (
         (value === null || value === undefined || String(value) === '') &&
         ['product', 'sku', 'barcode', 'model', 'serial', 'qr'].includes(element.binding)

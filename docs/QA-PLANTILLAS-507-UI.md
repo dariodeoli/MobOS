@@ -42,3 +42,42 @@ Base fd1135c9, rama codex/plantillas-507-ui. Contrato backend compañero e50274d
 - Chromium focal muestra Stock: editor/preview sin error, QR generado decodificado con Vision como `http://127.0.0.1:5364/u/350000000000000`, valor ficticio. Red externa y rutas API bloqueadas; sin DB, capturas, impresión ni suite completa.
 - El primer intento del smoke de muestra Stock abortó por error de arnés: interceptaba también módulos Vite `/src/lib/api/*`, dejando la página vacía. Se acotó la interceptación scratch a pathname `/api/`; retest del único caso afectado PASS. No se cambió producto para resolver ese timeout.
 - #507 sigue parcial según pendientes anteriores; esta corrección no añade transporte ni publicación229.
+
+
+## Adopción operativa — 16-10-2026, base origin/main 2def9930
+
+Rama `codex/plantillas-507-api`, rebase sin conflictos. La nueva entrega adopta
+las plantillas guardadas mediante el mismo cliente de empresa/sucursal y el
+mismo renderer usado por el editor. No cambia backend, agente ni trabajos.
+
+| Criterio | Resultado y evidencia |
+| --- | --- |
+| Stock individual/lote/preview | Selector previo a la salida; unidades y productos conservan sus tipos/defaults. Selección mixta genera PDFs separados por medio, sin mezclar dimensiones ni cantidades. El formato habitual requiere elección explícita si había custom. |
+| Taller individual/estación/lote | Todas las entradas de etiquetas abren el selector común; default de unidades, preview y PDF exacto. Un cambio de empresa/sucursal/usuario/rol reinicia selección/modal. |
+| Pedidos: comprobante | Selector en `ComprobantePreview`, que usa PedidoDetalle. El constructor premium conserva pedido, total, pagos, nivel, token y contexto autorizados; no se recalculan importes. La plantilla usa el flujo térmico premium aunque la preferencia habitual sea A4. |
+| Identidad unidad | IMEI completo; barcode `MOBOS:<serial>` y QR web canónico `/u/<serial>`. Batería con ciclos cero válida; proveedor solo sigla; no se proyectan costos, cliente, notas internas ni nombre de proveedor. |
+| Salida incompatible | Custom bloquea agente, diálogo/PNG habituales. PDF exacto por plantilla; al elegir formato habitual vuelve la salida previa con sus guardas. No se afirma impresión física ni compatibilidad de driver. |
+| Contexto | Cliente existente conserva revisiones/permisos/tenancy. Stock cierra selección al cambiar contexto; Taller remonta su selección; generación/PDF tardíos del componente común se invalidan por identidad y epoch. |
+
+### Verificación de esta entrega
+
+- `node --test src/lib/printing/{plantillas,etiquetasStock,etiquetaUnidad}.test.js`: **39/39 PASS**.
+- Matriz Chromium dedicada puerto5364: **12/12 PASS** (9 previos + 3 adopción); después de ajustar la base premium A4→térmico y el tamaño estándar del modal, **3/3 adopción PASS** nuevamente. El cuarto caso añadido comprueba invalidación de Taller por cambio de empresa: **1/1 PASS**.
+- `npm test` una vez: **1545 PASS / 1 FAIL** de1546, fallo real del tamaño `lg` del nuevo ModalStock. Corregido a `amplio`; `node --test src/lib/modalReglas.test.js src/lib/printing/plantillas.test.js`: **33/33 PASS**. No se repitió la suite completa.
+- Entrada real Stock (nav-v2, U3): **1/1 PASS**, seleccionar3filas→selector→habitual conserva aviso demo sin imprimir ni inventar éxito.
+- `npm run lint`: exit0, cero errores; un warning preexistente `DeliveryOperations.jsx:42` fuera de alcance. ESLint de fuentes afectadas exit0.
+- `npm run build -- --outDir /tmp/mobos507-adopcion-dist`: exit0 (14.35s); artefactos fuera del repositorio.
+- Sin DB ni nueva corrida BE: la entrega cambia exclusivamente FE y conserva el contrato backend previamente verificado. Sin red de negocio real, capturas ni impresión física.
+
+### Límites que mantienen #507 parcial
+
+No incorpora todavía plantillas a certificados, hojas de estación, informes,
+recepciones, manifiestos, listas de compra ni otros documentos fuera de los tres
+kinds contratados. Hoja/certificado del Taller y recibo de regalo conservan su
+salida premium propia, explícitamente separada de las etiquetas/comprobante.
+No incorpora transporte raster/TSPL/CUPS ni calibración de equipos/rollos.
+Los PDFs de comprobantes con distintos altos siguen exportándose individualmente.
+Los browser de adopción usan el cliente demo aislado (datos ficticios) y componentes
+operativos reales; no constituyen una nueva prueba PG del backend ni una
+validación física. Stock prueba el selector operativo mixto con defaults y su entrada real desde
+3filas→formato habitual en U3; Taller y Comprobante se recorren completos.

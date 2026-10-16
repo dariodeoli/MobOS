@@ -9,6 +9,7 @@ import BarraLote from '@/components/shared/BarraLote'
 import { seccionDeTab, seccionesDeStock } from './stockHelpers'
 import { useStockControl } from './useStockControl'
 import AccionesUnidad from './AccionesUnidad'
+import EtiquetasStockPlantilla from './EtiquetasStockPlantilla'
 import BarraStock from './BarraStock'
 import TabTaller from './TabTaller'
 import TabAutorizaciones from './TabAutorizaciones'
@@ -82,6 +83,11 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
       {tab === 'conteos' && <TabConteos ctx={ctx} />}
       {tab === 'verificacion' && <TabVerificacion ctx={ctx} />}
     </div>
+      {ctx.etiquetasPlantilla && <EtiquetasStockPlantilla key={ctx.etiquetasPlantilla.scope} filas={ctx.etiquetasPlantilla.filas} onClose={() => ctx.setEtiquetasPlantilla(null)} onHabitual={() => {
+        const selection = ctx.etiquetasPlantilla
+        ctx.setEtiquetasPlantilla(null)
+        imprimirEtiquetasSeleccion(selection.items, { habitual: true, vistaPrevia: selection.vistaPrevia })
+      }} />}
       <AccionesUnidad ctx={ctx} />
     </div>
 }
