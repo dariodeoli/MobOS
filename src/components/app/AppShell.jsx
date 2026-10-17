@@ -246,6 +246,8 @@ export default function AppShell({
         }}
         aria-label={sinLeer ? `Notificaciones, ${sinLeer} sin leer` : 'Notificaciones'}
         aria-haspopup="dialog"
+        aria-expanded={notificacionesAbiertas}
+        title="Notificaciones"
         className="relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-mute hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
       >
         <Icon name="bell" className="h-[18px] w-[18px]" />
