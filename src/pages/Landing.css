@@ -200,6 +200,80 @@
   font-size: 12px;
   color: var(--landing-accent);
 }
+.landing-capabilities {
+  padding-block: 76px;
+}
+.landing-capabilities-heading {
+  max-width: 760px;
+}
+.landing-capabilities-heading h2 {
+  margin-block: 18px;
+  font-size: clamp(32px, 3.5vw, 48px);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+.landing-capabilities-heading > p:last-child,
+.landing-capability p,
+.landing-integrations > p:last-child {
+  color: var(--landing-muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+.landing-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 32px;
+}
+.landing-capability {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--landing-line);
+  border-radius: 12px;
+  background: var(--landing-surface);
+}
+.landing-capability-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--landing-accent) 10%, transparent);
+  color: var(--landing-accent);
+}
+.landing-capability h3,
+.landing-integrations h3 {
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.landing-capability p {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.landing-integrations {
+  margin-top: 20px;
+  padding: 22px 24px;
+  border: 1px solid var(--landing-line);
+  border-left: 3px solid var(--landing-accent);
+  border-radius: 12px;
+  background: var(--landing-surface);
+}
+.landing-integrations h3 {
+  margin-top: 8px;
+  font-size: 17px;
+}
+.landing-integrations > p:last-child {
+  max-width: 900px;
+  margin-top: 7px;
+  font-size: 13px;
+}
 .landing-stories {
   padding-top: 24px;
 }
@@ -579,6 +653,9 @@
     font-size: 13px;
     gap: 8px;
   }
+  .landing-capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 639px) {
   .landing-container {
@@ -622,6 +699,20 @@
   }
   .landing-operation li {
     font-size: 15px;
+  }
+  .landing-capabilities {
+    padding-block: 48px;
+  }
+  .landing-capability-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .landing-capability {
+    padding: 16px;
+  }
+  .landing-integrations {
+    padding: 18px;
   }
   .landing-story {
     grid-template-columns: 1fr;

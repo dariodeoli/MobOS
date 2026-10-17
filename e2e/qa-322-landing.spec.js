@@ -178,3 +178,20 @@ test('Privacidad y Términos se abren y vuelven a la landing', async ({ page }) 
   await expect(page.getByRole('heading', { level: 1, name: 'Términos' })).toBeVisible()
   await page.screenshot({ path: join(SHOTS, 'terminos-mobile.png') })
 })
+
+test('la sección de capacidades comunica módulos y deja claras las integraciones en preparación', async ({ page }) => {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/landing-preview')
+    const capacidades = page.getByTestId('landing-capacidades-disponibles')
+    await expect(capacidades).toBeVisible()
+    await expect(capacidades.locator('article')).toHaveCount(8)
+    await expect(capacidades.getByRole('heading', { name: 'Ventas y pedidos' })).toBeVisible()
+    await expect(capacidades.getByRole('heading', { name: 'Clientes y portal' })).toBeVisible()
+    await expect(capacidades.getByRole('heading', { name: 'Stock por sucursal' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Nuevas conexiones para ampliar MobOS' })).toBeVisible()
+    await expect(page.getByText('EN PREPARACIÓN', { exact: true })).toBeVisible()
+    const anchoDocumento = await page.evaluate(() => document.documentElement.scrollWidth)
+    expect(anchoDocumento, `sin desborde horizontal a ${width}px`).toBe(width)
+  }
+})
