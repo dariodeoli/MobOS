@@ -158,13 +158,13 @@ for (const width of [320, 375, 390, 430]) test(`#546 cabecera móvil ${width}px:
   await expect(sucursal).toBeVisible()
   await expect(sucursal).toHaveAttribute('aria-label', /Sucursal|Tienda/)
   await expect(header.getByTestId('shell-cola-offline-pill')).toBeVisible()
-  await expect(header.getByTestId('shell-equipo-online-mobile')).toHaveCount(0)
+  await expect(header.getByTestId('shell-equipo-online-mobile')).toHaveAccessibleName('Equipo en línea: 1 persona')
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
 
   const sucursalBox = await sucursal.boundingBox()
   expect(sucursalBox.width).toBeGreaterThanOrEqual(44)
   expect(sucursalBox.height).toBeGreaterThanOrEqual(44)
-  for (const selector of ['shell-cola-offline-pill', 'shell-buscar-mobile', 'notificaciones-aviso-mobile', 'shell-perfil-mobile']) {
+  for (const selector of ['shell-cola-offline-pill', 'shell-buscar-mobile', 'notificaciones-aviso-mobile', 'shell-equipo-online-mobile', 'shell-perfil-mobile']) {
     const box = await header.getByTestId(selector).boundingBox()
     expect(box.width, selector).toBeGreaterThanOrEqual(44)
     expect(box.height, selector).toBeGreaterThanOrEqual(44)
@@ -172,12 +172,7 @@ for (const width of [320, 375, 390, 430]) test(`#546 cabecera móvil ${width}px:
     expect(box.x + box.width, selector).toBeLessThanOrEqual(width)
   }
 
-  await header.getByTestId('shell-perfil-mobile').click()
-  const profile = page.getByRole('dialog', { name: 'Perfil y preferencias' })
-  const team = profile.getByTestId('shell-equipo-online-perfil-mobile')
-  await expect(team).toBeVisible()
-  await expect(team).toContainText('Equipo en línea (1)')
-  await team.click()
+  await header.getByTestId('shell-equipo-online-mobile').click()
   await expect(page.getByRole('dialog', { name: 'Equipo en línea' })).toBeVisible()
 })
 async function geometria516(locator){return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}

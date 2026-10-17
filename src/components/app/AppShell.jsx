@@ -175,7 +175,7 @@ export default function AppShell({
       aria-haspopup="dialog"
       aria-expanded={equipoPresenteAbierto}
       onClick={() => setEquipoPresenteAbierto(true)}
-      className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-ok hover:bg-ink-700"
+      className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-lg px-2 text-ok hover:bg-ink-700"
     >
       <Icon name="users" className="h-4 w-4" />
       <span className="text-xs font-semibold">{otrosPresentes.length}</span>
@@ -263,9 +263,6 @@ export default function AppShell({
       </button>
     )
   const angosta = usePantallaAngosta()
-  // En teléfonos estrechos el selector de sucursal debe conservar espacio y
-  // la presencia del equipo queda accesible dentro del perfil.
-  const equipoEnPerfilMovil = usePantallaAngosta('(min-width: 431px)')
   const stockCompacto = ['unidades', 'inventario'].includes(active)
   const offlineButton = (testid, { compacto = false } = {}) =>
     avisoCola && (
@@ -463,7 +460,7 @@ export default function AppShell({
             {offlineButton('shell-cola-offline-pill')}
             {searchButton(true)}
             {alertsButton(true)}
-            {!equipoEnPerfilMovil && equipoButton(true)}
+            {equipoButton(true)}
             {profileButton(true)}
           </div>
         </header>
@@ -591,16 +588,6 @@ export default function AppShell({
               <p className="text-[10px] font-bold uppercase tracking-[.14em] text-mute">Cambiar de empresa</p>
               <SelectorEmpresa control={cambioEmpresa} variante="lista" alElegir={() => setProfileOpen(false)} />
             </div>
-          )}
-          {equipoEnPerfilMovil && otrosPresentes.length > 0 && (
-            <button
-              type="button"
-              data-testid="shell-equipo-online-perfil-mobile"
-              className="min-h-11 text-left"
-              onClick={() => setEquipoPresenteAbierto(true)}
-            >
-              Equipo en línea ({otrosPresentes.length})
-            </button>
           )}
           {onMiCuenta && (
             <button
