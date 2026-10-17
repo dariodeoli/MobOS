@@ -3,13 +3,13 @@
 
 import { test, expect } from '@playwright/test'
 
-test('la documentación busca por tema y lleva a la pantalla', async ({ page }) => {
+test('la ayuda busca por tema y lleva a la pantalla', async ({ page }) => {
   // Documentación salió de Configuración: ahora es «Ayuda» en el shell.
   await page.goto('/ayuda')
   await expect(page.getByTestId('documentacion')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Documentación interna' })).toBeVisible()
 
-  await page.getByLabel('Buscar en la documentación').fill('PIN')
+  await page.getByLabel('Buscar en toda la aplicación').fill('PIN')
   await expect(page.getByRole('heading', { name: 'Staff, roles y PIN' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Ir a Staff, roles y PIN' }).click()
@@ -24,7 +24,7 @@ test('la documentación filtra por módulo y avisa cuando no hay resultados', as
   await expect(page.getByRole('heading', { name: 'Caja del día' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Cargar una venta' })).toHaveCount(0)
 
-  await page.getByLabel('Buscar en la documentación').fill('xyz-no-existe')
+  await page.getByLabel('Buscar en toda la aplicación').fill('xyz-no-existe')
   await expect(page.getByText('Sin resultados.')).toBeVisible()
 })
 
@@ -34,7 +34,7 @@ test('la documentación cubre clientes, garantías y servicio técnico', async (
   await page.goto('/configuracion/documentacion')
 
   // Seguro del cliente: ubicación exacta y enlace a la lista de clientes.
-  await page.getByLabel('Buscar en la documentación').fill('seguro del cliente')
+  await page.getByLabel('Buscar en toda la aplicación').fill('seguro del cliente')
   await expect(page.getByRole('heading', { name: 'Seguro del cliente (interruptor y %)' })).toBeVisible()
   await expect(page.getByText('Clientes → ficha → Datos → Seguro del cliente')).toBeVisible()
   await page.getByRole('button', { name: 'Ir a Seguro del cliente (interruptor y %)' }).click()
@@ -54,7 +54,7 @@ test('la documentación cubre clientes, garantías y servicio técnico', async (
   // para no depender de lo recordado por el paso anterior.
   await page.goto('/configuracion/documentacion')
   await pantalla.getByRole('button', { name: 'Taller', exact: true }).click()
-  await page.getByLabel('Buscar en la documentación').fill('whatsapp por estado')
+  await page.getByLabel('Buscar en toda la aplicación').fill('whatsapp por estado')
   await expect(page.getByRole('heading', { name: 'WhatsApp por estado de la orden' })).toBeVisible()
   await page.getByRole('button', { name: 'Ir a WhatsApp por estado de la orden' }).click()
   await expect(page).toHaveURL(/\/servicio$/)

@@ -5,6 +5,7 @@ import { Badge, Card, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { publicUrls } from '@/lib/urls'
+import { buscarAyuda } from '@/lib/busquedaAyuda'
 
 // Tareas frecuentes (#321): la ayuda arranca por la pregunta real, con los
 // pasos y el enlace a la pantalla. El índice completo sigue abajo.
@@ -291,9 +292,7 @@ const AYUDA = [
 
 const MODULOS = ['Todo', ...Array.from(new Set(AYUDA.map(entrada => entrada.modulo)))]
 
-const normalizar = (texto) => String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
-export default function Documentacion() {
+export default function Documentacion({ vistasAccesibles, children }) {
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
   // Módulo de la documentación: último usado como predeterminado (#209).
@@ -301,21 +300,76 @@ export default function Documentacion() {
     valido: (valor) => MODULOS.includes(valor),
   })
 
+  const baseVisible = useMemo(
+    () => buscarAyuda(AYUDA, '', vistasAccesibles),
+    [vistasAccesibles],
+  )
+  const modulosVisibles = useMemo(
+    () => ['Todo', ...Array.from(new Set(baseVisible.map(entrada => entrada.modulo)))],
+    [baseVisible],
+  )
+  const moduloVisible = modulosVisibles.includes(modulo) ? modulo : 'Todo'
   const resultados = useMemo(() => {
-    const consulta = normalizar(busqueda.trim())
-    return AYUDA.filter(entrada => {
-      if (modulo !== 'Todo' && entrada.modulo !== modulo) return false
-      if (!consulta) return true
-      return normalizar([entrada.titulo, entrada.ubicacion, entrada.explicacion, entrada.modulo].join(' ')).includes(consulta)
-    })
-  }, [busqueda, modulo])
+    const filtrados = buscarAyuda(baseVisible, busqueda, vistasAccesibles)
+    return moduloVisible === 'Todo' ? filtrados : filtrados.filter(entrada => entrada.modulo === moduloVisible)
+  }, [baseVisible, busqueda, vistasAccesibles, moduloVisible])
+  const tareasVisibles = useMemo(
+    () => TAREAS.filter(tarea => buscarAyuda([tarea], '', vistasAccesibles).length > 0),
+    [vistasAccesibles],
+  )
 
   return (
     <div className="space-y-4" data-testid="documentacion">
+      <SearchField
+        autoFocus
+        data-testid="ayuda-buscador"
+        value={busqueda}
+        onChange={event => setBusqueda(event.target.value)}
+        ariaLabel="Buscar en toda la aplicación"
+        placeholder="Buscar en toda la app: pedido, cliente, impresora, caja…"
+      />
+
+      {busqueda.trim() && (
+        resultados.length === 0 ? (
+          <div role="status" aria-live="polite">
+            <EmptyState compact icon="search" title="Sin resultados." description="Probá con otra palabra o revisá las categorías disponibles." />
+          </div>
+        ) : (
+          <div className="space-y-2.5" data-testid="ayuda-resultados" role="region" aria-label="Resultados de ayuda" aria-live="polite">
+            <p className="text-xs text-mute">{resultados.length} {resultados.length === 1 ? 'resultado' : 'resultados'} en las secciones disponibles para tu usuario.</p>
+            {resultados.map(entrada => (
+              <Card key={entrada.titulo} className="p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold">{entrada.titulo}</h3>
+                      <Badge color="blue">{entrada.modulo}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-mute">{entrada.ubicacion}</p>
+                    <p className="mt-1.5 text-sm text-fore">{entrada.explicacion}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(entrada.ruta)}
+                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
+                    aria-label={`Ir a ${entrada.titulo}`}
+                  >
+                    Ir
+                    <Icon name="external" className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      )}
+
+      {children}
+
       <div>
         <h2 className="font-bold">Documentación interna</h2>
         <p className="mt-1 text-sm text-mute">
-          Dónde se configura cada cosa y cómo funciona la operación. Empezá por las tareas frecuentes o buscá por tema, pantalla o palabra clave.
+          Guías por tema, pantalla y tarea. Los resultados se limitan a las secciones disponibles para tu usuario.
         </p>
       </div>
 
@@ -323,7 +377,7 @@ export default function Documentacion() {
       <div className="space-y-2" data-testid="ayuda-tareas">
         <h3 className="text-sm font-bold">Empezá por acá</h3>
         <div className="grid gap-2 sm:grid-cols-2">
-          {TAREAS.map(({ pregunta, pasos, ruta, accion, icono }) => (
+        {tareasVisibles.map(({ pregunta, pasos, ruta, accion, icono }) => (
             <Card key={pregunta} className="flex flex-col gap-3 p-4">
               <div className="flex min-w-0 items-start gap-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
@@ -367,30 +421,22 @@ export default function Documentacion() {
         <Icon name="external" className="h-4 w-4 shrink-0 text-mute" />
       </a>
 
-      <SearchField
-        autoFocus
-        value={busqueda}
-        onChange={event => setBusqueda(event.target.value)}
-        ariaLabel="Buscar en la documentación"
-        placeholder="Buscar: PIN, pagos, caja, entrega, seguro…"
-      />
-
       <div className="flex flex-wrap gap-1.5">
-        {MODULOS.map(item => (
+        {modulosVisibles.map(item => (
           <button
             key={item}
             type="button"
-            aria-pressed={modulo === item}
+            aria-pressed={moduloVisible === item}
             onClick={() => recordarModulo(item)}
-            className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${modulo === item ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
+            className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${moduloVisible === item ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
           >
             {item}
           </button>
         ))}
       </div>
 
-      {resultados.length === 0 ? (
-        <EmptyState compact icon="search" title="Sin resultados." description="Probá con otra palabra: PIN, caja, entrega, impresora, precios…" />
+      {busqueda.trim() ? null : resultados.length === 0 ? (
+        <EmptyState compact icon="search" title="No hay guías para estas categorías." description="Tu usuario no tiene secciones disponibles en esta vista." />
       ) : (
         <div className="space-y-2.5">
           {resultados.map(entrada => (

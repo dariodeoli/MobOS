@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { ayudaVisibleParaVistas } from '@/lib/busquedaAyuda'
 
 // Sección «Comandos y atajos» de Ayuda (#IA · #251): todo lo que se puede hacer
 // con el teclado, tu perfil o el candado del header, cada uno con el enlace a la pantalla
@@ -42,17 +43,17 @@ const ATAJOS = [
   {
     tecla: 'Esc', titulo: 'Cerrar',
     detalle: 'Cierra modales, diálogos y paneles abiertos. También destraba búsquedas y menús.',
-    ruta: '/pos', pantalla: 'Panel',
+    ruta: null, pantalla: 'Panel',
   },
   {
     tecla: '1 clic', titulo: 'Mi perfil',
     detalle: 'Un clic en tu foto o nombre (barra lateral) abre Mi perfil para editar tus datos y preferencias.',
-    ruta: '/pos', pantalla: 'Panel',
+    ruta: '/mi-cuenta', pantalla: 'Panel',
   },
   {
     tecla: '1 clic', titulo: 'Bloquear pantalla',
     detalle: 'El candado del header bloquea la pantalla al instante; se desbloquea con tu PIN. Desde ahí también podés cambiar de vendedor.',
-    ruta: '/pos', pantalla: 'Panel',
+    ruta: null, pantalla: 'Panel',
   },
 ]
 
@@ -70,6 +71,9 @@ const SOPORTE = [
 ]
 
 function EnlacePantalla({ ruta, titulo }) {
+  if (!ruta) {
+    return <span className="self-start text-xs text-mute">Disponible en cualquier pantalla</span>
+  }
   return (
     <Link
       to={ruta}
@@ -82,7 +86,9 @@ function EnlacePantalla({ ruta, titulo }) {
   )
 }
 
-export default function ComandosAtajos() {
+export default function ComandosAtajos({ vistasAccesibles }) {
+  const atajosVisibles = ATAJOS.filter(item => ayudaVisibleParaVistas(item, vistasAccesibles))
+  const soporteVisible = SOPORTE.filter(item => item.ruta !== '/ops' || ayudaVisibleParaVistas(item, vistasAccesibles))
   return (
     <Card className="space-y-3" data-testid="comandos-atajos">
       <div>
@@ -93,7 +99,7 @@ export default function ComandosAtajos() {
       </div>
 
       <div className="space-y-2">
-        {ATAJOS.map(({ tecla, mac, titulo, detalle, ruta, pantalla }) => (
+        {atajosVisibles.map(({ tecla, mac, titulo, detalle, ruta, pantalla }) => (
           <div key={titulo} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -117,7 +123,7 @@ export default function ComandosAtajos() {
 
       <div className="space-y-2">
         <h3 className="text-sm font-bold">Pantallas de soporte</h3>
-        {SOPORTE.map(({ titulo, detalle, ruta }) => (
+        {soporteVisible.map(({ titulo, detalle, ruta }) => (
           <div key={titulo} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h4 className="text-sm font-semibold">{titulo}</h4>
