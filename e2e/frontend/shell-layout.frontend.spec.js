@@ -270,6 +270,7 @@ for (const dark of [false, true]) {
       const bell = page.getByTestId(mobile ? 'notificaciones-aviso-mobile' : 'notificaciones-aviso')
       const avatar = page.getByTestId(mobile ? 'shell-perfil-mobile' : 'shell-perfil')
       await expect(bell).toBeVisible()
+      await expect(bell).toHaveAttribute('aria-expanded', 'false')
       await expect(avatar).toBeVisible()
       for (const el of [bell, avatar]) {
         const b = await el.boundingBox()
@@ -345,8 +346,10 @@ for (const dark of [false, true]) {
       await expect(page.getByRole('dialog', { name: 'Perfil y preferencias' })).toBeHidden()
       await expect(avatar).toBeFocused()
       await bell.click()
+      await expect(bell).toHaveAttribute('aria-expanded', 'true')
       await expect(page.getByTestId('notificaciones-panel')).toBeVisible()
       await page.keyboard.press('Escape')
+      await expect(bell).toHaveAttribute('aria-expanded', 'false')
       await expect(page.getByTestId('notificaciones-panel')).toHaveCount(0)
       const m = await expectLayoutContract(page, `header ${width} ${dark ? 'dark' : 'light'}`)
       for (const kind of ['small', 'lowContrast'])
