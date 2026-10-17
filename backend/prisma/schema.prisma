@@ -146,6 +146,7 @@ model Tenant {
   commissionSettlements   CommissionSettlement[]
   deliverySettlements     DeliverySettlement[]
   sifenDocuments          SifenDocument[]
+  externalInvoices        ExternalInvoice[]
   privateCompanies        PrivateCompany[]
   accountHolders          AccountHolder[]
   cashAuditMarks          CashAuditMark[]
@@ -1584,6 +1585,7 @@ model Order {
   giftCardMovements GiftCardMovement[]
   loyaltyMovements LoyaltyMovement[]
   sifenDocuments SifenDocument[]
+  externalInvoices ExternalInvoice[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -3762,6 +3764,41 @@ enum SifenDocumentStatus {
   SENT
   APPROVED
   REJECTED
+}
+
+// Solicitudes a proveedores externos de facturación. No representa una factura
+// fiscal por sí sola: solo se marca ACCEPTED cuando el proveedor responde.
+// La respuesta de prueba queda distinguida explícitamente por `simulated`.
+model ExternalInvoice {
+  id                 String                @id @default(cuid())
+  tenantId           String
+  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId            String                @unique
+  order              Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider           String
+  status             ExternalInvoiceStatus @default(PENDING)
+  idempotencyKey     String
+  simulated          Boolean               @default(false)
+  payload            Json
+  providerDocumentId String?
+  documentNumber     String?
+  documentUrl        String?
+  error              String?
+  requestedAt        DateTime              @default(now())
+  resolvedAt         DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  // Una sola solicitud por pedido evita que cambiar la configuración del
+  // proveedor duplique una factura aceptada.
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, createdAt])
+}
+
+enum ExternalInvoiceStatus {
+  PENDING
+  ACCEPTED
+  FAILED
 }
 
 // Auditoría de efectivo (#161): marca por operación de caja (cobro o
