@@ -48,10 +48,10 @@ test('clienteNativo arma «ios/<versión>» y usa la versión nativa cuando se l
   assert.equal(versionApp(), '3.1')
 })
 
-test('moduloDisponible: web todo; iOS v1 solo Vender, Pedidos, Clientes y Configuración', async () => {
+test('moduloDisponible: web todo; iOS v1 incluye el resumen del negocio además de Vender, Pedidos, Clientes y Configuración', async () => {
   const { moduloDisponible } = await import('./plataforma.js')
   assert.equal(moduloDisponible('finanzas', { ios: false }), true)
-  for (const id of ['cargar', 'pedidos', 'clientes', 'equipo', 'mi-cuenta']) assert.equal(moduloDisponible(id, { ios: true, todos: false }), true)
-  for (const id of ['inventario', 'productos', 'compras', 'servicio', 'finanzas', 'analisis', 'resumen']) assert.equal(moduloDisponible(id, { ios: true, todos: false }), false)
+  for (const id of ['cargar', 'pedidos', 'clientes', 'equipo', 'mi-cuenta', 'resumen']) assert.equal(moduloDisponible(id, { ios: true, todos: false }), true)
+  for (const id of ['inventario', 'productos', 'compras', 'servicio', 'finanzas', 'analisis']) assert.equal(moduloDisponible(id, { ios: true, todos: false }), false)
   assert.equal(moduloDisponible('finanzas', { ios: true, todos: true }), true)
 })
