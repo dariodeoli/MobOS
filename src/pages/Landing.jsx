@@ -177,11 +177,6 @@ export default function Landing() {
                 <ArrowRight size={16} />
               </a>
             </div>
-            <p className="landing-hero-note">
-              Hoy MobOS es gratis. Sin tarjeta, sin permanencia
-              <br />
-              Acceso con correo o Google
-            </p>
           </div>
           <CommercialPreview />
         </section>
@@ -284,11 +279,10 @@ export default function Landing() {
 
         <section id="precio" className="landing-pricing landing-container">
           <div>
-            <p className="landing-eyebrow">GRATIS</p>
-            <h2>Hoy MobOS es gratis.</h2>
+            <p className="landing-eyebrow">EMPEZÁ HOY</p>
+            <h2>Conocé MobOS en tu tienda.</h2>
             <p>
-              Sin tarjeta, sin permanencia. Puedes conocer el funcionamiento de MobOS en la demo,
-              sin registro.
+              Explorá la demo y descubrí cómo MobOS conecta las ventas, el stock y los pedidos.
             </p>
           </div>
           <div className="landing-hero-actions">

@@ -31,10 +31,7 @@ test('commercial landing: responsive presentation and public contracts', async (
         await page.getByRole('heading', { level: 1 }).waitFor()
         const preview = page.locator('#inicio .commercial-preview')
         assert.equal(await preview.count(), 1, 'hero uses the presentation-only commercial preview')
-        assert.equal(
-          await preview.locator('figcaption').innerText(),
-          'Vista ilustrativa · datos de ejemplo',
-        )
+        assert.equal(await preview.locator('figcaption').count(), 0)
         assert.equal(
           await preview.locator('button,a,input,[role="button"]').count(),
           0,
@@ -56,7 +53,13 @@ test('commercial landing: responsive presentation and public contracts', async (
           )
         }
         const copy = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-        assert.ok(copy.includes('Hoy MobOS es gratis.'))
+        for (const removedCopy of [
+          'Vista ilustrativa · datos de ejemplo',
+          'Hoy MobOS es gratis.',
+          'Sin tarjeta, sin permanencia',
+          'Acceso con correo o Google',
+        ])
+          assert.ok(!copy.includes(removedCopy), `landing omits removed copy: ${removedCopy}`)
         assert.ok(!/USD|por mes|Planes pendientes|30 días|50 %|cupón|checkout/.test(copy))
         assert.equal(
           await page.getByRole('link', { name: 'Ver el portal de la demo' }).getAttribute('href'),
