@@ -25,6 +25,7 @@ import {
   filasReporte,
   filasImpresion,
   nombreArchivoCsv,
+  rangoAnteriorUtc,
   rangoValido,
 } from '@/utils/reportes'
 import ListaDensa from '@/components/shared/ListaDensa'
@@ -117,6 +118,24 @@ export default function Reportes() {
     return () => { vigente = false }
   }, [rango, tipo])
 
+  // Compara las ventas diarias con el rango inmediatamente anterior de igual
+  // duración. Ambos períodos salen del mismo reporte del servidor.
+  const [serieAnterior, setSerieAnterior] = useState(null)
+  useEffect(() => {
+    if (tipo === 'comisiones' || !rangoValido(rango.desde, rango.hasta)) { setSerieAnterior(null); return }
+    let vigente = true
+    setSerieAnterior(null)
+    const anterior = rangoAnteriorUtc(rango)
+    reporteMetricas({ rango: anterior, groupBy: 'day' })
+      .then((data) => {
+        if (!vigente) return
+        const porFecha = Object.fromEntries((data?.groups || []).map((grupo) => [grupo.key, Number(grupo.totalPyg) || 0]))
+        setSerieAnterior(serieContinua(anterior, porFecha))
+      })
+      .catch(() => { if (vigente) setSerieAnterior(null) })
+    return () => { vigente = false }
+  }, [rango, tipo])
+
   const totales = datos?.totals || null
   const grupos = useMemo(() => datos?.groups || [], [datos])
   // Resultado por día (#181): Reportes reutiliza el calendario y los cálculos
@@ -137,6 +156,12 @@ export default function Reportes() {
     for (const [clave, g] of serieGanancia.porDia) porFecha[clave] = Number(g.totalPyg) || 0
     return serieContinua(rango, porFecha)
   }, [serieGanancia, rango])
+  const serieDiasAnterior = useMemo(() => {
+    if (!serieAnterior || serieAnterior.length !== serieDias.length) return null
+    // El gráfico alinea cada punto anterior con el día equivalente del rango
+    // actual; conserva la fecha visible del período seleccionado.
+    return serieDias.map((dia, indice) => ({ fecha: dia.fecha, valor: serieAnterior[indice].valor }))
+  }, [serieAnterior, serieDias])
   const porLineaGrupo = esGrupoPorLinea(grupo)
   const tituloBarras = `Top ${(GRUPOS.find((g) => g.id === grupo)?.plural || 'grupos').toLowerCase()}`
   const itemsBarras = useMemo(
@@ -388,8 +413,8 @@ export default function Reportes() {
             {(serieDias.length > 1 || itemsBarras.length > 0) && (
               <div className="grid grid-cols-1 items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
                 {serieDias.length > 1 && (
-                  <TarjetaGrafico testId="reportes-grafico-dias" titulo="Ventas por día" detalle={etiquetaRango(rango)}>
-                    <GraficoArea serie={serieDias} titulo={`Ventas por día, ${etiquetaRango(rango)}`} etiquetaSerie="Ventas" />
+                  <TarjetaGrafico testId="reportes-grafico-dias" titulo="Ventas por día" detalle={`${etiquetaRango(rango)} vs ${etiquetaRango(rangoAnteriorUtc(rango))}`}>
+                    <GraficoArea serie={serieDias} previa={serieDiasAnterior} titulo={`Ventas por día, ${etiquetaRango(rango)}`} etiquetaSerie="Este período" etiquetaPrevia="Período anterior" />
                   </TarjetaGrafico>
                 )}
                 {itemsBarras.length > 0 && (

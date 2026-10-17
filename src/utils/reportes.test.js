@@ -8,6 +8,7 @@ import {
   filasCsv,
   filasReporte,
   nombreArchivoCsv,
+  rangoAnteriorUtc,
   rangoValido,
 } from './reportes.js'
 
@@ -39,6 +40,12 @@ test('valida el rango de fechas', () => {
   assert.equal(rangoValido('2026-2-01', '2026-09-30'), false)
   assert.equal(rangoValido('2026-02-30', '2026-03-01'), false)
   assert.equal(rangoValido(null, '2026-03-01'), false)
+})
+
+test('calcula el período anterior con igual duración y cruza año bisiesto correctamente', () => {
+  assert.deepEqual(rangoAnteriorUtc({ desde: '2024-03-01', hasta: '2024-03-03' }), { desde: '2024-02-27', hasta: '2024-02-29' })
+  assert.deepEqual(rangoAnteriorUtc({ desde: '2026-01-01', hasta: '2026-01-01' }), { desde: '2025-12-31', hasta: '2025-12-31' })
+  assert.equal(rangoAnteriorUtc({ desde: '2026-02-30', hasta: '2026-03-01' }), null)
 })
 
 test('producto y categoría se calculan por línea', () => {

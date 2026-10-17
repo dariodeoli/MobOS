@@ -71,6 +71,7 @@ for (const [width, height] of WIDTHS) {
 
       // El gráfico de 30 días tiene ventas repartidas (no queda en 0 hasta hace una semana).
       await expect(page.getByTestId('reportes-grafico-dias').locator('[role="img"]')).toHaveAttribute('aria-label', /Ventas por día/)
+      await expect(page.getByTestId('reportes-grafico-dias').getByText(/Período anterior:/)).toBeVisible()
       const filas = page.getByTestId('reportes-grafico-dias').locator('table.sr-only tbody tr')
       const montos = await filas.evaluateAll(nodos => nodos.map(n => (n.lastElementChild?.textContent || '')))
       expect(montos.filter(t => /[1-9]/.test(t)).length).toBeGreaterThanOrEqual(20)

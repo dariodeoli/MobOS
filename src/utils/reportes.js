@@ -38,6 +38,19 @@ export function rangoValido(desde, hasta) {
   return desde <= hasta
 }
 
+/** Período anterior de igual cantidad de días, calculado en UTC para no
+ * introducir cambios por horario local ni por el cruce de año bisiesto. */
+export function rangoAnteriorUtc(rango) {
+  const { desde, hasta } = rango || {}
+  if (!rangoValido(desde, hasta)) return null
+  const unDia = 86400000
+  const inicio = Date.parse(`${desde}T00:00:00.000Z`)
+  const fin = Date.parse(`${hasta}T00:00:00.000Z`)
+  const cantidad = Math.floor((fin - inicio) / unDia) + 1
+  const fecha = (valor) => new Date(valor).toISOString().slice(0, 10)
+  return { desde: fecha(inicio - cantidad * unDia), hasta: fecha(inicio - unDia) }
+}
+
 // Una celda que empieza con =, +, -, @, tabulación o retorno puede ejecutarse
 // como fórmula al abrir el CSV en una planilla. Se neutraliza con un apóstrofo.
 export function celdaSegura(valor) {
