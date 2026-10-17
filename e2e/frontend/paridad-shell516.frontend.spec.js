@@ -123,6 +123,37 @@ test('#516 el shell móvil recupera el espacio inferior al abrir y cerrar el tec
  }finally{for(const f of pages)await f.context.close()}
 })
 
+for (const width of [360, 390]) test(`#521 Inicio móvil web/iOS simulado ${width}px: marca, avisos y resumen con los mismos datos`, async ({ browser, baseURL }) => {
+ const pages = []
+ try {
+  for (const ios of [false, true]) {
+   const f = await preparar(browser, baseURL, { width, dark: false, ios })
+   pages.push(f)
+   await irRuta516(f.page, '/resumen')
+   await expect(f.page.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible()
+   await expect(f.page.getByTestId('resumen-indicadores')).toBeVisible()
+   await expect(f.page.getByTestId('notificaciones-aviso-mobile')).toBeVisible()
+   await expect(f.page.locator('[data-testid="shell-mobile-brand"]:visible, [data-testid="shell-mobile-brand-icon"]:visible').first()).toBeVisible()
+   for (const id of ['indicador-facturado', 'indicador-cobrado', 'indicador-por-cobrar', 'indicador-margen']) {
+    await expect(f.page.getByTestId(id)).toBeVisible()
+   }
+   expect(await f.page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+   f.inicio = await f.page.evaluate(() => ({
+    indicadores: [...document.querySelectorAll('[data-testid="resumen-indicadores"] [data-testid^="indicador-"]')].map(el => el.innerText.trim()),
+    marca: (() => { const el = [...document.querySelectorAll('[data-testid="shell-mobile-brand"], [data-testid="shell-mobile-brand-icon"]')].find(node => node.getBoundingClientRect().width > 0); const r = el?.getBoundingClientRect(); return r ? { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) } : null })(),
+    notificaciones: (() => { const r = document.querySelector('[data-testid="notificaciones-aviso-mobile"]')?.getBoundingClientRect(); return r ? { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) } : null })(),
+   }))
+  }
+  expect(pages[0].inicio.indicadores).toEqual(pages[1].inicio.indicadores)
+  expect(pages[0].inicio.marca).toEqual(pages[1].inicio.marca)
+  expect(pages[0].inicio.notificaciones).toEqual(pages[1].inicio.notificaciones)
+  expect(pages[0].inicio.marca.width).toBeGreaterThan(0)
+  expect(pages[0].inicio.notificaciones.width).toBeGreaterThanOrEqual(44)
+  expect(pages[0].inicio.notificaciones.height).toBeGreaterThanOrEqual(44)
+  console.log('PARIDAD521_INICIO', JSON.stringify({ width, web: pages[0].inicio, iosSimulado: pages[1].inicio }))
+ } finally { for (const f of pages) await f.context.close() }
+})
+
 for (const width of [320, 375, 390, 430]) test(`#546 cabecera móvil ${width}px: sucursal legible y controles táctiles`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 })
   await page.route('**/src/hooks/usePresence.js*', async route => {
