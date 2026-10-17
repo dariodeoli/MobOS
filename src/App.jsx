@@ -28,7 +28,8 @@ const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 const Ops = lazy(() => import('@/pages/Ops'))
 // Preview de diseño (#279): A3/A5 del plan #250, solo DEV.
 const PreviewDiseno = lazy(() => import('@/pages/preview/PreviewDiseno'))
-const BibliotecaUI = lazy(() => import('@/pages/preview/BibliotecaUI'))
+let BibliotecaUI
+if (import.meta.env.DEV) BibliotecaUI = lazy(() => import('@/pages/preview/BibliotecaUI'))
 // Bloques compartidos del rediseño (docs/PANTALLAS.md): solo DEV, para el spec de layout.
 const BloquesPreview = lazy(() => import('@/pages/preview/BloquesPreview'))
 // #247: rutas pesadas fuera del arranque. El panel (todas las secciones), el

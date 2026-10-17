@@ -5,13 +5,13 @@ La ruta local `/biblioteca-ui` muestra componentes de `owncoding-ui` a través d
 ## Qué contiene
 
 - Acciones: variantes de `Button`, acciones de icono y `Subtabs`.
-- Campos: `FormField`, `Input`, `Select`, `PasswordInput`, `Textarea`, `MoneyInput` y `FieldRow`.
+- Campos: `FormField`, `Input`, `EmailField`, `PhoneField`, `RucField`, `Select`, `PasswordInput`, `Textarea`, `MoneyInput` y `FieldRow`.
 - Identidad y datos: `Avatar`, `StatusChip`, `Card`, `Stat` y `DataTable`.
 - Estados: `Skeleton`, `EmptyState`, `ErrorState`, `Aviso` y `Nota`.
 - Contenedor: `Modal`.
 - Control local de tema claro/oscuro y layout que cambia de una columna a dos según ancho.
 
-Los ejemplos son ficticios. Cambiar pestañas, tema, importe o abrir/cerrar el diálogo solo modifica estado local de la página; no consulta APIs, valida documentos ni guarda pedidos. Para revisar en móvil, abrir `/biblioteca-ui` con el servidor de desarrollo y reducir el viewport.
+Los ejemplos son ficticios. Cambiar pestañas, tema, importe o abrir/cerrar el diálogo solo modifica estado local de la página. El botón de consulta del RUC está deshabilitado para que la vista no envíe consultas ni valide documentos; no se guardan pedidos. Para revisar en móvil, abrir `/biblioteca-ui` con el servidor de desarrollo y reducir el viewport.
 
 ## Límites de esta fase
 

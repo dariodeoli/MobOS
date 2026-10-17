@@ -25,8 +25,11 @@ import {
   Textarea,
 } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
+import EmailField from '@/components/shared/EmailField'
 import FieldRow from '@/components/shared/FieldRow'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import PhoneField from '@/components/shared/PhoneField'
+import RucField from '@/components/shared/RucField'
 import StatusChip from '@/components/shared/StatusChip'
 import { temaOscuro } from '@/lib/tema'
 
@@ -68,6 +71,8 @@ export default function BibliotecaUI() {
   const [pestana, setPestana] = useState('botones')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [monto, setMonto] = useState('1250000')
+  const [ruc, setRuc] = useState('80000000-0')
+  const [telefono, setTelefono] = useState('981234567')
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', oscuro)
@@ -115,11 +120,15 @@ export default function BibliotecaUI() {
           <Muestra titulo="Campos y formulario" detalle="Etiquetas, ayuda, error, contraseña y monto con tokens existentes.">
             <div id="campos" className="grid gap-4 sm:grid-cols-2">
               <FormField label="Correo" htmlFor="catalogo-correo" hint="Texto de ayuda del campo">
-                <Input id="catalogo-correo" type="email" defaultValue="persona@ejemplo.test" />
+                <EmailField id="catalogo-correo" defaultValue="persona@ejemplo.test" />
               </FormField>
               <FormField label="RUC de muestra" htmlFor="catalogo-ruc" error="Formato visual de error; no valida un RUC real.">
-                <Input id="catalogo-ruc" defaultValue="80000000-0" aria-invalid="true" />
+                <RucField id="catalogo-ruc" esDemo value={ruc} onChange={setRuc} consultarDisabled />
               </FormField>
+              <FormField label="Teléfono" htmlFor="catalogo-telefono" hint="Control de teléfono compartido">
+                <PhoneField id="catalogo-telefono" value={telefono} onChange={setTelefono} />
+              </FormField>
+              <div><Label htmlFor="catalogo-input">Búsqueda</Label><Input id="catalogo-input" placeholder="Buscar en la muestra" defaultValue="Pedido de muestra" /></div>
               <div><Label htmlFor="catalogo-select">Sucursal</Label><Select id="catalogo-select" defaultValue="centro"><option value="centro">Sucursal de muestra</option><option value="norte">Otra sucursal</option></Select></div>
               <div><Label htmlFor="catalogo-password">Contraseña</Label><PasswordInput id="catalogo-password" defaultValue="muestra-segura" /></div>
               <div className="sm:col-span-2"><Label htmlFor="catalogo-nota">Nota</Label><Textarea id="catalogo-nota" rows={2} defaultValue="Texto de ejemplo para revisar el campo." /></div>
@@ -149,7 +158,7 @@ export default function BibliotecaUI() {
           <Muestra titulo="Cargando, vacío, error y avisos" detalle="Estados reutilizables sin solicitudes de red.">
             <div id="estados" className="space-y-3">
               <div role="status" aria-label="Cargando muestra" className="space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-10 w-full" /></div>
-              <div className="grid gap-3 sm:grid-cols-2"><EmptyState compact title="Sin resultados de muestra" description="El estado vacío explica el siguiente paso." /><ErrorState compact title="Error de muestra" description="Este mensaje no corresponde a una operación real." /></div>
+              <div className={GRILLA_DOS_COLUMNAS}><EmptyState compact title="Sin resultados de muestra" description="El estado vacío explica el siguiente paso." /><ErrorState compact title="Error de muestra" description="Este mensaje no corresponde a una operación real." /></div>
               <div className="grid gap-2 sm:grid-cols-2"><Aviso tono="ok">Aviso de confirmación</Aviso><Aviso tono="warn">Aviso preventivo</Aviso><Nota tono="info">Nota informativa</Nota></div>
             </div>
           </Muestra>

@@ -9,12 +9,12 @@ const leer = ruta => readFileSync(new URL(ruta, `file://${raiz}/`), 'utf8')
 test('la biblioteca visual existe solo en el entorno de desarrollo', () => {
   const app = leer('src/App.jsx')
   assert.match(app, /import\.meta\.env\.DEV && window\.location\.pathname === '\/biblioteca-ui'/)
-  assert.match(app, /lazy\(\(\) => import\('\@\/pages\/preview\/BibliotecaUI'\)\)/)
+  assert.match(app, /if \(import\.meta\.env\.DEV\) BibliotecaUI = lazy\(\(\) => import\('\@\/pages\/preview\/BibliotecaUI'\)\)/)
 })
 
 test('el catálogo compone objetos compartidos sin integrar lógica de negocio', () => {
   const catalogo = leer('src/pages/preview/BibliotecaUI.jsx')
-  for (const componente of ['Button', 'IconAction', 'Input', 'Select', 'PasswordInput', 'DataTable', 'Modal', 'Stat', 'EmptyState', 'ErrorState', 'Skeleton', 'Aviso']) {
+  for (const componente of ['Button', 'IconAction', 'Input', 'EmailField', 'PhoneField', 'RucField', 'Select', 'PasswordInput', 'DataTable', 'Modal', 'Stat', 'EmptyState', 'ErrorState', 'Skeleton', 'Aviso']) {
     assert.match(catalogo, new RegExp(`\\b${componente}\\b`), `debe mostrar ${componente}`)
   }
   assert.match(catalogo, /from '\@\/components\/ui'/)
