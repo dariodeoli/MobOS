@@ -13,6 +13,7 @@ import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionTabs from '@/components/app/SectionTabs'
 import { claveBadge, useBadgesPestanas } from '@/lib/badgesPestanas'
 import PageHeader from '@/components/app/PageHeader'
+import ThemeLogo from '@/components/app/ThemeLogo'
 import { RecordSlotContext } from '@/components/app/RecordHeader'
 import { SegmentosToolbarContext } from '@/components/app/SegmentosToolbar'
 import DemoBanner from '@/components/app/DemoBanner'
@@ -245,7 +246,7 @@ export default function AppShell({
         }}
         aria-label={sinLeer ? `Notificaciones, ${sinLeer} sin leer` : 'Notificaciones'}
         aria-haspopup="dialog"
-        className="relative flex min-h-11 min-w-11 items-center justify-center rounded-lg text-mute hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
+        className="relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-mute hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
       >
         <Icon name="bell" className="h-[18px] w-[18px]" />
         {sinLeer > 0 && (
@@ -445,7 +446,12 @@ export default function AppShell({
           className="sticky top-0 z-20 border-b border-ink-600 bg-ink pt-safe lg:hidden"
         >
           <div className="flex h-14 min-w-0 items-center gap-1 px-3">
-            {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : <img src="/mobos-icon.svg" alt="MobOS" className="h-7 w-7 shrink-0" />}
+            {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : (
+              <>
+                <ThemeLogo data-testid="shell-mobile-brand" className="hidden h-6 w-[74px] shrink-0 min-[380px]:block" />
+                <img data-testid="shell-mobile-brand-icon" src="/mobos-icon.svg" alt="MobOS" className="block h-7 w-7 shrink-0 min-[380px]:hidden" />
+              </>
+            )}
             <div data-testid="shell-sucursal-mobile" className="shell-header-selector flex min-w-0 flex-1 items-center">
               <SelectorSucursal className="max-w-full" />
             </div>

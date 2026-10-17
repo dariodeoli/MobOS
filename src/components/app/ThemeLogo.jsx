@@ -9,7 +9,7 @@ function isDark() {
 // (`/logo-dark.svg`), fondo claro → logo oscuro (`/logo.svg`). `variante`
 // permite forzar el fondo cuando la superficie no sigue al tema (p. ej. una
 // tarjeta con degradé verde en una app clara).
-export default function ThemeLogo({ className, variante }) {
+export default function ThemeLogo({ className, variante, ...props }) {
   const [dark, setDark] = useState(isDark)
 
   useEffect(() => {
@@ -19,5 +19,5 @@ export default function ThemeLogo({ className, variante }) {
   }, [])
 
   const sobreOscuro = variante ? variante === 'dark' : dark
-  return <img src={sobreOscuro ? '/logo-dark.svg' : '/logo.svg'} alt={APP_NAME} className={className} />
+  return <img {...props} src={sobreOscuro ? '/logo-dark.svg' : '/logo.svg'} alt={APP_NAME} className={className} />
 }
