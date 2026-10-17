@@ -33,7 +33,17 @@ export function avisoSeguridad(usuario) {
 }
 
 export function filasUsuarios({ usuarios = [], invitaciones = [], sucursales = [] } = {}) {
-  const nombreSucursal = new Map((sucursales || []).map((s) => [s.id, s.name]))
+  const sucursalPorId = new Map((sucursales || []).map((s) => [s.id, s]))
+  const datosAcceso = (branchId) => {
+    const sucursal = branchId ? sucursalPorId.get(branchId) : null
+    return {
+      sucursal: branchId ? (sucursal?.name || 'Sucursal') : 'Todas',
+      origen: branchId ? (sucursal?.name || 'Sucursal asignada') : 'Casa central',
+      ciudad: sucursal?.city || '',
+      direccion: sucursal?.address || '',
+      alcance: branchId ? 'Esta sucursal' : 'Todas las sucursales',
+    }
+  }
   const filas = (usuarios || []).map((usuario) => ({
     id: usuario.id,
     tipo: 'usuario',
@@ -42,7 +52,7 @@ export function filasUsuarios({ usuarios = [], invitaciones = [], sucursales = [
     rol: usuario.role,
     rolEtiqueta: etiquetaRol(usuario.role),
     estado: ESTADO_DE_USUARIO[usuario.status] || 'inactivo',
-    sucursal: usuario.branchId ? (nombreSucursal.get(usuario.branchId) || 'Sucursal') : 'Todas',
+    ...datosAcceso(usuario.branchId),
     soloPos: ROLES_SOLO_POS.includes(usuario.role),
     aviso: avisoSeguridad(usuario),
     hasAvatar: Boolean(usuario.hasAvatar),
@@ -57,7 +67,7 @@ export function filasUsuarios({ usuarios = [], invitaciones = [], sucursales = [
       rol: invitacion.role,
       rolEtiqueta: etiquetaRol(invitacion.role),
       estado: invitacion.status === 'EXPIRED' ? 'vencida' : 'pendiente',
-      sucursal: invitacion.branchId ? (nombreSucursal.get(invitacion.branchId) || 'Sucursal') : 'Todas',
+      ...datosAcceso(invitacion.branchId),
       soloPos: ROLES_SOLO_POS.includes(invitacion.role),
       aviso: null,
       hasAvatar: false,
@@ -82,7 +92,7 @@ const celda = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`
 
 // CSV de lo que se está viendo (respeta el filtro activo).
 export function csvUsuarios(filas) {
-  const encabezado = ['Nombre', 'Correo', 'Rol', 'Estado', 'Sucursal'].map(celda).join(',')
-  const cuerpo = (filas || []).map((fila) => [fila.nombre, fila.correo, fila.rolEtiqueta, ESTADOS_USUARIO[fila.estado]?.etiqueta || fila.estado, fila.sucursal].map(celda).join(','))
+  const encabezado = ['Nombre', 'Correo', 'Rol', 'Estado', 'Origen', 'Sucursal', 'Ciudad', 'Dirección', 'Alcance'].map(celda).join(',')
+  const cuerpo = (filas || []).map((fila) => [fila.nombre, fila.correo, fila.rolEtiqueta, ESTADOS_USUARIO[fila.estado]?.etiqueta || fila.estado, fila.origen, fila.sucursal, fila.ciudad, fila.direccion, fila.alcance].map(celda).join(','))
   return [encabezado, ...cuerpo].join('\r\n')
 }
