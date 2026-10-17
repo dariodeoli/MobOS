@@ -86,6 +86,23 @@ for (const width of [375, 1280]) {
       await expect(page.getByTestId('prev-telefono').getByText('+595', { exact: true })).toBeVisible()
       await expect(page.getByRole('button', { name: 'Consultar RUC' })).toBeVisible()
 
+      // FieldRow conserva el recorrido de teclado y relaciona errores con su control.
+      await page.locator('#prev-tel').focus()
+      await page.keyboard.press('Tab')
+      await expect(page.locator('#prev-ruc-in')).toBeFocused()
+      const campoError = page.getByTestId('prev-error')
+      const controlError = page.locator('#prev-error-input')
+      await controlError.fill('Cambio que debe conservarse')
+      await page.getByRole('button', { name: 'Alternar error de ejemplo' }).click()
+      await expect(controlError).toHaveAttribute('aria-invalid', 'true')
+      await expect(controlError).toHaveAttribute('aria-describedby', 'prev-error-input-ayuda')
+      await expect(campoError.getByRole('alert')).toBeVisible()
+      await expect(controlError).toHaveValue('Cambio que debe conservarse')
+      await controlError.focus()
+      await expect.poll(() => campoError.locator('[data-slot="fieldrow"]').evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none')
+      await controlError.press('Tab')
+      await expect(campoError.getByRole('button', { name: 'Alternar error de ejemplo' })).toBeFocused()
+
       // Toolbar: shim conserva testid y el principal vive en la barra.
       await expect(page.getByTestId('barra-inventario')).toBeVisible()
       await expect(page.getByTestId('prev-toolbar').getByRole('button', { name: 'Nuevo pedido' })).toBeVisible()

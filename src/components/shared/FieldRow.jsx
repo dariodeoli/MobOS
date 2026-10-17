@@ -1,6 +1,32 @@
+import { Children, cloneElement, isValidElement } from 'react'
 import { Label } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { ANCHO_CAMPO } from './anchoCampos'
+
+function unirDescripciones(...valores) {
+  return [...new Set(valores.flatMap((valor) => String(valor || '').split(/\s+/)).filter(Boolean))].join(' ') || undefined
+}
+
+function describirControl(children, { htmlFor, descripcionId, error }, estado = { aplicado: false }) {
+  return Children.map(children, (child) => {
+    if (!isValidElement(child) || estado.aplicado) return child
+    const controlNativo = ['input', 'select', 'textarea'].includes(child.type)
+    const coincide = htmlFor ? child.props.id === htmlFor : controlNativo
+    if (coincide) {
+      estado.aplicado = true
+      return cloneElement(child, {
+        'aria-describedby': unirDescripciones(child.props['aria-describedby'], descripcionId),
+        'aria-invalid': error ? true : child.props['aria-invalid'],
+      })
+    }
+    if (child.props.children) {
+      return cloneElement(child, {
+        children: describirControl(child.props.children, { htmlFor, descripcionId, error }, estado),
+      })
+    }
+    return child
+  })
+}
 
 // Campo compuesto en UNA fila con UN borde (docs/PANTALLAS.md regla 9 ·
 // docs/CAMPOS.md): `prefijo` (código de país, «Gs.») + input + `final` (botón
@@ -9,6 +35,7 @@ import { ANCHO_CAMPO } from './anchoCampos'
 // error. Máximo 640px en escritorio (lo resuelve `className` del contenedor).
 export default function FieldRow({ ancho, label, htmlFor, prefijo, final, hint, error, children, className, testId }) {
   const idAyuda = htmlFor ? `${htmlFor}-ayuda` : undefined
+  const control = describirControl(children, { htmlFor, descripcionId: idAyuda, error })
   return (
     <div data-testid={testId} className={cn('w-full min-w-0', ANCHO_CAMPO[ancho] || 'max-w-[640px]', className)}>
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
@@ -28,7 +55,7 @@ export default function FieldRow({ ancho, label, htmlFor, prefijo, final, hint, 
           data-slot="control"
           className="flex min-w-0 flex-1 items-center [&_input]:h-full [&_input]:min-h-11 [&_input]:w-full [&_input]:min-w-0 [&_input]:rounded-none [&_input]:border-0 [&_input]:bg-transparent [&_input]:shadow-none [&_input]:outline-none [&_input]:ring-0 [&_input]:focus:ring-0 [&_input]:focus-visible:ring-0"
         >
-          {children}
+          {control}
         </div>
         {final && (
           <div data-slot="final" className="flex shrink-0 items-stretch border-l border-ink-500 [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:rounded-none [&_button]:border-0">{final}</div>
