@@ -13,7 +13,7 @@ const invitaciones = [
   { id: 'i3', name: 'Ya aceptó', email: 'y@x.com', role: 'VENDEDOR', status: 'ACCEPTED' },
   { id: 'i4', name: 'Revocada', email: 'v@x.com', role: 'VENDEDOR', status: 'REVOKED' },
 ]
-const sucursales = [{ id: 'b1', name: 'Centro' }]
+const sucursales = [{ id: 'b1', name: 'Centro', city: 'Asunción', address: 'Senador Long 506' }]
 const filas = filasUsuarios({ usuarios, invitaciones, sucursales })
 
 test('filasUsuarios une equipo e invitaciones sin responder, con estado y sucursal', () => {
@@ -22,6 +22,14 @@ test('filasUsuarios une equipo e invitaciones sin responder, con estado y sucurs
     ['inv-i1', 'pendiente', 'Todas'], ['inv-i2', 'vencida', 'Centro'],
   ])
   assert.equal(filas[0].rolEtiqueta, 'Dueño')
+  assert.deepEqual(
+    [filas[0].origen, filas[0].ciudad, filas[0].direccion, filas[0].alcance],
+    ['Casa central', '', '', 'Todas las sucursales'],
+  )
+  assert.deepEqual(
+    [filas[1].origen, filas[1].ciudad, filas[1].direccion, filas[1].alcance],
+    ['Centro', 'Asunción', 'Senador Long 506', 'Esta sucursal'],
+  )
 })
 
 test('el aviso de seguridad es la cuenta bloqueada; el resto no tiene aviso', () => {
@@ -41,8 +49,8 @@ test('filtros: Activos, Pendientes (pendiente + vencida) y Solo POS (activos ven
 
 test('csvUsuarios escapa comillas y respeta el filtro recibido', () => {
   const csv = csvUsuarios(filtrarUsuarios(filas, 'activos')).split('\r\n')
-  assert.equal(csv[0], '"Nombre","Correo","Rol","Estado","Sucursal"')
-  assert.equal(csv[2], '"Ana ""la mejor""","a@x.com","Vendedor","Activo","Centro"')
+  assert.equal(csv[0], '"Nombre","Correo","Rol","Estado","Origen","Sucursal","Ciudad","Dirección","Alcance"')
+  assert.equal(csv[2], '"Ana ""la mejor""","a@x.com","Vendedor","Activo","Centro","Centro","Asunción","Senador Long 506","Esta sucursal"')
   assert.equal(csv.length, 3)
 })
 

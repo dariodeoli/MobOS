@@ -47,6 +47,20 @@ test('Equipo y acceso: cada tarea en su pestaña, con integrantes, metas y roles
   await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
 })
 
+test('Equipo y acceso: usuarios incluyen origen, ubicación de sucursal y alcance (#542)', async ({ page }) => {
+  await page.goto('/configuracion/equipo')
+  await pestana(page, 'Usuarios').click()
+
+  const tabla = page.getByTestId('usuarios-tabla')
+  await expect(tabla).toBeVisible({ timeout: 20_000 })
+  for (const encabezado of ['Rol', 'Origen', 'Sucursal · ubicación', 'Alcance', 'Seguridad']) {
+    await expect(tabla.getByRole('columnheader', { name: encabezado })).toBeVisible()
+  }
+  await expect(page.getByRole('tablist', { name: 'Filtrar usuarios' }).getByRole('tab', { name: /^Solo POS/ })).toBeVisible()
+  await pestana(page, 'Permisos').click()
+  await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
+})
+
 test('Equipo y acceso: la meta diaria se edita en Rendimiento y persiste (#253/#299)', async ({ page }) => {
   await page.goto('/configuracion/equipo')
   await pestana(page, 'Rendimiento').click()

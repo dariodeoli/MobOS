@@ -10,6 +10,7 @@ import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { getVendedores } from '@/lib/storage'
+import { SUCURSALES_DEMO } from '@/lib/demo/empresa'
 import { GrupoConfig, FilaConfig } from './FilasConfig'
 import { FILTROS_USUARIOS, ESTADOS_USUARIO, contarUsuarios, csvUsuarios, filasUsuarios, filtrarUsuarios } from './modeloUsuarios'
 
@@ -29,7 +30,7 @@ export default function UsuariosTabla({ onGestionar, onAgregar, onRoles }) {
     // La demo no llama a la API: lista el equipo ficticio con la misma forma.
     if (esDemo) {
       const usuarios = getVendedores().map((v) => ({ id: v.id, name: v.nombre, email: v.email || '', role: v.role || 'VENDEDOR', status: v.activo ? 'ACTIVE' : 'INACTIVE', branchId: v.branchId || null, hasAvatar: Boolean(v.hasAvatar) }))
-      setDatos({ usuarios, invitaciones: [], sucursales: [] })
+      setDatos({ usuarios, invitaciones: [], sucursales: SUCURSALES_DEMO })
       return undefined
     }
     let vivo = true
@@ -56,6 +57,12 @@ export default function UsuariosTabla({ onGestionar, onAgregar, onRoles }) {
     </span>
   )
   const estado = (fila) => <Badge color={ESTADOS_USUARIO[fila.estado]?.color || 'slate'}>{ESTADOS_USUARIO[fila.estado]?.etiqueta || fila.estado}</Badge>
+  const ubicacion = (fila) => (
+    <span className="block min-w-0">
+      <span className="block truncate">{fila.sucursal}</span>
+      {(fila.ciudad || fila.direccion) && <span className="block truncate text-xs text-mute">{[fila.ciudad, fila.direccion].filter(Boolean).join(' · ')}</span>}
+    </span>
+  )
   const seguridad = (fila) => fila.aviso
     ? <span title={fila.aviso} role="img" aria-label={fila.aviso} className="inline-flex text-warn"><Icon name="alert" className="h-4 w-4" aria-hidden="true" /></span>
     : <span className="text-mute" aria-label="Sin avisos">—</span>
@@ -102,16 +109,19 @@ export default function UsuariosTabla({ onGestionar, onAgregar, onRoles }) {
               { key: 'usuario', header: 'Usuario', ancho: 'minmax(0,2.4fr)', cell: identidad },
               { key: 'estado', header: 'Estado', ancho: '6rem', cell: estado },
               { key: 'rol', header: 'Rol', ancho: 'minmax(0,1fr)', className: 'text-xs text-mute', cell: (fila) => fila.rolEtiqueta },
-              { key: 'sucursal', header: 'Sucursal', ancho: 'minmax(0,1fr)', className: 'text-xs text-mute', cell: (fila) => fila.sucursal },
+              { key: 'origen', header: 'Origen', ancho: 'minmax(0,1fr)', className: 'text-xs text-mute', cell: (fila) => fila.origen },
+              { key: 'sucursal', header: 'Sucursal · ubicación', ancho: 'minmax(0,1.5fr)', className: 'text-xs text-mute', cell: ubicacion },
+              { key: 'alcance', header: 'Alcance', ancho: 'minmax(0,1fr)', className: 'text-xs text-mute', cell: (fila) => fila.alcance },
               { key: 'seguridad', header: 'Seguridad', ancho: '5.5rem', cell: seguridad },
             ]}
             renderCard={(fila) => (
               <div className="space-y-2">
                 {identidad(fila)}
                 <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
-                  {estado(fila)}<span>{fila.rolEtiqueta}</span><span>· {fila.sucursal}</span>
+                  {estado(fila)}<span>{fila.rolEtiqueta}</span><span>· {fila.origen}</span>
                   {fila.aviso && <span className="inline-flex items-center gap-1 text-warn"><Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{fila.aviso}</span>}
                 </div>
+                <p className="text-xs text-mute">{[fila.sucursal, fila.ciudad, fila.direccion, fila.alcance].filter(Boolean).join(' · ')}</p>
               </div>
             )}
           />
