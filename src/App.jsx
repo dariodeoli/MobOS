@@ -28,6 +28,7 @@ const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 const Ops = lazy(() => import('@/pages/Ops'))
 // Preview de diseño (#279): A3/A5 del plan #250, solo DEV.
 const PreviewDiseno = lazy(() => import('@/pages/preview/PreviewDiseno'))
+const BibliotecaUI = lazy(() => import('@/pages/preview/BibliotecaUI'))
 // Bloques compartidos del rediseño (docs/PANTALLAS.md): solo DEV, para el spec de layout.
 const BloquesPreview = lazy(() => import('@/pages/preview/BloquesPreview'))
 // #247: rutas pesadas fuera del arranque. El panel (todas las secciones), el
@@ -258,6 +259,12 @@ export default function App() {
         <Suspense fallback={<PaginaCargando />}><PreviewDiseno /></Suspense>
       </>
     )
+  }
+
+  // Catálogo local de la biblioteca de UI (#538): solo desarrollo; la página
+  // no forma parte de las rutas, menús ni compilación de producción.
+  if (import.meta.env.DEV && window.location.pathname === '/biblioteca-ui') {
+    return <Suspense fallback={<PaginaCargando />}><BibliotecaUI /></Suspense>
   }
 
   if (import.meta.env.DEV && window.location.pathname === '/bloques-preview') {
