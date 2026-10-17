@@ -3,10 +3,16 @@ import { mkdir } from 'node:fs/promises'
 import { openShellDestination, selectAnalysisSection } from '../helpers/shell-navigation.js'
 
 // #451: la demo completa (120 días, accesorios, medios de pago) y Reportes sin
-// superposiciones. Se mide en la demo sin backend a 390/1280/1440.
+// superposiciones, incluidos los bordes de sus cambios de columnas.
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-demo-pro-qa'
 const WIDTHS = [
+  [320, 800],
   [390, 844],
+  [479, 844],
+  [480, 844],
+  [768, 900],
+  [1099, 900],
+  [1100, 900],
   [1280, 900],
   [1440, 900],
 ]
