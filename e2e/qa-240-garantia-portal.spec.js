@@ -18,6 +18,14 @@ async function api(page, path, options = {}) {
 
 test('la garantía se abre desde el portal y muestra la etapa del taller', async ({ page }) => {
   await page.goto('/clientes')
+  const sucursales = await api(page, '/api/branches')
+  const sucursal = Array.isArray(sucursales.body) ? sucursales.body.find((branch) => branch.isActive) : null
+  expect(sucursal, 'La prueba necesita una sucursal activa.').toBeTruthy()
+  const sucursalConWhatsApp = await api(page, '/api/branches', {
+    method: 'PATCH',
+    body: JSON.stringify({ id: sucursal.id, phone: '0981123456' }),
+  })
+  expect(sucursalConWhatsApp.status, JSON.stringify(sucursalConWhatsApp.body)).toBe(200)
   const marca = Date.now().toString(36).toUpperCase()
   const cliente = await api(page, '/api/customers', {
     method: 'POST',
@@ -61,6 +69,12 @@ test('la garantía se abre desde el portal y muestra la etapa del taller', async
   await expect(page.getByText('Garantías activas')).toBeVisible({ timeout: 20000 })
   await expect(page.getByText('En el taller:')).toBeVisible()
   await expect(page.getByText('Recibido').first()).toBeVisible()
+  const consultaReparacion = page.getByRole('link', { name: 'Consultar por mi reparación' })
+  await expect(consultaReparacion).toBeVisible()
+  await expect(consultaReparacion).toHaveAttribute('href', /wa\.me\/\d+\?text=/)
+  const consultaGarantia = page.getByRole('link', { name: 'Consultar por mi garantía' })
+  await expect(consultaGarantia).toBeVisible()
+  await expect(consultaGarantia).toHaveAttribute('href', /wa\.me\/\d+\?text=/)
   await page.screenshot({ path: `${SALIDA}/01-portal-garantia.png`, fullPage: true })
 
   // La credencial pública se abre desde el portal: cobertura y vencimiento.

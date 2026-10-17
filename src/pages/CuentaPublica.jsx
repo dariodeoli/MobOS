@@ -448,6 +448,12 @@ export default function CuentaPublica() {
                         Recibido {fecha(servicio.receivedAt)}
                         {servicio.deliveredAt ? ` · Entregado ${fecha(servicio.deliveredAt)}` : ''}
                       </p>
+                      <WhatsAppSucursal
+                        contacto={cuenta.contacto}
+                        mensaje={`Hola, quisiera consultar por mi reparación ${servicio.serviceNumber || ''} (${servicio.device || 'equipo'}${servicio.serial ? `, serial terminado en ${String(servicio.serial).slice(-6)}` : ''}).`}
+                        etiqueta="Consultar por mi reparación"
+                        className="mt-2"
+                      />
                     </article>
                   ))}
                 </div>
@@ -485,6 +491,12 @@ export default function CuentaPublica() {
                             Ver garantía
                           </Link>
                         )}
+                        <WhatsAppSucursal
+                          contacto={cuenta.contacto}
+                          mensaje={`Hola, quisiera consultar por la garantía de ${warranty.description || 'mi equipo'}${warranty.serial ? ` (serial terminado en ${String(warranty.serial).slice(-6)})` : ''}${warranty.expiresAt ? `, con vencimiento ${fecha(warranty.expiresAt)}` : ''}.`}
+                          etiqueta="Consultar por mi garantía"
+                          className="mt-2"
+                        />
                       </div>
                     ))}
                   </div>
