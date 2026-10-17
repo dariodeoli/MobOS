@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { publicUrls } from '@/lib/urls'
 import ImeiVerificador from '@/components/landing/ImeiVerificador'
 import CommercialPreview from '@/components/landing/CommercialPreview'
+import CapacidadesMobOS from '@/components/landing/CapacidadesMobOS'
 import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ThemeToggle from '@/components/app/ThemeToggle'
@@ -10,6 +11,7 @@ import { temaV2Activo } from '@/lib/temaV2'
 import './Landing.css'
 
 const NAV = [
+  ['#capacidades', 'Funciones'],
   ['#vender', 'Vender'],
   ['#controlar', 'Controlar'],
   ['#imei', 'Verificación IMEI'],
@@ -200,6 +202,7 @@ export default function Landing() {
             </ol>
           </div>
         </section>
+        <CapacidadesMobOS />
         <section
           className="landing-stories landing-container"
           aria-label="Vender, controlar y cerrar la operación"
