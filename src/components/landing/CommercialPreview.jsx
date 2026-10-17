@@ -147,7 +147,6 @@ export default function CommercialPreview({ moment = 'all' }) {
         {(moment === 'all' || moment === 'stock') && <Stock />}
         {(moment === 'all' || moment === 'payment') && <Payment />}
       </div>
-      <figcaption>Vista ilustrativa · datos de ejemplo</figcaption>
     </figure>
   )
 }

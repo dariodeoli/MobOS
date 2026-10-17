@@ -230,11 +230,12 @@ test('la landing: identidad por tema, vistas ilustrativas y verificador de IMEI 
   // The approved commercial presentation replaces screenshots, not business contracts.
   assert.match(landing, /CommercialPreview/, 'the landing uses the shared illustrative presentation')
   const preview = leer('components/landing/CommercialPreview.jsx')
-  assert.match(preview, /Vista ilustrativa · datos de ejemplo/, 'the presentation is honestly labelled')
+  assert.doesNotMatch(preview, /Vista ilustrativa · datos de ejemplo/, 'the requested visible label is removed')
   assert.doesNotMatch(landing, /\/landing\/(panel|portal)\.png|Captura real/, 'illustrations are not described as product captures')
-  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Hoy MobOS es gratis']) {
+  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Conocé MobOS']) {
     assert.ok(landing.includes(text), `the landing preserves ${text}`)
   }
+  assert.doesNotMatch(landing, /Hoy MobOS es gratis|Sin tarjeta, sin permanencia|Acceso con correo o Google/)
   // Menú móvil y pie legal (#322).
   assert.match(landing, /menu-movil/, 'la landing tiene menú móvil')
   for (const enlace of ['/privacidad', '/terminos', '/status']) {
