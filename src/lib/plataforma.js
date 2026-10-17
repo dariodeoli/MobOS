@@ -67,9 +67,9 @@ export const SOPORTE_URL = 'mailto:soporte@moboss.online'
 export const APP_STORE_URL = 'https://apps.apple.com/app/mobos/id0000000000'
 
 // Módulos de la app de iPhone v1. El resto (Stock, Compras, Taller, Finanzas,
-// Análisis, Inicio…) queda detrás de esta bandera hasta que se habiliten:
+// Análisis…) queda detrás de esta bandera hasta que se habiliten:
 // `VITE_IOS_TODOS_LOS_MODULOS=1` en el build los muestra todos.
-export const MODULOS_IOS = ['cargar', 'pedidos', 'clientes', 'equipo', 'ayuda', 'mi-cuenta']
+export const MODULOS_IOS = ['cargar', 'pedidos', 'clientes', 'equipo', 'ayuda', 'mi-cuenta', 'resumen']
 
 const TODOS_LOS_MODULOS = String(import.meta.env?.VITE_IOS_TODOS_LOS_MODULOS || '') === '1'
 
