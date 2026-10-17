@@ -122,6 +122,64 @@ test('#516 el shell móvil recupera el espacio inferior al abrir y cerrar el tec
   }
  }finally{for(const f of pages)await f.context.close()}
 })
+
+for (const width of [320, 375, 390, 430]) test(`#546 cabecera móvil ${width}px: sucursal legible y controles táctiles`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 })
+  await page.route('**/src/hooks/usePresence.js*', async route => {
+    const response = await route.fetch()
+    const source = await response.text()
+    const body = source.replace('return personas', 'return [{ id: "mobile-qa-peer", name: "Vendedor QA" }]')
+    expect(body).not.toBe(source)
+    await route.fulfill({ response, body })
+  })
+  await page.route('**/src/hooks/useColaOffline.js*', async route => {
+    const response = await route.fetch()
+    const source = await response.text()
+    const body = source.replace(
+      'return { ...resumen, items, reporte, sincronizando, sincronizar, refrescar, enLinea }',
+      'return { ...resumen, pendientes: 2, items, reporte, sincronizando, sincronizar, refrescar, enLinea }',
+    )
+    expect(body).not.toBe(source)
+    await route.fulfill({ response, body })
+  })
+  await page.route('**/api/**', route =>
+    !new URL(route.request().url()).pathname.startsWith('/api/')
+      ? route.continue()
+      : route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Frontend-only harness"}' }),
+  )
+  await page.route(/https:\/\//, route => route.abort())
+  await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
+  await page.goto('/demo', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Entrar como Dueño', exact: true }).click()
+  await expect(page.getByTestId('shell')).toBeVisible()
+
+  const header = page.getByTestId('shell-mobile-header')
+  const sucursal = header.locator('[data-testid="sucursal-info"], [data-testid="sucursal-selector"]')
+  await expect(sucursal).toBeVisible()
+  await expect(sucursal).toHaveAttribute('aria-label', /Sucursal|Tienda/)
+  await expect(header.getByTestId('shell-cola-offline-pill')).toBeVisible()
+  await expect(header.getByTestId('shell-equipo-online-mobile')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+
+  const sucursalBox = await sucursal.boundingBox()
+  expect(sucursalBox.width).toBeGreaterThanOrEqual(44)
+  expect(sucursalBox.height).toBeGreaterThanOrEqual(44)
+  for (const selector of ['shell-cola-offline-pill', 'shell-buscar-mobile', 'notificaciones-aviso-mobile', 'shell-perfil-mobile']) {
+    const box = await header.getByTestId(selector).boundingBox()
+    expect(box.width, selector).toBeGreaterThanOrEqual(44)
+    expect(box.height, selector).toBeGreaterThanOrEqual(44)
+    expect(box.x, selector).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width, selector).toBeLessThanOrEqual(width)
+  }
+
+  await header.getByTestId('shell-perfil-mobile').click()
+  const profile = page.getByRole('dialog', { name: 'Perfil y preferencias' })
+  const team = profile.getByTestId('shell-equipo-online-perfil-mobile')
+  await expect(team).toBeVisible()
+  await expect(team).toContainText('Equipo en línea (1)')
+  await team.click()
+  await expect(page.getByRole('dialog', { name: 'Equipo en línea' })).toBeVisible()
+})
 async function geometria516(locator){return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}
 async function campo516(locator,width){
  await expect(locator).toBeVisible()

@@ -263,6 +263,9 @@ export default function AppShell({
       </button>
     )
   const angosta = usePantallaAngosta()
+  // En teléfonos estrechos el selector de sucursal debe conservar espacio y
+  // la presencia del equipo queda accesible dentro del perfil.
+  const equipoEnPerfilMovil = usePantallaAngosta('(min-width: 431px)')
   const stockCompacto = ['unidades', 'inventario'].includes(active)
   const offlineButton = (testid, { compacto = false } = {}) =>
     avisoCola && (
@@ -460,7 +463,7 @@ export default function AppShell({
             {offlineButton('shell-cola-offline-pill')}
             {searchButton(true)}
             {alertsButton(true)}
-            {equipoButton(true)}
+            {!equipoEnPerfilMovil && equipoButton(true)}
             {profileButton(true)}
           </div>
         </header>
@@ -588,6 +591,16 @@ export default function AppShell({
               <p className="text-[10px] font-bold uppercase tracking-[.14em] text-mute">Cambiar de empresa</p>
               <SelectorEmpresa control={cambioEmpresa} variante="lista" alElegir={() => setProfileOpen(false)} />
             </div>
+          )}
+          {equipoEnPerfilMovil && otrosPresentes.length > 0 && (
+            <button
+              type="button"
+              data-testid="shell-equipo-online-perfil-mobile"
+              className="min-h-11 text-left"
+              onClick={() => setEquipoPresenteAbierto(true)}
+            >
+              Equipo en línea ({otrosPresentes.length})
+            </button>
           )}
           {onMiCuenta && (
             <button
