@@ -46,6 +46,8 @@ function CodigosPreview() {
 
 export default function BloquesPreview() {
   const [busqueda, setBusqueda] = useState('')
+  const [fieldValue, setFieldValue] = useState('Dato conservado')
+  const [fieldError, setFieldError] = useState(false)
   const lista = usePaginaLista(FILAS.filter((f) => f.titulo.toLowerCase().includes(busqueda.toLowerCase())), { tamano: 5 })
   return (
     <main data-testid="bloques-preview" className="min-h-screen space-y-6 bg-ink-900 px-4 py-5 text-fore md:px-6">
@@ -88,6 +90,15 @@ export default function BloquesPreview() {
           </FieldRow>
           <FieldRow testId="prev-ruc" label="RUC" htmlFor="prev-ruc-in" final={<Button type="button" variant="ghost" aria-label="Consultar RUC">Consultar</Button>}>
             <Input id="prev-ruc-in" defaultValue="80012345-6" />
+          </FieldRow>
+          <FieldRow
+            testId="prev-error"
+            label="Campo con respuesta del servidor"
+            htmlFor="prev-error-input"
+            error={fieldError ? 'No se pudo guardar. El valor ingresado se conserva.' : undefined}
+            final={<Button type="button" variant="ghost" aria-label="Alternar error de ejemplo" onClick={() => setFieldError((actual) => !actual)}>Probar error</Button>}
+          >
+            <Input id="prev-error-input" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} />
           </FieldRow>
         </div>
       </section>
