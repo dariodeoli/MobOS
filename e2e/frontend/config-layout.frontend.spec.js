@@ -20,9 +20,9 @@ const WIDTHS = [
 const SECCIONES = [
   ['Organización', 'organizacion'],
   ['Equipo y acceso', 'equipo'],
-  ['Impresión y dispositivos', 'dispositivos'],
+  ['Impresoras', 'dispositivos'],
   ['Comercial', 'comercial'],
-  ['Seguridad y auditoría', 'seguridad'],
+  ['Seguridad', 'seguridad'],
   ['Sistema', 'sistema'],
   ['Mi cuenta', 'mi-cuenta'],
 ]
@@ -190,6 +190,30 @@ test('seller roles never get Configuración (no permission widened)', async ({ p
   await expect(page).not.toHaveURL(/\/configuracion\//)
 })
 
+test('#542: dominios con cabecera común y sincronización de impresión dentro de Impresoras', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await enterDemo(page)
+  for (const [width, height] of [[390, 844], [1280, 900]]) {
+    await page.setViewportSize({ width, height })
+    await page.goto('/configuracion/dispositivos')
+    await expect(page.locator('h1')).toHaveText('Impresoras')
+    await expect(page.getByTestId('config-grupo-cabecera')).toContainText('Impresoras')
+    await page.getByTestId('panel-sincronizacion').click()
+    await expect(page).toHaveURL(/\/configuracion\/dispositivos\?panel=sincronizacion/)
+    await expect(page.getByTestId('impresoras-sincronizacion')).toBeVisible()
+    for (const id of ['puentes', 'impresoras', 'trabajos']) {
+      await expect(page.getByTestId(`impresoras-sync-${id}`)).toBeVisible()
+    }
+    const noDesborda = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)
+    expect(noDesborda, `Impresoras desborda a ${width}px`).toBe(true)
+  }
+
+  await page.goto('/configuracion/sistema')
+  await expect(page.getByTestId('config-grupo-cabecera')).toContainText('Sistema')
+  await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Impresoras')
+  await expect(page.getByTestId('impresoras-sincronizacion')).toHaveCount(0)
+})
+
 for (const [width, height] of WIDTHS) {
   for (const dark of [false, true]) {
     test(`QA-A Configuración ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
@@ -220,7 +244,7 @@ for (const [width, height] of WIDTHS) {
 test('#30 Seguridad: activity feed shows the whole amount on its own line at 375', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
-  await openConfig(page, 'Seguridad y auditoría')
+  await openConfig(page, 'Seguridad')
   const rows = page.getByTestId('historial-actividad').locator('li')
   expect(await rows.count()).toBeGreaterThan(0)
   const cut = await page
@@ -257,7 +281,7 @@ test('#31 Sistema: alert and device names are not truncated at 375', async ({ pa
 test('#32 Dispositivos and Comercial: 44px targets at 375', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
-  for (const label of ['Impresión y dispositivos', 'Comercial']) {
+  for (const label of ['Impresoras', 'Comercial']) {
     await openConfig(page, label)
     await expectLayoutContract(page, label, { scope: 'all' })
     await expectInlineLinksUsable(page, label)

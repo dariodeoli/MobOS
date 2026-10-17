@@ -662,7 +662,7 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
     'sistema': 'pulse',
   }
   for (const [id, icono] of Object.entries(esperados)) {
-    assert.ok(meta.includes(`'${id}': { icono: '${icono}'`), `falta ${id} con icono ${icono}`)
+    assert.match(meta, new RegExp(`'${id}': \\{[^}]*icono: '${icono}'`), `falta ${id} con icono ${icono}`)
   }
   // #253: el set de iconos vive en la biblioteca; Icon.jsx es un puente.
   const puente = leerFuente(join(RAIZ, 'components/shared/Icon.jsx'), 'utf8')

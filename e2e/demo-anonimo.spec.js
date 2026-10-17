@@ -144,8 +144,8 @@ const MODULOS_OWNER = [
   ['/configuracion/organizacion', 'Organización'],
   ['/configuracion/equipo', 'Equipo y acceso'],
   ['/configuracion/comercial', 'Comercial'],
-  ['/configuracion/seguridad', 'Seguridad y auditoría'],
-  ['/configuracion/dispositivos', 'Impresión y dispositivos'],
+  ['/configuracion/seguridad', 'Seguridad'],
+  ['/configuracion/dispositivos', 'Impresoras'],
   ['/ayuda/ayuda', 'Ayuda'],
   ['/configuracion/sistema', 'Sistema'],
 ]

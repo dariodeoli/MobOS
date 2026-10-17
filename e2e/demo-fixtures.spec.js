@@ -129,8 +129,11 @@ test('#324 · dueño: abastecimiento completo, seguridad y sistema con datos', a
 
   await page.goto('/configuracion/sistema')
   await expect(page.getByText('Base de datos').first()).toBeVisible({ timeout: 25_000 })
-  await expect(page.getByText('2 pendientes').first()).toBeVisible()
   await capturar(page, '10-dueno-sistema')
+
+  await page.goto('/configuracion/dispositivos?panel=sincronizacion')
+  await expect(page.getByTestId('impresoras-sync-trabajos')).toContainText('2 pendientes')
+  await capturar(page, '11-dueno-impresoras')
 })
 
 test('#324 · roles secundarios: el menú dice la misma persona y rol que Equipo', async ({ page }) => {

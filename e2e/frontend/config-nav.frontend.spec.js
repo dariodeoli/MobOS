@@ -96,17 +96,17 @@ test('el menú principal se pliega dentro de Configuración y vuelve como estaba
   expect((await lateral.boundingBox()).width, 'sigue plegado por preferencia').toBeLessThanOrEqual(72)
 })
 
-test('⌘K «impresora» muestra el grupo Configuración y abre Impresión y dispositivos', async ({ page }) => {
+test('⌘K «impresora» muestra el grupo Configuración y abre Impresoras', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
   const dialogo = await abrirBusqueda(page, 'impresora')
   await expect(dialogo.getByText('Configuración', { exact: true }).first()).toBeVisible()
   const resultado = dialogo.getByRole('option', { name: /Impresoras/ }).first()
-  await expect(resultado).toContainText('Configuración › Impresión y dispositivos')
+  await expect(resultado).toContainText('Configuración › Impresoras')
   await page.screenshot({ path: `${out}/busqueda-impresora-1440.png` })
   await resultado.click()
   await expect(page).toHaveURL(/\/configuracion\/dispositivos/)
-  await expect(page.getByRole('heading', { level: 1, name: 'Impresión y dispositivos' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Impresoras' })).toBeVisible()
 })
 
 test('⌘K «numeración» abre la pestaña interna y resalta el ajuste sin acentos ni mayúsculas', async ({ page }) => {
@@ -125,7 +125,7 @@ test('un vendedor no ve ajustes de administración en ⌘K, solo lo personal', a
   await enterDemo(page, 'Vendedor')
   const dialogo = await abrirBusqueda(page, 'impresora')
   await expect(dialogo.getByText('Sin resultados').or(dialogo.getByText(/No encontramos/))).toBeVisible()
-  await expect(dialogo.getByText('Configuración › Impresión y dispositivos')).toHaveCount(0)
+  await expect(dialogo.getByText('Configuración › Impresoras')).toHaveCount(0)
   await escribirBusqueda(page, 'costos vendedor')
   await expect(dialogo.getByText('Costos visibles para vendedores')).toHaveCount(0)
   await escribirBusqueda(page, 'sesiones')

@@ -10,9 +10,9 @@ import { auditarContraste, informar } from './helpers/contraste.js'
 const GRUPOS = [
   ['organizacion', 'Organización'],
   ['equipo', 'Equipo y acceso'],
-  ['dispositivos', 'Impresión y dispositivos'],
+  ['dispositivos', 'Impresoras'],
   ['comercial', 'Comercial'],
-  ['seguridad', 'Seguridad y auditoría'],
+  ['seguridad', 'Seguridad'],
   ['sistema', 'Sistema'],
   ['mi-cuenta', 'Mi cuenta'],
 ]
@@ -34,6 +34,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await expect(tabs).toHaveCount(GRUPOS.length)
       await expect(nav.locator(`[data-tab-id="${slug}"]`)).toHaveAttribute('aria-current', 'page')
       await expect(nav.locator('[aria-current="page"]')).toHaveText(label)
+      await expect(page.getByTestId('config-grupo-cabecera')).toContainText(label)
     }
   })
 

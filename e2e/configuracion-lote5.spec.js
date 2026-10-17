@@ -9,9 +9,9 @@ import { selectConfigSection } from './helpers/shell-navigation.js'
 const SUBPAGINAS = [
   ['organizacion', 'Organización'],
   ['equipo', 'Equipo y acceso'],
-  ['dispositivos', 'Impresión y dispositivos'],
+  ['dispositivos', 'Impresoras'],
   ['comercial', 'Comercial'],
-  ['seguridad', 'Seguridad y auditoría'],
+  ['seguridad', 'Seguridad'],
   ['sistema', 'Sistema'],
   ['mi-cuenta', 'Mi cuenta'],
 ]
@@ -90,12 +90,14 @@ test.describe('Configuración IA', () => {
     await page.goto('/configuracion/dispositivos')
     await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(7)
 
-    // Dispositivos: impresoras y su diagnóstico local, sin el estado global.
+    // Impresoras: configuración, puentes, estado global y colas de impresión.
     await expect(page.getByTestId('config-grupos').locator('[data-tab-id="dispositivos"]')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByTestId('paneles-impresion')).toBeVisible()
+    await page.getByTestId('panel-sincronizacion').click()
+    await expect(page.getByTestId('impresoras-sincronizacion')).toBeVisible()
+    await expect(page.getByTestId('impresoras-sync-puentes')).toContainText('en línea')
     await page.getByTestId('panel-diagnostico').click()
     await expect(page.getByRole('heading', { name: 'Diagnóstico de impresión (esta computadora)' })).toBeVisible()
-    await expect(page.getByTestId('monitoreo-global')).toBeVisible()
     await expect(page.getByTestId('config-grupos').getByRole('button', { name: 'Sistema', exact: true })).toBeAttached()
 
     // Sistema: solo el monitoreo global (Estado del sistema).
@@ -108,16 +110,18 @@ test.describe('Configuración IA', () => {
     await expect(page.locator('#pref-bloqueo')).toBeVisible()
   })
 
-  // #253 · Dispositivos: la pantalla se ordena en secciones (impresoras,
-  // puentes, formatos, diagnóstico y cola/historial) y deja claro que el
-  // monitoreo de la empresa vive en Estado del sistema, sin repetirse.
-  test('Dispositivos ordena sus secciones sin duplicar el monitoreo de Sistema', async ({ page }) => {
+  // #542 · Impresoras: estado, puentes y colas se encuentran bajo el dominio
+  // de impresión; el slug histórico de dispositivos sigue siendo estable.
+  test('Impresoras agrupa estado global, configuración, puentes y colas', async ({ page }) => {
     await page.goto('/configuracion/dispositivos')
     const paneles = page.getByTestId('paneles-impresion')
-    for (const label of ['Impresoras', 'Puentes', 'Ruteo de documentos', 'Diagnóstico', 'Cola e historial']) {
+    for (const label of ['Estado y sincronización', 'Impresoras', 'Puentes', 'Ruteo de documentos', 'Diagnóstico local', 'Cola e historial']) {
       await expect(paneles.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
-    await expect(paneles.getByRole('button', { name: 'Estado del sistema', exact: true })).toHaveCount(0)
+    await paneles.getByTestId('panel-sincronizacion').click()
+    await expect(page.getByTestId('impresoras-sincronizacion')).toBeVisible()
+    await expect(page).toHaveURL(/panel=sincronizacion/)
+    for (const id of ['puentes', 'impresoras', 'trabajos']) await expect(page.getByTestId(`impresoras-sync-${id}`)).toBeVisible()
 
     // Puentes: la gestión es una sección (ya no un modal suelto).
     await page.getByTestId('panel-puentes').click()
@@ -125,10 +129,9 @@ test.describe('Configuración IA', () => {
     await expect(page).toHaveURL(/panel=puentes/)
     await expect(page.getByRole('button', { name: 'Agregar puente' })).toBeVisible()
 
-    // Diagnóstico: estado local y red, con el enlace al monitoreo global.
+    // Diagnóstico: estado local y red del agente.
     await page.getByTestId('panel-diagnostico').click()
     await expect(page.getByTestId('diagnostico-impresion')).toBeVisible()
-    await expect(page.getByTestId('monitoreo-global')).toContainText('Estado del sistema')
 
     // Cola e historial: la cola de esta computadora y la actividad.
     await page.getByTestId('panel-cola').click()
@@ -139,9 +142,9 @@ test.describe('Configuración IA', () => {
     await page.getByTestId('panel-formatos').click()
     await expect(page.getByTestId('formatos-impresion')).toBeVisible()
 
-    // Sistema: el monitoreo enlaza a configurar/probar, sin duplicar la config.
+    // Sistema conserva sus métricas de servicios ajenos a la impresión.
     await page.goto('/configuracion/sistema')
-    await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Impresión y dispositivos · Impresoras')
+    await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Impresoras')
   })
 
   test('Documentación sale de Configuración: la ruta vieja redirige a Ayuda', async ({ page }) => {

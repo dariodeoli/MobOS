@@ -408,6 +408,7 @@ test.describe('owner panel', () => {
   // La auditoría real (antes solo existía en la demo).
   test('auditoría: lista los movimientos del negocio y filtra por área', async ({ page }) => {
     await page.goto('/configuracion/historial')
+    await expect(page).toHaveURL(/\/configuracion\/seguridad$/)
     await expect(page.getByRole('heading', { name: 'Auditoría' })).toBeVisible()
     const tabla = page.getByTestId('auditoria-tabla')
     await expect(tabla).toBeVisible()

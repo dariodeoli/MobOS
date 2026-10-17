@@ -108,7 +108,7 @@ test('1440: buscadores y selects de Configuración con ancho por contenido (#389
   await enterDemo(page, 1440)
   await openShellDestination(page, 'Configuración')
 
-  await selectConfigSection(page, 'Seguridad y auditoría')
+  await selectConfigSection(page, 'Seguridad')
   const busqueda = await caja(page.getByPlaceholder('Buscar por cliente, producto o vendedor…'))
   expect(busqueda.width, 'Seguridad: buscador').toBeLessThanOrEqual(MAX.busqueda + TOL)
 
@@ -128,7 +128,7 @@ test('1440: buscadores y selects de Configuración con ancho por contenido (#389
 test('390: buscador y select de Configuración ocupan el ancho disponible', async ({ page }) => {
   await enterDemo(page, 390, 844)
   await openShellDestination(page, 'Configuración')
-  await selectConfigSection(page, 'Seguridad y auditoría')
+  await selectConfigSection(page, 'Seguridad')
   const busqueda = await caja(page.getByPlaceholder('Buscar por cliente, producto o vendedor…'))
   expect(busqueda.width).toBeGreaterThanOrEqual(390 - 80)
   expect(await sinScrollHorizontal(page)).toBe(true)

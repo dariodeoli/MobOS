@@ -10,6 +10,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 test.describe('auditoría', () => {
   test('busca en el detalle, filtra por fecha y actor y exporta el CSV', async ({ page }) => {
     await page.goto('/configuracion/historial')
+    await expect(page).toHaveURL(/\/configuracion\/seguridad$/)
     await expect(page.getByRole('heading', { name: 'Auditoría' })).toBeVisible()
     await expect(page.getByTestId('auditoria-tabla')).toBeVisible()
 
