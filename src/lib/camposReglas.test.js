@@ -46,6 +46,7 @@ test('el extractor de RUC vive dentro del input y se ve en todos los lugares, ta
     'components/customers/CustomerProfile.jsx',
     'components/ventas/CheckoutCustomer.jsx',
     'components/ventas/SellerCustomers.jsx',
+    'pages/preview/BibliotecaUI.jsx',
   ]
   assert.deepEqual(usos.map((archivo) => archivo.ruta).sort(), esperados, 'todos los lugares con RUC usan el objeto compartido')
   for (const uso of usos) {
