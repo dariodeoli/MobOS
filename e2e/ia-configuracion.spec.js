@@ -18,9 +18,9 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-
 const SECCIONES = [
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Integrantes', 'equipo'],
-  ['Impresión y dispositivos', '', 'dispositivos', 'paneles-impresion'],
+  ['Impresoras', '', 'dispositivos', 'paneles-impresion'],
   ['Comercial', 'Seguro de ventas', 'comercial'],
-  ['Seguridad y auditoría', 'Sesiones activas', 'seguridad'],
+  ['Seguridad', 'Sesiones activas', 'seguridad'],
   ['Sistema', 'Sincronización', 'sistema'],
   ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
 ]

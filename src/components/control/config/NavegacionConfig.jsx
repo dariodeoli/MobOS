@@ -46,10 +46,16 @@ export default function NavegacionConfig({ value, onChange, items = [], seccionA
   return (
     <div data-testid="config-pagina" className="config-pagina mx-auto w-full max-w-[1280px]">
       <div className="min-w-0">
-        {group?.descripcion && (
-          <p data-testid="config-grupo-descripcion" className="mb-4 text-sm text-mute">
-            {group.descripcion}
-          </p>
+        {group && (
+          <header data-testid="config-grupo-cabecera" className="mb-4 flex min-w-0 items-start gap-3 rounded-xl border border-ink-600 bg-ink-700/30 p-3 sm:p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-700 text-fono-light">
+              <Icon name={group.icono || 'settings'} className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-base font-semibold text-fore">{group.titulo}</span>
+              {group.descripcion && <span data-testid="config-grupo-descripcion" className="mt-0.5 block text-sm text-mute">{group.descripcion}</span>}
+            </span>
+          </header>
         )}
         {children}
       </div>

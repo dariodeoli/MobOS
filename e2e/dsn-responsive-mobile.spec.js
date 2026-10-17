@@ -318,8 +318,8 @@ const GRUPOS_CONFIG_AUDIT = [
   // todos los anchos (si no, el contenido async entra después de la foto).
   ['equipo', 'Equipo y acceso', (page) => page.getByTestId('integrante-fila').first()],
   ['comercial', 'Comercial', (page) => page.getByText('Seguro de ventas').first()],
-  ['seguridad', 'Seguridad y auditoría', (page) => page.getByTestId('auditoria-actualizar')],
-  ['dispositivos', 'Impresión y dispositivos', (page) => page.getByText('Configurá y probá tus impresoras térmicas').first()],
+  ['seguridad', 'Seguridad', (page) => page.getByTestId('auditoria-actualizar')],
+  ['dispositivos', 'Impresoras', (page) => page.getByTestId('paneles-impresion')],
   ['sistema', 'Sistema', (page) => page.getByText('Sincronización').first()],
 ]
 

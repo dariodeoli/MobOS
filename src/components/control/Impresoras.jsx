@@ -25,6 +25,7 @@ import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
 import PlantillasImpresion from './PlantillasImpresion'
+import EstadoImpresion from './EstadoImpresion'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -58,16 +59,15 @@ const hace = (valor) => {
   if (horas < 24) return `hace ${horas} h`
   return `hace ${Math.floor(horas / 24)} d`
 }
-// #253 · Grupo Dispositivos: la pantalla se ordena en secciones con su URL
-// (`?panel=`), así el enlace sobrevive al refresh. Acá va la configuración y
-// las pruebas; el monitoreo global de la empresa (servicios, cola y correo)
-// vive en Estado del sistema, sin repetir lo mismo en los dos lados.
+// #253/#542 · Grupo Impresoras: la pantalla se ordena en secciones con su URL
+// (`?panel=`), así el enlace sobrevive al refresh.
 const PANELES = [
+  { id: 'sincronizacion', label: 'Estado y sincronización', icon: 'pulse', detalle: 'Estado global de puentes, impresoras y cola remota de la empresa.' },
   { id: 'plantillas', label: 'Plantillas', icon: 'report', detalle: 'Medidas y distribución de etiquetas; PDF manual con el mismo render de la vista previa.' },
   { id: 'impresoras', label: 'Impresoras', icon: 'printer', detalle: 'Agregá, editá y probá cada impresora. La prueba imprime un número secreto que se confirma en Cola e historial.' },
   { id: 'puentes', label: 'Puentes', icon: 'send', detalle: 'Computadoras con el agente que reclaman los trabajos en remoto; se vinculan con un código de un solo uso.' },
   { id: 'formatos', label: 'Ruteo de documentos', icon: 'list', detalle: 'Qué impresora recuerda cada tipo de documento (comprobante, etiquetas, informes…).' },
-  { id: 'diagnostico', label: 'Diagnóstico', icon: 'pulse', detalle: 'Estado del agente de esta computadora, red y cobertura por sucursal. El monitoreo global está en Estado del sistema.' },
+  { id: 'diagnostico', label: 'Diagnóstico local', icon: 'pulse', detalle: 'Estado del agente de esta computadora, red y cobertura por sucursal.' },
   { id: 'cola', label: 'Cola e historial', icon: 'clock', detalle: 'Trabajos pendientes y fallidos de esta computadora, y todo lo que ya salió por el papel.' },
 ]
 const panelDeImpresion = (valor) => (PANELES.some(({ id }) => id === valor) ? valor : 'impresoras')
@@ -976,6 +976,7 @@ export default function Impresoras() {
       <p className="text-xs text-mute" data-testid="panel-detalle">{PANELES.find(({ id }) => id === panel)?.detalle}</p>
 
       {panel === 'plantillas' && <PlantillasImpresion />}
+      {panel === 'sincronizacion' && <EstadoImpresion />}
       {panel === 'formatos' && (Object.keys(memoriaImpresion).length > 0 ? (
         <Card className="space-y-3" data-testid="formatos-impresion">
           <div>

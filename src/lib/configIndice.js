@@ -15,9 +15,9 @@
 export const SECCIONES_CONFIG = {
   organizacion: 'Organización',
   equipo: 'Equipo y acceso',
-  dispositivos: 'Impresión y dispositivos',
+  dispositivos: 'Impresoras',
   comercial: 'Comercial',
-  seguridad: 'Seguridad y auditoría',
+  seguridad: 'Seguridad',
   sistema: 'Sistema',
   'mi-cuenta': 'Mi cuenta',
 }
@@ -90,7 +90,7 @@ export function ajustePermitido(entrada, { esOwner = false } = {}) {
   return esOwner ? true : entrada.roles.includes('all')
 }
 
-// Camino visible: «Configuración › Impresión y dispositivos › Impresoras».
+// Camino visible: «Configuración › Impresoras».
 export function migasAjuste(entrada) {
   if (!entrada.section) return [...(entrada.miga || [])]
   return ['Configuración', SECCIONES_CONFIG[entrada.section], entrada.tab].filter(Boolean)
