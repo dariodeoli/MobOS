@@ -40,17 +40,18 @@ export default function SelectorSucursal({ className, abrirArriba = false, compa
     return (
       <div
         data-testid="sucursal-info"
-        title={compacto ? actual : undefined}
-        aria-label={compacto ? `Sucursal: ${actual}` : undefined}
-        role={compacto ? 'img' : undefined}
+        title={actual}
+        aria-label={`Sucursal: ${actual}`}
+        role="img"
         className={cn(
           'flex h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute',
           compacto && 'h-11 w-11 justify-center px-0',
+          'max-[359px]:h-11 max-[359px]:min-h-11 max-[359px]:w-11 max-[359px]:min-w-11 max-[359px]:shrink-0 max-[359px]:justify-center max-[359px]:px-0',
           className,
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
-        {!compacto && <span className="max-w-[180px] truncate">{actual}</span>}
+        {!compacto && <span className="max-w-[180px] truncate max-[359px]:hidden">{actual}</span>}
       </div>
     )
   }
@@ -78,13 +79,14 @@ export default function SelectorSucursal({ className, abrirArriba = false, compa
         title={compacto ? `Tienda o sucursal: ${actual}` : 'Tienda o sucursal'}
         onClick={() => setAbierto((valor) => !valor)}
         className={cn(
-          'flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-fore outline-none transition hover:border-fono/60 focus:border-fono',
+          'flex min-h-11 min-w-0 max-w-[160px] cursor-pointer items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-fore outline-none transition hover:border-fono/60 focus:border-fono',
           compacto && 'h-11 w-11 justify-center px-0',
+          'max-[359px]:w-11 max-[359px]:min-w-11 max-[359px]:shrink-0 max-[359px]:justify-center max-[359px]:px-0',
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px] shrink-0 text-mute" />
-        {!compacto && <span className={cn('truncate', sucursal ? '' : 'text-mute')}>{sucursal ? actual : 'Elegí sucursal'}</span>}
-        {!compacto && <Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition-transform', abierto && 'rotate-180')} />}
+        {!compacto && <span className={cn('truncate max-[359px]:hidden', sucursal ? '' : 'text-mute')}>{sucursal ? actual : 'Elegí sucursal'}</span>}
+        {!compacto && <Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition-transform max-[359px]:hidden', abierto && 'rotate-180')} />}
       </button>
 
       {abierto && (

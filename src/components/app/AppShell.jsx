@@ -175,7 +175,7 @@ export default function AppShell({
       aria-haspopup="dialog"
       aria-expanded={equipoPresenteAbierto}
       onClick={() => setEquipoPresenteAbierto(true)}
-      className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-ok hover:bg-ink-700"
+      className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-lg px-2 text-ok hover:bg-ink-700"
     >
       <Icon name="users" className="h-4 w-4" />
       <span className="text-xs font-semibold">{otrosPresentes.length}</span>
@@ -447,17 +447,17 @@ export default function AppShell({
           data-testid="shell-mobile-header"
           className="sticky top-0 z-20 border-b border-ink-600 bg-ink pt-safe lg:hidden"
         >
-          <div className="flex h-14 min-w-0 items-center gap-1 px-3">
+          <div className="flex h-14 min-w-0 items-center gap-1 px-3 max-[359px]:gap-0 max-[359px]:px-1">
             {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : (
               <>
                 <ThemeLogo data-testid="shell-mobile-brand" className="hidden h-6 w-[74px] shrink-0 min-[380px]:block" />
                 <img data-testid="shell-mobile-brand-icon" src="/mobos-icon.svg" alt="MobOS" className="block h-7 w-7 shrink-0 min-[380px]:hidden" />
               </>
             )}
-            <div data-testid="shell-sucursal-mobile" className="shell-header-selector flex min-w-0 flex-1 items-center">
+            <div data-testid="shell-sucursal-mobile" className="shell-header-selector flex min-w-11 shrink-0 flex-1 items-center">
               <SelectorSucursal className="max-w-full" />
             </div>
-            {offlineButton('shell-cola-offline-pill')}
+            {offlineButton('shell-cola-offline-pill', { compacto: true })}
             {searchButton(true)}
             {alertsButton(true)}
             {equipoButton(true)}
