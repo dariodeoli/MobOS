@@ -120,14 +120,21 @@ test('Mi cuenta se abre desde el avatar; Precios vive en una sola pantalla', asy
   await capturar(page, 'precios')
 })
 
-test('Documentación vive en Ayuda con su buscador', async ({ page }) => {
+test('Ayuda empieza con búsqueda global y muestra resultados disponibles al escribir', async ({ page }) => {
   await page.goto('/ayuda/ayuda')
   await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()
   await expect(page.getByTestId('documentacion')).toBeVisible()
+  const buscador = page.getByLabel('Buscar en toda la aplicación')
+  await expect(buscador).toBeFocused()
+  await expect(page.getByTestId('comandos-atajos')).toBeVisible()
+  const buscadorBox = await buscador.boundingBox()
+  const comandosBox = await page.getByTestId('comandos-atajos').boundingBox()
+  expect(buscadorBox.y).toBeLessThan(comandosBox.y)
   await capturar(page, 'ayuda')
 
-  await page.getByLabel('Buscar en la documentación').fill('PIN')
+  await page.keyboard.type('PIN')
   await expect(page.getByRole('heading', { name: 'Staff, roles y PIN' })).toBeVisible()
+  await expect(page.getByTestId('ayuda-resultados')).toContainText('secciones disponibles para tu usuario')
   await page.getByRole('button', { name: 'Ir a Staff, roles y PIN' }).click()
   await expect(page).toHaveURL(/\/configuracion\/equipo$/)
 })
@@ -145,14 +152,15 @@ test('Ayuda lista todos los comandos y atajos con su pantalla', async ({ page })
     ['Crear cliente', 'F3', null, '/clientes'],
     ['Cotizar Trade-In', 'F4', null, '/trade-in'],
     ['Guardar venta (POS)', 'Ctrl + S', 'Cmd + S', '/pos'],
-    ['Cerrar', 'Esc', null, '/pos'],
-    ['Mi perfil', '1 clic', null, '/pos'],
-    ['Bloquear pantalla', '1 clic', null, '/pos'],
+    ['Cerrar', 'Esc', null, null],
+    ['Mi perfil', '1 clic', null, '/mi-cuenta'],
+    ['Bloquear pantalla', '1 clic', null, null],
   ]
   for (const [titulo, tecla, mac, ruta] of casos) {
     await expect(seccion.getByText(tecla, { exact: true }).first()).toBeVisible()
     if (mac) await expect(seccion.getByText(mac, { exact: true })).toBeVisible()
-    await expect(seccion.getByRole('link', { name: `Ir a ${titulo}` })).toHaveAttribute('href', ruta)
+    if (ruta) await expect(seccion.getByRole('link', { name: `Ir a ${titulo}` })).toHaveAttribute('href', ruta)
+    else await expect(seccion.getByText('Disponible en cualquier pantalla').first()).toBeVisible()
   }
 
   // La aclaración de Mac y las pantallas de soporte (/status y /ops).

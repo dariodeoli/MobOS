@@ -1035,10 +1035,9 @@ export default function PanelVendedor() {
           {subpadre === 'ayuda' && (
             <div className="space-y-3">
               {vista === 'ayuda' && (
-                <>
-                  <ComandosAtajos />
-                  <Documentacion />
-                </>
+                <Documentacion vistasAccesibles={accesibles}>
+                  <ComandosAtajos vistasAccesibles={accesibles} />
+                </Documentacion>
               )}
             </div>
           )}
