@@ -1075,7 +1075,7 @@ export default function Impresoras() {
           </div>
         )}
         <Nota data-testid="monitoreo-global">
-          El <b className="text-fore">monitoreo de la empresa</b> (servicios, puentes, cola global y correo saliente) vive en <Link to="/configuracion/sistema" className="font-semibold text-fono-light underline underline-offset-2">Estado del sistema</Link>. Acá se configura, prueba y diagnostica el papel de esta computadora.
+          El estado de puentes y la cola de la empresa están en <Link to="/configuracion/dispositivos?panel=sincronizacion" className="font-semibold text-fono-light underline underline-offset-2">Estado y sincronización</Link>. Acá se configura, prueba y diagnostica cada impresora.
         </Nota>
       </Card>
       )}
@@ -1232,7 +1232,7 @@ export default function Impresoras() {
           </div>
         </div>
         <Nota data-testid="cola-global">
-          La <b className="text-fore">cola global de la empresa</b> (puentes y cancelación en lote) se monitorea en <Link to="/configuracion/sistema" className="font-semibold text-fono-light underline underline-offset-2">Estado del sistema</Link>. Acá se resuelve lo de esta computadora y queda el historial.
+          La <b className="text-fore">cola de la empresa</b>, los puentes y su estado están en <Link to="/configuracion/dispositivos?panel=sincronizacion" className="font-semibold text-fono-light underline underline-offset-2">Impresoras → Estado y sincronización</Link>. Acá se resuelve lo de esta computadora y queda el historial.
         </Nota>
       </Card>
 

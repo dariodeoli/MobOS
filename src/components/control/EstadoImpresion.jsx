@@ -6,6 +6,7 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { sistemaDemo } from '@/lib/demo/sistema.js'
 import { fechaHora as fmt } from '@/utils/fecha'
+import ColaImpresionEmpresa from './ColaImpresionEmpresa'
 
 const ITEMS = [
   ['puentes', 'Puentes', 'send'],
@@ -79,6 +80,7 @@ export default function EstadoImpresion() {
           <Link className="toque-44 rounded-lg border border-ink-600 p-3 text-sm font-medium hover:bg-ink-700" to="/configuracion/dispositivos?panel=cola">Abrir cola e historial</Link>
         </div>
       </Card>
+      <ColaImpresionEmpresa />
     </div>
   )
 }

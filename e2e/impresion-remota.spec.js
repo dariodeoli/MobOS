@@ -604,7 +604,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     expect(encolado.datos.job.state).toBe('PENDIENTE')
 
     // El monitor lo lista con tipo, referencia, usuario e impresora.
-    await page.goto('/configuracion/sistema')
+    await page.goto('/configuracion/dispositivos?panel=sincronizacion')
     const fila = page.getByRole('listitem').filter({ hasText: referencia })
     await expect(fila).toBeVisible({ timeout: 20_000 })
     await expect(fila.getByText('Comprobante', { exact: true })).toBeVisible()
@@ -644,7 +644,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       ids.push(encolado.datos.job.id)
     }
 
-    await page.goto('/configuracion/sistema')
+    await page.goto('/configuracion/dispositivos?panel=sincronizacion')
     for (const reference of referencias) {
       const fila = page.getByRole('listitem').filter({ hasText: reference })
       await expect(fila).toBeVisible({ timeout: 20_000 })
@@ -697,7 +697,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     expect(detalle.datos?.job?.state).toBe('INCIERTO')
 
     // En el monitor aparece como incierto y SIN Cancelar (se revisa en papel).
-    await page.goto('/configuracion/sistema')
+    await page.goto('/configuracion/dispositivos?panel=sincronizacion')
     const fila = page.getByRole('listitem').filter({ hasText: referencia })
     await expect(fila).toBeVisible({ timeout: 20_000 })
     await expect(fila.getByText('Incierto', { exact: true })).toBeVisible()
@@ -721,7 +721,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
 
     // Se cancela el primero desde el monitor (el puente sigue apagado).
-    await page.goto('/configuracion/sistema')
+    await page.goto('/configuracion/dispositivos?panel=sincronizacion')
     const fila = page.getByRole('listitem').filter({ hasText: encolados[0].reference })
     await expect(fila).toBeVisible({ timeout: 20_000 })
     await fila.getByRole('button', { name: 'Cancelar', exact: true }).click()
