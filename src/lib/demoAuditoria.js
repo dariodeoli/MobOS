@@ -1,7 +1,7 @@
 import { metodoDeMedio } from './demoConciliacion.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { getDemoTenant } from './demoTenant.js'
-import { esperadoCaja, esEfectivoDemo } from './demoCash.js'
+import { esperadoCaja, esEfectivoDemo, vendedorDeCajaDemo } from './demoCash.js'
 import { diaDemo } from './demo/reloj.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
@@ -66,7 +66,9 @@ export function construirDemoAuditoriaMedios({ ventas = [], fecha = '' } = {}) {
 export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde = '', hasta = '', marcas = {} } = {}) {
   const operaciones = []
   const efectivoExtranjero = {}
+  const vendedorDeLaSesion = cash?.openedById ? vendedorDeCajaDemo(cash) : null
   for (const [indice, venta] of ventas.entries()) {
+    if (vendedorDeLaSesion && venta?.vendedorId !== vendedorDeLaSesion) continue
     for (const pago of Array.isArray(venta?.pagos) ? venta.pagos : []) {
       if (!esEfectivoDemo(pago)) continue
       if (!enRango(pago.fecha || venta.creadoEn || venta.fecha, desde, hasta)) continue

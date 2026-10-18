@@ -94,7 +94,7 @@ test('Caja: el esperado y la auditoría usan UNA definición (apertura + efectiv
   const ahora = new Date()
   const hace = (minutos) => new Date(ahora.getTime() - minutos * 60000).toISOString()
   const cash = {
-    id: 'c1', status: 'OPEN', openedAt: hace(30), openingPyg: 500000,
+    id: 'c1', status: 'OPEN', openedById: 'demo-user', openedAt: hace(30), openingPyg: 500000,
     movements: [
       { id: 'm1', kind: 'INGRESO', concept: 'Aporte', amountPyg: 300000, createdAt: hace(20) },
       { id: 'm2', kind: 'EGRESO', concept: 'Retiro', amountPyg: 150000, createdAt: hace(15) },
@@ -103,13 +103,16 @@ test('Caja: el esperado y la auditoría usan UNA definición (apertura + efectiv
   const ventas = [{ id: 'v', vendedorId: 'demo-user', fecha: diaDemo(0, ahora), pagos: [
     { id: 'p1', medioPago: 'DINERO', monto: 400000, fecha: hace(10) },
     { id: 'p2', medioPago: 'UENO BANK', monto: 90000, fecha: hace(10) },
+  ] }, { id: 'venta-otro-cajero', vendedorId: 'otro-cajero', fecha: diaDemo(0, ahora), pagos: [
+    { id: 'p-otro', medioPago: 'DINERO', monto: 9900000, fecha: hace(8) },
   ] }]
   const esperadoTurno = getDemoCashExpected(cash, new Date(ahora.getTime() + 60000), ventas)
   assert.equal(esperadoTurno, 500000 + 400000 + 300000 - 150000, 'apertura + efectivo + ingresos − egresos; la transferencia no entra')
   const hoy = diaDemo(0, ahora)
   const ayer = diaDemo(1, ahora)
-  const { resumen } = construirDemoAuditoriaEfectivo({ ventas, cash, desde: ayer, hasta: hoy })
+  const { resumen, operaciones } = construirDemoAuditoriaEfectivo({ ventas, cash, desde: ayer, hasta: hoy })
   assert.equal(resumen.salidasPyg, 150000)
+  assert.ok(!operaciones.some(operacion => operacion.id === 'p-otro'), 'la auditoría del turno no suma pagos de otro cajero')
   assert.equal(resumen.esperadoPyg, resumen.aperturaPyg + resumen.recibidoPyg - resumen.salidasPyg, 'el esperado del rango = inicial + recibido − salidas')
   assert.equal(resumen.esperadoPyg, esperadoTurno, 'con un solo turno en el día, los dos esperados coinciden')
 })
