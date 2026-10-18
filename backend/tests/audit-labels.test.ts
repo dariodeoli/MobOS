@@ -26,6 +26,8 @@ assert.equal(AREAS_AUDITORIA.Branch, 'Sucursales')
 assert.equal(AREAS_AUDITORIA.Tenant, 'Empresa')
 // #301: las dos entidades de inventario dejan de compartir la etiqueta ambigua.
 assert.equal(AREAS_AUDITORIA.InventoryUnit, 'Inventario · unidades')
+assert.equal(AREAS_AUDITORIA.InventoryCount, 'Inventario · conteos')
+assert.equal(ACCIONES_AUDITORIA.INVENTORY_COUNT_QUANTITY_ADJUSTED, 'Cantidad de inventario ajustada por conteo')
 assert.equal(AREAS_AUDITORIA.Product, 'Inventario · productos')
 assert.equal(AREAS_AUDITORIA.ImeiCheckQuery, 'IMEI')
 

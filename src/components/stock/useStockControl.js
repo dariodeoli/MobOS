@@ -578,7 +578,9 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [conteoSerial, setConteoSerial] = useState(''), [conteoFlash, setConteoFlash] = useState(null), [conteoBusy, setConteoBusy] = useState(false)
   const [conteoSinSerie, setConteoSinSerie] = useState({ productId: '', quantity: '1' })
   const [nuevoConteoOpen, setNuevoConteoOpen] = useState(false), [nuevoConteoNota, setNuevoConteoNota] = useState('')
+  const [nuevoConteoUbicacionId, setNuevoConteoUbicacionId] = useState(''), [nuevoConteoAlcance, setNuevoConteoAlcance] = useState('PARTIAL')
   const [aplicarConteoOpen, setAplicarConteoOpen] = useState(false), [ajustarConteo, setAjustarConteo] = useState(true)
+  const [motivoAplicarConteo, setMotivoAplicarConteo] = useState('')
   const [cancelarConteoOpen, setCancelarConteoOpen] = useState(false), [camaraConteoOpen, setCamaraConteoOpen] = useState(false)
   const conteoSerialRef = useRef(null)
   const escanearConteoRef = useRef(null)
@@ -619,8 +621,9 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setConteoBusy(true); setConteosError('')
     try {
       const nota = nuevoConteoNota.trim()
-      const creado = await api.post('/api/inventory-counts', { ...(nota ? { note: nota } : {}), ...(sucursal?.id ? { branchId: sucursal.id } : {}) })
+      const creado = await api.post('/api/inventory-counts', { ...(nota ? { note: nota } : {}), ...(sucursal?.id ? { branchId: sucursal.id } : {}), scope: nuevoConteoAlcance, ...(nuevoConteoUbicacionId ? { locationId: nuevoConteoUbicacionId } : {}) })
       setNuevoConteoOpen(false); setNuevoConteoNota('')
+      setNuevoConteoUbicacionId(''); setNuevoConteoAlcance('PARTIAL')
       await cargarConteos()
       setConteoId(creado.id)
       toast.success('Conteo iniciado: escaneá los equipos y aplicalo al terminar.')
@@ -657,8 +660,9 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (!conteoAplicable(conteoDetalle)) { setConteoError('Escaneá al menos un equipo antes de aplicar el conteo.'); setAplicarConteoOpen(false); return }
     setConteoBusy(true); setConteoError('')
     try {
-      const resultado = await api.patch('/api/inventory-counts', { id: conteoId, action: 'apply', adjust: ajustarConteo })
+      const resultado = await api.patch('/api/inventory-counts', { id: conteoId, action: 'apply', adjust: ajustarConteo, reason: motivoAplicarConteo.trim() })
       setAplicarConteoOpen(false)
+      setMotivoAplicarConteo('')
       await Promise.all([cargarConteo(conteoId, true), cargarConteos()])
       await refresh(busquedaDiferida)
       toast.success(ajustarConteo ? `Conteo aplicado: ${resultado.missing} faltante(s) pasaron a defectuoso y el stock se recalculó.` : `Conteo aprobado sin ajustar stock (${resultado.missing} faltante(s)).`)
@@ -1255,10 +1259,17 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setNuevoConteoOpen,
     nuevoConteoNota,
     setNuevoConteoNota,
+    nuevoConteoUbicacionId,
+    setNuevoConteoUbicacionId,
+    nuevoConteoAlcance,
+    setNuevoConteoAlcance,
+    locationsFor,
     aplicarConteoOpen,
     setAplicarConteoOpen,
     ajustarConteo,
     setAjustarConteo,
+    motivoAplicarConteo,
+    setMotivoAplicarConteo,
     cancelarConteoOpen,
     setCancelarConteoOpen,
     camaraConteoOpen,
