@@ -1,6 +1,6 @@
 // #299 · Organización y Equipo: dividir por tareas y normalizar roles.
 //
-// - Organización en secciones por tarea: Datos generales · Identidad visual ·
+// - Organización en secciones por tarea: Datos generales · Tienda de módulos · Identidad visual ·
 //   Sucursales y depósitos · Datos fiscales · Numeración · Zona de peligro.
 //   Cada sección muestra solo su contenido (nada de una columna con todo).
 // - Equipo en pestañas: Miembros · Invitaciones · Permisos · Rendimiento.
@@ -25,6 +25,7 @@ async function capturar(page, nombre) {
 
 const ORG = [
   ['Datos generales', 'Datos de la tienda'],
+  ['Tienda de módulos', 'Tienda de módulos'],
   ['Identidad visual', 'Logo de la empresa'],
   ['Sucursales y depósitos', 'Tiendas'],
   ['Datos fiscales', 'Empresas/personas jurídicas (privado)'],
@@ -50,7 +51,9 @@ test('#299 · Organización se abre por tareas, sin mezclar todo en una columna'
 
   for (const [tab, contenido] of ORG.slice(1)) {
     await secciones.getByRole('tab', { name: tab, exact: true }).click()
-    if (contenido === 'Tiendas') {
+    if (contenido === 'Tienda de módulos') {
+      await expect(page.getByTestId('tienda-modulos')).toBeVisible({ timeout: 20_000 })
+    } else if (contenido === 'Tiendas') {
       await expect(page.getByTestId('tiendas-sucursales')).toBeVisible({ timeout: 20_000 })
     } else {
       await expect(page.getByRole('heading', { name: contenido, exact: true }).first()).toBeVisible({ timeout: 20_000 })

@@ -5,6 +5,10 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { selectConfigSection } from './helpers/shell-navigation.js'
+import { SEED } from './helpers/seed-data.js'
+import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
+
+const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 const SUBPAGINAS = [
   ['organizacion', 'Organización'],
@@ -225,4 +229,62 @@ test.describe('Configuración IA', () => {
       }
     }
   })
+})
+
+test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas', async ({ page, browser }) => {
+  await page.goto('/pos')
+  const origin = new URL(page.url()).origin
+  const getModules = async (context) => {
+    const response = await context.request.get(`${API}/api/tenant/modules`, { headers: { origin } })
+    return { status: response.status(), body: await response.json().catch(() => null) }
+  }
+  const setMessages = async (enabled) => page.request.put(`${API}/api/tenant/modules`, {
+    data: { moduleId: 'mensajes', enabled }, headers: { origin },
+  })
+
+  const previo = await getModules(page.context())
+  expect(previo.status).toBe(200)
+  const estabaActivo = previo.body.state.modules.mensajes.enabled
+  let gerenteId = ''
+  const sellerContext = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
+  let managerContext
+  try {
+    if (estabaActivo) expect((await setMessages(false)).status()).toBe(200)
+
+    const gerente = await crearIntegranteConPinLibre(page, { api: API, nombre: `QA tienda gerente ${Date.now()}`, rol: 'GERENTE' })
+    gerenteId = gerente.id
+    managerContext = await browser.newContext()
+    const managerPage = await managerContext.newPage()
+    await managerPage.goto(`${origin}/login`)
+    const login = await managerPage.evaluate(async ({ api, pin, sellerId, company }) => {
+      const auth = await fetch(`${api}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: company.email, password: company.password, deviceId: 'module-store-manager-e2e' }) })
+      const access = await fetch(`${api}/api/auth/pin`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId, pin }) })
+      return { auth: auth.status, access: access.status }
+    }, { api: API, pin: gerente.pin, sellerId: gerente.id, company: SEED.company })
+    expect(login).toEqual({ auth: 200, access: 200 })
+
+    for (const [context, rol] of [[sellerContext, 'vendedor'], [managerContext, 'gerente']]) {
+      const rolePage = context.pages()[0] || await context.newPage()
+      const respuestaModulos = rolePage.waitForResponse(response => response.url().includes('/api/tenant/modules') && response.status() === 200)
+      await rolePage.goto(`${origin}/pos`)
+      await respuestaModulos
+      const estado = await getModules(context)
+      expect(estado.status, rol).toBe(200)
+      expect(estado.body.canManage, rol).toBe(false)
+      expect(estado.body.state.modules.mensajes.enabled, rol).toBe(false)
+      await expect(rolePage.getByText('Plantillas', { exact: true })).toHaveCount(0)
+      await expect(rolePage.getByText('Campañas', { exact: true })).toHaveCount(0)
+      const plantillasApi = await context.request.get(`${API}/api/message-templates`, { headers: { origin } })
+      expect(plantillasApi.status(), `${rol} API`).toBe(403)
+      await rolePage.goto(`${origin}/plantillas`)
+      await expect(rolePage).not.toHaveURL(/\/plantillas$/)
+      await rolePage.goto(`${origin}/campanas`)
+      await expect(rolePage).not.toHaveURL(/\/campanas$/)
+    }
+  } finally {
+    if (estabaActivo) await setMessages(true).catch(() => {})
+    if (gerenteId) await page.request.patch(`${API}/api/users`, { data: { id: gerenteId, status: 'INACTIVE' }, headers: { origin } }).catch(() => {})
+    await sellerContext.close()
+    await managerContext?.close()
+  }
 })

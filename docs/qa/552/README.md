@@ -4,7 +4,7 @@
 
 - El registro del catálogo vive en `backend/lib/module-store.ts`. Cada entrada lleva id, nombre, descripción, categoría, icono, rubros, nivel, core, dependencias, preview, estado disponible/próximamente y accesos a los editores existentes.
 - El estado queda dentro de `Tenant.settings.moduleStore`, con preset, estado por módulo (`enabled`, `manuallySelected`, `source`, `updatedAt`) y auditoría en `AuditLog`. No se crea una segunda entidad de módulos ni se toca información histórica.
-- La ruta `GET/PUT /api/tenant/modules` devuelve catálogo y estado por tenant. Solo `ADMIN` puede cambiar el preset o un override. El servidor conserva módulos core, valida dependencias/dependientes y registra el antes/después.
+- La ruta `GET/PUT /api/tenant/modules` devuelve catálogo y estado por tenant a cualquier usuario autenticado; solo `ADMIN` puede cambiar el preset o un override (`canManage` lo indica). El servidor conserva módulos core, valida dependencias/dependientes y registra el antes/después.
 - Organización → Tienda de módulos tiene búsqueda, categorías, filtro de activos, tarjetas responsive, distintivos Core/Manual, vistas previas de muestra que no guardan ni imprimen, cambio de preset con confirmación y accesos a los editores ya existentes. Catálogo y estados muestran versión, origen y fecha.
 - Mensajes es el primer módulo con activación real: el shell oculta Plantillas/Campañas, la navegación directa redirige y cada operación API de `/api/message-templates` queda bloqueada cuando está desactivado. El editor existente de WhatsApp permanece en `/plantillas`.
 - Impresión se descubre y enlaza a Configuración → Impresoras, sin duplicar el editor. Su control central queda pendiente hasta cubrir en servidor todas las operaciones de cola, puentes y renderizado; el editor actual sigue disponible.
@@ -14,7 +14,7 @@
 
 ## Límite deliberado de esta fase
 
-La tienda gobierna presets, overrides, catálogo, navegación de pantallas, la API de cambios de estado y su auditoría. Solo Mensajes tiene una guarda de módulo completa en servidor. Ventas, inventario, finanzas, reportes y servicios permanecen visibles/en uso y aparecen en modo catálogo mientras se prepara una guarda backend común para todos sus endpoints. No se ofrece su desactivación en esta fase.
+La tienda gobierna presets, overrides, catálogo, navegación de pantallas, la API de cambios de estado y su auditoría. Mensajes y Verificación IMEI tienen guardas de API; las otras operaciones de inventario no dependen del interruptor IMEI. Ventas, inventario, finanzas, reportes y servicios permanecen visibles/en uso y aparecen en modo catálogo mientras se prepara una guarda backend común para todos sus endpoints. No se ofrece su desactivación en esta fase.
 
 También queda para la siguiente fase la instalación transaccional/versionada de packs de mensajes (correo, seguimiento, pago, entrega, garantía y asistencia), selección de plantilla predeterminada/restauración con versionado y un preview de ticket/etiqueta con los renderizadores reales sin enviar trabajo a la impresora. La vista previa de esta entrega es una muestra fija. Los presets actuales afectan el estado de Mensajes; no siembran ni reescriben plantillas.
 
@@ -27,3 +27,4 @@ Agenda aparece como módulo core de catálogo, pero MobOS aún no tiene una pant
 - Prueba unitaria de defaults, presets, overrides, dependencias, core, validación y preservación de settings.
 - E2E focal de enlace a los editores actuales, desactivación/guardia de la pantalla de plantillas y ancho móvil.
 - E2E de presencia del módulo IMEI, estado de los proveedores y rechazo 403 de su API al desactivarlo.
+- Contrato #299 actualizado para incluir la pestaña Tienda de módulos sin relajar aserciones. E2E seller/manager confirma lectura de estado, ocultamiento y bloqueo de Plantillas/Campañas cuando Mensajes está desactivado.
