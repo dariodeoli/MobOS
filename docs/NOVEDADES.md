@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.232 — 2026-10-18
+
+- **Landing:** ahora incluye ejemplos visuales de siete áreas de MobOS, adaptados a celular, tablet y escritorio. Los datos son ficticios y se identifican como muestras para que no se confundan con la actividad de una tienda.
+- **Inventario:** los conteos admiten alcance parcial o completo y pueden asociarse a un sector. Aplicar un ajuste requiere motivo y queda en auditoría; los reintentos no duplican el ajuste. En conteos por sector se verifican equipos con serie; las cantidades sin serie siguen controlándose por sucursal hasta contar con saldos vinculados a cada ubicación.
+
 ## v1.0.231 — 2026-10-16
 
 - **Diseño en web móvil y iPhone:** el acceso conserva el aviso de espera correcto y muestra progreso solo en el método elegido. Cobrar ocupa toda la pantalla sin desplazarse fuera del borde; Clientes y Mi cuenta mantienen alineación y controles comunes, conservando las opciones propias del iPhone.
