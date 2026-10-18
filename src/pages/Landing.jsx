@@ -4,6 +4,7 @@ import { publicUrls } from '@/lib/urls'
 import ImeiVerificador from '@/components/landing/ImeiVerificador'
 import CommercialPreview from '@/components/landing/CommercialPreview'
 import CapacidadesMobOS from '@/components/landing/CapacidadesMobOS'
+import ShowcaseMobOS from '@/components/landing/ShowcaseMobOS'
 import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ThemeToggle from '@/components/app/ThemeToggle'
@@ -203,6 +204,7 @@ export default function Landing() {
           </div>
         </section>
         <CapacidadesMobOS />
+        <ShowcaseMobOS />
         <section
           className="landing-stories landing-container"
           aria-label="Vender, controlar y cerrar la operación"

@@ -8,7 +8,7 @@ test('commercial landing: responsive presentation and public contracts', async (
   const browser = await chromium.launch({ headless: true })
   const measurements = []
   try {
-    for (const width of [360, 390, 768, 1440])
+    for (const width of [320, 360, 390, 768, 1440])
       for (const theme of ['light', 'dark']) {
         const context = await browser.newContext({
           viewport: { width, height: 900 },
@@ -32,6 +32,11 @@ test('commercial landing: responsive presentation and public contracts', async (
         const preview = page.locator('#inicio .commercial-preview')
         assert.equal(await preview.count(), 1, 'hero uses the presentation-only commercial preview')
         assert.equal(await preview.locator('figcaption').count(), 0)
+        const showcase = page.getByTestId('landing-showcase')
+        assert.equal(await showcase.locator('.landing-showcase-card').count(), 7)
+        for (const id of ['pos', 'caja', 'stock', 'modulos', 'impresion', 'clientes', 'analytics'])
+          assert.equal(await page.getByTestId(`showcase-${id}`).count(), 1, `showcase ${id} is present`)
+        assert.match(await showcase.innerText(), /Datos ficticios/)
         assert.equal(
           await preview.locator('button,a,input,[role="button"]').count(),
           0,
@@ -121,7 +126,7 @@ test('commercial landing: responsive presentation and public contracts', async (
         const geometry = await page.evaluate(() => {
           const header = document.querySelector('header').getBoundingClientRect()
           const eyebrow = document.querySelector('.landing-eyebrow').getBoundingClientRect()
-          const bad = [...document.querySelectorAll('.commercial-preview *, h1,h2,h3')]
+          const bad = [...document.querySelectorAll('.commercial-preview *, .landing-showcase *, h1,h2,h3')]
             .filter(el => {
               const r = el.getBoundingClientRect()
               return (
