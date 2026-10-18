@@ -52,6 +52,8 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   INVENTORY_UNIT_COMMENTED: 'Comentario en la unidad',
   INVENTORY_RESERVATIONS_RELEASED_SCHEDULED: 'Reservas vencidas liberadas',
   IMEI_QUERY_CONCILIATED: 'Consulta IMEI conciliada',
+  IMEI_QUERY_EXECUTED: 'Consulta IMEI ejecutada',
+  IMEI_QUERY_LIMIT_REJECTED: 'Consulta IMEI rechazada por límite',
   SUPPLY_NEED_CREATED: 'Necesidad de abastecimiento creada',
   SUPPLY_NEED_ASSIGNED: 'Necesidad asignada a un comprador',
   SUPPLY_NEED_CANCELLED: 'Necesidad de abastecimiento cancelada',

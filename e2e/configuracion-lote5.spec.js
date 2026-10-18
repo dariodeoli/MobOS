@@ -91,8 +91,17 @@ test.describe('Configuración Lote 5', () => {
     await abrirTienda()
     const printCard = page.getByTestId('modulo-card-impresion')
     const messageCard = page.getByTestId('modulo-card-mensajes')
+    const imeiCard = page.getByTestId('modulo-card-verificacion-imei')
     await expect(printCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/configuracion/dispositivos')
     await expect(messageCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/plantillas')
+    await expect(imeiCard).toContainText('IMEIcheck.net · actual')
+    await expect(imeiCard).toContainText('IMEI.info · próximamente / no configurado')
+    const imeiApi = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/imei`, { headers: { origin: process.env.MOBOS_APP_URL } })
+    expect(imeiApi.status()).toBe(200)
+    expect((await imeiApi.json()).proveedores).toEqual([
+      { id: 'imeicheck.net', estado: expect.any(String), seleccionado: true },
+      { id: 'imei.info', estado: 'no-configurado', seleccionado: false },
+    ])
     try {
       await messageCard.getByRole('button', { name: 'Desactivar', exact: true }).click()
       await expect(messageCard).toContainText('Desactivado')
@@ -103,6 +112,17 @@ test.describe('Configuración Lote 5', () => {
     } finally {
       await abrirTienda()
       const card = page.getByTestId('modulo-card-mensajes')
+      const activar = card.getByRole('button', { name: 'Activar', exact: true })
+      if (await activar.isVisible().catch(() => false)) await activar.click()
+      await expect(card).toContainText('Activo')
+    }
+    try {
+      await page.getByTestId('modulo-card-verificacion-imei').getByRole('button', { name: 'Desactivar', exact: true }).click()
+      const api = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/imei`, { headers: { origin: process.env.MOBOS_APP_URL } })
+      expect(api.status()).toBe(403)
+    } finally {
+      await abrirTienda()
+      const card = page.getByTestId('modulo-card-verificacion-imei')
       const activar = card.getByRole('button', { name: 'Activar', exact: true })
       if (await activar.isVisible().catch(() => false)) await activar.click()
       await expect(card).toContainText('Activo')

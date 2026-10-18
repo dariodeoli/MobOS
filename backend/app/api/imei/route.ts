@@ -3,6 +3,7 @@ import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { creditosDeServicio, correspondeReembolso, estadoCreditos, reembolsarConsulta, reservarConsulta } from '../../../lib/imei-credits'
 import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, modoImeicheck, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
+import { tenantModuleEnabled } from '../../../lib/tenant-module-access'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
 //
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const tenant = session.user.tenantId
+  if (!await tenantModuleEnabled(tenant, 'verificacion-imei')) return error('La verificación de IMEI está desactivada para esta empresa.', 403)
   if (!canAccessAny(session.user, ROLES_CONSULTA)) return error('No autorizado.', 403)
   const params = new URL(request.url).searchParams
   const verCrudo = ROLES_VER_CRUDO.includes(session.user.role)
@@ -34,6 +36,10 @@ export async function GET(request: Request) {
   const creditos = await estadoCreditos(tenant)
   return json({
     ...modoImeicheck(),
+    proveedores: [
+      { id: 'imeicheck.net', estado: modoImeicheck().modo === 'vivo' ? 'configurado' : 'simulado', seleccionado: true },
+      { id: 'imei.info', estado: 'no-configurado', seleccionado: false },
+    ],
     creditos: { saldo: creditos.saldo, enforce: creditos.enforce },
     // Sin precios: la app solo habla de verificaciones (créditos).
     servicios: Object.fromEntries(Object.entries(SERVICIOS).map(([clave, s]) => [clave, { nombre: s.nombre, campos: s.campos, creditos: creditosDeServicio(clave) }])),
@@ -59,6 +65,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
+  if (!await tenantModuleEnabled(session.user.tenantId, 'verificacion-imei')) return error('La verificación de IMEI está desactivada para esta empresa.', 403)
   if (!canAccessAny(session.user, ROLES_CONSULTA)) return error('No autorizado.', 403)
   const tenant = session.user.tenantId
   let body: any
@@ -149,7 +156,10 @@ export async function POST(request: Request) {
       }),
     })
     if (r.tipo === 'existente') return json({ ...expectativa(r.fila, verCrudo), ...(r.fila.status === 'reservado' ? { enCurso: true } : {}) }, { status: 200 })
-    if (r.tipo === 'sin-creditos') return json({ message: 'No disponible en tu cuenta.', code: 'IMEI_SIN_CREDITOS', creditos: { saldo: r.saldo, requeridos: r.requeridos } }, { status: 402 })
+    if (r.tipo === 'sin-creditos') {
+      await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_LIMIT_REJECTED', entity: 'ImeiCheckQuery', metadata: { provider: 'imeicheck.net', serviceKey: clave, imeiMasked: enmascararImei(validacion.imei), requeridos: r.requeridos, saldo: r.saldo } } }).catch(() => {})
+      return json({ message: 'No disponible en tu cuenta.', code: 'IMEI_SIN_CREDITOS', creditos: { saldo: r.saldo, requeridos: r.requeridos } }, { status: 402 })
+    }
     reserva = r.fila
   } catch (causa: any) {
     if (causa?.code !== 'P2002') throw causa
@@ -180,6 +190,7 @@ export async function POST(request: Request) {
       resolvedAt: resultado.estado === 'pendiente' ? null : new Date(),
     },
   })
+  await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_EXECUTED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { provider: registro.provider, serviceKey: clave, status: registro.status, imeiMasked: registro.imeiMasked, requestId: registro.requestId } } }).catch(() => {})
   // Falló sin cobro del proveedor: se devuelve el crédito, una sola vez. «A conciliar» lo conserva.
   if (correspondeReembolso(resultado.estado, resultado.costoUsd)) {
     try { await reembolsarConsulta(tenant, reserva.id) } catch (causa) { console.error('imei: no se pudo reembolsar el crédito', causa) }

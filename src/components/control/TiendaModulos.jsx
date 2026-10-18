@@ -5,7 +5,7 @@ import { useSesion } from '@/lib/sesion'
 import { Aviso, Badge, Button, Card, ConfirmDialog, Input, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
-const CATEGORIAS = ['Todas', 'Operación', 'Finanzas', 'Clientes', 'Mensajes', 'Reportes', 'Salud', 'Configuración']
+const CATEGORIAS = ['Todas', 'Operación', 'Finanzas', 'Clientes', 'Mensajes', 'IMEI', 'Reportes', 'Salud', 'Configuración']
 const RUBRO = { comercio: 'Comercio', servicios: 'Servicios', salud: 'Salud' }
 
 export default function TiendaModulos() {
@@ -63,7 +63,7 @@ export default function TiendaModulos() {
       </div>
       <div className="grid gap-2 rounded-xl border border-ink-600 p-3 text-xs text-mute sm:grid-cols-2">
         <p><b className="text-fore">Packs sugeridos por rubro:</b> Comercio (ventas, inventario, mensajes e impresión), Servicios (clientes, órdenes e impresión; plantillas opcionales) y Salud (clientes y reportes; el módulo Salud sigue en preparación). El preset cambia accesos, nunca borra registros.</p>
-        <p><b className="text-fore">Plantillas existentes:</b> WhatsApp organiza pedidos, clientes, servicios y cobranzas. Vista previa y catálogo no envían mensajes. Correo y packs importables quedan para una siguiente fase.</p>
+        <p><b className="text-fore">Plantillas existentes:</b> WhatsApp organiza pedidos, clientes, servicios y cobranzas. Vista previa y catálogo no envían mensajes. Packs por rubro se presentan como referencia; su instalación versionada y selección predeterminada siguen pendientes.</p>
       </div>
       <div className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] sm:items-end">
         <label className="space-y-1 text-xs text-mute"><span>Buscar</span><Input aria-label="Buscar módulos" value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Nombre o descripción" /></label>
@@ -85,6 +85,7 @@ export default function TiendaModulos() {
           {module.benefits?.length > 0 && <ul className="list-inside list-disc space-y-1 text-xs text-mute">{module.benefits.map(item => <li key={item}>{item}</li>)}</ul>}
           <p className="text-xs text-mute">Recomendado: {module.recommendedFor.map(id => RUBRO[id]).join(', ') || '—'}{module.dependencies.length ? ` · Requiere: ${module.dependencies.map(id => data.catalog.find(item => item.id === id)?.name || id).join(', ')}` : ''}</p>
           {module.capabilities?.length > 0 && <div className="flex flex-wrap gap-1">{module.capabilities.map(item => <Badge key={item} color="slate">{item}</Badge>)}</div>}
+          {module.packs?.length > 0 && <div className="rounded-lg border border-ink-600 p-2"><p className="text-xs font-semibold">Packs sugeridos (preview)</p><div className="mt-1 space-y-1">{module.packs.map(pack => <p key={pack.id} className="text-xs text-mute"><b className="text-fore">{pack.name}:</b> {pack.includes.join(' · ')}</p>)}</div></div>}
           {!module.core && module.changeable === false && module.status === 'available' && <p className="rounded-lg border border-ink-600 p-2 text-xs text-mute">El editor existente sigue disponible. Su control central se habilitará cuando también estén protegidas todas sus acciones de servidor.</p>}
           {module.id === 'salud' && <Aviso tono="warn" como="div" className="p-2 text-xs">Podría involucrar datos sensibles de salud. La función aún no está disponible.</Aviso>}
           {state?.updatedAt && <p className="text-[11px] text-mute">{state.source === 'manual' ? 'Selección manual' : `Preset ${RUBRO[data.state.preset]}`} · actualizado {new Date(state.updatedAt).toLocaleDateString('es-PY')}</p>}

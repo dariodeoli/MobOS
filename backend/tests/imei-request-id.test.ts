@@ -17,7 +17,7 @@ let currentTenant = 'tenant-a'
 const rows: any[] = []
 const pause = () => new Promise(resolve => setTimeout(resolve, 5))
 
-const prisma = { imeiCheckQuery: {
+const prisma = { auditLog: { create: async () => ({}) }, imeiCheckQuery: {
   findFirst: async ({ where }: any) => { await pause(); return rows.find(r => r.tenantId === where.tenantId && r.requestId === where.requestId) ?? null },
   create: async ({ data }: any) => {
     await pause()
@@ -32,6 +32,7 @@ const modules: Record<string, unknown> = {
   '../../../lib/prisma': { prisma },
   '../../../lib/http': { json: (data: unknown, init?: ResponseInit) => Response.json(data, init), error: (message: string, status = 400) => Response.json({ message }, { status }) },
   '../../../lib/auth': { requireSession: async () => ({ user: { id: 'u', tenantId: currentTenant, role: 'ADMIN', branchId: null } }), canAccessAny: () => true },
+  '../../../lib/tenant-module-access': { tenantModuleEnabled: async () => true },
   // Créditos: este test cubre el requestId; el saldo se prueba en imei-credits-http.mjs.
   '../../../lib/imei-credits': {
     creditosDeServicio: () => 1,

@@ -10,6 +10,7 @@ test('tienda de módulos: el estado inicial conserva funciones existentes y fuer
   assert.equal(state.modules.equipo.enabled, true)
   assert.equal(state.modules.inventario.enabled, true)
   assert.equal(state.modules.inventario.source, 'preset')
+  assert.equal(state.modules['verificacion-imei'].enabled, true)
 })
 
 test('tienda de módulos: preset escribe defaults por rubro y conserva formato de override manual', () => {
@@ -31,6 +32,11 @@ test('tienda de módulos: respeta dependencias, core y estados próximamente', (
   assert.throws(() => updateModuleStore({}, { moduleId: 'salud', enabled: true }), /MODULE_CHANGE_NOT_ALLOWED/)
   assert.throws(() => updateModuleStore({}, { moduleId: 'ventas', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
   assert.throws(() => updateModuleStore({}, { moduleId: 'impresion', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'verificacion-imei')?.changeable, true)
+  assert.deepEqual(MODULE_CATALOG.find(module => module.id === 'verificacion-imei')?.dependencies, ['inventario'])
+  assert.ok(MODULE_CATALOG.find(module => module.id === 'verificacion-imei')?.capabilities.includes('IMEI.info · próximamente / no configurado'))
+  assert.ok(MODULE_CATALOG.find(module => module.id === 'impresion')?.packs?.length)
+  assert.ok(MODULE_CATALOG.find(module => module.id === 'mensajes')?.packs?.length)
   const catalog = [{ id: 'clientes', dependencies: [] }, { id: 'pedidos', dependencies: ['clientes'] }]
   const modules = { clientes: { enabled: false }, pedidos: { enabled: true } }
   assert.equal(dependenciesEnabled(catalog[1].dependencies, modules), false)
