@@ -695,6 +695,38 @@ export default function FormularioVenta({
     }
   }
 
+  // El catálogo de selección comparte el mismo precio efectivo del servidor
+  // que aplica el carrito. La ruta resuelve hasta 100 productos en un lote.
+  const resolverPreciosCatalogo = useCallback(async (productIds) => {
+    const ids = [...new Set((productIds || []).filter(Boolean))]
+    if (!ids.length) return {}
+    const resultado = {}
+    const clienteId = customer?.id || ''
+    if (esDemo) {
+      const filas = await Promise.all(ids.map(async productId => {
+        try {
+          const info = await resources.priceLists.pricing({ productId, quantity: '1', ...(clienteId ? { customerId: clienteId } : {}) })
+          return [productId, info]
+        } catch { return [productId, null] }
+      }))
+      for (const [id, info] of filas) if (info) resultado[id] = info
+    } else {
+      try {
+        for (let i = 0; i < ids.length; i += 100) {
+          const batch = ids.slice(i, i + 100)
+          const response = await resources.priceLists.pricing({ productIds: batch.join(','), quantity: '1', ...(clienteId ? { customerId: clienteId } : {}) })
+          for (const [id, info] of Object.entries(response?.prices || {})) {
+            resultado[id] = { ...info, priceList: response.priceList || null }
+          }
+        }
+      } catch { return {} }
+    }
+    for (const [id, info] of Object.entries(resultado)) {
+      preciosCache.current.set(`${clienteId}:${id}:1`, info)
+    }
+    return resultado
+  }, [customer?.id, esDemo])
+
   // Aplica el precio resuelto por el servidor salvo que la fila tenga precio
   // manual o un cupón (el cupón ya viene cotizado por el servidor).
   async function aplicarPrecioResuelto(key, productoId, quantity) {
@@ -2313,6 +2345,7 @@ export default function FormularioVenta({
               noticeCombo={noticeCombo}
               familiasVisibles={familiasServidor ?? familiasVisibles}
               catalogoServidor={catalogoServidor.activo ? catalogoServidor : null}
+              resolverPrecios={resolverPreciosCatalogo}
               agregarProducto={agregarProducto}
               guardando={guardando}
               variantePara={variantePara}

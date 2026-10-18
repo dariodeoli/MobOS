@@ -6,6 +6,7 @@ import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
 import SelectorVariante from './SelectorVariante'
+import PrecioStockProducto from './PrecioStockProducto'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
@@ -76,8 +77,12 @@ export default function PasoProductos({
   onElegirVariante,
   onCerrarVariante,
   acciones = null,
+  resolverPrecios = null,
 }) {
   const grillaRef = useRef(null)
+  const { sucursal, sucursales } = useSesion()
+  const [preciosPreview, setPreciosPreview] = useState({})
+  const [preciosCargando, setPreciosCargando] = useState(false)
   const columnas = useColumnasGrilla(grillaRef)
   // Con stock primero (lo vendible a mano); el resto conserva el orden del
   // catálogo. La búsqueda ya filtra el catálogo completo: solo se pagina lo
@@ -95,6 +100,22 @@ export default function PasoProductos({
   const porBase = new Map(familiasVisibles.map(fam => [fam.base, fam]))
   // #354: con el catálogo paginado en el servidor la página ya viene cortada.
   const familiasPagina = catalogoServidor ? familiasVisibles : pagina.filas.map(base => porBase.get(base)).filter(Boolean)
+  const idsPreviewKey = [...new Set(familiasPagina.flatMap(familia => familia.items.map(item => item.id)))].join(',')
+  useEffect(() => {
+    if (!resolverPrecios || !idsPreviewKey) {
+      setPreciosPreview({})
+      setPreciosCargando(false)
+      return undefined
+    }
+    let vigente = true
+    setPreciosPreview({})
+    setPreciosCargando(true)
+    resolverPrecios(idsPreviewKey.split(','))
+      .then(precios => { if (vigente) setPreciosPreview(precios || {}) })
+      .catch(() => { if (vigente) setPreciosPreview({}) })
+      .finally(() => { if (vigente) setPreciosCargando(false) })
+    return () => { vigente = false }
+  }, [idsPreviewKey, resolverPrecios])
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
@@ -359,7 +380,6 @@ export default function PasoProductos({
               {familiasPagina.map(fam => {
                 const p = fam.items[0]
                 // Stock y datos de la ficha para elegir sin adivinar.
-                const stockFamilia = fam.items.reduce((suma, item) => suma + num(item.stock), 0)
                 // #287: las unidades físicas del producto (IMEI/serial) se ven
                 // como parte de la vista del producto; elegirlas es el paso
                 // siguiente al agregarlo.
@@ -374,28 +394,22 @@ export default function PasoProductos({
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
                     className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
-                    <span className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
+                    <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
                       <FotoProducto
                         src={fotoFamilia}
                         size={40}
                         icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || categoriaMeta(p).icon}
                       />
                         <strong className="pos-product-name col-span-2 min-w-0 break-words md:col-span-1 text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
-                        <span className="col-span-2 flex flex-wrap items-baseline justify-between gap-x-2">
-                          <span className="min-w-0 text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
-                            {fam.items.length > 1 ? <span className="block text-[11px] font-medium text-mute">desde</span> : null}
-                            {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
-                          </span>
-                          {stockFamilia > 0
-                            ? <b className="min-w-0 text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : `${stockFamilia} en stock`}>{fotoFamilia ? stockFamilia : `${stockFamilia} en stock${fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}`}</b>
-                            : <b className="whitespace-nowrap text-[11px] font-semibold text-bad" title="Agotado">{fotoFamilia ? '0' : 'Agotado'}</b>}
-                        </span>
+                        <div className="col-span-2 min-w-0">
+                          <PrecioStockProducto productos={fam.items} precios={preciosPreview} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
+                        </div>
                         {unidadesFamilia > 0 && (
                           <span className="col-span-2 block truncate text-[11px] text-mute">
                             {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
                           </span>
                         )}
-                    </span>
+                    </div>
                   </button>
                 )
               })}
@@ -470,6 +484,10 @@ export default function PasoProductos({
       <SelectorVariante
         abierto={Boolean(variantePara)}
         familia={variantePara}
+        precios={preciosPreview}
+        preciosCargando={preciosCargando}
+        sucursal={sucursal}
+        sucursales={sucursales}
         onElegir={producto => onElegirVariante?.(producto, { elegir: true })}
         onClose={() => onCerrarVariante?.()}
       />

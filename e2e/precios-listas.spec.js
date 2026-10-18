@@ -171,3 +171,53 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
     { api: API, productoId, clienteId: cliente.id, nombreLista },
   )
 })
+
+test('el catálogo del POS muestra precio del cliente y stock de la sucursal en móvil y escritorio', async ({ page }) => {
+  const marca = Date.now().toString(36)
+  const nombreProducto = `Producto POS 554 ${marca}`
+  const nombreCliente = `Cliente POS 554 ${marca}`
+  const nombreLista = `Lista POS 554 ${marca}`
+
+  await page.goto('/pos')
+  const creados = await page.evaluate(async ({ api, nombreProducto, nombreCliente, nombreLista }) => {
+    const json = { credentials: 'include', headers: { 'Content-Type': 'application/json' } }
+    const productoResponse = await fetch(`${api}/api/products`, { ...json, method: 'POST', body: JSON.stringify({ sku: `E2E-POS554-${Date.now()}`, name: nombreProducto, category: 'Accesorios', pricePyg: 125000, stock: 3, branchId: 'e2e-branch-1' }) })
+    const producto = await productoResponse.json()
+    if (!productoResponse.ok) throw new Error(producto?.message || `products: ${productoResponse.status}`)
+    const listaResponse = await fetch(`${api}/api/price-lists`, { ...json, method: 'POST', body: JSON.stringify({ name: nombreLista, items: [{ scope: 'PRODUCT', productId: producto.id, unitPricePyg: 97500 }] }) })
+    const lista = await listaResponse.json()
+    if (!listaResponse.ok) throw new Error(lista?.message || `price-lists: ${listaResponse.status}`)
+    const clienteResponse = await fetch(`${api}/api/customers`, { ...json, method: 'POST', body: JSON.stringify({ name: nombreCliente, priceListId: lista.id }) })
+    const cliente = await clienteResponse.json()
+    if (!clienteResponse.ok) throw new Error(cliente?.message || `customers: ${clienteResponse.status}`)
+    return { productoId: producto.id, listaId: lista.id, clienteId: cliente.id }
+  }, { api: API, nombreProducto, nombreCliente, nombreLista })
+
+  try {
+    await page.setViewportSize({ width: 390, height: 900 })
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
+    await page.getByRole('button', { name: /Agregar cliente/ }).click()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
+    await expect(page.getByTestId('pos-bloque-cliente')).toContainText(nombreCliente)
+    await page.getByTestId('hoja-cliente').getByRole('button', { name: 'Listo' }).click()
+    await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)
+
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      const tarjeta = page.getByRole('button', { name: new RegExp(nombreProducto) }).first()
+      await expect(tarjeta).toBeVisible({ timeout: 15_000 })
+      await expect(tarjeta.getByTestId('pos-precio-aplicable')).toContainText('97.500')
+      await expect(tarjeta.getByTestId('pos-precio-aplicable')).toContainText(`Lista ${nombreLista}`)
+      await expect(tarjeta.getByTestId('pos-stock-por-sucursal')).toContainText('Sucursal E2E: 3')
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${width}px: sin desborde horizontal`).toBe(true)
+    }
+  } finally {
+    await page.evaluate(async ({ api, productoId, listaId, clienteId }) => {
+      const json = { credentials: 'include', headers: { 'Content-Type': 'application/json' } }
+      await fetch(`${api}/api/customers/${encodeURIComponent(clienteId)}`, { ...json, method: 'PATCH', body: JSON.stringify({ priceListId: null }) }).catch(() => {})
+      await fetch(`${api}/api/price-lists?id=${encodeURIComponent(listaId)}`, { credentials: 'include', method: 'DELETE' }).catch(() => {})
+      await fetch(`${api}/api/products?id=${encodeURIComponent(productoId)}`, { credentials: 'include', method: 'DELETE' }).catch(() => {})
+    }, { api: API, ...creados })
+  }
+})

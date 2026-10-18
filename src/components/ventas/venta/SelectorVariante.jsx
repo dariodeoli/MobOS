@@ -1,12 +1,12 @@
 import { Modal } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { CELDA_DATO } from '@/components/shared/tabla'
-import { gs, num } from '@/utils/calculos'
+import PrecioStockProducto from './PrecioStockProducto'
 
 // #308 · Venta segura: cuando la familia tiene más de una variante, el POS ya
 // no elige sola la primera: el vendedor elige modelo/capacidad/color exactos
 // antes de sumarla a la venta (el carrito no cambia hasta que elige).
-export default function SelectorVariante({ abierto, familia, onElegir, onClose }) {
+export default function SelectorVariante({ abierto, familia, onElegir, onClose, precios = {}, preciosCargando = false, sucursal = null, sucursales = [] }) {
   const items = familia?.items || []
   return (
     <Modal
@@ -22,7 +22,6 @@ export default function SelectorVariante({ abierto, familia, onElegir, onClose }
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {items.map((producto) => {
-            const stock = num(producto.stock)
             const variante = [
               producto.model || producto.modelo,
               producto.capacity || producto.capacidad,
@@ -41,18 +40,13 @@ export default function SelectorVariante({ abierto, familia, onElegir, onClose }
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
                   <Icon name="phone" className="h-5 w-5" />
                 </span>
-                <span className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
                   <strong className="block truncate text-sm">
                     {variante || producto.nombre || familia?.base}
                   </strong>
                   <span className={`block truncate ${CELDA_DATO}`}>{producto.sku || 'Sin SKU'}</span>
-                  <span className="block text-xs">
-                    <b className="font-semibold tabular-nums text-fore">{gs(num(producto.precioVenta))}</b>
-                    {stock > 0
-                      ? <span className="text-mute"> · {stock} en stock</span>
-                      : <span className="font-semibold text-bad"> · Agotado</span>}
-                  </span>
-                </span>
+                  <PrecioStockProducto productos={[producto]} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} compacto />
+                </div>
                 <Icon name="plus" className="h-4 w-4 shrink-0 text-fono-light" />
               </button>
             )
