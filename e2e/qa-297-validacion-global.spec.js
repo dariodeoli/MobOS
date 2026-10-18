@@ -191,7 +191,7 @@ test('#297 · conteo físico sin escaneos: aplicar bloqueado en la UI y rechazad
     const fila = (lista.body || []).find((item) => item.note === nota)
     conteoId = fila?.id || null
     expect(conteoId, 'el conteo recién creado aparece en el listado').toBeTruthy()
-    const apply = await apiPagina(page, '/api/inventory-counts', { method: 'PATCH', body: JSON.stringify({ id: conteoId, action: 'apply', adjust: true }) })
+    const apply = await apiPagina(page, '/api/inventory-counts', { method: 'PATCH', body: JSON.stringify({ id: conteoId, action: 'apply', adjust: true, reason: 'QA 297: validar rechazo de conteo sin equipos escaneados' }) })
     expect(apply.status, JSON.stringify(apply.body)).toBe(409)
     expect(String(apply.body?.message || '')).toMatch(/al menos un equipo/i)
   } finally {
