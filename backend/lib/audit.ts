@@ -11,6 +11,7 @@ export const MAX_AUDIT_LIMIT = 200
 export const ACCIONES_AUDITORIA: Record<string, string> = {
   PAYMENT_ACCOUNT_DEFAULT_RETIRED: 'Cuenta de ejemplo retirada',
   STOCK_VERIFICATION_POLICY_UPDATED: 'Permisos de verificación de stock actualizados',
+  TENANT_MODULES_UPDATED: 'Módulos de la empresa actualizados',
   DELIVERY_TARIFF_CREATED: 'Tarifa del repartidor guardada',
   DELIVERY_TARIFF_DEACTIVATED: 'Tarifa del repartidor desactivada',
   DELIVERY_TRIP_RECORDED: 'Viajes de reparto registrados',
@@ -51,6 +52,8 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   INVENTORY_UNIT_COMMENTED: 'Comentario en la unidad',
   INVENTORY_RESERVATIONS_RELEASED_SCHEDULED: 'Reservas vencidas liberadas',
   IMEI_QUERY_CONCILIATED: 'Consulta IMEI conciliada',
+  IMEI_QUERY_EXECUTED: 'Consulta IMEI ejecutada',
+  IMEI_QUERY_LIMIT_REJECTED: 'Consulta IMEI rechazada por límite',
   SUPPLY_NEED_CREATED: 'Necesidad de abastecimiento creada',
   SUPPLY_NEED_ASSIGNED: 'Necesidad asignada a un comprador',
   SUPPLY_NEED_CANCELLED: 'Necesidad de abastecimiento cancelada',

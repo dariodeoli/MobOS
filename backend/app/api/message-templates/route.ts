@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { tenantModuleEnabled } from '../../../lib/tenant-module-access'
 
 // Soporta las dos interfaces históricas de la API:
 // - `category` (ORDERS | CUSTOMERS | SERVICE | COLLECTIONS) — componente WhatsAppTemplates.
@@ -14,6 +15,9 @@ type Category = 'ORDERS' | 'CUSTOMERS' | 'SERVICE' | 'COLLECTIONS'
 const CATEGORIES: Category[] = ['ORDERS', 'CUSTOMERS', 'SERVICE', 'COLLECTIONS']
 const CATEGORY_TO_CONTEXT: Record<Category, string> = { ORDERS: 'pedidos', CUSTOMERS: 'clientes', SERVICE: 'servicio', COLLECTIONS: 'cobranzas' }
 const CONTEXT_TO_CATEGORY: Record<string, Category> = { pedidos: 'ORDERS', clientes: 'CUSTOMERS', servicio: 'SERVICE', cobranzas: 'COLLECTIONS' }
+async function mensajesDisponibles(tenantId: string) {
+  return await tenantModuleEnabled(tenantId, 'mensajes') ? null : error('El módulo de mensajes está desactivado para esta empresa.', 403)
+}
 
 // Plantillas base por contexto, listas para usar (tono profesional y emojis
 // medidos). La siembra es idempotente: agrega solo las que faltan por clave, así
@@ -116,6 +120,7 @@ async function marcarPredeterminada(tenantId: string, id: string, category: Cate
 
 export async function GET(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
+  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   const tenantId = session.user.tenantId
   const params = new URL(request.url).searchParams
   const requestedCategory = params.get('category')?.trim().toUpperCase() || ''
@@ -133,6 +138,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
+  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
@@ -181,6 +187,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
+  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
@@ -225,6 +232,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
+  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const id = new URL(request.url).searchParams.get('id') || ''

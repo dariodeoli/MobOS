@@ -394,6 +394,13 @@ function reponerCreditosImei() {
   }
 }
 
+// El tenant seed arranca siempre con los módulos por defecto del preset
+// Comercio. Algunos E2E prueban activación/desactivación; al persistir la base
+// entre corridas o shards, una prueba anterior no debe cambiar el menú de otra.
+function resetModuleStore() {
+  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
+}
+
 export default async function globalSetup() {
   await mkdir(AUTH_DIR, { recursive: true })
   // La base persistente es compartida entre worktrees: otra sesión puede
@@ -431,6 +438,7 @@ export default async function globalSetup() {
     if (alreadySeeded) {
       try {
         await refreshStorageStates(ctx)
+        resetModuleStore()
         return
       } catch (error) {
         // La base persistente es compartida entre worktrees: otro agente
@@ -446,12 +454,14 @@ export default async function globalSetup() {
       restaurarSnapshot()
       try {
         await refreshStorageStates(ctx)
+        resetModuleStore()
         return
       } catch (error) {
         console.warn(`[e2e] refresh tras restaurar falló (${error?.message || error}); re-sembrando completo.`)
       }
     }
     await seedFresh(ctx)
+    resetModuleStore()
     reponerCreditosImei()
     guardarSnapshot()
   } finally {

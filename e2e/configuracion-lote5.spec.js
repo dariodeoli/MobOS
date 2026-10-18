@@ -3,8 +3,13 @@
 // horizontal en 360/768/1440.
 
 import { test, expect } from '@playwright/test'
+import { createRequire } from 'node:module'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { selectConfigSection } from './helpers/shell-navigation.js'
+import { SEED } from './helpers/seed-data.js'
+
+const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 const SUBPAGINAS = [
   ['organizacion', 'Organización'],
@@ -80,6 +85,42 @@ test.describe('Configuración Lote 5', () => {
     // En escritorio el botón no hace falta: el panel ya está a la vista.
     await page.setViewportSize({ width: 1440, height: 900 })
     await expect(boton).toBeHidden()
+  })
+
+  test('la tienda enlaza editores existentes, presenta próximos módulos y es responsive', async ({ page }) => {
+    const abrirTienda = async () => {
+      await page.goto('/configuracion/organizacion')
+      await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Tienda de módulos', exact: true }).click()
+      await expect(page.getByTestId('tienda-modulos')).toBeVisible()
+    }
+    await abrirTienda()
+    const printCard = page.getByTestId('modulo-card-impresion')
+    const messageCard = page.getByTestId('modulo-card-mensajes')
+    const imeiCard = page.getByTestId('modulo-card-verificacion-imei')
+    const advertisingCard = page.getByTestId('modulo-card-publicidad')
+    const assistantsCard = page.getByTestId('modulo-card-asistentes')
+    const billingCard = page.getByTestId('modulo-card-facturacion')
+    await expect(printCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/configuracion/dispositivos')
+    await expect(messageCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/plantillas')
+    await expect(imeiCard).toContainText('IMEIcheck.net · actual')
+    await expect(imeiCard).toContainText('IMEI.info · próximamente / no configurado')
+    await expect(advertisingCard).toContainText('Próximamente')
+    await expect(advertisingCard.getByRole('button', { name: 'Próximamente', exact: true })).toBeDisabled()
+    await expect(assistantsCard).toContainText('Solo catálogo')
+    await expect(billingCard).toContainText('KudeExpress y futuros adaptadores')
+    await expect(billingCard.getByRole('button', { name: 'Próximamente', exact: true })).toBeDisabled()
+    await expect(page.getByTestId('modulo-card-inventario')).toContainText('Apple/iPhone: modelo, capacidad, color, IMEI, condición y garantía')
+    const imeiApi = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/imei`, { headers: { origin: process.env.MOBOS_APP_URL } })
+    expect(imeiApi.status()).toBe(200)
+    expect((await imeiApi.json()).proveedores).toEqual([
+      { id: 'imeicheck.net', estado: expect.any(String), seleccionado: true },
+      { id: 'imei.info', estado: 'no-configurado', seleccionado: false },
+    ])
+    await expect(messageCard).toContainText('Activo')
+    await expect(imeiCard).toContainText('Activo')
+    await page.setViewportSize({ width: 360, height: 780 })
+    await expect(page.getByTestId('modulo-card-impresion')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
 })
 
@@ -175,4 +216,70 @@ test.describe('Configuración IA', () => {
       }
     }
   })
+})
+
+test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const require = createRequire(new URL('../backend/package.json', import.meta.url))
+  const { PrismaClient } = require('@prisma/client')
+  const { PrismaPg } = require('@prisma/adapter-pg')
+  const bcrypt = require('bcryptjs')
+  const pgPort = process.env.MOBOS_E2E_PGPORT, dbName = process.env.MOBOS_E2E_DB
+  expect(pgPort).toBeTruthy(); expect(dbName).toMatch(/^mobos_e2e(?:_|$)/)
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: `postgresql://postgres@127.0.0.1:${pgPort}/${dbName}` }) })
+  const contexts = []
+  let tenantId
+  try {
+    const seeded = await db.tenant.findFirstOrThrow({ where: { email: SEED.company.email }, select: { passwordHash: true } })
+    const slug = `module-store-${randomUUID()}`
+    const tenant = await db.tenant.create({ data: {
+      name: 'Tienda E2E guardas de módulos', email: `${slug}@test.local`, slug, passwordHash: seeded.passwordHash,
+      settings: { moduleStore: { version: 1, preset: 'comercio', modules: { mensajes: { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() } } } },
+    } })
+    tenantId = tenant.id
+    const branch = await db.branch.create({ data: { tenantId, name: 'Sucursal guardas' } })
+    const personas = [
+      { name: 'Gerente guardas', role: 'GERENTE', pin: '731204' },
+      { name: 'Vendedor guardas', role: 'VENDEDOR', pin: '842315' },
+    ]
+    for (const persona of personas) {
+      const pinHash = await bcrypt.hash(persona.pin, 12)
+      const user = await db.user.create({ data: { tenantId, branchId: branch.id, name: persona.name, role: persona.role, pinHash, pinLength: persona.pin.length } })
+      persona.userId = user.id
+    }
+
+    for (const persona of personas) {
+      const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+      contexts.push(context)
+      const rolePage = await context.newPage()
+      await rolePage.goto('/login')
+      const login = await rolePage.evaluate(async ({ api, email, password, deviceId, sellerId, pin }) => {
+        const auth = await fetch(`${api}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, deviceId }) })
+        const access = auth.ok ? await fetch(`${api}/api/auth/pin`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId, pin }) }) : null
+        return { auth: auth.status, access: access?.status ?? null }
+      }, { api: API, email: tenant.email, password: SEED.company.password, deviceId: `module-store-${persona.role.toLowerCase()}`, sellerId: persona.userId, pin: persona.pin })
+      expect(login, persona.role).toEqual({ auth: 200, access: 200 })
+      const origin = new URL(rolePage.url()).origin
+      const respuestaModulos = rolePage.waitForResponse(response => response.url().includes('/api/tenant/modules') && response.status() === 200)
+      await rolePage.goto('/pos')
+      await respuestaModulos
+      const estadoResponse = await context.request.get(`${API}/api/tenant/modules`, { headers: { origin } })
+      const estado = await estadoResponse.json()
+      expect(estadoResponse.status(), persona.role).toBe(200)
+      expect(estado.canManage, persona.role).toBe(false)
+      expect(estado.state.modules.mensajes.enabled, persona.role).toBe(false)
+      await expect(rolePage.getByText('Plantillas', { exact: true })).toHaveCount(0)
+      await expect(rolePage.getByText('Campañas', { exact: true })).toHaveCount(0)
+      const plantillasApi = await context.request.get(`${API}/api/message-templates`, { headers: { origin } })
+      expect(plantillasApi.status(), `${persona.role} API`).toBe(403)
+      await rolePage.goto('/plantillas')
+      await expect(rolePage).not.toHaveURL(/\/plantillas$/)
+      await rolePage.goto('/campanas')
+      await expect(rolePage).not.toHaveURL(/\/campanas$/)
+    }
+  } finally {
+    await Promise.all(contexts.map(context => context.close()))
+    if (tenantId) await db.tenant.delete({ where: { id: tenantId } }).catch(() => {})
+    await db.$disconnect()
+  }
 })
