@@ -3,10 +3,11 @@
 // horizontal en 360/768/1440.
 
 import { test, expect } from '@playwright/test'
+import { createRequire } from 'node:module'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { selectConfigSection } from './helpers/shell-navigation.js'
 import { SEED } from './helpers/seed-data.js'
-import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -86,7 +87,7 @@ test.describe('Configuración Lote 5', () => {
     await expect(boton).toBeHidden()
   })
 
-  test('la tienda enlaza editores existentes, bloquea pantalla desactivada y es responsive', async ({ page }) => {
+  test('la tienda enlaza editores existentes, presenta próximos módulos y es responsive', async ({ page }) => {
     const abrirTienda = async () => {
       await page.goto('/configuracion/organizacion')
       await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Tienda de módulos', exact: true }).click()
@@ -115,31 +116,8 @@ test.describe('Configuración Lote 5', () => {
       { id: 'imeicheck.net', estado: expect.any(String), seleccionado: true },
       { id: 'imei.info', estado: 'no-configurado', seleccionado: false },
     ])
-    try {
-      await messageCard.getByRole('button', { name: 'Desactivar', exact: true }).click()
-      await expect(messageCard).toContainText('Desactivado')
-      const api = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/message-templates`, { headers: { origin: process.env.MOBOS_APP_URL } })
-      expect(api.status()).toBe(403)
-      await page.goto('/plantillas')
-      await expect(page).not.toHaveURL(/\/plantillas$/)
-    } finally {
-      await abrirTienda()
-      const card = page.getByTestId('modulo-card-mensajes')
-      const activar = card.getByRole('button', { name: 'Activar', exact: true })
-      if (await activar.isVisible().catch(() => false)) await activar.click()
-      await expect(card).toContainText('Activo')
-    }
-    try {
-      await page.getByTestId('modulo-card-verificacion-imei').getByRole('button', { name: 'Desactivar', exact: true }).click()
-      const api = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/imei`, { headers: { origin: process.env.MOBOS_APP_URL } })
-      expect(api.status()).toBe(403)
-    } finally {
-      await abrirTienda()
-      const card = page.getByTestId('modulo-card-verificacion-imei')
-      const activar = card.getByRole('button', { name: 'Activar', exact: true })
-      if (await activar.isVisible().catch(() => false)) await activar.click()
-      await expect(card).toContainText('Activo')
-    }
+    await expect(messageCard).toContainText('Activo')
+    await expect(imeiCard).toContainText('Activo')
     await page.setViewportSize({ width: 360, height: 780 })
     await expect(page.getByTestId('modulo-card-impresion')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
@@ -240,60 +218,68 @@ test.describe('Configuración IA', () => {
   })
 })
 
-test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas', async ({ page, browser }) => {
-  await page.goto('/pos')
-  const origin = new URL(page.url()).origin
-  const getModules = async (context) => {
-    const response = await context.request.get(`${API}/api/tenant/modules`, { headers: { origin } })
-    return { status: response.status(), body: await response.json().catch(() => null) }
-  }
-  const setMessages = async (enabled) => page.request.put(`${API}/api/tenant/modules`, {
-    data: { moduleId: 'mensajes', enabled }, headers: { origin },
-  })
-
-  const previo = await getModules(page.context())
-  expect(previo.status).toBe(200)
-  const estabaActivo = previo.body.state.modules.mensajes.enabled
-  let gerenteId = ''
-  const sellerContext = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
-  let managerContext
+test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const require = createRequire(new URL('../backend/package.json', import.meta.url))
+  const { PrismaClient } = require('@prisma/client')
+  const { PrismaPg } = require('@prisma/adapter-pg')
+  const bcrypt = require('bcryptjs')
+  const pgPort = process.env.MOBOS_E2E_PGPORT, dbName = process.env.MOBOS_E2E_DB
+  expect(pgPort).toBeTruthy(); expect(dbName).toMatch(/^mobos_e2e(?:_|$)/)
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: `postgresql://postgres@127.0.0.1:${pgPort}/${dbName}` }) })
+  const contexts = []
+  let tenantId
   try {
-    if (estabaActivo) expect((await setMessages(false)).status()).toBe(200)
+    const seeded = await db.tenant.findFirstOrThrow({ where: { email: SEED.company.email }, select: { passwordHash: true } })
+    const slug = `module-store-${randomUUID()}`
+    const tenant = await db.tenant.create({ data: {
+      name: 'Tienda E2E guardas de módulos', email: `${slug}@test.local`, slug, passwordHash: seeded.passwordHash,
+      settings: { moduleStore: { version: 1, preset: 'comercio', modules: { mensajes: { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() } } } },
+    } })
+    tenantId = tenant.id
+    const branch = await db.branch.create({ data: { tenantId, name: 'Sucursal guardas' } })
+    const personas = [
+      { name: 'Gerente guardas', role: 'GERENTE', pin: '731204' },
+      { name: 'Vendedor guardas', role: 'VENDEDOR', pin: '842315' },
+    ]
+    for (const persona of personas) {
+      const pinHash = await bcrypt.hash(persona.pin, 12)
+      const user = await db.user.create({ data: { tenantId, branchId: branch.id, name: persona.name, role: persona.role, pinHash, pinLength: persona.pin.length } })
+      persona.userId = user.id
+    }
 
-    const gerente = await crearIntegranteConPinLibre(page, { api: API, nombre: `QA tienda gerente ${Date.now()}`, rol: 'GERENTE' })
-    gerenteId = gerente.id
-    managerContext = await browser.newContext()
-    const managerPage = await managerContext.newPage()
-    await managerPage.goto(`${origin}/login`)
-    const login = await managerPage.evaluate(async ({ api, pin, sellerId, company }) => {
-      const auth = await fetch(`${api}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: company.email, password: company.password, deviceId: 'module-store-manager-e2e' }) })
-      const access = await fetch(`${api}/api/auth/pin`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId, pin }) })
-      return { auth: auth.status, access: access.status }
-    }, { api: API, pin: gerente.pin, sellerId: gerente.id, company: SEED.company })
-    expect(login).toEqual({ auth: 200, access: 200 })
-
-    for (const [context, rol] of [[sellerContext, 'vendedor'], [managerContext, 'gerente']]) {
-      const rolePage = context.pages()[0] || await context.newPage()
+    for (const persona of personas) {
+      const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+      contexts.push(context)
+      const rolePage = await context.newPage()
+      await rolePage.goto('/login')
+      const login = await rolePage.evaluate(async ({ api, email, password, deviceId, sellerId, pin }) => {
+        const auth = await fetch(`${api}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, deviceId }) })
+        const access = auth.ok ? await fetch(`${api}/api/auth/pin`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId, pin }) }) : null
+        return { auth: auth.status, access: access?.status ?? null }
+      }, { api: API, email: tenant.email, password: SEED.company.password, deviceId: `module-store-${persona.role.toLowerCase()}`, sellerId: persona.userId, pin: persona.pin })
+      expect(login, persona.role).toEqual({ auth: 200, access: 200 })
+      const origin = new URL(rolePage.url()).origin
       const respuestaModulos = rolePage.waitForResponse(response => response.url().includes('/api/tenant/modules') && response.status() === 200)
-      await rolePage.goto(`${origin}/pos`)
+      await rolePage.goto('/pos')
       await respuestaModulos
-      const estado = await getModules(context)
-      expect(estado.status, rol).toBe(200)
-      expect(estado.body.canManage, rol).toBe(false)
-      expect(estado.body.state.modules.mensajes.enabled, rol).toBe(false)
+      const estadoResponse = await context.request.get(`${API}/api/tenant/modules`, { headers: { origin } })
+      const estado = await estadoResponse.json()
+      expect(estadoResponse.status(), persona.role).toBe(200)
+      expect(estado.canManage, persona.role).toBe(false)
+      expect(estado.state.modules.mensajes.enabled, persona.role).toBe(false)
       await expect(rolePage.getByText('Plantillas', { exact: true })).toHaveCount(0)
       await expect(rolePage.getByText('Campañas', { exact: true })).toHaveCount(0)
       const plantillasApi = await context.request.get(`${API}/api/message-templates`, { headers: { origin } })
-      expect(plantillasApi.status(), `${rol} API`).toBe(403)
-      await rolePage.goto(`${origin}/plantillas`)
+      expect(plantillasApi.status(), `${persona.role} API`).toBe(403)
+      await rolePage.goto('/plantillas')
       await expect(rolePage).not.toHaveURL(/\/plantillas$/)
-      await rolePage.goto(`${origin}/campanas`)
+      await rolePage.goto('/campanas')
       await expect(rolePage).not.toHaveURL(/\/campanas$/)
     }
   } finally {
-    if (estabaActivo) await setMessages(true).catch(() => {})
-    if (gerenteId) await page.request.patch(`${API}/api/users`, { data: { id: gerenteId, status: 'INACTIVE' }, headers: { origin } }).catch(() => {})
-    await sellerContext.close()
-    await managerContext?.close()
+    await Promise.all(contexts.map(context => context.close()))
+    if (tenantId) await db.tenant.delete({ where: { id: tenantId } }).catch(() => {})
+    await db.$disconnect()
   }
 })

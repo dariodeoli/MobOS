@@ -4,7 +4,7 @@
 
 - El registro del catálogo vive en `backend/lib/module-store.ts`. Cada entrada lleva id, nombre, descripción, categoría, icono, rubros, nivel, tipo (`core`, `configurable`, `catalogOnly`, `integration`, `sensitive` o `specialized`), dependencias, preview, estado disponible/próximamente y accesos a los editores existentes.
 - El estado queda dentro de `Tenant.settings.moduleStore`, con preset, estado por módulo (`enabled`, `manuallySelected`, `source`, `updatedAt`) y auditoría en `AuditLog`. No se crea una segunda entidad de módulos ni se toca información histórica.
-- La ruta `GET/PUT /api/tenant/modules` devuelve catálogo y estado por tenant a cualquier usuario autenticado; solo `ADMIN` puede cambiar el preset o un override (`canManage` lo indica). El servidor conserva módulos core, valida dependencias/dependientes y registra el antes/después.
+- La ruta `GET/PUT /api/tenant/modules` devuelve catálogo y estado por tenant a cualquier usuario autenticado; solo `ADMIN` puede cambiar el preset o un override (`canManage` lo indica). El servidor conserva módulos core, valida dependencias/dependientes y registra el antes/después. El panel carga este estado para todos los roles; las rutas directas de Mensajes esperan la respuesta y luego se permiten o bloquean según el estado, mientras sus entradas de navegación permanecen ocultas durante la carga.
 - Organización → Tienda de módulos tiene búsqueda, categorías, filtro de activos, tarjetas responsive, distintivos Core/Manual, vistas previas de muestra que no guardan ni imprimen, cambio de preset con confirmación y accesos a los editores ya existentes. Catálogo y estados muestran versión, origen y fecha.
 - Mensajes es el primer módulo con activación real: el shell oculta Plantillas/Campañas, la navegación directa redirige y cada operación API de `/api/message-templates` queda bloqueada cuando está desactivado. El editor existente de WhatsApp permanece en `/plantillas`.
 - Impresión se descubre y enlaza a Configuración → Impresoras, sin duplicar el editor. Su control central queda pendiente hasta cubrir en servidor todas las operaciones de cola, puentes y renderizado; el editor actual sigue disponible.
@@ -32,6 +32,7 @@ La próxima entrega puede sumar previews interactivas aisladas, comparación ant
 ## Verificación
 
 - Prueba unitaria de defaults, presets, overrides, dependencias, core, validación y preservación de settings.
+- E2E focal de tienda, guardas seller/manager sobre un tenant ficticio aislado, rutas legacy, responsive, y contrato #299 con Tienda.
 - E2E focal de enlace a los editores actuales, desactivación/guardia de la pantalla de plantillas y ancho móvil.
 - E2E de presencia del módulo IMEI, estado de los proveedores y rechazo 403 de su API al desactivarlo.
 - Contrato #299 actualizado para incluir la pestaña Tienda de módulos sin relajar aserciones. E2E seller/manager confirma lectura de estado, ocultamiento y bloqueo de Plantillas/Campañas cuando Mensajes está desactivado.

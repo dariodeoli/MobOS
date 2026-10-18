@@ -429,10 +429,16 @@ export default function PanelVendedor() {
   const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const [moduleStore, setModuleStore] = useState(null)
+  const [moduleStoreResolved, setModuleStoreResolved] = useState(false)
   useEffect(() => {
-    if (esDemo || !sesion) { setModuleStore(null); return }
+    if (esDemo || !sesion) { setModuleStore(null); setModuleStoreResolved(true); return }
     let active = true
-    api.get('/api/tenant/modules').then(result => { if (active) setModuleStore(result) }).catch(() => { if (active) setModuleStore(null) })
+    setModuleStoreResolved(false)
+    api.get('/api/tenant/modules').then(result => {
+      if (active) { setModuleStore(result); setModuleStoreResolved(true) }
+    }).catch(() => {
+      if (active) { setModuleStore(null); setModuleStoreResolved(true) }
+    })
     const actualizar = event => setModuleStore(current => current ? { ...current, state: event.detail } : current)
     window.addEventListener('mobos:module-store-updated', actualizar)
     return () => { active = false; window.removeEventListener('mobos:module-store-updated', actualizar) }
@@ -527,12 +533,16 @@ export default function PanelVendedor() {
     // los enlaces viejos siguen abriendo la sección). 'mi-cuenta' (#253) es
     // personal: cualquier rol entra a su perfil desde el avatar.
     const modules = moduleStore?.state?.modules || {}
+    // Una ruta de Mensajes abierta directamente no debe redirigirse durante
+    // la carga del estado. La navegación visual sigue oculta y, al resolver,
+    // el estado desactivado o no disponible bloquea la ruta como siempre.
+    const pendingMessagesRoutes = !esDemo && !moduleStoreResolved ? ['plantillas', 'campanas'] : []
     const accesosPropietario = ['inventario', 'garantias', 'mi-cuenta'].filter(id => {
       const moduleId = id === 'inventario' ? 'inventario' : id === 'garantias' ? 'servicios' : null
       return !moduleId || modules[moduleId]?.enabled !== false
     })
-    return esOwner ? [...base, ...accesosPropietario] : [...base, 'mi-cuenta']
-  }, [esOwner, navActual, moduleStore])
+    return esOwner ? [...base, ...accesosPropietario, ...pendingMessagesRoutes] : [...base, 'mi-cuenta', ...pendingMessagesRoutes]
+  }, [esOwner, navActual, moduleStore, moduleStoreResolved, esDemo])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
   useEffect(() => {
