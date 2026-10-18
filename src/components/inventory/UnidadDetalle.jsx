@@ -19,6 +19,7 @@ import JsBarcode from 'jsbarcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { conciliarDemoImei, consultasDemoImei, postDemoImei, saldoDemoImei, validarImeiDemo } from '@/lib/demoImei'
+import { ejecutarConsultaCompleta, validarImeiConsulta } from '@/lib/imeiConsulta'
 import { getDemoServicio } from '@/lib/demoServicio'
 import { COSMETICOS, estadoInspeccion, INSPECCION_ESTADOS, INSPECCION_ITEMS, resumenVerificacion } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
@@ -335,7 +336,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
   // Precheck: valida el IMEI y muestra servicio, campos y COSTO antes de ejecutar.
   async function imeiPrecheck() {
-    if (imeiBusy) return
+    if (imeiBusy) return false
+    if (!esDemo) {
+      const validacion = validarImeiConsulta(unit.serial)
+      if (!validacion.ok) { setImeiError(validacion.error); setImeiDatos(null); setImeiFase(null); return false }
+    }
     setImeiBusy(true); setImeiError(''); setImeiDatos(null); setImeiFase(null)
     imeiRequestId.current = null
     try {
@@ -347,14 +352,20 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       if (Number.isFinite(datos?.saldo)) setImeiSaldo(datos.saldo)
       setImeiDatos(datos)
       setImeiFase('precheck')
+      return true
     } catch (cause) {
       setImeiError(cause?.status === 403 ? 'Pedile a administración que habilite la consulta de IMEI.' : (cause?.message || 'No se pudo preparar la consulta.'))
+      return false
     } finally { setImeiBusy(false) }
   }
 
   // Confirmación explícita: un requestId por intento evita dobles cobros.
   async function imeiConfirmar() {
-    if (imeiBusy) return
+    if (imeiBusy) return false
+    if (!esDemo) {
+      const validacion = validarImeiConsulta(unit.serial)
+      if (!validacion.ok) { setImeiError(validacion.error); setImeiDatos(null); setImeiFase(null); return false }
+    }
     if (!imeiRequestId.current) imeiRequestId.current = globalThis.crypto?.randomUUID?.() || `imei-${unit.id}-${Date.now()}`
     setImeiBusy(true); setImeiError('')
     try {
@@ -364,9 +375,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       setImeiFase('resultado')
       const restantes = esDemo ? saldoDemoImei() : (await api.get('/api/imei').then(datos => datos?.creditos?.saldo).catch(() => null))
       if (Number.isFinite(restantes)) setImeiSaldo(restantes)
+      return true
     } catch (cause) {
       if (cause?.status === 402) setImeiSaldo(0)
       setImeiError(cause?.status === 402 ? 'No disponible en tu cuenta.' : (cause?.message || 'No se pudo consultar el IMEI.'))
+      return false
     } finally { setImeiBusy(false) }
   }
 
@@ -693,7 +706,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2"><Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} /><Input aria-label="Nota de repuestos no OEM" placeholder="Nota / detalle de la reparación" value={inspeccion.repuestosNoOemNota} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOemNota: event.target.value }))} /></div>
               <MoneyInput aria-label="Costo de repuestos y arreglos" title="Lo que costó reparar o reponer los repuestos detectados: se suma al costo real del equipo para la ganancia y el seguro" placeholder="Costo de repuestos" value={inspeccion.costoRepuestosPyg} onValueChange={(valor) => setInspeccion(actual => ({ ...actual, costoRepuestosPyg: valor }))} />
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="min-h-11 rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40 md:min-h-0"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
-            <Button type="button" variant="outline" disabled={imeiBusy || sinVerificaciones} title={sinVerificaciones ? 'No disponible en tu cuenta' : 'Corre la verificación de IMEI y trae los bloqueos al checklist'} onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
+            <Button type="button" variant="outline" disabled={imeiBusy || sinVerificaciones} title={sinVerificaciones ? 'No disponible en tu cuenta' : 'Corre la verificación de IMEI y trae los bloqueos al checklist'} onClick={() => ejecutarConsultaCompleta({ precheck: imeiPrecheck, confirmar: imeiConfirmar, alCompletar: () => setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) })}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
           {reparaciones.length > 0 && (
             <div className="mt-3 rounded-xl border border-ink-600 p-3" data-testid="unidad-reparaciones">

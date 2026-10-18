@@ -7,6 +7,7 @@ import { fechaHora } from '@/utils/fecha'
 import { POLITICAS, POLITICA_MAX_CHARS, limpiarTextoPolitica, plantillaPolitica, urlPoliticas } from '@/lib/politicas'
 import { olvidarPoliticasImpresion } from '@/lib/politicasEmpresa'
 import { publicUrls } from '@/lib/urls'
+import { mensajeErrorPoliticas } from '@/lib/politicasUx'
 
 // Configuración › Organización › Políticas (#433), al estilo «Políticas» de
 // Shopify: una fila por política con su estado y «›»; cada una se edita en una
@@ -50,7 +51,7 @@ function EditorPolitica({ politica, slug, demo, onClose, onGuardada }) {
       toast.success(publicada ? 'Política publicada' : 'Borrador guardado', meta?.etiqueta)
       onGuardada({ ...politica, content: guardada.content, published: guardada.published, updatedAt: guardada.updatedAt })
     } catch (cause) {
-      setError(cause?.message || 'No se pudo guardar la política.')
+      setError(mensajeErrorPoliticas(cause, 'guardar'))
     } finally { setGuardando(false) }
   }
 
@@ -111,7 +112,7 @@ export default function Politicas() {
     try {
       setDatos(await api.get('/api/tenant/policies'))
     } catch (cause) {
-      setFallo(cause?.message || 'No se pudieron cargar las políticas.')
+      setFallo(mensajeErrorPoliticas(cause, 'leer'))
     }
   }, [demo])
   useEffect(() => { cargar() }, [cargar])
