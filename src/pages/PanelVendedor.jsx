@@ -8,6 +8,7 @@ import { useReloj } from '@/hooks/useReloj'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { hidratarFinanzas, refrescarCatalogo } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
+import { api } from '@/lib/api/client'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones'
 import { ROLE_LABELS } from '@/lib/roles'
 import { gs } from '@/utils/calculos'
@@ -427,6 +428,15 @@ export default function PanelVendedor() {
   const tabsRuta = useMemo(() => (subpadre ? tabsDeSubpagina(subpadre, esDemo) : []), [subpadre, esDemo])
   const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
+  const [moduleStore, setModuleStore] = useState(null)
+  useEffect(() => {
+    if (esDemo || !esOwner) { setModuleStore(null); return }
+    let active = true
+    api.get('/api/tenant/modules').then(result => { if (active) setModuleStore(result) }).catch(() => { if (active) setModuleStore(null) })
+    const actualizar = event => setModuleStore(current => current ? { ...current, state: event.detail } : current)
+    window.addEventListener('mobos:module-store-updated', actualizar)
+    return () => { active = false; window.removeEventListener('mobos:module-store-updated', actualizar) }
+  }, [esDemo, esOwner, empresa?.id])
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
   // #247: adelanta los chunks de las secciones más usadas cuando el equipo está
   // ocioso (una sola vez por carga y solo si la conexión lo permite).
@@ -490,10 +500,16 @@ export default function PanelVendedor() {
   const navActual = useMemo(() => {
     const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
     // App de iPhone v1: solo Vender, Pedidos, Clientes y Configuración.
+    const modulesByNavId = new Map()
+    for (const module of moduleStore?.catalog || []) for (const id of module.navIds) modulesByNavId.set(id, [...(modulesByNavId.get(id) || []), module.id])
+    const moduleEnabled = (id) => {
+      const moduleIds = modulesByNavId.get(id) || []
+      return moduleIds.every(moduleId => moduleStore?.state?.modules?.[moduleId]?.enabled !== false)
+    }
     return base
-      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id)) }))
+      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id) && moduleEnabled(id)) }))
       .filter(group => group.items.length)
-  }, [esOwner, esTecnico, puedeCampanas])
+  }, [esOwner, esTecnico, puedeCampanas, moduleStore])
   const vistaRequerida = subpadre ? SUBPAGINAS[subpadre].vista : vista
   const proximamenteIOS = !moduloDisponible(vistaRequerida)
   const idsDelMenu = useMemo(() => new Set(navActual.flatMap(group => group.items.map(([id]) => id))), [navActual])
@@ -504,8 +520,13 @@ export default function PanelVendedor() {
     // pantallas de catálogo) y 'garantias' (pestaña de «Taller» desde #224:
     // los enlaces viejos siguen abriendo la sección). 'mi-cuenta' (#253) es
     // personal: cualquier rol entra a su perfil desde el avatar.
-    return esOwner ? [...base, 'inventario', 'garantias', 'mi-cuenta'] : [...base, 'mi-cuenta']
-  }, [esOwner, navActual])
+    const modules = moduleStore?.state?.modules || {}
+    const accesosPropietario = ['inventario', 'garantias', 'mi-cuenta'].filter(id => {
+      const moduleId = id === 'inventario' ? 'inventario' : id === 'garantias' ? 'servicios' : null
+      return !moduleId || modules[moduleId]?.enabled !== false
+    })
+    return esOwner ? [...base, ...accesosPropietario] : [...base, 'mi-cuenta']
+  }, [esOwner, navActual, moduleStore])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
   useEffect(() => {

@@ -1,0 +1,47 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { dependenciesEnabled, hasEnabledDependents, MODULE_CATALOG, mergeModuleStoreSettings, moduleStoreFrom, parseModuleChange, updateModuleStore } from '../lib/module-store'
+
+test('tienda de módulos: el estado inicial conserva funciones existentes y fuerza los módulos core', () => {
+  const state = moduleStoreFrom({ keepMe: true }, '2026-10-17T10:00:00.000Z')
+  assert.equal(state.modules.agenda.enabled, true)
+  assert.equal(state.modules.clientes.enabled, true)
+  assert.equal(state.modules.servicios.enabled, true)
+  assert.equal(state.modules.equipo.enabled, true)
+  assert.equal(state.modules.inventario.enabled, true)
+  assert.equal(state.modules.inventario.source, 'preset')
+})
+
+test('tienda de módulos: preset escribe defaults por rubro y conserva formato de override manual', () => {
+  let state = updateModuleStore({}, { preset: 'servicios' }, '2026-10-17T10:00:00.000Z')
+  assert.equal(state.preset, 'servicios')
+  assert.equal(state.modules.servicios.enabled, true)
+  assert.equal(state.modules.inventario.enabled, true)
+  assert.equal(state.modules.mensajes.enabled, false)
+  assert.equal(state.modules.reportes.enabled, true)
+  state = updateModuleStore({ moduleStore: state }, { moduleId: 'mensajes', enabled: true }, '2026-10-17T10:01:00.000Z')
+  assert.equal(state.modules.mensajes.enabled, true)
+  assert.equal(state.modules.mensajes.manuallySelected, true)
+  assert.equal(state.modules.mensajes.source, 'manual')
+  assert.equal(state.modules.mensajes.updatedAt, '2026-10-17T10:01:00.000Z')
+})
+
+test('tienda de módulos: respeta dependencias, core y estados próximamente', () => {
+  assert.throws(() => updateModuleStore({}, { moduleId: 'clientes', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
+  assert.throws(() => updateModuleStore({}, { moduleId: 'salud', enabled: true }), /MODULE_CHANGE_NOT_ALLOWED/)
+  assert.throws(() => updateModuleStore({}, { moduleId: 'ventas', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
+  assert.throws(() => updateModuleStore({}, { moduleId: 'impresion', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
+  const catalog = [{ id: 'clientes', dependencies: [] }, { id: 'pedidos', dependencies: ['clientes'] }]
+  const modules = { clientes: { enabled: false }, pedidos: { enabled: true } }
+  assert.equal(dependenciesEnabled(catalog[1].dependencies, modules), false)
+  assert.equal(hasEnabledDependents('clientes', catalog, modules), true)
+})
+
+test('tienda de módulos: parser acepta solo cambios conocidos y merge conserva los demás ajustes', () => {
+  assert.deepEqual(parseModuleChange({ moduleId: 'inventario', enabled: false }), { moduleId: 'inventario', enabled: false })
+  assert.equal(parseModuleChange({ moduleId: 'desconocido', enabled: true }), null)
+  assert.equal(parseModuleChange({ preset: 'otro', extra: true }), null)
+  const next = updateModuleStore({ keepMe: true }, { moduleId: 'mensajes', enabled: false })
+  assert.deepEqual(mergeModuleStoreSettings({ keepMe: true, other: 2 }, next), { keepMe: true, other: 2, moduleStore: next })
+  assert.ok(MODULE_CATALOG.every(module => module.status === 'available' || module.status === 'coming-soon'))
+})

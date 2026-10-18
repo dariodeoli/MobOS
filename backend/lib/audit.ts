@@ -11,6 +11,7 @@ export const MAX_AUDIT_LIMIT = 200
 export const ACCIONES_AUDITORIA: Record<string, string> = {
   PAYMENT_ACCOUNT_DEFAULT_RETIRED: 'Cuenta de ejemplo retirada',
   STOCK_VERIFICATION_POLICY_UPDATED: 'Permisos de verificación de stock actualizados',
+  TENANT_MODULES_UPDATED: 'Módulos de la empresa actualizados',
   DELIVERY_TARIFF_CREATED: 'Tarifa del repartidor guardada',
   DELIVERY_TARIFF_DEACTIVATED: 'Tarifa del repartidor desactivada',
   DELIVERY_TRIP_RECORDED: 'Viajes de reparto registrados',

@@ -65,4 +65,5 @@ console.log('PASS: etiquetas y áreas de auditoría (#59/#60)')
 
 // #466: la política del dueño conserva acción y área legibles.
 assert.equal(ACCIONES_AUDITORIA.STOCK_VERIFICATION_POLICY_UPDATED, 'Permisos de verificación de stock actualizados')
+assert.equal(ACCIONES_AUDITORIA.TENANT_MODULES_UPDATED, 'Módulos de la empresa actualizados')
 assert.equal(AREAS_AUDITORIA.Tenant, 'Empresa')

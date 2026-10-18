@@ -81,6 +81,36 @@ test.describe('Configuración Lote 5', () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await expect(boton).toBeHidden()
   })
+
+  test('la tienda enlaza editores existentes, bloquea pantalla desactivada y es responsive', async ({ page }) => {
+    const abrirTienda = async () => {
+      await page.goto('/configuracion/organizacion')
+      await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Tienda de módulos', exact: true }).click()
+      await expect(page.getByTestId('tienda-modulos')).toBeVisible()
+    }
+    await abrirTienda()
+    const printCard = page.getByTestId('modulo-card-impresion')
+    const messageCard = page.getByTestId('modulo-card-mensajes')
+    await expect(printCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/configuracion/dispositivos')
+    await expect(messageCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/plantillas')
+    try {
+      await messageCard.getByRole('button', { name: 'Desactivar', exact: true }).click()
+      await expect(messageCard).toContainText('Desactivado')
+      const api = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/message-templates`, { headers: { origin: process.env.MOBOS_APP_URL } })
+      expect(api.status()).toBe(403)
+      await page.goto('/plantillas')
+      await expect(page).not.toHaveURL(/\/plantillas$/)
+    } finally {
+      await abrirTienda()
+      const card = page.getByTestId('modulo-card-mensajes')
+      const activar = card.getByRole('button', { name: 'Activar', exact: true })
+      if (await activar.isVisible().catch(() => false)) await activar.click()
+      await expect(card).toContainText('Activo')
+    }
+    await page.setViewportSize({ width: 360, height: 780 })
+    await expect(page.getByTestId('modulo-card-impresion')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
+  })
 })
 
 // IA de Configuración (#251): siete secciones sin duplicar, con Documentación

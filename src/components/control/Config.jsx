@@ -31,6 +31,7 @@ import PortalClientes from '@/components/control/config/PortalClientes'
 import Notificaciones from '@/components/control/config/Notificaciones'
 import PlanFacturacion from '@/components/control/config/PlanFacturacion'
 import { prefijoEfectivo, vistaPreviaNumeros } from '@/components/control/config/formatoPedido'
+import TiendaModulos from '@/components/control/TiendaModulos'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -66,9 +67,10 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
 
 // #299 · Organización en secciones por tarea: cada una se abre con su tarea
 // clara y no se mezcla con el resto. El orden es el del uso cotidiano.
-const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', notificaciones: 'bell', peligro: 'alert' }
+const ORG_ICONOS = { datos: 'store', modulos: 'grid', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', notificaciones: 'bell', peligro: 'alert' }
 const ORG_SECCIONES = [
   ['datos', 'Datos generales'],
+  ['modulos', 'Tienda de módulos'],
   ['identidad', 'Identidad visual'],
   ['sucursales', 'Sucursales y depósitos'],
   ['fiscales', 'Datos fiscales'],
@@ -275,6 +277,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           {org === 'datos' && (
             <General tenant={account?.tenant} onIrANumeracion={() => setOrg('numeracion')} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onTenantChange={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
           )}
+          {org === 'modulos' && <TiendaModulos />}
           {org === 'portal' && <PortalClientes />}
           {org === 'notificaciones' && <Notificaciones />}
           {org === 'plan' && <PlanFacturacion />}
