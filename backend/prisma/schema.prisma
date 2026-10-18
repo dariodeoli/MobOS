@@ -671,22 +671,34 @@ enum InventoryCountStatus {
   CANCELLED
 }
 
+enum InventoryCountScope {
+  FULL
+  PARTIAL
+}
+
 model InventoryCount {
   id          String               @id @default(cuid())
   tenantId    String
   tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   branchId    String
   branch      Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  locationId  String?
+  location    StockLocation?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  scope       InventoryCountScope @default(PARTIAL)
   status      InventoryCountStatus @default(DRAFT)
   note        String?
   createdById String
   appliedById String?
   appliedAt   DateTime?
+  applyResult Json?
+  stockSnapshot Json?
+  serialSnapshot Json?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   lines       InventoryCountLine[]
 
   @@index([tenantId, branchId, status])
+  @@index([tenantId, locationId, status])
   @@index([tenantId, createdAt])
 }
 
@@ -866,6 +878,7 @@ model StockLocation {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   inventoryUnits InventoryUnit[]
+  inventoryCounts InventoryCount[]
 
   @@unique([branchId, name])
   @@unique([branchId, code])

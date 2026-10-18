@@ -103,3 +103,4 @@ require('./module-store.test.ts')
 
 // Proceso separado: la prueba RUC usa solo fixtures de entorno, nunca la configuración local.
 require('node:child_process').execFileSync(process.execPath, [require('node:path').join(__dirname, 'ruc-demo.test.mjs')], { stdio: 'inherit' })
+require('./inventory-counts.test.ts')
