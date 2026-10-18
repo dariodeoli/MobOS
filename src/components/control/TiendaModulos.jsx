@@ -5,8 +5,9 @@ import { useSesion } from '@/lib/sesion'
 import { Aviso, Badge, Button, Card, ConfirmDialog, Input, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
-const CATEGORIAS = ['Todas', 'Operación', 'Finanzas', 'Clientes', 'Mensajes', 'IMEI', 'Reportes', 'Salud', 'Configuración']
+const CATEGORIAS = ['Todas', 'Operación', 'Finanzas', 'Clientes', 'Mensajes', 'IMEI', 'Comercial', 'Automatización', 'Facturación', 'Reportes', 'Salud', 'Configuración']
 const RUBRO = { comercio: 'Comercio', servicios: 'Servicios', salud: 'Salud' }
+const TIPO = { core: 'Core', configurable: 'Configurable', catalogOnly: 'Solo catálogo', integration: 'Integración', sensitive: 'Sensible', specialized: 'Especializado' }
 
 export default function TiendaModulos() {
   const { esDemo } = useSesion()
@@ -80,7 +81,7 @@ export default function TiendaModulos() {
         const canToggle = data?.canManage && !esDemo && module.changeable === true && module.status === 'available'
         const missing = module.dependencies.filter(id => !data?.state?.modules?.[id]?.enabled)
         return <Card key={module.id} className="flex min-w-0 flex-col gap-3 p-4" data-testid={`modulo-card-${module.id}`}>
-          <div className="flex items-start gap-3"><div className="rounded-lg bg-fono/10 p-2 text-fono-light"><Icon name={module.icon} className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{module.name}</h3>{module.core && <Badge color="green">Core</Badge>}{state?.source === 'manual' && <Badge color="blue">Manual</Badge>}{module.status === 'coming-soon' && <Badge color="slate">Próximamente</Badge>}</div><p className="mt-1 text-xs text-mute">{module.category} · {module.tier === 'pro' ? 'Pro' : 'Incluido'}</p></div></div>
+          <div className="flex items-start gap-3"><div className="rounded-lg bg-fono/10 p-2 text-fono-light"><Icon name={module.icon} className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{module.name}</h3>{module.kind && <Badge color={module.kind === 'sensitive' ? 'orange' : module.kind === 'core' ? 'green' : 'slate'}>{TIPO[module.kind] || module.kind}</Badge>}{state?.source === 'manual' && <Badge color="blue">Manual</Badge>}{module.status === 'coming-soon' && <Badge color="slate">Próximamente</Badge>}</div><p className="mt-1 text-xs text-mute">{module.category} · {module.tier === 'pro' ? 'Pro' : 'Incluido'}</p></div></div>
           <p className="text-sm text-mute">{module.description}</p>
           {module.benefits?.length > 0 && <ul className="list-inside list-disc space-y-1 text-xs text-mute">{module.benefits.map(item => <li key={item}>{item}</li>)}</ul>}
           <p className="text-xs text-mute">Recomendado: {module.recommendedFor.map(id => RUBRO[id]).join(', ') || '—'}{module.dependencies.length ? ` · Requiere: ${module.dependencies.map(id => data.catalog.find(item => item.id === id)?.name || id).join(', ')}` : ''}</p>

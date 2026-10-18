@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dependenciesEnabled, hasEnabledDependents, MODULE_CATALOG, mergeModuleStoreSettings, moduleStoreFrom, parseModuleChange, updateModuleStore } from '../lib/module-store'
+import { dependenciesEnabled, hasEnabledDependents, MODULE_CATALOG, MODULE_KINDS, mergeModuleStoreSettings, moduleStoreFrom, parseModuleChange, updateModuleStore } from '../lib/module-store'
 
 test('tienda de módulos: el estado inicial conserva funciones existentes y fuerza los módulos core', () => {
   const state = moduleStoreFrom({ keepMe: true }, '2026-10-17T10:00:00.000Z')
@@ -11,6 +11,10 @@ test('tienda de módulos: el estado inicial conserva funciones existentes y fuer
   assert.equal(state.modules.inventario.enabled, true)
   assert.equal(state.modules.inventario.source, 'preset')
   assert.equal(state.modules['verificacion-imei'].enabled, true)
+  assert.equal(state.modules.publicidad.enabled, false)
+  assert.equal(state.modules.asistentes.enabled, false)
+  assert.equal(state.modules.facturacion.enabled, false)
+  assert.equal(state.modules.salud.enabled, false)
 })
 
 test('tienda de módulos: preset escribe defaults por rubro y conserva formato de override manual', () => {
@@ -37,6 +41,11 @@ test('tienda de módulos: respeta dependencias, core y estados próximamente', (
   assert.ok(MODULE_CATALOG.find(module => module.id === 'verificacion-imei')?.capabilities.includes('IMEI.info · próximamente / no configurado'))
   assert.ok(MODULE_CATALOG.find(module => module.id === 'impresion')?.packs?.length)
   assert.ok(MODULE_CATALOG.find(module => module.id === 'mensajes')?.packs?.length)
+  assert.ok(MODULE_CATALOG.every(module => MODULE_KINDS.includes(module.kind)))
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'publicidad')?.status, 'coming-soon')
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'asistentes')?.status, 'coming-soon')
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'facturacion')?.status, 'coming-soon')
+  assert.equal(new Set(MODULE_CATALOG.map(module => module.id)).size, MODULE_CATALOG.length)
   const catalog = [{ id: 'clientes', dependencies: [] }, { id: 'pedidos', dependencies: ['clientes'] }]
   const modules = { clientes: { enabled: false }, pedidos: { enabled: true } }
   assert.equal(dependenciesEnabled(catalog[1].dependencies, modules), false)
