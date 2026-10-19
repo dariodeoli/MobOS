@@ -20,7 +20,7 @@ test('la ayuda busca por tema y lleva a la pantalla', async ({ page }) => {
 test('la documentación filtra por módulo y avisa cuando no hay resultados', async ({ page }) => {
   await page.goto('/configuracion/documentacion')
   const pantalla = page.getByTestId('documentacion')
-  await pantalla.getByRole('button', { name: 'Finanzas', exact: true }).click()
+  await pantalla.getByTestId('ayuda-filtros-modulo').getByRole('button', { name: 'Finanzas', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Caja del día' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Cargar una venta' })).toHaveCount(0)
 
@@ -43,7 +43,7 @@ test('la documentación cubre clientes, garantías y servicio técnico', async (
   // Taller: el módulo filtra sus entradas y el enlace abre Garantías.
   await page.goto('/configuracion/documentacion')
   const pantalla = page.getByTestId('documentacion')
-  await pantalla.getByRole('button', { name: 'Taller', exact: true }).click()
+  await pantalla.getByTestId('ayuda-filtros-modulo').getByRole('button', { name: 'Taller', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Enlace público y QR del caso' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Estados y avance de la garantía' })).toBeVisible()
   await page.getByRole('button', { name: 'Ir a Enlace público y QR del caso' }).click()
@@ -53,7 +53,7 @@ test('la documentación cubre clientes, garantías y servicio técnico', async (
   // El módulo elegido queda como «último usado» (#209): se elige explícito
   // para no depender de lo recordado por el paso anterior.
   await page.goto('/configuracion/documentacion')
-  await pantalla.getByRole('button', { name: 'Taller', exact: true }).click()
+  await pantalla.getByTestId('ayuda-filtros-modulo').getByRole('button', { name: 'Taller', exact: true }).click()
   await page.getByLabel('Buscar en toda la aplicación').fill('whatsapp por estado')
   await expect(page.getByRole('heading', { name: 'WhatsApp por estado de la orden' })).toBeVisible()
   await page.getByRole('button', { name: 'Ir a WhatsApp por estado de la orden' }).click()
