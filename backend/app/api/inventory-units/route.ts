@@ -309,7 +309,9 @@ export async function PATCH(request: Request) {
         if (!variant.model && !variant.capacity && !variant.color) throw new Error('Completá al menos un dato de la variante.')
         const data = await tx.product.update({ where: { id: product.id }, data: variant })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_APPLE_VARIANT_UPDATED', entity: 'Product', entityId: product.id, metadata: { unitId: id, serial: before.serial, before: { model: product.model, capacity: product.capacity, color: product.color }, after: variant } } })
-        return tx.inventoryUnit.findUnique({ where: { id } })
+        const unitAfter = await tx.inventoryUnit.findUnique({ where: { id } })
+        if (!unitAfter) throw new Error('Unidad no encontrada después de actualizar la variante.')
+        return unitAfter
       }
       if (action === 'remove') {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
