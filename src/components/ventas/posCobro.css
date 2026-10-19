@@ -44,3 +44,15 @@
   font-weight: 600;
   color: rgb(var(--c-fono-light, var(--c-fono)));
 }
+
+/* En pantallas táctiles el pie vive dentro del flujo del formulario. Evitar
+   cualquier sticky/fixed heredado que pueda cubrir campos al hacer scrollIntoView
+   (el resumen y la barra de acción móvil ya resuelven la acción principal). */
+@media (max-width: 1023px) {
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    transform: none !important;
+  }
+}
