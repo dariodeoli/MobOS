@@ -1107,3 +1107,6 @@
 .mobos-commercial-landing .text-fore {
   color: var(--landing-ink);
 }
+.mobos-commercial-landing .landing-showcase-visual * {
+  font-size: 11px;
+}
