@@ -33,10 +33,13 @@ test('commercial landing: responsive presentation and public contracts', async (
         assert.equal(await preview.count(), 1, 'hero uses the presentation-only commercial preview')
         assert.equal(await preview.locator('figcaption').count(), 0)
         const showcase = page.getByTestId('landing-showcase')
-        assert.equal(await showcase.locator('.landing-showcase-card').count(), 7)
-        for (const id of ['pos', 'caja', 'stock', 'modulos', 'impresion', 'clientes', 'analytics'])
+        assert.equal(await showcase.locator('.landing-showcase-card').count(), 14)
+        for (const id of ['pos', 'caja', 'stock', 'taller', 'clientes', 'portal', 'modulos', 'impresion', 'analytics', 'delivery', 'mensajes', 'imei', 'permisos', 'facturacion'])
           assert.equal(await page.getByTestId(`showcase-${id}`).count(), 1, `showcase ${id} is present`)
         assert.match(await showcase.innerText(), /Datos ficticios/)
+        assert.match(await page.getByTestId('showcase-facturacion').innerText(), /En preparación/i)
+        assert.match(await page.getByTestId('showcase-delivery').innerText(), /sin mapa externo/)
+        assert.match(await page.getByTestId('showcase-mensajes').innerText(), /no enviado/)
         assert.equal(
           await preview.locator('button,a,input,[role="button"]').count(),
           0,

@@ -96,7 +96,7 @@ export default function Landing() {
       <header className="landing-header">
         <div className="landing-nav landing-container">
           <a href="#inicio" aria-label="MobOS" className="landing-logo">
-            <ThemeLogo className="h-9" />
+            <ThemeLogo className="h-8" />
           </a>
           <nav className="landing-desktop-nav" aria-label="Navegación principal">
             {NAV.map(([href, label]) => (
