@@ -16,6 +16,8 @@ test('tienda de módulos: el estado inicial conserva funciones existentes y fuer
   assert.equal(state.modules.publicidad.enabled, false)
   assert.equal(state.modules.asistentes.enabled, false)
   assert.equal(state.modules.facturacion.enabled, false)
+  assert.equal(state.modules.autofacturacion.enabled, false)
+  assert.equal(state.modules['facturacion-electronica'].enabled, false)
   assert.equal(state.modules.salud.enabled, false)
 })
 
@@ -53,6 +55,10 @@ test('tienda de módulos: respeta dependencias, core y estados próximamente', (
   assert.equal(MODULE_CATALOG.find(module => module.id === 'publicidad')?.status, 'coming-soon')
   assert.equal(MODULE_CATALOG.find(module => module.id === 'asistentes')?.status, 'coming-soon')
   assert.equal(MODULE_CATALOG.find(module => module.id === 'facturacion')?.status, 'coming-soon')
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'autofacturacion')?.status, 'coming-soon')
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'facturacion-electronica')?.status, 'coming-soon')
+  assert.deepEqual(MODULE_CATALOG.find(module => module.id === 'autofacturacion')?.dependencies, ['ventas'])
+  assert.ok(MODULE_CATALOG.find(module => module.id === 'facturacion-electronica')?.capabilities.includes('SIFEN y KuDE'))
   assert.equal(new Set(MODULE_CATALOG.map(module => module.id)).size, MODULE_CATALOG.length)
   const catalog = [{ id: 'clientes', dependencies: [] }, { id: 'pedidos', dependencies: ['clientes'] }]
   const modules = { clientes: { enabled: false }, pedidos: { enabled: true } }
