@@ -12,6 +12,16 @@ import { loginCompany } from './helpers/login.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
+function inicioSemanaAsuncion(semanasAtras = 0, ahora = new Date()) {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Asuncion', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(ahora)
+  const valor = tipo => Number(partes.find(parte => parte.type === tipo)?.value)
+  const fechaLocal = new Date(Date.UTC(valor('year'), valor('month') - 1, valor('day')))
+  fechaLocal.setUTCDate(fechaLocal.getUTCDate() - ((fechaLocal.getUTCDay() + 6) % 7) - semanasAtras * 7)
+  return fechaLocal.toISOString().slice(0, 10)
+}
+
 async function entrarConPin(page, pin, destino) {
   await loginCompany(page)
   await page.locator('#seller-pin').pressSequentially(pin)
@@ -127,8 +137,11 @@ test('tarifas explícitas, multiviaje, sin venta y cierre auditable con rendici�
     expect(driver).toBeTruthy()
     const order = await db.order.findFirstOrThrow({ where: { orderNumber: SEED.deliveryOrderNumber } })
     const tenantId = order.tenantId, branchId = order.branchId
-    const monday = new Date(); monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) - 7)
-    const weekStart = monday.toISOString().slice(0, 10), sunday = new Date(+new Date(`${weekStart}T00:00:00Z`) + 6 * 86400000), endDate = sunday.toISOString().slice(0, 10)
+    const currentWeekStart = inicioSemanaAsuncion()
+    const currentClose = await call('/api/delivery/weekly', 'POST', { branchId, driverId: driver.id, weekStart: currentWeekStart })
+    expect(currentClose.status).toBe(409)
+    expect(currentClose.body.message).toMatch(/semana todavía está en curso/i)
+    const weekStart = inicioSemanaAsuncion(1), sunday = new Date(+new Date(`${weekStart}T00:00:00Z`) + 6 * 86400000), endDate = sunday.toISOString().slice(0, 10)
     const baseTrip = { branchId, driverId: driver.id, orderId: order.id, route: 'Ruta E2E 394', performedOn: weekStart, distanceKm: 5, tripsCount: 3, idempotencyKey: randomUUID() }
     expect((await call('/api/delivery/tariffs')).body.rows).toHaveLength(0)
     expect((await call('/api/delivery/trips', 'POST', baseTrip)).status).toBe(409)
