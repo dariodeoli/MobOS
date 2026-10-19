@@ -147,11 +147,11 @@ export default function ImeiVerificador() {
           </span>
         </div>
         <form
-          className="mt-4"
+          className="mt-2"
           onSubmit={(evento) => { evento.preventDefault(); programar(escenario) }}
         >
-          <fieldset className="mb-4">
-            <legend className="mb-2 text-xs font-semibold text-mute">Elegí un escenario ficticio</legend>
+          <fieldset className="mb-0">
+            <legend className="sr-only">Elegí un escenario ficticio</legend>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" data-testid="imei-escenario-limpio" aria-pressed={escenario === 'ok'} onClick={() => { setEscenario('ok'); programar('ok') }} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${escenario === 'ok' ? 'border-ok/50 bg-ok/10 text-ok' : 'border-fore/10 text-mute hover:text-fore'}`}>
                 <ShieldCheck size={15} className="mr-1.5 inline" />Sin reportes
