@@ -598,7 +598,13 @@ export async function imprimirDocumento(ticket, { contexto = revisionContextoImp
   // Demo (#194): se avisa claro en vez de pegarle al backend real.
   if (isDemoRuntime) return { ok: false, camino: 'demo', motivo: 'demo', error: 'Datos ficticios de demostración: la impresión no está disponible en el demo.' }
   const revision = contexto
-  const estado = await estadoAgente()
+  // Cuando el consumidor ya entregó store + impresora, la selección está
+  // resuelta y podemos preparar el documento sin bloquearlo en el sondeo de
+  // salud del puente. Esto mantiene la ventana de cancelación de contexto
+  // abierta incluso si el agente local tarda; la disponibilidad se consulta
+  // en la llamada recursiva que envía el raster.
+  const configuracionExplicita = typeof ticket === 'function' && Boolean(store && impresora)
+  const estado = configuracionExplicita ? { disponible: false } : await estadoAgente()
   // Sin agente local, la configuración del backend manda: el celular puede
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
   // destino equivocado. Si el backend no responde, se usa la última caché.
