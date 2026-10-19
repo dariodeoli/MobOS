@@ -42,7 +42,11 @@ test('commercial landing: responsive presentation and public contracts', async (
           0,
           'illustration must not imply app interaction',
         )
-        assert.match(await preview.innerText(), /000000000000000/)
+        const imeiMuestra = await preview.locator('.preview-serial').innerText()
+        assert.doesNotMatch(imeiMuestra, /000000000000000/)
+        assert.match(imeiMuestra, /•••••••••••3809/)
+        assert.match(imeiMuestra, /Sin reportes · ejemplo simulado/)
+        assert.match(imeiMuestra, /Fuente de ejemplo \(simulada\)/)
         for (const label of [
           'Venta registrada',
           'iPhone 15',
