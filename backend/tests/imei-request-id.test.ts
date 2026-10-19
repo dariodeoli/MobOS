@@ -33,6 +33,7 @@ const modules: Record<string, unknown> = {
   '../../../lib/http': { json: (data: unknown, init?: ResponseInit) => Response.json(data, init), error: (message: string, status = 400) => Response.json({ message }, { status }) },
   '../../../lib/auth': { requireSession: async () => ({ user: { id: 'u', tenantId: currentTenant, role: 'ADMIN', branchId: null } }), canAccessAny: () => true },
   '../../../lib/tenant-module-access': { tenantModuleEnabled: async () => true },
+  '../../../lib/imei-providers': { findImeiProvider: () => ({ id: 'imeicheck.net', availability: 'simulated' }), publicImeiProviders: () => [] },
   // Créditos: este test cubre el requestId; el saldo se prueba en imei-credits-http.mjs.
   '../../../lib/imei-credits': {
     creditosDeServicio: () => 1,

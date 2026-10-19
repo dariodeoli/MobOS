@@ -4,6 +4,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { creditosDeServicio, correspondeReembolso, estadoCreditos, reembolsarConsulta, reservarConsulta } from '../../../lib/imei-credits'
 import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, modoImeicheck, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
 import { tenantModuleEnabled } from '../../../lib/tenant-module-access'
+import { findImeiProvider, publicImeiProviders } from '../../../lib/imei-providers'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
 //
@@ -36,10 +37,7 @@ export async function GET(request: Request) {
   const creditos = await estadoCreditos(tenant)
   return json({
     ...modoImeicheck(),
-    proveedores: [
-      { id: 'imeicheck.net', estado: modoImeicheck().modo === 'vivo' ? 'configurado' : 'simulado', seleccionado: true },
-      { id: 'imei.info', estado: 'no-configurado', seleccionado: false },
-    ],
+    proveedores: publicImeiProviders().map((provider) => ({ ...provider, estado: provider.availability })),
     creditos: { saldo: creditos.saldo, enforce: creditos.enforce },
     // Sin precios: la app solo habla de verificaciones (créditos).
     servicios: Object.fromEntries(Object.entries(SERVICIOS).map(([clave, s]) => [clave, { nombre: s.nombre, campos: s.campos, creditos: creditosDeServicio(clave) }])),
@@ -70,6 +68,12 @@ export async function POST(request: Request) {
   const tenant = session.user.tenantId
   let body: any
   try { body = await request.json() } catch { return error('Cuerpo inválido.') }
+  const proveedorId = typeof body?.proveedor === 'string' ? body.proveedor : 'imeicheck.net'
+  const proveedor = findImeiProvider(proveedorId)
+  if (!proveedor) return error('Proveedor IMEI no disponible.', 400)
+  // IMEI.info se anuncia como próximo, pero permanece cerrado hasta contar con
+  // contrato, sandbox y secreto configurados. Nunca se hace fallback silencioso.
+  if (proveedor.id !== 'imeicheck.net') return error('Este proveedor está próximamente disponible y todavía no ejecuta consultas.', 409, { proveedor: proveedor.id, disponibilidad: proveedor.availability })
   const accion = body?.action === 'precheck' ? 'precheck' : body?.action === 'checks' ? 'checks' : body?.action === 'reportar' ? 'reportar' : null
   if (!accion) return error('Acción inválida: usá precheck, checks o reportar.')
   // «Reportar problema»: el inquilino solo avisa. No cambia estado, costo ni saldo:
