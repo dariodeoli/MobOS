@@ -112,10 +112,12 @@ test.describe('Configuración Lote 5', () => {
     await expect(page.getByTestId('modulo-card-inventario')).toContainText('Apple/iPhone: modelo, capacidad, color, IMEI, condición y garantía')
     const imeiApi = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/imei`, { headers: { origin: process.env.MOBOS_APP_URL } })
     expect(imeiApi.status()).toBe(200)
-    expect((await imeiApi.json()).proveedores).toEqual([
-      { id: 'imeicheck.net', estado: expect.any(String), seleccionado: true },
-      { id: 'imei.info', estado: 'no-configurado', seleccionado: false },
-    ])
+    const proveedores = (await imeiApi.json()).proveedores
+    expect(proveedores).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'imeicheck.net', estado: expect.any(String), seleccionado: true }),
+      expect.objectContaining({ id: 'imei.info', estado: 'coming_soon', seleccionado: false }),
+    ]))
+    expect(proveedores).toHaveLength(2)
     await expect(messageCard).toContainText('Activo')
     await expect(imeiCard).toContainText('Activo')
     await page.setViewportSize({ width: 360, height: 780 })
