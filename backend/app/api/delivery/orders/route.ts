@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { canManageDelivery, canUseDelivery, deliverySummary } from '../../../../lib/delivery'
+import { deliveryModuleEnabled } from '../../../../lib/delivery-access'
 
 // Pedidos del reparto.
 // - Repartidor (`delivery:use`): solo los asignados a él.
@@ -20,6 +21,7 @@ const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   const esRepartidor = canUseDelivery(session.user)
   const esGestor = canManageDelivery(session.user)
   if (!esRepartidor && !esGestor) return error('No autorizado.', 403)

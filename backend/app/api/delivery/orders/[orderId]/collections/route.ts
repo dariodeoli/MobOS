@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../../lib/payment-input'
 import { assertCollectionWithinBalance, canUseDelivery, deliveryMethod } from '../../../../../../lib/delivery'
+import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { numero } from '../../../../../../lib/montos'
 
 // Pre-cobro del repartidor en la calle: parcial o total, efectivo o
@@ -12,6 +13,7 @@ import { numero } from '../../../../../../lib/montos'
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canUseDelivery(session.user)) return error('No autorizado.', 403)
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
   if (idempotencyKey && !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotencyKey)) return error('Identificador de operación inválido.')

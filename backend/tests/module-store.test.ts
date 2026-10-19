@@ -40,6 +40,8 @@ test('tienda de módulos: respeta dependencias, core y estados próximamente', (
   assert.throws(() => updateModuleStore({}, { moduleId: 'ventas', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
   assert.throws(() => updateModuleStore({}, { moduleId: 'impresion', enabled: false }), /MODULE_CHANGE_NOT_ALLOWED/)
   assert.equal(MODULE_CATALOG.find(module => module.id === 'verificacion-imei')?.changeable, true)
+  assert.equal(MODULE_CATALOG.find(module => module.id === 'delivery')?.changeable, true)
+  assert.deepEqual(MODULE_CATALOG.find(module => module.id === 'delivery')?.dependencies, ['clientes', 'ventas'])
   assert.deepEqual(MODULE_CATALOG.find(module => module.id === 'verificacion-imei')?.dependencies, ['inventario'])
   assert.equal(MODULE_CATALOG.find(module => module.id === 'delivery')?.changeable, true)
   assert.deepEqual(MODULE_CATALOG.find(module => module.id === 'delivery')?.dependencies, ['ventas', 'clientes'])

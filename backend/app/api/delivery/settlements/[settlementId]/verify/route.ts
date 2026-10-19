@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../../lib/payment-input'
 import { canManageDelivery } from '../../../../../../lib/delivery'
+import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { numero } from '../../../../../../lib/montos'
 
 // Verificación de la rendición en la tienda (vendedor/caja/gerencia). Al
@@ -29,6 +30,7 @@ const settlementInclude = Prisma.validator<Prisma.DeliverySettlementInclude>()({
 export async function POST(request: Request, context: { params: Promise<{ settlementId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canManageDelivery(session.user)) return error('No autorizado para verificar rendiciones.', 403)
   try {
     const { settlementId } = await context.params
