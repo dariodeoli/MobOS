@@ -665,8 +665,8 @@ export default function PasoCobro({
       {/* Pie del cobro: Pagado / Pendiente y la acción, siempre a la vista
           (pegado abajo). #281 · tiles con identidad propia: Pagado (ok) ·
           Pendiente (warn). El Total vive una sola vez, en el pie del carrito. */}
-      <div data-testid="pos-pie-cobro" className="lg:sticky lg:bottom-0 lg:z-10 -mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
-        <div data-testid="pos-tiles-resumen" className="pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
+      <div data-testid="pos-pie-cobro" className="pointer-events-none lg:sticky lg:bottom-0 lg:z-10 -mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
+        <div data-testid="pos-tiles-resumen" className="pointer-events-auto pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
           <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">
             <span className="inline-flex items-center gap-1"><Icon name="check" className="inline h-3 w-3" aria-hidden="true" />Pagado</span>
             <strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums text-ok">
@@ -708,7 +708,7 @@ export default function PasoCobro({
             </button>
           )}
         </div>
-        <div className={cn('min-w-0 flex-1 items-center gap-3 basis-48', modoMovil ? 'flex' : 'hidden lg:flex')}>
+        <div className={cn('pointer-events-auto min-w-0 flex-1 items-center gap-3 basis-48', modoMovil ? 'flex' : 'hidden lg:flex')}>
           <BotonGuardar className="flex-1" />
           {ok && (
             <span
