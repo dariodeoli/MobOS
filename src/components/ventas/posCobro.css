@@ -56,3 +56,11 @@
     transform: none !important;
   }
 }
+
+@media (max-width: 1023px) {
+  /* El contenedor no debe crear una caja superpuesta en el scroll táctil. Sus
+     hijos conservan los indicadores y el botón de guardar en el flujo. */
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    display: contents !important;
+  }
+}
