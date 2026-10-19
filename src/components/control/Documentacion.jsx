@@ -290,29 +290,68 @@ const AYUDA = [
   },
 ]
 
-const MODULOS = ['Todo', ...Array.from(new Set(AYUDA.map(entrada => entrada.modulo)))]
+// Dominios de navegación (#586): una entrada tiene una única ubicación
+// canónica aunque pueda mencionarse desde varios flujos. Así Ayuda filtra por
+// el mismo lenguaje que usa Configuración y no crea pantallas duplicadas.
+const DOMINIO_POR_MODULO = {
+  'Impresión': 'Impresoras',
+  'Finanzas': 'Finanzas',
+  'Análisis': 'Análisis',
+  'Configuración': 'Organización',
+  'Inventario': 'Comercial',
+  'Vender': 'Comercial',
+  'Clientes': 'Clientes',
+  'Taller': 'Operación',
+  'Operación': 'Operación',
+}
+const DOMINIO_POR_RUTA = [
+  ['/configuracion/dispositivos', 'Impresoras'],
+  ['/configuracion/seguridad', 'Seguridad'],
+  ['/configuracion/equipo', 'Equipo y acceso'],
+  ['/configuracion/organizacion', 'Organización'],
+  ['/configuracion/comercial', 'Comercial'],
+  ['/mi-cuenta', 'Equipo y acceso'],
+  ['/analisis', 'Análisis'],
+  ['/finanzas', 'Finanzas'],
+]
+const dominioDe = (entrada) => DOMINIO_POR_RUTA.find(([ruta]) => entrada.ruta?.startsWith(ruta))?.[1]
+  || DOMINIO_POR_MODULO[entrada.modulo]
+  || 'Operación'
+const AYUDA_INDEX = AYUDA.map(entrada => ({ ...entrada, dominio: dominioDe(entrada) }))
+const DOMINIOS = ['Todos', ...Array.from(new Set(AYUDA_INDEX.map(entrada => entrada.dominio)))]
+const MODULOS = ['Todo', ...Array.from(new Set(AYUDA_INDEX.map(entrada => entrada.modulo)))]
 
 export default function Documentacion({ vistasAccesibles, children }) {
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
+  const [dominio, setDominio] = useState('Todos')
   // Módulo de la documentación: último usado como predeterminado (#209).
   const [modulo, recordarModulo] = useUltimoUsado('config:documentacion-modulo', 'Todo', {
     valido: (valor) => MODULOS.includes(valor),
   })
 
   const baseVisible = useMemo(
-    () => buscarAyuda(AYUDA, '', vistasAccesibles),
+    () => buscarAyuda(AYUDA_INDEX, '', vistasAccesibles),
     [vistasAccesibles],
   )
-  const modulosVisibles = useMemo(
-    () => ['Todo', ...Array.from(new Set(baseVisible.map(entrada => entrada.modulo)))],
+  const dominioVisible = DOMINIOS.includes(dominio) ? dominio : 'Todos'
+  const baseDelDominio = useMemo(
+    () => dominioVisible === 'Todos' ? baseVisible : baseVisible.filter(entrada => entrada.dominio === dominioVisible),
+    [baseVisible, dominioVisible],
+  )
+  const dominiosVisibles = useMemo(
+    () => ['Todos', ...Array.from(new Set(baseVisible.map(entrada => entrada.dominio)))],
     [baseVisible],
+  )
+  const modulosVisibles = useMemo(
+    () => ['Todo', ...Array.from(new Set(baseDelDominio.map(entrada => entrada.modulo)))],
+    [baseDelDominio],
   )
   const moduloVisible = modulosVisibles.includes(modulo) ? modulo : 'Todo'
   const resultados = useMemo(() => {
-    const filtrados = buscarAyuda(baseVisible, busqueda, vistasAccesibles)
+    const filtrados = buscarAyuda(baseDelDominio, busqueda, vistasAccesibles)
     return moduloVisible === 'Todo' ? filtrados : filtrados.filter(entrada => entrada.modulo === moduloVisible)
-  }, [baseVisible, busqueda, vistasAccesibles, moduloVisible])
+  }, [baseDelDominio, busqueda, vistasAccesibles, moduloVisible])
   const tareasVisibles = useMemo(
     () => TAREAS.filter(tarea => buscarAyuda([tarea], '', vistasAccesibles).length > 0),
     [vistasAccesibles],
@@ -344,6 +383,7 @@ export default function Documentacion({ vistasAccesibles, children }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm font-bold">{entrada.titulo}</h3>
                       <Badge color="blue">{entrada.modulo}</Badge>
+                      <Badge color="gray">{entrada.dominio}</Badge>
                     </div>
                     <p className="mt-1 text-xs font-semibold text-mute">{entrada.ubicacion}</p>
                     <p className="mt-1.5 text-sm text-fore">{entrada.explicacion}</p>
@@ -421,7 +461,26 @@ export default function Documentacion({ vistasAccesibles, children }) {
         <Icon name="external" className="h-4 w-4 shrink-0 text-mute" />
       </a>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="space-y-2" data-testid="ayuda-filtros-dominio">
+        <p className="text-xs font-semibold uppercase tracking-wide text-mute">Sección</p>
+        <div className="flex flex-wrap gap-1.5">
+        {dominiosVisibles.map(item => (
+          <button
+            key={item}
+            type="button"
+            aria-pressed={dominioVisible === item}
+            onClick={() => { setDominio(item); recordarModulo('Todo') }}
+            className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${dominioVisible === item ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
+          >
+            {item}
+          </button>
+        ))}
+        </div>
+      </div>
+
+      <div className="space-y-2" data-testid="ayuda-filtros-modulo">
+        <p className="text-xs font-semibold uppercase tracking-wide text-mute">Tema</p>
+        <div className="flex flex-wrap gap-1.5">
         {modulosVisibles.map(item => (
           <button
             key={item}
@@ -433,6 +492,7 @@ export default function Documentacion({ vistasAccesibles, children }) {
             {item}
           </button>
         ))}
+        </div>
       </div>
 
       {busqueda.trim() ? null : resultados.length === 0 ? (
@@ -446,6 +506,7 @@ export default function Documentacion({ vistasAccesibles, children }) {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold">{entrada.titulo}</h3>
                     <Badge color="blue">{entrada.modulo}</Badge>
+                      <Badge color="gray">{entrada.dominio}</Badge>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-mute">{entrada.ubicacion}</p>
                   <p className="mt-1.5 text-sm text-fore">{entrada.explicacion}</p>
