@@ -12,6 +12,7 @@
         "demo-imei-conciliacion.spec.js",
         "equipo-integrantes.spec.js",
         "finanzas-ultimo-usado.spec.js",
+        "frontend/aviso-privacidad.frontend.spec.js",
         "ia-configuracion.spec.js",
         "informe-dispositivo.spec.js",
         "informe-publico-controles.spec.js",
@@ -47,8 +48,8 @@
         "responsive.spec.js",
         "ruc-extraccion.spec.js"
       ],
-      "tests": 132,
-      "ms": 1151448
+      "tests": 137,
+      "ms": 1172168
     },
     {
       "archivos": [
