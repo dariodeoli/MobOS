@@ -137,7 +137,7 @@ export async function closeWeek(actor: DeliveryActor, input: unknown) {
   ownerRequired(actor)
   const body = objectInput(input); fields(body, ['branchId', 'driverId', 'weekStart'])
   const branchId = textInput(body.branchId, 'Sucursal', 100), driverId = textInput(body.driverId, 'Repartidor', 100), weekStart = weekInput(body.weekStart)
-  if (dayKey(plusDays(weekStart, 7)) > localDay(new Date())) throw new InputError('Solo se pueden cerrar semanas terminadas.')
+  if (dayKey(plusDays(weekStart, 7)) > localDay(new Date())) throw new InputError('La semana todavía está en curso; cerrala cuando termine el domingo.', 409)
   return prisma.$transaction(async tx => {
     await branchAndDriver(tx, actor, branchId, driverId, false)
     await weeklyLock(tx, actor.tenantId, branchId, driverId, weekStart)
