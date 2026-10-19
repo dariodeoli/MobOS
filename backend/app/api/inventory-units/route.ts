@@ -296,6 +296,21 @@ export async function PATCH(request: Request) {
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_MOVED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, from: before.locationId, to: destino } } })
         return data
       }
+      // Edición de la variante Apple: cambia únicamente los atributos del
+      // producto compartido, nunca inventa stock ni altera unidades vendidas.
+      // Se ejecuta dentro de la misma transacción y deja auditoría explícita.
+      if (action === 'variant') {
+        if (!['ADMIN', 'GERENTE'].includes(session.user.role)) throw new Error('Solo administración puede editar la variante del catálogo.')
+        if (before.status === 'SOLD') throw new Error('Una unidad vendida conserva su variante histórica.')
+        const clean = (value: unknown, max = 120) => value === null || value === undefined || String(value).trim() === '' ? null : String(value).trim().slice(0, max)
+        const product = await tx.product.findFirst({ where: { id: before.productId, tenantId: tenant }, select: { id: true, model: true, capacity: true, color: true } })
+        if (!product) throw new Error('Producto no encontrado.')
+        const variant = { model: clean(body.model), capacity: clean(body.capacity, 32), color: clean(body.color, 80) }
+        if (!variant.model && !variant.capacity && !variant.color) throw new Error('Completá al menos un dato de la variante.')
+        const data = await tx.product.update({ where: { id: product.id }, data: variant })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_APPLE_VARIANT_UPDATED', entity: 'Product', entityId: product.id, metadata: { unitId: id, serial: before.serial, before: { model: product.model, capacity: product.capacity, color: product.color }, after: variant } } })
+        return tx.inventoryUnit.findUnique({ where: { id } })
+      }
       if (action === 'remove') {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
         if (before.status !== 'AVAILABLE') throw new Error('Solo se puede eliminar una unidad disponible. Liberá reservas o completá el flujo correspondiente.')
