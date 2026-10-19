@@ -35,6 +35,8 @@ La semana empieza el lunes y termina el domingo según `America/Asuncion`. Solo
 se cierran semanas terminadas, por empresa+sucursal+repartidor. El cierre es
 único e idempotente. Después no se agregan viajes ni se resuelven los incluidos;
 las correcciones son ajustes con motivo, actor, fecha y clave de operación.
+Intentar cerrar la semana en curso es un conflicto de estado (`409`); los campos
+faltantes o fechas que no sean un lunes válido siguen respondiendo `400`.
 
 - Honorarios: suma de las fotos de viajes completados y vinculados.
 - Cobros: cada `Payment` del repartidor se incluye una vez por fecha de cobro,
