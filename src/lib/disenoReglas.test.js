@@ -246,7 +246,7 @@ test('la landing: identidad por tema, vistas ilustrativas y verificador de IMEI 
   assert.match(verificador, /Ejemplo simulado/, 'el resultado se marca como simulado')
   assert.match(verificador, /no se consulta al proveedor ni se cobra/, 'la sección aclara que no consulta ni cobra')
   const demo = leer('lib/imeiDemoLanding.js')
-  assert.match(demo, /export const FUENTE_DEMO = .*\(simulado\)/, 'la fuente dice que es simulada')
+  assert.match(demo, /export const FUENTE_DEMO = .*\(simulada\)/, 'la fuente de ejemplo dice que es simulada y no atribuye datos a un proveedor real')
   assert.match(demo, /from '\.\/imeiComprobante\.js'/, 'la demo reutiliza la validación y la máscara canónicas (#203)')
   assert.match(demo, /simulado: true/, 'el resultado se marca simulado')
   assert.match(demo, /NO_VERIFICADO = 'No verificado'/, 'sin verificar el estado es honesto')
