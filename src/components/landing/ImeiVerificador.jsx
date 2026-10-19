@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowRight, Check, RefreshCw, ScanLine, ShieldAlert, Shi
 import { Aviso, BarraProgreso, Button, Input } from '@/components/ui'
 import { publicUrls } from '@/lib/urls'
 import { fechaDia, fechaHora } from '@/utils/fecha'
-import { FUENTE_DEMO, IMEI_EJEMPLO, consultaImeiEjemplo, enmascararImeiDemo, validarImeiDemo } from '@/lib/imeiDemoLanding'
+import { ESCENARIOS_IMEI_DEMO, FUENTE_DEMO, IMEI_EJEMPLO, consultaImeiEjemplo, enmascararImeiDemo, validarImeiDemo } from '@/lib/imeiDemoLanding'
 
 // Verificador de IMEI de la landing (#202): demo visual, sin llamadas ni
 // cargos. Usa la misma forma de mock que la demo (#200/#201) y marca siempre
@@ -31,14 +31,15 @@ function imeiAleatorioValido() {
   return `${base}${(10 - (suma % 10)) % 10}`
 }
 
-function CampoResultado({ campo, indice, blacklist }) {
+function CampoResultado({ campo, indice }) {
   const hora = campo.hora ? fechaHora(campo.hora, '') : ''
+  const tono = campo.tono || (campo.clave === 'blacklist' ? 'good' : campo.clave === 'findMy' && campo.valor.startsWith('Activado') ? 'bad' : 'neutral')
+  const estilo = tono === 'bad' ? 'border-bad/35 bg-bad/10 text-bad' : tono === 'good' ? 'border-ok/30 bg-ok/10 text-ok' : tono === 'warn' ? 'border-warn/35 bg-warn/10 text-warn' : 'border-fore/[.08] bg-fore/[.025] text-fore'
   return (
-    <div data-testid={campo.clave === 'blacklist' ? 'imei-blacklist' : campo.clave === 'findMy' ? 'imei-find-my' : undefined} className={`mobos-aparece rounded-xl border p-3 ${campo.clave === 'findMy' ? 'sm:col-span-2' : ''} ${blacklist && campo.clave === 'blacklist' ? 'border-bad/35 bg-bad/10' : campo.clave === 'findMy' && campo.valor.startsWith('Activado') ? 'border-bad/35 bg-bad/10' : campo.clave === 'blacklist' ? 'border-ok/30 bg-ok/10' : 'border-fore/[.08] bg-fore/[.025]'}`} style={{ animationDelay: `${indice * 70}ms` }}>
+    <div data-testid={campo.clave === 'blacklist' ? 'imei-blacklist' : campo.clave === 'findMy' ? 'imei-find-my' : campo.clave === 'simLock' ? 'imei-sim-lock' : campo.clave === 'garantia' ? 'imei-garantia' : undefined} className={`mobos-aparece rounded-xl border p-3 ${campo.clave === 'findMy' ? 'sm:col-span-2' : ''} ${estilo}`} style={{ animationDelay: `${indice * 70}ms` }}>
       <p className="text-xs font-bold uppercase tracking-[.14em] text-mute">{campo.etiqueta}</p>
-      <p className={`mt-1 text-sm font-semibold ${blacklist && campo.clave === 'blacklist' ? 'text-bad' : campo.clave === 'blacklist' ? 'text-ok' : ''}`}>{campo.valor}</p>
+      <p className="mt-1 text-sm font-semibold">{campo.valor}</p>
       <p className="mt-0.5 text-xs text-mute">{campo.fuente}{hora ? ` · ${hora}` : ''}</p>
-      {blacklist && campo.clave === 'blacklist' && <p className="mt-1 text-xs font-medium text-bad">Motivo: equipo denunciado como perdido · Reporte: 14/10/2026</p>}
     </div>
   )
 }
@@ -60,9 +61,9 @@ export default function ImeiVerificador() {
 
   useEffect(() => () => { timers.current.forEach(clearTimeout) }, [])
 
-  function programar(escenario) {
+  function programar(escenario, imeiAConsultar = imei) {
     cancelarTareas()
-    const validacion = validarImeiDemo(imei)
+    const validacion = validarImeiDemo(imeiAConsultar)
     if (!validacion.ok) {
       setFase('error')
       setConsulta(null)
@@ -92,14 +93,15 @@ export default function ImeiVerificador() {
 
   function otroEjemplo() {
     cancelarTareas()
-    setImei(imeiAleatorioValido())
-    setFase('listo')
-    setConsulta(null)
-    setError('')
+    const nuevoImei = imeiAleatorioValido()
+    setImei(nuevoImei)
+    programar(escenario, nuevoImei)
   }
 
-  const verificado = consulta?.estado === 'verificado' && consulta?.escenario !== 'blacklist'
-  const blacklist = consulta?.escenario === 'blacklist'
+  const verificado = consulta?.tono === 'good'
+  const tonoResultado = consulta?.tono || 'neutral'
+  const clasesResultado = tonoResultado === 'good' ? 'border-ok/35 bg-ok/10' : tonoResultado === 'bad' ? 'border-bad/35 bg-bad/10' : tonoResultado === 'warn' ? 'border-warn/35 bg-warn/10' : 'border-fore/15 bg-fore/[.025]'
+  const clasesIcono = tonoResultado === 'good' ? 'bg-ok/15 text-ok' : tonoResultado === 'bad' ? 'bg-bad/15 text-bad' : tonoResultado === 'warn' ? 'bg-warn/15 text-warn' : 'bg-fore/10 text-mute'
   // Validación instantánea (#372): cuenta los dígitos y avisa apenas el IMEI de 15 no cierra.
   const digitosImei = imei.replace(/\D/g, '')
   const estadoImei = !digitosImei ? { tono: 'mute', texto: '' }
@@ -152,13 +154,18 @@ export default function ImeiVerificador() {
         >
           <fieldset className="mb-4">
             <legend className="mb-2 text-xs font-semibold text-mute">Elegí un escenario ficticio</legend>
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" data-testid="imei-escenario-limpio" aria-pressed={escenario === 'ok'} onClick={() => { setEscenario('ok'); programar('ok') }} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${escenario === 'ok' ? 'border-ok/50 bg-ok/10 text-ok' : 'border-fore/10 text-mute hover:text-fore'}`}>
-                <ShieldCheck size={15} className="mr-1.5 inline" />Sin reportes
-              </button>
-              <button type="button" data-testid="imei-escenario-blacklist" aria-pressed={escenario === 'blacklist'} onClick={() => { setEscenario('blacklist'); programar('blacklist') }} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${escenario === 'blacklist' ? 'border-bad/50 bg-bad/10 text-bad' : 'border-fore/10 text-mute hover:text-fore'}`}>
-                <ShieldAlert size={15} className="mr-1.5 inline" />Blacklist
-              </button>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ESCENARIOS_IMEI_DEMO.map(({ id, etiqueta, testId }) => {
+                const activo = escenario === id
+                const peligroso = ['blacklist', 'operadora', 'tigo'].includes(id)
+                const informativo = id === 'garantia-apple-vencida'
+                const estiloActivo = peligroso ? 'border-bad/50 bg-bad/10 text-bad' : informativo ? 'border-warn/50 bg-warn/10 text-warn' : 'border-ok/50 bg-ok/10 text-ok'
+                return (
+                  <button key={id} type="button" data-testid={testId} aria-pressed={activo} onClick={() => { setEscenario(id); programar(id) }} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activo ? estiloActivo : 'border-fore/10 text-mute hover:text-fore'}`}>
+                    {peligroso ? <ShieldAlert size={15} className="mr-1.5 inline" /> : <ShieldCheck size={15} className="mr-1.5 inline" />}{etiqueta}
+                  </button>
+                )
+              })}
             </div>
           </fieldset>
           <label htmlFor="imei-ejemplo" className="text-xs font-semibold text-mute">IMEI del equipo</label>
@@ -229,10 +236,10 @@ export default function ImeiVerificador() {
 
         {fase === 'resultado' && consulta && (
           <div className="mt-5 mobos-aparece">
-            <div data-testid="imei-resultado" data-tone={verificado ? 'good' : blacklist ? 'bad' : 'neutral'} className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${verificado ? 'border-ok/35 bg-ok/10' : blacklist ? 'border-bad/35 bg-bad/10' : 'border-warn/35 bg-warn/10'}`}>
+            <div data-testid="imei-resultado" data-tone={tonoResultado === 'good' ? 'good' : tonoResultado === 'bad' ? 'bad' : tonoResultado} className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${clasesResultado}`}>
               <div className="flex items-center gap-3">
-                <span className={`grid h-9 w-9 place-items-center rounded-xl ${verificado ? 'bg-ok/15 text-ok' : blacklist ? 'bg-bad/15 text-bad' : 'bg-warn/15 text-warn'}`}>
-                  {verificado ? <ShieldCheck size={18} /> : blacklist ? <AlertTriangle size={18} /> : <ShieldAlert size={18} />}
+                <span className={`grid h-9 w-9 place-items-center rounded-xl ${clasesIcono}`}>
+                  {verificado ? <ShieldCheck size={18} /> : tonoResultado === 'bad' ? <AlertTriangle size={18} /> : <ShieldAlert size={18} />}
                 </span>
                 <div>
                   <b className="block text-sm">{consulta.etiqueta}</b>
@@ -246,12 +253,12 @@ export default function ImeiVerificador() {
             </div>
 
             <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-              {consulta.campos.map((campo, indice) => <CampoResultado key={campo.clave} campo={campo} indice={indice} blacklist={blacklist} />)}
+              {consulta.campos.map((campo, indice) => <CampoResultado key={campo.clave} campo={campo} indice={indice} />)}
             </div>
 
-            {blacklist && <Aviso tono="error" como="div" className="mt-3 flex items-start gap-2 p-3 text-sm font-semibold"><AlertTriangle size={18} className="mt-0.5 shrink-0" />No comprar ni aceptar como parte de pago. No entregues dinero por este equipo.</Aviso>}
+            {consulta.recomendacion && <Aviso data-testid="imei-escenario-detalle" tono={tonoResultado === 'bad' ? 'error' : tonoResultado === 'good' ? 'ok' : 'warn'} como="div" className="mt-3 p-3 text-sm font-semibold"><p><b>Motivo:</b> {consulta.motivo}</p><p className="mt-1"><b>Recomendación:</b> {consulta.recomendacion}</p></Aviso>}
 
-            {verificado && (
+            {consulta.escenario === 'ok' && verificado && (
               <p className="mt-3 rounded-xl border border-fore/10 bg-fore/[.02] p-3 text-xs leading-5 text-mute">
                 Listo para la nota del cliente: <b className="text-fore">“IMEI verificado: sin reportes al {fechaDia(consulta.fecha)} — fuente {FUENTE_DEMO}”</b>
               </p>
