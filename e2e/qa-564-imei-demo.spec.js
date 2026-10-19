@@ -16,8 +16,17 @@ async function desbordeHorizontal(page, ancho) {
 }
 
 async function comprobarEscenario(page, escenario) {
+  const escenarios = {
+    limpio: { testId: 'imei-escenario-limpio', tono: 'good', campo: 'imei-blacklist', valor: /sin reportes/i },
+    blacklist: { testId: 'imei-escenario-blacklist', tono: 'bad', campo: 'imei-blacklist', valor: /reportad[oa]/i },
+    operadora: { testId: 'imei-escenario-operadora', tono: 'bad', campo: 'imei-sim-lock', valor: /bloqueado para operador/i },
+    tigo: { testId: 'imei-escenario-tigo', tono: 'bad', campo: 'imei-sim-lock', valor: /bloqueado por Tigo/i },
+    'garantia-apple-vigente': { testId: 'imei-escenario-apple-vigente', tono: 'good', campo: 'imei-garantia', valor: /cobertura vigente/i },
+    'garantia-apple-vencida': { testId: 'imei-escenario-apple-vencida', tono: 'warn', campo: 'imei-garantia', valor: /cobertura vencida/i },
+  }
+  const esperado = escenarios[escenario]
   const limpio = escenario === 'limpio'
-  const selector = page.getByTestId(limpio ? 'imei-escenario-limpio' : 'imei-escenario-blacklist')
+  const selector = page.getByTestId(esperado.testId)
   const navegacionesAntes = await page.evaluate(() => performance.getEntriesByType('navigation').length)
   const urlAntes = page.url()
   await selector.click()
@@ -30,10 +39,15 @@ async function comprobarEscenario(page, escenario) {
   await expect(resultado).not.toContainText(/imeicheck\.net|consulta real|proveedor real/i)
   expect(await page.evaluate(() => performance.getEntriesByType('navigation').length)).toBe(navegacionesAntes)
   await expect(page.getByText(/datos ficticios/i).first()).toBeVisible()
-  await expect(resultado).toHaveAttribute('data-tone', limpio ? 'good' : 'bad')
+  await expect(resultado).toHaveAttribute('data-tone', esperado.tono)
 
   const blacklist = page.getByTestId('imei-blacklist')
   const findMy = page.getByTestId('imei-find-my')
+  const campoEscenario = page.getByTestId(esperado.campo)
+  await expect(campoEscenario).toContainText(esperado.valor)
+  const detalle = page.getByTestId('imei-escenario-detalle')
+  await expect(detalle).toContainText(/Motivo:/i)
+  await expect(detalle).toContainText(/Recomendación:/i)
   for (const etiqueta of ['Historial de reportes', 'SIM lock', 'MDM', 'Garantía'])
     await expect(page.getByText(etiqueta, { exact: true })).toBeVisible()
   if (limpio) {
@@ -42,12 +56,13 @@ async function comprobarEscenario(page, escenario) {
     await expect(resultado).toContainText(/sin reportes/i)
     await expect(resultado).not.toContainText(/no comprar/i)
   } else {
-    await expect(blacklist).toContainText(/reportad[oa]/i)
-    await expect(blacklist).toContainText(/motivo/i)
-    await expect(blacklist).toContainText(/simulad[oa]|fictici[oa]/i)
-    await expect(blacklist).toContainText(/reporte:\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/i)
-    await expect(findMy).toContainText(/activado/i)
-    await expect(page.getByText(/no comprar ni aceptar como parte de pago/i)).toBeVisible()
+    if (escenario === 'blacklist') {
+      await expect(blacklist).toContainText(/reportad[oa]/i)
+      await expect(detalle).toContainText(/equipo denunciado/i)
+      await expect(detalle).toContainText(/reporte:\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/i)
+      await expect(findMy).toContainText(/activado/i)
+      await expect(page.getByText(/no comprar ni aceptar como parte de pago/i)).toBeVisible()
+    }
   }
 }
 
@@ -69,10 +84,21 @@ test('demo IMEI: los dos escenarios son simulados, consistentes y responsive (#5
     const anchoEntrada = await entrada.evaluate(element => element.getBoundingClientRect().width)
     expect(anchoEntrada, `input IMEI compacto a ${ancho}px`).toBeLessThanOrEqual(ancho - 32)
 
-    await comprobarEscenario(page, 'limpio')
-    await desbordeHorizontal(page, ancho)
+    for (const escenario of ['limpio', 'blacklist', 'operadora', 'tigo', 'garantia-apple-vigente', 'garantia-apple-vencida']) {
+      await comprobarEscenario(page, escenario)
+      await desbordeHorizontal(page, ancho)
+    }
 
-    await comprobarEscenario(page, 'blacklist')
+    await page.getByTestId('imei-escenario-tigo').click()
+    const imeiAnterior = await entrada.inputValue()
+    await page.getByRole('button', { name: 'Otro ejemplo', exact: true }).click()
+    await expect(entrada).not.toHaveValue(imeiAnterior)
+    const verificacionAuto = page.getByTestId('imei-resultado')
+    await expect(verificacionAuto).toBeVisible({ timeout: 10_000 })
+    await expect(verificacionAuto).toContainText('Bloqueado por Tigo')
+    await expect(verificacionAuto).toHaveAttribute('data-tone', 'bad')
+    const imeiActual = await entrada.inputValue()
+    await expect(verificacionAuto).toContainText(imeiActual.slice(-4))
     await desbordeHorizontal(page, ancho)
   }
 
