@@ -98,17 +98,21 @@ for (const [ancho, alto] of [
   })
 }
 
-test('aviso en la demo (modo oscuro) y no aparece con No rastrear', async ({ page }) => {
+test('aviso ausente en demo y no aparece con No rastrear', async ({ page }) => {
   await preparar(page)
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await expect(page.getByTestId('aviso-metricas')).toBeVisible()
-  await page.evaluate(() => localStorage.clear())
+  await expect(page.getByRole('button', { name: 'Entrar como Dueño', exact: true })).toBeVisible()
+  await expect(page.getByTestId('aviso-metricas')).toHaveCount(0)
+  expect(
+    await page.evaluate(() => document.body.style.paddingBottom),
+    'la demo no reserva espacio para un aviso que no se monta',
+  ).toBe('')
   await page.addInitScript(() =>
     Object.defineProperty(Navigator.prototype, 'globalPrivacyControl', { get: () => true }),
   )
+  await page.goto('/landing-preview', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('button', { name: 'Entrar como Dueño', exact: true })).toBeVisible()
   await expect(page.getByTestId('aviso-metricas')).toHaveCount(0)
 })
 

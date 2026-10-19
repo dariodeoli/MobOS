@@ -3,15 +3,16 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { medicionDesactivada } from '@/lib/trafico'
 
 // Aviso breve y descartable (no bloquea ni pide consentimiento): se muestra
-// una vez en la landing y en la demo; al cerrarlo se recuerda en localStorage.
+// una vez en la landing; al cerrarlo se recuerda en localStorage. La demo tiene
+// su propia divulgación de datos ficticios en DemoAccess.
 // No aparece si el navegador ya pide no ser rastreado o si eligió «No medir».
 export const CLAVE_AVISO_METRICAS = 'mobos:aviso-metricas'
 
 function visible(soloDemo) {
   try {
-    // En el host de la app solo en la pantalla de acceso a la demo: dentro de la
-    // app fija abajo tapaba botones (POS, pagos), y la demo ya tiene su banner.
-    if (soloDemo && window.location.pathname !== '/demo') return false
+    // DemoAccess ya divulga que usa datos ficticios; evita duplicar el aviso y
+    // reservar espacio en una pantalla diseñada para entrar sin scroll.
+    if (soloDemo) return false
     if (medicionDesactivada()) return false
     return localStorage.getItem(CLAVE_AVISO_METRICAS) !== '1'
   } catch {
