@@ -8,6 +8,46 @@
   --c-mute: 90 100 112;
   --shell-bottom-space: calc(56px + env(safe-area-inset-bottom, 0px));
 }
+/* #587: el rail colapsado es una columna de iconos estable. Nunca se desplaza
+   horizontalmente ni cambia el ancho de los targets al ocultar las etiquetas. */
+.shell-nav-v2[data-shell-collapsed='1'] {
+  overflow-x: clip;
+}
+.shell-nav-v2 [data-shell-collapsed='1'] {
+  overflow-x: clip;
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] {
+    width: 4rem;
+    min-width: 4rem;
+    align-items: center;
+    overflow-x: clip;
+  }
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] > * {
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+  }
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] nav,
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] nav > div,
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] [data-testid='shell-config-pie'],
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] [data-testid='shell-config-pie'] > * {
+    width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    max-width: 2.75rem;
+    padding-inline: 0;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .shell-nav-v2 [data-testid='shell-lateral'][data-shell-collapsed='1'] button > svg {
+    flex: 0 0 auto;
+  }
+}
 .dark .shell-nav-v2 {
   --c-paper: 11 13 16;
   --c-ink: 19 22 27;
