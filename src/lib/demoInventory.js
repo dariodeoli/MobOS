@@ -111,7 +111,20 @@ function unidad(producto, indice) {
 }
 
 function seed() {
-  const productos = IPHONES_DEMO.map(item => ({ ...item, categoria: 'Celulares', stock: 0 }))
+  // El demo expone la misma forma estructurada que el catálogo real: Apple usa
+  // modelo/capacidad/color y unidades serializadas; no se inventa stock por
+  // cantidad, éste se deriva de las unidades AVAILABLE.
+  const productos = IPHONES_DEMO.map(item => ({
+    ...item,
+    categoria: 'Celulares',
+    model: item.atributos?.modelo || '',
+    capacity: item.atributos?.capacidad || '',
+    color: item.atributos?.color || '',
+    condition: item.atributos?.estado === 'Seminuevo' ? 'USED' : 'NEW',
+    stockKind: 'EQUIPO',
+    catalogMode: 'apple',
+    stock: 0,
+  }))
   return {
     version: 1,
     products: productos,
