@@ -443,7 +443,7 @@ export function FilaStock({ colores, item, vista = 'unidades', verCosto = false,
         <ConsignadoStock item={item} />
         {verCosto && item.supplierName ? <span className="stock-lista-prov-chico pl-sec truncate text-[11px]" title={`Proveedor: ${item.supplierName}`}>{item.supplierName}</span> : null}
       </span>
-      <span data-testid="unidad-imei" className={cn('pl-sec min-w-0 truncate text-[11px] leading-tight tabular-nums', item.kind === 'unit' && 'font-mono')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
+      <span data-testid="unidad-imei" className={cn('pl-sec min-w-0 text-[11px] leading-tight tabular-nums', item.kind === 'unit' ? 'truncate font-mono' : 'break-all whitespace-normal')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
         {identificador || '—'}
       </span>
       <span className="flex items-center"><BateriaStock item={item} /></span>
