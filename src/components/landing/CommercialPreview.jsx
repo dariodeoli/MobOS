@@ -1,8 +1,8 @@
-// Presentation only. The impossible serial and all transaction data are synthetic.
+// Presentation only. All transaction data and the IMEI are synthetic.
 const example = {
   customer: 'Lucía Ejemplo',
   order: 'EJ-001',
-  imei: '000000000000000',
+  imei: '356938035643809',
   total: 'Gs 5.280.000',
   paid: 'Gs 4.000.000',
   balance: 'Gs 1.280.000',
@@ -76,8 +76,9 @@ function Stock() {
         <div className="preview-serial">
           <dt>IMEI sintético</dt>
           <dd>
-            {example.imei}
-            <span className="preview-chip">IMEI limpio · verificado</span>
+            {`•••••••••••${example.imei.slice(-4)}`}
+            <span className="preview-chip">Sin reportes · ejemplo simulado</span>
+            <span className="preview-meta">Fuente de ejemplo (simulada)</span>
           </dd>
         </div>
       </dl>

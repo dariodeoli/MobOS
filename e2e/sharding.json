@@ -196,6 +196,7 @@
         "qa-322-landing.spec.js",
         "qa-323-fin-modales.spec.js",
         "qa-323-inv-modales.spec.js",
+        "qa-564-imei-demo.spec.js",
         "qa-325-roles-movil.spec.js",
         "qa-fin-repuestos-taller.spec.js",
         "redireccion-248.spec.js",
@@ -203,8 +204,8 @@
         "seguridad-cuenta.spec.js",
         "selector-sucursal.spec.js"
       ],
-      "tests": 215,
-      "ms": 1158290
+      "tests": 216,
+      "ms": 1162434
     }
   ],
   "generado": "2026-10-03T11:17:45.546Z"

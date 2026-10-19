@@ -127,9 +127,9 @@ test('la landing se recorre en móvil con menú, sin repeticiones y con pie lega
   expect(medicion.overflowH, 'sin scroll horizontal').toBe(0)
   expect(medicion.cortados, `sin elementos cortados · ${JSON.stringify(medicion.cortados)}`).toHaveLength(0)
   expect(medicion.chicos, `targets ≥ 44 en mobile · ${JSON.stringify(medicion.chicos)}`).toHaveLength(0)
-  // La auditoría reportó ~15.000 px; el recorrido reordenado debe quedar bien
-  // por debajo de ese largo en mobile (medido en la corrida).
-  expect(alto, 'la landing se acorta').toBeLessThan(11500)
+  // La auditoría reportó ~15.000 px; aun con los escenarios IMEI ficticios
+  // el recorrido debe quedar claramente por debajo de ese largo en mobile.
+  expect(alto, 'la landing se acorta').toBeLessThan(12000)
   await page.screenshot({ path: join(SHOTS, 'landing-mobile.png') })
   await page.screenshot({ path: join(SHOTS, 'landing-mobile-completa.png'), fullPage: true })
 
