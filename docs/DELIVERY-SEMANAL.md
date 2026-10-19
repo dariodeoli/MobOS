@@ -1,4 +1,12 @@
-# Reparto: tarifas, viajes y cierre semanal (#394 / #395)
+# Reparto: módulo, tarifas, viajes y cierres (#394 / #395 / #578)
+
+Delivery se administra como módulo independiente en **Configuración → Tienda de
+módulos**. Está incluido por defecto en los presets Comercio y Servicios, pero el
+dueño puede desactivarlo. La desactivación no borra pedidos, cobros, viajes ni
+cierres: oculta el acceso y bloquea todas las APIs del módulo con `403`. Al
+activarlo se conservan los datos históricos. El catálogo identifica el módulo
+como `delivery`, depende de `clientes` y `ventas`, y registra cada cambio en
+`TENANT_MODULES_UPDATED`.
 
 La pestaña **Entregas → Viajes y cierres** convive con asignación y rendiciones.
 Los honorarios del repartidor son independientes de `Order.deliveryPyg` (lo que
@@ -54,6 +62,22 @@ la rendición original. La foto y el saldo original no se reescriben. Un pago qu
 se borre externamente conserva su foto en el cálculo y genera un aviso; no se
 perdona deuda silenciosamente. No se vuelven a registrar ingresos.
 
+## Cierre diario
+
+El dueño puede cerrar un día terminado por sucursal y repartidor desde
+`POST /api/delivery/daily` con `{ branchId, driverId, businessDay }`. La fecha es
+un día civil de `America/Asuncion`, no un corte UTC: el día actual todavía no se
+puede cerrar. `GET /api/delivery/daily` devuelve la vista previa y el cierre
+existente para que la UI no confirme un día vacío.
+
+El cierre diario es único e idempotente por empresa, sucursal, repartidor y
+fecha. Guarda honorarios, cobros, rendido, saldo y una foto auditable de los
+viajes/tarifas/cobros. Los viajes quedan marcados con `dailyCloseId`; intentar
+registrar otro viaje en ese día devuelve `409` y exige una corrección posterior.
+La auditoría usa `DELIVERY_DAY_CLOSED` y conserva explícitamente la zona horaria.
+El cierre semanal sigue siendo el consolidado de lunes a domingo y no reescribe
+los cierres diarios.
+
 ## Permisos y auditoría
 
 Tarifas, cierre, ajustes y resolución sin venta requieren una pertenencia OWNER
@@ -88,6 +112,7 @@ una generación invalidada al cambiar contexto y al desmontar.
 
 - Podés guardar los honorarios de delivery por distancia y vigencia, sin precios inventados.
 - Registrás varios viajes de una misma ruta y ves cuánto corresponde al repartidor.
+- Cerrás cada día terminado por repartidor y sucursal, con fecha de Paraguay.
 - Cerrás cada semana con sus cobros y deudas, conservando la foto original y el saldo actualizado.
 - Corregís saldos y resolvés viajes sin venta con un motivo que queda registrado.
 - Al cambiar de empresa, sucursal o usuario, las respuestas anteriores no mezclan sus datos ni interrumpen lo que estás guardando.

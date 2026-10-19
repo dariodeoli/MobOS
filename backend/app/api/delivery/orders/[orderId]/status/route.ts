@@ -4,6 +4,7 @@ import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput } from '../../../../../../lib/payment-input'
 import { validateFulfillmentTransition } from '../../../../../../lib/orders'
 import { canUseDelivery, deliveryBalance } from '../../../../../../lib/delivery'
+import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { consumeAuthorization, usableAuthorization } from '../../../../../../lib/authorizations'
 import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../../../../lib/credit-authorization'
 
@@ -18,6 +19,7 @@ import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canUseDelivery(session.user)) return error('No autorizado.', 403)
   try {
     const { orderId } = await context.params

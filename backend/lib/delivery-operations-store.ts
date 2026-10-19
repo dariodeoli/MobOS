@@ -65,6 +65,7 @@ export async function createTrip(actor: DeliveryActor, input: unknown) {
   return prisma.$transaction(async tx => {
     await branchAndDriver(tx, actor, branchId, driverId)
     await weeklyLock(tx, actor.tenantId, branchId, driverId, weekOf(performedOn))
+    if (await tx.deliveryDailyClose.findUnique({ where: { tenantId_branchId_driverId_businessDay: { tenantId: actor.tenantId, branchId, driverId, businessDay: performedOn } }, select: { id: true } })) throw new InputError('El día ya está cerrado; registrá una corrección en la rendición.', 409)
     const existing = await tx.deliveryTrip.findUnique({ where: { tenantId_idempotencyKey: { tenantId: actor.tenantId, idempotencyKey } }, include: tripInclude })
     if (existing) {
       if (existing.branchId !== branchId || existing.driverId !== driverId || existing.orderId !== orderId || existing.route !== route || existing.distanceMeters !== shape.distanceMeters || existing.tripsCount !== shape.tripsCount || dayKey(existing.performedOn) !== dayKey(performedOn)) throw new InputError('La clave ya corresponde a otro viaje.', 409)
@@ -115,6 +116,18 @@ async function weekRows(tx: Tx, actor: DeliveryActor, branchId: string, driverId
   const feesPyg = sumPyg(trips.map(row => row.totalFeePyg))
   return { trips, payments, amounts: weeklyAmounts(feesPyg, payments), unresolvedCount: trips.filter(row => !row.orderId).length }
 }
+async function dayRows(tx: Tx, actor: DeliveryActor, branchId: string, driverId: string, businessDay: Date) {
+  await branchAndDriver(tx, actor, branchId, driverId, false)
+  const end = plusDays(businessDay, 1)
+  const [trips, broadPayments] = await Promise.all([
+    tx.deliveryTrip.findMany({ where: { tenantId: actor.tenantId, branchId, driverId, performedOn: { gte: businessDay, lt: end }, status: 'COMPLETED' }, include: tripInclude, orderBy: { performedOn: 'asc' }, take: 5001 }),
+    tx.payment.findMany({ where: { tenantId: actor.tenantId, deliveryUserId: driverId, order: { branchId }, OR: [{ collectedAt: { gte: plusDays(businessDay, -1), lt: plusDays(end, 1) } }, { collectedAt: null, createdAt: { gte: plusDays(businessDay, -1), lt: plusDays(end, 1) } }] }, select: { id: true, amountPyg: true, status: true, method: true, orderId: true, collectedAt: true, createdAt: true, deliverySettlementId: true }, take: 5001 }),
+  ])
+  if (trips.length > 5000 || broadPayments.length > 5000) throw new InputError('El día supera el límite de filas; pedí revisión antes de cerrar.', 409)
+  const payments = broadPayments.filter(row => localDay(row.collectedAt || row.createdAt) === dayKey(businessDay))
+  const feesPyg = sumPyg(trips.map(row => row.totalFeePyg))
+  return { trips, payments, amounts: weeklyAmounts(feesPyg, payments), unresolvedCount: trips.filter(row => !row.orderId).length }
+}
 async function viewClose(tx: Tx, id: string, tenantId: string) {
   const close = await tx.deliveryWeeklyClose.findFirstOrThrow({ where: { id, tenantId }, include: closeInclude })
   const snapshot = close.snapshot as unknown as { collections: Array<CollectionRow & { amountPyg: number }> }
@@ -152,6 +165,35 @@ export async function closeWeek(actor: DeliveryActor, input: unknown) {
     await tx.deliveryTrip.updateMany({ where: { tenantId: actor.tenantId, id: { in: rows.trips.map(row => row.id) }, weeklyCloseId: null }, data: { weeklyCloseId: close.id } })
     await tx.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.userId, action: 'DELIVERY_WEEK_CLOSED', entity: 'DeliveryWeeklyClose', entityId: close.id, metadata: { branchId, driverId, weekStart: dayKey(weekStart), ...a, trips: rows.trips.length, collections: rows.payments.length } } })
     return viewClose(tx, close.id, actor.tenantId)
+  }, { timeout: 15000 })
+}
+export async function dailyView(actor: DeliveryActor, branchId: string, driverId: string, businessDay: Date) {
+  ownerRequired(actor)
+  return prisma.$transaction(async tx => {
+    const preview = await dayRows(tx, actor, branchId, driverId, businessDay)
+    const close = await tx.deliveryDailyClose.findUnique({ where: { tenantId_branchId_driverId_businessDay: { tenantId: actor.tenantId, branchId, driverId, businessDay } }, select: { id: true, businessDay: true, feesPyg: true, collectedPyg: true, renderedPyg: true, balanceAtClosePyg: true, snapshot: true, createdAt: true } })
+    return { ...preview, close }
+  })
+}
+export async function closeDay(actor: DeliveryActor, input: unknown) {
+  ownerRequired(actor)
+  const body = objectInput(input); fields(body, ['branchId', 'driverId', 'businessDay'])
+  const branchId = textInput(body.branchId, 'Sucursal', 100), driverId = textInput(body.driverId, 'Repartidor', 100), businessDay = dayInput(body.businessDay, 'Día')
+  if (dayKey(businessDay) >= localDay(new Date())) throw new InputError('Solo se pueden cerrar días terminados.')
+  return prisma.$transaction(async tx => {
+    await branchAndDriver(tx, actor, branchId, driverId, false)
+    await weeklyLock(tx, actor.tenantId, branchId, driverId, businessDay)
+    const existing = await tx.deliveryDailyClose.findUnique({ where: { tenantId_branchId_driverId_businessDay: { tenantId: actor.tenantId, branchId, driverId, businessDay } }, select: { id: true } })
+    if (existing) return tx.deliveryDailyClose.findUniqueOrThrow({ where: { id: existing.id } })
+    const rows = await dayRows(tx, actor, branchId, driverId, businessDay)
+    if (rows.unresolvedCount) throw new InputError('Resolvé primero los viajes sin venta: vinculalos o descartalos con motivo.', 409)
+    if (!rows.trips.length && !rows.payments.length) throw new InputError('No hay viajes ni cobros para cerrar.', 409)
+    const a = rows.amounts
+    const snapshot = { trips: rows.trips.map(row => ({ id: row.id, orderId: row.orderId, route: row.route, tripsCount: row.tripsCount, totalFeePyg: numero(row.totalFeePyg), tariffSnapshot: row.tariffSnapshot })), collections: rows.payments.map(row => ({ id: row.id, orderId: row.orderId, amountPyg: numero(row.amountPyg), status: row.status, method: row.method, deliverySettlementId: row.deliverySettlementId })) }
+    const close = await tx.deliveryDailyClose.create({ data: { tenantId: actor.tenantId, branchId, driverId, businessDay, feesPyg: a.feesPyg, collectedPyg: a.collectedPyg, renderedPyg: a.renderedPyg, balanceAtClosePyg: a.balancePyg, snapshot, createdById: actor.userId } })
+    await tx.deliveryTrip.updateMany({ where: { tenantId: actor.tenantId, id: { in: rows.trips.map(row => row.id) }, dailyCloseId: null }, data: { dailyCloseId: close.id } })
+    await tx.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.userId, action: 'DELIVERY_DAY_CLOSED', entity: 'DeliveryDailyClose', entityId: close.id, metadata: { branchId, driverId, businessDay: dayKey(businessDay), ...a, trips: rows.trips.length, collections: rows.payments.length, timeZone: 'America/Asuncion' } } })
+    return close
   }, { timeout: 15000 })
 }
 export async function adjustWeek(actor: DeliveryActor, id: string, input: unknown) {
