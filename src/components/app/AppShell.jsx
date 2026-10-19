@@ -46,6 +46,37 @@ function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otra
   return ''
 }
 
+// Demo: el propietario puede recorrer las perspectivas principales sin crear
+// sesiones reales ni modificar datos. La vista cliente se abre en el portal
+// público de fixtures para conservar la misma experiencia que un QR real.
+function DemoPerspectivas({ entrarDemo }) {
+  const [abierto, setAbierto] = useState(false)
+  const cambiar = async (perspectiva) => {
+    if (perspectiva === 'cliente') {
+      window.open('/portal/demo-demo-cliente-lucia-completo', '_blank', 'noopener,noreferrer')
+      return
+    }
+    await entrarDemo(perspectiva === 'tecnico' ? 'TECNICO' : 'ADMIN')
+    window.location.assign('/')
+  }
+  return (
+    <div data-testid="demo-perspectivas" className="mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6">
+      <span className="text-xs font-semibold text-fore">Explorar demo</span>
+      <button type="button" data-testid="demo-perspectivas-toggle" className="min-h-9 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700" aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
+        Cambiar vista
+      </button>
+      {abierto && (
+        <div role="group" aria-label="Perspectivas de la demo" className="flex flex-wrap gap-1">
+          <button type="button" data-testid="demo-vista-dueno" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('dueno')}>Dueño</button>
+          <button type="button" data-testid="demo-vista-tecnico" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('tecnico')}>Técnico</button>
+          <button type="button" data-testid="demo-vista-cliente" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('cliente')}>Cliente ↗</button>
+        </div>
+      )}
+      <span className="ml-auto text-[11px] text-mute">Datos ficticios · sin API real</span>
+    </div>
+  )
+}
+
 export default function AppShell({
   title,
   subtitle,
@@ -102,7 +133,7 @@ export default function AppShell({
   useEffect(() => {
     try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }) } catch { /* entorno sin scroll */ }
   }, [active])
-  const { usuario: usuarioSesion } = useSesion()
+  const { usuario: usuarioSesion, entrarDemo } = useSesion()
   const usuarioActual = usuario || usuarioSesion
   const [preferencias] = usePreferencias(usuarioActual?.id)
   const notificaciones = useNotificaciones(usuarioActual?.id, {
@@ -360,6 +391,7 @@ export default function AppShell({
   return (
     <div
       data-testid="shell"
+      data-shell-collapsed={collapsed ? '1' : '0'}
       data-stock-compacto={stockCompacto ? '1' : undefined}
       data-tema-v2={temaV2 ? '1' : '0'}
       className={cn(
@@ -370,6 +402,7 @@ export default function AppShell({
     >
       <aside
         data-testid="shell-lateral"
+        data-shell-collapsed={collapsed ? '1' : '0'}
         className={cn(
           'hidden w-[224px] shrink-0 flex-col gap-2 border-r border-ink-600 bg-ink p-2 lg:sticky lg:top-0 lg:flex lg:h-dvh',
           collapsed && 'lg:w-16 lg:items-center',
@@ -499,6 +532,7 @@ export default function AppShell({
             <button type="button" aria-label="Cerrar aviso de la demo" className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-mute hover:bg-ink-700 hover:text-fore" onClick={() => setAvisoGuiaDemo(false)}>×</button>
           </div>
         )}
+        {esDemo && <DemoPerspectivas entrarDemo={entrarDemo} />}
         <RecordSlotContext.Provider value={recordCtx}>
         <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
           {loading ? (
