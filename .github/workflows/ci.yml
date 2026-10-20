@@ -296,6 +296,11 @@ jobs:
         env:
           MOBOS_QA_PORT: "5352"
         run: npx playwright test --config e2e/demo350-scope.frontend.config.js
+      - name: Demo customer card save, edits and reset
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5391"
+        run: npx playwright test --config e2e/demo350-clientes.frontend.config.js
       - name: Build backend (prod-mode E2E server)
         working-directory: backend
         env:

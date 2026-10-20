@@ -8,6 +8,7 @@
 // Capturas: MOBOS_CAPTURAS=docs/QA-315-taller npx playwright test e2e/qa-315-taller.spec.js
 import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { mkdirSync } from 'node:fs'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-315-taller'
 
@@ -79,9 +80,36 @@ test('taller demo: crear una orden y seguirla desde el detalle', async ({ page }
   await page.getByRole('button', { name: '+ Nueva orden' }).click()
   const modal = page.getByRole('dialog', { name: 'Nueva orden de servicio' })
   await modal.getByLabel('Cliente', { exact: true }).fill('Cliente Jerarquía')
-  const buscador = modal.getByTestId('recepcion-dispositivo').getByRole('combobox').first()
+  const buscador = modal.getByTestId('recepcion-dispositivo').locator('input[role="combobox"]')
   await buscador.fill('iPhone 14 Pro')
   await buscador.press('Enter')
+  await expect(modal.getByTestId('taller-dispositivo-seleccionado')).toBeVisible()
+  await expect(buscador).toBeHidden()
+  const selectorCompacto = modal.getByTestId('taller-dispositivo-seleccionado')
+  await selectorCompacto.screenshot({ path: `${SHOTS}/selector-1440-light.png` })
+  await modal.getByRole('button', { name: 'Cambiar equipo' }).click()
+  const buscadorReabierto = modal.getByTestId('recepcion-dispositivo').locator('input[role="combobox"]')
+  await expect(buscadorReabierto).toBeVisible()
+  await buscadorReabierto.fill('iPhone 14 Pro')
+  await buscadorReabierto.press('Enter')
+  await expect(modal.getByTestId('taller-dispositivo-seleccionado')).toBeVisible()
+  await modal.getByRole('button', { name: 'Quitar equipo' }).focus()
+  await page.keyboard.press('Escape')
+  await expect(buscador).toBeVisible()
+  await buscador.fill('iPhone 14 Pro')
+  await buscador.press('Enter')
+  const evidenceDir = process.env.MOBOS_390_EVIDENCE_DIR
+  if (evidenceDir) {
+    mkdirSync(evidenceDir, { recursive: true })
+    for (const [width, height] of [[360, 800], [390, 844], [1440, 900]]) {
+      await page.setViewportSize({ width, height })
+      await modal.screenshot({ path: `${evidenceDir}/taller-selector-${width}-light.png` })
+      await page.evaluate(() => document.documentElement.classList.add('dark'))
+      await page.waitForTimeout(100)
+      await modal.screenshot({ path: `${evidenceDir}/taller-selector-${width}-dark.png` })
+      await page.evaluate(() => document.documentElement.classList.remove('dark'))
+    }
+  }
   await modal.getByPlaceholder('Qué reporta el cliente').fill('No enciende.')
   // Inspección unificada: el punto 2 se marca desde el dibujo.
   await modal.getByRole('button', { name: /^2\. Cámara frontal/ }).click()

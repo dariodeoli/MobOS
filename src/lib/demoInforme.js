@@ -1,7 +1,7 @@
 // Informe de dispositivo en modo demo (#240 ítem 3/#194): arma el payload del
 // informe desde los datos del navegador — los pedidos demo (seriales de los
 // equipos vendidos) y las unidades del inventario demo. Nada sale del navegador.
-import { SEED_DEMO_CLIENTES, clientesDemoGuardados, registrarVistoInformeDemo } from './demoClientes.js'
+import { listarClientesDemo, registrarVistoInformeDemo } from './demoClientes.js'
 import { listDemoUnits } from './demoInventory.js'
 import { consultasDemoImei } from './demoImei.js'
 import { INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from './phonecheck.js'
@@ -38,7 +38,7 @@ function checklistDemo(inspection) {
 
 /** Pedido demo que vendió ese serial (seeds + clientes creados en la pestaña). */
 export function pedidoDemoDelSerial(serial) {
-  const clientes = [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
+  const clientes = listarClientesDemo()
   for (const cliente of clientes) {
     for (const pedido of cliente.demoProfile?.orders || []) {
       const item = (pedido.items || []).find((linea) => (linea.serials || []).some((valor) => mismoSerial(valor, serial)))

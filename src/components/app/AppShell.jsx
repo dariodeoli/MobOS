@@ -62,8 +62,9 @@ function DemoPerspectivas({ entrarDemo, compacto = false }) {
   return (
     <div data-testid="demo-perspectivas" className={compacto ? 'flex items-center gap-1' : 'mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6'}>
       {!compacto && <span className="text-xs font-semibold text-fore">Explorar demo</span>}
-      <button type="button" data-testid="demo-perspectivas-toggle" className={compacto ? 'min-h-11 rounded-lg border border-ink-600 bg-ink px-2 text-xs font-semibold text-fore hover:bg-ink-700' : 'min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700'} aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
-        Cambiar vista
+      <button type="button" data-testid="demo-perspectivas-toggle" aria-label="Cambiar vista de demo" title="Cambiar vista de demo" className={compacto ? 'flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border border-ink-600 bg-ink px-2 text-xs font-semibold text-fore hover:bg-ink-700' : 'min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700'} aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
+        {compacto && <Icon name="users" className="h-4 w-4 shrink-0" />}
+        <span className={compacto ? 'max-lg:sr-only' : undefined}>Cambiar vista</span>
       </button>
       {abierto && (
         <div role="group" aria-label="Perspectivas de la demo" className="flex flex-wrap gap-1">
@@ -509,7 +510,7 @@ export default function AppShell({
         <PageHeader
           title={title}
           subtitle={subtitle}
-          actions={<>{headerActions}{esDemo && enConfigMenu && <DemoPerspectivas entrarDemo={entrarDemo} compacto />}</>}
+          actions={<>{headerActions}{esDemo && <DemoPerspectivas entrarDemo={entrarDemo} compacto />}</>}
           aviso={esDemo && !enConfigMenu && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
@@ -536,7 +537,6 @@ export default function AppShell({
             <button type="button" aria-label="Cerrar aviso de la demo" className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-mute hover:bg-ink-700 hover:text-fore" onClick={() => setAvisoGuiaDemo(false)}>×</button>
           </div>
         )}
-        {esDemo && !enConfigMenu && <DemoPerspectivas entrarDemo={entrarDemo} />}
         <RecordSlotContext.Provider value={recordCtx}>
         <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
           {loading ? (

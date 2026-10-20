@@ -1,3 +1,4 @@
+import { guardarFichaClienteDemo } from '@/lib/demoCheckoutCustomer'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, ConfirmDialog, IconAction, Input, Modal } from '@/components/ui'
@@ -74,6 +75,20 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const [registro, setRegistro] = useState(null)
   const tarjetaRef = useRef(null)
   const cajaRef = useRef(null)
+  const editarClienteRef = useRef(null)
+  const contactoTriggerRef = useRef(null)
+  const modalEstabaAbierto = useRef(false)
+  useEffect(() => {
+    const cerrado = modalEstabaAbierto.current && !abierto
+    modalEstabaAbierto.current = colapsarFicha && abierto
+    if (!colapsarFicha || !cerrado) return
+    // The card/summary trigger is remounted when the POS editor closes.
+    // Restore to its logical successor after the shared Modal cleans up.
+    const frame = requestAnimationFrame(() => {
+      (editarClienteRef.current || contactoTriggerRef.current)?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [abierto, colapsarFicha])
   const enfocarBusqueda = useRef(false)
   const stats = registro?.id === value.id ? (registro?.stats || estadisticasDemo(registro)) : null
   // La deuda abierta del cliente elegido sube al POS para anticipar el crédito.
@@ -140,10 +155,23 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   async function aplicarDocumento(datos) {
     if (guardandoFicha || guardandoDireccion !== null) return
     const next = applyCheckoutIdentity(value, datos)
-    if (esDemo || !empresaId) {
+    if (esDemo) {
       onChange(next)
+      try {
+        const guardado = guardarFichaClienteDemo(next)
+        onChange(customerValue(guardado))
+        setRegistro(guardado)
+        setFeedbackFichaTipo('success')
+        setFeedbackFicha('Datos RUC guardados en esta demo. Se descartan al recargar.')
+        onSelected?.(guardado)
+      } catch (cause) {
+        setFeedbackFichaTipo('error')
+        setFeedbackFicha(cause?.message || 'No se pudo guardar el cliente en esta demo.')
+        setAbierto(true)
+      }
       return
     }
+    if (!empresaId) { onChange(next); return }
     setGuardandoFicha(true)
     setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando datos verificados…')
@@ -208,13 +236,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       setAbierto(true)
       return
     }
-    if (esDemo) {
-      setFeedbackFichaTipo('success')
-      setFeedbackFicha('Cliente listo para esta demo.')
-      setAbierto(false)
-      setEditar(false)
-      return
-    }
     setGuardandoFicha(true)
     setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando cliente…')
@@ -235,16 +256,19 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           billingDocument: String(billingTo?.document || '').trim() || null,
         } : {}),
       }
-      const respuesta = value.id
-        ? await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, payload)
-        : await api.post('/api/customers', payload)
+      const respuesta = esDemo
+        ? guardarFichaClienteDemo({ ...value, ...payload })
+        : value.id
+          ? await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, payload)
+          : await api.post('/api/customers', payload)
       const guardado = respuesta?.customer || respuesta
       if (!guardado?.id) throw new Error('El servidor no devolvió la ficha guardada.')
       const siguiente = customerValue(guardado)
       onChange(siguiente)
       setRegistro(guardado)
       setFeedbackFichaTipo('success')
-      setFeedbackFicha('Cliente guardado correctamente.')
+      setFeedbackFicha(esDemo ? 'Cliente guardado en esta demo. Se descarta al recargar.' : 'Cliente guardado correctamente.')
+      if (esDemo) onSelected?.(guardado)
       setAbierto(false)
       setEditar(false)
     } catch (cause) {
@@ -270,22 +294,19 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       setFeedbackFicha('Guardá primero el cliente para agregarle una dirección.')
       return
     }
-    if (esDemo) {
-      setFeedbackFichaTipo('success')
-      setFeedbackFicha('Dirección lista para esta demo.')
-      return
-    }
     setGuardandoDireccion(index)
     setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando dirección…')
     try {
-      const respuesta = await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, { addresses: value.addresses })
+      const respuesta = esDemo
+        ? guardarFichaClienteDemo(value)
+        : await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, { addresses: value.addresses })
       const guardado = respuesta?.customer || respuesta
       if (!guardado?.id) throw new Error('El servidor no devolvió la dirección guardada.')
       onChange(customerValue(guardado))
       setRegistro(guardado)
       setFeedbackFichaTipo('success')
-      setFeedbackFicha('Dirección guardada en el cliente.')
+      setFeedbackFicha(esDemo ? 'Dirección guardada en esta demo. Se descarta al recargar.' : 'Dirección guardada en el cliente.')
     } catch (cause) {
       setFeedbackFichaTipo('error')
       setFeedbackFicha(cause?.message || 'No se pudo guardar la dirección.')
@@ -323,7 +344,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Ver ficha" aria-label="Ver ficha del cliente" onClick={() => setFichaAbierta(true)}>
               <Icon name="eye" className="h-4 w-4" />
             </button>
-            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Editar datos" aria-label="Editar datos del cliente" onClick={abrirEdicion}>
+            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" ref={editarClienteRef} title="Editar datos" aria-label="Editar datos del cliente" onClick={abrirEdicion}>
               <Icon name="edit" className="h-4 w-4" />
             </button>
             <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-bad transition hover:bg-bad/10 md:h-8 md:w-8" title="Quitar cliente" aria-label="Quitar cliente" onClick={quitarCliente}>
@@ -469,7 +490,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       </Modal>
     ) : (
       <details open={abierto} onToggle={event => { if (colapsarFicha && event.currentTarget.open) setSearchQuery(''); setAbierto(event.currentTarget.open) }} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}>
-        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
+        <summary ref={contactoTriggerRef} className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
         {fichaContenido}
       </details>
     )}

@@ -7,7 +7,7 @@ import { listDemoSuppliers, saveDemoSupplier } from '../demoInventory'
 const demo = (real, local) => (...args) => Promise.resolve(isDemoRuntime ? local(...args) : real(...args))
 
 export const suppliersApi = {
-  list: demo(() => api.get('/api/suppliers'), () => listDemoSuppliers()),
+  list: demo(options => api.get('/api/suppliers', options), () => listDemoSuppliers()),
   create: demo(data => api.post('/api/suppliers', data), data => saveDemoSupplier(data)),
   update: demo(data => api.patch('/api/suppliers', data), data => saveDemoSupplier(data)),
   balance: demo(id => api.get(`/api/suppliers/${encodeURIComponent(id)}/balance`), () => null),

@@ -228,3 +228,10 @@
   text-transform: none;
   letter-spacing: normal;
 }
+
+/* #390: al elegir un equipo la ficha compacta es el único control visible.
+   BuscadorDispositivo conserva sus selectores de capacidad/color debajo para
+   no perder variantes; al cambiar se vuelve a mostrar el campo de búsqueda. */
+.selector-dispositivo-elegido > div:first-child {
+  display: none;
+}

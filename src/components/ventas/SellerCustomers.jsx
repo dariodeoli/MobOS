@@ -24,7 +24,7 @@ import { fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import RucField from '@/components/shared/RucField'
 import { extraerRuc } from '@/utils/ruc'
-import { SEED_DEMO_CLIENTES, clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
+import { listarClientesDemo, guardarClienteDemo } from '@/lib/demoClientes'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { statsDePedidos } from '@/lib/customerAggregates'
 import { filasInformeDemo } from '@/lib/demoClientes'
@@ -98,8 +98,8 @@ export const customerFields = (row) => {
   return { id: row.id, name: row.name || '', nameOfficial: row.nameOfficial ?? null, identityKind: row.identityKind ?? null, givenNames: row.givenNames ?? null, surnames: row.surnames ?? null, displayName: customerDisplayName(row), firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null, insuranceEnabled: row.insuranceEnabled === true, insuranceRatePct: row.insuranceRatePct ?? null, wholesale: row.wholesale === true || row.pricingTier === 'WHOLESALE', stats, demoProfile: row.demoProfile || null }
 }
 export function readDemoCustomers() {
-  // Seeds ficticios siempre visibles (#194) + lo creado en este navegador.
-  return [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()].map(customerFields)
+  // Cartera contextual: cambios demo por id sobre los seeds, sin duplicados.
+  return listarClientesDemo().map(customerFields)
 }
 
 export default function SellerCustomers() {

@@ -1,7 +1,7 @@
 // Garantía pública en modo demo (#240 §3/§4): la credencial del QR se arma con
 // los datos ficticios del navegador (seeds + clientes creados en la pestaña),
 // sin tocar el API real. Mismo contrato que /api/public/warranty/:token.
-import { SEED_DEMO_CLIENTES, clientesDemoGuardados } from './demoClientes.js'
+import { listarClientesDemo } from './demoClientes.js'
 import { pedidoDemoDelSerial } from './demoInforme.js'
 
 const TIENDA = 'Aurora Móviles'
@@ -11,7 +11,7 @@ const TELEFONO_TIENDA = '0981555123'
 export function demoGarantiaPayload(token) {
   const buscado = String(token || '').trim()
   if (!buscado) return null
-  const clientes = [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
+  const clientes = listarClientesDemo()
   for (const cliente of clientes) {
     const garantia = (cliente.demoProfile?.warranties || []).find((row) => row.publicToken === buscado)
     if (!garantia) continue

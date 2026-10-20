@@ -35,6 +35,7 @@ import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import Toolbar from '@/components/shared/Toolbar'
 import StatusChip from '@/components/shared/StatusChip'
+import SelectorResultadoCompacto from '@/components/shared/SelectorResultadoCompacto'
 import ChipsFiltro from './ChipsFiltro'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -162,6 +163,8 @@ export default function SellerQuotes() {
   const [correoEnviado, setCorreoEnviado] = useState(false)
   const [form, setForm] = useState({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' })
   const [clientes, setClientes] = useState([])
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null)
+  const clienteInputRef = useRef(null)
   // Alta rápida del cliente sin salir de la cotización (#260).
   const [fichaAbierta, setFichaAbierta] = useState(false)
   const clienteTimer = useRef(null)
@@ -214,6 +217,7 @@ export default function SellerQuotes() {
   // convertirla en pedido el cliente viaja con ella. El texto libre sigue
   // sirviendo para cotizar a alguien que todavía no es cliente.
   function buscarCliente(texto) {
+    setClienteSeleccionado(null)
     setForm(current => ({ ...current, customerName: texto, customerId: '' }))
     if (clienteTimer.current) clearTimeout(clienteTimer.current)
     clienteTimer.current = setTimeout(async () => {
@@ -242,7 +246,7 @@ export default function SellerQuotes() {
       // pipeline (enviar → aceptar → convertir) que la cuenta real.
       if (esDemo) crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
       else await resources.quotes.create(datos)
-      setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
+      setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClienteSeleccionado(null); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
       setNotice('Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
       await data.refresh()
     } catch (cause) {
@@ -641,11 +645,20 @@ export default function SellerQuotes() {
       size="amplio"
       dirty={Boolean(form.customerName.trim() || form.notes.trim() || form.discountPyg || items.some(item => item.description.trim() || item.productId))}
     >
-      <form id="cotizacion-form" onSubmit={crear} className="space-y-4" noValidate>
-        <div className={GRILLA_DOS_COLUMNAS}>
+      <form id="cotizacion-form" onSubmit={crear} className="min-w-0 space-y-4" noValidate>
+        <div className={cn(GRILLA_DOS_COLUMNAS, 'min-w-0')}>
           <FormField label="Cliente" htmlFor="cotizacion-cliente" hint="Buscá una ficha o escribí el nombre: el texto libre cotiza a alguien que todavía no es cliente.">
             <div className="relative">
-              <Input id="cotizacion-cliente" required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Nombre, teléfono, CI/RUC o correo" />
+              {clienteSeleccionado ? <SelectorResultadoCompacto
+                nombre={clienteSeleccionado.name || clienteSeleccionado.nombre}
+                detalles={[clienteSeleccionado.document ? `CI/RUC ${clienteSeleccionado.document}` : '', clienteSeleccionado.phone ? `+${internationalPhone(clienteSeleccionado.phone, clienteSeleccionado.countryCode)}` : ''].filter(Boolean)}
+                chips={[clienteSeleccionado.stats?.orderCount ? `${clienteSeleccionado.stats.orderCount} pedidos` : '', clienteSeleccionado.stats?.lastOrderAt ? `Última compra ${fechaDia(clienteSeleccionado.stats.lastOrderAt)}` : '']}
+                onCambiar={() => { setClienteSeleccionado(null); requestAnimationFrame(() => clienteInputRef.current?.focus()) }}
+                onQuitar={() => { setClienteSeleccionado(null); setForm(current => ({ ...current, customerId: '', customerName: '' })); requestAnimationFrame(() => clienteInputRef.current?.focus()) }}
+                etiquetaCambiar="Cambiar cliente"
+                etiquetaQuitar="Quitar cliente"
+                testId="cotizacion-cliente-seleccionado"
+              /> : <Input ref={clienteInputRef} id="cotizacion-cliente" required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Nombre, teléfono, CI/RUC o correo" />}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
                 {/* Consumidor final (#260/#314): opción explícita de cotizar sin ficha. */}
                 <button
@@ -653,7 +666,7 @@ export default function SellerQuotes() {
                   data-testid="cotizacion-consumidor-final"
                   aria-pressed={esConsumidorFinal}
                   className={cn('rounded-lg border px-2 py-0.5 font-semibold transition', esConsumidorFinal ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
-                  onClick={() => { setForm(current => ({ ...current, customerName: 'Consumidor final', customerId: '' })); setClientes([]) }}
+                  onClick={() => { setClienteSeleccionado(null); setForm(current => ({ ...current, customerName: 'Consumidor final', customerId: '' })); setClientes([]) }}
                 >
                   Cotizar a consumidor final (sin ficha)
                 </button>
@@ -663,7 +676,7 @@ export default function SellerQuotes() {
                 <ul className="absolute z-10 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-ink-500 bg-ink-800 shadow-xl" data-testid="cotizacion-clientes">
                   {clientes.slice(0, 6).map(cliente => (
                     <li key={cliente.id}>
-                      <button type="button" className="flex w-full items-baseline justify-between gap-3 overflow-hidden px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { setForm(current => ({ ...current, customerId: cliente.id, customerName: cliente.name })); setClientes([]) }}>
+                      <button type="button" className="flex w-full items-baseline justify-between gap-3 overflow-hidden px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { setForm(current => ({ ...current, customerId: cliente.id, customerName: cliente.name })); setClienteSeleccionado(cliente); setClientes([]) }}>
                         <span className="min-w-0 flex-1 truncate font-medium text-fore">{cliente.name}</span>
                         <span className="max-w-[60%] shrink-0 truncate text-xs text-mute">{[cliente.phone ? `+${internationalPhone(cliente.phone, cliente.countryCode)}` : '', cliente.document ? `CI/RUC ${cliente.document}` : '', cliente.stats?.lastOrderAt ? `última compra ${fechaDia(cliente.stats.lastOrderAt)}` : ''].filter(Boolean).join(' · ')}</span>
                       </button>
@@ -740,7 +753,7 @@ export default function SellerQuotes() {
       open={fichaAbierta}
       nombreInicial={form.customerName.trim()}
       onClose={() => setFichaAbierta(false)}
-      onCreada={(ficha) => { setFichaAbierta(false); setForm(current => ({ ...current, customerId: ficha.id, customerName: ficha.name })); setClientes([]) }}
+      onCreada={(ficha) => { setFichaAbierta(false); setClienteSeleccionado(ficha); setForm(current => ({ ...current, customerId: ficha.id, customerName: ficha.name })); setClientes([]) }}
     />
     <Modal className="ventas-f3 ventas-f3-dialog" open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`} size="amplio">
       {historial && (esDemo
