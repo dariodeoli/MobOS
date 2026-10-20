@@ -2646,6 +2646,7 @@ model McpClientGrant {
   tokens      McpAccessToken[]
   changePreviews McpChangePreview[]
   @@unique([tenantId, userId, clientId, redirectUri])
+  @@index([tenantId, userId])
   @@index([tenantId, clientId, revokedAt])
 }
 
@@ -2724,6 +2725,7 @@ model McpChangePreview {
   resultEntity String?
   resultId     String?
   @@unique([grantId, idempotencyKey])
+  @@index([grantId, status, expiresAt])
   @@index([tenantId, userId, status, expiresAt])
 }
 
