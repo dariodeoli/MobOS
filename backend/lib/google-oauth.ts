@@ -69,6 +69,24 @@ export function readCookie(request: Request, name: string) {
 export function sameOrigin(request: Request) {
   return request.headers.get('origin') === appOrigin()?.origin
 }
+
+/**
+ * OAuth consent is rendered by the MCP issuer itself. A browser therefore
+ * submits the consent form with the issuer/API Origin, while the rest of the
+ * app uses the configured web origin. Keep this allowlist explicit; never
+ * accept an Origin supplied by the caller or a redirect URI.
+ */
+export function sameOriginForMcp(request: Request) {
+  const origin = request.headers.get('origin')
+  if (!origin) return false
+  if (origin === appOrigin()?.origin) return true
+  try {
+    const issuer = new URL(process.env.MOBOS_MCP_ISSUER || process.env.MOBOS_API_URL || '')
+    const local = (process.env.NODE_ENV !== 'production' || arnesLocal()) && issuer.protocol === 'http:' && issuer.hostname === 'localhost'
+    if (issuer.username || issuer.password || issuer.search || issuer.hash || (issuer.protocol !== 'https:' && !local)) return false
+    return issuer.origin === origin
+  } catch { return false }
+}
 export function seal(purpose: string, value: object) {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', authConfig().key, iv)
