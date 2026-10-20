@@ -87,6 +87,8 @@ test.describe('MCP conexiones: estados autenticados y revocación (#608)', () =>
     await useAuthenticatedFixture(page)
     await expect(page.getByTestId('mcp-proveedor-chatgpt')).toContainText('Configurado')
     await expect(page.getByTestId('mcp-proveedor-claude')).toContainText('Pendiente')
+    await expect(page.getByTestId('mcp-client-id-chatgpt')).toContainText('ID: chatgpt')
+    await expect(page.getByTestId('mcp-client-id-claude')).toHaveCount(0)
   })
 
   test('revoke success: envía el ID exacto y quita la conexión', async ({ page }) => {
