@@ -1,10 +1,10 @@
 /* POS (#390/#391): presentación del cobro. Se carga después de inicioPosF2.css
    y gana por especificidad; no toca montos ni reglas de negocio. */
 
-/* Catálogo: 3 columnas con tarjetas bajas (nombre + precio/stock). */
+/* Catálogo: las columnas se ajustan al ancho real de su panel. */
 @media (min-width: 1024px) {
   .pos-f2 .pos-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   }
 }
 
