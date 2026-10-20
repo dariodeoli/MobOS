@@ -48,7 +48,7 @@ try {
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'SDK Admin', email: 'sdk-user@example.test', pinHash: 'unused', role: 'ADMIN' } })
   await db.tenantMembership.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, role: 'OWNER' } })
   const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'COMPANY', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
-  const scopes = ['prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read']
+  const scopes = ['prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write']
   const grant = await db.mcpClientGrant.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes } })
   const issued = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes })
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
@@ -100,6 +100,12 @@ try {
   const report = await client.callTool({ name: 'reports.read', arguments: { from: reportDate, to: reportDate, groupBy: 'product', tzOffset: 0 } }); ok(!report.isError && report.structuredContent.totals && report.structuredContent.totals.orders === 2 && report.structuredContent.totals.linesWithoutCost === 1, 'reports.read period/cancelled/unknown-cost rules')
   const paymentReport = await client.callTool({ name: 'reports.read', arguments: { from: reportDate, to: reportDate, groupBy: 'payments', paymentsBy: 'account', tzOffset: 0 } }); const reportGroups = paymentReport.structuredContent.groups || []; ok(reportGroups.some(group => group.key === 'cash'), 'reports.read payment account snapshot grouping')
   const badCursor = await client.callTool({ name: 'products.read', arguments: { cursor: 'invalid' } }).then(() => false).catch(() => true); ok(badCursor, 'invalid cursor rejected')
+  ok(listed.tools.some(tool => tool.name === 'company.write'), 'company.write advertised via SDK')
+  const companyArgs = { mode: 'preview', ruc: '80012345-6', address: 'Av. MCP 123', idempotencyKey: 'sdk-http-company-1' }
+  const companyPreview = await client.callTool({ name: 'company.write', arguments: companyArgs }); const companyPreviewPayload = JSON.parse(companyPreview.content.find(item => item.type === 'text')?.text || '{}'); let staleRejected = false; try { await client.callTool({ name: 'company.write', arguments: { ...companyArgs, mode: 'commit', previewId: companyPreviewPayload.previewId } }) } catch { staleRejected = true }; ok(staleRejected, 'company write requires recent reauthentication')
+  await db.session.update({ where: { id: session.id }, data: { reauthenticatedAt: new Date() } })
+  const companyCommit = await client.callTool({ name: 'company.write', arguments: { ...companyArgs, mode: 'commit', previewId: companyPreviewPayload.previewId } }); ok(!companyCommit.isError && companyCommit.structuredContent?.committed === true, 'company write after recent reauthentication')
+  const companyRepeat = await client.callTool({ name: 'company.write', arguments: { ...companyArgs, mode: 'commit', previewId: companyPreviewPayload.previewId } }); ok(!companyRepeat.isError && companyRepeat.structuredContent?.idempotent === true, 'company write replay idempotent')
   ok(listed.tools.some(tool => tool.name === 'customers.write'), 'customers.write advertised via SDK')
   const customerArgs = { mode: 'preview', operation: 'create', name: 'MCP customer', document: 'MCP-CUSTOMER-1', phone: '+595991000001', email: 'mcp-customer@example.test', idempotencyKey: 'sdk-http-customer-1' }
   const customerPreview = await client.callTool({ name: 'customers.write', arguments: customerArgs }); ok(!customerPreview.isError, 'customer create preview via SDK')

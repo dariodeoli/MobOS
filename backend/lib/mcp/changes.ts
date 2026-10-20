@@ -31,9 +31,10 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
     // accepting client-supplied dimensions here would make the MCP path
     // disagree with the multipart upload policy.
   } else if (action === 'company.write') {
+    const fields = ['name', 'email', 'address', 'city', 'department', 'phone', 'ruc']
+    if (!fields.some(field => Object.hasOwn(value, field))) return { ok: false, error: 'empresa_sin_cambios' }
     if (value.name !== undefined && !bounded(value.name, 180)) return { ok: false, error: 'empresa_nombre_invalido' }
-    if (value.email !== undefined && (typeof value.email !== 'string' || value.email.length > 180)) return { ok: false, error: 'empresa_email_invalido' }
-    if (value.name === undefined && value.email === undefined) return { ok: false, error: 'empresa_sin_cambios' }
+    for (const field of fields.filter(field => field !== 'name')) if (value[field] !== undefined && value[field] !== null && (typeof value[field] !== 'string' || value[field].length > 500)) return { ok: false, error: 'empresa_campo_invalido' }
   }
   return { ok: true, action: action as ChangeAction, payload: value }
 }
