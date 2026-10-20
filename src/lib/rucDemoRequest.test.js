@@ -27,6 +27,24 @@ test('demo real rechaza input o configuración inválidos antes de consultar', a
   await assert.rejects(consultarRucDemoReal('80012345', { fetchImpl }), { code: 'API_NOT_CONFIGURED' })
 })
 
+test('demo usa fixture local para 5215244 y no consulta OwnData', async () => {
+  let calls = 0
+  const result = await consultarRucDemoReal('5215244', {
+    apiUrl,
+    fetchImpl: async () => { calls++; throw new Error('no debe consultar') },
+  })
+  assert.deepEqual(result, {
+    demoFixture: true,
+    name: 'DISTRIBUIDORA AURORA S.A.',
+    fullRuc: '5215244-8',
+    simulado: true,
+  })
+  assert.equal(calls, 0)
+  const conDv = await consultarRucDemoReal('5215244-8', { apiUrl, fetchImpl: async () => { calls++; throw new Error('no debe consultar') } })
+  assert.equal(conDv.fullRuc, '5215244-8')
+  assert.equal(calls, 0)
+})
+
 test('demo real conserva error y espera de cuota sin fabricar un resultado', async () => {
   await assert.rejects(consultarRucDemoReal('80012345', { apiUrl, fetchImpl: async () => Response.json({ message: 'Cuota agotada.', details: { code: 'demo_rate_limited' } }, { status: 429, headers: { 'Retry-After': '17' } }) }), error => {
     assert.equal(error.code, 'demo_rate_limited')

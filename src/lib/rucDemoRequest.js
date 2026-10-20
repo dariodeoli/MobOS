@@ -1,9 +1,22 @@
 import { ApiError } from './api/errors.js'
 
+// Fixtures explícitos para recorrer la demo sin consumir OwnData. Sólo estos
+// identificadores quedan locales; cualquier otro RUC continúa por el adaptador
+// público y conserva su fallback manual ante 4xx/5xx.
+const DEMO_RUC_FIXTURES = Object.freeze({
+  '5215244': Object.freeze({ name: 'DISTRIBUIDORA AURORA S.A.', fullRuc: '5215244-8', simulado: true }),
+})
+
 // Única consulta real admitida en demo. No usa el cliente de la tienda ni
 // recibe una ruta elegida por el llamador; nunca adjunta sesión o credenciales.
 export async function consultarRucDemoReal(query, { apiUrl, signal, fetchImpl = fetch, timeoutMs = 15000 } = {}) {
   if (!/^[1-9]\d{0,8}(?:-\d)?$/.test(String(query || ''))) throw new ApiError('Ingresá un RUC válido.', { code: 'invalid_ruc' })
+  const base = String(query).split('-')[0]
+  const fixture = DEMO_RUC_FIXTURES[base]
+  if (fixture && (String(query) === base || String(query) === fixture.fullRuc)) {
+    if (signal?.aborted) throw new ApiError('La consulta RUC fue cancelada.', { code: 'REQUEST_ABORTED' })
+    return { demoFixture: true, ...fixture }
+  }
   if (!apiUrl) throw new ApiError('La consulta RUC no está configurada. Podés completar los datos manualmente.', { code: 'API_NOT_CONFIGURED' })
   const controller = new AbortController()
   let expired = false

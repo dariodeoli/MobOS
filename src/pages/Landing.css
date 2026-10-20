@@ -392,6 +392,8 @@
 .showcase-portal, .showcase-workshop, .showcase-delivery, .showcase-messages, .showcase-imei, .showcase-permissions, .showcase-billing { display: grid; gap: 12px; min-width: 0; }
 .showcase-portal-heading, .showcase-workshop-device, .showcase-delivery-order, .showcase-imei-device { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .showcase-portal-heading > span:nth-child(2), .showcase-workshop-device > span:nth-child(2), .showcase-delivery-order > span:nth-child(2), .showcase-imei-device > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; flex: 1; font-size: 11px; }
+.showcase-delivery-order > span:first-child { min-width: 0; }
+.showcase-delivery-order > span:nth-child(2) { overflow-wrap: anywhere; word-break: break-word; }
 .showcase-portal-heading small, .showcase-workshop-device small, .showcase-delivery-order small, .showcase-imei-device small { color: var(--landing-muted); font-size: 11px; }
 .showcase-portal-status { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: color-mix(in srgb, var(--landing-brand) 13%, var(--landing-surface)); color: var(--landing-accent); }
 .showcase-portal-status span { display: grid; gap: 3px; font-size: 11px; }
@@ -426,6 +428,11 @@
 .showcase-billing > div small { color: var(--landing-muted); font-size: 10px; }
 .showcase-billing-badge { padding: 5px 7px; border-radius: 999px; background: #f7eddc; color: #815516; font-size: 9px; font-weight: 700; white-space: nowrap; }
 .showcase-billing p { grid-column: 1 / -1; margin: 0; color: var(--landing-muted); font-size: 10px; line-height: 1.5; }
+@media (max-width: 430px) {
+  .showcase-billing { grid-template-columns: 28px minmax(0, 1fr); }
+  .showcase-billing-icon { width: 28px; height: 28px; }
+  .showcase-billing-badge { grid-column: 2; justify-self: start; }
+}
 .showcase-analytics { display: grid; grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); align-items: center; gap: 18px; height: 186px; }
 .landing-showcase-card--wide { grid-column: span 2; }
 .showcase-kpi { display: grid; gap: 6px; }

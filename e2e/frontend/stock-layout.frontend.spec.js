@@ -372,6 +372,37 @@ for (const width of [1440, 375]) {
   })
 }
 
+test('Stock: conserva objetivo táctil a 1024 y compacta sólo con mouse a 1440', async ({ page, browser }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  await sembrar(page)
+  await openShellDestination(page, 'Unidades')
+  await settle(page)
+  const desktopLabel = page.getByTestId('inventario-encabezado').locator('label').first()
+  await expect(desktopLabel).toBeVisible()
+  expect((await desktopLabel.boundingBox()).width).toBe(28)
+
+  // hasTouch activa pointer: coarse manteniendo el user agent de escritorio;
+  // así se cubre el caso de iPad en orientación horizontal (1024 px).
+  const touchContext = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    viewport: { width: 1024, height: 900 },
+    hasTouch: true,
+  })
+  const touchPage = await touchContext.newPage()
+  try {
+    await enterDemo(touchPage)
+    await sembrar(touchPage)
+    await openShellDestination(touchPage, 'Unidades')
+    await settle(touchPage)
+    const touchLabel = touchPage.getByTestId('inventario-encabezado').locator('label').first()
+    await expect(touchLabel).toBeVisible()
+    expect((await touchLabel.boundingBox()).width).toBeGreaterThanOrEqual(44)
+  } finally {
+    await touchContext.close()
+  }
+})
+
 test('Compras: sin cuatro «Compras» y sin franja de Compras | Productos (#19)', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)

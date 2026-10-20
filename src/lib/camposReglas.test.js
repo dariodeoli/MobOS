@@ -181,7 +181,7 @@ test('RucField adapta la variante compacta conservando admisión fiscal y acepta
   assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
   assert.match(source, /consultarRucDemoReal\(identity\.query, \{ apiUrl: API_URL, signal: request\.signal \}\)/)
   assert.match(source, /await api\.get\(`\/api\/ruc\?ruc=/)
-  assert.match(source, /admitRucResponse\(payload, identity\)/)
+  assert.match(source, /admitRucResponse\(payload, identity, demo && Boolean\(payload\?\.demoFixture\)\)/)
   assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
   assert.match(source, /if \(!request\.isCurrent\(scope\.current\)\) return/)
   const extractStart = source.indexOf('const consultar = useCallback')

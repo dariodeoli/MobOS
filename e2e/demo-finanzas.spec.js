@@ -1,4 +1,4 @@
-import { openShellDestination, selectAnalysisSection } from './helpers/shell-navigation.js'
+import { openShellDestination, selectAnalysisSection, selectFinanceSection } from './helpers/shell-navigation.js'
 // #194 (y #188): la demo de Finanzas funciona sin API real, con datos
 // ficticios visibles y sin "Falta sesión".
 import { test, expect } from '@playwright/test'
@@ -94,6 +94,26 @@ test.describe('demo de Finanzas', () => {
     const filaUsdt = page.getByTestId('conciliacion-fila').filter({ hasText: 'USDT · Binance' }).first()
     await expect(filaUsdt).toBeVisible()
     await expect(filaUsdt.locator('span').filter({ hasText: /^Gs / }).first()).toBeVisible()
+  })
+
+  test('mobile: cuentas nuevas visibles y edición conserva datos al navegar', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await entrarDemo(page)
+    await page.goto('/finanzas/bancos')
+    const filas = page.getByTestId('cuenta-fila')
+    await expect(filas.filter({ hasText: 'GNB · Cuenta del dueño' })).toHaveCount(1)
+    await expect(filas.filter({ hasText: 'Hernán Acosta' })).toHaveCount(1)
+    await expect(filas.filter({ hasText: 'Sudameris · Cuenta histórica' })).toContainText('Inactiva')
+
+    const itau = filas.filter({ hasText: 'Itaú · Cuenta corriente' }).first()
+    await itau.getByRole('button', { name: /Editar Itaú/ }).click()
+    await page.locator('#pa-name').fill('Itaú · Cuenta editada')
+    await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+    await expect(page.getByText('Cuenta guardada.')).toBeVisible()
+    await openShellDestination(page, 'Finanzas')
+    await selectFinanceSection(page, 'Bancos y cuentas')
+    await expect(page.getByTestId('cuenta-fila').filter({ hasText: 'Itaú · Cuenta editada' })).toHaveCount(1)
+    await expect(page.getByTestId('cuenta-fila').filter({ hasText: 'Itaú · Cuenta corriente' })).toHaveCount(0)
   })
 
   test('la conciliación funciona en la demo con datos ficticios', async ({ page }) => {

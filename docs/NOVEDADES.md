@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.235 — 2026-10-20
+
+- **Demo y finanzas:** la demostración presenta cuentas bancarias ficticias coherentes, datos RUC de ejemplo y valores que se conservan al volver a abrirla, sin mezclarlos con una empresa real.
+- **Configuración:** el espacio de trabajo de Configuración comienza más arriba y mantiene visibles sus secciones a 430 px, tablet y escritorio.
+- **Inventario:** SKU e identificadores largos se ajustan dentro de las filas; la selección del encabezado conserva un objetivo táctil cómodo sin empujar el listado.
+- **Landing:** las vistas de Delivery y Facturación futura se adaptan a celulares angostos sin cortar textos ni desbordar tarjetas.
+
+---
+
 ## v1.0.234 — 2026-10-20
 
 - **Pedidos:** el encabezado de detalle alinea navegación, estado, impresión, comprobante, acciones y sucursal en una misma línea visual.

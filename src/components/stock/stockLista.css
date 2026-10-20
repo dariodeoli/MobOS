@@ -19,6 +19,14 @@
   z-index: 10;
   background: rgb(var(--c-ink));
 }
+/* La selección del encabezado es de puntero en escritorio; su hit target táctil
+   de 44 px se conserva debajo de lg, pero no debe empujar la primera fila. */
+@media (min-width: 1024px) and (pointer: fine) {
+  .stock-lista-encabezado > span:first-child label {
+    width: 28px;
+    height: 28px;
+  }
+}
 /* Con el header del panel fijo (menos de 1024 px) el encabezado se ancla debajo. */
 @media (max-width: 1023px) {
   .stock-lista-encabezado {

@@ -2,10 +2,14 @@ import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
 import { errorDeMoneda } from './paymentAccountsReglas.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
-import { CUENTAS_DEMO } from './demoCuentasCobro.js'
+import { CUENTAS_DEMO, migrarCuentasDemoV2 } from './demoCuentasCobro.js'
 
 const ENDPOINT = '/api/payment-accounts'
-const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
+// v2 incorpora titulares y estados de cuenta del escenario financiero completo.
+// La lectura migra el seed v1 de forma aditiva: conserva ediciones, cuentas
+// propias y cuentas desactivadas, y solo agrega IDs nuevos.
+const DEMO_KEY = 'mobos:demo-payment-accounts:v2'
+const DEMO_KEY_V1 = 'mobos:demo-payment-accounts:v1'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO']
 // Etiquetas del medio para listados y buscadores (#142/#141).
 export const KIND_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', PIX: 'Pix', CRYPTO: 'USDT - Cripto', TRADE_IN: 'Canje' }
@@ -69,16 +73,30 @@ function saveDemo(accounts) {
   return accounts
 }
 
-function readDemo() {
-  let raw
-  try { raw = leerDemo(DEMO_KEY) }
-  catch { throw new Error('El almacenamiento local de la demo no está disponible.') }
-  if (raw === null) return saveDemo(seed.map(account => ({ ...account })))
+function parseDemo(raw) {
   try {
     const accounts = JSON.parse(raw)
     if (!Array.isArray(accounts) || accounts.some(account => !account?.id)) throw new Error()
     return accounts.map(account => ({ ...validate(account), id: account.id }))
   } catch { throw new Error('Las cuentas demo guardadas no son válidas. No se sobrescribieron los datos.') }
+}
+
+function readDemo() {
+  let rawV2
+  try { rawV2 = leerDemo(DEMO_KEY) }
+  catch { throw new Error('El almacenamiento local de la demo no está disponible.') }
+  if (rawV2 !== null) return parseDemo(rawV2)
+  let rawV1
+  try { rawV1 = leerDemo(DEMO_KEY_V1) }
+  catch { throw new Error('El almacenamiento local de la demo no está disponible.') }
+  if (rawV1 !== null) {
+    // Normalizar los registros nuevos con las mismas reglas del seed antes de
+    // guardarlos: la primera lectura debe mostrar inmediatamente sus defaults
+    // (incluido isActive), igual que las lecturas posteriores.
+    const migradas = parseDemo(JSON.stringify(migrarCuentasDemoV2(parseDemo(rawV1))))
+    return saveDemo(migradas)
+  }
+  return saveDemo(seed.map(account => ({ ...account })))
 }
 
 function accountResponse(payload) {
