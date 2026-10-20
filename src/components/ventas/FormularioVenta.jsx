@@ -2017,12 +2017,16 @@ export default function FormularioVenta({
       const editable =
         target instanceof HTMLElement &&
         (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      if (event.key === 'Escape' || editable) return
+      if (event.key === 'Escape') return
       if (event.key === 'F2') {
+        // F2 is the checkout shortcut, even when the search field currently
+        // owns focus. Keep dialogs/overlays in control of their own keys.
+        if (document.querySelector('[role="dialog"]:not([hidden])')) return
         event.preventDefault()
-        busqueda?.querySelector('input')?.focus()
+        irACobrarRapido()
         return
       }
+      if (editable) return
       if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
         if (
           valido &&
@@ -2347,7 +2351,7 @@ export default function FormularioVenta({
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
             <div className="hidden items-center gap-x-4 gap-y-1.5 text-xs text-mute md:flex">
               <span className="font-semibold uppercase tracking-wider text-mute">Atajos</span>
-              <Atajo k="F2" label="Buscar producto" />
+              <Atajo k="F2" label="Cobrar" />
               <Atajo k="Ctrl+S" label="Guardar venta" />
               <Atajo k="Esc" label="Cerrar ventana" />
             </div>
