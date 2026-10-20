@@ -1,4 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { mkdir } from 'node:fs/promises'
+
+async function capture(page, name) {
+  const out = process.env.CAPTURE_350
+  if (out) { await mkdir(out, { recursive: true }); await page.screenshot({ path: `${out}/${name}.png` }) }
+}
 
 async function enterDemo(page) {
   const writes = []
@@ -36,6 +42,7 @@ test('demo POS saves/selects a new customer, address, portfolio and reopening wi
   await expect(editor).toBeHidden()
   await expect(page.getByTestId('cliente-elegido')).toContainText(name)
   await expect(page.getByTestId('cliente-guardado')).toContainText('guardado en esta demo')
+  await capture(page, 'cliente-guardado')
   const created = (await cards(page)).find(row => row.name === name)
   expect(created.id).toMatch(/^demo-cliente-/)
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
@@ -46,12 +53,15 @@ test('demo POS saves/selects a new customer, address, portfolio and reopening wi
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
   await expect(editor.getByLabel('Dirección', { exact: true })).toHaveValue('Calle sintética 350')
+  await editor.getByLabel('Dirección', { exact: true }).scrollIntoViewIfNeeded()
+  await capture(page, 'direccion-reabierta')
   await page.keyboard.press('Escape')
   const stored = (await cards(page)).filter(row => row.id === created.id)
   expect(stored).toHaveLength(1)
   expect(stored[0].addresses[0].address).toBe('Calle sintética 350')
   await page.getByTestId('shell-lateral').getByRole('button', { name: 'Clientes', exact: true }).click()
   await expect(page.getByTestId('cliente-fila').filter({ hasText: name }).filter({ visible: true })).toHaveCount(1)
+  await capture(page, 'cartera-cliente-guardado')
   expect(writes).toEqual([])
 })
 

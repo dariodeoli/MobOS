@@ -24,7 +24,7 @@ Los writers de ventas, pagos e interacciones clonan la ficha y guardan el result
 
 ## Integración y límites
 
-Unidad store inicial sobre main235, commit804f6dd6 preservado en `codex/demo-350-clientes-guardados`. La rama de integración `codex/demo-350-clientes-integracion` usa la fuente aprobada880ebc11 para reutilizar Modal y validadores fiscales sin copiarlos. Antes del PR contra main se rebasará sobre main236 para que el diff muestre sólo esta unidad demo.
+Unidad store inicial sobre main235, commit804f6dd6 preservado en `codex/demo-350-clientes-guardados`. La rama de integración se rebasó con `--onto origin/main 880ebc11` sobre main236 `43204589a410c959cc6033c7503716a714e042bd`, sin conflictos y con diff exclusivo demo. Reutiliza el Modal y los validadores fiscales canónicos; no arrastra la implementación POS ya integrada.
 
 No cierra #350 ni sustituye el resto de la demo completa. No cambia layout del POS, infraestructura, configuración, versiones ni producción. El guardado es contextual y se pierde al recargar/resetear, como indica la aplicación.
 
@@ -34,3 +34,9 @@ No cierra #350 ni sustituye el resto de la demo completa. No cambia layout del P
 - Editar una ficha o dirección se refleja en la cartera sin duplicar clientes.
 - Los cambios de los ejemplos se conservan durante la demo y se descartan al recargar o salir.
 - La simulación no escribe clientes ni consulta datos en una tienda real.
+
+## Revalidación sobre main236
+
+- Demo + POS/checkout compacto: 26 casos PASS (34.6s), incluidos cinco demo; fiscal POS con HTTP simulado: cinco casos PASS (25.3s), primer intento, harness PG propio, detenido al terminar.
+- FE 1602 PASS; BE 347 PASS + 1 skip; lint sin errores; builds FE/BE, Prisma validate y dbcheck con migraciones en PG fresco PASS. BUILD_ID backend: `Bl-stSFmz5behFy29WlMF`.
+- Capturas finales en `outputs/mobos-350-final-236/` de coordinación: selección guardada, dirección reabierta y cartera. Sin OwnData ni writes API reales.
