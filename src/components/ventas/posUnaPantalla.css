@@ -1,7 +1,8 @@
 /* POS en una sola pantalla (≥1024 px).
    La grilla mide exactamente lo que queda de pantalla (--pos-alto, la fija
-   FormularioVenta): sin scroll de página. Solo se desplazan las listas por
-   dentro: catálogo, productos de la venta y pagos. Se carga después de
+   FormularioVenta): el catálogo conserva su scroll interno, pero carrito y
+   pagos quedan visibles para evitar listas ocultas dentro de un scroll anidado.
+   Se carga después de
    posCobro.css e inicioPosF2.css y gana por especificidad. */
 .pos-f2 .pos-layout {
   --pos-izq: 0.55;
@@ -58,6 +59,11 @@
   .pos-f2 .pos-carrito {
     flex: 1 1 0;
     min-height: 150px;
+  }
+  .pos-f2 .pos-carrito-cuerpo,
+  .pos-f2 .pos-pagos-lista {
+    overflow-y: visible;
+    flex: none;
   }
   .pos-f2 .pos-carrito.pos-carrito-colapsado {
     flex: 0 0 auto;
