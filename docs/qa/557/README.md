@@ -28,6 +28,24 @@ explícitamente asignadas; el resto sigue rechazado y nunca altera el total glob
 La siguiente unidad debe migrar cada escritor/lector a `changeProductLocationStock`
 cuando exista una ubicación elegida y bloquear caminos ambiguos.
 
+## Inventario transversal y compatibilidad
+
+Los escritores que hoy pasan por el contador agregado son `backend/lib/stock.ts`
+(`changeStock` para ventas, anulaciones, devoluciones, recepciones y transferencias),
+`backend/app/api/stock/route.ts` (ajuste manual),
+`backend/app/api/products/route.ts` (edición de stock), y el ajuste por sucursal de
+`backend/app/api/inventory-counts/route.ts`. Las rutas de unidades serializadas también
+llaman a `changeStock`, pero no pueden tener un saldo `ProductLocationBalance` porque
+los equipos se mantienen en `InventoryUnit`.
+
+Mientras esas operaciones todavía no reciben `locationId`, la compatibilidad queda
+fail-closed: `assertLegacyStockMutationAllowed` rechaza cualquier mutación agregada
+si el producto ya tiene un saldo explícito. Así no se puede cambiar `Product.stock`
+dejando una suma de ubicaciones obsoleta. Los productos históricos sin filas de saldo
+siguen funcionando con el contador de sucursal; no se crea una ubicación ficticia.
+La migración siguiente debe agregar selección de ubicación a ventas, compras,
+transferencias y ajustes, reemplazando esa guarda por el servicio transaccional.
+
 Para completar el modelo hace falta migrar todos los escritores/lectores a una fuente de saldo por ubicación, ofrecer una operación de asignación autorizada y registrar los movimientos ocurridos durante el conteo para que una venta posterior al conteo físico no sea revertida al aplicar. Esta primera unidad deja preparado el contrato y el ajuste transaccional de saldos explícitos; no declara resuelto el flujo completo de ventas, compras, transferencias y ajustes por ubicación.
 
 ## Pruebas

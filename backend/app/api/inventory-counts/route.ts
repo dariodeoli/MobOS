@@ -4,7 +4,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { recomputeStock } from '../../../lib/stock'
 import { ensureStoreBranch } from '../../../lib/store-branch'
-import { setProductLocationStock } from '../../../lib/product-location-stock'
+import { assertLegacyStockMutationAllowed, setProductLocationStock } from '../../../lib/product-location-stock'
 
 const MAX_SERIALES = 5000
 
@@ -183,6 +183,7 @@ export async function PATCH(request: Request) {
                 throw new InputError(cause instanceof Error ? cause.message : 'El stock cambió durante el conteo; iniciá un conteo nuevo.', 409)
               }
             } else {
+              await assertLegacyStockMutationAllowed(tx, tenant, change.productId)
               const updated = await tx.product.updateMany({ where: { id: change.productId, tenantId: tenant, branchId: count.branchId, stock: change.before }, data: { stock: change.counted } })
               if (updated.count !== 1) throw new InputError('El stock cambió durante el conteo; actualizá las diferencias e intentá de nuevo.', 409)
             }

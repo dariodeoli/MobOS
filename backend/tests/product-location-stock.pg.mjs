@@ -26,12 +26,13 @@ try {
   const location = await db.stockLocation.create({ data: { tenantId, branchId: branch.id, name: 'Depósito QA #557' } })
   const product = await db.product.create({ data: { tenantId, branchId: branch.id, sku: `QA-557-${suffix}`, name: 'Producto QA #557', pricePyg: 1000, stock: 10, stockKind: 'ACCESORIO' } })
 
-  const { allocateProductStockToLocation, changeProductLocationStock, setProductLocationStock } = require('../lib/product-location-stock.ts')
+  const { allocateProductStockToLocation, assertLegacyStockMutationAllowed, changeProductLocationStock, setProductLocationStock } = require('../lib/product-location-stock.ts')
   await db.$transaction(tx => allocateProductStockToLocation(tx, { tenantId, productId: product.id, locationId: location.id, quantity: 3 }))
   let current = await db.product.findUniqueOrThrow({ where: { id: product.id } })
   let balance = await db.productLocationBalance.findUniqueOrThrow({ where: { productId_locationId: { productId: product.id, locationId: location.id } } })
   assert.equal(current.stock, 10, 'asignar no altera el agregado de sucursal')
   assert.equal(balance.quantity, 3, 'asignar crea el saldo explícito')
+  await assert.rejects(() => assertLegacyStockMutationAllowed(db, tenantId, product.id), /saldo por ubicación/)
 
   await db.$transaction(tx => setProductLocationStock(tx, { tenantId, productId: product.id, locationId: location.id, quantity: 5 }))
   current = await db.product.findUniqueOrThrow({ where: { id: product.id } })

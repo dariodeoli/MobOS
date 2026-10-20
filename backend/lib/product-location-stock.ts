@@ -13,6 +13,18 @@ function validQuantity(quantity: number) {
   if (!Number.isSafeInteger(quantity) || quantity < 0) throw new Error('La cantidad por ubicación debe ser un entero no negativo.')
 }
 
+/**
+ * Legacy writers do not know which physical location changed. Once a product
+ * has an explicit location balance, silently changing only Product.stock would
+ * make the branch total disagree with its locations. Callers that still lack
+ * a location must fail closed until they are migrated to the location-aware
+ * service.
+ */
+export async function assertLegacyStockMutationAllowed(tx: Tx, tenantId: string, productId: string) {
+  const assigned = await tx.productLocationBalance.count({ where: { tenantId, productId } })
+  if (assigned > 0) throw new Error('Este producto tiene saldo por ubicación; seleccioná una ubicación antes de modificar el stock.')
+}
+
 async function lockProduct(tx: Tx, input: Pick<LocationStockInput, 'tenantId' | 'productId' | 'locationId'>) {
   const rows = await tx.$queryRaw<Array<{ id: string; branchId: string | null; stock: number; stockKind: string | null }>>(Prisma.sql`
     SELECT p."id", p."branchId", p."stock", p."stockKind"::text
