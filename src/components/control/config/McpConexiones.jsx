@@ -15,7 +15,11 @@ const PROVIDERS = [
 function scopesText(scopes) {
   if (!Array.isArray(scopes) || scopes.length === 0) return 'Sin capacidades registradas'
   const labels = { 'company:read': 'Empresa', 'products:read': 'Productos', 'products:write': 'Editar productos', 'customers:read': 'Clientes', 'customers:write': 'Editar clientes', 'sales:read': 'Ventas', 'reports:read': 'Reportes' }
-  return scopes.map(scope => labels[scope] || scope.replace(/[:_]/g, ' ')).join(' · ')
+  return scopes.map(item => {
+    const scope = typeof item === 'string' ? item : item && typeof item.scope === 'string' ? item.scope : ''
+    if (!scope) return typeof item?.label === 'string' ? item.label : null
+    return typeof item?.label === 'string' && item.label.trim() ? item.label : (labels[scope] || scope.replace(/[:_]/g, ' '))
+  }).filter(Boolean).join(' · ') || 'Sin capacidades registradas'
 }
 
 function providerName(clientId) {
@@ -84,7 +88,7 @@ export default function McpConexiones() {
 
   function providerConfigured(id) {
     const explicit = providerStatuses.find(item => String(item?.id || item?.provider || '').toLowerCase() === id)
-    return explicit ? explicit.configured === true : oauthReady
+    return explicit ? (explicit.configured === true || explicit.oauth === true) : oauthReady
   }
 
   return (
