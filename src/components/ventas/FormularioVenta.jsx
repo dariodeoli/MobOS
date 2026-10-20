@@ -26,7 +26,7 @@ import { encolarVenta } from '@/lib/offline/ventas'
 import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
 import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo, marcarBorradorRetomadoDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
-import { checkoutName, checkoutBillingPayload, restoreBillingIdentity } from '@/lib/checkoutIdentity'
+import { checkoutVisibleName, checkoutBillingPayload, restoreBillingIdentity } from '@/lib/checkoutIdentity'
 import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
@@ -1344,7 +1344,7 @@ export default function FormularioVenta({
                   customerId: customer.id,
                   // Contacto corregido en el POS: viaja para persistirlo en la
                   // ficha (el correo dejaba de guardarse al editar y vender).
-                  ...(customer.email?.trim() || customer.phone?.trim()
+                  ...(customer.email?.trim() || customer.phone?.trim() || Object.keys(customerIdentityPayload(customer)).length
                     ? {
                         customer: {
                           ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
@@ -1357,7 +1357,7 @@ export default function FormularioVenta({
               : {
                   customer: {
                     // El nombre visible de mostrador viaja separado de la identidad fiscal exacta.
-                    name: customer.displayName || customer.name || checkoutName(customer, clienteEfectivo),
+                    name: checkoutVisibleName(customer, clienteEfectivo),
                     ...customerIdentityPayload(customer),
                     ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
                     ...(customer.countryCode ? { countryCode: customer.countryCode } : {}),

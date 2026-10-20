@@ -12,7 +12,7 @@ import { montoGs } from '@/utils/moneda'
 import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { normalizarNombre } from '@/utils/nombre'
-import { applyCheckoutIdentity, clearCheckoutIdentity } from '@/lib/checkoutIdentity'
+import { applyCheckoutIdentity, checkoutVisibleName, clearCheckoutIdentity } from '@/lib/checkoutIdentity'
 import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
 import { listarClientesDemo } from '@/lib/demoClientes'
@@ -34,7 +34,7 @@ const TITULO_SECCION = 'text-[11px] font-semibold uppercase tracking-wide text-m
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
-  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName } : {}),
+  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName, identityKind: customer.identityKind ?? null, givenNames: customer.givenNames ?? null, surnames: customer.surnames ?? null } : {}),
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
   pricingTier: customer.pricingTier || 'RETAIL', priceListId: customer.priceListId || null, creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
@@ -146,7 +146,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setFeedbackFicha('Guardando datos verificados…')
     try {
       const payload = {
-        name: String(next.displayName || next.name || '').trim(),
+        name: checkoutVisibleName(next),
         ...customerIdentityPayload(next),
         document: String(next.document || '').trim() || undefined,
         phone: String(next.phone || '').trim() || undefined,
@@ -215,7 +215,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setFeedbackFicha('Guardando cliente…')
     try {
       const payload = {
-        name: nombre,
+        name: checkoutVisibleName(value, nombre),
         ...customerIdentityPayload(value),
         document: String(value.document || '').trim() || undefined,
         phone: String(value.phone || '').trim() || undefined,
