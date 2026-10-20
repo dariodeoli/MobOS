@@ -372,7 +372,7 @@ for (const width of [1440, 375]) {
   })
 }
 
-test('Stock: conserva objetivo táctil a 1024 y compacta sólo con mouse a 1440', async ({ page, browser, testInfo }) => {
+test('Stock: conserva objetivo táctil a 1024 y compacta sólo con mouse a 1440', async ({ page, browser }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
   await sembrar(page)
