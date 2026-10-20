@@ -37,6 +37,9 @@ export async function POST(request: Request) {
   const branchId = typeof checked.payload.branchId === 'string' ? checked.payload.branchId : null
   const decision = authorizeMcpAction(checked.action, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: branchId })
   if (!decision.allowed) return json(decision.code.toLowerCase(), 403)
+  // Creating a list follows the web canAccessAny(products:manage) guard;
+  // editing an existing commercial list remains restricted to management.
+  if (checked.action === 'price_lists.write' && checked.payload.operation === 'update' && !['ADMIN', 'GERENTE'].includes(auth.user.role)) return json('role_denied', 403)
   const hash = changePayloadHash(checked.action, checked.payload)
   const idempotencyKey = typeof body.idempotencyKey === 'string' && /^[A-Za-z0-9._:-]{8,120}$/.test(body.idempotencyKey) ? body.idempotencyKey : ''
   if (!idempotencyKey) return json('idempotency_key_requerida')

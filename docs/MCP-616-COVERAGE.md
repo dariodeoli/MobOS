@@ -61,7 +61,7 @@ secretos.
 
 ## Corte implementado en PR #624
 
-`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos con las mismas guardas de la aplicación: lectura ADMIN/GERENTE y escritura ADMIN/GERENTE o permiso explícito `products:manage`, además de módulo de inventario, tenant y scopes. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
+`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos con las mismas guardas de la aplicación: lectura ADMIN/GERENTE; creación con ADMIN/GERENTE o permiso explícito `products:manage`; edición restringida a ADMIN/GERENTE. Siempre se exige módulo de inventario, tenant y scope. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
 
 ### Evidencia del endurecimiento
 
