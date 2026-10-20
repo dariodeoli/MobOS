@@ -28,6 +28,8 @@ assert.equal(authorizeMcpAction('sales.read', { ...base, user: cajera }).dataSco
 assert.equal(parseMcpScopes('products:read reports:read').length, 2)
 assert.deepEqual(parseMcpScopes('products:read bad:scope'), [])
 assert.deepEqual(parseMcpScopes('products:read products:read'), ['products:read'])
+assert.deepEqual(parseMcpScopes('company:write'), ['company:write'])
+assert.equal(authorizeMcpAction('products.read', { ...base, user: { ...vendedor, branchId: null } }).code, 'BRANCH_DENIED')
 assert.deepEqual(mcpAuditMetadata({ action: 'products.write', connector: 'claude', requestId: 'req-1', branchId: 'branch-a' }), { action: 'products.write', connector: 'claude', requestId: 'req-1', branchId: 'branch-a' })
 assert.equal('token' in mcpAuditMetadata({ action: 'products.write', connector: 'claude' }), false)
 console.log('mcp authorization tests: ok')
