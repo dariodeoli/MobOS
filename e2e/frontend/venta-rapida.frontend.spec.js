@@ -74,6 +74,8 @@ test('venta rápida conserva objetivos táctiles y no desborda en celular', asyn
 test('cobro: título y acciones de pagos mantienen separación en desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 })
   await enterDemo(page)
+  const firstCard = await page.locator('.pos-product-card').first().boundingBox()
+  expect(firstCard.width).toBeGreaterThanOrEqual(160)
   await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
   await page.getByTestId('carrito-listo').click()
   const cobro = page.getByTestId('pos-cobro')
