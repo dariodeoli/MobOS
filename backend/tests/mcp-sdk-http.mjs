@@ -113,6 +113,19 @@ try {
   const crossPayload = await crossConnector.json(); ok(Boolean(crossPayload.error), 'cross-connector preview commit rejected')
   const committed = await client.callTool({ name: 'prices.write', arguments: { mode: 'commit', previewId: previewPayload.previewId, productId: product.id, pricePyg: 1100, expectedPricePyg: 1000, idempotencyKey: 'sdk-http-price-1' } }); ok(!committed.isError && committed.structuredContent?.committed === true, 'prices.write commit via SDK')
   const repeat = await client.callTool({ name: 'prices.write', arguments: { mode: 'commit', previewId: previewPayload.previewId, productId: product.id, pricePyg: 1100, expectedPricePyg: 1000, idempotencyKey: 'sdk-http-price-1' } }); ok(!repeat.isError && repeat.structuredContent?.committed === true && repeat.structuredContent?.previewId === committed.structuredContent?.previewId, 'prices.write idempotent commit via SDK')
+  const raceBeforeAudit = await db.auditLog.count({ where: { tenantId: tenant.id, action: 'PRODUCT_PRICE_UPDATED', entityId: product.id } })
+  const raceArgs = { mode: 'preview', productId: product.id, expectedPricePyg: 1100 }
+  const racePreviewA = await client.callTool({ name: 'prices.write', arguments: { ...raceArgs, pricePyg: 1300, idempotencyKey: 'sdk-http-price-race-a' } })
+  const racePreviewB = await client.callTool({ name: 'prices.write', arguments: { ...raceArgs, pricePyg: 1400, idempotencyKey: 'sdk-http-price-race-b' } })
+  const raceA = JSON.parse(racePreviewA.content.find(item => item.type === 'text')?.text || '{}')
+  const raceB = JSON.parse(racePreviewB.content.find(item => item.type === 'text')?.text || '{}')
+  const raceResults = await Promise.allSettled([
+    client.callTool({ name: 'prices.write', arguments: { ...raceArgs, pricePyg: 1300, idempotencyKey: 'sdk-http-price-race-a', mode: 'commit', previewId: raceA.previewId } }),
+    client.callTool({ name: 'prices.write', arguments: { ...raceArgs, pricePyg: 1400, idempotencyKey: 'sdk-http-price-race-b', mode: 'commit', previewId: raceB.previewId } }),
+  ])
+  ok(raceResults.filter(result => result.status === 'fulfilled').length === 1 && raceResults.filter(result => result.status === 'rejected').length === 1, 'prices.write CAS race has one winner and one conflict')
+  const raceAfterAudit = await db.auditLog.count({ where: { tenantId: tenant.id, action: 'PRODUCT_PRICE_UPDATED', entityId: product.id } })
+  ok(raceAfterAudit - raceBeforeAudit === 1, 'prices.write CAS conflict creates no extra price audit')
   const revokedPreview = await fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued2.accessToken}`, origin: resource, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 78, method: 'tools/call', params: { name: 'prices.write', arguments: { mode: 'preview', productId: product.id, pricePyg: 1200, expectedPricePyg: 1100, idempotencyKey: 'sdk-http-price-revoked' } } }) })
   const revokedPreviewPayload = await revokedPreview.json(); const revokedPreviewId = JSON.parse(revokedPreviewPayload.result?.structuredContent ? JSON.stringify(revokedPreviewPayload.result.structuredContent) : revokedPreviewPayload.result?.content?.[0]?.text || '{}').previewId
   await db.mcpClientGrant.update({ where: { id: grant2.id }, data: { revokedAt: new Date() } })
