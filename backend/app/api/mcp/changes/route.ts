@@ -7,6 +7,7 @@ import { moduleStoreFrom } from '../../../../lib/module-store'
 import { changePayloadHash, validateChange } from '../../../../lib/mcp/changes'
 import { updateProductPrice, ProductPriceError } from '../../../../lib/product-price'
 import { generateProductImagesBase64, persistProductImage, ProductImageError, serializeProductImage } from '../../../../lib/product-images'
+import { createCustomer, updateCustomer, CustomerServiceError } from '../../../../lib/customer-service'
 
 export const dynamic = 'force-dynamic'
 const TTL_MS = 10 * 60 * 1000
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   // Other mutation domains remain disabled until their existing application
   // services are extracted and reused here. This endpoint must not create a
   // second, weaker CRUD path.
-  if (checked.action !== 'prices.write' && checked.action !== 'product_images.write') return json('mutacion_no_disponible', 501)
+  if (!['prices.write', 'product_images.write', 'customers.write'].includes(checked.action)) return json('mutacion_no_disponible', 501)
   const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { id: true, settings: true } })
   if (!tenant) return json('empresa_no_disponible', 404)
   const modules = moduleStoreFrom(tenant.settings).modules
@@ -37,6 +38,18 @@ export async function POST(request: Request) {
   if (!idempotencyKey) return json('idempotency_key_requerida')
   if (mode === 'preview') {
     const expiresAt = new Date(Date.now() + TTL_MS)
+    if (checked.action === 'customers.write') {
+      const operation = checked.payload.operation === 'update' ? 'update' : 'create'
+      const customer = operation === 'update' ? await prisma.customer.findFirst({ where: { id: String(checked.payload.customerId), tenantId: auth.tenantId }, include: { addresses: true } }) : null
+      if (operation === 'update' && !customer) return json('cliente_no_disponible', 404)
+      const before = safe(customer ? { id: customer.id, name: customer.name, document: customer.document, phone: customer.phone, email: customer.email, addresses: customer.addresses } : null)
+      const after = safe({ ...before, ...(operation === 'create' ? { name: checked.payload.name ?? checked.payload.firstName } : {}), ...Object.fromEntries(['name', 'firstName', 'secondName', 'document', 'phone', 'countryCode', 'email', 'addresses'].filter(key => Object.hasOwn(checked.payload, key)).map(key => [key, checked.payload[key]])) })
+      const existing = await prisma.mcpChangePreview.findUnique({ where: { tenantId_userId_idempotencyKey: { tenantId: auth.tenantId, userId: auth.user.id, idempotencyKey } } })
+      if (existing) { if (existing.action !== checked.action || existing.payloadHash !== hash) return json('idempotencia_reutilizada', 409); return NextResponse.json({ previewId: existing.id, action: existing.action, payloadHash: existing.payloadHash, status: existing.status, expiresAt: existing.expiresAt, before: existing.before, after: existing.after, resultEntity: existing.resultEntity, resultId: existing.resultId }, { headers: { 'Cache-Control': 'no-store' } }) }
+      const preview = await prisma.mcpChangePreview.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: checked.action, payloadHash: hash, payload: checked.payload as Prisma.InputJsonValue, before: before as Prisma.InputJsonValue, after: after as Prisma.InputJsonValue, idempotencyKey, expiresAt } })
+      await prisma.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_PREVIEWED', entity: 'McpChangePreview', entityId: preview.id, metadata: { action: checked.action, payloadHash: hash } } })
+      return NextResponse.json({ previewId: preview.id, action: preview.action, payloadHash: hash, status: preview.status, expiresAt, before, after }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
+    }
     if (checked.action === 'product_images.write') {
       let generated
       try { generated = await generateProductImagesBase64(checked.payload.dataBase64, checked.payload.contentType) }
@@ -90,6 +103,24 @@ export async function POST(request: Request) {
     } catch (error) {
       if (error instanceof ProductImageError) return json(error.message === 'preview_invalido' ? 'preview_invalido' : 'imagen_no_guardada', error.status, { detail: error.message })
       return json('imagen_no_guardada', 500)
+    }
+  }
+  if (checked.action === 'customers.write') {
+    try {
+      const result = await prisma.$transaction(async tx => {
+        const actor = { id: auth.user.id, tenantId: auth.tenantId, role: auth.user.role, permissions: auth.user.permissions }
+        const customer = checked.payload.operation === 'update'
+          ? await updateCustomer(tx, actor, String(checked.payload.customerId), checked.payload as any)
+          : await createCustomer(tx, actor, checked.payload as any)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: new Date() }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: new Date(), resultEntity: 'Customer', resultId: customer.id } })
+        if (claimed.count !== 1) throw new CustomerServiceError('conflict', 'preview_invalido')
+        await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'Customer', entityId: customer.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
+        return customer
+      })
+      return NextResponse.json({ committed: true, entity: 'Customer', entityId: result.id, previewId: preview.id, customer: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
+    } catch (error) {
+      if (error instanceof CustomerServiceError) return json(error.message === 'preview_invalido' ? 'preview_invalido' : `cliente_${error.code}`, error.code === 'forbidden' ? 403 : error.code === 'not_found' ? 404 : error.code === 'conflict' ? 409 : 400)
+      return json('cliente_no_guardado', 500)
     }
   }
   const current = await prisma.product.findFirst({ where: { id: String(checked.payload.productId), tenantId: auth.tenantId, isActive: true, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true, pricePyg: true } })
