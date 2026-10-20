@@ -38,4 +38,21 @@ assert.equal(person.customer.identityKind, 'PERSON')
 assert.equal(person.customer.givenNames, 'Juan Carlos')
 assert.equal(person.customer.surnames, 'Pérez')
 
-console.log('PASS: inline POS preserves company/person fiscal identity in isolated PG · 10 checks')
+// An implicit name/phone match must preserve an already reviewed fiscal
+// identity and reject a conflicting identity instead of overwriting it.
+const stable = await post('/api/orders', {
+  orderNumber: `RUC344-STABLE-${suffix}`,
+  customer: { name: 'Cliente estable POS', phone: '0981000000' },
+  items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
+  payment: { method: 'CASH', amountPyg: 1000 },
+}, 201)
+assert.equal(stable.customer.name, 'Cliente estable POS')
+assert.equal(stable.customer.nameOfficial, null)
+await post('/api/orders', {
+  orderNumber: `RUC344-CONFLICT-${suffix}`,
+  customer: { name: 'Cliente estable POS', phone: '0981000000', nameOfficial: 'Titular incompatible S.A.', identityKind: 'COMPANY', document: '80012345-9' },
+  items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
+  payment: { method: 'CASH', amountPyg: 1000 },
+}, 409)
+
+console.log('PASS: inline POS preserves company/person fiscal identity and rejects implicit overwrite in isolated PG · 14 checks')
