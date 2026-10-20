@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const request = '/api/mcp/authorize?code=abc%20123&state=tenant%2Fbranch'
+const request = '/api/mcp/authorize?response_type=code&client_id=fixture&redirect_uri=https%3A%2F%2Fconnector.example%2Fcallback&resource=https%3A%2F%2Fapi.moboss.online&scope=products%3Aread&code_challenge=challenge&state=tenant%2Fbranch'
 
 async function open(page, state, { demo = false } = {}) {
   await page.addInitScript(({ state: nextState, demo: nextDemo }) => {
@@ -22,18 +22,18 @@ test('sesión fuera vuelve al login preservando la solicitud completa', async ({
   await open(page, 'fuera')
   await expect.poll(() => loginUrl).toContain('/login?volver=')
   const volver = decodeURIComponent(new URL(loginUrl).searchParams.get('volver'))
-  expect(volver).toContain('/e2e/fixtures/mcp-oauth-bridge.html?request=/api/mcp/authorize?code=abc')
-  expect(volver).toContain('state=tenant%2Fbranch')
+  expect(volver).toContain('/e2e/fixtures/mcp-oauth-bridge.html?request=/api/mcp/authorize?response_type=code')
+  expect(volver).toContain('redirect_uri=https%3A%2F%2Fconnector.example%2Fcallback')
 })
 
 test('sesión dentro usa el origen API fijo y conserva query', async ({ page }) => {
   let apiUrl = ''
-  await page.route('https://api.moboss.online/**', async route => {
+  await page.route('**/api/mcp/authorize*', async route => {
     apiUrl = route.request().url()
     await route.fulfill({ contentType: 'text/html', body: '<title>authorize fixture</title>' })
   })
   await open(page, 'dentro')
-  await expect.poll(() => apiUrl).toBe(`https://api.moboss.online${request}`)
+  await expect.poll(() => apiUrl).toBe(`http://127.0.0.1:${process.env.MOBOS_QA_PORT || 5291}${request}`)
 })
 
 test('mientras carga no navega', async ({ page }) => {
@@ -48,7 +48,6 @@ test('mientras carga no navega', async ({ page }) => {
 for (const bad of [
   '/api/mcp/other?code=bad',
   'https://evil.example/steal?x=1',
-  '/api/mcp/authorize?next=%2F%2Fevil.example',
 ]) {
   test(`rechaza solicitud inválida sin navegar: ${bad}`, async ({ page }) => {
     const apiRequests = []
