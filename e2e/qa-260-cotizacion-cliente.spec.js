@@ -3,6 +3,7 @@
 // final». Al guardar, la cotización queda ligada a la ficha.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { mkdirSync } from 'node:fs'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-260-cotizacion-cliente'
 
@@ -26,7 +27,7 @@ test('cotización: buscar cliente, crear ficha y consumidor final', async ({ pag
   expect(pedido.status, JSON.stringify(pedido.body)).toBe(201)
 
   // 1) Buscar una ficha existente: resultados útiles con la última compra.
-  await page.getByRole('button', { name: '+ Nueva cotización' }).click()
+  await page.getByRole('button', { name: '+ Nueva cotización' }).first().click()
   await page.getByRole('textbox', { name: 'Cliente' }).fill(`Cotiza ${marca}`)
   const lista = page.getByTestId('cotizacion-clientes')
   await expect(lista).toBeVisible({ timeout: 10000 })
@@ -34,12 +35,24 @@ test('cotización: buscar cliente, crear ficha y consumidor final', async ({ pag
   await page.screenshot({ path: `${SHOTS}/01-resultados.png` })
   await lista.getByRole('button', { name: new RegExp(`^Cotiza ${marca}`) }).click()
   await expect(page.getByText('Cliente de la ficha')).toBeVisible()
+  const evidenceDir = process.env.MOBOS_390_EVIDENCE_DIR
+  if (evidenceDir) {
+    mkdirSync(evidenceDir, { recursive: true })
+    for (const [width, height] of [[1440, 900], [390, 844], [360, 800]]) {
+      await page.setViewportSize({ width, height })
+      await page.screenshot({ path: `${evidenceDir}/cotizacion-${width}-light.png` })
+      await page.evaluate(() => document.documentElement.classList.add('dark'))
+      await page.waitForTimeout(120)
+      await page.screenshot({ path: `${evidenceDir}/cotizacion-${width}-dark.png` })
+      await page.evaluate(() => document.documentElement.classList.remove('dark'))
+    }
+  }
   await page.getByPlaceholder('Descripción del ítem').fill('Servicio de cotización')
   await page.getByRole('button', { name: 'Crear cotización' }).click()
   await expect(page.getByText(/Cotización creada/)).toBeVisible({ timeout: 15000 })
 
   // 2) Alta rápida: crear la ficha sin salir de la cotización.
-  await page.getByRole('button', { name: '+ Nueva cotización' }).click()
+  await page.getByRole('button', { name: '+ Nueva cotización' }).first().click()
   await page.getByRole('textbox', { name: 'Cliente' }).fill(`Nueva ${marca}`)
   await page.getByTestId('cotizacion-crear-ficha').click()
   const modal = page.getByTestId('ficha-cliente')
@@ -52,7 +65,7 @@ test('cotización: buscar cliente, crear ficha y consumidor final', async ({ pag
   await expect(page.getByText(/Cotización creada/)).toBeVisible({ timeout: 15000 })
 
   // 3) Consumidor final: cotización sin ficha.
-  await page.getByRole('button', { name: '+ Nueva cotización' }).click()
+  await page.getByRole('button', { name: '+ Nueva cotización' }).first().click()
   await page.getByTestId('cotizacion-consumidor-final').click()
   await expect(page.getByRole('textbox', { name: 'Cliente' })).toHaveValue('Consumidor final')
   await expect(page.getByText('Sin ficha: se guarda solo el nombre.')).toBeVisible()
