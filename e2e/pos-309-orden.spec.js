@@ -11,6 +11,7 @@
 // Los hallazgos de otros dominios se reportan, no se corrigen acá.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = SEED.api
 const clave = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
@@ -211,6 +212,7 @@ test('una línea sobre pedido puede quedar en tránsito con reserva anticipada (
 
     // El pedido viaja marcado (backorder + reserva anticipada) y no descuenta stock.
     const pedido = page.waitForRequest((req) => req.url().endsWith('/api/orders') && req.method() === 'POST')
+    await ensureCobro(page)
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
     const cuerpo = JSON.parse((await pedido).postData() || '{}')
     expect(cuerpo.items?.[0]?.backorder).toBe(true)
@@ -237,6 +239,7 @@ test('guardar e imprimir dejan confirmación visible (#309)', async ({ page }) =
     await page.goto('/pos')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
     await agregarProducto(page, nombre)
+    await ensureCobro(page)
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
 
     // Guardar: confirmación visible.

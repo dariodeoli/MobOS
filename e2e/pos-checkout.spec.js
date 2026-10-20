@@ -616,6 +616,7 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
 
   // Estado del botón principal: sin pago pide crear el pedido; al completar el
   // cobro pasa a confirmar la venta.
+  await ensureCobro(page)
   await expect(page.getByRole('button', { name: /^Crear pedido sin pago/ })).toBeVisible()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await ensureCobro(page)
