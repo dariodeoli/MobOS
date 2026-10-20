@@ -27,3 +27,28 @@ test('cantidad por debajo del primer escalón cae al precio fijo del ítem', () 
   assert.equal(alcanza.origin, 'TIER')
   assert.equal(alcanza.unitPricePyg, 80000)
 })
+import { listPriceLists, readPriceList, createPriceList, PriceListServiceError } from '../lib/price-list-service'
+
+test('MCP listas: lectura paginada queda limitada al tenant y al rol permitido', async () => {
+  const calls: any[] = []
+  const db = { priceList: { findMany: async (args: any) => { calls.push(args); return [{ id: 'a', tenantId: 't1', name: 'Mayorista' }, { id: 'b', tenantId: 't1', name: 'Retail' }] } } }
+  const actor = { id: 'u1', tenantId: 't1', role: 'ADMIN' }
+  const page = await listPriceLists(db as any, actor, { limit: 1 })
+  assert.equal(page.items.length, 1)
+  assert.equal(page.nextCursor, 'a')
+  assert.equal(calls[0].where.tenantId, 't1')
+  await assert.rejects(() => readPriceList(db as any, { ...actor, role: 'VENDEDOR' }, 'a'), (error: unknown) => error instanceof PriceListServiceError && error.code === 'forbidden')
+})
+
+test('MCP listas: crear valida productos del mismo tenant y registra auditoría', async () => {
+  const audit: any[] = []
+  const db = {
+    product: { count: async () => 1 },
+    priceList: { create: async (args: any) => ({ id: 'pl1', ...args.data, items: [] }) },
+    auditLog: { create: async (args: any) => { audit.push(args); return args } },
+  }
+  const created = await createPriceList(db as any, { id: 'u1', tenantId: 't1', role: 'GERENTE' }, { name: 'Mayorista', replaceItems: true, items: [{ scope: 'PRODUCT', productId: 'p1', unitPricePyg: 1000 }] })
+  assert.equal(created.id, 'pl1')
+  assert.equal(audit[0].data.action, 'PRICE_LIST_CREATED')
+  await assert.rejects(() => createPriceList(db as any, { id: 'u2', tenantId: 't1', role: 'VENDEDOR' }, { name: 'No' }), (error: unknown) => error instanceof PriceListServiceError && error.code === 'forbidden')
+})

@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
+import { parsePriceListItems, validarReemplazoExplicito, PriceListInputError } from '../price-lists'
 
-export type ChangeAction = 'products.write' | 'prices.write' | 'customers.write' | 'company.write' | 'product_images.write'
-const ACTIONS = new Set<ChangeAction>(['products.write', 'prices.write', 'customers.write', 'company.write', 'product_images.write'])
+export type ChangeAction = 'products.write' | 'prices.write' | 'price_lists.write' | 'customers.write' | 'company.write' | 'product_images.write'
+const ACTIONS = new Set<ChangeAction>(['products.write', 'prices.write', 'price_lists.write', 'customers.write', 'company.write', 'product_images.write'])
 
 function bounded(value: unknown, max: number) { return typeof value === 'string' && value.trim().length > 0 && value.length <= max }
 function integer(value: unknown, min = 0) { return typeof value === 'number' && Number.isInteger(value) && value >= min }
@@ -22,6 +23,13 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
     if (value.branchId !== undefined && (!bounded(value.branchId, 100))) return { ok: false, error: 'sucursal_invalida' }
   } else if (action === 'prices.write') {
     if (!bounded(value.productId, 100) || !integer(value.pricePyg) || !integer(value.expectedPricePyg)) return { ok: false, error: 'producto_precio_esperado_requeridos' }
+  } else if (action === 'price_lists.write') {
+    const operation = value.operation === undefined ? 'create' : value.operation
+    if (operation !== 'create' && operation !== 'update') return { ok: false, error: 'operacion_lista_invalida' }
+    if (operation === 'update' && !bounded(value.priceListId, 128)) return { ok: false, error: 'lista_id_requerido' }
+    if (operation === 'create' && !bounded(value.name, 120)) return { ok: false, error: 'lista_nombre_requerido' }
+    if (value.name !== undefined && !bounded(value.name, 120)) return { ok: false, error: 'lista_nombre_invalido' }
+    try { validarReemplazoExplicito(value); parsePriceListItems(value.items) } catch (error) { return { ok: false, error: error instanceof PriceListInputError ? error.message : 'lista_items_invalidos' } }
   } else if (action === 'customers.write') {
     const operation = value.operation === undefined ? 'create' : value.operation
     if (operation !== 'create' && operation !== 'update') return { ok: false, error: 'operacion_cliente_invalida' }

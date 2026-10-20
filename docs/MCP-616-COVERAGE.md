@@ -65,3 +65,7 @@ y taller/garantías, cada uno con contrato y guardas propias.
 
 Este documento no habilita capacidades, no cambia producción y no contiene
 secretos.
+
+## Corte implementado en PR #624
+
+`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos sólo para `ADMIN`/`GERENTE` con el módulo de inventario y los scopes correspondientes. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
