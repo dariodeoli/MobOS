@@ -388,9 +388,9 @@ export default function PasoCobro({
       {/* Pagos parciales y combinados */}
       {/* #281 · identidad de color: pagos = violeta (reserved), distintas del
           carrito (verde) y del catálogo (marca). */}
-      <div data-testid="pos-bloque-pagos" className="pos-bloque-pagos space-y-3 [&>*]:!mt-0 flex min-h-0 flex-1 flex-col gap-2 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-2.5">
+      <div data-testid="pos-bloque-pagos" className="pos-bloque-pagos space-y-3 [&>*]:!mt-0 flex min-h-0 flex-1 flex-col gap-2 overflow-visible rounded-2xl border border-reserved/35 bg-reserved/[.04] p-2.5">
         <div className={cn('flex flex-wrap items-center gap-2', pagaAlRecibir && 'hidden')}>
-          <p className="mr-auto block text-[11px] font-medium uppercase tracking-wider text-reserved">
+          <p className="min-w-[12rem] flex-1 text-[11px] font-medium uppercase tracking-wider text-reserved">
             Pagos de esta venta
           </p>
           {descuentoMedioPct > 0 && subtotal > 0 && (
@@ -413,7 +413,7 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            className="h-11 md:h-9"
+            className="h-11 shrink-0 whitespace-nowrap md:h-9"
             onClick={() => onAgregarPago()}
             disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal || pagoIncompleto}
             title={sinProductos || sinTotal ? motivoPago : pagoIncompleto ? 'Completá la cuenta y el monto del pago actual para agregar otro.' : undefined}
@@ -423,7 +423,7 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            className="h-11 md:h-9"
+            className="h-11 shrink-0 whitespace-nowrap md:h-9"
             onClick={() => onAgregarGiftCard?.()}
             disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear || pagoIncompleto}
             title={!puedeCanjear ? motivoGiftCard : undefined}
@@ -465,7 +465,7 @@ export default function PasoCobro({
               No hay cuentas activas en USD o PYG para recibir pagos.
             </p>
           )}
-        {!pagaAlRecibir && pagos.length > 0 && <div data-testid="pos-pagos-lista" className="pos-pagos-lista flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">{pagos.map((p, i) => {
+        {!pagaAlRecibir && pagos.length > 0 && <div data-testid="pos-pagos-lista" className="pos-pagos-lista flex min-h-0 flex-none flex-col gap-2 overflow-visible pr-0.5">{pagos.map((p, i) => {
           const enTarjeta = usaCuentas && p.giftCardCode === undefined
           const controles = (
             <>
