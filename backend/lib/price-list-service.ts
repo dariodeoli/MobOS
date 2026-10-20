@@ -9,6 +9,7 @@ export const PRICE_LIST_INCLUDE = {
 export type PriceListActor = { id: string; tenantId: string; role: string; permissions?: readonly string[] }
 export class PriceListServiceError extends Error { constructor(public code: 'forbidden'|'not_found'|'invalid'|'conflict', message: string) { super(message) } }
 const canManage = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role) || actor.permissions?.includes('products:manage')
+const canUpdate = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role)
 function assertActor(actor: PriceListActor) { if (!canManage(actor)) throw new PriceListServiceError('forbidden', 'Solo administración o gerencia gestionan listas de precios.') }
 function validateBody(body: unknown) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new PriceListServiceError('invalid', 'El cuerpo debe ser un objeto.')
@@ -52,7 +53,8 @@ export async function createPriceList(db: PrismaClient | any, actor: PriceListAc
   } catch { throw new PriceListServiceError('conflict', 'No se pudo crear la lista (¿ya existe una con ese nombre?).') }
 }
 export async function updatePriceList(db: PrismaClient | any, actor: PriceListActor, id: string, body: unknown) {
-  assertActor(actor); const value = validateBody(body)
+  if (!canUpdate(actor)) throw new PriceListServiceError('forbidden', 'Solo administración o gerencia gestionan listas de precios.')
+  const value = validateBody(body)
   const current = await db.priceList.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true, updatedAt: true } }); if (!current) throw new PriceListServiceError('not_found', 'Lista no encontrada.')
   const expectedUpdatedAt = (body as Record<string, unknown>)._expectedUpdatedAt
   if (expectedUpdatedAt !== undefined && (typeof expectedUpdatedAt !== 'string' || current.updatedAt.toISOString() !== expectedUpdatedAt)) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
@@ -64,7 +66,9 @@ export async function updatePriceList(db: PrismaClient | any, actor: PriceListAc
     const scalarData = Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'items'))
     // Prisma no ejecuta @updatedAt cuando no hay campos escalares. Los
     // reemplazos de ítems también deben avanzar la versión para invalidar previews anteriores.
-    if (!Object.keys(scalarData).length) scalarData.updatedAt = new Date()
+    // Prisma's @updatedAt is not guaranteed to advance for item-only writes;
+    // use a strictly newer version even when two commits share the same ms.
+    scalarData.updatedAt = new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1))
     const claimed = await db.priceList.updateMany({ where: { id, tenantId: actor.tenantId, ...(expectedUpdatedAt ? { updatedAt: current.updatedAt } : {}) }, data: scalarData })
     if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
     if (value.items !== undefined) {
