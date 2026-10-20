@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Button, ConfirmDialog, IconAction, Input } from '@/components/ui'
+import { Button, ConfirmDialog, IconAction, Input, Modal } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import CountrySelect from '@/components/shared/CountrySelect'
 import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
@@ -372,19 +372,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     )
   }
 
-  return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} onKeyDown={event => {
-      if (event.key !== 'Enter') return
-      event.preventDefault()
-      if (matches[0]) elegirCliente(matches[0])
-      else if (value.name.trim()) onSelected?.()
-    }} /></label>
-    {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
-    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
-    {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
-    {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-    <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3', colapsarFicha && editar && 'pos-cliente-editor-modal')}><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
-      <div className="mt-3 space-y-4">
+  const fichaContenido = (
+    <div className="mt-3 space-y-4">
         {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
         <div className="flex justify-end">
           <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
@@ -452,7 +441,29 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           ))}
         </section>
       </div>
-    </details>
+  )
+
+  return <div ref={cajaRef} className="space-y-3 md:col-span-2">
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} onKeyDown={event => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      if (matches[0]) elegirCliente(matches[0])
+      else if (value.name.trim()) onSelected?.()
+    }} /></label>
+    {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
+    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
+    {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
+    {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+    {colapsarFicha && editar ? (
+      <Modal open title="Datos del cliente" size="amplio" onClose={() => { setAbierto(false); setEditar(false) }}>
+        {fichaContenido}
+      </Modal>
+    ) : (
+      <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}>
+        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
+        {fichaContenido}
+      </details>
+    )}
     <ConfirmDialog
       open={quitarDireccion !== null}
       title="¿Quitar esta dirección?"
