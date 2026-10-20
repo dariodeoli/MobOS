@@ -62,7 +62,7 @@ function DemoPerspectivas({ entrarDemo, compacto = false }) {
   return (
     <div data-testid="demo-perspectivas" className={compacto ? 'flex items-center gap-1' : 'mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6'}>
       {!compacto && <span className="text-xs font-semibold text-fore">Explorar demo</span>}
-      <button type="button" data-testid="demo-perspectivas-toggle" className={compacto ? 'min-h-9 rounded-lg border border-ink-600 bg-ink px-2 text-xs font-semibold text-fore hover:bg-ink-700' : 'min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700'} aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
+      <button type="button" data-testid="demo-perspectivas-toggle" className={compacto ? 'min-h-11 rounded-lg border border-ink-600 bg-ink px-2 text-xs font-semibold text-fore hover:bg-ink-700' : 'min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700'} aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
         Cambiar vista
       </button>
       {abierto && (
@@ -510,7 +510,7 @@ export default function AppShell({
           title={title}
           subtitle={subtitle}
           actions={<>{headerActions}{esDemo && enConfigMenu && <DemoPerspectivas entrarDemo={entrarDemo} compacto />}</>}
-          aviso={esDemo && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
+          aviso={esDemo && !enConfigMenu && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
           record={recordActivo}
