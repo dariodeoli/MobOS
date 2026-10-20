@@ -1,4 +1,4 @@
-import { officialNameInput } from '../../../lib/customer-identity'
+import { customerIdentityInput, officialNameInput } from '../../../lib/customer-identity'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
@@ -233,16 +233,22 @@ export async function POST(request: Request) {
   // en ese caso el objeto customer no lleva nombre.
   if (body.customerId !== undefined && body.customer !== undefined && objectInput(body.customer).name !== undefined) throw new InputError('Enviá customerId o customer, no ambos.')
   const selectedCustomerId = body.customerId === undefined ? undefined : textInput(body.customerId, 'customerId', 200)
-  let customer: { name: string; phone?: string; countryCode?: string; email?: string; document?: string; addresses: ReturnType<typeof inlineAddresses> } | undefined
+  let customer: { name: string; nameOfficial?: string | null; identityKind?: 'PERSON' | 'COMPANY' | null; givenNames?: string | null; surnames?: string | null; phone?: string; countryCode?: string; email?: string; document?: string; addresses: ReturnType<typeof inlineAddresses> } | undefined
   if (body.customer !== undefined) {
     const input = objectInput(body.customer)
-    if (Object.keys(input).some(key => !['name', 'phone', 'address', 'addresses', 'countryCode', 'email', 'document'].includes(key))) throw new InputError('customer contiene campos no admitidos.')
+    if (Object.keys(input).some(key => !['name', 'nameOfficial', 'identityKind', 'givenNames', 'surnames', 'phone', 'address', 'addresses', 'countryCode', 'email', 'document'].includes(key))) throw new InputError('customer contiene campos no admitidos.')
+    let identity: ReturnType<typeof customerIdentityInput>
+    try { identity = customerIdentityInput(input) } catch (cause) { throw new InputError(cause instanceof Error ? cause.message : 'Identidad fiscal inválida.') }
+    const identityDisplay = identity.identityKind === 'PERSON' && identity.givenNames && identity.surnames
+      ? `${identity.givenNames} ${identity.surnames}` : identity.nameOfficial || ''
+    const visibleName = input.name === undefined ? (identityDisplay ? textInput(identityDisplay, 'Nombre', 200) : '') : textInput(input.name, 'Nombre', 200)
+    if (!visibleName && !selectedCustomerId) throw new InputError('El cliente necesita un nombre visible o un nombre fiscal.')
     const phone = input.phone === undefined || input.phone === '' ? undefined : textInput(input.phone, 'Teléfono', 100)
     const document = input.document === undefined || input.document === '' ? undefined : textInput(input.document, 'Documento', 100)
     const countryCode = input.countryCode === undefined ? '+595' : textInput(input.countryCode, 'Código de país', 5)
     if (!/^\+\d{1,4}$/.test(countryCode)) throw new InputError('Código de país inválido.')
     const addresses = inlineAddresses(input.addresses === undefined && input.address !== undefined ? [{ label: 'Principal', address: input.address, isDefault: true }] : input.addresses)
-    customer = { name: input.name === undefined ? '' : textInput(input.name, 'Nombre', 200),
+    customer = { name: visibleName, ...identity,
       ...(phone === undefined ? {} : { phone }), countryCode,
       ...(input.email === undefined || input.email === '' ? {} : { email: textInput(input.email, 'Email', 200) }),
       ...(document === undefined ? {} : { document }), addresses }
@@ -346,10 +352,19 @@ export async function POST(request: Request) {
         priceListId = selectedCustomer.priceListId
         customerInsurance = { enabled: selectedCustomer.insuranceEnabled === true, ratePct: selectedCustomer.insuranceRatePct === null ? null : Number(selectedCustomer.insuranceRatePct) }
       }
-      if (customerId && customer && !customer.name) {
+      if (customerId && customer) {
         // Contacto editado sobre una ficha ya elegida: se actualiza lo que el
         // vendedor cargó (correo/teléfono) sin tocar el resto de la ficha.
+        // La identidad fiscal explícita también se conserva al confirmar el
+        // cliente desde el POS, sin permitir que un contacto vacío la borre.
+        const identityData = {
+          ...(customer.nameOfficial !== undefined ? { nameOfficial: customer.nameOfficial } : {}),
+          ...(customer.identityKind !== undefined ? { identityKind: customer.identityKind } : {}),
+          ...(customer.givenNames !== undefined ? { givenNames: customer.givenNames } : {}),
+          ...(customer.surnames !== undefined ? { surnames: customer.surnames } : {}),
+        }
         await tx.customer.update({ where: { id: customerId }, data: {
+          ...identityData,
           ...(customer.email ? { email: customer.email } : {}),
           ...(customer.phone ? { phone: customer.phone } : {}),
         } })
@@ -373,9 +388,9 @@ export async function POST(request: Request) {
             ? await tx.customerAddress.findMany({ where: { customerId: existing.id }, select: { address: true } })
             : []
           const addressesToCreate = customer.addresses.filter(address => !storedAddresses.some(stored => stored.address.trim().toLocaleLowerCase() === address.address.trim().toLocaleLowerCase()))
-          await tx.customer.update({ where: { id: existing.id }, data: { ...(existing.phone === null && customer.phone ? { phone: customer.phone } : {}), ...(existing.document === null && customer.document ? { document: customer.document } : {}), ...(addressesToCreate.length ? { addresses: { create: addressesToCreate } } : {}) } })
+          await tx.customer.update({ where: { id: existing.id }, data: { ...(customer.nameOfficial !== undefined ? { nameOfficial: customer.nameOfficial } : {}), ...(customer.identityKind !== undefined ? { identityKind: customer.identityKind } : {}), ...(customer.givenNames !== undefined ? { givenNames: customer.givenNames } : {}), ...(customer.surnames !== undefined ? { surnames: customer.surnames } : {}), ...(existing.phone === null && customer.phone ? { phone: customer.phone } : {}), ...(existing.document === null && customer.document ? { document: customer.document } : {}), ...(addressesToCreate.length ? { addresses: { create: addressesToCreate } } : {}) } })
         } else {
-          const created = await tx.customer.create({ data: { tenantId: tenant, name: customer.name, phone: customer.phone, countryCode: customer.countryCode,
+          const created = await tx.customer.create({ data: { tenantId: tenant, name: customer.name, nameOfficial: customer.nameOfficial, identityKind: customer.identityKind, givenNames: customer.givenNames, surnames: customer.surnames, phone: customer.phone, countryCode: customer.countryCode,
             email: customer.email, document: customer.document, ...(customer.addresses.length ? { addresses: { create: customer.addresses } } : {}) }, select: { id: true } })
           customerId = created.id
         }
