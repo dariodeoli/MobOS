@@ -142,6 +142,7 @@ export default function Compras() {
   const branchOptions = sucursales.length > 0 ? sucursales : (sucursal ? [sucursal] : [])
   const [purchases, setPurchases] = useState(demo ? loadDemoPurchases() : [])
   const [suppliers, setSuppliers] = useState([])
+  const [suppliersLoading, setSuppliersLoading] = useState(true)
   const [recientesProveedores, setRecientesProveedores] = useState(() => leerProveedoresRecientes(empresa?.id))
   const [supplierId, setSupplierId] = useState('')
   const [newSupplier, setNewSupplier] = useState({ name: '', countryCode: '+595', phone: '', city: '', department: '', address: '' })
@@ -181,15 +182,25 @@ export default function Compras() {
   const load = useCallback(async (search = filtroRef.current) => {
     setBusy(true); setError('')
     try {
-      // #307: en demo los proveedores también salen del store local (el
-      // adaptador de `suppliersApi` ya lo resuelve), así que Compras y el modal
-      // de Proveedores muestran la misma lista.
-      const [purchaseRows, supplierRows, accountRows] = await Promise.all([demo ? Promise.resolve(loadDemoPurchases()) : purchasesApi.list(search), suppliersApi.list(), getPaymentAccounts()])
-      setPurchases(purchaseRows); setSuppliers(Array.isArray(supplierRows) ? supplierRows : []); setAccounts(accountRows.filter(account => account.isActive))
+      const [purchaseRows, accountRows] = await Promise.all([demo ? Promise.resolve(loadDemoPurchases()) : purchasesApi.list(search), getPaymentAccounts()])
+      setPurchases(purchaseRows); setAccounts(accountRows.filter(account => account.isActive))
     }
     catch (err) { setError(err?.message || 'No se pudieron cargar las compras.') } finally { setBusy(false) }
   }, [demo])
   useEffect(() => { load(busqueda.trim()) }, [load, busqueda])
+  // El catálogo del selector tiene su propio ciclo: no espera a compras ni
+  // cuentas. Al abrir una compra, relee lo que pudo crearse desde otra vista.
+  // La lectura explícitamente fresca queda limitada a esta apertura; el API
+  // conserva su caché normal y la invalidación canónica de POST/PATCH.
+  useEffect(() => {
+    const controller = new AbortController()
+    setSuppliersLoading(true)
+    suppliersApi.list({ signal: controller.signal, ...(nuevaCompra ? { cacheMs: 0 } : {}) })
+      .then(rows => { if (!controller.signal.aborted) setSuppliers(Array.isArray(rows) ? rows : []) })
+      .catch(cause => { if (!controller.signal.aborted) setError(cause?.message || 'No se pudieron cargar los proveedores.') })
+      .finally(() => { if (!controller.signal.aborted) setSuppliersLoading(false) })
+    return () => controller.abort()
+  }, [nuevaCompra])
   // #259: sin historial propio, los últimos usados salen de las compras más
   // recientes (la primera vez en un dispositivo nuevo).
   useEffect(() => {
@@ -520,12 +531,14 @@ export default function Compras() {
     <VentanaDetalle open={nuevaCompra} onClose={() => setNuevaCompra(false)} title="Nueva compra" size="lg">
       <form onSubmit={create} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
-          <div>
+          <div className="sm:col-span-2">
             <FormField label="Proveedor" htmlFor="compra-proveedor" error={supplierId === 'new' ? '' : control.errorDe('proveedor')}>
               <SupplierCombobox
+                datosCompletosEnMovil
                 id="compra-proveedor"
                 ariaLabel="Proveedor"
                 proveedores={suppliers}
+                disabled={suppliersLoading}
                 value={supplierId === 'new' ? newSupplier.name : supplierId}
                 recientes={recientesProveedores}
                 onSelect={(proveedor) => { setSupplierId(proveedor.id); setNewSupplier(s => ({ ...s, name: '' })); setRecientesProveedores(recordarProveedorReciente(empresa?.id, proveedor.id)) }}
