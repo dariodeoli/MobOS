@@ -216,6 +216,21 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   expect(estilos.pagos).toBe('visible')
 })
 
+test('venta rápida: cliente nuevo edita en modal y cierra con Enter', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  const cliente = page.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')
+  await cliente.fill('Cliente Nuevo QA')
+  await expect(page.getByText('Cliente nuevo: se creará automáticamente al confirmar la venta.')).toBeVisible()
+  await page.getByText('Datos de contacto, RUC/CI y direcciones', { exact: true }).click()
+  const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
+  await expect(editor).toBeVisible()
+  await editor.getByLabel('Teléfono del cliente', { exact: true }).fill('0981123456')
+  await editor.getByLabel('Teléfono del cliente', { exact: true }).press('Enter')
+  await expect(editor).toBeHidden()
+  await expect(page.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')).toHaveValue('Cliente Nuevo QA')
+})
+
 for (const escenario of [
   { cantidad: 1, width: 1440 },
   { cantidad: 5, width: 1024 },
