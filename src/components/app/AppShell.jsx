@@ -475,7 +475,11 @@ export default function AppShell({
           {configMenu}
         </aside>
       )}
-      <div className="shell-body flex min-w-0 flex-1 flex-col" data-registro={recordActivo ? '1' : undefined}>
+      <div
+        className="shell-body flex min-w-0 flex-1 flex-col"
+        data-registro={recordActivo ? '1' : undefined}
+        data-config-route={currentId === 'configuracion' ? '1' : undefined}
+      >
         <header
           data-testid="shell-mobile-header"
           className="sticky top-0 z-20 border-b border-ink-600 bg-ink pt-safe lg:hidden"
