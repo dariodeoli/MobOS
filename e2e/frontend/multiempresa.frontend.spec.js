@@ -11,12 +11,13 @@ const EMPRESAS = {
   'tenant-b': { id: 'tenant-b', name: 'Tienda Beta', slug: 'beta', role: 'ADMIN' },
 }
 
-async function montar(page, { tenants = ['tenant-a', 'tenant-b'], canCreate = true, sinSellerEnDestino = false, onboardingEnDestino = false, errorCambio = null, errorLista = null } = {}) {
+async function montar(page, { tenants = ['tenant-a', 'tenant-b'], canCreate = true, puedeGestionarEmpresas = true, sinSellerEnDestino = false, onboardingEnDestino = false, errorCambio = null, errorLista = null } = {}) {
   const estado = { actual: tenants[0], creadas: [], switches: [], user: true, onboardings: [], pines: [] }
   const usuarioDe = (id) => ({
     id: `user-${id}`,
     name: `Dueño ${EMPRESAS[id].name}`,
     role: 'ADMIN',
+    canManageCompanies: puedeGestionarEmpresas,
     tenantId: id,
     branchId: `branch-${id}`,
     branchName: `Sucursal ${EMPRESAS[id].name}`,
@@ -220,6 +221,38 @@ test('crear empresa: valida el nombre, crea con la misma cuenta y pasa a la nuev
   await page.waitForFunction(() => window.__sinRecarga === undefined)
   await page.getByTestId('shell-perfil-mobile').click()
   await expect(page.getByTestId('shell-empresa')).toHaveText('Tienda Nueva')
+})
+
+test('deep link de creación: prellena sólo si coincide empresa y usuario, sin POST automático', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 812 })
+  const estado = await montar(page)
+  await page.goto('/configuracion/mi-cuenta?crearEmpresa=1&nombre=Empresa%20desde%20MCP&expectedTenantId=tenant-a&expectedUserId=user-tenant-a')
+  await expect(page.getByTestId('shell')).toBeVisible()
+  await expect(page.getByTestId('empresa-crear-form')).toBeVisible()
+  await expect(page.getByLabel('Nombre de la empresa')).toHaveValue('Empresa desde MCP')
+  expect(estado.creadas).toEqual([])
+  const query = await page.evaluate(() => window.location.search)
+  expect(query).not.toContain('crearEmpresa')
+  await page.getByTestId('empresa-crear-confirmar').click()
+  await expect.poll(() => estado.creadas).toEqual(['Empresa desde MCP'])
+})
+
+test('deep link de creación: contexto distinto limpia parámetros, avisa y no hace POST', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 812 })
+  const estado = await montar(page)
+  await page.goto('/configuracion/mi-cuenta?crearEmpresa=1&nombre=No%20debe%20crear&expectedTenantId=tenant-b&expectedUserId=user-tenant-a')
+  await expect(page.getByTestId('empresa-crear-form')).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => window.location.search)).toBe('')
+  expect(estado.creadas).toEqual([])
+})
+
+test('deep link de creación: vendedor sin permiso no abre alta ni publica datos', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 812 })
+  const estado = await montar(page, { puedeGestionarEmpresas: false })
+  await page.goto('/configuracion/mi-cuenta?crearEmpresa=1&nombre=Sin%20permiso&expectedTenantId=tenant-a&expectedUserId=user-tenant-a')
+  await expect(page.getByTestId('empresa-crear-form')).toHaveCount(0)
+  await expect.poll(() => page.evaluate(() => window.location.search)).toBe('')
+  expect(estado.creadas).toEqual([])
 })
 
 test('crear empresa se cierra con Esc', async ({ page }) => {

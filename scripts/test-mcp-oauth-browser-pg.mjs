@@ -33,7 +33,6 @@ try {
   const { PrismaClient } = require(join(backend, 'node_modules/@prisma/client')), { PrismaPg } = require(join(backend, 'node_modules/@prisma/adapter-pg'))
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) })
   const auth = require(join(backend, 'lib/auth.ts'))
-  const oauth = require(join(backend, 'lib/mcp/oauth.ts'))
   const tenant = await db.tenant.create({ data: { name: 'Browser fixture', slug: 'browser-fixture', email: 'browser@example.test' } })
   const branch = await db.branch.create({ data: { tenantId: tenant.id, name: 'Centro' } })
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'Browser Admin', email: 'admin@example.test', pinHash: 'unused', role: 'ADMIN' } })
