@@ -186,38 +186,23 @@ export async function POST(request: Request) {
       return json('producto_no_guardado', 400)
     }
   }
-  const current = await prisma.product.findFirst({ where: { id: String(checked.payload.productId), tenantId: auth.tenantId, isActive: true, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true, pricePyg: true } })
-  if (!current || Number(current.pricePyg) !== checked.payload.expectedPricePyg) return json('precio_desactualizado', 409, { currentPricePyg: current ? Number(current.pricePyg) : null })
-  const result = await prisma.$transaction(async tx => {
-    const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: now } }, data: { status: 'COMMITTED', committedAt: now } })
-    if (claimed.count !== 1) throw new Error('preview_invalido')
-    const p = checked.payload
-    let entity = 'Tenant'; let entityId = auth.tenantId
-    if (checked.action === 'products.write') {
-      const product = await tx.product.create({ data: { tenantId: auth.tenantId, branchId: branchId, sku: String(p.sku), name: String(p.name), category: typeof p.category === 'string' ? p.category : null, pricePyg: BigInt(typeof p.pricePyg === 'number' ? p.pricePyg : 0), stock: typeof p.stock === 'number' ? p.stock : 0 } })
-      entity = 'Product'; entityId = product.id
-    } else if (checked.action === 'prices.write') {
-      try {
-        const changed = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(p.productId), pricePyg: Number(p.pricePyg), expectedPricePyg: Number(p.expectedPricePyg), includeAudit: true }, tx)
-        entity = 'Product'; entityId = changed.productId
-      } catch (error) { throw error instanceof ProductPriceError ? error : new Error('producto_precio_no_actualizado') }
-    } else if (checked.action === 'customers.write') {
-      const customer = await tx.customer.create({ data: { tenantId: auth.tenantId, createdById: auth.user.id, name: String(p.name), phone: typeof p.phone === 'string' ? p.phone : null, email: typeof p.email === 'string' ? p.email : null, document: typeof p.document === 'string' ? p.document : null } })
-      entity = 'Customer'; entityId = customer.id
-    } else if (checked.action === 'product_images.write') {
-      const product = await tx.product.findFirst({ where: { id: String(p.productId), tenantId: auth.tenantId, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true } })
-      if (!product) throw new Error('producto_no_disponible')
-      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(String(p.dataBase64)) || String(p.dataBase64).length % 4 !== 0) throw new Error('imagen_invalida')
-      const data = Buffer.from(String(p.dataBase64), 'base64')
-      if (data.length === 0 || data.length > 5_000_000) throw new Error('imagen_invalida')
-      const image = await tx.productImage.create({ data: { tenantId: auth.tenantId, productId: product.id, data, width: Number(p.width), height: Number(p.height), contentType: String(p.contentType), sizeBytes: data.length, createdById: auth.user.id, isPrimary: p.isPrimary === true } })
-      entity = 'ProductImage'; entityId = image.id
-    } else {
-      await tx.tenant.update({ where: { id: auth.tenantId }, data: { ...(typeof p.name === 'string' ? { name: p.name } : {}), ...(typeof p.email === 'string' ? { email: p.email } : {}) } })
+  if (checked.action === 'prices.write') {
+    try {
+      const changed = await prisma.$transaction(async tx => {
+        const result = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(checked.payload.productId), pricePyg: Number(checked.payload.pricePyg), expectedPricePyg: Number(checked.payload.expectedPricePyg), includeAudit: true }, tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'Product', resultId: result.productId } })
+        if (claimed.count !== 1) throw new ProductPriceError('preview_invalido')
+        await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'Product', entityId: result.productId, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
+        return result
+      })
+      return NextResponse.json({ committed: true, entity: 'Product', entityId: changed.productId, previewId: preview.id, price: safe(changed) }, { headers: { 'Cache-Control': 'no-store' } })
+    } catch (error) {
+      if (error instanceof ProductPriceError) {
+        const status = error.code === 'permission_denied' || error.code === 'branch_denied' || error.code === 'tenant_denied' ? 403 : error.code === 'product_not_found' ? 404 : error.code === 'stale_price' ? 409 : error.code === 'preview_invalido' ? 409 : 400
+        return json(error.code === 'stale_price' ? 'precio_desactualizado' : error.code, status)
+      }
+      return json('precio_no_actualizado', 500)
     }
-    await tx.mcpChangePreview.update({ where: { id: preview.id }, data: { resultEntity: entity, resultId: entityId } })
-    await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity, entityId, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
-    return { entity, entityId }
-  }).catch(error => { if (error instanceof Error && ['preview_invalido', 'producto_no_disponible'].includes(error.message)) throw error; throw new Error('cambio_no_aplicado') })
-  return NextResponse.json({ committed: true, ...safe(result), previewId: preview.id }, { headers: { 'Cache-Control': 'no-store' } })
+  }
+  return json('mutacion_no_disponible', 501)
 }
