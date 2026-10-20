@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.233 — 2026-10-20
+
+- **Ventas:** el POS mantiene visibles el catálogo, el carrito y el pie de cobro cuando se abren los detalles del cliente, con controles utilizables en escritorio y celular.
+- **Clientes:** la ficha evita guardados duplicados durante consultas RUC, confirmación y direcciones; los datos devueltos por el servidor conservan la identidad y las direcciones verificadas.
+- **Módulos y catálogo:** la tienda de módulos muestra previews persistentes y la navegación de configuración conserva sus accesos sin solapamientos.
+
+
 ## v1.0.232 — 2026-10-18
 
 - **Landing:** ahora incluye ejemplos visuales de siete áreas de MobOS, adaptados a celular, tablet y escritorio. Los datos son ficticios y se identifican como muestras para que no se confundan con la actividad de una tienda.

@@ -31,7 +31,7 @@ function ItemSeccion({ id, label, activo, onChange }) {
   )
 }
 
-export default function MenuConfiguracion({ items = [], value, onChange, onBack, onElegirAjuste, empresa, logo, esOwner = true }) {
+export default function MenuConfiguracion({ items = [], value, onChange, onModules, modulesActive = false, onBack, onElegirAjuste, empresa, logo, esOwner = true }) {
   const [consulta, setConsulta] = useState('')
   const resultadosRef = useRef(null)
   const resultados = useMemo(() => buscarAjustes(consulta, { esOwner, limite: 6 }), [consulta, esOwner])
@@ -129,6 +129,24 @@ export default function MenuConfiguracion({ items = [], value, onChange, onBack,
               <span className={cn('block leading-4', CELDA_DATO)}>Tu empresa</span>
             </span>
           </div>
+          <button
+            type="button"
+            data-testid="config-tienda-modulos"
+            aria-label="Tienda de módulos"
+            aria-current={modulesActive ? 'page' : undefined}
+            onClick={() => (onModules || onChange)('modulos')}
+            className={cn(
+              'flex min-h-12 w-full items-center gap-2.5 rounded-lg border px-2.5 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono',
+              modulesActive ? 'border-fono/50 bg-fono/10 text-fore' : 'border-fono/30 bg-fono/5 text-fore hover:border-fono/50 hover:bg-fono/10',
+            )}
+          >
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-fono/15 text-fono-light"><Icon name="grid" className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">Tienda de módulos</span>
+              <span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span>
+            </span>
+            <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
+          </button>
           <nav aria-label="Secciones de Configuración" data-testid="config-grupos" data-menu-lateral className="flex flex-col gap-0.5">
             {items.map(([id, label]) => (
               <ItemSeccion key={id} id={id} label={label} activo={value === id} onChange={onChange} />

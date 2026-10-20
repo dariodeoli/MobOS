@@ -11,13 +11,28 @@ import './configTouch.css'
 // íconos (pantalla propia) y cada sección abre su pantalla con «‹» para volver
 // (el botón lo pone el encabezado del shell). Conserva el testid
 // `config-grupos` y el nombre accesible de la lista.
-export default function NavegacionConfig({ value, onChange, items = [], seccionAbierta = true, children }) {
+export default function NavegacionConfig({ value, onChange, onModules, modulesActive = false, items = [], seccionAbierta = true, children }) {
   const angosta = usePantallaAngosta()
   const group = grupoConfig(value)
 
   if (angosta && !seccionAbierta) {
     return (
       <div data-testid="config-pagina" className="config-pagina">
+        <button
+          type="button"
+          data-testid="config-tienda-modulos"
+          aria-label="Tienda de módulos"
+          aria-current={modulesActive ? 'page' : undefined}
+          onClick={() => (onModules || onChange)('modulos')}
+          className={cn(
+            'mb-3 flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono',
+            modulesActive ? 'border-fono/50 bg-fono/10' : 'border-fono/30 bg-fono/5 hover:border-fono/50 hover:bg-fono/10',
+          )}
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="grid" className="h-5 w-5" /></span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
+          <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
+        </button>
         <nav aria-label="Secciones de Configuración" data-testid="config-grupos" data-lista-movil className="flex flex-col divide-y divide-ink-600 overflow-hidden rounded-xl border border-ink-600">
           {items.map(([id, label]) => (
             <button
@@ -46,6 +61,21 @@ export default function NavegacionConfig({ value, onChange, items = [], seccionA
   return (
     <div data-testid="config-pagina" className="config-pagina mx-auto w-full max-w-[1280px]">
       <div className="min-w-0">
+        <button
+          type="button"
+          data-testid="config-tienda-modulos"
+          aria-label="Tienda de módulos"
+          aria-current={modulesActive ? 'page' : undefined}
+          onClick={() => (onModules || onChange)('modulos')}
+          className={cn(
+            'mb-4 flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono sm:px-4',
+            modulesActive ? 'border-fono/50 bg-fono/10' : 'border-fono/30 bg-fono/5 hover:border-fono/50 hover:bg-fono/10',
+          )}
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="grid" className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
+          <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
+        </button>
         {group && (
           <header data-testid="config-grupo-cabecera" className="mb-4 flex min-w-0 items-start gap-3 rounded-xl border border-ink-600 bg-ink-700/30 p-3 sm:p-4">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-700 text-fono-light">

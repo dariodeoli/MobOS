@@ -240,7 +240,7 @@ test('POS clears the address country and the summary opens the cart', async ({ p
     .fill(`${SEED.checkoutCustomer} pais ${Date.now().toString(36)}`)
 
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
-  await page.getByRole('button', { name: '+ Dirección' }).click()
+  await page.getByRole('button', { name: 'Nueva dirección', exact: true }).click()
   const pais = page.getByLabel('País', { exact: true })
   await expect(pais).toHaveValue('Paraguay')
   await pais.fill('')

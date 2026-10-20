@@ -1,15 +1,27 @@
 /* POS (#390/#391): presentación del cobro. Se carga después de inicioPosF2.css
    y gana por especificidad; no toca montos ni reglas de negocio. */
 
-/* Catálogo: 3 columnas con tarjetas bajas (nombre + precio/stock). */
+/* Catálogo: las columnas se ajustan al ancho real de su panel. */
 @media (min-width: 1024px) {
   .pos-f2 .pos-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   }
 }
+
 .pos-f2 .pos-product-card {
   gap: 2px;
   padding: 8px 10px;
+}
+
+/* Venta rápida: en escritorios amplios el catálogo respira y la foto ayuda a
+   identificar el producto antes de agregarlo. El carrito conserva su columna
+   independiente; no se cambia ninguna regla de stock, IMEI o cobro. */
+@media (min-width: 1280px) {
+  .pos-f2 .pos-layout { gap: 20px; }
+  .pos-f2 .pos-product-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+  .pos-f2 .pos-product-card { min-height: 154px; padding: 12px; gap: 6px; }
+  .pos-f2 .pos-product-card > span:first-child { grid-template-columns: 64px minmax(0, 1fr); }
+  .pos-f2 .pos-product-card [data-testid='foto-producto'] { width: 64px !important; height: 64px !important; }
 }
 
 /* Acciones del POS como íconos con tooltip. */
@@ -43,4 +55,42 @@
   font-size: 13px;
   font-weight: 600;
   color: rgb(var(--c-fono-light, var(--c-fono)));
+}
+
+/* En pantallas táctiles el pie vive dentro del flujo del formulario. Evitar
+   cualquier sticky/fixed heredado que pueda cubrir campos al hacer scrollIntoView
+   (el resumen y la barra de acción móvil ya resuelven la acción principal). */
+@media (max-width: 1023px) {
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* El contenedor no debe crear una caja superpuesta en el scroll táctil. Sus
+     hijos conservan los indicadores y el botón de guardar en el flujo. */
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    display: contents !important;
+  }
+}
+
+/* Guard global: el cobro puede montarse dentro de una hoja móvil sin la clase
+   pos-f2. En touch el pie no crea caja posicionada ni capa de hit testing; sus
+   hijos siguen en el flujo y conservan los indicadores/submit. */
+@media (max-width: 1023px) {
+  [data-testid='pos-pie-cobro'] {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    transform: none !important;
+    display: contents !important;
+  }
+}
+
+/* El wrapper de escritorio nunca debe quedar como capa en un viewport táctil. */
+@media (max-width: 1023px) {
+  [data-testid='pos-pie-cobro'] { display: none !important; }
 }

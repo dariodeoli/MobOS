@@ -1064,6 +1064,26 @@ export default function FormularioVenta({
     document.getElementById('pos-resumen-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // Venta rápida: después de confirmar el cliente, la siguiente acción es
+  // buscar/agregar productos. Mantener el foco acá evita que Enter termine
+  // enviando el formulario completo por accidente.
+  const enfocarBusquedaProducto = useCallback(() => {
+    if (esMovilRef.current) return
+    window.requestAnimationFrame(() => {
+      const campo = document.querySelector('#pos-busqueda-producto input')
+      campo?.focus()
+      campo?.select?.()
+    })
+  }, [])
+
+  const irACobrarRapido = useCallback(() => {
+    if (!items.length) return
+    setModoCobro(true)
+    window.requestAnimationFrame(() => {
+      document.querySelector('[data-testid="pos-cobro"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [items.length])
+
   async function guardar(e) {
     e.preventDefault()
     if (guardando || guardadoEnCurso.current || guardadoIncompleto || accesoStockInvalidado) return
@@ -1997,12 +2017,16 @@ export default function FormularioVenta({
       const editable =
         target instanceof HTMLElement &&
         (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      if (event.key === 'Escape' || editable) return
+      if (event.key === 'Escape') return
       if (event.key === 'F2') {
+        // F2 is the checkout shortcut, even when the search field currently
+        // owns focus. Keep dialogs/overlays in control of their own keys.
+        if (document.querySelector('[role="dialog"]:not([hidden])')) return
         event.preventDefault()
-        busqueda?.focus()
+        irACobrarRapido()
         return
       }
+      if (editable) return
       if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
         if (
           valido &&
@@ -2277,7 +2301,7 @@ export default function FormularioVenta({
             {pos('cliente',
             <PosCustomer
               sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente} onSelected={enfocarBusquedaProducto}
             />)}
             {pos('productos',
             <PasoProductos
@@ -2318,13 +2342,16 @@ export default function FormularioVenta({
               variantePara={variantePara}
               onElegirVariante={(familia, opciones) => elegirVariante(familia, opciones)}
               onCerrarVariante={() => setVariantePara(null)}
+              hayItems={items.length > 0}
+              onAgregarOtro={enfocarBusquedaProducto}
+              onCobrar={irACobrarRapido}
               acciones={barraPos}
             />)}
 
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
             <div className="hidden items-center gap-x-4 gap-y-1.5 text-xs text-mute md:flex">
               <span className="font-semibold uppercase tracking-wider text-mute">Atajos</span>
-              <Atajo k="F2" label="Buscar producto" />
+              <Atajo k="F2" label="Cobrar" />
               <Atajo k="Ctrl+S" label="Guardar venta" />
               <Atajo k="Esc" label="Cerrar ventana" />
             </div>

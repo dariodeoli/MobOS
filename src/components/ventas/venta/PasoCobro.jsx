@@ -17,6 +17,7 @@ import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
 import { cuentaEfectivoPyg, FOREIGN, residuoSubCentavo, updateAccountPayment } from '@/utils/pagoCuenta'
 import CreditoAutorizacion from './CreditoAutorizacion'
+import { useMediaQuery } from '@/components/shared/useMediaQuery'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -72,6 +73,10 @@ export default function PasoCobro({
   onIrAlCarrito,
   modoMovil = false,
 }) {
+  // The desktop payment footer must not exist in the DOM on touch/tablet
+  // layouts. CSS-only hiding left the sticky subtree hit-testable in the
+  // mobile sheet in Chromium, so select the render path before mounting it.
+  const ocultarPieEnTouch = useMediaQuery('(max-width: 1023px)')
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
   // «Paga al recibir» (#390): no se pide el medio todavía; el pedido queda
@@ -388,9 +393,9 @@ export default function PasoCobro({
       {/* Pagos parciales y combinados */}
       {/* #281 · identidad de color: pagos = violeta (reserved), distintas del
           carrito (verde) y del catálogo (marca). */}
-      <div data-testid="pos-bloque-pagos" className="pos-bloque-pagos space-y-3 [&>*]:!mt-0 flex min-h-0 flex-1 flex-col gap-2 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-2.5">
+      <div data-testid="pos-bloque-pagos" className="pos-bloque-pagos space-y-3 [&>*]:!mt-0 flex min-h-0 flex-1 flex-col gap-2 overflow-visible rounded-2xl border border-reserved/35 bg-reserved/[.04] p-2.5">
         <div className={cn('flex flex-wrap items-center gap-2', pagaAlRecibir && 'hidden')}>
-          <p className="mr-auto block text-[11px] font-medium uppercase tracking-wider text-reserved">
+          <p className="min-w-[12rem] flex-1 text-[11px] font-medium uppercase tracking-wider text-reserved">
             Pagos de esta venta
           </p>
           {descuentoMedioPct > 0 && subtotal > 0 && (
@@ -413,7 +418,7 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            className="h-11 md:h-9"
+            className="h-11 shrink-0 whitespace-nowrap md:h-9"
             onClick={() => onAgregarPago()}
             disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal || pagoIncompleto}
             title={sinProductos || sinTotal ? motivoPago : pagoIncompleto ? 'Completá la cuenta y el monto del pago actual para agregar otro.' : undefined}
@@ -423,7 +428,7 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            className="h-11 md:h-9"
+            className="h-11 shrink-0 whitespace-nowrap md:h-9"
             onClick={() => onAgregarGiftCard?.()}
             disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear || pagoIncompleto}
             title={!puedeCanjear ? motivoGiftCard : undefined}
@@ -465,7 +470,7 @@ export default function PasoCobro({
               No hay cuentas activas en USD o PYG para recibir pagos.
             </p>
           )}
-        {!pagaAlRecibir && pagos.length > 0 && <div data-testid="pos-pagos-lista" className="pos-pagos-lista flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">{pagos.map((p, i) => {
+        {!pagaAlRecibir && pagos.length > 0 && <div data-testid="pos-pagos-lista" className="pos-pagos-lista flex min-h-0 flex-none flex-col gap-2 overflow-visible pr-0.5">{pagos.map((p, i) => {
           const enTarjeta = usaCuentas && p.giftCardCode === undefined
           const controles = (
             <>
@@ -665,7 +670,8 @@ export default function PasoCobro({
       {/* Pie del cobro: Pagado / Pendiente y la acción, siempre a la vista
           (pegado abajo). #281 · tiles con identidad propia: Pagado (ok) ·
           Pendiente (warn). El Total vive una sola vez, en el pie del carrito. */}
-      <div data-testid="pos-pie-cobro" className="sticky bottom-0 z-10 -mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
+      {!modoMovil && !ocultarPieEnTouch && (
+      <div data-testid="pos-pie-cobro" className="-mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
         <div data-testid="pos-tiles-resumen" className="pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
           <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">
             <span className="inline-flex items-center gap-1"><Icon name="check" className="inline h-3 w-3" aria-hidden="true" />Pagado</span>
@@ -708,7 +714,7 @@ export default function PasoCobro({
             </button>
           )}
         </div>
-        <div className={cn('min-w-0 flex-1 items-center gap-3 basis-48', modoMovil ? 'flex' : 'hidden lg:flex')}>
+        <div className="min-w-0 flex-1 items-center gap-3 basis-48 hidden lg:flex">
           <BotonGuardar className="flex-1" />
           {ok && (
             <span
@@ -721,7 +727,20 @@ export default function PasoCobro({
           )}
         </div>
       </div>
-
+      )}
+      {modoMovil && (
+        <div className="flex w-full flex-wrap items-center gap-3 pt-2">
+          <div data-testid="pos-tiles-resumen" className="pointer-events-none flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
+            <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">
+              <span>Pagado</span><strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums text-ok">{gs(totalPagado)}</strong>
+            </span>
+            <span data-testid="cobro-pendiente" className={cn('flex items-baseline gap-2 rounded-lg border px-2.5 py-1', pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok')}>
+              <span>Pendiente</span><strong className={cn('pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums', pendiente ? 'text-warn' : 'text-ok')}>{gs(pendiente)}</strong>
+            </span>
+          </div>
+          <BotonGuardar className="w-full flex-1" />
+        </div>
+      )}
       {/* Celular: Total y acción principal fijos abajo, arriba de la barra del
           shell (#309). El botón es el mismo submit del formulario. */}
       {/* En el celular nuevo (#429) el carrito y el cobro viven en hojas: sin barra fija. */}
