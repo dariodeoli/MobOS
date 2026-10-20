@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 // POS redesign (owner feedback): sin solapes, teléfono en una fila, catálogo
 // denso y sin scroll horizontal. Demo frontend-only (sin backend).
@@ -312,6 +313,7 @@ test('entrega: el monto solo aparece con Delivery o encomienda y no hay texto de
 
 test('pagos: sin «Equivalente» en cuentas en guaraníes y «Paga al recibir» oculta los pagos', async ({ page }) => {
   await enterPos(page, 1440, 900, false, true)
+  await ensureCobro(page)
   const cobro = page.getByTestId('pos-cobro')
   await cobro.getByRole('button', { name: '+ Agregar pago' }).click()
   const fila = page.getByTestId('pago-fila-0')
