@@ -3,7 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
 import { sameOrigin } from '../../../../lib/google-oauth'
 import { moduleStoreFrom } from '../../../../lib/module-store'
-import { MCP_CATALOG } from '../../../../lib/mcp/catalog'
+import { MCP_CATALOG, IMPLEMENTED_MCP_ACTIONS } from '../../../../lib/mcp/catalog'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { configuredMcpClients, mcpIssuer, mcpResource } from '../../../../lib/mcp/oauth'
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: 'login_required' }, { status: 401 })
   const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { settings: true } })
   const modules = moduleStoreFrom(tenant?.settings).modules
-  const implemented = new Set(['company.read', 'products.read', 'customers.read', 'sales.read', 'reports.read', 'prices.write', 'product_images.write', 'customers.write', 'company.write', 'company.create'])
+  const implemented = new Set<string>(IMPLEMENTED_MCP_ACTIONS)
   const ownerCanCreate = Boolean(session.accountId && session.user.role === 'ADMIN' && await prisma.tenantMembership.findFirst({ where: { accountId: session.accountId, tenantId: session.user.tenantId, userId: session.user.id, role: 'OWNER', revokedAt: null }, select: { id: true } }))
   const capabilities = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action !== 'company.create' || ownerCanCreate) && authorizeMcpAction(entry.action, { tenantId: session.user.tenantId, user: session.user, enabledModules: modules, grantedScopes: [entry.scope] }).allowed).map(entry => ({ action: entry.action, scope: entry.scope, label: entry.label }))
   const issuer = (() => { try { return mcpIssuer() } catch { return null } })()

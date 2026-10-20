@@ -54,6 +54,17 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
   { action: 'product_images.write', scope: 'product_images:write', label: 'Subir fotos de productos', moduleId: 'inventario', permission: 'products:manage', mutating: true, branchScoped: true },
 ] as const
 
+/** Actions currently backed by a real, guarded implementation. Keep future
+ * catalog entries available for planning without advertising them to clients. */
+export const IMPLEMENTED_MCP_ACTIONS = [
+  'products.read', 'products.write', 'prices.write',
+  'customers.read', 'customers.write', 'company.read', 'company.write',
+  'company.create', 'sales.read', 'reports.read', 'product_images.write',
+] as const satisfies readonly McpAction[]
+export const IMPLEMENTED_MCP_SCOPES = MCP_CATALOG
+  .filter(entry => (IMPLEMENTED_MCP_ACTIONS as readonly string[]).includes(entry.action))
+  .map(entry => entry.scope) as readonly McpScope[]
+
 export function catalogEntry(action: unknown): McpCatalogEntry | null {
   return typeof action === 'string' ? MCP_CATALOG.find(entry => entry.action === action) ?? null : null
 }

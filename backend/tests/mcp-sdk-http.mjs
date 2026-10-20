@@ -65,9 +65,13 @@ try {
   await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, sellerId: user.id, orderNumber: 'SDK-REPORT-UNKNOWN', status: 'COMPLETED', subtotalPyg: 500, totalPyg: 500, createdAt: reportAt, items: { create: [{ description: 'Unknown cost', quantity: 1, unitPricePyg: 500, totalPyg: 500 }] } } })
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
+  const { GET: protectedResourceGet } = require('../app/.well-known/oauth-protected-resource/route.ts')
   const { GET: authorizeGet } = require('../app/api/mcp/authorize/route.ts')
   const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
   const browserCookie = 'mcp-get-cookie'
+  const protectedMetadata = await protectedResourceGet()
+  const protectedScopes = (await protectedMetadata.json()).scopes_supported
+  ok(protectedMetadata.status === 200 && protectedScopes.includes('products:write') && protectedScopes.includes('company:create') && !protectedScopes.includes('sales:write'), 'protected resource advertises only implemented MCP scopes')
   await db.session.update({ where: { id: session.id }, data: { tokenHash: createHash('sha256').update(browserCookie).digest('hex') } })
   const authQuery = new URLSearchParams({ response_type: 'code', client_id: 'sdk-http', redirect_uri: 'https://connector.example/callback', scope: 'products:read', resource, code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'state+/=' })
   const consentGet = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`, { headers: { cookie: `mobos_seller_session=${browserCookie}` } }))
