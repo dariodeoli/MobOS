@@ -59,7 +59,8 @@ export async function POST(request: Request) {
       const list = operation === 'update' ? await prisma.priceList.findFirst({ where: { id: String(checked.payload.priceListId), tenantId: auth.tenantId }, include: { items: { include: { tiers: true } } } }) : null
       if (operation === 'update' && !list) return json('lista_no_disponible', 404)
       const before = safe(list)
-      const after = { ...before, ...(operation === 'create' ? { name: checked.payload.name, isActive: true } : {}), ...(operation === 'update' ? Object.fromEntries(['name', 'isActive', 'items'].filter(key => Object.hasOwn(checked.payload, key)).map(key => [key, checked.payload[key]])) : {}) }
+      const normalizedItems = checked.payload.items === undefined ? undefined : (await import('../../../../lib/price-lists')).parsePriceListItems(checked.payload.items)
+      const after = { ...before, ...(operation === 'create' ? { name: checked.payload.name, isActive: checked.payload.isActive ?? true, items: normalizedItems ?? [] } : {}), ...(operation === 'update' ? Object.fromEntries(['name', 'isActive'].filter(key => Object.hasOwn(checked.payload, key)).map(key => [key, checked.payload[key]])) : {}), ...(operation === 'update' && normalizedItems !== undefined ? { items: normalizedItems } : {}) }
       const existing = await prisma.mcpChangePreview.findUnique({ where: { grantId_idempotencyKey: { grantId: auth.grantId, idempotencyKey } } })
       if (existing) { if (existing.action !== checked.action || existing.payloadHash !== hash) return json('idempotencia_reutilizada', 409); return NextResponse.json({ previewId: existing.id, action: existing.action, payloadHash: existing.payloadHash, status: existing.status, expiresAt: existing.expiresAt, before: existing.before, after: existing.after, resultEntity: existing.resultEntity, resultId: existing.resultId }, { headers: { 'Cache-Control': 'no-store' } }) }
       const preview = await prisma.mcpChangePreview.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, action: checked.action, payloadHash: hash, payload: checked.payload as Prisma.InputJsonValue, before: before as Prisma.InputJsonValue, after: after as Prisma.InputJsonValue, idempotencyKey, expiresAt } })
@@ -169,7 +170,7 @@ export async function POST(request: Request) {
     try {
       const result = await prisma.$transaction(async tx => {
         const actor = { id: auth.user.id, tenantId: auth.tenantId, role: auth.user.role, permissions: auth.user.permissions }
-        const value = checked.payload.operation === 'update' ? await updatePriceList(tx, actor, String(checked.payload.priceListId), checked.payload) : await createPriceList(tx, actor, checked.payload)
+        const value = checked.payload.operation === 'update' ? await updatePriceList(tx, actor, String(checked.payload.priceListId), { ...checked.payload, _expectedUpdatedAt: (preview.before as any)?.updatedAt }) : await createPriceList(tx, actor, checked.payload)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'PriceList', resultId: value.id } })
         if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'PriceList', entityId: value.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
