@@ -679,9 +679,20 @@ export default function PanelVendedor() {
 
   // Pestaña de un subpadre: la pestaña activa vive en la URL hija.
   function irASubtab(id) {
+    // La Tienda de módulos es una entrada prioritaria del encabezado, pero su
+    // contenido sigue perteneciendo a Organización para conservar permisos y
+    // no duplicar la pantalla existente. El query permite deep links y estado
+    // activo sin agregar una octava sección al catálogo histórico.
+    if (id === 'modulos' && subpadre === 'configuracion') {
+      setVista('organizacion')
+      navigate('/configuracion/organizacion?org=modulos')
+      return
+    }
     setVista(id)
     if (subpadre) navigate(`/${subpadre}/${id}`)
   }
+
+  const modulosActivos = subpadre === 'configuracion' && vista === 'organizacion' && new URLSearchParams(busquedaUrl).get('org') === 'modulos'
 
   function toggleSidebar() {
     recordarSidebar(current => !current)
@@ -898,6 +909,8 @@ export default function PanelVendedor() {
               items={tabsConfig}
               value={vista}
               onChange={irASubtab}
+              onModules={irASubtab}
+              modulesActive={modulosActivos}
               onBack={salirDeConfiguracion}
               onElegirAjuste={entrada => {
                 const { vista: destinoVista, opciones } = destinoAjuste(entrada, { esOwner })
@@ -1041,7 +1054,7 @@ export default function PanelVendedor() {
           {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
           {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
-            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
+            <NavegacionConfig value={vista} onChange={irASubtab} onModules={irASubtab} modulesActive={modulosActivos} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
               {vista === 'equipo' && <Equipo />}
