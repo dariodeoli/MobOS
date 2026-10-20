@@ -139,7 +139,7 @@ export async function PATCH(request: Request) {
   const priceOnly = Object.keys(b).every(key => ['id', 'pricePyg', 'expectedPricePyg'].includes(key)) && b.pricePyg !== undefined
   if (priceOnly) {
     try {
-      const changed = await updateProductPrice({ tenantId: tenant, user: session.user, productId: String(b.id), pricePyg: Number(b.pricePyg), expectedPricePyg: b.expectedPricePyg === undefined ? undefined : Number(b.expectedPricePyg) })
+      const changed = await updateProductPrice({ tenantId: tenant, user: session.user, effectiveBranchId: session.user.branchId ?? await sucursalEfectiva(session), productId: String(b.id), pricePyg: Number(b.pricePyg), expectedPricePyg: b.expectedPricePyg === undefined ? undefined : Number(b.expectedPricePyg) })
       return json(changed)
     } catch (e) {
       const code = e instanceof ProductPriceError ? e.code : 'price_update_failed'
