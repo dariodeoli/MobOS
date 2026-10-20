@@ -22,3 +22,22 @@ La ficha normal ya conserva esta identidad mediante `POST/PATCH /api/customers`;
 - El arnés HTTP completo PASS: migraciones y `check-db-schema` en PG aislado, backup/restauración (67 productos y 98 órdenes idénticos), flujos de abastecimiento, pagos, consistencia y logout, además de los 18 checks de identidad fiscal inline. Los errores SQL de constraints que aparecen durante algunos casos son respuestas negativas esperadas del arnés; no dejaron inconsistencias y el proceso terminó con exit 0.
 
 La consulta del proveedor real y la habilitación del piloto quedan pendientes de configuración humana del servidor. Esta rama no cambia claves, límites, proveedor ni producción.
+
+## Contrato UI fiscal POS — 2026-10-20
+
+`e2e/qa-344-fiscal-pos.spec.js` recorre componentes reales del POS e inspecciona los requests HTTP que emiten. Las respuestas de clientes, RUC y pedidos se simulan; esto prueba el contrato UI/API, **no una consulta real de OwnData ni la habilitación del piloto**. No se leyeron claves ni se usaron datos reales.
+
+Cuatro casos nuevos: (1) selección de cliente con campos fiscales `null`, confirmación sin enviar borrado fiscal; (2) PERSON persistida sin teléfono/correo, con tuple exacto en PATCH y POST orders; (3) aceptación explícita de nombre fiscal de 1.924 caracteres, espacios/puntuación intactos, nombre visible manual separado en POST/PATCH y fiscal exacto en orders; (4) conflicto 409 mantiene formulario/datos/error y reintento 201 cierra edición. El POST orders recibe un 409 simulado para evitar crear una venta y mantener la pantalla; la evidencia es el payload realmente emitido.
+
+Se agregó un campo independiente «Nombre visible del cliente» cuando hay identidad fiscal: editarlo conserva la identidad aceptada. **Integración posterior a POS #622 / v236:** reconciliar este campo con el nombre editable del Modal de esa rama para evitar dos controles redundantes; conservar la separación `displayName` / `nameOfficial` y no invalidar fiscal al cambiar sólo el visible. Esta rama no incluye el layout de #622.
+
+El archivo de QA sin seguimiento recibido de la tarea anterior se reemplazó: su tercer caso disparaba un evento sin consumidor y afirmaba que no se emitía pedido; no era evidencia del flujo de venta.
+
+Validaciones tras rebase sobre v1.0.235: frontend 1.598 PASS; lint 0 errores (1 warning previo en DeliveryOperations); build frontend PASS; helpers fiscales 12 PASS con `node --test`. Backend sin cambios respecto a los gates PG/HTTP/build/Prisma documentados arriba. Cluster aislado `/tmp/mobos-e2e-pg-344-contract`, PG 5587, API 3187, web 5287.
+
+### Novedades para el dueño
+
+- El POS conserva los datos fiscales al confirmar clientes sin teléfono ni correo.
+- Los nombres fiscales largos pueden conservarse completos usando un nombre corto para el mostrador.
+- Un conflicto al guardar permite corregir o reintentar sin perder lo cargado.
+- El piloto con el proveedor real sigue pendiente; estas pruebas usan respuestas simuladas.
