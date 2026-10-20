@@ -24,8 +24,9 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
   } else if (action === 'product_images.write') {
     if (!bounded(value.productId, 100) || !bounded(value.contentType, 40) || !['image/jpeg', 'image/png', 'image/webp'].includes(String(value.contentType))) return { ok: false, error: 'imagen_invalida' }
     if (typeof value.dataBase64 !== 'string' || value.dataBase64.length < 16 || value.dataBase64.length > 7_000_000) return { ok: false, error: 'imagen_datos_invalidos' }
-    const width = value.width; const height = value.height
-    if (!integer(width, 1) || !integer(height, 1) || (typeof width === 'number' && width > 12000) || (typeof height === 'number' && height > 12000)) return { ok: false, error: 'dimensiones_invalidas' }
+    // Dimensions are derived from the decoded image by product-images.ts;
+    // accepting client-supplied dimensions here would make the MCP path
+    // disagree with the multipart upload policy.
   } else if (action === 'company.write') {
     if (value.name !== undefined && !bounded(value.name, 180)) return { ok: false, error: 'empresa_nombre_invalido' }
     if (value.email !== undefined && (typeof value.email !== 'string' || value.email.length > 180)) return { ok: false, error: 'empresa_email_invalido' }

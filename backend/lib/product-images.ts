@@ -200,6 +200,8 @@ type ProductImageDatabase = {
   $transaction<T>(callback: (tx: any) => Promise<T>): Promise<T>
 }
 
+type PersistedImageCallback = (tx: any, row: ImageRow) => Promise<void>
+
 /**
  * Persiste una foto validada manteniendo las mismas políticas que la carga
  * web. El llamador debe resolver la identidad y el permiso de la sesión; el
@@ -209,9 +211,11 @@ type ProductImageDatabase = {
 export async function persistProductImage({
   db, tenantId, userId, productId, branchId = null, canManage, image, thumb = null,
   variantKey = null, provenance = 'web',
+  onPersisted,
 }: {
   db: ProductImageDatabase; tenantId: string; userId: string; productId: string; branchId?: string | null;
   canManage: boolean; image: ValidatedImage; thumb?: ValidatedImage | null; variantKey?: string | null; provenance?: 'web' | 'mcp';
+  onPersisted?: PersistedImageCallback;
 }) {
   if (!canManage) throw new ProductImageError(403, 'No autorizado.')
   const product = await db.product.findFirst({ where: { id: productId, tenantId }, select: { id: true, branchId: true } })
@@ -237,6 +241,7 @@ export async function persistProductImage({
         }, select: PRODUCT_IMAGE_SELECT,
       })
       await tx.auditLog.create({ data: { tenantId, userId, action: 'PRODUCT_IMAGE_ADDED', entity: 'Product', entityId: productId, metadata: { imageId: row.id, contentType: image.mimeType, sizeBytes: image.sizeBytes, sha256: image.sha256, provenance } } })
+      if (onPersisted) await onPersisted(tx, row)
       return row
     })
     return serializeProductImage(productId, created)
