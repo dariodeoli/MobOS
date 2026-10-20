@@ -72,9 +72,14 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
   // El proveedor se crea antes de entrar: Compras carga el catálogo al montar.
   await page.goto('/pos')
   const proveedor = await page.evaluate(async ({ api, nombre, codigo, documento, telefono }) => {
+    // El seed HTTP queda fuera del cliente de la app. Invalidar su caché
+    // explícitamente reproduce el efecto de api.post sin desactivar el TTL
+    // global de suppliersApi.list.
     const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo, document: documento, phone: telefono }) })
     const datos = await respuesta.json().catch(() => null)
     if (!respuesta.ok) throw new Error(datos?.message || `suppliers: ${respuesta.status}`)
+    const { invalidarConsultas } = await import('/src/lib/api/client.js')
+    invalidarConsultas()
     return datos
   }, { api: API, nombre, codigo, documento, telefono })
 
@@ -132,8 +137,9 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
     mkdirSync('test-results/qa-259-proveedores', { recursive: true })
     await page.screenshot({ path: 'test-results/qa-259-proveedores/compras-alta-proveedor.jpg', type: 'jpeg', quality: 78 })
   } finally {
-    await page.evaluate(async ({ api, id }) => {
-      await fetch(`${api}/api/suppliers`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, isActive: false }) }).catch(() => {})
-    }, { api: API, id: proveedor.id })
+    await page.evaluate(async ({ id }) => {
+      const { suppliersApi } = await import('/src/lib/api/suppliers.js')
+      await suppliersApi.update({ id, isActive: false }).catch(() => {})
+    }, { id: proveedor.id })
   }
 })
