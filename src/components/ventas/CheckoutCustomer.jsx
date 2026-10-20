@@ -387,6 +387,9 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         </div>
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
+          {typeof value.nameOfficial === 'string' && (
+            <Campo rotulo="Nombre visible del cliente"><Input aria-label="Nombre visible del cliente" maxLength={200} value={value.displayName || ''} onChange={event => onChange({ ...value, displayName: event.target.value })} placeholder="Nombre para el mostrador" /></Campo>
+          )}
           <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
