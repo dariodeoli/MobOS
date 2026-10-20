@@ -39,7 +39,7 @@ try {
   const { PrismaClient } = require('@prisma/client')
   const { PrismaPg } = require('@prisma/adapter-pg')
   const oauth = require('../lib/mcp/oauth.ts')
-  const { issueMcpAuthorizationCode, issueMcpTokens, mcpResource, pkceChallenge } = oauth
+  const { issueMcpAuthorizationCode, issueMcpTokens, mcpResource, pkceChallenge, requireMcpAccessToken } = oauth
   const makeDb = () => { const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) }); clients.push(db); return db }
   const db = makeDb()
   const tenant = await db.tenant.create({ data: { name: 'SDK HTTP', slug: 'sdk-http', email: 'sdk@example.test' } })
@@ -90,6 +90,11 @@ try {
   const tokenForm = (codeVerifier) => new URLSearchParams({ grant_type: 'authorization_code', client_id: 'sdk-http', code: authCode.code, redirect_uri: 'https://connector.example/callback', resource: mcpResource(), code_verifier: codeVerifier }).toString()
   const invalidPkce = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: tokenForm('t'.repeat(43)) })); ok(invalidPkce.status === 400, 'token rejects invalid PKCE before consuming code')
   const validPkce = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: tokenForm(verifier) })); ok(validPkce.status === 200 && (await validPkce.clone().json()).token_type === 'Bearer', 'token accepts valid PKCE after invalid attempt')
+  const configuredClients = process.env.MOBOS_MCP_CLIENTS_JSON
+  process.env.MOBOS_MCP_CLIENTS_JSON = '[]'
+  const removedClient = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${issued.accessToken}` } }))
+  ok(removedClient === null, 'revoked MCP client configuration invalidates bearer')
+  process.env.MOBOS_MCP_CLIENTS_JSON = configuredClients
   console.log(`MCP SDK HTTP 1.32.1: ${checks} PASS (HTTP aislado; initialize/list/call/notification/Origin/media type)`)
 } finally {
   if (httpServer) await new Promise(resolve => httpServer.close(resolve))
