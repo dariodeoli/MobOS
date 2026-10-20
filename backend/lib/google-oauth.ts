@@ -87,6 +87,15 @@ export function sameOriginForMcp(request: Request) {
     return issuer.origin === origin
   } catch { return false }
 }
+
+/** A GET navigation may omit Origin; bind that exception to the issuer URL itself. */
+export function isMcpIssuerRequest(request: Request) {
+  if (request.method !== 'GET') return false
+  try {
+    const issuer = new URL(process.env.MOBOS_MCP_ISSUER || process.env.MOBOS_API_URL || '')
+    return new URL(request.url).origin === issuer.origin
+  } catch { return false }
+}
 export function seal(purpose: string, value: object) {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', authConfig().key, iv)

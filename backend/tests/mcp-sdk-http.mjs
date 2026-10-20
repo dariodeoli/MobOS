@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import { createServer as createNetServer } from 'node:net'
@@ -47,7 +48,7 @@ try {
   const account = await db.account.create({ data: { email: 'sdk-account@example.test' } })
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'SDK Admin', email: 'sdk-user@example.test', pinHash: 'unused', role: 'ADMIN' } })
   await db.tenantMembership.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, role: 'OWNER' } })
-  const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'COMPANY', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
+  const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'SELLER', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
   const scopes = ['products:write', 'prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write']
   const grant = await db.mcpClientGrant.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes } })
   const issued = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes })
@@ -64,7 +65,16 @@ try {
   await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, sellerId: user.id, orderNumber: 'SDK-REPORT-UNKNOWN', status: 'COMPLETED', subtotalPyg: 500, totalPyg: 500, createdAt: reportAt, items: { create: [{ description: 'Unknown cost', quantity: 1, unitPricePyg: 500, totalPyg: 500 }] } } })
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
+  const { GET: authorizeGet } = require('../app/api/mcp/authorize/route.ts')
   const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
+  const browserCookie = 'mcp-get-cookie'
+  await db.session.update({ where: { id: session.id }, data: { tokenHash: createHash('sha256').update(browserCookie).digest('hex') } })
+  const authQuery = new URLSearchParams({ response_type: 'code', client_id: 'sdk-http', redirect_uri: 'https://connector.example/callback', scope: 'products:read', resource, code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'state+/=' })
+  const consentGet = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`, { headers: { cookie: `mobos_seller_session=${browserCookie}` } }))
+  const consentBody = await consentGet.text(); ok(consentGet.status === 200 && consentBody.includes('Autorizar conexión'), 'OAuth consent GET without Origin uses trusted issuer URL and session cookie')
+  const unauthGet = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`))
+  const loginLocation = unauthGet.headers.get('location') || ''
+  ok(unauthGet.status === 303 && loginLocation.includes('/login') && loginLocation.includes('returnTo='), 'unauthenticated consent GET redirects to login bridge')
   httpServer = createServer(async (req, res) => {
     try {
       const chunks = []
