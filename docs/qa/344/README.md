@@ -16,9 +16,9 @@ La ficha normal ya conserva esta identidad mediante `POST/PATCH /api/customers`;
 
 - `backend/tests/ruc-demo.test.mjs`: 143 PASS; cubre 503 condicionado a configuración ausente, ausencia de consulta externa y datos simulados rechazados.
 - `backend/tests/run-unit.cjs`: 348 pruebas, 347 PASS, 0 fallos y 1 skip.
-- `backend/tests/orders-inline-fiscal-identity.mjs`: 14 checks PASS contra PG/HTTP aislado: empresa, persona, nombre oficial exacto, persona sin nombre visible, conservación sin identidad y rechazo de sobreescritura implícita.
+- `backend/tests/orders-inline-fiscal-identity.mjs`: 18 checks PASS contra PG/HTTP aislado: empresa, persona, nombre oficial exacto, persona sin nombre visible, completado explícito de un campo fiscal ausente, rechazo de conflicto y conservación de la identidad existente.
 - `npm test`: 1.593 PASS; `npm run lint`: 0 errores y 1 warning preexistente; build Vite PASS.
-- Backend: `tsc --noEmit`, `prisma validate` y `next build` PASS; `BUILD_ID=LolZqO8AO28aMKnNf7XOn`.
-- El arnés HTTP completo alcanzó todos los flujos de identidad, pero su cierre quedó bloqueado por una discrepancia preexistente de `backup-restore` (API 100 órdenes frente a 101 en la base del fixture); no está relacionada con #344.
+- Backend: `tsc --noEmit`, `prisma validate` y `next build` PASS; `BUILD_ID=fUCUGnlW2krPHI6X-Xit5`.
+- El arnés HTTP completo PASS: migraciones y `check-db-schema` en PG aislado, backup/restauración (67 productos y 98 órdenes idénticos), flujos de abastecimiento, pagos, consistencia y logout, además de los 18 checks de identidad fiscal inline. Los errores SQL de constraints que aparecen durante algunos casos son respuestas negativas esperadas del arnés; no dejaron inconsistencias y el proceso terminó con exit 0.
 
 La consulta del proveedor real y la habilitación del piloto quedan pendientes de configuración humana del servidor. Esta rama no cambia claves, límites, proveedor ni producción.

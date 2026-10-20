@@ -392,7 +392,7 @@ export async function POST(request: Request) {
             ['identityKind', customer.identityKind, existing.identityKind],
             ['givenNames', customer.givenNames, existing.givenNames],
             ['surnames', customer.surnames, existing.surnames],
-          ].filter(([, incoming, stored]) => incoming !== undefined && incoming !== stored)
+          ].filter(([, incoming, stored]) => incoming !== undefined && stored !== null && incoming !== stored)
           if (identityConflicts.length) throw new InputError('La identidad fiscal existente no coincide. Seleccioná el cliente y confirmá la edición explícitamente.', 409)
           customerId = existing.id
           const storedAddresses = customer.addresses.length
