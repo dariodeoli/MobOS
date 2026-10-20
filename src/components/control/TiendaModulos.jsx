@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Input, Modal, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, Input, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 const CATEGORIAS = ['Todas', 'Operación', 'Finanzas', 'Clientes', 'Mensajes', 'IMEI', 'Comercial', 'Automatización', 'Facturación', 'Reportes', 'Salud', 'Configuración']
@@ -15,7 +15,6 @@ export default function TiendaModulos() {
   const [categoria, setCategoria] = useState('Todas')
   const [soloActivos, setSoloActivos] = useState(false)
   const [busqueda, setBusqueda] = useState('')
-  const [preview, setPreview] = useState(null)
   const [presetPending, setPresetPending] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -87,16 +86,20 @@ export default function TiendaModulos() {
           <p className="text-xs text-mute">Recomendado: {module.recommendedFor.map(id => RUBRO[id]).join(', ') || '—'}{module.dependencies.length ? ` · Requiere: ${module.dependencies.map(id => data.catalog.find(item => item.id === id)?.name || id).join(', ')}` : ''}</p>
           {module.capabilities?.length > 0 && <div className="flex flex-wrap gap-1">{module.capabilities.map(item => <Badge key={item} color="slate">{item}</Badge>)}</div>}
           {module.packs?.length > 0 && <div className="rounded-lg border border-ink-600 p-2"><p className="text-xs font-semibold">Packs sugeridos (preview)</p><div className="mt-1 space-y-1">{module.packs.map(pack => <p key={pack.id} className="text-xs text-mute"><b className="text-fore">{pack.name}:</b> {pack.includes.join(' · ')}</p>)}</div></div>}
+          <div data-testid={`modulo-preview-${module.id}`} aria-label={`Vista previa de ${module.name}`} className="rounded-xl border border-ink-600 bg-ink-950/30 p-3">
+            <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-mute"><span>Vista previa</span><Badge color="slate">Demo</Badge></div>
+            <div className="mt-2 grid grid-cols-[auto_1fr] items-center gap-2 rounded-lg border border-ink-600 bg-ink-900/50 p-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-fono/10 text-fono-light"><Icon name={module.icon} className="h-4 w-4" /></span><span className="min-w-0"><b className="block truncate text-xs text-fore">{module.preview}</b><span className="mt-0.5 block text-[11px] text-mute">{module.demo}</span></span></div>
+            <p className="mt-2 text-[11px] text-mute">No modifica datos ni ejecuta acciones reales.</p>
+          </div>
           {!module.core && module.changeable === false && module.status === 'available' && <p className="rounded-lg border border-ink-600 p-2 text-xs text-mute">El editor existente sigue disponible. Su control central se habilitará cuando también estén protegidas todas sus acciones de servidor.</p>}
           {module.id === 'salud' && <Aviso tono="warn" como="div" className="p-2 text-xs">Podría involucrar datos sensibles de salud. La función aún no está disponible.</Aviso>}
           {state?.updatedAt && <p className="text-[11px] text-mute">{state.source === 'manual' ? 'Selección manual' : `Preset ${RUBRO[data.state.preset]}`} · actualizado {new Date(state.updatedAt).toLocaleDateString('es-PY')}</p>}
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-ink-600 pt-3"><span className="text-sm">{module.status === 'coming-soon' ? 'Próximamente' : enabled ? 'Activo' : 'Desactivado'}</span><div className="flex flex-wrap gap-2">{module.configureHref && <Link to={module.configureHref} className="inline-flex min-h-9 items-center rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fono-light hover:bg-ink-700">Abrir editor</Link>}<Button variant="ghost" className="min-h-9 px-3 text-xs" onClick={() => setPreview(module)}>Vista previa</Button><Button className="min-h-9 px-3 text-xs" variant={enabled ? 'outline' : 'primary'} disabled={!canToggle || busy || (!enabled && missing.length > 0)} onClick={() => cambiar({ moduleId: module.id, enabled: !enabled })} title={module.core ? 'Los módulos core siempre están activos' : module.changeable === false ? 'Control central pendiente de guardas de servidor' : missing.length ? `Activá primero: ${missing.join(', ')}` : undefined}>{module.core ? 'Siempre activo' : module.status === 'coming-soon' ? 'Próximamente' : module.changeable === false ? 'Control pendiente' : enabled ? 'Desactivar' : 'Activar'}</Button></div></div>
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-ink-600 pt-3"><span className="text-sm">{module.status === 'coming-soon' ? 'Próximamente' : enabled ? 'Activo' : 'Desactivado'}</span><div className="flex flex-wrap gap-2">{module.configureHref && <Link to={module.configureHref} className="inline-flex min-h-9 items-center rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fono-light hover:bg-ink-700">Abrir editor</Link>}<Button className="min-h-9 px-3 text-xs" variant={enabled ? 'outline' : 'primary'} disabled={!canToggle || busy || (!enabled && missing.length > 0)} onClick={() => cambiar({ moduleId: module.id, enabled: !enabled })} title={module.core ? 'Los módulos core siempre están activos' : module.changeable === false ? 'Control central pendiente de guardas de servidor' : missing.length ? `Activá primero: ${missing.join(', ')}` : undefined}>{module.core ? 'Siempre activo' : module.status === 'coming-soon' ? 'Próximamente' : module.changeable === false ? 'Control pendiente' : enabled ? 'Desactivar' : 'Activar'}</Button></div></div>
         </Card>
       })}
       {!modules.length && <Card className="p-5 text-sm text-mute">No hay módulos que coincidan con estos filtros.</Card>}
     </div>
 
-    {preview && <Modal open onClose={() => setPreview(null)} title={`Vista previa: ${preview.name}`} size="corto"><p className="text-sm text-mute">{preview.preview}</p><div className="mt-3 rounded-xl border border-dashed border-ink-500 bg-ink-950/40 p-5 text-sm text-mute">{preview.demo}<p className="mt-2 text-xs">Esta vista previa no modifica información de la empresa.</p></div></Modal>}
     <ConfirmDialog open={Boolean(presetPending)} onCancel={() => setPresetPending(null)} onConfirm={() => { const preset = presetPending; setPresetPending(null); cambiar({ preset }) }} title={`¿Aplicar el preset ${RUBRO[presetPending] || ''}?`} description="Puede ocultar módulos del menú. Los registros y configuraciones históricas se conservan; podés volver a activar cada módulo o elegir otro preset." confirmLabel="Aplicar preset" />
   </div>
 }
