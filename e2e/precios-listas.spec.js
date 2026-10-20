@@ -102,12 +102,12 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
   await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)
   await page.getByRole('button', { name: new RegExp(nombreProducto) }).first().click()
-  await ensureCobro(page)
   // La línea arranca ultra-colapsada (#243): el detalle se despliega.
   await page.getByRole('button', { name: `Ver detalle de ${nombreProducto}` }).click()
   await page.getByLabel(`Cantidad de ${nombreProducto}`).fill('3')
   await expect(page.getByLabel(`Precio de venta de ${nombreProducto}`)).toHaveValue('70.000')
 
+  await ensureCobro(page)
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   // #335: el scroll mínimo de Playwright centra el botón debajo del carrito
   // sticky. Se lo posiciona justo debajo del carrito pegado (totalmente

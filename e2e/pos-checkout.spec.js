@@ -247,6 +247,8 @@ test('POS clears the address country and the summary opens the cart', async ({ p
   await expect(pais).toHaveValue('Paraguay')
   await pais.fill('')
   await expect(pais).toHaveValue('')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeHidden()
 
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
@@ -357,12 +359,13 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
 
   // La factura guardada en la ficha se propone de nuevo en esta venta (los
   // datos completos se editan desde el bloque colapsado, #309).
-  await seleccion.getByRole('button', { name: 'Editar datos' }).click()
+  await seleccion.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
   await page.getByText('Facturar a otro titular (opcional)').click()
   await expect(page.getByLabel('Nombre del titular de factura')).toHaveValue(razon)
   await expect(page.getByLabel('RUC del titular de factura')).toHaveValue('80012345-6')
 
-  await page.getByRole('button', { name: '× Quitar cliente' }).click()
+  await page.keyboard.press('Escape')
+  await seleccion.getByRole('button', { name: 'Quitar cliente', exact: true }).click()
   await expect(seleccion).toHaveCount(0)
   await expect(buscador).toHaveValue('')
 })
@@ -449,10 +452,12 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
     // Sin pasos: el título del bloque no arranca con un número.
     expect(await heading.textContent()).not.toMatch(/^\s*\d/)
   }
-  // Cobro compacto (una sola pantalla): el bloque ya no lleva título propio, pero
-  // sigue a la vista y sin numeración de pasos.
+  // El cobro permanece oculto hasta cargar productos y elegir Cobrar.
   const cobro = page.getByTestId('pos-cobro')
-  await expect(cobro).toBeVisible()
+  await expect(cobro).toBeHidden()
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await ensureCobro(page)
   expect((await cobro.textContent()).trim()).not.toMatch(/^\d/)
 
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
@@ -550,7 +555,9 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
   // Se crea la ficha con el pedido de la propia venta (cliente nuevo).
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
-  await page.getByLabel('Correo del cliente').fill(correo)
+  await page.getByRole('dialog', { name: 'Datos del cliente' }).getByLabel('Correo del cliente').fill(correo)
+  await page.getByTestId('confirmar-cliente').click()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeHidden()
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })

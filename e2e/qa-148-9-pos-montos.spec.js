@@ -28,7 +28,6 @@ test('POS: un precio sobre el tope bloquea el guardado y explica qué monto revi
   const tarjeta = page.getByRole('button', { name: new RegExp(PRODUCTO) }).first()
   await expect(tarjeta).toBeVisible({ timeout: 15_000 })
   await tarjeta.click()
-  await ensureCobro(page)
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
   // Precio de venta por encima del tope de ventas (99.000.000.000): el campo lo marca.
@@ -39,6 +38,7 @@ test('POS: un precio sobre el tope bloquea el guardado y explica qué monto revi
 
   // Confirmar queda bloqueado con el detalle del monto y no crea el pedido.
   const antes = await contarPedidos(page)
+  await ensureCobro(page)
   await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
   const aviso = page.getByText(/No se puede guardar: el precio de .+ \(Gs 99\.000\.000\.001\) supera el máximo que el sistema puede guardar \(Gs 99\.000\.000\.000\)\./)
   await expect(aviso).toBeVisible()

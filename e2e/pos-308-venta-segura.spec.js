@@ -158,6 +158,7 @@ test('la salida explícita «sobre pedido» deja la traza en el pedido (#308)', 
     await agregar(page, nombre)
 
     // Carrito con una línea sin stock: la única salida es la decisión explícita.
+    await ensureCobro(page)
     const guia = page.getByTestId('guia-venta')
     await expect(guia).toBeVisible()
     await guia.getByRole('button', { name: 'Sobre pedido' }).click()
@@ -181,11 +182,12 @@ test('sin productos no se cargan pagos ni se canjean gift cards (#308)', async (
     await page.goto('/pos')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente pagos 308 ${id}`)
 
-    // Carrito vacío: cobrar y canjear quedan bloqueados con su aviso.
-    await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeDisabled()
-    await expect(page.getByTestId('cobro-sin-productos')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^(Crear pedido|Confirmar venta|Guardar pedido)/ })).toBeDisabled()
+    // Vacío: no hay acceso al cobro ni controles para cargar pagos.
+    await expect(page.getByTestId('pos-cobro')).toBeHidden()
+    await expect(page.getByTestId('carrito-listo')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Cobrar(?:\s|$)/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeHidden()
+    await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeHidden()
 
     // Con un producto vuelven a estar disponibles.
     await agregar(page, nombre)

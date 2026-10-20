@@ -14,6 +14,7 @@ import { selectInventorySection } from './helpers/shell-navigation.js'
 //
 // Capturas: MOBOS_297_CAPTURAS=docs/qa/297-validacion-global \
 //   npx playwright test e2e/qa-297-validacion-global.spec.js
+import { ensureCobro } from './helpers/ensure-cobro.js'
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -209,6 +210,7 @@ test('#297 · POS: con total Gs 0 no se canjean gift cards ni se cargan pagos', 
   const fila = page.locator('#pos-resumen-venta .divide-y > div').first()
   await fila.getByRole('button', { name: /^Ver detalle de / }).click()
   await fila.getByLabel(/^Precio de venta de /).fill('0')
+  await ensureCobro(page)
 
   const pagar = page.getByRole('button', { name: '+ Agregar pago' })
   const canjear = page.getByRole('button', { name: '+ Canjear gift card' })
@@ -219,7 +221,9 @@ test('#297 · POS: con total Gs 0 no se canjean gift cards ni se cargan pagos', 
   await capturar(page, '07-pos-total-cero')
 
   // Con precio real vuelven a quedar disponibles.
+  await page.getByTestId('carrito-editar').click()
   await fila.getByLabel(/^Precio de venta de /).fill('45000')
+  await ensureCobro(page)
   await expect(pagar).toBeEnabled()
   await expect(canjear).toBeEnabled()
 })

@@ -161,6 +161,10 @@ for (const width of widths) {
       await expect(navigation).toBeHidden()
       await page.setViewportSize({ width, height: 900 })
     } else {
+      await expect(page.getByTestId('pos-cobro')).toBeHidden()
+      await page.getByPlaceholder('Buscar producto…').fill('Funda MagSafe')
+      await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
+      await ensureCobro(page)
       const checkout = page.getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
         .filter({ visible: true }).first()
       await expect(checkout).toBeVisible()

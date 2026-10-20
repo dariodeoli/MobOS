@@ -195,7 +195,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
           // Se cierra la hoja del cobro y se abre la del carrito.
           await page.keyboard.press('Escape')
           await abrirCarritoMovil(page)
-        }
+        } else await page.getByTestId('carrito-editar').click()
         const carrito = page.locator('#pos-resumen-venta')
         await carrito.getByRole('button', { name: /^Ver detalle de / }).first().click()
         await carrito.getByLabel(/^Descuento % de /).first().fill('10')

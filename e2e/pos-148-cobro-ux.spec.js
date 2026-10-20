@@ -4,6 +4,7 @@
 // naranja en el pago parcial, y el resumen «Total de esta venta» queda sólido y
 // debajo del botón en mobile. Hallazgos de otros dominios se reportan, no se
 // corrigen acá.
+import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { ensureCobro } from './helpers/ensure-cobro.js'
 import { SEED } from './helpers/seed-data.js'
@@ -135,6 +136,14 @@ for (const [vista, ancho, alto] of [['mobile', 390, 844], ['desktop', 1280, 900]
     await elegirCuenta(page, fila, 'Caja E2E')
     const monto = fila.getByLabel('Monto original')
     await monto.fill('99000000000')
+    if (movil(page)) {
+      const cobro = page.getByTestId('cobro-mas')
+      await expect(cobro.getByTestId('pago-fila-0')).toBeVisible()
+      await expect(cobro.locator('button[type="submit"]').filter({ visible: true })).toHaveCount(1)
+      await expect(cobro.getByTestId('pos-barra-accion')).toBeHidden()
+      mkdirSync('/tmp/mobos236-mobile-regression', { recursive: true })
+      await page.screenshot({ path: '/tmp/mobos236-mobile-regression/otros-medios-cuenta-monto.png', fullPage: true })
+    }
     await expect(monto).toHaveValue('99.000.000.000')
     const medida = await monto.evaluate((input) => {
       const cs = getComputedStyle(input)
@@ -215,4 +224,26 @@ test('mobile: el total de la venta queda fijo abajo y el carrito muestra el desc
   await elegirCuenta(page, fila, 'Caja E2E')
   await fila.getByLabel('Monto original').fill('20000')
   await expect(page.getByTestId('cobro-pendiente')).toContainText('Gs 100.000')
+})
+
+test('mobile: Otros medios conserva cuentas distintas y acceso al canje sin duplicar confirmar (#620)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await armarVenta(page, { clienteNombre: cliente() })
+  const primera = await agregarPago(page)
+  await elegirCuenta(page, primera, 'Caja E2E')
+  await primera.getByLabel('Monto original').fill('20000')
+  await primera.getByRole('button', { name: /^Dividir pago/ }).click()
+  const segunda = page.getByTestId('pago-fila-1')
+  await elegirCuenta(page, segunda, 'Transferencia E2E')
+  await segunda.getByLabel('Monto original').fill('25000')
+  await expect(primera.getByTestId('cuenta-capsula')).toContainText('Caja E2E')
+  await expect(segunda.getByTestId('cuenta-capsula')).toContainText('Transferencia E2E')
+  const mas = page.getByTestId('cobro-mas')
+  await expect(mas.locator('button[type="submit"]').filter({ visible: true })).toHaveCount(1)
+  await expect(mas.getByTestId('pos-barra-accion')).toBeHidden()
+  await mas.getByRole('button', { name: '+ Canjear gift card' }).click()
+  await expect(mas.getByRole('button', { name: 'Consultar saldo' })).toBeVisible()
+  await expect(mas.getByTestId('codigo-celda-0')).toBeVisible()
+  mkdirSync('/tmp/mobos236-mobile-regression', { recursive: true })
+  await page.screenshot({ path: '/tmp/mobos236-mobile-regression/otros-medios-dos-cuentas-canje.png', fullPage: true })
 })

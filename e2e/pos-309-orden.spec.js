@@ -68,7 +68,7 @@ const posicionDe = (page, selector) =>
     return { y: Math.round(r.y + window.scrollY), position: getComputedStyle(el).position }
   }, selector)
 
-test('el cliente va arriba del catálogo, y la ficha elegida queda en una línea (#309)', async ({ page }) => {
+test('cliente y catálogo están separados, y la ficha elegida queda compacta (#309)', async ({ page }) => {
   const id = clave()
   const nombreCliente = `Cliente 309 ${id}`
   const clienteCreado = await crearCliente(page, nombreCliente)
@@ -77,23 +77,20 @@ test('el cliente va arriba del catálogo, y la ficha elegida queda en una línea
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
-  // Orden de trabajo: cliente compacto arriba, catálogo debajo.
-  const productos = await posicionDe(page, 'pos-bloque-productos')
-  const cliente = await posicionDe(page, 'pos-bloque-cliente')
-  expect(productos, 'el bloque de productos existe').not.toBeNull()
-  expect(cliente, 'el bloque de cliente existe').not.toBeNull()
-  expect(cliente.y).toBeLessThanOrEqual(productos.y)
-  const clientePrimero = await page.evaluate(() => {
-    const a = document.querySelector('[data-testid="pos-bloque-cliente"]')
-    const b = document.querySelector('[data-testid="pos-bloque-productos"]')
+  // El catálogo precede a la columna de venta; ambos bloques siguen accesibles.
+  await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+  await expect(page.getByTestId('pos-bloque-cliente')).toBeVisible()
+  const catalogoPrimero = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="pos-bloque-productos"]')
+    const b = document.querySelector('[data-testid="pos-bloque-cliente"]')
     return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
   })
-  expect(clientePrimero, 'el cliente precede al catálogo en el documento').toBe(true)
+  expect(catalogoPrimero, 'el catálogo precede a la columna de venta').toBe(true)
 
   // Búsqueda y cliente siguen a mano (el buscador se ve antes en la página).
   await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
   const campoCliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
-  // Nombre exacto y único: la ficha se liga sola y el bloque se colapsa.
+  // Nombre exacto y único: la ficha se liga y queda compacta.
   await campoCliente.fill(nombreReal)
   const elegido = page.getByTestId('cliente-elegido')
   await expect(elegido).toBeVisible({ timeout: 15_000 })
@@ -101,8 +98,9 @@ test('el cliente va arriba del catálogo, y la ficha elegida queda en una línea
   await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toHaveCount(0)
 
   // «Editar datos» vuelve al formulario completo.
-  await elegido.getByRole('button', { name: 'Editar datos' }).click()
-  await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toBeVisible()
+  await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
+  await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
 })
 
 test('la columna del carrito y el cobro queda fija a la derecha y el total vive una sola vez (#309)', async ({ page }) => {
@@ -202,12 +200,14 @@ test('una línea sobre pedido puede quedar en tránsito con reserva anticipada (
     await agregarProducto(page, nombre)
 
     // La guía avisa que falta stock y ofrece la salida con reserva anticipada.
+    await ensureCobro(page)
     const guia = page.getByTestId('guia-venta')
     await expect(guia).toBeVisible()
     await guia.getByRole('button', { name: 'Llega en tránsito' }).click()
 
     const fila = page.locator('#pos-resumen-venta [data-estado="en-transito"]')
     await expect(fila).toHaveCount(1)
+    await page.getByTestId('carrito-editar').click()
     await expect(fila.getByText('En tránsito')).toBeVisible()
 
     // El pedido viaja marcado (backorder + reserva anticipada) y no descuenta stock.

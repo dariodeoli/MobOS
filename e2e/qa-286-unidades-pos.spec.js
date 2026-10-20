@@ -96,6 +96,7 @@ test('#286/#511 · perder acceso al stock cierra el selector y exige revalidar',
     await page.getByRole('button', { name: new RegExp(nombre) }).first().click()
     // A partir de acá el stock responde como una sucursal ajena (403) — el caso
     // que antes mostraba el texto crudo «No autorizado para esa sucursal.».
+    await ensureCobro(page)
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
     const selector = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })
     await expect(selector).toBeVisible({ timeout: 15_000 })
