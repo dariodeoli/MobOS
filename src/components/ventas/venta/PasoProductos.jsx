@@ -280,7 +280,7 @@ export default function PasoProductos({
         ) : (
           <>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <div id="pos-busqueda-producto" className="relative min-w-0 flex-1">
+              <div id="pos-busqueda-producto" className="relative min-w-0 basis-full">
                 <ProductCombobox
                   products={productos}
                   placeholder="Buscar producto…"

@@ -43,6 +43,8 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
 
   const productos = page.locator('#pos-busqueda-producto input')
   await expect(productos).toBeFocused()
+  const [searchBox, catalogBox] = await Promise.all([productos.boundingBox(), page.getByTestId('pos-bloque-productos').boundingBox()])
+  expect(searchBox.width).toBeGreaterThan(catalogBox.width * 0.85)
   await productos.fill('Funda MagSafe')
   await productos.press('Enter')
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('1 producto')
