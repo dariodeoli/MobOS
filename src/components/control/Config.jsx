@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import AttachmentInput from '@/components/shared/AttachmentInput'
@@ -82,6 +82,8 @@ const ORG_SECCIONES = [
 ]
 
 export default function Config({ seccion = 'organizacion' } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, esDemo } = useSesion()
+  const location = useLocation()
+  const navigate = useNavigate()
   const toast = useToast()
   const esDueno = sesion?.esPropietario
   // En la demo no hay sesión real: los ajustes que van contra la API se
@@ -114,7 +116,14 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
   // #299: sección activa de Organización (cada tarea abre sola, sin apilar
   // todo en una columna).
-  const [org, setOrg] = useState('datos')
+  const [org, setOrg] = useState(() => new URLSearchParams(window.location.search).get('org') === 'modulos' ? 'modulos' : 'datos')
+  // La Tienda de módulos tiene un acceso propio desde la navegación de
+  // Configuración. Mantenerlo en la URL permite deep links y que el estado
+  // activo sobreviva a un refresco sin duplicar la pantalla de módulos.
+  useEffect(() => {
+    const modulo = new URLSearchParams(location.search).get('org') === 'modulos'
+    setOrg(modulo ? 'modulos' : current => current === 'modulos' ? 'datos' : current)
+  }, [location.search])
 
   // El formulario se hidrata solo al cargar (y al recargar) la cuenta: los
   // guardados parciales actualizan `account` sin pisar lo que el usuario está
@@ -272,7 +281,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
       {seccion === 'organizacion' && (
         <div className="space-y-3" data-testid="organizacion-pantalla">
           <div data-testid="organizacion-secciones">
-            <Subtabs value={org} onChange={setOrg} items={pestanasConIconos(ORG_SECCIONES, ORG_ICONOS, { peligro: 'peligro' })} ariaLabel="Secciones de Organización" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
+            <Subtabs value={org} onChange={(next) => { setOrg(next); if (new URLSearchParams(location.search).has('org')) navigate(location.pathname, { replace: true }) }} items={pestanasConIconos(ORG_SECCIONES, ORG_ICONOS, { peligro: 'peligro' })} ariaLabel="Secciones de Organización" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
           </div>
           {org === 'datos' && (
             <General tenant={account?.tenant} onIrANumeracion={() => setOrg('numeracion')} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onTenantChange={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
