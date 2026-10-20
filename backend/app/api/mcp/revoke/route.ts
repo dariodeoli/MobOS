@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { createHash } from 'node:crypto'
 import { prisma } from '../../../../lib/prisma'
 import { findMcpClient, hashMcpSecret } from '../../../../lib/mcp/oauth'
+import { readBoundedBody } from '../../../../lib/mcp/request-body'
 export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
-  const raw = await request.text()
+  const raw = await readBoundedBody(request, 64 * 1024)
+  if (raw === null) return NextResponse.json({ error: 'request_too_large' }, { status: 413 })
   const body = request.headers.get('content-type')?.includes('application/x-www-form-urlencoded')
     ? Object.fromEntries(new URLSearchParams(raw).entries()) as Record<string, unknown>
     : (() => { try { return JSON.parse(raw || '{}') as Record<string, unknown> } catch { return {} } })()

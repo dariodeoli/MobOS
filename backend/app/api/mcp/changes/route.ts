@@ -10,6 +10,7 @@ import { createProduct, updateProduct, ProductServiceError } from '../../../../l
 import { generateProductImagesBase64, persistProductImage, ProductImageError, serializeProductImage } from '../../../../lib/product-images'
 import { createCustomer, updateCustomer, CustomerServiceError } from '../../../../lib/customer-service'
 import { readTenantCompanyProfile, updateTenantCompanyProfile, CompanyReauthenticationRequiredError, TENANT_COMPANY_PROFILE_FIELDS } from '../../../../lib/tenant-company-profile'
+import { readBoundedBody } from '../../../../lib/mcp/request-body'
 
 export const dynamic = 'force-dynamic'
 const TTL_MS = 10 * 60 * 1000
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const auth = await requireMcpAccessToken(request)
   if (!auth) return json('invalid_token', 401)
   let body: any
-  try { body = await request.json() } catch { return json('json_invalido') }
+  try { const raw = await readBoundedBody(request, 7_100_000); if (raw === null) return json('request_too_large', 413); body = JSON.parse(raw) } catch { return json('json_invalido') }
   const mode = body?.mode === 'commit' ? 'commit' : body?.mode === 'preview' ? 'preview' : null
   if (!mode) return json('modo_invalido')
   const checked = validateChange(body.action, body.payload)

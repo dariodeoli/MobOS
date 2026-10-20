@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
 import { McpOAuthError, consumeMcpAuthorizationCode, dbNow, findMcpClient, issueMcpTokens, rotateMcpRefreshToken, revokeMcpRefreshFamily, validPkceVerifier, mcpResource, hashMcpSecret } from '../../../../lib/mcp/oauth'
+import { readBoundedBody } from '../../../../lib/mcp/request-body'
 export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
   try {
-    const raw = await request.text(); const body = Object.fromEntries(new URLSearchParams(raw)) as Record<string, unknown>
+    const raw = await readBoundedBody(request, 64 * 1024); if (raw === null) return NextResponse.json({ error: 'request_too_large' }, { status: 413 }); const body = Object.fromEntries(new URLSearchParams(raw)) as Record<string, unknown>
     const client = findMcpClient(body.client_id)
     if (!client) throw new McpOAuthError('invalid_client', 'Cliente no registrado.', 401)
     if (body.resource !== mcpResource()) throw new McpOAuthError('invalid_target', 'El resource no coincide con MobOS.', 400)

@@ -3,9 +3,10 @@ import { requireSession } from '../../../../lib/auth'
 import { sameOriginForMcp } from '../../../../lib/google-oauth'
 import { prisma } from '../../../../lib/prisma'
 import { moduleStoreFrom } from '../../../../lib/module-store'
-import { actionForScope } from '../../../../lib/mcp/catalog'
+import { actionForScope, catalogEntry } from '../../../../lib/mcp/catalog'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { assertScopeActions, dbNow, issueMcpAuthorizationCode, findMcpClient, normalizeMcpScopes, McpOAuthError, mcpIssuer, mcpResource } from '../../../../lib/mcp/oauth'
+import { readBoundedBody } from '../../../../lib/mcp/request-body'
 
 export const dynamic = 'force-dynamic'
 const validState = (value: unknown): value is string => typeof value === 'string' && new TextEncoder().encode(value).byteLength >= 1 && new TextEncoder().encode(value).byteLength <= 2048 && !/[\u0000-\u001f\u007f]/.test(value)
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   const safeName = client.name.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char))
   const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { name: true } })
   const safeTenant = (tenant?.name || 'tu empresa').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char))
-  const labels = scopes.map(scope => `<li>${scope.replace(/[&<>"']/g, '')}</li>`).join('')
+  const labels = scopes.map(scope => `<li>${(catalogEntry(actionForScope(scope))?.label || scope).replace(/[&<>"']/g, '')}</li>`).join('')
   return new NextResponse(`<!doctype html><html lang="es"><body><h1>Autorizar conexión</h1><p><strong>${safeName}</strong> solicita acceso a <strong>${safeTenant}</strong>.</p><ul>${labels}</ul><form method="post">${fields}<button name="decision" value="approve" type="submit">Autorizar</button><button name="decision" value="deny" type="submit">Cancelar</button></form></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
 }
 export async function POST(request: Request) {
@@ -39,9 +40,11 @@ export async function POST(request: Request) {
     if (request.headers.has('authorization') || !sameOriginForMcp(request)) throw new McpOAuthError('invalid_request', 'La autorización MCP requiere la sesión web de MobOS.', 401)
     const session = await requireSession(request, { allowMcpOrigin: true })
     if (!session) throw new McpOAuthError('login_required', 'Iniciá sesión en MobOS para autorizar el conector.', 401)
+    const raw = await readBoundedBody(request, 64 * 1024)
+    if (raw === null) throw new McpOAuthError('invalid_request', 'Solicitud demasiado grande.', 413)
     const body = request.headers.get('content-type')?.includes('application/x-www-form-urlencoded')
-      ? Object.fromEntries((await request.formData()).entries()) as Record<string, unknown>
-      : await request.json() as Record<string, unknown>
+      ? Object.fromEntries(new URLSearchParams(raw).entries()) as Record<string, unknown>
+      : JSON.parse(raw || '{}') as Record<string, unknown>
     if (body.state !== undefined && !validState(body.state)) throw new McpOAuthError('invalid_request', 'state no es válido.', 400)
     const client = findMcpClient(body.client_id, body.redirect_uri)
     if (!client) throw new McpOAuthError('invalid_client', 'Cliente o redirect URI no registrado.', 400)

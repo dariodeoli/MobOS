@@ -49,6 +49,7 @@ const modules: Record<string, unknown> = {
   '../../../lib/product-accessories': { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels },
   '../../../lib/product-images': { PRIMARY_IMAGE_INCLUDE, primaryImageFields },
   '../../../lib/product-price': { updateProductPrice: async () => ({ id: 'p', pricePyg: 0 }), ProductPriceError: class extends Error {} },
+  '../../../lib/product-service': { createProduct: async () => ({ id: 'p' }), updateProduct: async () => ({ id: 'p' }), ProductServiceError: class extends Error {} },
 }
 const routeExports: Record<string, unknown> = {}
 runInNewContext(source, {
