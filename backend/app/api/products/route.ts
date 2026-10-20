@@ -13,6 +13,7 @@ import { canSeeCostForSession, redactProductCosts } from '../../../lib/cost-visi
 import { catalogMeta, catalogSearchFilter, parseCatalogPage } from '../../../lib/product-catalog'
 import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../../../lib/product-accessories'
 import { PRIMARY_IMAGE_INCLUDE, primaryImageFields } from '../../../lib/product-images'
+import { updateProductPrice, ProductPriceError } from '../../../lib/product-price'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
@@ -135,6 +136,16 @@ export async function PATCH(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['products:manage'])) return error('No autorizado.', 403)
   const b = await request.json(); if (!b.id) return error('Producto obligatorio.')
+  const priceOnly = Object.keys(b).every(key => ['id', 'pricePyg', 'expectedPricePyg'].includes(key)) && b.pricePyg !== undefined
+  if (priceOnly) {
+    try {
+      const changed = await updateProductPrice({ tenantId: tenant, user: session.user, productId: String(b.id), pricePyg: Number(b.pricePyg), expectedPricePyg: b.expectedPricePyg === undefined ? undefined : Number(b.expectedPricePyg) })
+      return json(changed)
+    } catch (e) {
+      const code = e instanceof ProductPriceError ? e.code : 'price_update_failed'
+      return error(code, code === 'product_not_found' ? 404 : code === 'permission_denied' || code === 'branch_denied' ? 403 : 409)
+    }
+  }
   const price = b.pricePyg === undefined ? undefined : Number(b.pricePyg); const stock = b.stock === undefined ? undefined : Number(b.stock)
   const cost = b.costPyg === undefined ? undefined : b.costPyg === null || b.costPyg === '' ? null : Number(b.costPyg)
   const insuranceRate = b.insuranceRate === undefined ? undefined : b.insuranceRate === null || b.insuranceRate === '' ? null : Number(b.insuranceRate)
