@@ -34,6 +34,7 @@ import '@/components/ventas/ventasF3.css'
 import './tallerF3.css'
 import { partesDispositivo, tipoDeDispositivo } from '@/lib/dispositivos'
 import { BuscadorDispositivo, etiquetaDispositivo } from 'owncoding-ui'
+import SelectorResultadoCompacto from '@/components/shared/SelectorResultadoCompacto'
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
 // WhatsApp desde la fila, el mensaje ya sale con el contexto del taller.
 const PLANTILLA_POR_ESTADO = {
@@ -978,7 +979,16 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2"
               >
                 <div className="mt-1" data-testid="recepcion-dispositivo">
-                  <BuscadorDispositivo valor={dispositivo} tipo="servicio" onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
+                  {dispositivo.modelo && <SelectorResultadoCompacto
+                    nombre={dispositivo.modelo}
+                    detalles={[dispositivo.capacidad, dispositivo.color].filter(Boolean)}
+                    onCambiar={() => { cambiarDispositivo({}); requestAnimationFrame(() => document.querySelector('[data-testid="recepcion-dispositivo"] input[role="combobox"]')?.focus()) }}
+                    onQuitar={() => { cambiarDispositivo({}); requestAnimationFrame(() => document.querySelector('[data-testid="recepcion-dispositivo"] input[role="combobox"]')?.focus()) }}
+                    etiquetaCambiar="Cambiar equipo"
+                    etiquetaQuitar="Quitar equipo"
+                    testId="taller-dispositivo-seleccionado"
+                  />}
+                  <BuscadorDispositivo className={dispositivo.modelo ? 'selector-dispositivo-elegido' : ''} valor={dispositivo} tipo="servicio" onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
                 </div>
               </FormField>
               <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>

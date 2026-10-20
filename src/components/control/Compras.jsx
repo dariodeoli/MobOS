@@ -529,6 +529,7 @@ export default function Compras() {
                 value={supplierId === 'new' ? newSupplier.name : supplierId}
                 recientes={recientesProveedores}
                 onSelect={(proveedor) => { setSupplierId(proveedor.id); setNewSupplier(s => ({ ...s, name: '' })); setRecientesProveedores(recordarProveedorReciente(empresa?.id, proveedor.id)) }}
+                onClear={() => { setSupplierId(''); setNewSupplier(s => ({ ...s, name: '' })) }}
                 onLibre={(texto) => { setSupplierId('new'); setNewSupplier(s => ({ ...s, name: texto })) }}
                 onCreate={(texto) => { setSupplierId('new'); setNewSupplier(s => ({ ...s, name: texto })) }}
                 etiquetaNuevo="＋ Crear"
