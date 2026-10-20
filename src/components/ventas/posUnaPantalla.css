@@ -23,15 +23,26 @@
     min-height: 0;
     height: 100%;
     gap: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .pos-f2 .pos-col-izq > * {
     flex: none;
   }
   .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] {
-    flex: 1 1 auto;
+    /* An expanded customer card must push the catalog down. Keeping the
+       catalog as a flexing inner scroller made its original hitbox remain
+       underneath the open <details> panel (#602). */
+    flex: 0 0 auto;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-cliente'] {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 2;
   }
   .pos-f2 .pos-columna-venta {
     height: 100%;
@@ -63,9 +74,18 @@
     flex: 0 0 auto;
   }
   .pos-f2 [data-testid='pos-pagos-lista'] {
-    max-height: min(30vh, 280px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* Payment rows can contain a multi-line gift-card form. Constraining this
+       list leaves its controls outside the block's hitbox, underneath the
+       guide/footer. The parent payment column is the scroll container. */
+    max-height: none;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  /* The sticky footer used to intercept payment controls when the warning or
+     an open customer/payment panel grew beyond the fixed POS height. The
+     parent column already scrolls, so keep the footer in normal flow. */
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    position: static;
   }
   .pos-f2 .pos-carrito.pos-carrito-colapsado + .pos-cobro {
     flex: 1 1 0;
@@ -117,9 +137,6 @@
   .pos-f2 .pos-columna-venta {
     max-height: var(--pos-alto, none);
   }
-  .pos-f2 [data-testid='pos-pie-cobro'] {
-    position: static;
-  }
   .pos-f2 [data-testid='pos-tiles-resumen'] {
     flex-basis: 100%;
   }
@@ -136,8 +153,5 @@
   }
   .pos-f2 [data-testid='pos-bloque-pagos'] {
     flex: 0 0 auto;
-  }
-  .pos-f2 [data-testid='pos-pagos-lista'] {
-    max-height: none;
   }
 }
