@@ -29,6 +29,7 @@ export default function McpConexiones() {
   const [oauthReady, setOauthReady] = useState(false)
   const [endpoint, setEndpoint] = useState('')
   const [capabilities, setCapabilities] = useState([])
+  const [providerStatuses, setProviderStatuses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [confirm, setConfirm] = useState(null)
@@ -42,6 +43,7 @@ export default function McpConexiones() {
       setOauthReady(false)
       setEndpoint('')
       setCapabilities([])
+      setProviderStatuses([])
       setLoading(false)
       return
     }
@@ -53,6 +55,7 @@ export default function McpConexiones() {
       setOauthReady(data?.oauthConfigured === true)
       setEndpoint(typeof data?.endpoint === 'string' ? data.endpoint : '')
       setCapabilities(Array.isArray(data?.capabilities) ? data.capabilities : [])
+      setProviderStatuses(Array.isArray(data?.providers) ? data.providers : [])
     } catch (cause) {
       setError(cause?.message || 'No se pudieron cargar las conexiones MCP.')
       setConnections([])
@@ -79,6 +82,11 @@ export default function McpConexiones() {
     }
   }
 
+  function providerConfigured(id) {
+    const explicit = providerStatuses.find(item => String(item?.id || item?.provider || '').toLowerCase() === id)
+    return explicit ? explicit.configured === true : oauthReady
+  }
+
   return (
     <div className="space-y-4" data-testid="mcp-conexiones">
       <Card className="space-y-4" data-testid="mcp-conexiones-resumen">
@@ -102,12 +110,15 @@ export default function McpConexiones() {
           {PROVIDERS.map(provider => (
             <div key={provider.id} className="flex min-h-28 flex-col justify-between rounded-xl border border-ink-600 bg-ink-700/30 p-3" data-testid={`mcp-proveedor-${provider.id}`}>
               <div><div className="flex items-center justify-between gap-2"><p className="min-w-0 break-words font-medium">{provider.name}</p><Badge color="slate">MCP</Badge></div><p className="mt-1 text-xs text-mute">{provider.description}</p></div>
-              {oauthReady && endpoint ? <a className="mt-3 inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-fono/40 px-3 text-xs font-semibold text-fono-light hover:bg-fono/10" href={endpoint} target="_blank" rel="noreferrer">Conectar {provider.name}<Icon name="external" className="h-3.5 w-3.5" /></a> : <p className="mt-3 text-xs font-medium text-mute">Próximamente · requiere OAuth registrado</p>}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Badge color={providerConfigured(provider.id) ? 'green' : 'orange'}>{providerConfigured(provider.id) ? 'Configurado' : 'Pendiente'}</Badge>
+                {!providerConfigured(provider.id) && <span className="text-xs font-medium text-mute">Requiere OAuth registrado</span>}
+              </div>
             </div>
           ))}
         </div>
         {oauthReady && capabilities.length > 0 && <div className="rounded-xl border border-ink-600 p-3" data-testid="mcp-capacidades"><p className="text-xs font-semibold uppercase tracking-wide text-mute">Capacidades disponibles</p><p className="mt-1 text-sm text-mute">{scopesText(capabilities)}</p></div>}
-        {oauthReady && endpoint && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3" data-testid="mcp-endpoint"><span className="min-w-0 flex-1 break-all text-xs text-mute">Endpoint MCP: {endpoint}</span><Button type="button" variant="outline" onClick={() => copiarAlPortapapeles(endpoint)}>Copiar endpoint</Button></div>}
+        {endpoint && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3" data-testid="mcp-endpoint"><span className="min-w-0 flex-1 break-all text-xs text-mute">Endpoint MCP: {endpoint}</span><Button type="button" variant="outline" onClick={() => copiarAlPortapapeles(endpoint)}>Copiar endpoint</Button></div>}
       </Card>
 
       <Card className="space-y-3" data-testid="mcp-conexiones-lista">
@@ -116,7 +127,7 @@ export default function McpConexiones() {
       </Card>
 
       <Card className="space-y-2" data-testid="mcp-guia">
-        <div className="flex items-start gap-3"><Icon name="book" className="mt-0.5 h-5 w-5 shrink-0 text-mute" aria-hidden="true" /><div><h2 className="font-semibold">Guía de conexión</h2><p className="mt-1 text-sm text-mute">Cuando OAuth esté registrado, esta pantalla mostrará el consentimiento y las capacidades disponibles. No compartimos cookies del navegador ni habilitamos acciones fuera de tus permisos.</p><div className="mt-3 flex flex-wrap gap-2"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt" target="_blank" rel="noreferrer">Guía de ChatGPT <Icon name="external" className="h-3.5 w-3.5" /></a><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Guía de Claude <Icon name="external" className="h-3.5 w-3.5" /></a></div></div></div>
+        <div className="flex items-start gap-3"><Icon name="book" className="mt-0.5 h-5 w-5 shrink-0 text-mute" aria-hidden="true" /><div><h2 className="font-semibold">Guía de conexión</h2><p className="mt-1 text-sm text-mute">Copiá el endpoint y agregalo desde la configuración oficial de tu proveedor. El consentimiento OAuth lo inicia ChatGPT o Claude; MobOS nunca abre un endpoint MCP desde este botón ni comparte cookies. Las capacidades quedan limitadas por tus permisos.</p><div className="mt-3 flex flex-wrap gap-2"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt" target="_blank" rel="noreferrer">Guía de ChatGPT <Icon name="external" className="h-3.5 w-3.5" /></a><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Guía de Claude <Icon name="external" className="h-3.5 w-3.5" /></a></div></div></div>
       </Card>
 
       <ConfirmDialog open={Boolean(confirm)} onCancel={() => setConfirm(null)} onConfirm={() => revoke(confirm)} title="¿Revocar esta conexión?" description="El proveedor perderá acceso inmediatamente. Los permisos de MobOS y la auditoría se mantienen." confirmLabel="Revocar conexión" variant="danger" busy={busy} />
