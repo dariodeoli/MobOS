@@ -49,7 +49,7 @@ try {
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'SDK Admin', email: 'sdk-user@example.test', pinHash: 'unused', role: 'ADMIN' } })
   await db.tenantMembership.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, role: 'OWNER' } })
   const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'SELLER', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
-  const scopes = ['products:write', 'prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write']
+  const scopes = ['products:write', 'prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write', 'company:create']
   const grant = await db.mcpClientGrant.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes } })
   const issued = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes })
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
@@ -95,6 +95,7 @@ try {
   const client = new Client({ name: 'mobos-sdk-http-test', version: '1.0.0' })
   await client.connect(transport); ok(Boolean(client.getServerVersion()), 'initialize via StreamableHTTPClientTransport')
   const listed = await client.listTools(); ok(listed.tools.some(tool => tool.name === 'prices.write'), 'tools/list via SDK')
+  ok(listed.tools.some(tool => tool.name === 'company.create'), 'company.create advertised via SDK')
   await client.notification({ method: 'notifications/initialized' }); ok(true, 'notification via SDK')
   ok(listed.tools.some(tool => tool.name === 'products.write'), 'products.write advertised via SDK')
   const productArgs = { mode: 'preview', operation: 'create', branchId: branch.id, name: 'MCP product', sku: 'MCP-PRODUCT-1', category: 'Accesorios', pricePyg: 2500, idempotencyKey: 'sdk-http-product-1' }
@@ -160,6 +161,7 @@ try {
   await db.session.update({ where: { id: session.id }, data: { reauthenticatedAt: new Date() } })
   const companyCommit = await client.callTool({ name: 'company.write', arguments: { ...companyArgs, mode: 'commit', previewId: companyPreviewPayload.previewId } }); ok(!companyCommit.isError && companyCommit.structuredContent?.committed === true, 'company write after recent reauthentication')
   const companyRepeat = await client.callTool({ name: 'company.write', arguments: { ...companyArgs, mode: 'commit', previewId: companyPreviewPayload.previewId } }); ok(!companyRepeat.isError && companyRepeat.structuredContent?.idempotent === true, 'company write replay idempotent')
+  const companyCreate = await client.callTool({ name: 'company.create', arguments: { companyName: 'Nueva empresa MCP' } }); ok(companyCreate.structuredContent?.status === 'awaiting_app_confirmation' && companyCreate.structuredContent?.expectedTenantId === tenant.id && companyCreate.structuredContent?.expectedUserId === user.id, 'company.create prepares app confirmation without writes')
   ok(listed.tools.some(tool => tool.name === 'customers.write'), 'customers.write advertised via SDK')
   const customerArgs = { mode: 'preview', operation: 'create', name: 'MCP customer', document: 'MCP-CUSTOMER-1', phone: '+595991000001', email: 'mcp-customer@example.test', idempotencyKey: 'sdk-http-customer-1' }
   const customerPreview = await client.callTool({ name: 'customers.write', arguments: customerArgs }); ok(!customerPreview.isError, 'customer create preview via SDK')
