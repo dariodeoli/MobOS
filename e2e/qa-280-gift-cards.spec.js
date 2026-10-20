@@ -62,7 +62,17 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
   await page.getByRole('button', { name: '+ Canjear gift card' }).click()
   // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
   await page.getByTestId('codigo-celda-0').fill(codigo)
-  await page.getByRole('button', { name: 'Consultar saldo' }).click()
+  const consultarSaldo = page.getByRole('button', { name: 'Consultar saldo' })
+  const consultarBox = await consultarSaldo.boundingBox()
+  const pieCobro = await page.getByTestId('pos-pie-cobro').boundingBox()
+  if (consultarBox && pieCobro) {
+    const seSolapan = consultarBox.x < pieCobro.x + pieCobro.width &&
+      consultarBox.x + consultarBox.width > pieCobro.x &&
+      consultarBox.y < pieCobro.y + pieCobro.height &&
+      consultarBox.y + consultarBox.height > pieCobro.y
+    expect(seSolapan, `el pie de cobro no debe interceptar Consultar saldo: ${JSON.stringify({ consultarBox, pieCobro })}`).toBe(false)
+  }
+  await consultarSaldo.click()
   await expect(page.getByText(/Saldo disponible: Gs 100\.000/)).toBeVisible()
   await expect(page.getByLabel(/Monto a canjear de la gift card/)).toHaveValue('45.000')
   await captura(page, 'gift-cards-cobro')
