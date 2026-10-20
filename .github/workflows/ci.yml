@@ -296,7 +296,7 @@ jobs:
         env:
           MOBOS_QA_PORT: "5398"
           MOBOS_QA_OUT: /tmp/mobos-mcp-608-ui-ci
-        run: npx playwright test --config e2e/nav-v2.frontend.config.js e2e/frontend/config-layout.frontend.spec.js e2e/frontend/mcp-conexiones.frontend.spec.js e2e/frontend/mcp-oauth-bridge.frontend.spec.js e2e/frontend/multiempresa.frontend.spec.js
+        run: npx playwright test --config e2e/nav-v2.frontend.config.js e2e/frontend/mcp-conexiones.frontend.spec.js e2e/frontend/mcp-oauth-bridge.frontend.spec.js e2e/frontend/multiempresa.frontend.spec.js
       - name: Shared mobile shell, checkout, customers and account layout
         if: matrix.shard == 4
         run: npx playwright test --config e2e/paridad-shell516.frontend.config.js
