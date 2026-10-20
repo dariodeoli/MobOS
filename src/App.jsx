@@ -16,6 +16,7 @@ import AvisoMetricas from '@/components/app/AvisoMetricas'
 import TraficoSitio from '@/components/app/TraficoSitio'
 import { isNativeIOS } from '@/lib/plataforma'
 import PuertaNativa from '@/components/nativo/PuertaNativa'
+import McpAutorizar from '@/components/auth/McpAutorizar'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -120,29 +121,6 @@ function SoloFuera() {
   if (estado === 'dentro') return <Navigate to={volverSeguro(new URLSearchParams(search).get('volver')) || '/'} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return <Login />
-}
-
-// Reanuda un consentimiento MCP después del login sin permitir que una URL
-// externa entre en la navegación. El backend siempre envía la solicitud por
-// este puente y la app la dirige al origen API fijo.
-function McpAutorizar() {
-  const { estado } = useSesion()
-  const ubicacion = useLocation()
-  useEffect(() => {
-    if (estado === 'cargando') return
-    const request = new URLSearchParams(ubicacion.search).get('request') || ''
-    if (!request.startsWith('/api/mcp/authorize?') || request.startsWith('//') || /[\\\x00-\x1f\x7f]/.test(request)) return
-    if (estado === 'fuera') {
-      const volver = `${ubicacion.pathname}${ubicacion.search}`
-      window.location.replace(`/login?volver=${encodeURIComponent(volver)}`)
-      return
-    }
-    if (estado === 'dentro') {
-      const apiOrigin = String(import.meta.env.VITE_API_URL || publicUrls.api).replace(/\/$/, '')
-      window.location.replace(`${apiOrigin}${request}`)
-    }
-  }, [estado, ubicacion.pathname, ubicacion.search])
-  return <LoadingScreen mensaje="Preparando autorización…" />
 }
 
 function Protegida({ children }) {

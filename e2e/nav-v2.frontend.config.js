@@ -54,6 +54,7 @@ export default defineConfig({
     'pin-segmentado.frontend.spec.js',
     'pin-tactil.frontend.spec.js',
     'ruc-mobile.frontend.spec.js',
+    'mcp-oauth-bridge.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,
