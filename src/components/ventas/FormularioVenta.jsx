@@ -27,6 +27,7 @@ import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
 import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo, marcarBorradorRetomadoDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { checkoutName, checkoutBillingPayload, restoreBillingIdentity } from '@/lib/checkoutIdentity'
+import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
@@ -1348,14 +1349,16 @@ export default function FormularioVenta({
                         customer: {
                           ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
                           ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
+                          ...customerIdentityPayload(customer),
                         },
                       }
                     : {}),
                 }
               : {
                   customer: {
-                    // El nombre fiscal aceptado se envía exacto, sin cambiar su orden.
-                    name: checkoutName(customer, clienteEfectivo),
+                    // El nombre visible de mostrador viaja separado de la identidad fiscal exacta.
+                    name: customer.displayName || customer.name || checkoutName(customer, clienteEfectivo),
+                    ...customerIdentityPayload(customer),
                     ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
                     ...(customer.countryCode ? { countryCode: customer.countryCode } : {}),
                     ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
