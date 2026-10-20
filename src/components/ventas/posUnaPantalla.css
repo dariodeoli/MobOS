@@ -161,3 +161,38 @@
     flex: 0 0 auto;
   }
 }
+
+/* #620 · Operación primero: el documento es el scroll principal. El POS ya
+   no encierra catálogo, carrito y cobro en tres ventanas pequeñas que compiten
+   por el mismo alto; las columnas crecen con su contenido y el total queda
+   alcanzable debajo del ticket. */
+@media (min-width: 1024px) {
+  .pos-f2 .pos-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+    height: auto !important;
+    min-height: 0;
+    align-items: start;
+  }
+  .pos-f2 .pos-col-izq,
+  .pos-f2 .pos-columna-venta {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  .pos-f2 .pos-carrito,
+  .pos-f2 .pos-cobro {
+    flex: 0 0 auto;
+  }
+  .pos-f2 [data-testid='pos-carrito-cuerpo'],
+  .pos-f2 [data-testid='pos-pagos-lista'] {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (min-width: 1280px) {
+  .pos-f2 .pos-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(400px, 0.8fr);
+    gap: 20px;
+  }
+}
