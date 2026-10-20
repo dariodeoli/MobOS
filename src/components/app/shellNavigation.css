@@ -173,6 +173,15 @@
   padding-top: 0.5rem;
 }
 
+/* Configuración already exposes its own section rail/menu. Keep the demo-only
+   guidance out of that navigation workspace so the first section starts near
+   the shared header at every viewport, without removing the guidance from the
+   rest of the demo. */
+.shell-nav-v2 .shell-body[data-config-route='1'] [data-testid='demo-guia-aviso'],
+.shell-nav-v2 .shell-body[data-config-route='1'] [data-testid='demo-perspectivas'] {
+  display: none;
+}
+
 /* #410 · Ajuste al que llegó la búsqueda: resaltado breve y sin movimiento
    cuando el usuario pidió reducirlo. */
 .shell-nav-v2 [data-config-resaltado] {

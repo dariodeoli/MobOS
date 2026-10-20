@@ -11,6 +11,7 @@ const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-config-qa'
 
 const WIDTHS = [
   [375, 812],
+  [430, 900],
   [768, 1024],
   [1280, 900],
   [1440, 900],
