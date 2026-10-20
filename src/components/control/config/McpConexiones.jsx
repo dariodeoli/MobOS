@@ -14,7 +14,7 @@ const PROVIDERS = [
 
 function scopesText(scopes) {
   if (!Array.isArray(scopes) || scopes.length === 0) return 'Sin capacidades registradas'
-  const labels = { 'company:read': 'Empresa', 'products:read': 'Productos', 'products:write': 'Editar productos', 'customers:read': 'Clientes', 'customers:write': 'Editar clientes', 'sales:read': 'Ventas', 'reports:read': 'Reportes' }
+  const labels = { 'company:read': 'Empresa', 'company:write': 'Editar empresa', 'company:create': 'Preparar nueva empresa', 'products:read': 'Productos', 'products:write': 'Editar productos', 'product_images:write': 'Subir fotos', 'prices:write': 'Editar precios', 'customers:read': 'Clientes', 'customers:write': 'Editar clientes', 'sales:read': 'Ventas', 'reports:read': 'Reportes' }
   return scopes.map(item => {
     const scope = typeof item === 'string' ? item : item && typeof item.scope === 'string' ? item.scope : ''
     if (!scope) return typeof item?.label === 'string' ? item.label : null
