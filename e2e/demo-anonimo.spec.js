@@ -272,6 +272,28 @@ test('la demo se entra a propósito y el acceso real sigue disponible', async ({
   await expect(page).toHaveURL(/\/login$/)
 })
 
+for (const width of [430, 768, 1440]) {
+  test(`#584 perspectivas de demo visibles en configuración y sin escalamiento · ${width}px`, async ({ page }) => {
+    const llamadas = []
+    page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/demo')
+    await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+    await expect(page).toHaveURL(/\/resumen$/)
+    await page.goto('/configuracion')
+    const perspectivas = page.getByTestId('demo-perspectivas')
+    await expect(perspectivas).toBeVisible()
+    await perspectivas.getByTestId('demo-perspectivas-toggle').click()
+    await expect(page.getByTestId('demo-vista-dueno')).toBeVisible()
+    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear() })
+    await page.goto('/demo')
+    await page.getByRole('button', { name: /Entrar como Técnico/ }).click()
+    await expect(page).toHaveURL(/\/servicio$/)
+    await expect(page.getByTestId('demo-perspectivas')).toHaveCount(0)
+    expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+  })
+}
+
 test('todos los módulos del panel son navegables en demo', async ({ page }) => {
   test.setTimeout(240_000)
   await page.goto('/demo')
