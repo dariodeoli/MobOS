@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = SEED.api
 const clave = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
@@ -110,6 +111,7 @@ test('el selector de IMEI no cierra sin elegir la unidad exacta (#308)', async (
     await expect(fila).toHaveAttribute('data-estado', 'reservado')
 
     // La decisión queda en la venta: el pedido guarda el IMEI elegido.
+    await ensureCobro(page)
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible({ timeout: 20_000 })
     const orden = await ordenDe(page, cliente)
@@ -156,11 +158,13 @@ test('la salida explícita «sobre pedido» deja la traza en el pedido (#308)', 
     await agregar(page, nombre)
 
     // Carrito con una línea sin stock: la única salida es la decisión explícita.
+    await ensureCobro(page)
     const guia = page.getByTestId('guia-venta')
     await expect(guia).toBeVisible()
     await guia.getByRole('button', { name: 'Sobre pedido' }).click()
     await expect(page.locator('#pos-resumen-venta [data-estado="sobre-pedido"]')).toHaveCount(1)
 
+    await ensureCobro(page)
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible({ timeout: 20_000 })
     const orden = await ordenDe(page, cliente)
@@ -178,14 +182,16 @@ test('sin productos no se cargan pagos ni se canjean gift cards (#308)', async (
     await page.goto('/pos')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente pagos 308 ${id}`)
 
-    // Carrito vacío: cobrar y canjear quedan bloqueados con su aviso.
-    await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeDisabled()
-    await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeDisabled()
-    await expect(page.getByTestId('cobro-sin-productos')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^(Crear pedido|Confirmar venta|Guardar pedido)/ })).toBeDisabled()
+    // Vacío: no hay acceso al cobro ni controles para cargar pagos.
+    await expect(page.getByTestId('pos-cobro')).toBeHidden()
+    await expect(page.getByTestId('carrito-listo')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Cobrar(?:\s|$)/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeHidden()
+    await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeHidden()
 
     // Con un producto vuelven a estar disponibles.
     await agregar(page, nombre)
+    await ensureCobro(page)
     await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeEnabled()
     await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeEnabled()
     await expect(page.getByTestId('cobro-sin-productos')).toHaveCount(0)

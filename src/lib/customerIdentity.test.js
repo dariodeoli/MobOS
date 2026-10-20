@@ -23,6 +23,8 @@ test('person display requires explicit reviewed parts, never provider guesses', 
 test('official validation rejects rather than trims or truncates', () => {
   for (const nameOfficial of [' ', 'X'.repeat(2001), 1]) assert.throws(() => customerIdentityPayload({ nameOfficial }))
   assert.deepEqual(customerIdentityPayload({}), {})
+  // API read models include nullable identity columns; an untouched lookup must not turn null into a clear.
+  assert.deepEqual(customerIdentityPayload({ nameOfficial: null, identityKind: null, givenNames: null, surnames: null }), {})
 })
 
 test('company acceptance does not reorder or overwrite manually entered legacy names', () => {

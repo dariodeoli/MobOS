@@ -38,7 +38,13 @@ async function agregarYCobrar(page,width){
  await page.getByPlaceholder('Buscar producto…').fill(prod.nombre)
  await page.locator('.pos-product-card',{hasText:prod.nombre}).first().click()
  if(width<768){await page.getByTestId('pos-barra-carrito-abrir').click();await page.getByTestId('carrito-cobrar').click();await expect(page.getByTestId('cobro-movil')).toBeVisible();await expect.poll(async()=>Math.round((await page.getByTestId('cobro-movil').boundingBox()).y)).toBe(0);await expect(page.getByTestId('cobro-total-grande')).toContainText(prod.precio.toLocaleString('es-PY'))}
- else await expect(page.getByTestId('pos-cobro')).toBeVisible()
+ else {
+  // Desktop keeps checkout collapsed until the explicit Cobrar action; this
+  // mirrors the current POS flow instead of asserting an unmounted payment
+  // panel immediately after adding a product.
+  await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
+  await expect(page.getByTestId('pos-cobro')).toBeVisible()
+ }
  return prod
 }
 for(const width of [360,390,1440])for(const dark of [false,true])test(`#516 misma fuente web/iOS simulado ${width} ${dark?'oscuro':'claro'}`,async({browser,baseURL})=>{

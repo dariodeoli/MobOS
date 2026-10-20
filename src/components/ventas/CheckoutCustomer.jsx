@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Button, ConfirmDialog, IconAction, Input } from '@/components/ui'
+import { Button, ConfirmDialog, IconAction, Input, Modal } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import CountrySelect from '@/components/shared/CountrySelect'
 import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
@@ -12,7 +12,8 @@ import { montoGs } from '@/utils/moneda'
 import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { normalizarNombre } from '@/utils/nombre'
-import { applyCheckoutIdentity, clearCheckoutIdentity } from '@/lib/checkoutIdentity'
+import { applyCheckoutIdentity, checkoutVisibleName, clearCheckoutIdentity } from '@/lib/checkoutIdentity'
+import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
 import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
@@ -33,7 +34,7 @@ const TITULO_SECCION = 'text-[11px] font-semibold uppercase tracking-wide text-m
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
-  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName } : {}),
+  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName, identityKind: customer.identityKind ?? null, givenNames: customer.givenNames ?? null, surnames: customer.surnames ?? null, personConfirmed: customer.identityKind === 'PERSON' && Boolean(customer.givenNames?.trim() && customer.surnames?.trim()) } : {}),
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
   pricingTier: customer.pricingTier || 'RETAIL', priceListId: customer.priceListId || null, creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
@@ -46,6 +47,9 @@ const customerValue = (customer) => ({
 export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '', onStats, onSelected }) {
   const { empresa } = useSesion()
   const empresaId = empresa?.id || null
+  // Only the outer search writes this query; editing the card never selects
+  // a different customer merely because its visible name matches.
+  const [searchQuery, setSearchQuery] = useState('')
   const [matches, setMatches] = useState([])
   const [error, setError] = useState('')
   // Pre-clientes: borradores guardados al consultar un RUC que todavía no tiene
@@ -83,14 +87,14 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const elegirClienteRef = useRef(null)
   useEffect(() => { elegirClienteRef.current = elegirCliente })
   useEffect(() => {
-    const query = (value.name || '').trim()
+    const query = searchQuery.trim()
     if (!empresaId || esDemo || value.id || !query) { setBorradores([]); return }
     setBorradores(buscarPreClientes(empresaId, query))
-  }, [value.name, value.id, empresaId, esDemo])
+  }, [searchQuery, value.id, empresaId, esDemo])
   useEffect(() => {
     let active = true
-    const query = (value.name || '').trim()
-    if (!query) { setMatches([]); return () => { active = false } }
+    const query = searchQuery.trim()
+    if (!query || value.id || (colapsarFicha && abierto)) { setMatches([]); return () => { active = false } }
     const timer = setTimeout(async () => {
       try {
         // En demo la cartera es la de la pestaña (#201): seeds (#194) + lo
@@ -109,7 +113,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       } catch { if (active) setError('No se pudo consultar clientes. Reintentá antes de confirmar.') }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
-  }, [value.name, value.id, esDemo])
+  }, [searchQuery, value.id, esDemo, abierto, colapsarFicha])
 
   // Cliente restaurado (carrito guardado): se recupera su registro para la tarjeta.
   useEffect(() => {
@@ -145,7 +149,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setFeedbackFicha('Guardando datos verificados…')
     try {
       const payload = {
-        name: String(next.name || next.nameOfficial || '').trim(),
+        name: checkoutVisibleName(next),
+        ...customerIdentityPayload(next),
         document: String(next.document || '').trim() || undefined,
         phone: String(next.phone || '').trim() || undefined,
         countryCode: next.countryCode || '+595',
@@ -173,6 +178,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     }
   }
   function usarBorrador(borrador) {
+    setSearchQuery('')
     onChange({
       ...('nameOfficial' in borrador ? { nameOfficial: borrador.nameOfficial, displayName: borrador.displayName } : {}),
       id: undefined, name: borrador.name, phone: borrador.phone || '', countryCode: borrador.countryCode || '+595',
@@ -183,6 +189,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setMatches([])
   }
   function elegirCliente(customer) {
+    setSearchQuery('')
     setEditar(false)
     setRegistro(customer)
     onChange(customerValue(customer))
@@ -213,7 +220,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setFeedbackFicha('Guardando cliente…')
     try {
       const payload = {
-        name: nombre,
+        name: checkoutVisibleName(value, nombre),
+        ...customerIdentityPayload(value),
         document: String(value.document || '').trim() || undefined,
         phone: String(value.phone || '').trim() || undefined,
         countryCode: value.countryCode || '+595',
@@ -248,7 +256,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     }
   }
   function quitarCliente() {
-    setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
+    setSearchQuery(''); setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
     enfocarBusqueda.current = true
     onChange(clienteVacio())
   }
@@ -285,7 +293,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       setGuardandoDireccion(null)
     }
   }
-  const abrirEdicion = () => { setEditar(true); setAbierto(true) }
+  const abrirEdicion = () => { setSearchQuery(''); setEditar(true); setAbierto(true) }
   // Una dirección vacía se quita sin preguntar; con datos pide confirmación.
   const pedirQuitarDireccion = (index) => {
     const { address = '', city = '', notes = '' } = value.addresses[index] || {}
@@ -372,19 +380,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     )
   }
 
-  return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} onKeyDown={event => {
-      if (event.key !== 'Enter') return
-      event.preventDefault()
-      if (matches[0]) elegirCliente(matches[0])
-      else if (value.name.trim()) onSelected?.()
-    }} /></label>
-    {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
-    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
-    {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
-    {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-    <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
-      <div className="mt-3 space-y-4">
+  const fichaContenido = (
+    <div className="mt-3 space-y-4">
+        {(colapsarFicha || typeof value.nameOfficial === 'string') && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" maxLength={200} value={value.displayName ?? (value.name || '')} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{typeof value.nameOfficial === 'string' && <p className="text-xs text-mute">Nombre visible para el mostrador. La identidad fiscal se conserva aparte.</p>}{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
+        {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
         <div className="flex justify-end">
           <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
             Confirmar cliente
@@ -451,7 +450,30 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           ))}
         </section>
       </div>
-    </details>
+  )
+
+  return <div ref={cajaRef} className="space-y-3 md:col-span-2">
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => { setSearchQuery(event.target.value); onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value }) }} onKeyDown={event => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      if (matches[0]) elegirCliente(matches[0])
+      else if (value.name.trim()) onSelected?.()
+    }} /></label>
+    {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
+    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: completá sus datos y confirmá la ficha para guardarlo.</p>}</div>}
+    {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
+    {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+    {colapsarFicha && abierto ? (
+      <Modal open title="Datos del cliente" size="amplio" onClose={() => { setAbierto(false); setEditar(false) }}>
+        {fichaContenido}
+      </Modal>
+    ) : (
+      <details open={abierto} onToggle={event => { if (colapsarFicha && event.currentTarget.open) setSearchQuery(''); setAbierto(event.currentTarget.open) }} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}>
+        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
+        {fichaContenido}
+      </details>
+    )}
+    {!value.id && feedbackFicha && !abierto && <p role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('mt-1 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</p>}
     <ConfirmDialog
       open={quitarDireccion !== null}
       title="¿Quitar esta dirección?"

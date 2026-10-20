@@ -6,6 +6,14 @@ import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
+async function abrirCobro(page) {
+  const cobro = page.getByTestId('pos-cobro')
+  if (!(await cobro.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
+    await expect(cobro).toBeVisible()
+  }
+}
+
 async function crearCupon(page) {
   const codigo = `QAEST${Date.now().toString(36).toUpperCase()}`
   await page.evaluate(async ({ api, codigo }) => {
@@ -70,6 +78,7 @@ test('los bloques de cobro muestran su estado (pagado / no pagado) (#241)', asyn
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente bloques ${Date.now().toString(36)}`)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await abrirCobro(page)
 
   const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()

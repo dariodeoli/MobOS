@@ -952,4 +952,9 @@ node "$BACKEND_ROOT/tests/datos-consistentes.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Remito público: las observaciones internas no salen del registro privado (#503)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/public-pages403-pg.mjs"
 
+# Keep this fixture at the end: it creates five orders and one product, while
+# backup-restore intentionally compares the full tenant count before it runs.
+echo "Pedidos: identidad fiscal exacta en cliente inline (#344)..."
+node "$BACKEND_ROOT/tests/orders-inline-fiscal-identity.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito, gift cards y logout."

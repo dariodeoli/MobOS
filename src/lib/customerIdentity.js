@@ -8,7 +8,7 @@ export function acceptedCustomerIdentity(form, result) {
 }
 export function customerIdentityPayload(form) {
   const data = {}
-  if (Object.hasOwn(form, 'nameOfficial') && form.nameOfficial !== undefined) {
+  if (Object.hasOwn(form, 'nameOfficial') && form.nameOfficial !== undefined && form.nameOfficial !== null) {
     if (typeof form.nameOfficial !== 'string' || !form.nameOfficial.trim() || form.nameOfficial.length > 2000) throw new Error('El nombre fiscal debe ser texto no vacío de hasta 2000 caracteres.')
     data.nameOfficial = form.nameOfficial
   }

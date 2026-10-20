@@ -68,6 +68,7 @@
         "perf-247.spec.js",
         "pos-148-s11-sin-stock.spec.js",
         "pos-checkout.spec.js",
+        "qa-344-fiscal-pos.spec.js",
         "pos-resumen-fijo.spec.js",
         "precios-listas.spec.js",
         "public-quote-transfer.spec.js",

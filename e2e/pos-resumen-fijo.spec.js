@@ -1,17 +1,8 @@
-// El resumen de compra del POS tiene que quedar a la vista mientras
-// se desliza la pantalla: columna lateral fija en desktop/notebook y barra
-// compacta fija bajo el encabezado en pantallas angostas.
-//
-// El umbral es 1024px (lg). Antes era 1200px: en notebooks de 1152px el
-// resumen caía debajo del formulario y se iba con el scroll.
-
+// #620: desktop/notebook desplazan el documento completo, sin mini scroll de
+// ticket. El total y Cobrar siguen alcanzables; móvil conserva su barra fija.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
-
-// Desde lg el shell no tiene barra superior (la navegación es lateral): la
-// columna pegada solo tiene que quedar dentro de la pantalla.
-const ALTO_ENCABEZADO = 0
-const MARGEN_SUPERIOR_MAX = 180
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 async function agregarProducto(page) {
   await page.goto('/pos')
@@ -44,7 +35,7 @@ function medicion(page) {
       scrollY: Math.round(window.scrollY),
       caja: datos('resumen-compra'),
       columna: datos('resumen-columna'),
-      // La columna carrito + cobro es la que queda fija; el resumen del día vive en
+      // La columna carrito + cobro crece con el documento; el resumen del día vive en
       // un desplegable ("Detalles de la venta y del día").
       carrito: datos('pos-bloque-carrito'),
       columna_venta: datos('pos-columna-venta'),
@@ -57,75 +48,35 @@ function medicion(page) {
   })
 }
 
-// Intenta deslizar la ventana: la columna debe quedar en el mismo lugar (fija).
-async function esperarFija(page, top = 700) {
-  const antes = (await medicion(page)).columna_venta
-  await page.evaluate(y => window.scrollTo(0, y), top)
-  const despues = await medicion(page)
-  expect(['sticky', 'static', 'relative']).toContain(despues.columna_venta.position)
-  expect(despues.scrollY, 'POS de una pantalla: la página no se desplaza, las listas sí').toBe(0)
-  expect(despues.columna_venta.y, 'la columna no se mueve al deslizar').toBe(antes.y)
-  return despues
-}
-
-async function esperarArriba(page, clave) {
-  await expect
-    .poll(
-      async () => {
-        const el = (await medicion(page))[clave]
-        if (!el || el.display === 'none') return `${clave} no visible`
-        if (el.y < ALTO_ENCABEZADO) return `${clave} queda debajo del encabezado (y=${el.y})`
-        if (el.y > MARGEN_SUPERIOR_MAX) return `${clave} se fue de vista (y=${el.y})`
-        return 'arriba'
-      },
-      { timeout: 5000 },
-    )
-    .toBe('arriba')
-}
-
-test.describe('desktop', () => {
-  test.use({ viewport: { width: 1440, height: 900 } })
-
-  test('la columna lateral se mantiene fija al deslizar', async ({ page }) => {
-    await agregarProducto(page)
-
-    const primera = await medicion(page)
-    // POS de una sola pantalla: la grilla mide el alto de la ventana y se
-    // desplazan las listas por dentro, así que la columna queda fija sea por
-    // `sticky` o porque la página no se mueve.
-    await esperarFija(page)
-    await esperarArriba(page, 'columna_venta')
-    expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
-
-    const segunda = await esperarFija(page)
-    await esperarArriba(page, 'columna_venta')
-    // Ya pegada al borde superior, seguir deslizando no lo mueve.
-    const tercera = await esperarFija(page, 1000)
-    expect(tercera.columna_venta.y).toBe(segunda.columna_venta.y)
+for (const [vista, width, height] of [['desktop', 1440, 900], ['notebook 1152', 1152, 800]]) {
+  test.describe(vista, () => {
+    test.use({ viewport: { width, height } })
+    test('el documento desplaza la columna y mantiene total y cobro alcanzables', async ({ page }) => {
+      await agregarProducto(page)
+      const antes = await medicion(page)
+      await page.evaluate(() => window.scrollTo(0, 700))
+      const despues = await medicion(page)
+      expect(Math.abs(despues.columna_venta.y - (antes.columna_venta.y - despues.scrollY)), 'la columna sigue el desplazamiento del documento').toBeLessThanOrEqual(1)
+      for (const id of ['pos-columna-venta', 'pos-carrito-cuerpo']) {
+        const bloque = page.getByTestId(id)
+        expect(await bloque.evaluate(el => el.scrollHeight <= el.clientHeight + 1), `${id} sin mini scroll`).toBe(true)
+        expect(await bloque.evaluate(el => getComputedStyle(el).overflowY)).toBe('visible')
+      }
+      await page.getByTestId('carrito-total').scrollIntoViewIfNeeded()
+      await expect(page.getByTestId('carrito-total')).toBeInViewport()
+      await expect(page.getByTestId('carrito-total')).toContainText('Gs 45.000')
+      await ensureCobro(page)
+      const confirmar = page.getByTestId('pos-cobro').locator('button[type="submit"]').first()
+      await expect(async () => {
+        await confirmar.scrollIntoViewIfNeeded()
+        await expect(confirmar).toBeInViewport()
+        await expect(confirmar).toBeEnabled()
+      }).toPass({ timeout: 5000 })
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      await expect(page.getByTestId('pos-barra-accion')).toBeHidden()
+    })
   })
-})
-
-test.describe('notebook 1152', () => {
-  test.use({ viewport: { width: 1152, height: 800 } })
-
-  test('debajo de 1200px el resumen sigue fijo en su columna', async ({ page }) => {
-    await agregarProducto(page)
-
-    const primera = await medicion(page)
-    // POS de una sola pantalla: la grilla mide el alto de la ventana y se
-    // desplazan las listas por dentro, así que la columna queda fija sea por
-    // `sticky` o porque la página no se mueve.
-    await esperarFija(page)
-    await esperarArriba(page, 'columna_venta')
-    expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
-
-    const segunda = await esperarFija(page)
-    await esperarArriba(page, 'columna_venta')
-    // Ya pegada al borde superior, seguir deslizando no lo mueve.
-    const tercera = await esperarFija(page, 1000)
-    expect(tercera.columna_venta.y).toBe(segunda.columna_venta.y)
-  })
-})
+}
 
 test.describe('phone 390', () => {
   test.use({ viewport: { width: 390, height: 844 } })

@@ -73,8 +73,10 @@ test('F2 catalog/customer split keeps real collection, variants and form submiss
     'setVenderACredito={setVenderACredito}',
   ])
     assert.ok(form.includes(contract), contract)
-  assert.ok(form.indexOf('<PosCustomer') < form.indexOf('<PasoProductos'), 'cliente arriba del catálogo')
-  assert.ok(form.indexOf('<PasoProductos') < form.indexOf('<PasoCarrito'), 'carrito en la columna derecha')
+  // El catálogo ocupa la columna principal; el cliente vive en el ticket
+  // derecho para que su edición no reduzca la superficie de venta.
+  assert.ok(form.indexOf('<PasoProductos') < form.indexOf('<PosCustomer'), 'cliente en el ticket derecho')
+  assert.ok(form.indexOf('<PosCustomer') < form.indexOf('<PasoCarrito'), 'cliente antes del carrito en el ticket')
   // El Total vive una sola vez (en el carrito): ambos testids en la misma fila.
   const cart = read('components/ventas/venta/PasoCarrito.jsx')
   assert.ok(cart.includes('data-testid="cobro-total"') && cart.includes('data-testid="carrito-total"'))

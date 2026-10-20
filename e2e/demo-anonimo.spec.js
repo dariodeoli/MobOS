@@ -4,6 +4,7 @@ import { openShellDestination, openShellProfile } from './helpers/shell-navigati
 // directa vuelve a /demo (no a /login).
 
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
@@ -409,6 +410,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   // Accesorio (stock simple): la venta serializada pide el IMEI exacto (#263).
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
   await page.getByRole('button', { name: /Funda/ }).first().click()
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const pagos = page.getByTestId('pos-bloque-pagos')
   await pagos.getByLabel('Cuenta de cobro').first().click()

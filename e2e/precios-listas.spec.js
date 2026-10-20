@@ -7,6 +7,7 @@
 //   QA_335_CAPTURAS=docs/qa/335-precios-listas npx playwright test e2e/precios-listas.spec.js
 import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -106,6 +107,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.getByLabel(`Cantidad de ${nombreProducto}`).fill('3')
   await expect(page.getByLabel(`Precio de venta de ${nombreProducto}`)).toHaveValue('70.000')
 
+  await ensureCobro(page)
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   // #335: el scroll mínimo de Playwright centra el botón debajo del carrito
   // sticky. Se lo posiciona justo debajo del carrito pegado (totalmente

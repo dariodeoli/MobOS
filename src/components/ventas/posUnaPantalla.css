@@ -5,6 +5,7 @@
    posCobro.css e inicioPosF2.css y gana por especificidad. */
 .pos-f2 .pos-layout {
   --pos-izq: 0.55;
+  --pos-gap: 12px;
 }
 @media (min-width: 1280px) {
   .pos-f2 .pos-layout {
@@ -108,7 +109,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc((100% - 12px) * var(--pos-izq) + 6px - 5px);
+    left: calc((100% - var(--pos-gap)) * var(--pos-izq) + (var(--pos-gap) / 2) - 5px);
     width: 10px;
     z-index: 5;
     cursor: col-resize;
@@ -133,11 +134,19 @@
   }
 }
 
+/* Cart rows are operational data, not decorative entrance animation. Once
+   the cart grows beyond the first row every product must remain fully opaque
+   while the single document scrolls. */
+.pos-f2 .pos-carrito .mobos-aparece {
+  animation: none;
+}
+
 /* Tablet and small desktop widths: keep the two-column POS usable while
    preserving comfortable control spacing. The right column becomes a normal
    flow scroll area rather than a clipped fixed-height panel. */
 @media (min-width: 1024px) and (max-width: 1199px) {
   .pos-f2 .pos-layout {
+    --pos-gap: 16px;
     gap: 16px;
   }
   .pos-f2 .pos-columna-venta {
@@ -159,5 +168,41 @@
   }
   .pos-f2 [data-testid='pos-bloque-pagos'] {
     flex: 0 0 auto;
+  }
+}
+
+/* #620 · Operación primero: el documento es el scroll principal. El POS ya
+   no encierra catálogo, carrito y cobro en tres ventanas pequeñas que compiten
+   por el mismo alto; las columnas crecen con su contenido y el total queda
+   alcanzable debajo del ticket. */
+@media (min-width: 1024px) {
+  .pos-f2 .pos-layout {
+    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
+    height: auto !important;
+    min-height: 0;
+    align-items: start;
+  }
+  .pos-f2 .pos-col-izq,
+  .pos-f2 .pos-columna-venta {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  .pos-f2 .pos-carrito,
+  .pos-f2 .pos-cobro {
+    flex: 0 0 auto;
+  }
+  .pos-f2 [data-testid='pos-carrito-cuerpo'],
+  .pos-f2 [data-testid='pos-pagos-lista'] {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (min-width: 1280px) {
+  .pos-f2 .pos-layout {
+    --pos-gap: 20px;
+    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
+    gap: 20px;
   }
 }

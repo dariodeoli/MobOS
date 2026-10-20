@@ -26,7 +26,8 @@ import { encolarVenta } from '@/lib/offline/ventas'
 import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
 import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo, marcarBorradorRetomadoDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
-import { checkoutName, checkoutBillingPayload, restoreBillingIdentity } from '@/lib/checkoutIdentity'
+import { checkoutVisibleName, checkoutBillingPayload, restoreBillingIdentity } from '@/lib/checkoutIdentity'
+import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
@@ -331,9 +332,11 @@ function useDivisorPos(layoutRef, clave) {
   }
   const limitar = (v) => Math.min(LIMITE_DIVISOR[1], Math.max(LIMITE_DIVISOR[0], v))
   const desdePuntero = (e) => {
-    const r = layoutRef.current?.getBoundingClientRect()
+    const layout = layoutRef.current
+    const r = layout?.getBoundingClientRect()
     if (!r) return null
-    return limitar(Number(((e.clientX - r.left - 8) / (r.width - 16)).toFixed(3)))
+    const gap = Number.parseFloat(window.getComputedStyle(layout).columnGap) || 12
+    return limitar(Number(((e.clientX - r.left - gap / 2) / (r.width - gap)).toFixed(3)))
   }
   const props = {
     onPointerDown: (e) => { e.currentTarget.setPointerCapture?.(e.pointerId); e.preventDefault() },
@@ -1343,19 +1346,21 @@ export default function FormularioVenta({
                   customerId: customer.id,
                   // Contacto corregido en el POS: viaja para persistirlo en la
                   // ficha (el correo dejaba de guardarse al editar y vender).
-                  ...(customer.email?.trim() || customer.phone?.trim()
+                  ...(customer.email?.trim() || customer.phone?.trim() || Object.keys(customerIdentityPayload(customer)).length
                     ? {
                         customer: {
                           ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
                           ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
+                          ...customerIdentityPayload(customer),
                         },
                       }
                     : {}),
                 }
               : {
                   customer: {
-                    // El nombre fiscal aceptado se envía exacto, sin cambiar su orden.
-                    name: checkoutName(customer, clienteEfectivo),
+                    // El nombre visible de mostrador viaja separado de la identidad fiscal exacta.
+                    name: checkoutVisibleName(customer, clienteEfectivo),
+                    ...customerIdentityPayload(customer),
                     ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
                     ...(customer.countryCode ? { countryCode: customer.countryCode } : {}),
                     ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
@@ -2297,12 +2302,6 @@ export default function FormularioVenta({
             {...divisor.props}
           />
           <div className="pos-col-izq flex min-w-0 flex-col gap-3">
-            {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
-            {pos('cliente',
-            <PosCustomer
-              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente} onSelected={enfocarBusquedaProducto}
-            />)}
             {pos('productos',
             <PasoProductos
               sesion={sesion}
@@ -2364,6 +2363,12 @@ export default function FormularioVenta({
             data-testid="pos-columna-venta"
             className="pos-columna-venta flex min-w-0 flex-col gap-2"
           >
+            {/* El cliente queda junto al ticket y al total; el catálogo conserva el foco de búsqueda. */}
+            {pos('cliente',
+            <PosCustomer
+              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente} onSelected={enfocarBusquedaProducto}
+            />)}
             {pos('carrito',
             <PasoCarrito
               items={items}
@@ -2395,8 +2400,12 @@ export default function FormularioVenta({
               onEditar={() => setModoCobro(false)}
             />)}
 
-            {pos('cobro',
-            <PasoCobro
+            <div data-testid="pos-cobro-stage" className="flex min-w-0 flex-col gap-2">
+              {/* The cart footer owns the single transition into checkout. The
+                  separate CTA used to repeat the same action immediately below
+                  it and made the POS feel cramped. */}
+              {items.length > 0 && <div className={!esMovil && !modoCobro ? 'hidden' : undefined}>
+              {pos('cobro', <PasoCobro
               customer={customer}
               repartidores={repartidores}
               pagaAlRecibir={pagaAlRecibir}
@@ -2443,7 +2452,9 @@ export default function FormularioVenta({
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
-            />)}
+              />)}
+              </div>}
+            </div>
           </div>
         </div>
 

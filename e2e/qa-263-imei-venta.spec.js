@@ -7,6 +7,14 @@ import { SEED } from './helpers/seed-data.js'
 const API = SEED.api
 const clave = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
 
+async function abrirCobro(page) {
+  const cobro = page.getByTestId('pos-cobro')
+  if (!(await cobro.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
+    await expect(cobro).toBeVisible()
+  }
+}
+
 test('venta serializada: guía el IMEI, valida antes de enviar y cierra sin 400 (#263)', async ({ page }) => {
   const nombre = `QA 263 Serial ${clave()}`
   const serial = `359263${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`
@@ -36,6 +44,7 @@ test('venta serializada: guía el IMEI, valida antes de enviar y cierra sin 400 
     await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: new RegExp(nombre) }).first().click()
     await expect(page.getByText('Productos de esta venta')).toBeVisible()
+    await abrirCobro(page)
 
     // 1) Sin IMEI: el aviso nombra el producto y se abre el selector en el flujo.
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
@@ -85,6 +94,7 @@ test('un producto sin serialización no pide IMEI y vende sin fricción (#263)',
     await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: new RegExp(nombre) }).first().click()
     await expect(page.getByText('Productos de esta venta')).toBeVisible()
+    await abrirCobro(page)
 
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
     await expect(page.getByText(/Falta elegir el IMEI\/serial/)).toHaveCount(0)
@@ -124,6 +134,7 @@ test('venta ocasional (sin cliente) con línea sobre pedido guarda el pedido (#2
     await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: new RegExp(nombre) }).first().click()
     await expect(page.getByText('Productos de esta venta')).toBeVisible()
+    await abrirCobro(page)
 
     // Sin stock: la guía ofrece «Sobre pedido»; sin cliente no debe bloquear.
     const principal = page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ })

@@ -9,6 +9,7 @@
 import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
 import { codigoPedido } from '../src/utils/pedido.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -60,6 +61,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
 
   // Payments. The seeded tenant has two PYG accounts (CASH and
   // TRANSFER), so the account-based rows are used.
+  await ensureCobro(page)
   const addPayment = page.getByRole('button', { name: '+ Agregar pago' })
   await expect(addPayment).toBeEnabled()
   const paymentsSection = page
@@ -245,6 +247,8 @@ test('POS clears the address country and the summary opens the cart', async ({ p
   await expect(pais).toHaveValue('Paraguay')
   await pais.fill('')
   await expect(pais).toHaveValue('')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeHidden()
 
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
@@ -355,12 +359,13 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
 
   // La factura guardada en la ficha se propone de nuevo en esta venta (los
   // datos completos se editan desde el bloque colapsado, #309).
-  await seleccion.getByRole('button', { name: 'Editar datos' }).click()
+  await seleccion.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
   await page.getByText('Facturar a otro titular (opcional)').click()
   await expect(page.getByLabel('Nombre del titular de factura')).toHaveValue(razon)
   await expect(page.getByLabel('RUC del titular de factura')).toHaveValue('80012345-6')
 
-  await page.getByRole('button', { name: '× Quitar cliente' }).click()
+  await page.keyboard.press('Escape')
+  await seleccion.getByRole('button', { name: 'Quitar cliente', exact: true }).click()
   await expect(seleccion).toHaveCount(0)
   await expect(buscador).toHaveValue('')
 })
@@ -394,6 +399,7 @@ test('POS manual price below list stores the list price for the receipt', async 
     const paymentsSection = page
       .locator('div.space-y-3')
       .filter({ has: page.getByText('Pagos de esta venta') })
+    await ensureCobro(page)
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
     await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
     await paymentsSection.getByLabel('Monto original').fill('40000')
@@ -446,10 +452,12 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
     // Sin pasos: el título del bloque no arranca con un número.
     expect(await heading.textContent()).not.toMatch(/^\s*\d/)
   }
-  // Cobro compacto (una sola pantalla): el bloque ya no lleva título propio, pero
-  // sigue a la vista y sin numeración de pasos.
+  // El cobro permanece oculto hasta cargar productos y elegir Cobrar.
   const cobro = page.getByTestId('pos-cobro')
-  await expect(cobro).toBeVisible()
+  await expect(cobro).toBeHidden()
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await ensureCobro(page)
   expect((await cobro.textContent()).trim()).not.toMatch(/^\d/)
 
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
@@ -501,6 +509,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   await confirmarQuitar.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()
 
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
@@ -546,10 +555,13 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
   // Se crea la ficha con el pedido de la propia venta (cliente nuevo).
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
-  await page.getByLabel('Correo del cliente').fill(correo)
+  await page.getByRole('dialog', { name: 'Datos del cliente' }).getByLabel('Correo del cliente').fill(correo)
+  await page.getByTestId('confirmar-cliente').click()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeHidden()
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
@@ -565,6 +577,40 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
     }, { api: API, cliente }), { timeout: 15_000 })
     .toBe(correo)
 })
+
+// #620: una respuesta de rechazo del endpoint de clientes no debe cerrar la
+// ficha ni mostrar un guardado exitoso. El segundo intento simula la respuesta
+// válida para verificar que el mismo editor puede reintentarse sin perder los
+// datos. La ruta está interceptada: no escribe en el tenant del arnés.
+test('POS: rechazo de guardado de cliente permanece visible y permite reintentar', async ({ page }) => {
+  let intentos = 0
+  await page.route(`${API}/api/customers`, async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    intentos += 1
+    if (intentos === 1) {
+      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'El cliente ya existe.' }) })
+    }
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: 'qa-customer-retry', name: 'Cliente Reintento QA', phone: '0981123456', addresses: [] }),
+    })
+  })
+  await page.goto('/pos')
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente Reintento QA')
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
+  await editor.getByLabel('Teléfono del cliente', { exact: true }).fill('0981123456')
+  await editor.getByTestId('confirmar-cliente').click()
+  await expect(editor.getByRole('alert')).toContainText('La API respondió con 409.')
+  await expect(editor).toBeVisible()
+  await expect(page.getByTestId('cliente-elegido-nombre')).toHaveCount(0)
+  await editor.getByTestId('confirmar-cliente').click()
+  await expect(editor).toBeHidden()
+  await expect(page.getByTestId('cliente-elegido-nombre')).toContainText('Cliente Reintento QA')
+  expect(intentos).toBe(2)
+})
 // Offline-first (Fase 1): sin conexión la venta queda en la cola local y al
 // volver la conexión se sincroniza sola, una sola vez (misma Idempotency-Key).
 test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)', async ({ page, context }) => {
@@ -577,8 +623,10 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
 
   // Estado del botón principal: sin pago pide crear el pedido; al completar el
   // cobro pasa a confirmar la venta.
+  await ensureCobro(page)
   await expect(page.getByRole('button', { name: /^Crear pedido sin pago/ })).toBeVisible()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
@@ -681,6 +729,7 @@ test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page,
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await paymentsSection.getByLabel('Cuenta de cobro').click()
   await page.getByRole('option', { name: /Caja E2E/ }).click()

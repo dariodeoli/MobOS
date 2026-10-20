@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyCheckoutIdentity, clearCheckoutIdentity, checkoutName, checkoutBillingPayload, restoreBillingIdentity } from './checkoutIdentity.js'
+import { applyCheckoutIdentity, clearCheckoutIdentity, checkoutName, checkoutVisibleName, checkoutBillingPayload, restoreBillingIdentity } from './checkoutIdentity.js'
 
 const official = '  GONZALEZ BENITEZ MARIA FERNANDA; S.A.  '
 test('RUC aceptado conserva fiscal exacto y nombre de mostrador separado sin inferir persona', () => {
@@ -44,4 +44,18 @@ test('nombre fiscal largo conserva puntuación, espacios y orden en formulario y
   assert.equal(restored.nameOfficial, raw)
   assert.equal(checkoutName(restored), raw)
   assert.deepEqual(checkoutBillingPayload(restored), { name: raw, document: '80012345-0' })
+})
+
+test('nombre visible separado permite fiscal largo sin truncarlo', () => {
+  const raw = '  ' + 'EMPRESA FISCAL; '.repeat(150)
+  const form = applyCheckoutIdentity({ name: 'Mostrador', displayName: 'Mostrador' }, { nameOfficial: raw, fullRuc: '80012345-0' })
+  assert.equal(checkoutVisibleName(form), 'Mostrador')
+  assert.throws(() => checkoutVisibleName({ nameOfficial: raw, name: raw }, ''), /nombre visible/)
+  assert.throws(() => checkoutVisibleName({ displayName: 'X'.repeat(201), nameOfficial: 'EMPRESA S.A.' }), /200 caracteres/)
+})
+
+test('cliente seleccionado conserva persona confirmada y permite empresa fiscal corta', () => {
+  assert.equal(checkoutVisibleName({ name: 'ACME S.A.', nameOfficial: 'ACME S.A.' }), 'ACME S.A.')
+  const selected = { name: 'Juan Pérez', nameOfficial: 'JUAN PEREZ', identityKind: 'PERSON', givenNames: 'Juan', surnames: 'Pérez', personConfirmed: true }
+  assert.equal(checkoutVisibleName(selected), 'Juan Pérez')
 })

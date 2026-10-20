@@ -5,6 +5,7 @@
 // rechazaba sin señalar el campo (reporte de Finanzas en la épica #148).
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = SEED.api
 const PRODUCTO = SEED.products.cable.name
@@ -37,6 +38,7 @@ test('POS: un precio sobre el tope bloquea el guardado y explica qué monto revi
 
   // Confirmar queda bloqueado con el detalle del monto y no crea el pedido.
   const antes = await contarPedidos(page)
+  await ensureCobro(page)
   await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
   const aviso = page.getByText(/No se puede guardar: el precio de .+ \(Gs 99\.000\.000\.001\) supera el máximo que el sistema puede guardar \(Gs 99\.000\.000\.000\)\./)
   await expect(aviso).toBeVisible()

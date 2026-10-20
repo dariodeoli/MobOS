@@ -7,6 +7,7 @@ import {
   selectFinanceSection,
   selectInventorySection,
 } from '../helpers/shell-navigation.js'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 const output = '/tmp/mobos-nav-v2-qa'
 const widths = [320, 360, 390, 430, 1440]
@@ -160,6 +161,10 @@ for (const width of widths) {
       await expect(navigation).toBeHidden()
       await page.setViewportSize({ width, height: 900 })
     } else {
+      await expect(page.getByTestId('pos-cobro')).toBeHidden()
+      await page.getByPlaceholder('Buscar producto…').fill('Funda MagSafe')
+      await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
+      await ensureCobro(page)
       const checkout = page.getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ })
         .filter({ visible: true }).first()
       await expect(checkout).toBeVisible()
@@ -929,6 +934,7 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await expect(client.getByRole('button', { name: 'Editar datos del cliente', exact: true })).toBeVisible()
   await expect(client.getByTestId('cliente-elegido-nombre')).toHaveText('María González')
   await expect(client.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')).toHaveCount(0)
+  await ensureCobro(page)
   const payment = page.getByTestId('pos-bloque-pagos')
   await payment.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
   await expect(payment.locator('input').filter({ visible: true }).first()).toBeVisible()

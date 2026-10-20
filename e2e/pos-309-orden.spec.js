@@ -11,6 +11,7 @@
 // Los hallazgos de otros dominios se reportan, no se corrigen acá.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = SEED.api
 const clave = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
@@ -67,7 +68,7 @@ const posicionDe = (page, selector) =>
     return { y: Math.round(r.y + window.scrollY), position: getComputedStyle(el).position }
   }, selector)
 
-test('el cliente va arriba del catálogo, y la ficha elegida queda en una línea (#309)', async ({ page }) => {
+test('cliente y catálogo están separados, y la ficha elegida queda compacta (#309)', async ({ page }) => {
   const id = clave()
   const nombreCliente = `Cliente 309 ${id}`
   const clienteCreado = await crearCliente(page, nombreCliente)
@@ -76,35 +77,40 @@ test('el cliente va arriba del catálogo, y la ficha elegida queda en una línea
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
-  // Orden de trabajo: cliente compacto arriba, catálogo debajo.
-  const productos = await posicionDe(page, 'pos-bloque-productos')
-  const cliente = await posicionDe(page, 'pos-bloque-cliente')
-  expect(productos, 'el bloque de productos existe').not.toBeNull()
-  expect(cliente, 'el bloque de cliente existe').not.toBeNull()
-  expect(cliente.y).toBeLessThanOrEqual(productos.y)
-  const clientePrimero = await page.evaluate(() => {
-    const a = document.querySelector('[data-testid="pos-bloque-cliente"]')
-    const b = document.querySelector('[data-testid="pos-bloque-productos"]')
+  // El catálogo precede a la columna de venta; ambos bloques siguen accesibles.
+  await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+  await expect(page.getByTestId('pos-bloque-cliente')).toBeVisible()
+  const catalogoPrimero = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="pos-bloque-productos"]')
+    const b = document.querySelector('[data-testid="pos-bloque-cliente"]')
     return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
   })
-  expect(clientePrimero, 'el cliente precede al catálogo en el documento').toBe(true)
+  expect(catalogoPrimero, 'el catálogo precede a la columna de venta').toBe(true)
 
   // Búsqueda y cliente siguen a mano (el buscador se ve antes en la página).
   await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
   const campoCliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
-  // Nombre exacto y único: la ficha se liga sola y el bloque se colapsa.
-  await campoCliente.fill(nombreReal)
+  // La búsqueda parcial exige elegir la ficha explícitamente.
+  await campoCliente.fill(nombreReal.slice(0, -1))
+  await page.getByRole('button', { name: new RegExp(nombreReal) }).click()
   const elegido = page.getByTestId('cliente-elegido')
   await expect(elegido).toBeVisible({ timeout: 15_000 })
   await expect(elegido.getByTestId('cliente-elegido-nombre')).toHaveText(nombreReal)
+  await expect.poll(() => page.evaluate(async () => {
+    const { contextoActual } = await import('/src/lib/storage.js')
+    const { leerCarrito } = await import('/src/lib/posCart.js')
+    const c = contextoActual()
+    return leerCarrito(c.empresaId, c.sucursalId, c.userId)?.customer?.id
+  })).toBe(clienteCreado.id)
   await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toHaveCount(0)
 
   // «Editar datos» vuelve al formulario completo.
-  await elegido.getByRole('button', { name: 'Editar datos' }).click()
-  await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toBeVisible()
+  await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
+  await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
 })
 
-test('la columna del carrito y el cobro queda fija a la derecha y el total vive una sola vez (#309)', async ({ page }) => {
+test('la columna de venta crece con el documento y el total vive una sola vez (#309)', async ({ page }) => {
   const id = clave()
   const nombre = `Producto 309 ${id}`
   const { productId } = await crearProducto(page, { nombre, stock: 5 })
@@ -113,25 +119,27 @@ test('la columna del carrito y el cobro queda fija a la derecha y el total vive 
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente carrito ${id}`)
     await agregarProducto(page, nombre)
 
-    // Carrito fijo en escritorio.
-    const columna = await posicionDe(page, 'pos-columna-venta')
-    // POS de una sola pantalla: la columna queda fija porque la grilla mide el
-    // alto de la ventana (la página no se desplaza); antes era `sticky`.
-    const paginaSinScroll = await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)
-    expect(columna.position === 'sticky' || paginaSinScroll, 'la columna carrito + cobro queda fija en escritorio').toBe(true)
+    // El documento desplaza el ticket completo; la columna no crea mini scroll.
+    const columna = page.getByTestId('pos-columna-venta')
+    expect(await columna.evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true)
+    expect(await columna.evaluate(el => getComputedStyle(el).overflowY)).toBe('visible')
     expect((await posicionDe(page, '#pos-resumen-venta')).position, 'el carrito no se pega solo sobre el cobro').not.toBe('sticky')
 
     // El total (una sola vez) está en el carrito y no se repite en la franja.
     const total = page.getByTestId('carrito-total')
     await expect(total).toHaveText('Gs 90.000')
-    await expect(page.getByTestId('resumen-compra')).not.toContainText('Gs 90.000')
+    const estaVenta = page.getByTestId('resumen-compra').locator(':scope > div').first()
+    await expect(estaVenta).toContainText('Esta venta')
+    await expect(estaVenta).toContainText('1 producto · 1 unidad')
+    await expect(estaVenta).not.toContainText('Gs 90.000')
     // Ni el cobro repite el Total: `cobro-total` es la misma fila del carrito.
     await expect(page.getByTestId('cobro-total')).toHaveCount(1)
     await expect(page.getByTestId('pos-tiles-resumen')).not.toContainText('Total')
 
     // Sigue a la vista al deslizar.
     await page.evaluate(() => window.scrollTo(0, 800))
-    await expect(page.getByTestId('carrito-total')).toBeVisible()
+    await page.getByTestId('carrito-total').scrollIntoViewIfNeeded()
+    await expect(page.getByTestId('carrito-total')).toBeInViewport()
   } finally {
     await borrarProducto(page, productId)
   }
@@ -201,16 +209,19 @@ test('una línea sobre pedido puede quedar en tránsito con reserva anticipada (
     await agregarProducto(page, nombre)
 
     // La guía avisa que falta stock y ofrece la salida con reserva anticipada.
+    await ensureCobro(page)
     const guia = page.getByTestId('guia-venta')
     await expect(guia).toBeVisible()
     await guia.getByRole('button', { name: 'Llega en tránsito' }).click()
 
     const fila = page.locator('#pos-resumen-venta [data-estado="en-transito"]')
     await expect(fila).toHaveCount(1)
+    await page.getByTestId('carrito-editar').click()
     await expect(fila.getByText('En tránsito')).toBeVisible()
 
     // El pedido viaja marcado (backorder + reserva anticipada) y no descuenta stock.
     const pedido = page.waitForRequest((req) => req.url().endsWith('/api/orders') && req.method() === 'POST')
+    await ensureCobro(page)
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
     const cuerpo = JSON.parse((await pedido).postData() || '{}')
     expect(cuerpo.items?.[0]?.backorder).toBe(true)
@@ -237,6 +248,7 @@ test('guardar e imprimir dejan confirmación visible (#309)', async ({ page }) =
     await page.goto('/pos')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
     await agregarProducto(page, nombre)
+    await ensureCobro(page)
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
 
     // Guardar: confirmación visible.

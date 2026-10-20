@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 // POS redesign (owner feedback): sin solapes, teléfono en una fila, catálogo
 // denso y sin scroll horizontal. Demo frontend-only (sin backend).
@@ -24,6 +25,7 @@ async function enterPos(page, width, height = 900, dark = false, conCarrito = fa
     : page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true })
   await nav.getByRole('button', { name: 'Vender', exact: true }).click()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+  if (conCarrito && width >= 1024) await ensureCobro(page)
 }
 
 // Catálogo grande: clona productos del demo con nombres propios (inventario real).
@@ -78,14 +80,12 @@ async function assertNoOverlap(page, label) {
     }
     const col = boxes['pos-columna-venta']
     if (col && (await page.viewportSize()).width >= 1024) {
-      for (const id of ['pos-bloque-cliente', 'pos-bloque-productos'])
+      for (const id of ['pos-bloque-productos'])
         expect(inter(col, boxes[id]), `${label} scroll ${scrollY}: la columna de venta solapa ${id}`).toBe(false)
-      // Pegada: su borde superior queda en pantalla mientras haya fila donde
-      // seguir al catálogo; al llegar al final de la fila queda apoyada ahí.
-      const grid = await page.locator('.pos-layout').boundingBox()
-      const alFinal = Math.abs(col.y + col.height - (grid.y + grid.height)) <= 2
-      expect(col.y >= -1 || alFinal, `${label} scroll ${scrollY}: columna pegada (y=${col.y})`).toBe(true)
-      expect(col.y, `${label} scroll ${scrollY}: columna no se despega hacia abajo`).toBeLessThan(200)
+      // El cliente pertenece a la columna; sus límites quedan dentro de ella.
+      const cliente = boxes['pos-bloque-cliente']
+      expect(cliente.x).toBeGreaterThanOrEqual(col.x - 1)
+      expect(cliente.x + cliente.width).toBeLessThanOrEqual(col.x + col.width + 1)
     }
     for (const k of Object.keys(probes)) if (!probes[k]) delete probes[k]
     const names = Object.keys(probes)
@@ -113,7 +113,7 @@ for (const width of [1280, 1440, 1920]) {
 }
 
 for (const width of [1280, 1440, 1920]) {
-  test(`escritorio ${width}: cliente arriba del catálogo, carrito + cobro a la derecha, Cobrar sin deslizar y un solo Total`, async ({ page }) => {
+  test(`escritorio ${width}: catálogo separado de cliente, carrito + cobro a la derecha, Cobrar sin deslizar y un solo Total`, async ({ page }) => {
     await mkdir(out, { recursive: true })
     await enterPos(page, width, 900, false, true)
     const cliente = await page.getByTestId('pos-bloque-cliente').boundingBox()
@@ -121,14 +121,11 @@ for (const width of [1280, 1440, 1920]) {
     const columna = await page.getByTestId('pos-columna-venta').boundingBox()
     const carrito = await page.getByTestId('pos-bloque-carrito').boundingBox()
     const cobro = await page.getByTestId('pos-cobro').boundingBox()
-    // Izquierda: cliente → productos (mismo ancho y misma x); derecha: carrito → cobro.
-    expect(Math.abs(cliente.x - productos.x)).toBeLessThan(2)
-    expect(Math.abs(cliente.width - productos.width)).toBeLessThan(2)
-    expect(cliente.y + cliente.height).toBeLessThanOrEqual(productos.y + 1)
-    expect(cliente.x + cliente.width).toBeLessThanOrEqual(columna.x + 1)
+    // Catálogo a la izquierda; cliente, carrito y cobro en la columna de venta.
     expect(productos.x + productos.width).toBeLessThanOrEqual(columna.x + 1)
+    expect(Math.abs(cliente.x - carrito.x)).toBeLessThan(2)
+    expect(cliente.y + cliente.height).toBeLessThanOrEqual(carrito.y + 1)
     expect(carrito.y + carrito.height).toBeLessThanOrEqual(cobro.y + 1)
-    expect(Math.abs(carrito.y - cliente.y)).toBeLessThan(40)
     // «Cobrar» (submit) alcanzable sin deslizar la página.
     const cobrar = page.getByTestId('pos-cobro').locator('button[type="submit"]').first()
     const b = await cobrar.boundingBox()
@@ -312,6 +309,7 @@ test('entrega: el monto solo aparece con Delivery o encomienda y no hay texto de
 
 test('pagos: sin «Equivalente» en cuentas en guaraníes y «Paga al recibir» oculta los pagos', async ({ page }) => {
   await enterPos(page, 1440, 900, false, true)
+  await ensureCobro(page)
   const cobro = page.getByTestId('pos-cobro')
   await cobro.getByRole('button', { name: '+ Agregar pago' }).click()
   const fila = page.getByTestId('pago-fila-0')

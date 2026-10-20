@@ -49,6 +49,14 @@ async function cuentaUsd(page) {
 const movil = (page) => page.viewportSize().width < 768
 const abrirCarritoMovil = (page) => page.getByTestId('pos-barra-carrito-abrir').click()
 
+async function abrirCobro(page) {
+  const cobro = page.getByTestId('pos-cobro')
+  if (!(await cobro.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
+    await expect(cobro).toBeVisible()
+  }
+}
+
 async function agregarProducto(page) {
   const buscar = page.getByPlaceholder('Buscar producto…')
   await expect(buscar).toBeVisible()
@@ -91,7 +99,7 @@ async function armarCobro(page, sufijo) {
     await abrirCarritoMovil(page)
     await page.getByTestId('carrito-cobrar').click()
     await page.getByTestId('medio-otros').click()
-  }
+  } else await abrirCobro(page)
 
   // Split: 25.000 cobrados y 10 USD @ 5.500 (55.000) que cubren la funda de
   // 80.000; el bloque en dólares se marca «No pagado».
@@ -187,7 +195,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
           // Se cierra la hoja del cobro y se abre la del carrito.
           await page.keyboard.press('Escape')
           await abrirCarritoMovil(page)
-        }
+        } else await page.getByTestId('carrito-editar').click()
         const carrito = page.locator('#pos-resumen-venta')
         await carrito.getByRole('button', { name: /^Ver detalle de / }).first().click()
         await carrito.getByLabel(/^Descuento % de /).first().fill('10')
@@ -206,7 +214,8 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         if (movil(page)) await page.keyboard.press('Escape')
 
         // Modal «Suspender venta» (y la lista de suspendidas con el borrador).
-        const abrirSuspender = page.getByRole('button', { name: 'Suspender venta' })
+        if (movil(page)) await page.getByRole('button', { name: 'Más acciones', exact: true }).click()
+        const abrirSuspender = page.getByRole(movil(page) ? 'menuitem' : 'button', { name: 'Suspender venta' })
         await expect(abrirSuspender).toBeVisible()
         await abrirSuspender.click()
         const suspender = page.getByRole('dialog', { name: 'Suspender venta' })
@@ -223,6 +232,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
 
         // #309: la lista de borradores vive en «Más» (barra del POS), no como
         // botón suelto; se abre el menú de herramientas y se elige el ítem.
+        if (movil(page)) await page.getByRole('button', { name: 'Más acciones', exact: true }).click()
         await page.getByTestId('pos-suspendidas').click()
         const suspendidas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
         await expect(suspendidas.getByText(etiquetaDraft).first()).toBeVisible({ timeout: 10_000 })

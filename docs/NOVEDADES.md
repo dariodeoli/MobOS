@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.236 — 2026-10-20
+
+- **Ventas:** la venta rápida conserva espacio para catálogo, carrito y cobro; la ficha del cliente permite editar el nombre visible sin mezclarlo con su identidad fiscal.
+- **Clientes:** la búsqueda y la selección de clientes invalidan respuestas tardías; elegir un borrador o cliente no puede cambiar la ficha por una coincidencia de homónimos.
+- **Cobros:** las cuentas de cobro se seleccionan explícitamente y cada pago conserva su cuenta, importe y estado.
+- **Fiscal:** el POS conserva nombre oficial, RUC/CI y dirección fiscal mientras permite un nombre visible para el mostrador, con confirmación y reintento controlado.
+- **Responsive:** la experiencia de cobro y los diálogos de cliente fueron revisados en mobile y desktop, claro y oscuro.
+
 ## v1.0.235 — 2026-10-20
 
 - **Demo y finanzas:** la demostración presenta cuentas bancarias ficticias coherentes, datos RUC de ejemplo y valores que se conservan al volver a abrirla, sin mezclarlos con una empresa real.

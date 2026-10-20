@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 // Carrito y cobro del POS de escritorio: una sola pantalla sin scroll de página,
 // pagos paso a paso, monto dentro de la tarjeta de la cuenta, USD y cotización
 // editables, «Copiar datos» con alias. Demo frontend-only (sin backend).
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-pos-cobro-qa'
 
-async function enterPos(page, width, height, { items = 0, pagos = [] } = {}) {
+async function enterPos(page, width, height, { items = 0, pagos = [], abrir = true } = {}) {
   await page.setViewportSize({ width, height })
   await page.emulateMedia({ colorScheme: 'light' })
   await page.route('**/api/**', route =>
@@ -25,6 +26,7 @@ async function enterPos(page, width, height, { items = 0, pagos = [] } = {}) {
     : page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true })
   await nav.getByRole('button', { name: 'Vender', exact: true }).click()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+  if (items && abrir && width >= 1024) await ensureCobro(page)
 }
 
 async function seedCart(page, cantidad, pagos) {
@@ -66,19 +68,8 @@ async function agregarPagoUsd(page, nombre = 'Caja · Dólares') {
   return fila
 }
 
-// ¿Algún contenedor que contiene al POS (o la página) se desplaza en vertical?
-const desbordes = (page) => page.evaluate(() => {
-  const res = []
-  for (let el = document.querySelector('[data-testid="pos-layout"]'); el; el = el.parentElement) {
-    const o = getComputedStyle(el).overflowY
-    const scroll = el === document.documentElement || ['auto', 'scroll'].includes(o)
-    if (scroll && el.scrollHeight > el.clientHeight + 1) res.push(`${el.tagName}.${String(el.className).slice(0, 40)}[${el.getAttribute('data-testid') || ''}] ${el.scrollHeight}>${el.clientHeight}`)
-  }
-  return res
-})
-
 for (const [width, height] of [[1280, 720], [1440, 900]]) {
-  test(`una sola pantalla a ${width}x${height}: sin scroll de página con 5 productos y 2 pagos`, async ({ page }) => {
+  test(`ticket completo a ${width}x${height}: página desplazable sin mini scroll con 5 productos y 2 pagos`, async ({ page }) => {
     await mkdir(out, { recursive: true })
     await enterPos(page, width, height, { items: 5, pagos: [pagoPyg('demo-transfer-itau', 300000), pagoPyg('demo-cash-pyg', 100000)] })
     await expect(page.getByTestId('pago-fila-1')).toBeVisible()
@@ -87,21 +78,28 @@ for (const [width, height] of [[1280, 720], [1440, 900]]) {
       alto: document.documentElement.scrollHeight, vp: window.innerHeight,
       ancho: document.documentElement.scrollWidth, anchoVp: window.innerWidth,
     }))
-    expect(medidas.alto, 'sin scroll vertical de página').toBeLessThanOrEqual(medidas.vp + 1)
-    expect(await desbordes(page), 'ningún contenedor de la página se desplaza').toEqual([])
     expect(medidas.ancho).toBeLessThanOrEqual(medidas.anchoVp)
-    // Total, pagado/pendiente y el botón de guardar quedan a la vista.
-    for (const id of ['carrito-total', 'cobro-pagado', 'cobro-pendiente']) {
-      const caja = await page.getByTestId(id).boundingBox()
-      expect(caja.y + caja.height, id).toBeLessThanOrEqual(height)
+    // La página desplaza el contenido completo; el ticket no crea mini scroll.
+    await page.getByTestId('carrito-editar').click()
+    const cuerpo = page.getByTestId('pos-carrito-cuerpo')
+    await expect(cuerpo).toBeVisible()
+    expect(await cuerpo.evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true)
+    const filas = cuerpo.locator('[data-estado]')
+    await expect(filas).toHaveCount(5)
+    for (const fila of await filas.all()) {
+      await fila.scrollIntoViewIfNeeded()
+      await expect(fila).toBeInViewport()
+      expect(await fila.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
     }
-    const guardar = await page.getByTestId('pos-cobro').locator('button[type="submit"]').first().boundingBox()
-    expect(guardar.y + guardar.height, 'guardar dentro de la pantalla').toBeLessThanOrEqual(height)
+    await ensureCobro(page)
+    for (const id of ['carrito-total', 'cobro-pagado', 'cobro-pendiente']) {
+      await page.getByTestId(id).scrollIntoViewIfNeeded()
+      await expect(page.getByTestId(id)).toBeInViewport()
+    }
+    const guardar = page.getByTestId('pos-cobro').locator('button[type="submit"]').first()
+    await guardar.scrollIntoViewIfNeeded()
+    await expect(guardar).toBeInViewport()
     await page.screenshot({ path: `${out}/after-${width}x${height}.png` })
-    // Las listas se desplazan por dentro, no la página.
-    await page.mouse.move(width * 0.75, height / 2)
-    await page.mouse.wheel(0, 600)
-    expect(await page.evaluate(() => window.scrollY + document.body.scrollTop)).toBe(0)
   })
 }
 
@@ -210,8 +208,12 @@ test('tarjeta de transferencia: alias visible y «Copiar datos» deja un bloque 
 
 test('«Agregar nota» es un casillero, «Vender a crédito» comparte renglón con la entrega y «Listo, ir a cobrar» resume el carrito', async ({ page }) => {
   await mkdir(out, { recursive: true })
-  await enterPos(page, 1440, 900, { items: 5 })
+  await enterPos(page, 1440, 900, { items: 5, abrir: false })
   const cobro = page.getByTestId('pos-cobro')
+  await expect(cobro).toBeHidden()
+  await expect(page.getByTestId('pos-carrito-cuerpo')).toBeVisible()
+  await page.getByTestId('carrito-listo').click()
+  await expect(cobro).toBeVisible()
   await expect(page.locator('#observacion')).toHaveCount(0)
   await cobro.getByText('Agregar nota', { exact: true }).click()
   await expect(page.locator('#observacion')).toBeVisible()
@@ -222,19 +224,16 @@ test('«Agregar nota» es un casillero, «Vender a crédito» comparte renglón 
   const paga = await cobro.getByTestId('pos-paga-al-recibir').boundingBox()
   expect(Math.abs((paga.y + paga.height / 2) - (entrega.y + entrega.height / 2)), 'paga al recibir en el mismo bloque compacto que la entrega').toBeLessThan(60)
   // Listo, ir a cobrar: la lista de productos se resume y el cobro gana altura.
-  const altoCobroAntes = (await cobro.boundingBox()).height
-  await page.getByTestId('carrito-listo').click()
   await expect(page.getByTestId('carrito-editar')).toBeVisible()
   await expect(page.getByTestId('pos-carrito-cuerpo')).toBeHidden()
   await expect(page.getByTestId('carrito-total')).toContainText('Gs 900.000')
-  expect((await cobro.boundingBox()).height).toBeGreaterThanOrEqual(altoCobroAntes)
   await page.screenshot({ path: `${out}/listo-cobrar-1440.png` })
   await page.getByTestId('carrito-editar').click()
   await expect(page.getByTestId('pos-carrito-cuerpo')).toBeVisible()
 })
 
 test('divisor arrastrable: cambia el reparto catálogo/venta y se recuerda', async ({ page }) => {
-  await enterPos(page, 1440, 900, { items: 2 })
+  await enterPos(page, 1440, 900, { items: 2, abrir: false })
   const antes = (await page.getByTestId('pos-bloque-productos').boundingBox()).width
   const d = await page.getByTestId('pos-divisor').boundingBox()
   await page.mouse.move(d.x + d.width / 2, d.y + d.height / 2)
