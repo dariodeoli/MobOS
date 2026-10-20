@@ -21,7 +21,7 @@
 }
 /* La selección del encabezado es de puntero en escritorio; su hit target táctil
    de 44 px se conserva debajo de lg, pero no debe empujar la primera fila. */
-@media (min-width: 1024px) {
+@media (min-width: 1024px) and (pointer: fine) {
   .stock-lista-encabezado > span:first-child label {
     width: 28px;
     height: 28px;
