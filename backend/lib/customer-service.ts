@@ -1,0 +1,136 @@
+import type { Prisma, PrismaClient } from '@prisma/client'
+import { hasPermission, type AuthUser } from './auth'
+import { customerIdentityInput, serializeCustomer } from './customer-identity'
+import { prisma } from './prisma'
+import { addressesInput } from '../app/api/customers/_lib'
+
+type Db = PrismaClient | Prisma.TransactionClient
+
+/**
+ * The small, shared customer write surface used by integrations (including
+ * MCP). The HTTP routes keep their historical, wider contract; integrations
+ * must use this allow-listed input so they cannot write operational fields.
+ */
+export type CustomerServiceActor = Pick<AuthUser, 'id' | 'tenantId' | 'role' | 'permissions'>
+
+export type CustomerServiceInput = Record<string, unknown> & {
+  name?: unknown
+  firstName?: unknown
+  secondName?: unknown
+  document?: unknown
+  phone?: unknown
+  countryCode?: unknown
+  email?: unknown
+  addresses?: unknown
+}
+
+export class CustomerServiceError extends Error {
+  constructor(public readonly code: 'forbidden' | 'conflict' | 'invalid' | 'not_found', message: string) {
+    super(message)
+  }
+}
+
+const text = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
+const nullableText = (value: unknown, max: number) => text(value, max) || null
+
+function assertActor(actor: CustomerServiceActor) {
+  if (!actor.tenantId || !actor.id || !hasPermission(actor, 'customers:manage')) {
+    throw new CustomerServiceError('forbidden', 'El usuario no puede gestionar clientes.')
+  }
+}
+
+function privileged(actor: CustomerServiceActor) {
+  return actor.role === 'ADMIN' || actor.role === 'GERENTE' || actor.permissions.includes('*')
+}
+
+function identityFields(input: CustomerServiceInput, partial = false) {
+  const identity = customerIdentityInput(input)
+  const firstName = nullableText(input.firstName, 120)
+  const secondName = nullableText(input.secondName, 120)
+  const fallbackName = nullableText(input.name, 200)
+  const name = [firstName, secondName].filter(Boolean).join(' ') || fallbackName
+  if (!partial && !name) throw new CustomerServiceError('invalid', 'El nombre es obligatorio.')
+  const fields: Record<string, unknown> = {
+    ...identity,
+    ...(name ? { name } : {}),
+    ...(Object.hasOwn(input, 'firstName') ? { firstName } : {}),
+    ...(Object.hasOwn(input, 'secondName') ? { secondName } : {}),
+    ...(Object.hasOwn(input, 'document') ? { document: nullableText(input.document, 100) } : {}),
+    ...(Object.hasOwn(input, 'phone') ? { phone: nullableText(input.phone, 100) } : {}),
+    ...(Object.hasOwn(input, 'countryCode') ? { countryCode: typeof input.countryCode === 'string' && /^\+\d{1,4}$/.test(input.countryCode) ? input.countryCode : '+595' } : {}),
+    ...(Object.hasOwn(input, 'email') ? { email: nullableText(input.email, 200) } : {}),
+    ...(Object.hasOwn(input, 'externalId') ? { externalId: nullableText(input.externalId, 100) } : {}),
+  }
+  return fields
+}
+
+function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor) {
+  const fields: Record<string, unknown> = {
+    ...(input.notes !== undefined ? { notes: nullableText(input.notes, 2000) } : {}),
+    ...(input.publicNote !== undefined ? { publicNote: nullableText(input.publicNote, 2000) } : {}),
+    ...(input.tags !== undefined ? { tags: Array.isArray(input.tags) ? input.tags.map(tag => text(tag, 50)).filter(Boolean).slice(0, 20) : [] } : {}),
+    ...(input.acceptsEmailMarketing !== undefined ? { acceptsEmailMarketing: input.acceptsEmailMarketing === true } : {}),
+    ...(input.acceptsSmsMarketing !== undefined ? { acceptsSmsMarketing: input.acceptsSmsMarketing === true } : {}),
+    ...(input.acceptsWhatsappMarketing !== undefined ? { acceptsWhatsappMarketing: input.acceptsWhatsappMarketing === true } : {}),
+    ...(input.taxExempt !== undefined ? { taxExempt: input.taxExempt === true } : {}),
+  }
+  if (Object.keys(fields).some(key => ['notes', 'publicNote', 'tags'].includes(key)) && !hasPermission(actor, 'customers:manage')) {
+    throw new CustomerServiceError('forbidden', 'El usuario no puede gestionar clientes.')
+  }
+  if (input.pricingTier !== undefined || input.creditLimitPyg !== undefined || input.creditDays !== undefined) {
+    if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
+    if (input.pricingTier !== undefined) fields.pricingTier = input.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
+    if (input.creditLimitPyg !== undefined) {
+      const value = input.creditLimitPyg === null || input.creditLimitPyg === '' ? null : Number(input.creditLimitPyg)
+      if (value !== null && (!Number.isSafeInteger(value) || value < 0)) throw new CustomerServiceError('invalid', 'Límite de crédito inválido.')
+      fields.creditLimitPyg = value
+    }
+    if (input.creditDays !== undefined) {
+      const value = input.creditDays === null || input.creditDays === '' ? null : Number(input.creditDays)
+      if (value !== null && (!Number.isSafeInteger(value) || value < 0 || value > 365)) throw new CustomerServiceError('invalid', 'Plazo de crédito inválido.')
+      fields.creditDays = value
+    }
+  }
+  return fields
+}
+
+const customerInclude = { addresses: { orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }] } }
+
+async function duplicate(db: Db, tenantId: string, fields: ReturnType<typeof identityFields>, excludeId?: string) {
+  const values = [fields.document, fields.phone, fields.externalId].filter(Boolean)
+  if (!values.length) return null
+  return db.customer.findFirst({
+    where: { tenantId, ...(excludeId ? { id: { not: excludeId } } : {}), OR: [{ document: fields.document ?? undefined }, { phone: fields.phone ?? undefined }, { externalId: fields.externalId ?? undefined }].filter(item => Object.values(item)[0] !== undefined) },
+    select: { id: true },
+  })
+}
+
+export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput) {
+  assertActor(actor)
+  const fields = { ...identityFields(input), ...optionalFields(input, actor) }
+  const existing = await duplicate(db, actor.tenantId, fields)
+  if (existing) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
+  const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
+  const customer = await db.customer.create({ data: { tenantId: actor.tenantId, createdById: actor.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: customerInclude })
+  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'CUSTOMER_CREATED', entity: 'Customer', entityId: customer.id, metadata: { source: 'integration' } } })
+  return serializeCustomer(customer)
+}
+
+export async function updateCustomer(db: Db, actor: CustomerServiceActor, id: string, input: CustomerServiceInput) {
+  assertActor(actor)
+  const existing = await db.customer.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true } })
+  if (!existing) throw new CustomerServiceError('not_found', 'Cliente no encontrado.')
+  const fields = { ...identityFields(input, true), ...optionalFields(input, actor) }
+  const identityForDuplicate = { document: fields.document ?? null, phone: fields.phone ?? null, externalId: fields.externalId ?? null }
+  const duplicateRow = await duplicate(db, actor.tenantId, identityForDuplicate, id)
+  if (duplicateRow) throw new CustomerServiceError('conflict', 'Ya existe otra ficha con esos datos.')
+  const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
+  const customer = await db.customer.update({ where: { id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: customerInclude })
+  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: customer.id, metadata: { source: 'integration', fields: Object.keys(fields) } } })
+  return serializeCustomer(customer)
+}
+
+export async function withCustomerTransaction<T>(actor: CustomerServiceActor, operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  assertActor(actor)
+  return prisma.$transaction(operation)
+}
