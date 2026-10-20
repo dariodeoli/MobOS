@@ -1,8 +1,9 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { hasPermission, type AuthUser } from './auth'
-import { customerIdentityInput, serializeCustomer } from './customer-identity'
+import { customerIdentityInput, officialNameInput, serializeCustomer } from './customer-identity'
 import { prisma } from './prisma'
-import { addressesInput } from '../app/api/customers/_lib'
+import { addressesInput, leerPorcentajeSeguro } from '../app/api/customers/_lib'
+import { LIMITE_MONTO_GENERAL } from './montos'
 
 type Db = PrismaClient | Prisma.TransactionClient
 
@@ -73,6 +74,9 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
     ...(input.acceptsSmsMarketing !== undefined ? { acceptsSmsMarketing: input.acceptsSmsMarketing === true } : {}),
     ...(input.acceptsWhatsappMarketing !== undefined ? { acceptsWhatsappMarketing: input.acceptsWhatsappMarketing === true } : {}),
     ...(input.taxExempt !== undefined ? { taxExempt: input.taxExempt === true } : {}),
+    ...(input.billingName !== undefined ? { billingName: input.billingName === null ? null : officialNameInput(input.billingName) } : {}),
+    ...(input.billingDocument !== undefined ? { billingDocument: nullableText(input.billingDocument, 100) } : {}),
+    ...(input.insuranceEnabled !== undefined ? { insuranceEnabled: input.insuranceEnabled === true } : {}),
   }
   if (Object.keys(fields).some(key => ['notes', 'publicNote', 'tags'].includes(key)) && !hasPermission(actor, 'customers:manage')) {
     throw new CustomerServiceError('forbidden', 'El usuario no puede gestionar clientes.')
@@ -82,7 +86,7 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
     if (input.pricingTier !== undefined) fields.pricingTier = input.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
     if (input.creditLimitPyg !== undefined) {
       const value = input.creditLimitPyg === null || input.creditLimitPyg === '' ? null : Number(input.creditLimitPyg)
-      if (value !== null && (!Number.isSafeInteger(value) || value < 0)) throw new CustomerServiceError('invalid', 'Límite de crédito inválido.')
+      if (value !== null && (!Number.isSafeInteger(value) || value < 0 || value > LIMITE_MONTO_GENERAL)) throw new CustomerServiceError('invalid', 'Límite de crédito inválido.')
       fields.creditLimitPyg = value
     }
     if (input.creditDays !== undefined) {
@@ -90,6 +94,23 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
       if (value !== null && (!Number.isSafeInteger(value) || value < 0 || value > 365)) throw new CustomerServiceError('invalid', 'Plazo de crédito inválido.')
       fields.creditDays = value
     }
+  }
+  if (input.insuranceEnabled !== undefined || input.insuranceRatePct !== undefined) {
+    if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden configurar el seguro.')
+    if (input.insuranceEnabled !== undefined && typeof input.insuranceEnabled !== 'boolean') throw new CustomerServiceError('invalid', 'El seguro debe estar activo o inactivo.')
+    const rate = leerPorcentajeSeguro(input.insuranceRatePct)
+    if (rate === 'invalido') throw new CustomerServiceError('invalid', 'El seguro debe ser un porcentaje entre 0 y 100.')
+    if (rate !== undefined) fields.insuranceRatePct = rate
+  }
+  if (input.priceListId !== undefined) fields.priceListId = input.priceListId === null || input.priceListId === '' ? null : text(input.priceListId, 128)
+  if (input.blocked !== undefined || input.blockedReason !== undefined) {
+    if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden bloquear clientes.')
+    const blocked = input.blocked === true
+    const reason = blocked ? nullableText(input.blockedReason, 300) : null
+    if (blocked && !reason) throw new CustomerServiceError('invalid', 'Indicá el motivo del bloqueo.')
+    fields.blocked = blocked
+    fields.blockedReason = reason
+    fields.blockedAt = blocked ? new Date() : null
   }
   return fields
 }
@@ -105,14 +126,16 @@ async function duplicate(db: Db, tenantId: string, fields: ReturnType<typeof ide
   })
 }
 
-export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput) {
+export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput, options: { allowExisting?: boolean } = {}) {
   assertActor(actor)
   const fields = { ...identityFields(input), ...optionalFields(input, actor) }
   const existing = await duplicate(db, actor.tenantId, fields)
-  if (existing) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
-  const customer = await db.customer.create({ data: { tenantId: actor.tenantId, createdById: actor.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: customerInclude })
-  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'CUSTOMER_CREATED', entity: 'Customer', entityId: customer.id, metadata: { source: 'integration' } } })
+  if (existing && !options.allowExisting) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
+  const customer = existing
+    ? await db.customer.update({ where: { id: existing.id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: customerInclude })
+    : await db.customer.create({ data: ({ tenantId: actor.tenantId, createdById: actor.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) } as any), include: customerInclude })
+  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: existing ? 'CUSTOMER_UPDATED' : 'CUSTOMER_CREATED', entity: 'Customer', entityId: customer.id, metadata: { source: 'integration', ...(existing ? { fields: Object.keys(fields) } : {}) } } })
   return serializeCustomer(customer)
 }
 

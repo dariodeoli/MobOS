@@ -1,10 +1,10 @@
-import { customerIdentityInput, hasCustomerIdentity, officialNameInput, serializeCustomer } from '../../../lib/customer-identity'
+import { hasCustomerIdentity, serializeCustomer } from '../../../lib/customer-identity'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
-import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
-import { addressesInput, leerPorcentajeSeguro } from './_lib'
+import { addressesInput } from './_lib'
+import { createCustomer } from '../../../lib/customer-service'
 
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 
@@ -149,69 +149,15 @@ export async function POST(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {
     const body = await request.json() as Record<string, unknown>
-    const identity = customerIdentityInput(body)
     const identityRequest = hasCustomerIdentity(body) || Object.hasOwn(body, 'billingName') || Object.hasOwn(body, 'billingDocument')
     if (Array.isArray(body.rows) && identityRequest) return error('La identidad fiscal debe guardarse en una ficha individual.')
     if (Array.isArray(body.rows)) return importarClientes(tenant, body.rows, session.user.id)
-    const name = clean(body.name, 200)
-    // Nombres desdoblados (#160): el nombre completo visible se compone del
-    // primer y segundo nombre; `name` sigue aceptándose para compatibilidad.
-    const firstName = clean(body.firstName, 120) || null
-    const secondName = clean(body.secondName, 120) || null
-    const nombreCompleto = [firstName, secondName].filter(Boolean).join(' ') || name
-    if (!nombreCompleto) return error('El nombre es obligatorio.')
-    const gestionaSeguro = ['ADMIN', 'GERENTE'].includes(session.user.role)
-    const insuranceEnabled = body.insuranceEnabled === true
-    const insuranceRatePct = leerPorcentajeSeguro(body.insuranceRatePct)
-    if (insuranceRatePct === 'invalido') return error('El seguro debe ser un porcentaje entre 0 y 100 (hasta 2 decimales).')
-    if ((insuranceEnabled || insuranceRatePct !== undefined) && !gestionaSeguro) return error('Solo administración o gerencia pueden configurar el seguro.', 403)
-    const document = clean(body.document, 100) || null
-    const phone = clean(body.phone, 100) || null
-    const countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
-    const tags = Array.isArray(body.tags) ? body.tags.map((tag) => clean(tag, 50)).filter(Boolean).slice(0, 20) : []
-    const pricingTier: 'RETAIL' | 'WHOLESALE' = body.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
-    const priceListId = body.priceListId === undefined ? undefined : (() => {
-      const valor = body.priceListId === null ? '' : clean(body.priceListId, 128)
-      return valor || null
-    })()
-    if (priceListId && !await prisma.priceList.findFirst({ where: { id: priceListId, tenantId: tenant, isActive: true }, select: { id: true } })) return error('Lista de precios no encontrada.', 404)
-    const creditLimitPyg = body.creditLimitPyg === undefined || body.creditLimitPyg === '' || body.creditLimitPyg === null ? undefined : Number(body.creditLimitPyg)
-    if (creditLimitPyg !== undefined && (!Number.isSafeInteger(creditLimitPyg) || creditLimitPyg < 0 || creditLimitPyg > LIMITE_MONTO_GENERAL)) return error('Límite de crédito inválido.')
-    const creditDays = body.creditDays === undefined || body.creditDays === '' || body.creditDays === null ? undefined : Number(body.creditDays)
-    if (creditDays !== undefined && (!Number.isSafeInteger(creditDays) || creditDays < 0 || creditDays > 365)) return error('Plazo de crédito inválido (0 a 365 días).')
-    const fields = {
-      ...identity, name: nombreCompleto, firstName, secondName, phone, countryCode, email: clean(body.email, 200) || null, document,
-      // Solo se tocan cuando llegan: una ficha guardada no pierde sus datos de
-      // facturación por un guardado que no los incluye.
-      ...(body.billingName === undefined ? {} : { billingName: body.billingName === null ? null : officialNameInput(body.billingName) }),
-      ...(body.billingDocument === undefined ? {} : { billingDocument: clean(body.billingDocument, 100) || null }),
-      notes: clean(body.notes, 2000) || null,
-      externalId: clean(body.externalId, 100) || null,
-      acceptsEmailMarketing: body.acceptsEmailMarketing === true,
-      acceptsSmsMarketing: body.acceptsSmsMarketing === true,
-      acceptsWhatsappMarketing: body.acceptsWhatsappMarketing === true,
-      taxExempt: body.taxExempt === true,
-      tags,
-      pricingTier,
-      ...(insuranceRatePct === undefined ? {} : { insuranceRatePct }),
-      ...(body.insuranceEnabled === undefined ? {} : { insuranceEnabled }),
-      ...(priceListId === undefined ? {} : { priceListId }),
-      ...(creditLimitPyg !== undefined ? { creditLimitPyg } : {}),
-      ...(creditDays !== undefined ? { creditDays } : {}),
-    }
-    const addresses = addressesInput(body.addresses)
-    const duplicateCriteria = [{ document }, { phone }, { externalId: fields.externalId }].filter(criterion => Object.values(criterion)[0])
-    const existing = identityRequest
-      ? duplicateCriteria.length ? await prisma.customer.findFirst({ where: { tenantId: tenant, OR: duplicateCriteria } }) : null
-      : document
-      ? await prisma.customer.findFirst({ where: { tenantId: tenant, document } })
-      : phone ? await prisma.customer.findFirst({ where: { tenantId: tenant, phone } }) : fields.externalId ? await prisma.customer.findFirst({ where: { tenantId: tenant, externalId: fields.externalId } }) : null
-    if (existing && identityRequest) return error('Ya existe una ficha con estos datos. Revise y edite esa ficha explícitamente.', 409)
-    const data = existing
-      ? await prisma.customer.update({ where: { id: existing.id, tenantId: tenant }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
-      : await prisma.customer.create({ data: { tenantId: tenant, createdById: session.user.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: { addresses: true } })
-    return json(serializeCustomer(data), { status: existing ? 200 : 201 })
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo guardar el cliente.') }
+    const result = await createCustomer(prisma, { id: session.user.id, tenantId: tenant, role: session.user.role, permissions: session.user.permissions }, body, { allowExisting: !identityRequest })
+    return json(result, { status: 201 })
+  } catch (cause) {
+    const status = (cause as { code?: string }).code === 'conflict' ? 409 : (cause as { code?: string }).code === 'forbidden' ? 403 : 400
+    return error(cause instanceof Error ? cause.message : 'No se pudo guardar el cliente.', status)
+  }
 }
 
 // Importa fichas en lote (export de otro sistema). Deduplica por documento,
