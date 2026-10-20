@@ -1,3 +1,4 @@
+export {}
 const assert = require('node:assert/strict')
 const { validateChange, changePayloadHash } = require('../lib/mcp/changes')
 

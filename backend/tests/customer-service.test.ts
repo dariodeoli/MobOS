@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createCustomer, CustomerServiceError, updateCustomer, type CustomerServiceActor } from '../lib/customer-service'
 
 const actor: CustomerServiceActor = { id: 'user-a', tenantId: 'tenant-a', role: 'VENDEDOR', permissions: ['customers:manage'] }
-const row = (overrides: Record<string, unknown> = {}) => ({ id: 'customer-a', tenantId: 'tenant-a', name: 'Ana Pérez', addresses: [], ...overrides })
+const row = (overrides: Record<string, unknown> = {}) => ({ id: 'customer-a', tenantId: 'tenant-a', name: 'Ana Pérez', document: null as string | null, addresses: [], ...overrides })
 
 function fakeDb(initial = row()) {
   const calls: { create?: any; update?: any; audits: any[] } = { audits: [] }

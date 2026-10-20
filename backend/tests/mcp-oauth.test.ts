@@ -1,3 +1,4 @@
+export {}
 const assert = require('node:assert/strict')
 const { actionForScope } = require('../lib/mcp/catalog')
 const { sameOriginForMcp } = require('../lib/google-oauth')
