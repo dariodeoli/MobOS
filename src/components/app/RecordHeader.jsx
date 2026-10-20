@@ -19,7 +19,7 @@ export default function RecordHeader({ backLabel, onBack, title, mono = false, c
   }, [setActivo])
   if (!ctx?.slot) return null
   return createPortal(
-    <div data-testid="record-header" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0">
+    <div data-testid="record-header" className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-0">
       <button
         type="button"
         data-testid="record-header-back"
@@ -33,7 +33,7 @@ export default function RecordHeader({ backLabel, onBack, title, mono = false, c
       <h1 className={`min-w-0 truncate text-[22px] font-semibold leading-7 tracking-tight ${mono ? 'font-mono' : ''}`}>{title}</h1>
       {chip}
       {meta && <p data-testid="record-header-meta" className={`order-last min-w-0 basis-full truncate pb-1 text-sm text-mute ${metaEnLinea ? '' : 'sm:order-none sm:basis-auto sm:pb-0'}`}>{meta}</p>}
-      {actions && <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2">{actions}</div>}
+      {actions && <div className="ml-auto flex min-h-11 max-w-full shrink-0 flex-wrap items-center justify-end gap-x-2">{actions}</div>}
     </div>,
     ctx.slot,
   )

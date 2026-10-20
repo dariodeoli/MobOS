@@ -19,9 +19,9 @@ export default function PageHeader({ title, subtitle, actions, aviso, backTo, br
         {breadcrumb}
       </nav>
       {/* Detail pages: the record renders its own single row here (RecordHeader). */}
-      <div className={record ? 'flex items-center gap-2' : 'hidden'}>
+      <div className={record ? 'flex items-start gap-2' : 'hidden'}>
         <div ref={recordRef} className="min-w-0 flex-1" />
-        {record && utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}
+        {record && utilities && <div className="hidden min-h-11 items-center gap-1 lg:flex">{utilities}</div>}
       </div>
       {!record && (
       <div data-testid="shell-page-header-row" className={`shell-page-header-row flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${filaMovilVacia ? 'max-lg:min-h-0 lg:min-h-7' : 'min-h-7'}`}>
