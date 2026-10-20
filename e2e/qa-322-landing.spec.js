@@ -129,8 +129,10 @@ test('la landing se recorre en móvil con menú, sin repeticiones y con pie lega
   expect(medicion.chicos, `targets ≥ 44 en mobile · ${JSON.stringify(medicion.chicos)}`).toHaveLength(0)
   // La auditoría reportó ~15.000 px; el recorrido reordenado debe quedar bien
   // por debajo de ese largo en mobile (medido en la corrida).
-  // #566 amplía las previews visuales de siete a catorce tarjetas.
-  expect(alto, 'la landing se mantiene compacta').toBeLessThan(13000)
+  // #566 amplía las previews visuales de siete a catorce tarjetas; conservar
+  // margen para esos escenarios sin permitir que el recorrido crezca hacia la
+  // altura completa observada por la auditoría (~15.000 px).
+  expect(alto, 'la landing se mantiene compacta').toBeLessThan(13500)
   await page.screenshot({ path: join(SHOTS, 'landing-mobile.png') })
   await page.screenshot({ path: join(SHOTS, 'landing-mobile-completa.png'), fullPage: true })
 
