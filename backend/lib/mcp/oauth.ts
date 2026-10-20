@@ -94,6 +94,11 @@ export async function issueMcpTokens(db: Db, input: { grantId: string; accountId
   return { accessToken, refreshToken, expiresIn: Math.floor(ACCESS_TTL_MS / 1000) }
 }
 
+export async function revokeMcpRefreshFamily(rawRefreshToken: string, clientId: string, now = new Date()) {
+  const row = await prisma.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, select: { grantId: true, rotatedAt: true, revokedAt: true } })
+  if (row?.rotatedAt || row?.revokedAt) await prisma.mcpAccessToken.updateMany({ where: { grantId: row.grantId, revokedAt: null }, data: { revokedAt: now } })
+}
+
 export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, clientId: string, now = new Date()) {
   const row = await db.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, include: { grant: true, session: { include: { user: true } } } })
   if (!row || row.revokedAt || row.rotatedAt || !row.refreshExpiresAt || row.refreshExpiresAt <= now || row.grant.revokedAt || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user || row.session.userId !== row.userId || row.session.user.status !== 'ACTIVE') {
