@@ -49,6 +49,14 @@ async function cuentaUsd(page) {
 const movil = (page) => page.viewportSize().width < 768
 const abrirCarritoMovil = (page) => page.getByTestId('pos-barra-carrito-abrir').click()
 
+async function abrirCobro(page) {
+  const cobro = page.getByTestId('pos-cobro')
+  if (!(await cobro.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
+    await expect(cobro).toBeVisible()
+  }
+}
+
 async function agregarProducto(page) {
   const buscar = page.getByPlaceholder('Buscar producto…')
   await expect(buscar).toBeVisible()
@@ -91,7 +99,7 @@ async function armarCobro(page, sufijo) {
     await abrirCarritoMovil(page)
     await page.getByTestId('carrito-cobrar').click()
     await page.getByTestId('medio-otros').click()
-  }
+  } else await abrirCobro(page)
 
   // Split: 25.000 cobrados y 10 USD @ 5.500 (55.000) que cubren la funda de
   // 80.000; el bloque en dólares se marca «No pagado».

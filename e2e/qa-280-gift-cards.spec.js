@@ -3,6 +3,14 @@ import { openShellDestination } from './helpers/shell-navigation.js'
 // cobro, historial por tarjeta y auditoría. Incluye la paridad de la demo.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+
+async function abrirCobro(page) {
+  const cobro = page.getByTestId('pos-cobro')
+  if (!(await cobro.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
+    await expect(cobro).toBeVisible()
+  }
+}
 import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -58,6 +66,7 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
   // 2) Canje en el cobro: consulta de saldo y monto propuesto por lo pendiente.
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await abrirCobro(page)
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
   await page.getByRole('button', { name: '+ Canjear gift card' }).click()
   // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
@@ -135,6 +144,7 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   await page.getByPlaceholder('Buscar producto…').fill(productoDemo)
   await page.getByRole('button', { name: new RegExp(productoDemo) }).first().click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
+  await abrirCobro(page)
   await page.getByRole('button', { name: '+ Canjear gift card' }).click()
   // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
   await page.getByTestId('codigo-celda-0').fill(codigo)
