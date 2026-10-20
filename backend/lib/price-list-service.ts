@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { parsePriceListItems, validarReemplazoExplicito } from './price-lists'
+import { hasPermission } from './auth'
 
 export const PRICE_LIST_INCLUDE = {
   items: { include: { tiers: { orderBy: { minQty: 'asc' as const } } } },
@@ -8,7 +9,7 @@ export const PRICE_LIST_INCLUDE = {
 
 export type PriceListActor = { id: string; tenantId: string; role: string; permissions?: readonly string[] }
 export class PriceListServiceError extends Error { constructor(public code: 'forbidden'|'not_found'|'invalid'|'conflict', message: string) { super(message) } }
-const canManage = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role) || actor.permissions?.includes('products:manage')
+const canManage = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role) || hasPermission({ permissions: [...(actor.permissions ?? [])] }, 'products:manage')
 const canUpdate = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role)
 function assertActor(actor: PriceListActor) { if (!canManage(actor)) throw new PriceListServiceError('forbidden', 'Solo administración o gerencia gestionan listas de precios.') }
 function validateBody(body: unknown) {

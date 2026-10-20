@@ -27,7 +27,7 @@ test('cantidad por debajo del primer escalón cae al precio fijo del ítem', () 
   assert.equal(alcanza.origin, 'TIER')
   assert.equal(alcanza.unitPricePyg, 80000)
 })
-import { listPriceLists, readPriceList, createPriceList, PriceListServiceError } from '../lib/price-list-service'
+import { listPriceLists, readPriceList, createPriceList, updatePriceList, PriceListServiceError } from '../lib/price-list-service'
 
 test('MCP listas: lectura paginada queda limitada al tenant y al rol permitido', async () => {
   const calls: any[] = []
@@ -51,4 +51,17 @@ test('MCP listas: crear valida productos del mismo tenant y registra auditoría'
   assert.equal(created.id, 'pl1')
   assert.equal(audit[0].data.action, 'PRICE_LIST_CREATED')
   await assert.rejects(() => createPriceList(db as any, { id: 'u2', tenantId: 't1', role: 'VENDEDOR' }, { name: 'No' }), (error: unknown) => error instanceof PriceListServiceError && error.code === 'forbidden')
+})
+
+test('MCP listas: crear respeta products:manage y editar conserva el guard de gestión', async () => {
+  const db = {
+    product: { count: async () => 0 },
+    priceList: { create: async (args: any) => ({ id: 'pl-permission', ...args.data, items: [] }) },
+    auditLog: { create: async () => ({}) },
+  }
+  const custom = { id: 'u-custom', tenantId: 't1', role: 'VENDEDOR', permissions: ['products:manage'] }
+  const wildcard = { id: 'u-wildcard', tenantId: 't1', role: 'TECNICO', permissions: ['*'] }
+  assert.equal((await createPriceList(db as any, custom, { name: 'Con permiso', replaceItems: true })).id, 'pl-permission')
+  assert.equal((await createPriceList(db as any, wildcard, { name: 'Con comodín', replaceItems: true })).id, 'pl-permission')
+  await assert.rejects(() => updatePriceList(db as any, custom, 'pl-permission', { name: 'No editar', replaceItems: true }), (error: unknown) => error instanceof PriceListServiceError && error.code === 'forbidden')
 })
