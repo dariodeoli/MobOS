@@ -59,6 +59,14 @@ export async function POST(request: Request) {
     } else if (checked.action === 'customers.write') {
       const customer = await tx.customer.create({ data: { tenantId: auth.tenantId, createdById: auth.user.id, name: String(p.name), phone: typeof p.phone === 'string' ? p.phone : null, email: typeof p.email === 'string' ? p.email : null, document: typeof p.document === 'string' ? p.document : null } })
       entity = 'Customer'; entityId = customer.id
+    } else if (checked.action === 'product_images.write') {
+      const product = await tx.product.findFirst({ where: { id: String(p.productId), tenantId: auth.tenantId, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true } })
+      if (!product) throw new Error('producto_no_disponible')
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(String(p.dataBase64)) || String(p.dataBase64).length % 4 !== 0) throw new Error('imagen_invalida')
+      const data = Buffer.from(String(p.dataBase64), 'base64')
+      if (data.length === 0 || data.length > 5_000_000) throw new Error('imagen_invalida')
+      const image = await tx.productImage.create({ data: { tenantId: auth.tenantId, productId: product.id, data, width: Number(p.width), height: Number(p.height), contentType: String(p.contentType), sizeBytes: data.length, createdById: auth.user.id, isPrimary: p.isPrimary === true } })
+      entity = 'ProductImage'; entityId = image.id
     } else {
       await tx.tenant.update({ where: { id: auth.tenantId }, data: { ...(typeof p.name === 'string' ? { name: p.name } : {}), ...(typeof p.email === 'string' ? { email: p.email } : {}) } })
     }
