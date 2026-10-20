@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
 
+async function capture620(page, name) {
+  if (process.env.CAPTURE_620) await page.screenshot({ path: `${process.env.CAPTURE_620}/${name}.png`, fullPage: false })
+}
+
 async function enterDemo(page) {
   await page.route('**/api/**', route =>
     !new URL(route.request().url()).pathname.startsWith('/api/')
@@ -169,6 +173,7 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
   const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
   await expect(editor).toHaveAttribute('aria-modal', 'true')
+  await capture620(page, 'customer-modal-existing-1440x900')
   await page.keyboard.press('Tab')
   await expect(page.locator(':focus')).toBeVisible()
   await page.keyboard.press('Shift+Tab')
@@ -189,6 +194,7 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
     await page.locator('.pos-product-card', { hasText: nombre }).first().click()
   }
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('5 productos')
+  await capture620(page, 'ticket-5-lines-no-modal-1440x900')
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
   await page.getByTestId('confirmar-cliente').click()
@@ -202,12 +208,20 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   const monto = pago.getByLabel('Monto original', { exact: true })
   await monto.fill('999999999')
   await expect(cobro.getByTestId('motivos-bloqueo')).toContainText('pagos superan el total')
+  await capture620(page, 'checkout-payment-over-total-1440x900')
   await monto.fill('100000')
   await monto.press('Enter')
   await page.keyboard.press('Escape')
   await expect(page.getByTestId('pos-cobro')).toBeVisible()
   await cobro.getByRole('button', { name: '+ Agregar otro pago', exact: true }).click()
-  await expect(cobro.getByTestId('pago-fila-1')).toBeVisible()
+  const segundoPago = cobro.getByTestId('pago-fila-1')
+  await expect(segundoPago).toBeVisible()
+  await segundoPago.getByLabel('Cuenta de cobro', { exact: true }).click()
+  const cuentasSegundoPago = page.getByRole('listbox').getByRole('option')
+  await expect(cuentasSegundoPago).toHaveCount(9)
+  await cuentasSegundoPago.nth(2).click()
+  const resumenCuentas = await cobro.locator('[data-testid^="pago-fila-"]').allTextContents()
+  expect(resumenCuentas[0]).not.toBe(resumenCuentas[1])
   const estilos = await page.evaluate(() => ({
     carrito: getComputedStyle(document.querySelector('[data-testid="pos-carrito-cuerpo"]')).overflowY,
     pagos: getComputedStyle(document.querySelector('[data-testid="pos-pagos-lista"]')).overflowY,
@@ -225,6 +239,7 @@ test('venta rápida: cliente nuevo edita en modal y cierra con Enter', async ({ 
   await page.getByText('Datos de contacto, RUC/CI y direcciones', { exact: true }).click()
   const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
   await expect(editor).toBeVisible()
+  await capture620(page, 'customer-modal-new-1440x900')
   await editor.getByLabel('Teléfono del cliente', { exact: true }).fill('0981123456')
   await editor.getByLabel('Teléfono del cliente', { exact: true }).press('Enter')
   await expect(editor).toBeHidden()
@@ -241,6 +256,7 @@ for (const escenario of [
     await enterDemo(page)
     await agregarLineasDistintas(page, escenario.cantidad)
     await expect(page.getByTestId('pos-bloque-carrito')).toContainText(`${escenario.cantidad} producto`)
+    if (escenario.cantidad === 10) await capture620(page, 'ticket-10-lines-768x900')
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(escenario.width)
     await expect(page.getByTestId('carrito-total')).toBeVisible()
   })
@@ -257,6 +273,7 @@ for (const width of [1440, 390]) {
       await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true)
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await capture620(page, `theme-${width}px`)
     if (width >= 640) {
       await page.getByRole('button', { name: /Cambiar a tema claro/ }).first().click()
       await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(false)
