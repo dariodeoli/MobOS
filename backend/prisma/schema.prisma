@@ -2632,6 +2632,7 @@ model McpClientGrant {
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientId    String
   redirectUri String
+  resource    String
   scopes      String[]
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
@@ -2652,8 +2653,10 @@ model McpAuthorizationCode {
   tenantId      String
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessionId     String
+  userId        String
   clientId      String
   redirectUri   String
+  resource      String
   scopes        String[]
   codeChallenge String
   expiresAt     DateTime
@@ -2674,7 +2677,9 @@ model McpAccessToken {
   tenantId         String
   tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessionId        String
+  userId           String
   clientId         String
+  resource         String
   scopes           String[]
   expiresAt        DateTime
   refreshExpiresAt DateTime?
