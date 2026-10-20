@@ -8,6 +8,11 @@ function integer(value: unknown, minimum: number): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= minimum
 }
 
+function httpsUrl(value: unknown) {
+  if (typeof value !== 'string') return false
+  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash } catch { return false }
+}
+
 function strings(value: JsonRecord, keys: readonly string[]) {
   return keys.every((key) => typeof value[key] === 'string')
 }
@@ -18,6 +23,7 @@ export function ownDataMetadata(value: unknown): JsonRecord {
   if (value.environment === 'test' || value.environment === 'live') meta.environment = value.environment
   const quota = value.quota
   if (record(quota) && integer(quota.limit, 1) && integer(quota.used, 0) && integer(quota.remaining, 0)
+    && quota.used <= quota.limit && quota.remaining === quota.limit - quota.used
     && integer(quota.resetAfter, 1) && typeof quota.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(quota.day)) {
     meta.quota = { limit: quota.limit, used: quota.used, remaining: quota.remaining, day: quota.day, resetAfter: quota.resetAfter }
   }
@@ -32,6 +38,8 @@ export function ownDataMetadata(value: unknown): JsonRecord {
   const provenance = value.provenance
   if (record(provenance) && provenance.source === 'dnit_official_snapshot'
     && strings(provenance, ['sourcePage', 'publicationDate', 'publishedText', 'importedAt', 'snapshotHash'])
+    && httpsUrl(provenance.sourcePage)
+    && Number.isFinite(Date.parse(provenance.importedAt as string))
     && /^\d{4}-\d{2}-\d{2}$/.test(provenance.publicationDate as string)
     && /^[0-9a-f]{64}$/.test(provenance.snapshotHash as string)) {
     meta.provenance = {
