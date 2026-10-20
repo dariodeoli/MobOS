@@ -8,6 +8,16 @@ import { POST as priceChange } from '../changes/route'
 
 export const dynamic = 'force-dynamic'
 
+function originAllowed(request: Request) {
+  const origin = request.headers.get('origin')
+  if (!origin) return true
+  let originUrl: URL
+  try { originUrl = new URL(origin) } catch { return false }
+  const configured = (process.env.MOBOS_MCP_ALLOWED_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean)
+  if (configured.includes(originUrl.origin)) return true
+  try { return originUrl.origin === new URL(request.url).origin } catch { return false }
+}
+
 function jsonRpc(id: unknown, result: unknown, status = 200) {
   return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, result }, { status, headers: { 'Cache-Control': 'no-store' } })
 }
@@ -17,6 +27,9 @@ function error(id: unknown, code: number, message: string, data?: unknown) {
 function safeJson(value: unknown) { return JSON.parse(JSON.stringify(value, (_, v) => typeof v === 'bigint' ? Number(v) : v)) }
 
 export async function POST(request: Request) {
+  if (!originAllowed(request)) return NextResponse.json({ error: 'origin_not_allowed' }, { status: 403 })
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
+  if (!contentType.startsWith('application/json')) return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
   const auth = await requireMcpAccessToken(request)
   if (!auth) return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: { 'WWW-Authenticate': 'Bearer resource_metadata="/.well-known/oauth-protected-resource"' } })
   let body: any
