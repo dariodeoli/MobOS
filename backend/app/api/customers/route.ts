@@ -152,10 +152,10 @@ export async function POST(request: Request) {
     const identityRequest = hasCustomerIdentity(body) || Object.hasOwn(body, 'billingName') || Object.hasOwn(body, 'billingDocument')
     if (Array.isArray(body.rows) && identityRequest) return error('La identidad fiscal debe guardarse en una ficha individual.')
     if (Array.isArray(body.rows)) return importarClientes(tenant, body.rows, session.user.id)
-    const result = await createCustomer(prisma, { id: session.user.id, tenantId: tenant, role: session.user.role, permissions: session.user.permissions }, body, { allowExisting: !identityRequest })
+    const result = await createCustomer(prisma, { id: session.user.id, tenantId: tenant, role: session.user.role, permissions: session.user.permissions }, body, { allowExisting: !identityRequest, allowUnprivilegedCommercial: true })
     return json(result, { status: 201 })
   } catch (cause) {
-    const status = (cause as { code?: string }).code === 'conflict' ? 409 : (cause as { code?: string }).code === 'forbidden' ? 403 : 400
+    const status = (cause as { code?: string }).code === 'conflict' ? 409 : (cause as { code?: string }).code === 'forbidden' ? 403 : (cause as { code?: string }).code === 'not_found' ? 404 : 400
     return error(cause instanceof Error ? cause.message : 'No se pudo guardar el cliente.', status)
   }
 }

@@ -65,7 +65,7 @@ function identityFields(input: CustomerServiceInput, partial = false) {
   return fields
 }
 
-function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor) {
+function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor, options: { allowUnprivilegedCommercial?: boolean } = {}) {
   const fields: Record<string, unknown> = {
     ...(input.notes !== undefined ? { notes: nullableText(input.notes, 2000) } : {}),
     ...(input.publicNote !== undefined ? { publicNote: nullableText(input.publicNote, 2000) } : {}),
@@ -82,7 +82,7 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
     throw new CustomerServiceError('forbidden', 'El usuario no puede gestionar clientes.')
   }
   if (input.pricingTier !== undefined || input.creditLimitPyg !== undefined || input.creditDays !== undefined) {
-    if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
+    if (!privileged(actor) && !options.allowUnprivilegedCommercial) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
     if (input.pricingTier !== undefined) fields.pricingTier = input.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
     if (input.creditLimitPyg !== undefined) {
       const value = input.creditLimitPyg === null || input.creditLimitPyg === '' ? null : Number(input.creditLimitPyg)
@@ -126,14 +126,14 @@ async function duplicate(db: Db, tenantId: string, fields: ReturnType<typeof ide
   })
 }
 
-export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput, options: { allowExisting?: boolean } = {}) {
+export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput, options: { allowExisting?: boolean; allowUnprivilegedCommercial?: boolean } = {}) {
   assertActor(actor)
   if (input.priceListId !== undefined && input.priceListId !== null && input.priceListId !== '') {
     const listId = text(input.priceListId, 128)
     const list = await db.priceList.findFirst({ where: { id: listId, tenantId: actor.tenantId, isActive: true }, select: { id: true } })
     if (!list) throw new CustomerServiceError('not_found', 'Lista de precios no encontrada.')
   }
-  const fields = { ...identityFields(input), ...optionalFields(input, actor) }
+  const fields = { ...identityFields(input), ...optionalFields(input, actor, options) }
   const existing = await duplicate(db, actor.tenantId, fields)
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
   if (existing && !options.allowExisting) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
@@ -144,7 +144,13 @@ export async function createCustomer(db: Db, actor: CustomerServiceActor, input:
   return serializeCustomer(customer)
 }
 
-export async function updateCustomer(db: Db, actor: CustomerServiceActor, id: string, input: CustomerServiceInput) {
+export async function updateCustomer(
+  db: Db,
+  actor: CustomerServiceActor,
+  id: string,
+  input: CustomerServiceInput,
+  options: { allowIdentityCollision?: boolean; allowUnprivilegedCommercial?: boolean } = {},
+) {
   assertActor(actor)
   if (input.priceListId !== undefined && input.priceListId !== null && input.priceListId !== '') {
     const listId = text(input.priceListId, 128)
@@ -154,10 +160,13 @@ export async function updateCustomer(db: Db, actor: CustomerServiceActor, id: st
   const existing = await db.customer.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true, blocked: true } })
   if (!existing) throw new CustomerServiceError('not_found', 'Cliente no encontrado.')
   const patchInput = Object.hasOwn(input, 'blockedReason') && !Object.hasOwn(input, 'blocked') ? { ...input, blocked: existing.blocked } : input
-  const fields = { ...identityFields(patchInput, true), ...optionalFields(patchInput, actor) }
+  const fields = { ...identityFields(patchInput, true), ...optionalFields(patchInput, actor, options) }
   const identityForDuplicate = { document: fields.document ?? null, phone: fields.phone ?? null, externalId: fields.externalId ?? null }
   const duplicateRow = await duplicate(db, actor.tenantId, identityForDuplicate, id)
-  if (duplicateRow) throw new CustomerServiceError('conflict', 'Ya existe otra ficha con esos datos.')
+  // The public HTTP contract historically allowed temporarily matching
+  // identities so the duplicate-merge flow can create the collision before
+  // moving history. Integrations keep the safer default and must opt in.
+  if (duplicateRow && !options.allowIdentityCollision) throw new CustomerServiceError('conflict', 'Ya existe otra ficha con esos datos.')
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
   const customer = await db.customer.update({ where: { id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: customerInclude })
   await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: customer.id, metadata: { source: 'integration', fields: Object.keys(fields) } } })
