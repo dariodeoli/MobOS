@@ -48,10 +48,12 @@ try {
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'SDK Admin', email: 'sdk-user@example.test', pinHash: 'unused', role: 'ADMIN' } })
   await db.tenantMembership.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, role: 'OWNER' } })
   const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'COMPANY', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
-  const scopes = ['prices:write', 'product_images:write']
+  const scopes = ['prices:write', 'product_images:write', 'products:read', 'customers:read', 'sales:read', 'reports:read']
   const grant = await db.mcpClientGrant.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes } })
   const issued = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes })
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
+  await db.product.createMany({ data: [1, 2, 3].map(n => ({ tenantId: tenant.id, branchId: branch.id, sku: `SDK-LIST-${n}`, name: `SDK list ${n}`, pricePyg: 1000 + n, stock: n })) })
+  await db.customer.createMany({ data: [1, 2, 3].map(n => ({ tenantId: tenant.id, name: `SDK customer ${n}`, document: `CU-${n}` })) })
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
   const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
@@ -82,6 +84,10 @@ try {
   const repeat = await client.callTool({ name: 'prices.write', arguments: { mode: 'commit', previewId: previewPayload.previewId, productId: product.id, pricePyg: 1100, expectedPricePyg: 1000, idempotencyKey: 'sdk-http-price-1' } }); ok(!repeat.isError && repeat.structuredContent?.committed === true && repeat.structuredContent?.previewId === committed.structuredContent?.previewId, 'prices.write idempotent commit via SDK')
   let invalid = false; try { await client.callTool({ name: 'prices.write', arguments: { mode: 'preview', idempotencyKey: 'sdk-http-bad' } }) } catch { invalid = true }; ok(invalid, 'invalid arguments return MCP protocol error')
   ok(listed.tools.some(tool => tool.name === 'product_images.write'), 'product_images.write advertised via SDK')
+  const productPage = await client.callTool({ name: 'products.read', arguments: { limit: 2 } }); ok(!productPage.isError && Array.isArray(productPage.structuredContent?.items) && productPage.structuredContent.items.length === 2 && productPage.structuredContent.nextCursor, 'products.read first cursor page')
+  const productPage2 = await client.callTool({ name: 'products.read', arguments: { limit: 2, cursor: productPage.structuredContent.nextCursor } }); ok(!productPage2.isError && productPage2.structuredContent.items.length > 0 && !productPage2.structuredContent.items.some(row => productPage.structuredContent.items.some(prev => prev.id === row.id)), 'products.read cursor has no duplicates')
+  const customerPage = await client.callTool({ name: 'customers.read', arguments: { limit: 2 } }); ok(!customerPage.isError && customerPage.structuredContent.items.length === 2 && customerPage.structuredContent.nextCursor, 'customers.read first cursor page')
+  const badCursor = await client.callTool({ name: 'products.read', arguments: { cursor: 'invalid' } }).then(() => false).catch(() => true); ok(badCursor, 'invalid cursor rejected')
   const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
   const imageArgs = { mode: 'preview', productId: product.id, branchId: branch.id, dataBase64: png, contentType: 'image/png', idempotencyKey: 'sdk-http-image-1' }
   const imagePreview = await client.callTool({ name: 'product_images.write', arguments: imageArgs }); ok(!imagePreview.isError, 'product image preview via SDK')
