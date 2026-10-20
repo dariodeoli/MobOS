@@ -374,6 +374,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
 
   const fichaContenido = (
     <div className="mt-3 space-y-4">
+        {colapsarFicha && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" value={value.name || ''} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
         {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
         <div className="flex justify-end">
           <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
