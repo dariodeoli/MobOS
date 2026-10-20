@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       entity = 'Product'; entityId = product.id
     } else if (checked.action === 'prices.write') {
       try {
-        const changed = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(p.productId), pricePyg: Number(p.pricePyg), expectedPricePyg: Number(p.expectedPricePyg) }, tx)
+        const changed = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(p.productId), pricePyg: Number(p.pricePyg), expectedPricePyg: Number(p.expectedPricePyg), includeAudit: true }, tx)
         entity = 'Product'; entityId = changed.productId
       } catch (error) { throw error instanceof ProductPriceError ? error : new Error('producto_precio_no_actualizado') }
     } else if (checked.action === 'customers.write') {
