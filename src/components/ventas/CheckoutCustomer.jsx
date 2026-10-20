@@ -63,6 +63,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const [fichaAbierta, setFichaAbierta] = useState(false)
   const [guardandoFicha, setGuardandoFicha] = useState(false)
   const [feedbackFicha, setFeedbackFicha] = useState('')
+  const [feedbackFichaTipo, setFeedbackFichaTipo] = useState('status')
   // Registro completo del cliente elegido (con sus estadísticas): se guarda
   // aparte del valor del formulario para no viajar en el payload de la venta.
   const [registro, setRegistro] = useState(null)
@@ -160,17 +161,20 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     if (guardandoFicha) return
     const nombre = String(value.name || '').trim()
     if (!nombre) {
+      setFeedbackFichaTipo('error')
       setFeedbackFicha('Ingresá el nombre del cliente antes de confirmar.')
       setAbierto(true)
       return
     }
     if (esDemo) {
+      setFeedbackFichaTipo('success')
       setFeedbackFicha('Cliente listo para esta demo.')
       setAbierto(false)
       setEditar(false)
       return
     }
     setGuardandoFicha(true)
+    setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando cliente…')
     try {
       const payload = {
@@ -180,8 +184,13 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         countryCode: value.countryCode || '+595',
         email: String(value.email || '').trim() || undefined,
         addresses: Array.isArray(value.addresses) ? value.addresses : [],
-        billingName: facturarAOtro ? String(billingTo?.name || '').trim() || null : null,
-        billingDocument: facturarAOtro ? String(billingTo?.document || '').trim() || null : null,
+        // No enviar null cuando esta venta no factura a otro titular: así no
+        // se borra la identidad fiscal maestra del cliente por confirmar una
+        // ficha de contacto sin tocar la facturación.
+        ...(facturarAOtro ? {
+          billingName: String(billingTo?.name || '').trim() || null,
+          billingDocument: String(billingTo?.document || '').trim() || null,
+        } : {}),
       }
       const respuesta = value.id
         ? await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, payload)
@@ -191,10 +200,12 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       const siguiente = customerValue(guardado)
       onChange(siguiente)
       setRegistro(guardado)
+      setFeedbackFichaTipo('success')
       setFeedbackFicha('Cliente guardado correctamente.')
       setAbierto(false)
       setEditar(false)
     } catch (cause) {
+      setFeedbackFichaTipo('error')
       setFeedbackFicha(cause?.message || 'No se pudo guardar el cliente. Revisá los datos e intentá de nuevo.')
       setAbierto(true)
     } finally {
@@ -284,7 +295,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             {avisos.map(aviso => <span key={aviso} className="inline-flex items-center gap-1"><Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{aviso}</span>)}
           </p>
         ) : null}
-        {feedbackFicha && <p role="status" data-testid="cliente-guardado" className="mt-1 font-semibold text-ok">{feedbackFicha}</p>}
+        {feedbackFicha && <p role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('mt-1 font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</p>}
         <ClienteResumenPopup
           row={registro || { ...value, wholesale: value.pricingTier === 'WHOLESALE', stats }}
           open={fichaAbierta}
@@ -312,7 +323,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
             Confirmar cliente
           </button>
-          {feedbackFicha && <span role="status" data-testid="cliente-guardado" className="text-xs font-semibold text-ok">{feedbackFicha}</span>}
+          {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
         </div>
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad</h4>
@@ -344,16 +355,16 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             {facturarAOtro && (
               <>
                 <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
-                <GrillaCampos className="mt-3">
-                  <Campo como="div" ancho="documento" className="md:basis-[30%] md:flex-none" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => onBillingChange(applyCheckoutIdentity(billingTo || {}, datos))} esDemo={esDemo} /></Campo>
-                  <Campo ancho="flexible" className="md:basis-0" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
+                <GrillaCampos className="mt-3 md:!grid md:grid-cols-[minmax(0,30%)_minmax(0,70%)] md:flex-none">
+                  <Campo como="div" ancho="documento" className="md:min-w-0 md:max-w-none" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => onBillingChange(applyCheckoutIdentity(billingTo || {}, datos))} esDemo={esDemo} /></Campo>
+                  <Campo ancho="flexible" className="md:min-w-0 md:max-w-none" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
                 </GrillaCampos>
               </>
             )}
           </section>
         )}
         <section aria-label="Direcciones" className="space-y-2">
-          <div className="flex items-center justify-between"><h4 className={TITULO_SECCION}>Direcciones</h4><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
+          <div className="flex items-center justify-between"><h4 className={TITULO_SECCION}>Direcciones</h4><Button type="button" variant="outline" onClick={addAddress}>Agregar dirección al cliente</Button></div>
           {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
           {(value.addresses || []).map((address, index) => (
             <div key={index} data-testid="direccion-tarjeta" className="space-y-3 rounded-xl border border-ink-600 p-3">

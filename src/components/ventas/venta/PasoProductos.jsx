@@ -516,8 +516,21 @@ export function PosCustomer({
         esDemo={esDemo}
         value={customer}
         onChange={c => {
+          const anterior = customer
           setCustomer(c)
-          setF(current => ({ ...current, cliente: c?.name ?? '' }))
+          setF(current => {
+            const siguiente = { ...current, cliente: c?.name ?? '' }
+            // PATCH /api/customers/:id recrea las direcciones y por eso sus
+            // ids pueden cambiar. Reenlazamos la selección de entrega por el
+            // contenido, evitando que el checkout conserve un id inexistente.
+            if (current.entregaDireccionId) {
+              const vieja = (anterior?.addresses || []).find(address => address.id === current.entregaDireccionId)
+              const nueva = (c?.addresses || []).find(address => address.address === vieja?.address && address.city === vieja?.city)
+              siguiente.entregaDireccionId = nueva?.id || ''
+              if (!nueva && vieja?.address) siguiente.entregaDireccion = vieja.address
+            }
+            return siguiente
+          })
         }}
         billingTo={billingTo}
         onBillingChange={setBillingTo}
