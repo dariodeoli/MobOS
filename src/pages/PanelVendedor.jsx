@@ -1054,7 +1054,7 @@ export default function PanelVendedor() {
           {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
           {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
-            <NavegacionConfig value={vista} onChange={irASubtab} onModules={irASubtab} modulesActive={modulosActivos} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
+            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} onModules={irASubtab} modulesActive={modulosActivos} seccionAbierta={!angosta || Boolean(seccionRuta)}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
               {vista === 'equipo' && <Equipo />}
