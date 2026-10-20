@@ -214,7 +214,8 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         if (movil(page)) await page.keyboard.press('Escape')
 
         // Modal «Suspender venta» (y la lista de suspendidas con el borrador).
-        const abrirSuspender = page.getByRole('button', { name: 'Suspender venta' })
+        if (movil(page)) await page.getByRole('button', { name: 'Más acciones de la venta' }).click()
+        const abrirSuspender = page.getByRole(movil(page) ? 'menuitem' : 'button', { name: 'Suspender venta' })
         await expect(abrirSuspender).toBeVisible()
         await abrirSuspender.click()
         const suspender = page.getByRole('dialog', { name: 'Suspender venta' })
@@ -231,6 +232,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
 
         // #309: la lista de borradores vive en «Más» (barra del POS), no como
         // botón suelto; se abre el menú de herramientas y se elige el ítem.
+        if (movil(page)) await page.getByRole('button', { name: 'Más acciones de la venta' }).click()
         await page.getByTestId('pos-suspendidas').click()
         const suspendidas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
         await expect(suspendidas.getByText(etiquetaDraft).first()).toBeVisible({ timeout: 10_000 })

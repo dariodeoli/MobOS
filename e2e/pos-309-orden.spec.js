@@ -90,11 +90,18 @@ test('cliente y catálogo están separados, y la ficha elegida queda compacta (#
   // Búsqueda y cliente siguen a mano (el buscador se ve antes en la página).
   await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
   const campoCliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
-  // Nombre exacto y único: la ficha se liga y queda compacta.
-  await campoCliente.fill(nombreReal)
+  // La búsqueda parcial exige elegir la ficha explícitamente.
+  await campoCliente.fill(nombreReal.slice(0, -1))
+  await page.getByRole('button', { name: new RegExp(nombreReal) }).click()
   const elegido = page.getByTestId('cliente-elegido')
   await expect(elegido).toBeVisible({ timeout: 15_000 })
   await expect(elegido.getByTestId('cliente-elegido-nombre')).toHaveText(nombreReal)
+  await expect.poll(() => page.evaluate(async () => {
+    const { contextoActual } = await import('/src/lib/storage.js')
+    const { leerCarrito } = await import('/src/lib/posCart.js')
+    const c = contextoActual()
+    return leerCarrito(c.empresaId, c.sucursalId, c.userId)?.customer?.id
+  })).toBe(clienteCreado.id)
   await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toHaveCount(0)
 
   // «Editar datos» vuelve al formulario completo.

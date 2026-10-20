@@ -266,6 +266,8 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     await page.getByRole('button', { name: new RegExp(nombre) }).click()
     await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
+    await ensureCobro(page)
+
     // Dos bloques: 40.000 cobrados y 60.000 que no se cobran.
     const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
     for (const [indice, monto] of [['0', '40000'], ['1', '60000']]) {
@@ -326,6 +328,8 @@ test('retiro en tienda no cobra el envío aunque haya un monto cargado (#187)', 
     await expect(tarjeta).toBeVisible({ timeout: 15_000 })
     await tarjeta.click()
     await expect(page.getByText('Productos de esta venta')).toBeVisible()
+
+    await ensureCobro(page)
 
     // Delivery con costo: el resumen lo muestra.
     await page.locator('#entrega').selectOption('Delivery')
