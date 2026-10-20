@@ -2297,12 +2297,6 @@ export default function FormularioVenta({
             {...divisor.props}
           />
           <div className="pos-col-izq flex min-w-0 flex-col gap-3">
-            {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
-            {pos('cliente',
-            <PosCustomer
-              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente} onSelected={enfocarBusquedaProducto}
-            />)}
             {pos('productos',
             <PasoProductos
               sesion={sesion}
@@ -2364,6 +2358,12 @@ export default function FormularioVenta({
             data-testid="pos-columna-venta"
             className="pos-columna-venta flex min-w-0 flex-col gap-2"
           >
+            {/* El cliente queda junto al ticket y al total; el catálogo conserva el foco de búsqueda. */}
+            {pos('cliente',
+            <PosCustomer
+              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente} onSelected={enfocarBusquedaProducto}
+            />)}
             {pos('carrito',
             <PasoCarrito
               items={items}
@@ -2408,7 +2408,7 @@ export default function FormularioVenta({
                   </Button>
                 </section>
               )}
-              <div className={items.length > 0 && !modoCobro ? 'hidden' : undefined}>
+              {items.length > 0 && <div className={!modoCobro ? 'hidden' : undefined}>
               <PasoCobro
               customer={customer}
               repartidores={repartidores}
@@ -2457,7 +2457,7 @@ export default function FormularioVenta({
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
               />
-              </div>
+              </div>}
             </div>)}
           </div>
         </div>

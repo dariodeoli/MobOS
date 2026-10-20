@@ -57,14 +57,15 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
 
   await page.keyboard.press('F2')
   await expect(page.getByTestId('pos-cobro')).toBeVisible()
+  await expect(page.getByTestId('pos-cobro-header')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
 })
 
 test('venta rápida vacía mantiene el cobro progresivo junto al catálogo', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
-  await expect(page.getByTestId('pos-cobro')).toBeVisible()
-  await expect(page.getByTestId('pos-cobro-header')).toBeVisible()
+  await expect(page.getByTestId('pos-cobro')).toHaveCount(0)
+  await expect(page.getByTestId('pos-cobro-header')).toHaveCount(0)
   await expect(page.getByTestId('pos-cobro-cta')).toHaveCount(0)
   await expect(page.locator('#pos-busqueda-producto input')).toBeVisible()
 })
