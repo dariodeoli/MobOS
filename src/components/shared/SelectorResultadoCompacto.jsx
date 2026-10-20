@@ -19,9 +19,9 @@ export default function SelectorResultadoCompacto({
   const hasMetadata = detalles.some(Boolean) || chips.some(Boolean)
 
   return (
-    <div data-testid={testId} tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCambiar?.() } }} className={`selector-resultado-compacto flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 bg-ink-800/50 px-2.5 py-2 ${className}`}>
-      <div className="min-w-0 flex-1 md:flex md:items-baseline md:gap-2">
-        <p className={`overflow-hidden text-sm font-semibold text-fore text-ellipsis whitespace-nowrap ${hasMetadata ? 'md:max-w-[42%]' : ''}`}>{nombre || '—'}</p>
+    <div data-testid={testId} tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCambiar?.() } }} className={`selector-resultado-compacto flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-xl border border-ink-500 bg-ink-800/50 px-2.5 py-2 ${className}`}>
+      <div className="w-0 min-w-0 max-w-full flex-1 md:flex md:items-baseline md:gap-2">
+        <p className={`min-w-0 max-w-full overflow-hidden text-sm font-semibold text-fore text-ellipsis whitespace-nowrap ${hasMetadata ? 'md:max-w-[42%]' : ''}`}>{nombre || '—'}</p>
         {hasMetadata && <div className="mt-0.5 flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-mute md:mt-0">
           {detalles.filter(Boolean).map((detalle, index) => <span key={`detalle-${index}`} className="min-w-0 max-w-[10rem] shrink truncate whitespace-nowrap">{detalle}</span>)}
           {chips.filter(Boolean).map((chip, index) => <span key={`chip-${index}`} className="rounded-full border border-fono/30 bg-fono/10 px-1.5 py-0.5 font-medium text-fono-light">{chip}</span>)}

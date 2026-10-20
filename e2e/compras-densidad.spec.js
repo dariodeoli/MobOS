@@ -66,18 +66,23 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
   const sufijo = Math.random().toString(36).slice(2, 7).toUpperCase()
   const codigo = `ZZCOMBO${sufijo}`
   const nombre = `Proveedor Combo QA ${id} ${sufijo}`
+  const documento = `800${String(Date.now()).slice(-7)}-${Math.floor(Math.random() * 10)}`
+  const telefono = `0985${String(Date.now()).slice(-6)}`
   const nuevo = `Proveedor Nuevo QA ${id} ${sufijo}`
   // El proveedor se crea antes de entrar: Compras carga el catálogo al montar.
   await page.goto('/pos')
-  const proveedor = await page.evaluate(async ({ api, nombre, codigo }) => {
-    const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo }) })
+  const proveedor = await page.evaluate(async ({ api, nombre, codigo, documento, telefono }) => {
+    const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo, document: documento, phone: telefono }) })
     const datos = await respuesta.json().catch(() => null)
     if (!respuesta.ok) throw new Error(datos?.message || `suppliers: ${respuesta.status}`)
     return datos
-  }, { api: API, nombre, codigo })
+  }, { api: API, nombre, codigo, documento, telefono })
 
   try {
     await page.goto('/compras')
+    // La navegación puede conservar el shell mientras Compras monta; una
+    // recarga fuerza el catálogo tenant-scoped recién creado antes del picker.
+    await page.reload()
     // #307: el alta de compra vive en un drawer.
     await page.getByRole('button', { name: 'Nueva compra' }).click()
     const campo = page.locator('#compra-proveedor')
@@ -93,6 +98,8 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
     const seleccionado = page.getByTestId('proveedor-seleccionado')
     await expect(seleccionado).toBeVisible()
     await expect(seleccionado).toContainText(`${codigo} · ${nombre}`)
+    await expect(seleccionado).toContainText(`CI/RUC ${documento}`)
+    await expect(seleccionado).toContainText(telefono)
     await expect(seleccionado).toHaveText(new RegExp(`${codigo}.*${nombre}`))
     const evidenceDir = process.env.MOBOS_390_EVIDENCE_DIR
     if (evidenceDir) {

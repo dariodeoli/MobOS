@@ -645,8 +645,8 @@ export default function SellerQuotes() {
       size="amplio"
       dirty={Boolean(form.customerName.trim() || form.notes.trim() || form.discountPyg || items.some(item => item.description.trim() || item.productId))}
     >
-      <form id="cotizacion-form" onSubmit={crear} className="space-y-4" noValidate>
-        <div className={GRILLA_DOS_COLUMNAS}>
+      <form id="cotizacion-form" onSubmit={crear} className="min-w-0 space-y-4" noValidate>
+        <div className={cn(GRILLA_DOS_COLUMNAS, 'min-w-0')}>
           <FormField label="Cliente" htmlFor="cotizacion-cliente" hint="Buscá una ficha o escribí el nombre: el texto libre cotiza a alguien que todavía no es cliente.">
             <div className="relative">
               {clienteSeleccionado ? <SelectorResultadoCompacto

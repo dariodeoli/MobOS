@@ -38,11 +38,30 @@ test('cotización: buscar cliente, crear ficha y consumidor final', async ({ pag
   await page.screenshot({ path: `${SHOTS}/01-resultados.png` })
   await lista.getByRole('button', { name: new RegExp(`^${fichaNombre}`) }).click()
   await expect(page.getByText('Cliente de la ficha')).toBeVisible()
+  const fichaCompacta = page.getByTestId('cotizacion-cliente-seleccionado')
+  const fichaMedidas = await fichaCompacta.evaluate((node) => {
+    const rect = node.getBoundingClientRect()
+    const dialog = node.closest('[role="dialog"]')
+    const dialogRect = dialog?.getBoundingClientRect()
+    return { cardRight: rect.right, dialogRight: dialogRect?.right, cardWidth: rect.width, dialogScrollWidth: dialog?.scrollWidth, dialogClientWidth: dialog?.clientWidth }
+  })
+  expect(fichaMedidas.cardRight).toBeLessThanOrEqual(fichaMedidas.dialogRight + 1)
+  expect(fichaMedidas.dialogScrollWidth).toBeLessThanOrEqual(fichaMedidas.dialogClientWidth + 1)
+  await expect(fichaCompacta.getByRole('button', { name: 'Cambiar cliente' })).toBeVisible()
+  await expect(fichaCompacta.getByRole('button', { name: 'Quitar cliente' })).toBeVisible()
   const evidenceDir = process.env.MOBOS_390_EVIDENCE_DIR
   if (evidenceDir) {
     mkdirSync(evidenceDir, { recursive: true })
     for (const [width, height] of [[1440, 900], [390, 844], [360, 800]]) {
       await page.setViewportSize({ width, height })
+      const responsiveBounds = await fichaCompacta.evaluate((node) => {
+        const rect = node.getBoundingClientRect()
+        const dialog = node.closest('[role="dialog"]')
+        const dialogRect = dialog?.getBoundingClientRect()
+        return { cardRight: rect.right, dialogRight: dialogRect?.right, dialogScrollWidth: dialog?.scrollWidth, dialogClientWidth: dialog?.clientWidth }
+      })
+      expect(responsiveBounds.cardRight).toBeLessThanOrEqual(responsiveBounds.dialogRight + 1)
+      expect(responsiveBounds.dialogScrollWidth).toBeLessThanOrEqual(responsiveBounds.dialogClientWidth + 1)
       await page.screenshot({ path: `${evidenceDir}/cotizacion-${width}-light.png` })
       await page.evaluate(() => document.documentElement.classList.add('dark'))
       await page.waitForTimeout(120)
