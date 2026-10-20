@@ -391,8 +391,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           </button>
           {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
         </div>
-        <section aria-label="Contacto" className="space-y-2">
-          <h4 className={TITULO_SECCION}>Contacto</h4>
+        <section aria-label="Identidad" className="space-y-2">
+          <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
           <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
