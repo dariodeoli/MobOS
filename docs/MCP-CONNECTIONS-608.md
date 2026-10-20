@@ -68,6 +68,7 @@ La lista de `tools/list` se filtra por el scope concedido, el módulo activo y l
 | `product_images.write` | Disponible | `product_images:write` | `products:manage` | Sucursal autorizada |
 | `customers.write` | Disponible | `customers:write` | `customers:manage` | Empresa y reglas de cliente |
 | `company.write` | Disponible | `company:write` | `dashboard:read` + rol `ADMIN` | Perfil de empresa, con reautenticación |
+| `company.create` | Disponible | `company:create` | `dashboard:read` + rol `ADMIN` y OWNER vinculado | Prepara un enlace para confirmar la creación dentro de la app; no crea por sí sola |
 | `sales.write` | Pendiente | `sales:write` | `orders:manage` | No se anuncia ni se ejecuta |
 | Facturación, stock/IMEI directo y otras mutaciones | Pendiente | — | — | Requieren servicio específico |
 
@@ -75,7 +76,7 @@ La lista de `tools/list` se filtra por el scope concedido, el módulo activo y l
 
 ## Mutaciones seguras
 
-Las mutaciones no se ejecutan directamente desde el modelo. Se usa este flujo:
+Las mutaciones no se ejecutan directamente desde el modelo. Las herramientas normales requieren preview/commit:
 
 1. El cliente solicita `mode: "preview"` con una clave de idempotencia.
 2. MobOS valida sesión, tenant, módulo, permisos, sucursal y payload tipado.
@@ -83,6 +84,8 @@ Las mutaciones no se ejecutan directamente desde el modelo. Se usa este flujo:
 4. El cliente confirma con `mode: "commit"` y ese `previewId`.
 5. MobOS vuelve a validar permisos, sesión y valores actuales antes de escribir.
 6. El commit queda auditado; repetir la misma clave devuelve el resultado estable.
+
+`company.create` es una excepción de preparación: valida OWNER, ADMIN, cuenta vinculada y contexto, y devuelve `awaiting_app_confirmation` con un enlace de la aplicación. La creación efectiva sólo ocurre después de la confirmación explícita dentro de MobOS; si luego se desea operar la nueva empresa desde el conector, se requiere un nuevo consentimiento OAuth. El endpoint MCP no crea empresas ni sesiones.
 
 El preview está ligado al grant OAuth, cliente y sesión que lo creó. Otro conector, una sesión cambiada, un grant revocado o un preview vencido no puede confirmarlo. Los cambios de precio usan control de concurrencia: si el valor esperado cambió, la confirmación falla y no sobreescribe el precio.
 
@@ -98,7 +101,7 @@ Restricciones relevantes:
 
 La aplicación puede consultar `GET /api/mcp/connections` para mostrar conexiones del usuario actual, scopes, capabilities, proveedor configurado y última actividad. `DELETE /api/mcp/connections` revoca el grant y sus tokens. La revocación también bloquea previews asociados.
 
-Registrar un cliente o habilitar una aplicación requiere una operación explícita de administración: callback HTTPS exacto, scopes aprobados y consentimiento visible. No se crea una empresa, cuenta o pertenencia a partir de argumentos enviados por el conector. La creación automática de aplicaciones/proveedores y la gestión de facturación electrónica permanecen pendientes.
+Registrar un cliente o habilitar una aplicación requiere una operación explícita de administración: callback HTTPS exacto, scopes aprobados y consentimiento visible. No se crea una cuenta o pertenencia a partir de argumentos enviados por el conector; `company.create` sólo prepara el enlace de confirmación dentro de la aplicación. La creación automática de aplicaciones/proveedores y la gestión de facturación electrónica permanecen pendientes.
 
 Cada solicitud, consentimiento, rechazo, mutación y revocación deja metadatos de auditoría acotados. No se almacenan tokens, prompts, fotos completas ni dumps de clientes.
 
