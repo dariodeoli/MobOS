@@ -66,6 +66,7 @@ export default function McpConexiones() {
       setOauthReady(false)
       setEndpoint('')
       setCapabilities([])
+      setProviderStatuses([])
     } finally { setLoading(false) }
   }, [esDemo])
 
