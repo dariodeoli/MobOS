@@ -723,6 +723,14 @@ export default function PasoCobro({
         </div>
       </div>
       )}
+      {/* La hoja móvil reutiliza el formulario para medios secundarios (gift card,
+          entrega y nota). Conservamos su acción submit, pero sin el wrapper
+          sticky/tiles de escritorio que podía cubrir controles de la hoja. */}
+      {modoMovil && (
+        <div className="flex w-full items-center gap-3 pt-2">
+          <BotonGuardar className="w-full" />
+        </div>
+      )}
 
       {/* Celular: Total y acción principal fijos abajo, arriba de la barra del
           shell (#309). El botón es el mismo submit del formulario. */}
