@@ -62,7 +62,7 @@ function DemoPerspectivas({ entrarDemo }) {
   return (
     <div data-testid="demo-perspectivas" className="mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6">
       <span className="text-xs font-semibold text-fore">Explorar demo</span>
-      <button type="button" data-testid="demo-perspectivas-toggle" className="min-h-9 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700" aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
+      <button type="button" data-testid="demo-perspectivas-toggle" className="min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700" aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
         Cambiar vista
       </button>
       {abierto && (
