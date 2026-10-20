@@ -37,6 +37,9 @@ async function cart(page, items, pagos = []) {
     guardarCarrito(c.empresaId, c.sucursalId, c.userId, { items, customer, pagos })
   }, { items, pagos })
   await openShellDestination(page, 'Nueva venta')
+  // Desktop keeps the payment step collapsed until the seller explicitly
+  // enters checkout; use the same action as a real POS operator.
+  await page.getByRole('button', { name: /^Cobrar(?:\s|$)/ }).first().click()
   await expect(page.getByTestId('pos-cobro')).toBeVisible()
 }
 async function finish(page) {
