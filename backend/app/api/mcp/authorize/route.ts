@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session?.accountId) {
     const appOrigin = (() => { try { return new URL(process.env.MOBOS_APP_URL || mcpIssuer()).origin } catch { return mcpIssuer() } })()
-    const returnTo = `${url.pathname}${url.search}`
+    const returnTo = `/mcp/autorizar?request=${encodeURIComponent(`${url.pathname}${url.search}`)}`
     const login = new URL('/login', appOrigin); login.searchParams.set('returnTo', returnTo)
     return NextResponse.redirect(login, { status: 303 })
   }

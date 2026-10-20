@@ -19,7 +19,8 @@ export async function GET(request: Request) {
   const issuer = (() => { try { return mcpIssuer() } catch { return null } })()
   const resource = (() => { try { return mcpResource() } catch { return null } })()
   const grants = await prisma.mcpClientGrant.findMany({ where: { accountId: session.accountId, tenantId: session.user.tenantId, userId: session.user.id }, select: { id: true, clientId: true, redirectUri: true, scopes: true, revokedAt: true, createdAt: true, updatedAt: true, tokens: { where: { revokedAt: null }, orderBy: { lastUsedAt: 'desc' }, take: 1, select: { lastUsedAt: true, createdAt: true } } }, orderBy: { updatedAt: 'desc' } })
-  return NextResponse.json({ connections: grants.map(grant => ({ id: grant.id, clientId: grant.clientId, redirectUri: grant.redirectUri, scopes: grant.scopes, revokedAt: grant.revokedAt, createdAt: grant.createdAt, updatedAt: grant.updatedAt, lastUsedAt: grant.tokens[0]?.lastUsedAt ?? null })), oauthConfigured: Boolean(issuer && resource && configuredMcpClients().length), endpoint: resource ? `${resource}/api/mcp/streamable` : null, capabilities, providers: [{ id: 'chatgpt', name: 'ChatGPT', oauth: true }, { id: 'claude', name: 'Claude', oauth: true }] }, { headers: { 'Cache-Control': 'no-store' } })
+  const providers = configuredMcpClients().map(client => ({ id: client.clientId, name: client.name, oauth: true }))
+  return NextResponse.json({ connections: grants.map(grant => ({ id: grant.id, clientId: grant.clientId, redirectUri: grant.redirectUri, scopes: grant.scopes, revokedAt: grant.revokedAt, createdAt: grant.createdAt, updatedAt: grant.updatedAt, lastUsedAt: grant.tokens[0]?.lastUsedAt ?? null })), oauthConfigured: Boolean(issuer && resource && providers.length), endpoint: resource ? `${resource}/api/mcp/streamable` : null, capabilities, providers }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function DELETE(request: Request) {

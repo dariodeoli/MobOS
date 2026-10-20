@@ -138,7 +138,7 @@ export async function requireMcpAccessToken(request: Request, now?: Date) {
   const match = header?.match(/^Bearer\s+([^\s]+)$/i)
   if (!match) return null
   const row = await prisma.mcpAccessToken.findUnique({ where: { tokenHash: hashMcpSecret(match[1]) }, include: { grant: true, session: { include: { user: true } } } })
-  if (!row || row.revokedAt || row.expiresAt <= now || row.grant.revokedAt || row.resource !== mcpResource() || row.grant.resource !== row.resource || row.grant.clientId !== row.clientId || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user) return null
+  if (!row || row.revokedAt || row.expiresAt <= now || row.grant.revokedAt || !findMcpClient(row.clientId, row.grant.redirectUri) || row.resource !== mcpResource() || row.grant.resource !== row.resource || row.grant.clientId !== row.clientId || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user) return null
   const user = row.session.user
   if (user.status !== 'ACTIVE' || row.session.userId !== row.userId || user.tenantId !== row.tenantId || row.session.accountId !== row.accountId || row.session.tenantId !== row.tenantId || row.scopes.some(scope => !row.grant.scopes.includes(scope))) return null
   if (!(await prisma.tenantMembership.findFirst({ where: { accountId: row.accountId, tenantId: row.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }))) return null
