@@ -2,7 +2,7 @@
 // scroll horizontal en desktop y con las acciones a la vista (íconos con
 // tooltip de la biblioteca compartida). Autosuficiente: crea su compra.
 import { test, expect } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -61,16 +61,20 @@ test('compras y proveedores: filas compactas, sin scroll y acciones visibles', a
 
 // #259: en Compras el proveedor se elige con el buscador (abreviatura o nombre)
 // y un nombre nuevo se puede crear desde el mismo campo.
-test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ page }) => {
+test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ page }, testInfo) => {
   const id = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
   const sufijo = Math.random().toString(36).slice(2, 7).toUpperCase()
   const codigo = `ZZCOMBO${sufijo}`
-  const nombre = `Proveedor Combo QA ${id} ${sufijo}`
-  const documento = `800${String(Date.now()).slice(-7)}-${Math.floor(Math.random() * 10)}`
+  const nombre = `Proveedor Internacional de Equipos y Accesorios con Nombre Extenso QA ${id} ${sufijo}`
+  const documento = `800${String(Date.now()).slice(-5)}-${Math.floor(Math.random() * 10)}`
   const telefono = `0985${String(Date.now()).slice(-6)}`
   const nuevo = `Proveedor Nuevo QA ${id} ${sufijo}`
-  // El proveedor se crea antes de entrar: Compras carga el catálogo al montar.
-  await page.goto('/pos')
+  // El catálogo ya está montado cuando se crea el proveedor: abrir una compra
+  // debe refrescarlo sin recargar la página ni perder el formulario.
+  const inicial = page.waitForResponse(r => r.url() === `${API}/api/suppliers` && r.request().method() === 'GET')
+  await page.goto('/compras')
+  await inicial
+  await expect(page.getByText('Sin compras registradas.', { exact: true }).or(page.getByTestId('compras-tabla'))).toBeVisible()
   const proveedor = await page.evaluate(async ({ api, nombre, codigo, documento, telefono }) => {
     const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo, document: documento, phone: telefono }) })
     const datos = await respuesta.json().catch(() => null)
@@ -79,12 +83,13 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
   }, { api: API, nombre, codigo, documento, telefono })
 
   try {
-    await page.goto('/compras')
-    // La navegación puede conservar el shell mientras Compras monta; una
-    // recarga fuerza el catálogo tenant-scoped recién creado antes del picker.
-    await page.reload()
     // #307: el alta de compra vive en un drawer.
+    const actualizado = page.waitForResponse(r => r.url() === `${API}/api/suppliers` && r.request().method() === 'GET')
     await page.getByRole('button', { name: 'Nueva compra' }).click()
+    const respuestaCatalogo = await actualizado
+    const catalogo = await respuestaCatalogo.json()
+    expect(catalogo.some(item => item.id === proveedor.id)).toBe(true)
+    await testInfo.attach('proveedor-refresh', { body: JSON.stringify({ createdId: proveedor.id, refreshStatus: respuestaCatalogo.status(), presentInResponse: true }), contentType: 'application/json' })
     const campo = page.locator('#compra-proveedor')
     await expect(campo).toBeVisible({ timeout: 20_000 })
 
@@ -102,26 +107,53 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
     await expect(seleccionado).toContainText(telefono)
     await expect(seleccionado).toHaveText(new RegExp(`${codigo}.*${nombre}`))
     const evidenceDir = process.env.MOBOS_390_EVIDENCE_DIR
-    if (evidenceDir) {
-      mkdirSync(evidenceDir, { recursive: true })
-      for (const [width, height] of [[1440, 900], [390, 844], [360, 800]]) {
-        await page.setViewportSize({ width, height })
-        await page.screenshot({ path: `${evidenceDir}/compra-${width}-light.png` })
-        await page.evaluate(() => document.documentElement.classList.add('dark'))
-        await page.waitForTimeout(120)
-        await page.screenshot({ path: `${evidenceDir}/compra-${width}-dark.png` })
-        await page.evaluate(() => document.documentElement.classList.remove('dark'))
+    if (evidenceDir) mkdirSync(evidenceDir, { recursive: true })
+    for (const [width, height] of [[1440, 900], [390, 844], [360, 800]]) {
+      await page.setViewportSize({ width, height })
+      for (const theme of ['light', 'dark']) {
+        const toggle = page.getByRole('button', { name: theme === 'dark' ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro' })
+        // La barra queda detrás del diálogo: cerrar y reabrir conserva
+        // el proveedor y permite usar el control real del tema, sin inyectar DOM.
+        if (await toggle.count()) {
+          await page.getByRole('dialog', { name: 'Nueva compra', exact: true }).getByRole('button', { name: 'Cerrar', exact: true }).click()
+          await toggle.click()
+          await page.getByRole('button', { name: 'Nueva compra' }).click()
+          await expect(seleccionado).toBeVisible()
+        }
+        await expect(campo).toHaveCount(0)
+        const medidas = await seleccionado.evaluate(node => ({ width: node.getBoundingClientRect().width, scroll: node.scrollWidth, client: node.clientWidth, right: node.getBoundingClientRect().right }))
+        expect(medidas.scroll).toBeLessThanOrEqual(medidas.client + 1)
+        expect(medidas.right).toBeLessThanOrEqual(width)
+        for (const dato of [`CI/RUC ${documento}`, telefono]) {
+          const legible = await seleccionado.getByText(dato, { exact: true }).evaluate(node => node.scrollWidth <= node.clientWidth + 1)
+          expect(legible, `${dato} debe verse completo en ${width}/${theme}`).toBe(true)
+        }
+        for (const action of ['Cambiar proveedor', 'Quitar proveedor']) {
+          const box = await seleccionado.getByRole('button', { name: action }).boundingBox()
+          expect(box.width).toBeGreaterThanOrEqual(44)
+          expect(box.height).toBeGreaterThanOrEqual(44)
+        }
+        const geometria = { viewport: { width, height }, theme, card: await seleccionado.boundingBox(), cambiar: await seleccionado.getByRole('button', { name: 'Cambiar proveedor' }).boundingBox(), quitar: await seleccionado.getByRole('button', { name: 'Quitar proveedor' }).boundingBox(), metadata: await seleccionado.locator('[title]').evaluateAll(nodes => nodes.map(node => ({ text: node.title, width: node.clientWidth, scrollWidth: node.scrollWidth, top: node.getBoundingClientRect().top }))) }
+        await testInfo.attach(`geometria-${width}-${theme}`, { body: JSON.stringify(geometria, null, 2), contentType: 'application/json' })
+        if (evidenceDir) {
+          await page.screenshot({ path: `${evidenceDir}/compra-${width}-${theme}.png` })
+          writeFileSync(`${evidenceDir}/compra-${width}-${theme}.json`, JSON.stringify(geometria, null, 2))
+        }
       }
-      await page.setViewportSize({ width: 1440, height: 900 })
     }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await seleccionado.getByRole('button', { name: 'Cambiar proveedor' }).click()
+    await expect(campo).toBeFocused()
+    await campo.fill(codigo.toLowerCase())
+    await page.getByRole('listbox', { name: 'Proveedores' }).getByRole('option').filter({ hasText: nombre }).click()
     await seleccionado.focus()
     await page.keyboard.press('Escape')
-    await expect(campo).toBeVisible()
+    await expect(campo).toBeFocused()
     await campo.fill(codigo.toLowerCase())
     await expect(page.getByRole('listbox', { name: 'Proveedores' })).toBeVisible()
     await page.getByRole('listbox', { name: 'Proveedores' }).getByRole('option').filter({ hasText: nombre }).click()
     await page.getByTestId('proveedor-seleccionado').getByRole('button', { name: 'Quitar proveedor' }).click()
-    await expect(campo).toBeVisible()
+    await expect(campo).toBeFocused()
 
     // Un nombre nuevo se crea desde el campo (abre el alta con el nombre puesto).
     await campo.fill(nuevo)
