@@ -12,6 +12,7 @@ export const MCP_ACTIONS = [
   'customers.write',
   'company.read',
   'company.write',
+  'company.create',
   'sales.read',
   'sales.write',
   'reports.read',
@@ -21,7 +22,7 @@ export type McpAction = (typeof MCP_ACTIONS)[number]
 
 export const MCP_SCOPES = [
   'products:read', 'products:write', 'prices:write',
-  'customers:read', 'customers:write', 'company:read', 'company:write',
+  'customers:read', 'customers:write', 'company:read', 'company:write', 'company:create',
   'sales:read', 'sales:write', 'reports:read', 'product_images:write',
 ] as const
 export type McpScope = (typeof MCP_SCOPES)[number]
@@ -46,6 +47,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
   { action: 'customers.write', scope: 'customers:write', label: 'Crear o editar clientes', moduleId: 'clientes', permission: 'customers:manage', mutating: true, branchScoped: false },
   { action: 'company.read', scope: 'company:read', label: 'Leer datos de la empresa', moduleId: 'equipo', permission: 'dashboard:read', mutating: false, branchScoped: false },
   { action: 'company.write', scope: 'company:write', label: 'Editar datos de la empresa', moduleId: 'equipo', permission: 'dashboard:read', allowedRoles: ['ADMIN'], mutating: true, branchScoped: false },
+  { action: 'company.create', scope: 'company:create', label: 'Preparar una nueva empresa', moduleId: 'equipo', permission: 'dashboard:read', allowedRoles: ['ADMIN'], mutating: true, branchScoped: false },
   { action: 'sales.read', scope: 'sales:read', label: 'Leer ventas y pedidos', moduleId: 'ventas', permission: 'orders:own', alternativePermissions: ['orders:branch', 'orders:manage'], mutating: false, branchScoped: true },
   { action: 'sales.write', scope: 'sales:write', label: 'Crear o editar ventas', moduleId: 'ventas', permission: 'orders:manage', mutating: true, branchScoped: true },
   { action: 'reports.read', scope: 'reports:read', label: 'Leer informes', moduleId: 'reportes', permission: 'reports:read', mutating: false, branchScoped: false },
