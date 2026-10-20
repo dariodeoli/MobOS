@@ -17,10 +17,10 @@ export default function SelectorResultadoCompacto({
   className = '',
 }) {
   return (
-    <div data-testid={testId} className={`selector-resultado-compacto flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 bg-ink-800/50 px-2.5 py-2 ${className}`}>
-      <div className="min-w-0 flex-1">
-        <p className="overflow-hidden text-sm font-semibold text-fore text-ellipsis whitespace-nowrap">{nombre || '—'}</p>
-        {(detalles.length > 0 || chips.length > 0) && <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-mute">
+    <div data-testid={testId} tabIndex={-1} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCambiar?.() } }} className={`selector-resultado-compacto flex min-h-11 items-center gap-2 rounded-xl border border-ink-500 bg-ink-800/50 px-2.5 py-2 ${className}`}>
+      <div className="min-w-0 flex-1 md:flex md:items-baseline md:gap-2">
+        <p className="overflow-hidden text-sm font-semibold text-fore text-ellipsis whitespace-nowrap md:max-w-[42%]">{nombre || '—'}</p>
+        {(detalles.length > 0 || chips.length > 0) && <div className="mt-0.5 flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-mute md:mt-0">
           {detalles.filter(Boolean).map((detalle, index) => <span key={`detalle-${index}`} className="truncate">{detalle}</span>)}
           {chips.filter(Boolean).map((chip, index) => <span key={`chip-${index}`} className="rounded-full border border-fono/30 bg-fono/10 px-1.5 py-0.5 font-medium text-fono-light">{chip}</span>)}
         </div>}
