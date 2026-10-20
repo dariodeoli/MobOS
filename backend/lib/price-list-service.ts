@@ -45,21 +45,35 @@ export async function createPriceList(db: PrismaClient | any, actor: PriceListAc
   assertActor(actor); const value = validateBody(body); if (!value.name) throw new PriceListServiceError('invalid', 'Nombre es obligatorio.')
   await assertProducts(db, actor.tenantId, value.items)
   try {
-    const created = await db.priceList.create({ data: { tenantId: actor.tenantId, name: value.name, items: { create: (value.items ?? []).map(item => ({ ...item, tiers: { create: item.tiers } })) } }, include: PRICE_LIST_INCLUDE })
+    const created = await db.priceList.create({ data: { tenantId: actor.tenantId, name: value.name, isActive: value.isActive ?? true, items: { create: (value.items ?? []).map(item => ({ ...item, tiers: { create: item.tiers } })) } }, include: PRICE_LIST_INCLUDE })
     await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'PRICE_LIST_CREATED', entity: 'PriceList', entityId: created.id, metadata: { name: created.name, items: value.items?.length ?? 0, source: 'shared-service' } } })
     return created
   } catch { throw new PriceListServiceError('conflict', 'No se pudo crear la lista (¿ya existe una con ese nombre?).') }
 }
 export async function updatePriceList(db: PrismaClient | any, actor: PriceListActor, id: string, body: unknown) {
   assertActor(actor); const value = validateBody(body)
-  const current = await db.priceList.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true } }); if (!current) throw new PriceListServiceError('not_found', 'Lista no encontrada.')
+  const current = await db.priceList.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true, updatedAt: true } }); if (!current) throw new PriceListServiceError('not_found', 'Lista no encontrada.')
+  const expectedUpdatedAt = (body as Record<string, unknown>)._expectedUpdatedAt
+  if (expectedUpdatedAt !== undefined && (typeof expectedUpdatedAt !== 'string' || current.updatedAt.toISOString() !== expectedUpdatedAt)) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
   await assertProducts(db, actor.tenantId, value.items)
   const data: any = {}; if (value.name !== undefined) data.name = value.name; if (value.isActive !== undefined) data.isActive = value.isActive
   if (value.items !== undefined) data.items = { deleteMany: {}, create: value.items.map(item => ({ ...item, tiers: { create: item.tiers } })) }
   if (!Object.keys(data).length) return readPriceList(db, actor, id)
   try {
-    const updated = await db.priceList.update({ where: { id }, data, include: PRICE_LIST_INCLUDE })
+    const claimed = await db.priceList.updateMany({ where: { id, tenantId: actor.tenantId, ...(expectedUpdatedAt ? { updatedAt: current.updatedAt } : {}) }, data: Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'items')) })
+    if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
+    if (value.items !== undefined) {
+      await db.priceListItem.deleteMany({ where: { priceListId: id } })
+      if (value.items.length) await db.priceListItem.createMany({ data: value.items.map(item => ({ priceListId: id, scope: item.scope, productId: item.productId, category: item.category, unitPricePyg: item.unitPricePyg, unitPriceUsd: item.unitPriceUsd, discountPct: item.discountPct })) })
+      for (const item of value.items) {
+        if (item.tiers.length) {
+          const saved = await db.priceListItem.findFirst({ where: { priceListId: id, ...(item.productId ? { productId: item.productId } : { category: item.category }) }, select: { id: true } })
+          if (saved) await db.priceTier.createMany({ data: item.tiers.map(tier => ({ priceListItemId: saved.id, minQty: tier.minQty, unitPricePyg: tier.unitPricePyg })) })
+        }
+      }
+    }
+    const updated = await readPriceList(db, actor, id)
     await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'PRICE_LIST_UPDATED', entity: 'PriceList', entityId: updated.id, metadata: { fields: Object.keys(data), items: value.items?.length, source: 'shared-service' } } })
     return updated
-  } catch { throw new PriceListServiceError('conflict', 'No se pudo actualizar la lista.') }
+  } catch (error) { if (error instanceof PriceListServiceError) throw error; throw new PriceListServiceError('conflict', 'No se pudo actualizar la lista.') }
 }

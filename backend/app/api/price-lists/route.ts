@@ -3,6 +3,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { parsePriceListItems, PriceListInputError } from '../../../lib/price-lists'
+import { createPriceList, PriceListServiceError } from '../../../lib/price-list-service'
 
 const priceListInclude = {
   items: { include: { tiers: { orderBy: { minQty: 'asc' as const } } } },
@@ -42,20 +43,10 @@ export async function POST(request: Request) {
   if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   try {
     const body = objectInput(await request.json())
-    const name = textInput(body.name, 'Nombre', 120)
-    const items = parsePriceListItems(body.items) ?? []
-    if (!await productosDelTenant(session.user.tenantId, items)) throw new InputError('Alguno de los productos no pertenece a la empresa.')
-    const created = await prisma.priceList.create({
-      data: {
-        tenantId: session.user.tenantId,
-        name,
-        items: { create: items.map(item => ({ ...item, tiers: { create: item.tiers } })) },
-      },
-      include: priceListInclude,
-    })
-    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_CREATED', entity: 'PriceList', entityId: created.id, metadata: { name: created.name, items: items.length } } })
+    const created = await createPriceList(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, body)
     return json(created, { status: 201 })
   } catch (cause) {
+    if (cause instanceof PriceListServiceError) return error(cause.message, cause.code === 'forbidden' ? 403 : cause.code === 'not_found' ? 404 : cause.code === 'conflict' ? 409 : 400)
     if (cause instanceof PriceListInputError || cause instanceof InputError) return error(cause.message, 400)
     return error('No se pudo crear la lista (¿ya existe una con ese nombre?).', 409)
   }

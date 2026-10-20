@@ -4,6 +4,7 @@ import { error, json } from '../../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 import { PricingError } from '../../../../lib/pricing'
 import { parsePriceListItems, PriceListInputError, validarReemplazoExplicito } from '../../../../lib/price-lists'
+import { updatePriceList, PriceListServiceError, readPriceList } from '../../../../lib/price-list-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -27,9 +28,8 @@ export async function GET(request: Request, props: RouteContext) {
   if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia ven el detalle de las listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Lista obligatoria.')
-  const lista = await prisma.priceList.findFirst({ where: { id, tenantId: session.user.tenantId }, include: priceListInclude })
-  if (!lista) return error('Lista no encontrada.', 404)
-  return json(lista)
+  try { return json(await readPriceList(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id)) }
+  catch (cause) { if (cause instanceof PriceListServiceError) return error(cause.message, cause.code === 'not_found' ? 404 : 403); throw cause }
 }
 
 export async function PATCH(request: Request, props: RouteContext) {
@@ -38,38 +38,13 @@ export async function PATCH(request: Request, props: RouteContext) {
   if (!session) return error('Falta sesión.', 401)
   if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
-  if (!id || !(await listaDelTenant(session.user.tenantId, id))) return error('Lista no encontrada.', 404)
+  if (!id) return error('Lista no encontrada.', 404)
   try {
     const body = objectInput(await request.json())
-    const data: Record<string, unknown> = {}
-    if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 120)
-    if (body.isActive !== undefined) {
-      if (typeof body.isActive !== 'boolean') throw new InputError('isActive debe ser verdadero o falso.')
-      data.isActive = body.isActive
-    }
-    // Los ítems se reemplazan por completo: el reemplazo debe ser explícito
-    // (`replaceItems: true`), nunca implícito (issue #78).
-    validarReemplazoExplicito(body)
-    const items = parsePriceListItems(body.items)
-    if (items !== undefined) {
-      const ids = items.filter(item => item.scope === 'PRODUCT').map(item => item.productId as string)
-      const propios = ids.length ? await prisma.product.count({ where: { id: { in: [...new Set(ids)] }, tenantId: session.user.tenantId } }) : 0
-      if (ids.length && propios !== new Set(ids).size) throw new InputError('Alguno de los productos no pertenece a la empresa.')
-      // Editar los ítems REEMPLAZA la lista completa: se borran los anteriores y
-      // se crean los nuevos (no hay merge por categoría).
-      data.items = { deleteMany: {}, create: items.map(item => ({ ...item, tiers: { create: item.tiers } })) }
-    }
-    if (!Object.keys(data).length) {
-      // `items: null` (o un cuerpo sin cambios) significa "no tocar los ítems":
-      // se devuelve la lista tal como está en vez de un 400 confuso (#78).
-      const actual = await prisma.priceList.findFirst({ where: { id, tenantId: session.user.tenantId }, include: priceListInclude })
-      if (!actual) return error('Lista no encontrada.', 404)
-      return json(actual)
-    }
-    const updated = await prisma.priceList.update({ where: { id }, data, include: priceListInclude })
-    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_UPDATED', entity: 'PriceList', entityId: updated.id, metadata: { fields: Object.keys(data), items: items?.length } } })
+    const updated = await updatePriceList(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body)
     return json(updated)
   } catch (cause) {
+    if (cause instanceof PriceListServiceError) return error(cause.message, cause.code === 'forbidden' ? 403 : cause.code === 'not_found' ? 404 : cause.code === 'conflict' ? 409 : 400)
     if (cause instanceof PriceListInputError || cause instanceof PricingError || cause instanceof InputError) return error(cause.message, 400)
     return error('No se pudo actualizar la lista (¿ya existe otra con ese nombre?).', 409)
   }
