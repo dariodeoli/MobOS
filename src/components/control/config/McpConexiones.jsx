@@ -94,6 +94,11 @@ export default function McpConexiones() {
     return Boolean(explicit && (explicit.configured === true || explicit.oauth === true))
   }
 
+  function providerClientId(id) {
+    const explicit = providerStatuses.find(item => String(item?.id || item?.provider || '').toLowerCase() === id)
+    return typeof explicit?.id === 'string' ? explicit.id : ''
+  }
+
   return (
     <div className="space-y-4" data-testid="mcp-conexiones">
       <Card className="space-y-4" data-testid="mcp-conexiones-resumen">
@@ -120,6 +125,7 @@ export default function McpConexiones() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Badge color={providerConfigured(provider.id) ? 'green' : 'orange'}>{providerConfigured(provider.id) ? 'Configurado' : 'Pendiente'}</Badge>
                 {!providerConfigured(provider.id) && <span className="text-xs font-medium text-mute">Requiere OAuth registrado</span>}
+                {providerClientId(provider.id) && <span className="flex min-w-0 items-center gap-2 text-xs text-mute" data-testid={`mcp-client-id-${provider.id}`}><span className="max-w-48 break-all">ID: {providerClientId(provider.id)}</span><Button type="button" variant="ghost" className="min-h-9 px-2 text-xs" onClick={() => copiarAlPortapapeles(providerClientId(provider.id))}>Copiar ID</Button></span>}
               </div>
             </div>
           ))}
