@@ -5,6 +5,7 @@ import { requireMcpAccessToken } from '../../../../lib/mcp/oauth'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { moduleStoreFrom } from '../../../../lib/module-store'
 import { changePayloadHash, validateChange } from '../../../../lib/mcp/changes'
+import { updateProductPrice, ProductPriceError } from '../../../../lib/product-price'
 
 export const dynamic = 'force-dynamic'
 const TTL_MS = 10 * 60 * 1000
@@ -66,9 +67,10 @@ export async function POST(request: Request) {
       const product = await tx.product.create({ data: { tenantId: auth.tenantId, branchId: branchId, sku: String(p.sku), name: String(p.name), category: typeof p.category === 'string' ? p.category : null, pricePyg: BigInt(typeof p.pricePyg === 'number' ? p.pricePyg : 0), stock: typeof p.stock === 'number' ? p.stock : 0 } })
       entity = 'Product'; entityId = product.id
     } else if (checked.action === 'prices.write') {
-      const product = await tx.product.findFirst({ where: { id: String(p.productId), tenantId: auth.tenantId, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true } })
-      if (!product) throw new Error('producto_no_disponible')
-      await tx.product.update({ where: { id: product.id }, data: { pricePyg: BigInt(Number(p.pricePyg)) } }); entity = 'Product'; entityId = product.id
+      try {
+        const changed = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(p.productId), pricePyg: Number(p.pricePyg), expectedPricePyg: Number(p.expectedPricePyg) }, tx)
+        entity = 'Product'; entityId = changed.productId
+      } catch (error) { throw error instanceof ProductPriceError ? error : new Error('producto_precio_no_actualizado') }
     } else if (checked.action === 'customers.write') {
       const customer = await tx.customer.create({ data: { tenantId: auth.tenantId, createdById: auth.user.id, name: String(p.name), phone: typeof p.phone === 'string' ? p.phone : null, email: typeof p.email === 'string' ? p.email : null, document: typeof p.document === 'string' ? p.document : null } })
       entity = 'Customer'; entityId = customer.id
