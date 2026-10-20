@@ -13,6 +13,7 @@ import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { normalizarNombre } from '@/utils/nombre'
 import { applyCheckoutIdentity, clearCheckoutIdentity } from '@/lib/checkoutIdentity'
+import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
 import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
@@ -145,7 +146,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setFeedbackFicha('Guardando datos verificados…')
     try {
       const payload = {
-        name: String(next.name || next.nameOfficial || '').trim(),
+        name: String(next.displayName || next.name || '').trim(),
+        ...customerIdentityPayload(next),
         document: String(next.document || '').trim() || undefined,
         phone: String(next.phone || '').trim() || undefined,
         countryCode: next.countryCode || '+595',
@@ -214,6 +216,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     try {
       const payload = {
         name: nombre,
+        ...customerIdentityPayload(value),
         document: String(value.document || '').trim() || undefined,
         phone: String(value.phone || '').trim() || undefined,
         countryCode: value.countryCode || '+595',
