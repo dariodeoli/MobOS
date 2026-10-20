@@ -11,10 +11,14 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { ok: false, error: 'payload_invalido' }
   const value = payload as Record<string, unknown>
   if (action === 'products.write') {
-    if (!bounded(value.name, 160) || !bounded(value.sku, 80)) return { ok: false, error: 'producto_nombre_sku_requeridos' }
+    const operation = value.operation === undefined ? 'create' : value.operation
+    if (operation !== 'create' && operation !== 'update') return { ok: false, error: 'operacion_producto_invalida' }
+    if (operation === 'create' && (!bounded(value.name, 160) || !bounded(value.sku, 80))) return { ok: false, error: 'producto_nombre_sku_requeridos' }
+    if (operation === 'update' && !bounded(value.productId, 128)) return { ok: false, error: 'producto_id_requerido' }
+    if (value.name !== undefined && !bounded(value.name, 160)) return { ok: false, error: 'producto_nombre_invalido' }
+    if (value.sku !== undefined && !bounded(value.sku, 80)) return { ok: false, error: 'producto_sku_invalido' }
     if (value.pricePyg !== undefined && !integer(value.pricePyg)) return { ok: false, error: 'precio_invalido' }
-    const stock = value.stock
-    if (stock !== undefined && (!integer(stock) || (typeof stock === 'number' && stock > 100000000))) return { ok: false, error: 'stock_invalido' }
+    if (value.stock !== undefined) return { ok: false, error: 'stock_no_permitido' }
     if (value.branchId !== undefined && (!bounded(value.branchId, 100))) return { ok: false, error: 'sucursal_invalida' }
   } else if (action === 'prices.write') {
     if (!bounded(value.productId, 100) || !integer(value.pricePyg) || !integer(value.expectedPricePyg)) return { ok: false, error: 'producto_precio_esperado_requeridos' }

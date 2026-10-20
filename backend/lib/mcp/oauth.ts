@@ -73,6 +73,7 @@ export function validPkceVerifier(verifier: unknown, challenge: string) {
 }
 function secret() { return randomBytes(32).toString('hex') }
 export function hashMcpSecret(value: string) { return createHash('sha256').update(value).digest('hex') }
+const isMcpSecret = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
 
 export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string; accountId?: string | null; tenantId: string; sessionId: string; userId: string; clientId: string; redirectUri: string; resource: string; scopes: readonly string[]; codeChallenge: string }, now?: Date) {
   now ??= await dbNow(db)
@@ -83,6 +84,7 @@ export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string
 }
 
 export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now?: Date) {
+  if (!isMcpSecret(rawCode)) throw new McpOAuthError('invalid_grant', 'El código no es válido.', 400)
   now ??= await dbNow(db)
   const count = await db.mcpAuthorizationCode.updateMany({ where: { codeHash: hashMcpSecret(rawCode), usedAt: null, expiresAt: { gt: now } }, data: { usedAt: now } })
   if (count.count !== 1) throw new McpOAuthError('invalid_grant', 'El código no existe, venció o ya fue utilizado.', 400)
@@ -112,6 +114,7 @@ export async function revokeMcpRefreshFamily(rawRefreshToken: string, clientId: 
 }
 
 export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, clientId: string, now?: Date) {
+  if (!isMcpSecret(rawRefreshToken)) throw new McpOAuthError('invalid_grant', 'El refresh token no es válido.', 400)
   now ??= await dbNow(db)
   const row = await db.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
   if (!row || row.revokedAt || row.rotatedAt || !row.refreshExpiresAt || row.refreshExpiresAt <= now || row.grant.revokedAt || row.tenant.archivedAt || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user || row.session.userId !== row.userId || row.session.user.status !== 'ACTIVE') {
@@ -134,10 +137,10 @@ export function assertScopeActions(scopes: readonly string[]) {
 
 /** Validates an MCP bearer against the current MobOS session and membership. */
 export async function requireMcpAccessToken(request: Request, now?: Date) {
-  now ??= await dbNow(prisma)
   const header = request.headers.get('authorization')
   const match = header?.match(/^Bearer\s+([^\s]+)$/i)
-  if (!match) return null
+  if (!match || !isMcpSecret(match[1])) return null
+  now ??= await dbNow(prisma)
   const row = await prisma.mcpAccessToken.findUnique({ where: { tokenHash: hashMcpSecret(match[1]) }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
   if (!row || row.revokedAt || row.expiresAt <= now || row.grant.revokedAt || !findMcpClient(row.clientId, row.grant.redirectUri) || row.resource !== mcpResource() || row.grant.resource !== row.resource || row.grant.clientId !== row.clientId || row.session.revokedAt || row.session.expiresAt <= now || row.tenant.archivedAt || !row.session.user) return null
   const user = row.session.user
