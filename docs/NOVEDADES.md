@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.234 — 2026-10-20
+
+- **Pedidos:** el encabezado de detalle alinea navegación, estado, impresión, comprobante, acciones y sucursal en una misma línea visual.
+- **Responsive:** los controles mantienen objetivos táctiles de 44 px y se reordenan en pantallas angostas sin overflow horizontal.
+- **Experiencia:** el encabezado compartido conserva la misma jerarquía en claro y oscuro, escritorio, tablet y celular.
+
 ## v1.0.233 — 2026-10-20
 
 - **Ventas:** el POS mantiene visibles el catálogo, el carrito y el pie de cobro cuando se abren los detalles del cliente, con controles utilizables en escritorio y celular.
