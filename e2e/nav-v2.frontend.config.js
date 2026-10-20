@@ -9,6 +9,7 @@ export default defineConfig({
   testDir: './frontend',
   testMatch: [
     'nav-v2.frontend.spec.js',
+    'focus499.frontend.spec.js',
     'pos-layout.frontend.spec.js',
     'pos-movil.frontend.spec.js',
     'pos-cobro.frontend.spec.js',

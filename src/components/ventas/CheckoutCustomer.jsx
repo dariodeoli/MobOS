@@ -74,6 +74,20 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const [registro, setRegistro] = useState(null)
   const tarjetaRef = useRef(null)
   const cajaRef = useRef(null)
+  const editarClienteRef = useRef(null)
+  const contactoTriggerRef = useRef(null)
+  const modalEstabaAbierto = useRef(false)
+  useEffect(() => {
+    const cerrado = modalEstabaAbierto.current && !abierto
+    modalEstabaAbierto.current = colapsarFicha && abierto
+    if (!colapsarFicha || !cerrado) return
+    // The card/summary trigger is remounted when the POS editor closes.
+    // Restore to its logical successor after the shared Modal cleans up.
+    const frame = requestAnimationFrame(() => {
+      (editarClienteRef.current || contactoTriggerRef.current)?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [abierto, colapsarFicha])
   const enfocarBusqueda = useRef(false)
   const stats = registro?.id === value.id ? (registro?.stats || estadisticasDemo(registro)) : null
   // La deuda abierta del cliente elegido sube al POS para anticipar el crédito.
@@ -323,7 +337,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Ver ficha" aria-label="Ver ficha del cliente" onClick={() => setFichaAbierta(true)}>
               <Icon name="eye" className="h-4 w-4" />
             </button>
-            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" title="Editar datos" aria-label="Editar datos del cliente" onClick={abrirEdicion}>
+            <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8" ref={editarClienteRef} title="Editar datos" aria-label="Editar datos del cliente" onClick={abrirEdicion}>
               <Icon name="edit" className="h-4 w-4" />
             </button>
             <button type="button" className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-bad transition hover:bg-bad/10 md:h-8 md:w-8" title="Quitar cliente" aria-label="Quitar cliente" onClick={quitarCliente}>
@@ -469,7 +483,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       </Modal>
     ) : (
       <details open={abierto} onToggle={event => { if (colapsarFicha && event.currentTarget.open) setSearchQuery(''); setAbierto(event.currentTarget.open) }} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}>
-        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
+        <summary ref={contactoTriggerRef} className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
         {fichaContenido}
       </details>
     )}
