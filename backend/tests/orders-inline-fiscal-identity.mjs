@@ -38,21 +38,35 @@ assert.equal(person.customer.identityKind, 'PERSON')
 assert.equal(person.customer.givenNames, 'Juan Carlos')
 assert.equal(person.customer.surnames, 'Pérez')
 
-// An implicit name/phone match must preserve an already reviewed fiscal
-// identity and reject a conflicting identity instead of overwriting it.
+// An implicit name/phone match may complete missing identity after an explicit
+// confirmation, but must preserve it and reject a later conflicting update.
 const stable = await post('/api/orders', {
   orderNumber: `RUC344-STABLE-${suffix}`,
-  customer: { name: 'Cliente estable POS', phone: `0981${suffix}` },
+  customer: { name: `Cliente estable POS ${suffix}`, phone: `0981${suffix}` },
   items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
   payment: { method: 'CASH', amountPyg: 1000 },
 }, 201)
-assert.equal(stable.customer.name, 'Cliente estable POS')
+assert.equal(stable.customer.name, `Cliente estable POS ${suffix}`)
 assert.equal(stable.customer.nameOfficial, null)
+const filled = await post('/api/orders', {
+  orderNumber: `RUC344-FILL-${suffix}`,
+  customer: { name: `Cliente estable POS ${suffix}`, phone: `0981${suffix}`, nameOfficial: 'Titular estable S.A.' },
+  items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
+  payment: { method: 'CASH', amountPyg: 1000 },
+}, 201)
+assert.equal(filled.customer.nameOfficial, 'Titular estable S.A.')
 await post('/api/orders', {
   orderNumber: `RUC344-CONFLICT-${suffix}`,
-  customer: { name: 'Cliente estable POS', phone: `0981${suffix}`, nameOfficial: 'Titular incompatible S.A.', identityKind: 'COMPANY', document: '80012345-9' },
+  customer: { name: `Cliente estable POS ${suffix}`, phone: `0981${suffix}`, nameOfficial: 'Titular incompatible S.A.' },
   items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
   payment: { method: 'CASH', amountPyg: 1000 },
 }, 409)
+const preserved = await post('/api/orders', {
+  orderNumber: `RUC344-PRESERVED-${suffix}`,
+  customer: { name: `Cliente estable POS ${suffix}`, phone: `0981${suffix}` },
+  items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
+  payment: { method: 'CASH', amountPyg: 1000 },
+}, 201)
+assert.equal(preserved.customer.nameOfficial, 'Titular estable S.A.')
 
-console.log('PASS: inline POS preserves company/person fiscal identity and rejects implicit overwrite in isolated PG · 14 checks')
+console.log('PASS: inline POS preserves company/person fiscal identity, fills missing fields explicitly and rejects implicit overwrite in isolated PG · 18 checks')
