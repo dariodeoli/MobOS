@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict')
+const { validateChange, changePayloadHash } = require('../lib/mcp/changes')
+
+assert.equal(validateChange('products.write', { name: 'Cable', sku: 'CAB-1', pricePyg: 70000 }).ok, true)
+assert.equal(validateChange('products.write', { name: '', sku: 'CAB-1' }).ok, false)
+assert.equal(validateChange('prices.write', { productId: 'p1', pricePyg: -1 }).ok, false)
+assert.equal(validateChange('customers.write', { name: 'Dario', email: 'dario@example.com' }).ok, true)
+assert.equal(validateChange('company.write', {}).ok, false)
+assert.equal(validateChange('product_images.write', { productId: 'p1' }).ok, false)
+assert.equal(changePayloadHash('company.write', { email: 'a', name: 'b' }), changePayloadHash('company.write', { name: 'b', email: 'a' }))
+assert.notEqual(changePayloadHash('company.write', { name: 'a' }), changePayloadHash('company.write', { name: 'b' }))
+console.log('mcp change validation tests: ok')
