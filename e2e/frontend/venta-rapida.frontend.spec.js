@@ -137,6 +137,42 @@ test('cobro: título y acciones de pagos mantienen separación en desktop', asyn
   expect(overlap(t, g)).toBe(false)
 })
 
+test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll interno', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  const cliente = page.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')
+  await cliente.fill('María González')
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+  await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
+  await page.getByTestId('confirmar-cliente').click()
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+
+  for (const nombre of ['Funda MagSafe', 'Funda Silicona Negra', 'Cargador USB-C 20W', 'AirPods Pro 2 USB-C', 'iPhone 15 128GB']) {
+    await page.locator('.pos-product-card', { hasText: nombre }).first().click()
+  }
+  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('5 productos')
+  await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
+  await page.getByTestId('confirmar-cliente').click()
+  await page.getByTestId('carrito-listo').click()
+  const cobro = page.getByTestId('pos-cobro')
+  await expect(cobro).toBeVisible()
+  await cobro.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
+  const pago = cobro.getByTestId('pago-fila-0')
+  await pago.getByLabel('Cuenta de cobro', { exact: true }).click()
+  await page.getByRole('listbox').getByRole('option').first().click()
+  await pago.getByLabel('Monto original', { exact: true }).fill('100000')
+  await cobro.getByRole('button', { name: '+ Agregar otro pago', exact: true }).click()
+  await expect(cobro.getByTestId('pago-fila-1')).toBeVisible()
+  const estilos = await page.evaluate(() => ({
+    carrito: getComputedStyle(document.querySelector('[data-testid="pos-carrito-cuerpo"]')).overflowY,
+    pagos: getComputedStyle(document.querySelector('[data-testid="pos-pagos-lista"]')).overflowY,
+  }))
+  expect(estilos.carrito).toBe('visible')
+  expect(estilos.pagos).toBe('visible')
+})
+
 test('venta rápida: divisor queda alineado al borde real de las columnas', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
