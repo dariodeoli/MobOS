@@ -5,7 +5,8 @@ const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-mcp-608-ui'
 const ACTIVE = {
   oauthConfigured: true,
   endpoint: 'https://mcp.example.test/authorize',
-  capabilities: ['company:read', 'products:read', 'products:write', 'customers:read', 'reports:read'],
+  capabilities: [{ action: 'company.read', scope: 'company:read', label: 'Empresa' }, { action: 'products.read', scope: 'products:read', label: 'Productos' }, { action: 'products.write', scope: 'products:write', label: 'Editar productos' }, { action: 'customers:read', scope: 'customers:read', label: 'Clientes' }, { action: 'reports.read', scope: 'reports:read', label: 'Reportes' }],
+  providers: [{ id: 'chatgpt', name: 'ChatGPT', oauth: true }, { id: 'claude', name: 'Claude', oauth: false }],
   connections: [{
     id: 'grant-1', clientId: 'chatgpt', scopes: ['company:read', 'products:read', 'products:write', 'customers:read'],
     lastUsedAt: '2026-10-20T12:00:00.000Z',
@@ -74,6 +75,8 @@ test.describe('MCP conexiones: estados autenticados y revocación (#608)', () =>
     await expect(page.getByTestId('mcp-conexion-fila')).toContainText('ChatGPT')
     await expect(page.getByTestId('mcp-conexion-fila')).toContainText('Clientes')
     await expect(page.getByText('Copiar endpoint')).toBeVisible()
+    await expect(page.getByTestId('mcp-proveedor-chatgpt')).toContainText('Configurado')
+    await expect(page.getByTestId('mcp-proveedor-claude')).toContainText('Pendiente')
     await expect(page.locator('a[href*="mcp.example.test"]')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Guía de ChatGPT' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Guía de Claude' })).toBeVisible()
