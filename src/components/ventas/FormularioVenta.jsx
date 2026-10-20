@@ -2396,7 +2396,20 @@ export default function FormularioVenta({
             />)}
 
             {pos('cobro',
-            <PasoCobro
+            <div data-testid="pos-cobro-stage" className="flex min-w-0 flex-col gap-2">
+              {items.length > 0 && !modoCobro && (
+                <section data-testid="pos-cobro-cta" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fono/30 bg-fono/[.06] p-4">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wide text-fono-light">Paso 2 · Cobrar</p>
+                    <p className="mt-1 text-sm text-mute">Revisá entrega, pagos, crédito o gift cards cuando el ticket esté listo.</p>
+                  </div>
+                  <Button type="button" className="min-h-11 shrink-0" onClick={() => setModoCobro(true)}>
+                    Ir a cobrar <span className="ml-1 tabular-nums">{gs(totalGeneral)}</span>
+                  </Button>
+                </section>
+              )}
+              <div className={items.length > 0 && !modoCobro ? 'hidden' : undefined}>
+              <PasoCobro
               customer={customer}
               repartidores={repartidores}
               pagaAlRecibir={pagaAlRecibir}
@@ -2443,7 +2456,9 @@ export default function FormularioVenta({
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
-            />)}
+              />
+              </div>
+            </div>)}
           </div>
         </div>
 
