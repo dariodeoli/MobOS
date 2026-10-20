@@ -131,20 +131,18 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
            para el cliente». El monto vive dentro de la misma tarjeta. */
         <CapsulaCuentaCobro
           account={account}
+          accionesSecundarias={acciones}
           acciones={
-            <>
-              <button
+            <button
                 type="button"
                 data-testid="cuenta-cambiar"
-                className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8"
+                className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
                 title="Cambiar cuenta"
                 aria-label="Cambiar cuenta"
                 onClick={() => setCambiando(true)}
               >
                 <Icon name="edit" className="h-4 w-4" />
-              </button>
-              {acciones}
-            </>
+            </button>
           }
         >
           {campoMonto}

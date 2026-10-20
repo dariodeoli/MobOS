@@ -493,7 +493,7 @@ export default function PasoCobro({
                 disabled={guardando}
                 onClick={() => setPagos(a => a.map((x, j) => (j === i ? { ...x, noPagado: !x.noPagado } : x)))}
                 className={cn(
-                  'inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition disabled:opacity-50 md:min-h-0',
+                  'inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition disabled:opacity-50',
                   p.noPagado ? 'border-warn/40 bg-warn/10 text-warn' : 'border-ok/30 bg-ok/10 text-ok',
                 )}
               >
@@ -505,7 +505,7 @@ export default function PasoCobro({
                   con el mismo comportamiento y tooltip. */}
               <button
                 type="button"
-                className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
+                className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50"
                 title="Eliminar pago"
                 aria-label={`Eliminar pago ${i + 1}`}
                 disabled={guardando}
