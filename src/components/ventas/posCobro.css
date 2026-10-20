@@ -45,20 +45,20 @@ html.dark .pos-f2 [data-testid='pos-bloque-productos'] {
 html.dark .shell-nav-v2 .pos-f2 .pos-product-card,
 html.dark .shell-nav-v2 .pos-f2 #pos-busqueda-producto input,
 html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input {
-  background: rgb(31 36 48) !important;
-  background-color: rgb(31 36 48) !important;
-  color: rgb(244 246 250) !important;
-  border-color: rgb(124 135 155) !important;
+  background: rgb(var(--c-ink-900)) !important;
+  background-color: rgb(var(--c-ink-900)) !important;
+  color: rgb(var(--c-fore)) !important;
+  border-color: rgb(var(--c-ink-500)) !important;
   opacity: 1 !important;
 }
 html.dark .shell-nav-v2 .pos-f2 .pos-product-name,
 html.dark .shell-nav-v2 .pos-f2 #pos-busqueda-producto input,
 html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input {
-  color: rgb(244 246 250) !important;
+  color: rgb(var(--c-fore)) !important;
 }
 html.dark .shell-nav-v2 .pos-f2 #pos-busqueda-producto input::placeholder,
 html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input::placeholder {
-  color: rgb(194 201 214) !important;
+  color: rgb(var(--c-mute)) !important;
   opacity: 1 !important;
 }
 

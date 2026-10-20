@@ -238,6 +238,7 @@ test('venta rápida: cliente nuevo edita en modal y cierra con Enter', async ({ 
   await expect(editor).toBeVisible()
   await editor.getByTestId('confirmar-cliente').click()
   await expect(editor.getByRole('alert')).toContainText('Ingresá el nombre')
+  await expect(editor).toBeVisible()
   await editor.getByLabel('Nombre del cliente en ficha', { exact: true }).fill('Cliente Nuevo QA')
   await capture620(page, 'customer-modal-new-1440x900')
   await editor.getByLabel('Teléfono del cliente', { exact: true }).fill('0981123456')
