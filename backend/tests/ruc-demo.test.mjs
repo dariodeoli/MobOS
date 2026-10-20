@@ -26,7 +26,7 @@ export const routeFor = (reserve, lookup) => load('../app/api/public/ruc/route.t
 })
 export const requestFor = (query = 'ruc=80012345', headers = {}) => new Request(`https://api.example.test/api/public/ruc?${query}`, { headers: { origin: 'https://app.moboss.online', ...headers } })
 export const payload = () => ({ data: { ruc: '80012345', dv: '0', fullRuc: '80012345-0', nameOfficial: '  NOMBRE, EXACTO S.A.  ', equivalenceRaw: ' X ', stateRaw: ' ACTIVO ' },
-  requestId: 'req_' + 'a'.repeat(24), meta: { environment: 'test', quota: { limit: 100, used: 1, remaining: 99, resetAfter: 300, day: '2026-10-15' }, accounting: { charged: true, alreadyConsulted: false } } })
+  requestId: 'req_' + 'a'.repeat(24), meta: { environment: 'test', quota: { limit: 100, used: 1, remaining: 99, resetAfter: 300, day: '2026-10-15' }, accounting: { charged: true, alreadyConsulted: false }, provenance: { source: 'dnit_official_snapshot', sourcePage: 'https://www.dnit.gov.py/', publicationDate: '2026-10-15', publishedText: 'DNIT', importedAt: '2026-10-15T00:00:00Z', snapshotHash: 'a'.repeat(64) } } })
 
 export async function unit() {
  const saved = { ...process.env }; let checks = 0
@@ -47,7 +47,8 @@ export async function unit() {
   }
   for (const origin of ['https://app.moboss.online','capacitor://localhost','ionic://localhost']) {
    const res=await route.GET(requestFor(undefined,{origin}));equal(res.status,200);const body=await res.json()
-   equal(Object.keys(body).sort(),['query','result','reviewRequired','source']);equal(Object.keys(body.result).sort(),['dv','equivalenceRaw','fullRuc','name','nameOfficial','ruc','stateRaw']);equal(body.result.nameOfficial,'  NOMBRE, EXACTO S.A.  ');equal(body.reviewRequired,true)
+   equal(Object.keys(body).sort(),['query','result','reviewRequired','source']);equal(Object.keys(body.result).sort(),['dv','equivalenceRaw','fullRuc','name','nameOfficial','ruc']);equal(body.result.nameOfficial,'  NOMBRE, EXACTO S.A.  ');equal(body.reviewRequired,true)
+   equal(Object.hasOwn(body.result,'status'),false); equal(Object.hasOwn(body.result,'stateRaw'),false)
    assert.ok(!JSON.stringify(body).includes('accounting')&&!JSON.stringify(body).includes(process.env.RUC_API_KEY));checks++
   }
   quotaFailure = new Error('SECRET-DATABASE-CANARY'); let res=await route.GET(requestFor());equal(res.status,503);assert.ok(!(await res.text()).includes('SECRET'));checks++

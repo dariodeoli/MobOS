@@ -9,7 +9,7 @@ function responseFor(identity, nameOfficial = '  PÉREZ   LÓPEZ, JUAN S.A.  ') 
     reviewRequired: true,
     source: { provider: 'OwnData' },
     result: { ruc: identity.base, dv: identity.dv, fullRuc: identity.fullRuc,
-      nameOfficial, name: 'Do not use this transformed alias', stateRaw: 'ACTIVO', equivalenceRaw: '' },
+      nameOfficial, name: 'Do not use this transformed alias', equivalenceRaw: '' },
   }
 }
 
@@ -46,7 +46,7 @@ test('admission preserves the exact raw fiscal name and compatibility alias', ()
   const result = admitRucResponse(payload, identity)
   assert.equal(result.nameOfficial, payload.result.nameOfficial)
   assert.equal(result.name, payload.result.nameOfficial)
-  assert.equal(result.stateRaw, 'ACTIVO')
+  assert.equal(Object.hasOwn(result, 'stateRaw'), false)
 })
 
 test('wrong identity, missing review contract, or simulated real response is not admitted', () => {
@@ -58,7 +58,7 @@ test('wrong identity, missing review contract, or simulated real response is not
     (p) => { p.result.dv = '1' },
     (p) => { p.result.nameOfficial = '   ' },
     (p) => { delete p.result.nameOfficial },
-    (p) => { p.result.stateRaw = null },
+    (p) => { p.result.equivalenceRaw = null },
     (p) => { p.reviewRequired = false },
     (p) => { p.source.provider = 'Other' },
     (p) => { p.result.simulado = true },
