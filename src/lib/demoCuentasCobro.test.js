@@ -66,4 +66,6 @@ test('la migración v2 conserva ediciones, cuentas propias y bajas sin duplicar'
   assert.equal(migradas.find(cuenta => cuenta.id === 'demo-transfer-continental').isActive, false)
   assert.equal(migradas.filter(cuenta => cuenta.id === 'demo-transfer-gnb-owner').length, 1)
   assert.equal(migradas.filter(cuenta => cuenta.id === 'demo-transfer-sudameris-legacy').length, 1)
+  assert.equal(migradas.find(cuenta => cuenta.id === 'demo-transfer-gnb-owner').isActive, true)
+  assert.equal(migradas.find(cuenta => cuenta.id === 'demo-transfer-sudameris-legacy').isActive, false)
 })
