@@ -102,12 +102,19 @@ try {
   assert.equal(result.result.nameOfficial, official); checks++
   assert.equal(result.result.stateRaw, ' ACTIVO '); checks++
   assert.equal(result.result.equivalenceRaw, '  X  '); checks++
+  const compatibilityResult = await ruc.lookupRuc('80012345', { fetchImpl: async () => {
+    const payload = providerPayload()
+    delete payload.data.stateRaw
+    payload.data.status = 'ACTIVO'
+    return Response.json(payload)
+  } })
+  assert.equal(compatibilityResult.result.stateRaw, 'ACTIVO'); checks++
   for (const field of ['taxpayerType', 'givenNames', 'surnames', 'nameNatural', 'nameParsing']) ok(!(field in result.result), field + ' is not invented')
   assert.equal(result.reviewRequired, true); checks++
   await assert.rejects(() => ruc.lookupRuc('80012345-0', { fetchImpl: async () => new Response('', { status: 404 }) }), error => error.code === 'not_found'); checks++
   await assert.rejects(() => ruc.lookupRuc('80012345-0', { fetchImpl: async () => { throw new Error('offline') } }), error => error.code === 'provider_unavailable'); checks++
   // Malformed, mismatched and oversized responses cannot become fiscal data.
-  for (const overrides of [{ ruc: '80012346' }, { dv: '6' }, { fullRuc: '80012345-6' }, { nameOfficial: '   ' }, { stateRaw: null }]) {
+  for (const overrides of [{ ruc: '80012346' }, { dv: '6' }, { fullRuc: '80012345-6' }, { nameOfficial: '   ' }, { stateRaw: null }, { stateRaw: undefined, status: '   ' }]) {
     await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(providerPayload(overrides)) }), e => e.code === 'provider_invalid'); checks++
   }
   const leaked = providerPayload()

@@ -110,16 +110,24 @@ export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fe
   if (options.rejectSimulated && (payload.simulated === true || payload.simulado === true || data?.simulated === true || data?.simulado === true)) throw unavailable('provider_invalid')
   const base = query.lookup.split('-')[0]
   const dv = String(digitoVerificadorModulo11(base))
+  // OwnData is migrating the public contract away from taxpayer-state data.
+  // During the compatibility window older consumers still receive a generic
+  // `status: ACTIVO` marker, while newer responses omit `stateRaw`. Accept
+  // either representation here and keep the legacy field local to MobOS so
+  // existing screens do not turn a valid lookup into a provider_invalid 503.
+  const legacyState = typeof data?.stateRaw === 'string' && data.stateRaw.trim()
+    ? data.stateRaw
+    : typeof data?.status === 'string' && data.status.trim() ? data.status : null
   if (!data || typeof data !== 'object' || Array.isArray(data)
     || data.ruc !== base || data.dv !== dv || data.fullRuc !== `${base}-${dv}`
     || typeof data.nameOfficial !== 'string' || !data.nameOfficial.trim()
-    || typeof data.equivalenceRaw !== 'string' || typeof data.stateRaw !== 'string') throw unavailable('provider_invalid')
+    || typeof data.equivalenceRaw !== 'string' || !legacyState) throw unavailable('provider_invalid')
   const result = {
     name: data.nameOfficial, nameOfficial: data.nameOfficial,
     ruc: base, dv, fullRuc: `${base}-${dv}`,
-    equivalenceRaw: data.equivalenceRaw, stateRaw: data.stateRaw,
+    equivalenceRaw: data.equivalenceRaw, stateRaw: legacyState,
     // Compatibility aliases are raw source values, not normalized semantics.
-    state: data.stateRaw, publicationDateText: null, sifenMandate: null, siara: null,
+    state: legacyState, publicationDateText: null, sifenMandate: null, siara: null,
   }
   const lookup = {
     query: { normalized: query.lookup, fullRuc: result.fullRuc }, result, reviewRequired: true,
