@@ -1,4 +1,5 @@
 import { BuscadorProveedor } from 'owncoding-ui'
+import SelectorResultadoCompacto from '@/components/shared/SelectorResultadoCompacto'
 
 const formatearProveedor = (proveedor) => [proveedor.code, proveedor.name || proveedor.nombre].filter(Boolean).join(' · ')
 
@@ -7,9 +8,24 @@ const formatearProveedor = (proveedor) => [proveedor.code, proveedor.name || pro
 // una sola vez y cancela el texto anterior al recibir un reset controlado.
 export default function SupplierCombobox({
   value = '', onSelect, onUsado, onLibre, onCreate, etiquetaNuevo,
+  proveedores = [], onClear,
   confirmarAlTipear = false, confirmarAlSalir = true,
   limiteSugerencias: _limiteSugerencias, ...props
 }) {
+  const seleccionado = value && value !== 'new'
+    ? proveedores.find(proveedor => proveedor.id === value)
+    : null
+  if (seleccionado) {
+    return <SelectorResultadoCompacto
+      nombre={formatearProveedor(seleccionado)}
+      detalles={[seleccionado.city, seleccionado.phone].filter(Boolean)}
+      etiquetaCambiar="Cambiar proveedor"
+      etiquetaQuitar="Quitar proveedor"
+      onCambiar={onClear}
+      onQuitar={onClear}
+      testId="proveedor-seleccionado"
+    />
+  }
   return <BuscadorProveedor {...props} value={value} onLibre={onLibre} formatearValor={formatearProveedor}
     onSelect={(proveedor) => { onSelect?.(proveedor); onUsado?.(proveedor) }}
     onCreate={onCreate} textoCrear={etiquetaNuevo || '＋ Crear'}
