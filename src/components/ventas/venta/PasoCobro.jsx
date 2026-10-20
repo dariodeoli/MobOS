@@ -97,7 +97,6 @@ export default function PasoCobro({
   const residuoGs = usaCuentas ? residuoSubCentavo(pendiente, ultimoPago, cuentas) : 0
   const efectivoGs = cuentaEfectivoPyg(cuentas)
   const sinPago = totalPagado <= 0
-  const tieneGiftCard = pagos.some(p => p.giftCardCode !== undefined)
   // Segundo renglón del botón: productos e importe (#148 §5/§11).
   const detalleBoton = [
     cantTotal > 1 ? `${cantTotal} productos` : '',
@@ -671,7 +670,7 @@ export default function PasoCobro({
       {/* Pie del cobro: Pagado / Pendiente y la acción, siempre a la vista
           (pegado abajo). #281 · tiles con identidad propia: Pagado (ok) ·
           Pendiente (warn). El Total vive una sola vez, en el pie del carrito. */}
-      {!modoMovil && !ocultarPieEnTouch && !tieneGiftCard && (
+      {!modoMovil && !ocultarPieEnTouch && (
       <div data-testid="pos-pie-cobro" className="-mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
         <div data-testid="pos-tiles-resumen" className="pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
           <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">
@@ -728,15 +727,6 @@ export default function PasoCobro({
           )}
         </div>
       </div>
-      )}
-      {!modoMovil && !ocultarPieEnTouch && tieneGiftCard && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-ink-600 pt-2">
-          <div data-testid="pos-tiles-resumen" className="pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
-            <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">Pagado <strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums text-ok">{gs(totalPagado)}</strong></span>
-            <span data-testid="cobro-pendiente" className={cn('flex items-baseline gap-2 rounded-lg border px-2.5 py-1', pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok')}>Pendiente <strong className={cn('pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums', pendiente ? 'text-warn' : 'text-ok')}>{gs(pendiente)}</strong></span>
-          </div>
-          <BotonGuardar className="min-w-0 flex-1" />
-        </div>
       )}
       {modoMovil && (
         <div className="flex w-full flex-wrap items-center gap-3 pt-2">
