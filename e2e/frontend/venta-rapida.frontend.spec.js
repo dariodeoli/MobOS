@@ -47,7 +47,7 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
   await productos.press('Enter')
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('2 productos')
 
-  await page.getByRole('button', { name: 'Cobrar F2', exact: true }).click()
+  await page.keyboard.press('F2')
   await expect(page.getByTestId('pos-cobro')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
 })
