@@ -30,7 +30,7 @@ try {
   command('createdb', ['-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', 'mcp_sdk_http_test'])
   const httpPort = await freePort()
   const resource = `http://localhost:${httpPort}`
-  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource })
+  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }]) })
   execFileSync(backend + '/node_modules/.bin/prisma', ['migrate', 'deploy', '--schema', backend + '/prisma/schema.prisma'], { env: { ...process.env, DATABASE_URL: dbUrl }, cwd: backend, stdio: 'inherit' })
   require.extensions['.ts'] = (module, filename) => {
     const ts = require('typescript')
@@ -39,7 +39,7 @@ try {
   const { PrismaClient } = require('@prisma/client')
   const { PrismaPg } = require('@prisma/adapter-pg')
   const oauth = require('../lib/mcp/oauth.ts')
-  const { issueMcpTokens, mcpResource } = oauth
+  const { issueMcpAuthorizationCode, issueMcpTokens, mcpResource, pkceChallenge } = oauth
   const makeDb = () => { const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) }); clients.push(db); return db }
   const db = makeDb()
   const tenant = await db.tenant.create({ data: { name: 'SDK HTTP', slug: 'sdk-http', email: 'sdk@example.test' } })
@@ -53,6 +53,7 @@ try {
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
+  const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
   httpServer = createServer(async (req, res) => {
     try {
       const chunks = []
@@ -84,6 +85,11 @@ try {
   const raw = async (headers, body = '{}') => fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, ...headers }, body })
   const badOrigin = await fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: 'https://evil.example', 'content-type': 'application/json' }, body: '{}' }); ok(badOrigin.status === 403, 'invalid Origin rejected')
   const badMedia = await raw({ 'content-type': 'text/plain' }); ok(badMedia.status === 415, 'unsupported media type rejected')
+  const verifier = 's'.repeat(43)
+  const authCode = await issueMcpAuthorizationCode(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes: ['prices:write'], codeChallenge: pkceChallenge(verifier) })
+  const tokenForm = (codeVerifier) => new URLSearchParams({ grant_type: 'authorization_code', client_id: 'sdk-http', code: authCode.code, redirect_uri: 'https://connector.example/callback', resource: mcpResource(), code_verifier: codeVerifier }).toString()
+  const invalidPkce = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: tokenForm('t'.repeat(43)) })); ok(invalidPkce.status === 400, 'token rejects invalid PKCE before consuming code')
+  const validPkce = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: tokenForm(verifier) })); ok(validPkce.status === 200 && (await validPkce.clone().json()).token_type === 'Bearer', 'token accepts valid PKCE after invalid attempt')
   console.log(`MCP SDK HTTP 1.32.1: ${checks} PASS (HTTP aislado; initialize/list/call/notification/Origin/media type)`)
 } finally {
   if (httpServer) await new Promise(resolve => httpServer.close(resolve))
