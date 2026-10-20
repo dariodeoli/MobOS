@@ -40,6 +40,7 @@ try {
   const { PrismaClient } = require('@prisma/client')
   const { PrismaPg } = require('@prisma/adapter-pg')
   const oauth = require('../lib/mcp/oauth.ts')
+  const { updatePriceList } = require('../lib/price-list-service.ts')
   const { issueMcpAuthorizationCode, issueMcpTokens, rotateMcpRefreshToken, mcpResource, pkceChallenge, requireMcpAccessToken } = oauth
   const makeDb = () => { const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) }); clients.push(db); return db }
   const db = makeDb()
@@ -121,6 +122,7 @@ try {
   const listPage = await client.callTool({ name: 'price_lists.read', arguments: { limit: 2 } }); ok(!listPage.isError && listPage.structuredContent?.items?.length === 2 && listPage.structuredContent?.nextCursor, 'price_lists.read first cursor page')
   const listPage2 = await client.callTool({ name: 'price_lists.read', arguments: { limit: 2, cursor: listPage.structuredContent.nextCursor } }); ok(!listPage2.isError && listPage2.structuredContent?.items?.length >= 1 && !listPage2.structuredContent.items.some(row => listPage.structuredContent.items.some(prev => prev.id === row.id)), 'price_lists.read cursor has no duplicates')
   const staleListArgs = { mode: 'preview', operation: 'update', priceListId: listCommit.structuredContent.entityId, name: 'SDK list MCP revised', idempotencyKey: 'sdk-http-list-stale' }; const staleListPreview = await client.callTool({ name: 'price_lists.write', arguments: staleListArgs }); const staleListPayload = JSON.parse(staleListPreview.content.find(item => item.type === 'text')?.text || '{}'); await db.priceList.update({ where: { id: listCommit.structuredContent.entityId }, data: { name: 'SDK list changed elsewhere' } }); let staleListDenied = false; try { await client.callTool({ name: 'price_lists.write', arguments: { ...staleListArgs, mode: 'commit', previewId: staleListPayload.previewId } }) } catch { staleListDenied = true }; ok(staleListDenied, 'price_lists.write rejects stale preview after concurrent change')
+  const rollbackList = await db.priceList.create({ data: { tenantId: tenant.id, name: 'SDK rollback list' } }); let rollbackThrown = false; try { await db.$transaction(async tx => { await updatePriceList(tx, { id: user.id, tenantId: tenant.id, role: 'ADMIN' }, rollbackList.id, { name: 'SDK rollback changed', items: [], replaceItems: true }); throw new Error('forced rollback') }) } catch { rollbackThrown = true }; const rollbackCheck = await db.priceList.findUnique({ where: { id: rollbackList.id }, select: { name: true } }); ok(rollbackThrown && rollbackCheck?.name === 'SDK rollback list', 'price list item replacement rolls back atomically')
   const preview = await client.callTool({ name: 'prices.write', arguments: { mode: 'preview', productId: product.id, pricePyg: 1100, expectedPricePyg: 1000, idempotencyKey: 'sdk-http-price-1' } }); ok(!preview.isError && JSON.stringify(preview).includes('previewId'), 'prices.write preview via SDK')
   const previewText = preview.content.find(item => item.type === 'text')?.text || ''
   const previewPayload = JSON.parse(previewText)

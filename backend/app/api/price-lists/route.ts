@@ -1,8 +1,8 @@
 import { prisma } from '../../../lib/prisma'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
-import { InputError, objectInput, textInput } from '../../../lib/payment-input'
-import { parsePriceListItems, PriceListInputError } from '../../../lib/price-lists'
+import { InputError, objectInput } from '../../../lib/payment-input'
+import { PriceListInputError } from '../../../lib/price-lists'
 import { createPriceList, PriceListServiceError } from '../../../lib/price-list-service'
 
 const priceListInclude = {
@@ -10,14 +10,6 @@ const priceListInclude = {
   _count: { select: { customers: true } },
 }
 
-
-// Los ítems por producto solo pueden apuntar a productos de la empresa.
-async function productosDelTenant(tenantId: string, items: ReturnType<typeof parsePriceListItems>) {
-  const ids = (items || []).filter(item => item.scope === 'PRODUCT').map(item => item.productId as string)
-  if (!ids.length) return true
-  const propios = await prisma.product.count({ where: { id: { in: [...new Set(ids)] }, tenantId } })
-  return propios === new Set(ids).size
-}
 
 // El detalle (categorías y precios por lista) es información comercial: la
 // pantalla que lo consume es de administración. Los vendedores resuelven su
@@ -43,7 +35,7 @@ export async function POST(request: Request) {
   if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   try {
     const body = objectInput(await request.json())
-    const created = await createPriceList(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, body)
+    const created = await prisma.$transaction(tx => createPriceList(tx, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, body))
     return json(created, { status: 201 })
   } catch (cause) {
     if (cause instanceof PriceListServiceError) return error(cause.message, cause.code === 'forbidden' ? 403 : cause.code === 'not_found' ? 404 : cause.code === 'conflict' ? 409 : 400)

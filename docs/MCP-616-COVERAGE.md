@@ -22,7 +22,7 @@ Una capacidad es MCP implementada sólo si está en IMPLEMENTED_MCP_ACTIONS, pas
 |---|---|---|---|
 | Productos y variantes | /api/products, /api/products/search; lib/product-service.ts, product-catalog.ts, product-search.ts | products:read o products:manage; tenant y sucursal para vendedor/cajera | products.read y products.write implementados. Escritura tipada; no inventa stock, IMEI, costo, seriales ni movimientos. |
 | Precios unitarios | PATCH de productos; lib/product-price.ts | products:manage, tenant/producto/sucursal y precio esperado | prices.write implementado con preview/commit, CAS e idempotencia. |
-| Listas, tiers y descuentos | /api/price-lists y /api/price-lists/[id]; lib/price-lists.ts, pricing.ts | GET ADMIN/GERENTE; cambios products:manage; productos del tenant | Sin herramienta MCP. Pendiente: price_lists.read/write extrayendo servicio compartido, parser, tiers, auditoría e idempotencia. |
+| Listas, tiers y descuentos | /api/price-lists y /api/price-lists/[id]; lib/price-list-service.ts, price-lists.ts, pricing.ts | Lectura ADMIN/GERENTE; cambios con la guarda products:manage; productos del tenant | price_lists.read/write implementados con servicio compartido, cursor, tiers, auditoría, preview/commit, CAS e idempotencia. |
 | Clientes | /api/customers y /api/customers/[id]; lib/customer-service.ts, customer-identity.ts | Sesión, tenant, identidad y reglas de cliente | customers.read/write implementados con payload tipado y preview/commit. Historial, merge, loyalty, notas, billing, seguimiento, duplicados y tokens siguen sólo web. |
 | Ventas y pedidos | /api/orders y /api/orders/[orderId]; lib/orders.ts, payments.ts, stock.ts, order-serials.ts | Rol comercial, sucursal, crédito, IMEI/serial, stock, límites y auditoría | sales.read implementado con alcance own/branch/all, cursor y sucursal. sales.write queda fuera: crear, editar, cancelar, devolver, cobrar, cuotas y crédito no están habilitados. |
 | Informes y comisiones | /api/reports; lib/reporting.ts, costs.ts | reports:read, tenant y sucursal activa | reports.read implementado y reutiliza agregación, filtros y grupos. No muta datos. |
@@ -48,19 +48,12 @@ customers.write, company.read, company.write, company.create, sales.read,
 reports.read y product_images.write.
 
 sales.write permanece deliberadamente fuera de IMPLEMENTED_MCP_ACTIONS.
-Delivery, stock, pagos, caja, impresión, fiscal, IMEI, listas de precios y
-taller no aparecen en tools/list.
+Delivery, stock, pagos, caja, impresión, fiscal, IMEI y taller no aparecen en
+tools/list.
 
-## Siguiente corte recomendado: listas de precios
+## Cortes posteriores
 
-1. Crear price_lists.read y price_lists.write separadas.
-2. Extraer un servicio compartido desde las rutas price-lists; MCP no debe duplicar Prisma CRUD.
-3. Reusar parsePriceListItems, verificación de productos del tenant y guardas ADMIN/GERENTE/products:manage.
-4. Exigir preview/commit, idempotency key, auditoría y revalidación antes del commit.
-5. Probar lectura, alta, edición, tiers, descuentos inválidos, producto de otra empresa, vendedor, replay y carreras concurrentes.
-6. Recién después agregar las acciones a IMPLEMENTED_MCP_ACTIONS y metadata OAuth.
-
-Cortes posteriores: stock/unidades/IMEI; delivery; impresión; pagos/caja/fiscal;
+Stock/unidades/IMEI; delivery; impresión; pagos/caja/fiscal;
 y taller/garantías, cada uno con contrato y guardas propias.
 
 Este documento no habilita capacidades, no cambia producción y no contiene
@@ -68,12 +61,14 @@ secretos.
 
 ## Corte implementado en PR #624
 
-`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos sólo para `ADMIN`/`GERENTE` con el módulo de inventario y los scopes correspondientes. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
+`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos con las mismas guardas de la aplicación: lectura ADMIN/GERENTE y escritura ADMIN/GERENTE o permiso explícito `products:manage`, además de módulo de inventario, tenant y scopes. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
 
 ### Evidencia del endurecimiento
 
 - El cursor MCP se serializa como cursor opaco base64url y la segunda página no repite filas.
 - El servicio web `/api/price-lists` y el MCP reutilizan el mismo servicio de creación, lectura y actualización.
 - Las actualizaciones con preview comparan `updatedAt` y usan un claim condicional; una vista previa obsoleta devuelve conflicto sin sobrescribir cambios.
+- La actualización de ítems se ejecuta dentro de la transacción de la ruta web o del commit MCP; el CAS también avanza `updatedAt` cuando sólo cambian ítems, por lo que dos previews concurrentes no pueden sobrescribirse.
 - El preview conserva los ítems normalizados y `isActive`; el commit aplica exactamente ese contrato.
-- `backend/tests/mcp-sdk-http.mjs` cubre listado, preview, commit, replay, paginación, preview obsoleto y denegación por scope/rol.
+- `backend/tests/mcp-sdk-http.mjs` cubre listado, preview, commit, replay, paginación de dos páginas sin duplicados, preview obsoleto, rollback real de transacción y denegación por scope/rol.
+- Validación local del corte: 88 pruebas HTTP/SDK sobre PostgreSQL aislado, 351 unitarias (1 skip preexistente del runner), `prisma validate`, `tsc --noEmit` y build de backend con `BUILD_ID=mcp616-final`.
