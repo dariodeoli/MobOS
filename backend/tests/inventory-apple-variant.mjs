@@ -76,6 +76,8 @@ try {
   result = await request('/api/inventory-units', 'PATCH', { id: unit.id, action: 'variant', variantScope: 'PRODUCT', color: 'Servicio', status: 'SERVICE', costPyg: 1, serial: 'FORBIDDEN', branchId: 'branch-a2-it', stock: 999 })
   assert.equal(result.response.status, 200, 'catalog editing ignores physical-state payloads')
   assert.deepEqual(await one('SELECT "status","branchId","costPyg",serial,"locationId",condition,"productId","originalCost","costCurrency","exchangeRatePyg" FROM "InventoryUnit" WHERE id = $1', [unit.id]), before, 'SERVICE is not a persisted InventoryUnitStatus and cannot be injected through catalog editing')
+  result = await request('/api/inventory-units', 'PATCH', { id: unit.id, action: 'variant', variantScope: 'PRODUCT', model: 'Samsung Galaxy Watch' })
+  assert.equal(result.response.status, 409, 'an Apple variant cannot change to a contradictory non-Apple model')
   result = await request('/api/inventory-units', 'PATCH', { id: unit.id, action: 'variant', variantScope: 'PRODUCT', model: { invalid: true } })
   assert.equal(result.response.status, 409, 'non-string metadata rejected')
   result = await request('/api/inventory-units', 'PATCH', { id: unit.id, action: 'variant', variantScope: 'PRODUCT', model: 'x'.repeat(121) })
@@ -87,6 +89,22 @@ try {
   assert.equal(result.response.status, 201, JSON.stringify(result.payload))
   result = await request('/api/inventory-units', 'PATCH', { id: result.payload.id, action: 'variant', variantScope: 'PRODUCT', model: 'No Apple' })
   assert.equal(result.response.status, 409, 'un producto no Apple no acepta variante Apple')
+  for (const [name, model, accepted] of [
+    ['Samsung Galaxy Watch', 'Samsung Galaxy Watch', false],
+    ['Correa Apple Watch', 'Apple Watch Series 9', false],
+    ['Apple Watch Series 9', 'Apple Watch Series 9', true],
+    ['Watch Series 9', 'Watch Series 9', true],
+  ]) {
+    result = await request('/api/products', 'POST', { sku: `${tag}-${name.replace(/\s/g, '')}`, name, model, category: 'WATCH', pricePyg: 100000, stock: 0, branchId: 'branch-a-it' })
+    assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+    const candidateProduct = result.payload
+    result = await request('/api/inventory-units', 'POST', { productId: candidateProduct.id, branchId: 'branch-a-it', serial: `${tag}-${name.replace(/\s/g, '')}`, condition: 'NEW' })
+    assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+    const candidateUnit = result.payload
+    result = await request('/api/inventory-units', 'PATCH', { id: candidateUnit.id, action: 'variant', variantScope: 'PRODUCT', color: 'Plateado' })
+    assert.equal(result.response.status, accepted ? 200 : 409, name)
+    assert.equal((await one('SELECT color FROM "Product" WHERE id = $1', [candidateProduct.id])).color, accepted ? 'Plateado' : null, `${name}: classification cannot mutate rejected product`)
+  }
   await db.query('UPDATE "InventoryUnit" SET "status" = \'SOLD\' WHERE id = $1', [unit.id])
   result = await request('/api/inventory-units', 'PATCH', { id: unit.id, action: 'variant', variantScope: 'PRODUCT', color: 'Rojo' })
   assert.equal(result.response.status, 409, 'una unidad vendida conserva la variante histórica')

@@ -1,3 +1,4 @@
+import { isAppleDeviceProduct } from '../../../lib/apple-device.mjs'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
@@ -304,12 +305,11 @@ export async function PATCH(request: Request) {
         if (!['ADMIN', 'GERENTE'].includes(session.user.role)) throw new Error('Solo administración puede editar la variante del catálogo.')
         if (before.status === 'SOLD') throw new Error('Una unidad vendida conserva su variante histórica.')
         await tx.$queryRaw(Prisma.sql`SELECT id FROM "Product" WHERE id = ${before.productId} AND "tenantId" = ${tenant} FOR UPDATE`)
-        const product = await tx.product.findFirst({ where: { id: before.productId, tenantId: tenant, isActive: true }, select: { id: true, name: true, model: true, capacity: true, color: true, branchId: true } })
+        const product = await tx.product.findFirst({ where: { id: before.productId, tenantId: tenant, isActive: true }, select: { id: true, name: true, model: true, capacity: true, color: true, branchId: true, category: true, accessoryCategory: true } })
         if (!product) throw new Error('Producto no encontrado.')
         const userBranchId = session.user.branchId ?? await sucursalEfectiva(session)
         if ((userBranchId === null && product.branchId !== null) || (userBranchId && product.branchId !== null && product.branchId !== userBranchId)) throw new Error('No autorizado para esa sucursal de catálogo.')
-        const appleText = `${product.name} ${product.model || ''}`
-        if (!/\b(?:apple\s+)?(?:iphone|ipad|ipod|mac(?:book|mini|studio|pro)?|watch|airpods)\b/i.test(appleText)) throw new Error('La edición de variante sólo está disponible para productos Apple.')
+        if (!isAppleDeviceProduct(product)) throw new Error('La edición de variante sólo está disponible para dispositivos Apple.')
         const field = (value: unknown, label: string, max: number) => {
           if (value === undefined) return undefined
           if (value === null) return null
@@ -322,6 +322,8 @@ export async function PATCH(request: Request) {
         const variant = { model: field(body.model, 'El modelo', 80), capacity: field(body.capacity, 'La capacidad', 20), color: field(body.color, 'El color', 60) }
         if (Object.values(variant).every(value => value === undefined)) throw new Error('No hay cambios de variante.')
         if (Object.entries(variant).every(([key, value]) => (value === undefined ? product[key as 'model' | 'capacity' | 'color'] : value) === null)) throw new Error('Completá al menos un dato de la variante.')
+        const proposed = { ...product, ...Object.fromEntries(Object.entries(variant).filter(([, value]) => value !== undefined)) }
+        if (!isAppleDeviceProduct(proposed)) throw new Error('El modelo debe seguir identificando un dispositivo Apple; los accesorios se editan desde su catálogo.')
         const changed = Object.entries(variant).some(([key, value]) => value !== undefined && value !== product[key as 'model' | 'capacity' | 'color'])
         if (!changed) return tx.inventoryUnit.findUniqueOrThrow({ where: { id } })
         const data = await tx.product.update({ where: { id: product.id }, data: variant })

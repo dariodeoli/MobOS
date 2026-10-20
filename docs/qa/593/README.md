@@ -10,13 +10,17 @@ El cambio no modifica stock, costo, IMEI/serial, condición, ubicación, sucursa
 
 La repetición del mismo valor es un no-op sin escritura de Product ni auditoría duplicada; el bloqueo transaccional de la fila del producto serializa reintentos concurrentes. Un fallo HTTP mantiene el editor y sus datos para reintentar.
 
+## Clasificación de dispositivos Apple
+
+La API y el frontend reutilizan `backend/lib/apple-device.mjs`. Las categorías inferidas de `categoriasProducto` son de presentación: inferir WATCH desde una palabra no prueba marca Apple. La regla exige nombres/modelos de dispositivo con prefijo anclado y coherentes entre sí; rechaza categoría explícita de accesorio/servicio, accessoryCategory y marca declarada contradictoria. «Samsung Galaxy Watch» y «Correa Apple Watch» quedan fuera, incluso con categoría WATCH o modelo de compatibilidad Apple. Se admiten Apple Watch y las formas canónicas Watch Series/Ultra/SE. La variante propuesta también debe conservar esa identidad de dispositivo. No se agregan campos ni migraciones.
+
 ## Evidencia
 
 - `backend/tests/inventory-apple-variant.mjs` está incorporado al arnés HTTP/PG sintético: consentimiento, roles, permiso de catálogo, sucursal, tenant de unidad/producto, Apple/genérico, AVAILABLE/RESERVED/SOLD, límites/tipos, no-op secuencial/concurrente, auditoría, campos físicos intactos y snapshots intactos.
 - `e2e/qa-593-apple-variant.spec.js`: 2 PASS, 1440 y390px, cero flaky. Componentes reales, fixtures creados sólo en PG local y PATCH simulado 409/200: alcance explícito, payload emitido exacto, conservación del editor y reintento. No acredita backend real por esas respuestas simuladas; lo acredita el arnés anterior.
-- Frontend: 1596 PASS. Backend: 347 PASS y1 skip. Prisma validate PASS. Lint: 0 errores,1 warning previo de DeliveryOperations. Builds frontend/backend PASS con BUILD_ID.
+- Frontend: 1597 PASS. Backend: 347 PASS y1 skip. Prisma validate PASS. Lint: 0 errores,1 warning previo de DeliveryOperations. Builds frontend/backend PASS con BUILD_ID.
 
-Gates PG/HTTP: arnés completo exit0, paridad de schema PASS, backup/restauración con69 productos y99 órdenes idénticos. Después de ampliar los negativos de tenant y reintentos concurrentes, se ejecutó nuevamente el prefijo del mismo arnés hasta `inventory-apple-variant.mjs`: exit0. Backend BUILD_ID=`nRKerjro9iBzogTU63bfI`. Se usaron sólo clusters sintéticos propios y puertos aislados (UI PG5589/API3189/web5289); ambos arneses detuvieron sus propios recursos.
+Gates PG/HTTP: arnés completo exit0, paridad de schema PASS, backup/restauración con69 productos y99 órdenes idénticos. Después de ampliar los negativos de tenant y reintentos concurrentes, se ejecutó nuevamente el prefijo del mismo arnés hasta `inventory-apple-variant.mjs`: exit0. Backend BUILD_ID=`NvIjVBlgApsyX17AfsDZ9`. Se usaron sólo clusters sintéticos propios y puertos aislados (UI PG5589/API3189/web5289); ambos arneses detuvieron sus propios recursos.
 
 ## Criterios de #593 que siguen pendientes
 
@@ -30,3 +34,7 @@ El alcance móvil/web se prueba para este editor; demo queda sólo lectura. El r
 - El cambio exige permiso de edición de productos y confirmación explícita.
 - Reintentar no duplica el cambio ni su historial; un error conserva lo cargado.
 - La sincronización y transferencias del inventario Apple continúan pendientes.
+
+### Revisión de falsos positivos Apple
+
+Tras la revisión de #628 se repitieron builds/lint, frontend1597PASS, backend347PASS+1skip, UI2PASS (10,0s, cero flaky) y el gate PG/HTTP enfocado exit0 sobre el build final. Este último crea productos/unidades sintéticos para Samsung Galaxy Watch y Correa Apple Watch (409, sin cambio de color), y Apple Watch Series9 / Watch Series9 (200). También rechaza convertir el modelo de un iPhone en Samsung Galaxy Watch. El arnés completo anterior sigue como evidencia de regresión general; la regla de clasificación final se acredita con esta repetición enfocada.

@@ -52,3 +52,18 @@ test('agrupa sólo filas con la misma clave de variante', () => {
   assert.equal([...grouped.values()].find((row) => row.sku === 'C1').availability, 5)
 })
 
+
+
+test('Apple device classification rejects other watches and compatible accessories', () => {
+  for (const product of [
+    { name: 'Samsung Galaxy Watch', category: 'WATCH' },
+    { name: 'Correa Apple Watch', model: 'Apple Watch Series 9', category: 'WATCH' },
+    { name: 'Apple Watch Series 9', accessoryCategory: 'OTRO' },
+    { name: 'Apple Watch Series 9', category: 'ACCESORIOS' },
+    { name: 'Apple Watch Series 9', brand: 'Samsung' },
+    { name: 'Watch', category: 'WATCH' },
+  ]) assert.equal(esProductoApple(product), false, JSON.stringify(product))
+  for (const name of ['Apple Watch Series 9', 'Watch Series 9', 'Watch Ultra 2', 'Watch SE', 'iPhone 15', 'MacBook Air', 'AirPods Pro']) {
+    assert.equal(esProductoApple({ name, model: name }), true, name)
+  }
+})
