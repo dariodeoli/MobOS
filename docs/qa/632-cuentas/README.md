@@ -1,6 +1,6 @@
 # #632 — cabeceras legibles de cuentas del POS
 
-Rama propia `codex/pos-632-cuentas-legibles`, basada en main 235 `2845521a`. No incorpora candidata 236 ni cambios fiscales/demo/foco de otras unidades.
+Rama propia `codex/pos-632-cuentas-legibles`, rebasada sin conflictos sobre main236 `43204589a410c959cc6033c7503716a714e042bd`. Diff exclusivo de cuentas; no incorpora unidades demo/foco de otras ramas.
 
 ## Cambio
 
@@ -29,4 +29,12 @@ Ejecutar casos nuevos: `MOBOS_QA_PORT=5394 npx playwright test --config e2e/cuen
 - Cambiar cuenta, marcar el pago y quitarlo mantienen controles de 44 px y acceso por teclado.
 - Se conservan los montos y monedas, sin introducir scroll pequeño dentro de cada cuenta.
 
-Draft pendiente de revisión/integración posterior a236. No merge/deploy y #632 permanece abierto hasta publicación.
+Draft rebasado y revalidado para revisión/integración posterior a236. No merge/deploy y #632 permanece abierto hasta publicación.
+
+## Revalidación final sobre main236
+
+- Rebase normal sin conflictos sobre `43204589`. El harness nuevo usa `ensureCobro` canónico para entrar explícitamente al paso de cobro en escritorio/tablet.
+- Suite ampliada: 43 casos = 8 cuentas nuevos + 10 cobro + 25 layout; 39 PASS y 4 FAIL de baseline ajenos a cuentas. Los dos casos de footer/docscroll antes rojos ahora PASS (1280x720 y 1440x900).
+- Cuatro fallos baseline preservados: catálogo exige12/recibe8; teléfono compara centros y recibe74.5; contenido inicial exige y<=132/recibe163; miniatura exige<=48/recibe64. Confirmados también al restaurar temporalmente los tres componentes de pago de origin/main236: mismos cuatro fallos. El integrador ya los había auditado contra235. No se alteran esas expectativas ni se atribuyen a632.
+- FE 1598 PASS; BE 347 PASS + 1 skip; lint sin errores, builds FE/BE, Prisma y PG fresco/dbcheck PASS. BUILD_ID backend `uM_OiAojL0K6Nhqzd8vbi`.
+- Capturas regeneradas sobre236 en `outputs/mobos-632-cuentas-236/` de coordinación; ocho variantes. No afirmar suite UI ampliada completamente verde.
