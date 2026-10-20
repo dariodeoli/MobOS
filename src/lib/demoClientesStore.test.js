@@ -40,6 +40,9 @@ test('seed overrides keep later sales, interactions, report shares and seen stat
   limpiarMemoriaDemo()
   const seed = SEED_DEMO_CLIENTES[0]
   const before = JSON.stringify(seed)
+  const previousStorage = globalThis.localStorage
+  let storageAccesses = 0
+  globalThis.localStorage = { getItem() { storageAccesses++; throw Error('No real storage') }, setItem() { storageAccesses++; throw Error('No real storage') } }
   try {
     actualizarClienteDemo({ id: seed.id, name: 'Nombre override', email: 'override@example.invalid' })
     const order = registrarPedidoDemoDeVenta(seed.id, { numero: 'DEMO350-ORDER', total: 10000, pagado: 2000, items: [{ description: 'Funda sintética', quantity: 1 }] })
@@ -62,9 +65,14 @@ test('seed overrides keep later sales, interactions, report shares and seen stat
     assert.equal(account.customer.name, 'Nombre override')
     assert.ok(buscarClienteDemo(seed.id).demoProfile.notices.every(notice => notice.firstViewedAt))
     assert.equal(JSON.stringify(seed), before)
+    assert.equal(storageAccesses, 0)
     limpiarMemoriaDemo()
     assert.equal(filaInformeDemo(serial), null)
     assert.equal(buscarClienteDemo(seed.id).name, seed.name)
     assert.equal(JSON.stringify(seed), before)
-  } finally { limpiarMemoriaDemo() }
+  } finally {
+    limpiarMemoriaDemo()
+    if (previousStorage === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = previousStorage
+  }
 })

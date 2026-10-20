@@ -247,7 +247,7 @@ test('venta rápida: cliente nuevo edita en modal y cierra con Enter', async ({ 
   await editor.getByLabel('Teléfono del cliente', { exact: true }).fill('0981123456')
   await editor.getByLabel('Teléfono del cliente', { exact: true }).press('Enter')
   await expect(editor).toBeHidden()
-  await expect(page.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')).toHaveValue('Cliente Nuevo QA')
+  await expect(page.getByTestId('cliente-elegido-nombre')).toHaveText('Cliente Nuevo QA')
 })
 
 for (const escenario of [

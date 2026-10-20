@@ -358,7 +358,10 @@ for (const cliente of SEED_DEMO_CLIENTES) {
 // al seed); los seeds son el ejemplo visible.
 const INFORMES_KEY = 'mobos:demo-customer-report-shares:v1'
 const informesVistos = () => {
-  try { return JSON.parse(leerDemo(INFORMES_KEY, { demo: true }) || '{}') } catch { return {} }
+  try {
+    const value = JSON.parse(leerDemo(INFORMES_KEY, { demo: true }) || '{}')
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  } catch { return {} }
 }
 const guardarInformeVisto = (clave, fila) => guardarDemo(INFORMES_KEY, JSON.stringify({ ...informesVistos(), [clave]: fila }), { demo: true })
 
@@ -758,8 +761,8 @@ export function actualizarClienteDemo(customer) {
  * Registra una venta demo en la ficha del cliente (#160/#194): la vista por
  * actividad reciente, los agregados (#221), la ficha y el portal leen los
  * pedidos del cliente, así que la venta se refleja igual que en la cuenta real.
- * Los seeds viven en la memoria de la pestaña: el objeto mutado es el que leen
- * lista, ficha y portal.
+ * El updater contextual conserva los cambios para lista, ficha y portal sin
+ * mutar el seed; reset y recarga vuelven a los ejemplos originales.
  */
 export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
   const encontrado = buscarClienteDemo(clienteId)
