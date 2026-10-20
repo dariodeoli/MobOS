@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
-import { McpOAuthError, consumeMcpAuthorizationCode, findMcpClient, issueMcpTokens, rotateMcpRefreshToken, validPkceVerifier, mcpResource } from '../../../../lib/mcp/oauth'
+import { McpOAuthError, consumeMcpAuthorizationCode, findMcpClient, issueMcpTokens, rotateMcpRefreshToken, revokeMcpRefreshFamily, validPkceVerifier, mcpResource } from '../../../../lib/mcp/oauth'
 export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
   try {
@@ -10,7 +10,9 @@ export async function POST(request: Request) {
     if (body.resource !== mcpResource()) throw new McpOAuthError('invalid_target', 'El resource no coincide con MobOS.', 400)
     if (body.grant_type === 'refresh_token') {
       if (typeof body.refresh_token !== 'string') throw new McpOAuthError('invalid_grant', 'Refresh token inválido.', 400)
-      const rotated = await prisma.$transaction(tx => rotateMcpRefreshToken(tx, body.refresh_token as string, client.clientId))
+      let rotated
+      try { rotated = await prisma.$transaction(tx => rotateMcpRefreshToken(tx, body.refresh_token as string, client.clientId)) }
+      catch (error) { if (error instanceof McpOAuthError && error.code === 'invalid_grant') await revokeMcpRefreshFamily(body.refresh_token as string, client.clientId); throw error }
       return NextResponse.json({ access_token: rotated.accessToken, token_type: 'Bearer', expires_in: rotated.expiresIn, refresh_token: rotated.refreshToken }, { headers: { 'Cache-Control': 'no-store' } })
     }
     if (body.grant_type !== 'authorization_code' || typeof body.code !== 'string' || typeof body.redirect_uri !== 'string' || typeof body.code_verifier !== 'string') throw new McpOAuthError('invalid_request', 'authorization_code, redirect_uri y code_verifier son obligatorios.', 400)
