@@ -1,3 +1,4 @@
+export {}
 const assert = require('node:assert/strict')
 const { authorizeMcpAction, parseMcpScopes, mcpAuditMetadata } = require('../lib/mcp/authorization')
 const { catalogEntry } = require('../lib/mcp/catalog')
