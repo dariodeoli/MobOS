@@ -31,7 +31,7 @@ test('checkout: Enter confirma y el botón OK colapsa la ficha del cliente', asy
   await page.getByLabel('Teléfono del cliente').press('Enter')
   await expect(page.getByTestId('confirmar-cliente')).toHaveCount(0)
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
-  await expect(page.getByTestId('cliente-guardado')).toContainText('Cliente listo')
+  await expect(page.getByTestId('cliente-guardado')).toContainText('Cliente guardado en esta demo')
 })
 
 test('checkout: muestra facturación alternativa y direcciones guardadas sin perder ids', async ({ page }) => {
