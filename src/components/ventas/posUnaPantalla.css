@@ -59,6 +59,12 @@
     flex: 1 1 0;
     min-height: 150px;
   }
+  /* The one-screen checkout owns the column scroll. The cart body must stay
+     in normal flow so its rows cannot disappear behind the payment footer. */
+  .pos-f2 [data-testid='pos-carrito-cuerpo'] {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
   .pos-f2 .pos-carrito.pos-carrito-colapsado {
     flex: 0 0 auto;
     min-height: 0;
