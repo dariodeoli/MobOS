@@ -17,7 +17,7 @@ function safeJson(value: unknown) { return JSON.parse(JSON.stringify(value, (_, 
 
 export async function POST(request: Request) {
   const auth = await requireMcpAccessToken(request)
-  if (!auth) return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } })
+  if (!auth) return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: { 'WWW-Authenticate': 'Bearer resource_metadata="/.well-known/oauth-protected-resource"' } })
   let body: any
   try { body = await request.json() } catch { return error(null, -32700, 'JSON inválido.') }
   const id = body?.id
@@ -28,7 +28,8 @@ export async function POST(request: Request) {
   if (!tenant) return error(id, -32001, 'Empresa no disponible.')
   const modules = moduleStoreFrom(tenant.settings).modules
   if (body.method === 'tools/list') {
-    const tools = MCP_CATALOG.filter(entry => !entry.mutating && auth.scopes.includes(entry.scope)).map(entry => ({ name: entry.action, description: entry.label, inputSchema: { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, q: { type: 'string', maxLength: 120 }, limit: { type: 'integer', minimum: 1, maximum: 50 } } } }))
+    const implemented = new Set(['company.read', 'products.read', 'customers.read'])
+    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && !entry.mutating && auth.scopes.includes(entry.scope)).map(entry => ({ name: entry.action, description: entry.label, inputSchema: { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, q: { type: 'string', maxLength: 120 }, limit: { type: 'integer', minimum: 1, maximum: 50 } } } }))
     return jsonRpc(id, { tools })
   }
   if (body.method !== 'tools/call') return error(id, -32601, 'Método MCP no soportado.')
@@ -43,5 +44,5 @@ export async function POST(request: Request) {
   else if (name === 'products.read') data = await prisma.product.findMany({ where: { tenantId: auth.tenantId, ...(decision.branchId ? { branchId: decision.branchId } : {}), ...(typeof args.q === 'string' && args.q.trim() ? { OR: [{ name: { contains: args.q.trim(), mode: 'insensitive' } }, { sku: { contains: args.q.trim(), mode: 'insensitive' } }] } : {}) }, select: { id: true, sku: true, name: true, category: true, model: true, color: true, capacity: true, pricePyg: true, stock: true, branchId: true, isActive: true }, orderBy: { name: 'asc' }, take: limit })
   else if (name === 'customers.read') data = await prisma.customer.findMany({ where: { tenantId: auth.tenantId, ...(typeof args.q === 'string' && args.q.trim() ? { OR: [{ name: { contains: args.q.trim(), mode: 'insensitive' } }, { document: { contains: args.q.trim(), mode: 'insensitive' } }] } : {}) }, select: { id: true, name: true, document: true, phone: true, email: true, blocked: true }, orderBy: { name: 'asc' }, take: limit })
   else return error(id, -32005, 'La lectura aún no está implementada para esta capacidad.')
-  return jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(safeJson(data)) }], structuredContent: safeJson(data) })
+  return jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(safeJson(data)) }], structuredContent: { items: safeJson(data) } })
 }
