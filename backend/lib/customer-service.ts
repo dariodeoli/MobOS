@@ -128,6 +128,11 @@ async function duplicate(db: Db, tenantId: string, fields: ReturnType<typeof ide
 
 export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput, options: { allowExisting?: boolean } = {}) {
   assertActor(actor)
+  if (input.priceListId !== undefined && input.priceListId !== null && input.priceListId !== '') {
+    const listId = text(input.priceListId, 128)
+    const list = await db.priceList.findFirst({ where: { id: listId, tenantId: actor.tenantId, isActive: true }, select: { id: true } })
+    if (!list) throw new CustomerServiceError('not_found', 'Lista de precios no encontrada.')
+  }
   const fields = { ...identityFields(input), ...optionalFields(input, actor) }
   const existing = await duplicate(db, actor.tenantId, fields)
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
@@ -141,9 +146,15 @@ export async function createCustomer(db: Db, actor: CustomerServiceActor, input:
 
 export async function updateCustomer(db: Db, actor: CustomerServiceActor, id: string, input: CustomerServiceInput) {
   assertActor(actor)
-  const existing = await db.customer.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true } })
+  if (input.priceListId !== undefined && input.priceListId !== null && input.priceListId !== '') {
+    const listId = text(input.priceListId, 128)
+    const list = await db.priceList.findFirst({ where: { id: listId, tenantId: actor.tenantId, isActive: true }, select: { id: true } })
+    if (!list) throw new CustomerServiceError('not_found', 'Lista de precios no encontrada.')
+  }
+  const existing = await db.customer.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true, blocked: true } })
   if (!existing) throw new CustomerServiceError('not_found', 'Cliente no encontrado.')
-  const fields = { ...identityFields(input, true), ...optionalFields(input, actor) }
+  const patchInput = Object.hasOwn(input, 'blockedReason') && !Object.hasOwn(input, 'blocked') ? { ...input, blocked: existing.blocked } : input
+  const fields = { ...identityFields(patchInput, true), ...optionalFields(patchInput, actor) }
   const identityForDuplicate = { document: fields.document ?? null, phone: fields.phone ?? null, externalId: fields.externalId ?? null }
   const duplicateRow = await duplicate(db, actor.tenantId, identityForDuplicate, id)
   if (duplicateRow) throw new CustomerServiceError('conflict', 'Ya existe otra ficha con esos datos.')
