@@ -19,7 +19,10 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
   } else if (action === 'prices.write') {
     if (!bounded(value.productId, 100) || !integer(value.pricePyg) || !integer(value.expectedPricePyg)) return { ok: false, error: 'producto_precio_esperado_requeridos' }
   } else if (action === 'customers.write') {
-    if (!bounded(value.name, 180)) return { ok: false, error: 'cliente_nombre_requerido' }
+    const operation = value.operation === undefined ? 'create' : value.operation
+    if (operation !== 'create' && operation !== 'update') return { ok: false, error: 'operacion_cliente_invalida' }
+    if (operation === 'update' && !bounded(value.customerId, 100)) return { ok: false, error: 'cliente_id_requerido' }
+    if (operation === 'create' && !bounded(value.name, 180) && !bounded(value.firstName, 120)) return { ok: false, error: 'cliente_nombre_requerido' }
     for (const key of ['phone', 'email', 'document']) if (value[key] !== undefined && (typeof value[key] !== 'string' || value[key].length > 180)) return { ok: false, error: 'dato_cliente_invalido' }
   } else if (action === 'product_images.write') {
     if (!bounded(value.productId, 100) || !bounded(value.contentType, 40) || !['image/jpeg', 'image/png', 'image/webp'].includes(String(value.contentType))) return { ok: false, error: 'imagen_invalida' }
