@@ -25,11 +25,12 @@ function makeRoute() {
     inventoryCount: { findFirst: async () => count, updateMany: async (q: any) => { if (count.status !== q.where.status) return { count: 0 }; Object.assign(count, q.data); return { count: 1 } } },
     inventoryCountLine: { findMany: async () => lines, count: async () => lines.length },
     inventoryUnit: { findMany: async () => [], updateMany: async () => ({ count: 0 }) },
-    product: { findMany: async () => [{ id: 'product1', stock: productStock }], updateMany: async (q: any) => { if (q.where.stock !== productStock) return { count: 0 }; productStock = q.data.stock; return { count: 1 } } },
+    productLocationBalance: { findMany: async () => [], findUnique: async () => null },
+    product: { findMany: async () => [{ id: 'product1', stock: productStock }], findFirst: async () => ({ id: 'product1', stockKind: 'ACCESORIO' }), updateMany: async (q: any) => { if (q.where.stock !== productStock) return { count: 0 }; productStock = q.data.stock; return { count: 1 } } },
     auditLog: { create: async (q: any) => { audits.push(q.data) } },
     $transaction: async (callback: any) => callback(db),
   }
-  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
+  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/product-location-stock': { setProductLocationStock: async () => ({}) }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
   return { route, count, db, audits, stock: () => productStock, setStock: (value: number) => { productStock = value } }
 }
 
@@ -92,7 +93,7 @@ test('creating a location-scoped count validates tenant and branch ownership bef
     auditLog: { create: async () => {} },
     $transaction: async (callback: any) => callback(db),
   }
-  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
+  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/product-location-stock': { setProductLocationStock: async () => ({}) }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
   const response = await route.POST(postRequest({ branchId: 'branch1', locationId: 'other-branch-location', scope: 'PARTIAL' }))
   assert.equal(response.status, 404)
   assert.equal(saved, false)
