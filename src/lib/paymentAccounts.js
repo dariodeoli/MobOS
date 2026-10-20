@@ -5,7 +5,10 @@ import { leerDemo, guardarDemo } from './demoStorage.js'
 import { CUENTAS_DEMO } from './demoCuentasCobro.js'
 
 const ENDPOINT = '/api/payment-accounts'
-const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
+// v2 incorpora titulares y estados de cuenta del escenario financiero completo.
+// Cambiar la clave evita que un navegador que ya abrió la demo conserve el seed
+// anterior sin pisar cambios hechos por la persona durante esta sesión.
+const DEMO_KEY = 'mobos:demo-payment-accounts:v2'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO']
 // Etiquetas del medio para listados y buscadores (#142/#141).
 export const KIND_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', PIX: 'Pix', CRYPTO: 'USDT - Cripto', TRADE_IN: 'Canje' }
