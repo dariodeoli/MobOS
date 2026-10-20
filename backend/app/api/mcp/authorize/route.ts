@@ -12,7 +12,7 @@ const validState = (value: unknown): value is string => typeof value === 'string
 export async function GET(request: Request) {
   const url = new URL(request.url)
   if (url.searchParams.get('response_type') !== 'code') return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
-  const session = await requireSession(request)
+  const session = await requireSession(request, { allowMcpGetNoOrigin: true })
   if (!session) {
     const appOrigin = (() => { try { return new URL(process.env.MOBOS_APP_URL || mcpIssuer()).origin } catch { return mcpIssuer() } })()
     const returnTo = `/mcp/autorizar?request=${encodeURIComponent(`${url.pathname}${url.search}`)}`
