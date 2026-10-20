@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireSession } from '../../../../lib/auth'
-import { sameOrigin } from '../../../../lib/google-oauth'
+import { sameOriginForMcp } from '../../../../lib/google-oauth'
 import { prisma } from '../../../../lib/prisma'
 import { moduleStoreFrom } from '../../../../lib/module-store'
 import { actionForScope } from '../../../../lib/mcp/catalog'
@@ -8,6 +8,7 @@ import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { assertScopeActions, dbNow, issueMcpAuthorizationCode, findMcpClient, normalizeMcpScopes, McpOAuthError, mcpIssuer, mcpResource } from '../../../../lib/mcp/oauth'
 
 export const dynamic = 'force-dynamic'
+const validState = (value: unknown): value is string => typeof value === 'string' && new TextEncoder().encode(value).byteLength >= 1 && new TextEncoder().encode(value).byteLength <= 2048 && !/[\u0000-\u001f\u007f]/.test(value)
 export async function GET(request: Request) {
   const url = new URL(request.url)
   if (url.searchParams.get('response_type') !== 'code') return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(login, { status: 303 })
   }
   const state = url.searchParams.get('state')
-  if (state && !/^[A-Za-z0-9._~-]{1,256}$/.test(state)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
+  if (state !== null && !validState(state)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   const client = findMcpClient(url.searchParams.get('client_id'), url.searchParams.get('redirect_uri'))
   if (!client || url.searchParams.get('code_challenge_method') !== 'S256' || !url.searchParams.get('code_challenge')) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   if ((url.searchParams.get('resource') || '') !== mcpResource()) return NextResponse.json({ error: 'invalid_target' }, { status: 400 })
@@ -35,16 +36,17 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
-    if (request.headers.has('authorization') || !sameOrigin(request)) throw new McpOAuthError('invalid_request', 'La autorización MCP requiere la sesión web de MobOS.', 401)
-    const session = await requireSession(request)
+    if (request.headers.has('authorization') || !sameOriginForMcp(request)) throw new McpOAuthError('invalid_request', 'La autorización MCP requiere la sesión web de MobOS.', 401)
+    const session = await requireSession(request, { allowMcpOrigin: true })
     if (!session) throw new McpOAuthError('login_required', 'Iniciá sesión en MobOS para autorizar el conector.', 401)
     const body = request.headers.get('content-type')?.includes('application/x-www-form-urlencoded')
       ? Object.fromEntries((await request.formData()).entries()) as Record<string, unknown>
       : await request.json() as Record<string, unknown>
+    if (body.state !== undefined && !validState(body.state)) throw new McpOAuthError('invalid_request', 'state no es válido.', 400)
     const client = findMcpClient(body.client_id, body.redirect_uri)
     if (!client) throw new McpOAuthError('invalid_client', 'Cliente o redirect URI no registrado.', 400)
     if (body.decision === 'deny') {
-      const target = new URL(body.redirect_uri as string); target.searchParams.set('error', 'access_denied'); if (typeof body.state === 'string' && /^[A-Za-z0-9._~-]{1,256}$/.test(body.state)) target.searchParams.set('state', body.state)
+      const target = new URL(body.redirect_uri as string); target.searchParams.set('error', 'access_denied'); target.searchParams.set('iss', mcpIssuer()); if (validState(body.state)) target.searchParams.set('state', body.state)
       return NextResponse.redirect(target, { status: 303 })
     }
     const scopes = normalizeMcpScopes(body.scope)
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
       await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MCP_ACCESS_GRANTED', entity: 'McpClientGrant', entityId: grant.id, metadata: { clientId: client.clientId, scopes } } })
       return issued
     })
-    const target = new URL(redirectUri); target.searchParams.set('code', issued.code); if (typeof body.state === 'string' && /^[A-Za-z0-9._~-]{1,256}$/.test(body.state)) target.searchParams.set('state', body.state)
+    const target = new URL(redirectUri); target.searchParams.set('code', issued.code); target.searchParams.set('iss', mcpIssuer()); if (validState(body.state)) target.searchParams.set('state', body.state)
     return NextResponse.redirect(target, { status: 303 })
   } catch (error) {
     const cause = error instanceof McpOAuthError ? error : new McpOAuthError('server_error', 'No se pudo autorizar el conector.', 500)
