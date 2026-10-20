@@ -13,8 +13,9 @@ function assertActor(actor: PriceListActor) { if (!canManage(actor)) throw new P
 function validateBody(body: unknown) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new PriceListServiceError('invalid', 'El cuerpo debe ser un objeto.')
   const value = body as Record<string, unknown>
-  const name = value.name === undefined ? undefined : typeof value.name === 'string' && value.name.trim() ? value.name.trim().slice(0, 120) : null
+  const name = value.name === undefined ? undefined : typeof value.name === 'string' && value.name.trim() ? value.name.trim() : null
   if (value.name !== undefined && !name) throw new PriceListServiceError('invalid', 'Nombre es obligatorio.')
+  if (name && name.length > 120) throw new PriceListServiceError('invalid', 'Nombre no puede superar 120 caracteres.')
   if (value.isActive !== undefined && typeof value.isActive !== 'boolean') throw new PriceListServiceError('invalid', 'isActive debe ser verdadero o falso.')
   validarReemplazoExplicito(value)
   let items
@@ -60,7 +61,11 @@ export async function updatePriceList(db: PrismaClient | any, actor: PriceListAc
   if (value.items !== undefined) data.items = { deleteMany: {}, create: value.items.map(item => ({ ...item, tiers: { create: item.tiers } })) }
   if (!Object.keys(data).length) return readPriceList(db, actor, id)
   try {
-    const claimed = await db.priceList.updateMany({ where: { id, tenantId: actor.tenantId, ...(expectedUpdatedAt ? { updatedAt: current.updatedAt } : {}) }, data: Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'items')) })
+    const scalarData = Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'items'))
+    // Prisma no ejecuta @updatedAt cuando no hay campos escalares. Los
+    // reemplazos de ítems también deben avanzar la versión para invalidar previews anteriores.
+    if (!Object.keys(scalarData).length) scalarData.updatedAt = new Date()
+    const claimed = await db.priceList.updateMany({ where: { id, tenantId: actor.tenantId, ...(expectedUpdatedAt ? { updatedAt: current.updatedAt } : {}) }, data: scalarData })
     if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
     if (value.items !== undefined) {
       await db.priceListItem.deleteMany({ where: { priceListId: id } })

@@ -1,17 +1,12 @@
 import { prisma } from '../../../../lib/prisma'
-import { requireSession } from '../../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
-import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
+import { InputError, objectInput } from '../../../../lib/payment-input'
 import { PricingError } from '../../../../lib/pricing'
-import { parsePriceListItems, PriceListInputError, validarReemplazoExplicito } from '../../../../lib/price-lists'
+import { PriceListInputError } from '../../../../lib/price-lists'
 import { updatePriceList, PriceListServiceError, readPriceList } from '../../../../lib/price-list-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
-
-const priceListInclude = {
-  items: { include: { tiers: { orderBy: { minQty: 'asc' as const } } } },
-  _count: { select: { customers: true } },
-}
 
 const ROLES_GESTION = ['ADMIN', 'GERENTE']
 
@@ -36,12 +31,12 @@ export async function PATCH(request: Request, props: RouteContext) {
   const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia gestionan listas de precios.', 403)
+  if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Lista no encontrada.', 404)
   try {
     const body = objectInput(await request.json())
-    const updated = await updatePriceList(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body)
+    const updated = await prisma.$transaction(tx => updatePriceList(tx, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body))
     return json(updated)
   } catch (cause) {
     if (cause instanceof PriceListServiceError) return error(cause.message, cause.code === 'forbidden' ? 403 : cause.code === 'not_found' ? 404 : cause.code === 'conflict' ? 409 : 400)
