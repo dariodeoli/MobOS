@@ -2400,13 +2400,12 @@ export default function FormularioVenta({
               onEditar={() => setModoCobro(false)}
             />)}
 
-            {pos('cobro',
             <div data-testid="pos-cobro-stage" className="flex min-w-0 flex-col gap-2">
               {/* The cart footer owns the single transition into checkout. The
                   separate CTA used to repeat the same action immediately below
                   it and made the POS feel cramped. */}
-              {items.length > 0 && <div className={!modoCobro ? 'hidden' : undefined}>
-              <PasoCobro
+              {items.length > 0 && <div className={!esMovil && !modoCobro ? 'hidden' : undefined}>
+              {pos('cobro', <PasoCobro
               customer={customer}
               repartidores={repartidores}
               pagaAlRecibir={pagaAlRecibir}
@@ -2453,9 +2452,9 @@ export default function FormularioVenta({
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
-              />
+              />)}
               </div>}
-            </div>)}
+            </div>
           </div>
         </div>
 
