@@ -1,5 +1,5 @@
 import { hasPermission, type AuthUser } from '../auth'
-import { catalogEntry, type McpAction, type McpCatalogEntry, type McpScope } from './catalog'
+import { catalogEntry, MCP_SCOPES, type McpAction, type McpCatalogEntry, type McpScope } from './catalog'
 
 export type McpAuthorizationContext = {
   tenantId: string | null | undefined
@@ -37,6 +37,7 @@ export function authorizeMcpAction(action: unknown, context: McpAuthorizationCon
 
   const requested = context.requestedBranchId ?? null
   const dataScope = entry.action === 'sales.read' || entry.action === 'sales.write' ? (hasPermission(user, 'orders:manage') ? 'all' : hasPermission(user, 'orders:branch') ? 'branch' : 'own') : entry.branchScoped ? 'branch' : 'all'
+  if (entry.branchScoped && user.role !== 'ADMIN' && !user.branchId && dataScope !== 'all') return deny('BRANCH_DENIED', 'La sesión no tiene una sucursal asignada para esta capacidad.')
   if (entry.branchScoped && user.role !== 'ADMIN' && user.branchId && requested && requested !== user.branchId && dataScope !== 'all') {
     return deny('BRANCH_DENIED', 'La sesión no puede acceder a esa sucursal.')
   }
@@ -48,7 +49,7 @@ export function authorizeMcpAction(action: unknown, context: McpAuthorizationCon
 
 export function parseMcpScopes(input: unknown): McpScope[] {
   if (typeof input !== 'string') return []
-  const allowed = new Set<string>([...(['products:read', 'products:write', 'prices:write', 'customers:read', 'customers:write', 'company:read', 'sales:read', 'sales:write', 'reports:read', 'product_images:write'] as const)])
+  const allowed = new Set<string>(MCP_SCOPES)
   const values = input.split(/[ ]+/).filter(Boolean)
   if (!values.length || values.some(scope => !allowed.has(scope))) return []
   return [...new Set(values)] as McpScope[]
