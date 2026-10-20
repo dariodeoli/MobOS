@@ -15,8 +15,9 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: 'login_required' }, { status: 401 })
   const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { settings: true } })
   const modules = moduleStoreFrom(tenant?.settings).modules
-  const implemented = new Set(['company.read', 'products.read', 'customers.read', 'sales.read', 'reports.read', 'prices.write', 'product_images.write', 'customers.write', 'company.write'])
-  const capabilities = MCP_CATALOG.filter(entry => implemented.has(entry.action) && authorizeMcpAction(entry.action, { tenantId: session.user.tenantId, user: session.user, enabledModules: modules, grantedScopes: [entry.scope] }).allowed).map(entry => ({ action: entry.action, scope: entry.scope, label: entry.label }))
+  const implemented = new Set(['company.read', 'products.read', 'customers.read', 'sales.read', 'reports.read', 'prices.write', 'product_images.write', 'customers.write', 'company.write', 'company.create'])
+  const ownerCanCreate = Boolean(session.accountId && session.user.role === 'ADMIN' && await prisma.tenantMembership.findFirst({ where: { accountId: session.accountId, tenantId: session.user.tenantId, userId: session.user.id, role: 'OWNER', revokedAt: null }, select: { id: true } }))
+  const capabilities = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action !== 'company.create' || ownerCanCreate) && authorizeMcpAction(entry.action, { tenantId: session.user.tenantId, user: session.user, enabledModules: modules, grantedScopes: [entry.scope] }).allowed).map(entry => ({ action: entry.action, scope: entry.scope, label: entry.label }))
   const issuer = (() => { try { return mcpIssuer() } catch { return null } })()
   const resource = (() => { try { return mcpResource() } catch { return null } })()
   const grants = await prisma.mcpClientGrant.findMany({ where: { tenantId: session.user.tenantId, userId: session.user.id, ...(session.accountId ? { accountId: session.accountId } : { accountId: null }) }, select: { id: true, clientId: true, redirectUri: true, scopes: true, revokedAt: true, createdAt: true, updatedAt: true, tokens: { where: { revokedAt: null }, orderBy: { lastUsedAt: 'desc' }, take: 1, select: { lastUsedAt: true, createdAt: true } } }, orderBy: { updatedAt: 'desc' } })

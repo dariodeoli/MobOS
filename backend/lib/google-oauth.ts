@@ -91,6 +91,10 @@ export function sameOriginForMcp(request: Request) {
 /** A GET navigation may omit Origin; bind that exception to the issuer URL itself. */
 export function isMcpIssuerRequest(request: Request) {
   if (request.method !== 'GET') return false
+  // The no-Origin exception is only for top-level browser navigation. A
+  // supplied Origin, including a foreign one, must go through the normal
+  // trusted-origin checks instead of being treated as issuer navigation.
+  if (request.headers.has('origin')) return false
   try {
     const issuer = new URL(process.env.MOBOS_MCP_ISSUER || process.env.MOBOS_API_URL || '')
     return new URL(request.url).origin === issuer.origin
