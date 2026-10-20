@@ -21,7 +21,7 @@ export type McpAction = (typeof MCP_ACTIONS)[number]
 
 export const MCP_SCOPES = [
   'products:read', 'products:write', 'prices:write',
-  'customers:read', 'customers:write', 'company:read',
+  'customers:read', 'customers:write', 'company:read', 'company:write',
   'sales:read', 'sales:write', 'reports:read', 'product_images:write',
 ] as const
 export type McpScope = (typeof MCP_SCOPES)[number]
@@ -58,4 +58,8 @@ export function catalogEntry(action: unknown): McpCatalogEntry | null {
 
 export function scopeForAction(action: unknown): McpScope | null {
   return catalogEntry(action)?.scope ?? null
+}
+
+export function actionForScope(scope: unknown): McpAction | null {
+  return typeof scope === 'string' ? MCP_CATALOG.find(entry => entry.scope === scope)?.action ?? null : null
 }

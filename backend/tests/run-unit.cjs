@@ -102,6 +102,7 @@ require('./stock-verification.test.ts')
 require('./stock-verification-policy.test.ts')
 require('./module-store.test.ts')
 require('./mcp-authorization.test.ts')
+require('./mcp-oauth.test.ts')
 
 // Proceso separado: la prueba RUC usa solo fixtures de entorno, nunca la configuración local.
 require('node:child_process').execFileSync(process.execPath, [require('node:path').join(__dirname, 'ruc-demo.test.mjs')], { stdio: 'inherit' })
