@@ -1,4 +1,4 @@
-import { ArchivedTenantError, authenticateSeller, AuthRateLimitError, enforceAuthRateLimit } from '../../../../lib/auth'
+import { ArchivedTenantError, CompanySessionRequiredError, authenticateSeller, AuthRateLimitError, enforceAuthRateLimit } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { AuthFlowError } from '../../../../lib/google-oauth'
 import { COOKIE_SELLER, sessionCookieOptions } from '../../../../lib/google-oauth'
@@ -12,13 +12,14 @@ export async function POST(request: Request) {
     if (!body.pin) return error('El PIN es obligatorio.', 400)
     const result = await authenticateSeller(request, body)
     if (result && 'duplicated' in result) return json({ code: 'PIN_DUPLICATED', message: 'Hay más de un usuario con ese PIN. Pedí al administrador que asigne PINs únicos.' }, { status: 409 })
-    if (!result) return error('PIN inválido.', 401)
+    if (!result) return json({ code: 'INVALID_PIN', message: 'PIN inválido.' }, { status: 401 })
     // Cliente nativo: sellerToken en el cuerpo y sin cookie.
     const native = isNativeClient(request)
     const response = json({ user: result.user, ...(native ? { sellerToken: result.accessToken, expiresAt: result.expiresAt } : {}) })
     if (!native) response.cookies.set(COOKIE_SELLER, result.accessToken, sessionCookieOptions(7 * 24 * 60 * 60))
     return response
   } catch (err) {
+    if (err instanceof CompanySessionRequiredError) return json({ code: 'COMPANY_SESSION_REQUIRED', message: err.message }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
     if (err instanceof ArchivedTenantError) return json({ code: 'TENANT_ARCHIVED', message: err.message }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
     if (err instanceof AuthRateLimitError) return json({ message: err.message }, { status: 429, headers: { 'Retry-After': String(err.retryAfterSeconds), 'Cache-Control': 'no-store' } })
     return error(err instanceof AuthFlowError ? err.message : 'No se pudo validar el acceso. Intentá nuevamente.', err instanceof AuthFlowError ? err.status : 503)

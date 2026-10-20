@@ -11,6 +11,13 @@ const LOCKOUT_MINUTES = 15
 const SESSION_DAYS = 7
 const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000
 
+// El PIN no puede recuperar ni sustituir el permiso de empresa.
+export class CompanySessionRequiredError extends Error {
+  constructor() {
+    super('La sesión de la empresa venció o ya no está disponible. Usá «Cerrar sesión» y volvé a ingresar a la empresa.')
+  }
+}
+
 export class AuthRateLimitError extends Error {
   constructor(public retryAfterSeconds: number) {
     super('Demasiados intentos. Esperá unos minutos e intentá nuevamente.')
@@ -356,7 +363,13 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   const parent = await companySession(request)
   const sellerId = String(input.sellerId ?? input.userId ?? '')
   const pin = String(input.pin ?? '')
-  if (!parent || !pinValido(pin)) return null
+  if (!parent) {
+    // Un origen ajeno conserva la respuesta genérica: no revela si había
+    // cookies válidas. Bearer sigue el contrato nativo, independiente del origen.
+    if (!/^Bearer\s+.+$/i.test(request.headers.get('authorization') || '') && !sameOrigin(request)) return null
+    throw new CompanySessionRequiredError()
+  }
+  if (!pinValido(pin)) return null
   const auditMetadata = authRequestMetadata(request)
   type SellerRow = {
     id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; pinLength: number | null; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
