@@ -286,8 +286,8 @@ test('#608 Sistema: MCP queda pendiente hasta registrar OAuth', async ({ page })
   await expect(conexiones).toBeVisible()
   await expect(conexiones.getByTestId('mcp-oauth-pendiente')).toHaveCount(0)
   await expect(conexiones).toContainText('OAuth')
-  await expect(conexiones.getByTestId('mcp-proveedor-chatgpt')).toContainText('Próximamente')
-  await expect(conexiones.getByTestId('mcp-proveedor-claude')).toContainText('Próximamente')
+  await expect(conexiones.getByTestId('mcp-proveedor-chatgpt')).toContainText('Pendiente')
+  await expect(conexiones.getByTestId('mcp-proveedor-claude')).toContainText('Pendiente')
 })
 
 test('#32 Dispositivos and Comercial: 44px targets at 375', async ({ page }) => {
