@@ -8,6 +8,7 @@
 
 import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
+import { rucPublicPayload } from './helpers/ruc-public.js'
 import { codigoPedido } from '../src/utils/pedido.js'
 
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
@@ -539,6 +540,29 @@ test('POS: el pre-cliente guardado se ofrece al buscar por nombre', async ({ pag
 
 // #605: confirmar la ficha desde el checkout usa el API real (incluye dirección)
 // y mantiene el editor abierto si la actualización falla.
+test('POS: Usar estos datos del RUC crea la ficha real antes de cerrar', async ({ page }) => {
+  const ruc = '80012345-0'
+  const nombre = 'EMPRESA RUC QA 605 S.A.'
+  await page.route('**/api/ruc*', route => route.fulfill({ status: 200, json: rucPublicPayload(ruc, nombre) }))
+  await page.goto('/pos')
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Borrador RUC QA')
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  const rucField = page.getByLabel('CI o RUC del cliente', { exact: true })
+  const rucRoot = rucField.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
+  await rucField.fill(ruc)
+  await rucRoot.getByRole('button', { name: 'Extraer los datos del RUC', exact: true }).click()
+  await rucRoot.getByRole('button', { name: 'Usar estos datos', exact: true }).click()
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+  await expect(page.getByTestId('cliente-guardado')).toContainText('Datos RUC guardados')
+  const ficha = await page.evaluate(async ({ api, ruc }) => {
+    const filas = await (await fetch(`${api}/api/customers?q=${encodeURIComponent(ruc)}`, { credentials: 'include' })).json()
+    return filas.find(row => row.document === ruc || row.document?.startsWith('80012345'))
+  }, { api: API, ruc })
+  expect(ficha?.id).toBeTruthy()
+  expect(ficha.name).toBe(nombre)
+})
+
 test('POS: confirmar cliente persiste POST/PATCH y muestra errores del API', async ({ page }) => {
   const nombre = `Cliente ficha ${Date.now().toString(36)}`
   const telefono = '0981 555 605'
@@ -547,8 +571,6 @@ test('POS: confirmar cliente persiste POST/PATCH y muestra errores del API', asy
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombre)
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   await page.getByLabel('Teléfono del cliente').fill(telefono)
-  await page.getByRole('button', { name: 'Agregar dirección al cliente', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Dirección', exact: true }).fill('Av. Confirmación 605')
   await page.getByTestId('confirmar-cliente').click()
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
 
@@ -558,11 +580,20 @@ test('POS: confirmar cliente persiste POST/PATCH y muestra errores del API', asy
   }, { api: API, nombre })
   expect(ficha?.id).toBeTruthy()
   expect(ficha.phone).toBe(telefono)
-  expect(ficha.addresses?.some(address => address.address === 'Av. Confirmación 605')).toBe(true)
 
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await page.getByRole('button', { name: 'Nueva dirección', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Dirección', exact: true }).fill('Av. Confirmación 605')
+  await page.getByRole('button', { name: 'Guardar dirección en cliente', exact: true }).click()
+  await expect(page.getByTestId('cliente-guardado')).toContainText('Dirección guardada')
+  const fichaConDireccion = await page.evaluate(async ({ api, nombre }) => {
+    const filas = await (await fetch(`${api}/api/customers?q=${encodeURIComponent(nombre)}`, { credentials: 'include' })).json()
+    return filas.find(row => row.name === nombre)
+  }, { api: API, nombre })
+  expect(fichaConDireccion.addresses?.some(address => address.address === 'Av. Confirmación 605')).toBe(true)
+
   await page.getByLabel('Teléfono del cliente').fill('0981 000 605')
-  await page.route(`**/api/customers/${encodeURIComponent(ficha.id)}`, route => {
+  await page.route(`**/api/customers/${encodeURIComponent(fichaConDireccion.id)}`, route => {
     if (route.request().method() === 'PATCH') return route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ message: 'No se pudo actualizar la ficha' }) })
     return route.continue()
   })
