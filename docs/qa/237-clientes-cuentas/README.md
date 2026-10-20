@@ -1,11 +1,11 @@
-# Fuente combinada POS237 — clientes demo, foco, cuentas y cabecera compacta
+# Fuente combinada POS237 — clientes, foco, cuentas, cabecera y selectores
 
 Base exacta main236 `43204589a410c959cc6033c7503716a714e042bd`.
 Rama `codex/pos-237-clientes-cuentas`, worktree propio. No version bump, PR, merge ni deploy. Espera revisión de root antes de PR.
 
 ## Composición
 
-Sólo commits exclusivos de las cuatro unidades, con sus ramas originales preservadas:
+Sólo commits exclusivos de las cinco unidades, con sus ramas originales preservadas:
 
 | Unidad | Draft original | HEAD original |
 |---|---|---|
@@ -13,8 +13,9 @@ Sólo commits exclusivos de las cuatro unidades, con sus ramas originales preser
 | Foco al cerrar cliente #499 | #635 | 2b1b4c0c |
 | Cabecera de cuentas #632 | #633 | 36c2f264 |
 | Cabecera compacta demo #370 | #630 | 8ecc681d |
+| Selectores y refresco de proveedor #390 | #631 | 5fa6db03 |
 
-Cherry-picks de siete commits sobre 432, sin conflictos de negocio. La fuente inicial de tres unidades se amplía con el cherry-pick exclusivo `8ecc681d` de #370 como `10c793ae`, sin conflictos. No incluye la unidad #390 ni su PR #631. Mantiene las validaciones fiscales y Modal canónicos ya presentes en 236.
+Cherry-picks de siete commits sobre 432, sin conflictos de negocio. La fuente inicial de tres unidades se amplía con el cherry-pick exclusivo `8ecc681d` de #370 como `10c793ae`, sin conflictos. La ampliación final incorpora después los 11 commits exclusivos de PR631 hasta `5fa6db03`, sin conflictos, una vez aprobada su corrección fresca. No incluye MCP ni Apple557. Mantiene las validaciones fiscales y Modal canónicos ya presentes en 236.
 
 Al combinar #350 y #499, confirmar una ficha demo nueva ahora crea su id: el foco vuelve al botón Editar de la tarjeta guardada. Se adapta únicamente esa expectativa del test de foco, conservando Escape/cancelar al summary de contacto cuando no hay ficha creada. No se modifica el producto para acomodar la prueba.
 
@@ -35,6 +36,8 @@ Capturas combinadas en `outputs/mobos-pos237-review/` de coordinación (demo y c
 - Guardar un cliente demo lo crea y selecciona, con ficha, direcciones y cartera coherentes durante esa demo.
 - Cerrar la ficha devuelve el teclado al control correspondiente, también después de crearla.
 - Las cuentas muestran nombre, tipo, moneda y estado sin pisarse y con acciones de 44 px.
+- La cabecera de demo ocupa menos espacio y mantiene accesible el cambio de vista.
+- Un proveedor recién creado aparece al abrir una compra; cambiar o quitar proveedor, cliente o equipo devuelve al buscador.
 
 #350, #499, #632 y #370 permanecen abiertos: demo completa y lector físico tienen pendientes propios; nada publicado por esta fuente.
 
@@ -76,3 +79,33 @@ Capturas combinadas en `outputs/mobos-pos237-review/` de coordinación (demo y c
 | Lint, builds FE/BE, Prisma, PG fresco/dbcheck | PASS |
 
 Los harness PG/HTTP se detuvieron al finalizar. Fuente preparada, no PR ni release; requiere revisión de root.
+
+## Incorporación final de PR631
+
+Los once commits exclusivos sobre43204589 se aplican a4b3360f8 como6386c480..f7c1d72d, sin conflictos. El auto-merge de ServicioTecnico preserva el lector canónico `listarClientesDemo` de350 y añade el selector compacto631. Las ramas originales permanecen intactas.
+
+El diagnóstico de proveedor no se atribuye a una carrera GET demostrada ni a un TTL global: el catálogo React anterior no se releía al abrir Nueva compra. La apertura ahora refresca explícitamente y publica proveedores independientemente de compras/cuentas, cancelando lecturas anteriores. Se mantiene la caché canónica normal y la invalidación dePOST/PATCH. La prueba autenticada exige que el GET de apertura incluya el id creado y selecciona esa opción sin reload.
+
+El selector de Compras prioriza RUC/teléfono ante ciudad larga; Cambiar/Quitar/Escape restablecen foco. Cotizaciones y Taller conservan sus contratos. Se revalidan los doce casos afectados originales (tres autenticados de Compras/Cotizaciones y nueve demo), además de toda la composición anterior. Sin OwnData ni escrituras productivas; POST/GET de fixtures sólo contra backend y tenant aislados.
+
+Capturas finales en `outputs/mobos-pos237-final-review/` de coordinación: POS5/10líneas,390dark/1440dark, demo, cuentas y proveedor360 claro/oscuro con metadatos geométricos.
+
+### Resultado final con PR631
+
+| Matriz / gate | Resultado final |
+|---|---|
+| Demo / POS / checkout | 26 PASS, 34.0s |
+| Foco / fiscal anidado | 8 PASS, 11.2s |
+| Shell de cuatro roles | 8 PASS, 31.3s |
+| Geometría del primer contenido | 3 PASS, 5.2s |
+| Configuración responsive / roles | 18 PASS, 53.2s |
+| Cuentas / cobro / layout | 39 PASS / 4 baseline FAIL, 43 casos |
+| Fiscal POS + doce afectados631 | 17 PASS, 50.1s, primer intento, 0 flaky |
+| Frontend / backend unit | 1602 PASS / 347 PASS + 1 skip |
+| Lint, builds FE/BE, Prisma, PG fresco/dbcheck | PASS |
+
+BUILD_ID backend final: `Xl3co1osOVJXMMBvdgpvW`. Cluster API/PG propio5574/3174/5274 detenido al terminar; PG de dbcheck fresco detenido y eliminado. Se conservan los cuatro casos baseline ya detallados, sin cambiar sus assertions. No se presenta la suite ampliada de layout como totalmente verde.
+
+Proveedor360dark autenticado: ficha302x78; Cambiar/Quitar44x44; RUC117/117px y teléfono73/73px completos; ciudad74/440px con ellipsis. Capturas y JSON en `outputs/mobos-pos237-final-review/selectores/` de coordinación. Inspeccionados proveedor360dark y POS1440dark, además de las capturas de5/10líneas y390dark generadas por los casos originales.
+
+La fuente de cinco unidades queda preparada para revisión de root, sin PR, merge, deploy ni cierre de issues. Ninguna consulta OwnData, escritura productiva ni incorporación MCP/Apple557.
