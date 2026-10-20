@@ -2644,7 +2644,7 @@ model McpClientGrant {
   updatedAt   DateTime @updatedAt
   codes       McpAuthorizationCode[]
   tokens      McpAccessToken[]
-  @@unique([accountId, tenantId, clientId, redirectUri])
+  @@unique([accountId, tenantId, userId, clientId, redirectUri])
   @@index([tenantId, clientId, revokedAt])
 }
 
