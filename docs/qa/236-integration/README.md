@@ -25,6 +25,11 @@ Las reglas de pago, IMEI e identidad permanecen verificadas por las pruebas.
   persistido, dos cuentas distintas con acceso al canje, IMEI y targets móviles.
   Repetición de 14 casos: 12 PASS; dos etiquetas del menú móvil corregidas;
   repetición final de esos dos casos: 2/2 PASS, incluyendo contraste AA.
+- Auditoría de los cuatro shards del CI anterior: cinco casos adicionales de
+  venta sin stock (#148§11) adaptados a Cobrar. Sus comprobaciones de stock,
+  pedido pendiente, selección de IMEI y unidad vendida se conservan. Focal
+  adicional:5/6PASS, caso de500unidades corregido y repetido1/1PASS. El total
+  del ticket se distingue de Facturación del día para evitar colisiones de monto.
 - La regresión móvil se observó fallando antes y pasando después. Un solo submit
   visible y barra duplicada oculta se verifican dentro de Otros medios.
 

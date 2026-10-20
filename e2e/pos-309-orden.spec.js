@@ -110,7 +110,7 @@ test('cliente y catálogo están separados, y la ficha elegida queda compacta (#
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
 })
 
-test('la columna del carrito y el cobro queda fija a la derecha y el total vive una sola vez (#309)', async ({ page }) => {
+test('la columna de venta crece con el documento y el total vive una sola vez (#309)', async ({ page }) => {
   const id = clave()
   const nombre = `Producto 309 ${id}`
   const { productId } = await crearProducto(page, { nombre, stock: 5 })
@@ -119,25 +119,27 @@ test('la columna del carrito y el cobro queda fija a la derecha y el total vive 
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente carrito ${id}`)
     await agregarProducto(page, nombre)
 
-    // Carrito fijo en escritorio.
-    const columna = await posicionDe(page, 'pos-columna-venta')
-    // POS de una sola pantalla: la columna queda fija porque la grilla mide el
-    // alto de la ventana (la página no se desplaza); antes era `sticky`.
-    const paginaSinScroll = await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)
-    expect(columna.position === 'sticky' || paginaSinScroll, 'la columna carrito + cobro queda fija en escritorio').toBe(true)
+    // El documento desplaza el ticket completo; la columna no crea mini scroll.
+    const columna = page.getByTestId('pos-columna-venta')
+    expect(await columna.evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true)
+    expect(await columna.evaluate(el => getComputedStyle(el).overflowY)).toBe('visible')
     expect((await posicionDe(page, '#pos-resumen-venta')).position, 'el carrito no se pega solo sobre el cobro').not.toBe('sticky')
 
     // El total (una sola vez) está en el carrito y no se repite en la franja.
     const total = page.getByTestId('carrito-total')
     await expect(total).toHaveText('Gs 90.000')
-    await expect(page.getByTestId('resumen-compra')).not.toContainText('Gs 90.000')
+    const estaVenta = page.getByTestId('resumen-compra').locator(':scope > div').first()
+    await expect(estaVenta).toContainText('Esta venta')
+    await expect(estaVenta).toContainText('1 producto · 1 unidad')
+    await expect(estaVenta).not.toContainText('Gs 90.000')
     // Ni el cobro repite el Total: `cobro-total` es la misma fila del carrito.
     await expect(page.getByTestId('cobro-total')).toHaveCount(1)
     await expect(page.getByTestId('pos-tiles-resumen')).not.toContainText('Total')
 
     // Sigue a la vista al deslizar.
     await page.evaluate(() => window.scrollTo(0, 800))
-    await expect(page.getByTestId('carrito-total')).toBeVisible()
+    await page.getByTestId('carrito-total').scrollIntoViewIfNeeded()
+    await expect(page.getByTestId('carrito-total')).toBeInViewport()
   } finally {
     await borrarProducto(page, productId)
   }

@@ -6,6 +6,7 @@
 // resolverlo (elegir unidad / vender sin IMEI / crear pedido) y el aviso deja de
 // ser el genérico. Los hallazgos de otros dominios se reportan, no se corrigen acá.
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -59,6 +60,7 @@ async function agregarAlCarrito(page, cliente, producto) {
   await expect(card).toBeVisible({ timeout: 15_000 })
   await card.click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
+  await ensureCobro(page)
 }
 
 test('venta sin stock marcada «sobre pedido» crea el pedido sin descontar stock (#148 §11)', async ({ page }) => {
@@ -197,6 +199,8 @@ test('la venta serializada cierra aunque haya 500 unidades con el mismo texto (#
     await tarjeta.click()
     await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
+    await ensureCobro(page)
+
     // El selector ofrece la unidad real y con ella la venta cierra.
     const guia = page.getByTestId('guia-venta')
     await expect(guia).toContainText('Seleccioná el IMEI/serial exacto')
@@ -204,8 +208,11 @@ test('la venta serializada cierra aunque haya 500 unidades con el mismo texto (#
     await expect(page.getByText('Elegir IMEI de esta venta')).toBeVisible()
     await expect(page.getByTitle(imei)).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Reservar este' }).click()
-    await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible({ timeout: 15_000 })
-    await page.getByRole('button', { name: 'Listo', exact: true }).click()
+    const selector = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })
+    await expect(selector.getByRole('button', { name: 'Liberar' })).toBeVisible({ timeout: 15_000 })
+    await expect(selector.getByRole('button', { name: 'Listo', exact: true })).toBeEnabled()
+    await selector.getByRole('button', { name: 'Listo', exact: true }).click()
+    await expect(page.locator('#pos-resumen-venta [data-estado="reservado"]')).toHaveCount(1)
 
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
     // #275: al confirmar, la app va sola al detalle del pedido creado.
