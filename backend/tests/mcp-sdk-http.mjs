@@ -48,7 +48,7 @@ try {
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'SDK Admin', email: 'sdk-user@example.test', pinHash: 'unused', role: 'ADMIN' } })
   await db.tenantMembership.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, role: 'OWNER' } })
   const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'COMPANY', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
-  const scopes = ['prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write']
+  const scopes = ['products:write', 'prices:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write']
   const grant = await db.mcpClientGrant.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes } })
   const issued = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes })
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
@@ -85,6 +85,14 @@ try {
   await client.connect(transport); ok(Boolean(client.getServerVersion()), 'initialize via StreamableHTTPClientTransport')
   const listed = await client.listTools(); ok(listed.tools.some(tool => tool.name === 'prices.write'), 'tools/list via SDK')
   await client.notification({ method: 'notifications/initialized' }); ok(true, 'notification via SDK')
+  ok(listed.tools.some(tool => tool.name === 'products.write'), 'products.write advertised via SDK')
+  const productArgs = { mode: 'preview', operation: 'create', branchId: branch.id, name: 'MCP product', sku: 'MCP-PRODUCT-1', category: 'Accesorios', pricePyg: 2500, idempotencyKey: 'sdk-http-product-1' }
+  const productPreview = await client.callTool({ name: 'products.write', arguments: productArgs }); ok(!productPreview.isError, 'product create preview via SDK')
+  const productPreviewPayload = JSON.parse(productPreview.content.find(item => item.type === 'text')?.text || '{}')
+  const productCommit = await client.callTool({ name: 'products.write', arguments: { ...productArgs, mode: 'commit', previewId: productPreviewPayload.previewId } }); ok(!productCommit.isError && productCommit.structuredContent?.committed === true, 'product create commit via SDK')
+  const productRepeat = await client.callTool({ name: 'products.write', arguments: { ...productArgs, mode: 'commit', previewId: productPreviewPayload.previewId } }); ok(!productRepeat.isError && productRepeat.structuredContent?.idempotent === true, 'product create replay idempotent')
+  const productUpdateArgs = { mode: 'preview', operation: 'update', productId: productCommit.structuredContent.entityId, name: 'MCP product updated', idempotencyKey: 'sdk-http-product-2' }
+  const productUpdatePreview = await client.callTool({ name: 'products.write', arguments: productUpdateArgs }); const productUpdatePayload = JSON.parse(productUpdatePreview.content.find(item => item.type === 'text')?.text || '{}'); const productUpdate = await client.callTool({ name: 'products.write', arguments: { ...productUpdateArgs, mode: 'commit', previewId: productUpdatePayload.previewId } }); ok(!productUpdate.isError && productUpdate.structuredContent?.committed === true, 'product update commit via SDK')
   const preview = await client.callTool({ name: 'prices.write', arguments: { mode: 'preview', productId: product.id, pricePyg: 1100, expectedPricePyg: 1000, idempotencyKey: 'sdk-http-price-1' } }); ok(!preview.isError && JSON.stringify(preview).includes('previewId'), 'prices.write preview via SDK')
   const previewText = preview.content.find(item => item.type === 'text')?.text || ''
   const previewPayload = JSON.parse(previewText)
