@@ -24,7 +24,7 @@ import { fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import RucField from '@/components/shared/RucField'
 import { extraerRuc } from '@/utils/ruc'
-import { SEED_DEMO_CLIENTES, clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
+import { listarClientesDemo, guardarClienteDemo } from '@/lib/demoClientes'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { statsDePedidos } from '@/lib/customerAggregates'
 import { filasInformeDemo } from '@/lib/demoClientes'
@@ -99,7 +99,7 @@ export const customerFields = (row) => {
 }
 export function readDemoCustomers() {
   // Seeds ficticios siempre visibles (#194) + lo creado en este navegador.
-  return [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()].map(customerFields)
+  return listarClientesDemo().map(customerFields)
 }
 
 export default function SellerCustomers() {

@@ -22,7 +22,7 @@ import { useSesion } from '@/lib/sesion'
 import { buildServiceIntakeHtml, buildServiceReportHtml, ordenParaImpresion } from '@/lib/servicioImpresion'
 import { CHECKLISTS } from '@/lib/servicioChecklist'
 import { getDemoServicio, saveDemoServicio, siguienteNumeroDemo } from '@/lib/demoServicio'
-import { SEED_DEMO_CLIENTES, clientesDemoGuardados } from '@/lib/demoClientes'
+import { listarClientesDemo } from '@/lib/demoClientes'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
@@ -160,7 +160,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
     const query = (form?.customerName || '').trim()
     if (query.length < 2) { setClientes([]); return undefined }
     if (esDemo) {
-      const demo = [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
+      const demo = listarClientesDemo()
       setClientes(demo.filter((cliente) => coincideCliente(cliente, query)).slice(0, 5))
       return undefined
     }
