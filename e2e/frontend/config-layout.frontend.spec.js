@@ -278,6 +278,18 @@ test('#31 Sistema: alert and device names are not truncated at 375', async ({ pa
   expect(cut, 'texts cut with an ellipsis').toEqual([])
 })
 
+test('#608 Sistema: MCP queda pendiente hasta registrar OAuth', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await enterDemo(page)
+  await openConfig(page, 'Sistema')
+  const conexiones = page.getByTestId('mcp-conexiones')
+  await expect(conexiones).toBeVisible()
+  await expect(conexiones.getByTestId('mcp-oauth-pendiente')).toHaveCount(0)
+  await expect(conexiones).toContainText('OAuth')
+  await expect(conexiones.getByTestId('mcp-proveedor-chatgpt')).toContainText('Próximamente')
+  await expect(conexiones.getByTestId('mcp-proveedor-claude')).toContainText('Próximamente')
+})
+
 test('#32 Dispositivos and Comercial: 44px targets at 375', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
