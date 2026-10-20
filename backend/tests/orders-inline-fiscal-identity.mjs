@@ -42,7 +42,7 @@ assert.equal(person.customer.surnames, 'Pérez')
 // identity and reject a conflicting identity instead of overwriting it.
 const stable = await post('/api/orders', {
   orderNumber: `RUC344-STABLE-${suffix}`,
-  customer: { name: 'Cliente estable POS', phone: '0981000000' },
+  customer: { name: 'Cliente estable POS', phone: `0981${suffix}` },
   items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
   payment: { method: 'CASH', amountPyg: 1000 },
 }, 201)
@@ -50,7 +50,7 @@ assert.equal(stable.customer.name, 'Cliente estable POS')
 assert.equal(stable.customer.nameOfficial, null)
 await post('/api/orders', {
   orderNumber: `RUC344-CONFLICT-${suffix}`,
-  customer: { name: 'Cliente estable POS', phone: '0981000000', nameOfficial: 'Titular incompatible S.A.', identityKind: 'COMPANY', document: '80012345-9' },
+  customer: { name: 'Cliente estable POS', phone: `0981${suffix}`, nameOfficial: 'Titular incompatible S.A.', identityKind: 'COMPANY', document: '80012345-9' },
   items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000 }],
   payment: { method: 'CASH', amountPyg: 1000 },
 }, 409)
