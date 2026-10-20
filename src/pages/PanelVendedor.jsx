@@ -1067,7 +1067,7 @@ export default function PanelVendedor() {
               {vista === 'dispositivos' && <Impresoras />}
               {/* #324: Sistema muestra los chequeos y la cola ficticios en
                   demo; fuera de demo lee los servicios reales como siempre. */}
-              {vista === 'sistema' && <><EstadoSistema /><McpConexiones /></>}
+              {vista === 'sistema' && <><EstadoSistema />{sesion?.esPropietario && <McpConexiones />}</>}
             </NavegacionConfig>
           )}
           {subpadre === 'ayuda' && (

@@ -12,10 +12,10 @@ const ACTIVE = {
   }],
 }
 
-async function useAuthenticatedFixture(page) {
+async function useAuthenticatedFixture(page, role = 'ADMIN') {
   await page.route('**/src/lib/sesion*', route => route.fulfill({
     contentType: 'application/javascript',
-    body: 'export function useSesion() { return { esDemo:false, empresa:{id:"fixture-tenant"}, usuario:{id:"fixture-user"} } }',
+    body: `export function useSesion() { return { esDemo:false, empresa:{id:"fixture-tenant"}, usuario:{id:"fixture-user",role:"${role}"} } }`,
   }))
   await page.route(/https:\/\//, route => route.abort())
   await page.goto('/e2e/fixtures/mcp-conexiones.html', { waitUntil: 'domcontentloaded' })
@@ -53,8 +53,18 @@ test.describe('MCP conexiones: estados autenticados y revocación (#608)', () =>
     await useAuthenticatedFixture(page)
     await expect(page.getByTestId('mcp-oauth-no-verificado')).toBeVisible()
     await expect(page.getByRole('alert')).toContainText('La API respondió con 503.')
-    await expect(page.getByText('Próximamente · requiere OAuth registrado').first()).toBeVisible()
+    await expect(page.getByText('Requiere OAuth registrado').first()).toBeVisible()
   })
+
+  for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
+    test(`Mi cuenta: conexiones personales visibles para ${role} sin finanzas`, async ({ page }) => {
+      await apiFixture(page, { json: ACTIVE })
+      await useAuthenticatedFixture(page, role)
+      await expect(page.getByTestId('mcp-conexiones')).toBeVisible()
+      await expect(page.getByTestId('mcp-conexiones')).not.toContainText('payment:write')
+      await expect(page.getByTestId('mcp-conexiones')).not.toContainText('finanzas')
+    })
+  }
 
   test('active: muestra varias capacidades y conexión autorizada', async ({ page }) => {
     await apiFixture(page, { json: ACTIVE })
@@ -63,7 +73,10 @@ test.describe('MCP conexiones: estados autenticados y revocación (#608)', () =>
     await expect(page.getByTestId('mcp-capacidades')).toContainText('Editar productos')
     await expect(page.getByTestId('mcp-conexion-fila')).toContainText('ChatGPT')
     await expect(page.getByTestId('mcp-conexion-fila')).toContainText('Clientes')
-    await expect(page.getByText('Conectar ChatGPT')).toBeVisible()
+    await expect(page.getByText('Copiar endpoint')).toBeVisible()
+    await expect(page.locator('a[href*="mcp.example.test"]')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Guía de ChatGPT' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Guía de Claude' })).toBeVisible()
   })
 
   test('revoke success: envía el ID exacto y quita la conexión', async ({ page }) => {
