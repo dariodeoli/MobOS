@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.237 — 2026-10-20
+
+- **Clientes:** la demo permite crear y conservar clientes durante la sesión demo; al cerrar su ficha, el foco vuelve a un control visible para continuar trabajando.
+- **Cobros:** las tarjetas de cuentas ordenan nombre, medio y estado para evitar que se superpongan en celulares.
+- **Demo:** el encabezado ocupa menos espacio y conserva accesibles el cambio de vista y las acciones principales.
+- **Compras:** los proveedores recién creados aparecen al abrir una compra sin recargar; sus fichas priorizan RUC y teléfono, incluso con ciudades largas.
+- **Selectores:** las fichas de clientes y proveedores se adaptan a pantallas angostas y permiten cambiar o quitar la selección sin perder el foco.
+
 ## v1.0.236 — 2026-10-20
 
 - **Ventas:** la venta rápida conserva espacio para catálogo, carrito y cobro; la ficha del cliente permite editar el nombre visible sin mezclarlo con su identidad fiscal.
