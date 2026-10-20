@@ -34,11 +34,12 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
   directoRef.current = directo
 
   useEffect(() => {
+    if (!open) return undefined
     let activo = true
     estadoAgente().then((info) => { if (activo) setAgente(Boolean(info?.disponible)) })
     cargarImpresorasRemotas().then((store) => { if (activo) setHayImpresora(Boolean(imprimirConDestino(store).predeterminada?.destino)) })
     return () => { activo = false }
-  }, [])
+  }, [open])
 
   useEffect(() => {
     if (!open) return undefined
