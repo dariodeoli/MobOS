@@ -146,7 +146,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   if (!id) return error('Cliente obligatorio.')
   try {
     const body = await request.json() as Record<string, unknown>
-    const result = await updateCustomer(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body)
+    const result = await updateCustomer(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body, { allowIdentityCollision: true, allowUnprivilegedCommercial: true })
     return json(result)
   } catch (cause) {
     const code = (cause as { code?: string }).code
