@@ -1,0 +1,67 @@
+# Cobertura MCP de MobOS · Issue #616
+
+## Alcance y método
+
+Matriz auditada contra la rama candidata e1a330b9 (origin/codex/mcp-608-conexiones-ia). Se compararon las rutas API, sus guardas, los servicios compartidos, backend/lib/mcp/catalog.ts, authorization.ts, app/api/mcp/streamable/route.ts y las pruebas HTTP/SDK.
+
+Una capacidad es MCP implementada sólo si está en IMPLEMENTED_MCP_ACTIONS, pasa autorización de tenant, módulo, usuario, rol, permiso, sucursal y scope, y tiene una rama real en tools/call. Estar en MCP_CATALOG no la habilita.
+
+## Guardas transversales
+
+| Capa | Evidencia | Regla |
+|---|---|---|
+| OAuth | lib/mcp/oauth.ts y authorize/token/revoke | Grant, usuario, tenant, cliente, resource, sesión y scopes vinculados; PKCE y revocación. |
+| Permisos | lib/mcp/authorization.ts | El scope no reemplaza los permisos MobOS. Se valida módulo activo, tenant, rol, permiso y sucursal. |
+| Transporte | app/api/mcp/streamable/route.ts | Sólo herramientas implementadas y autorizadas; argumentos, origin, media type y tamaño se validan. |
+| Cambios | lib/mcp/changes.ts | Preview/commit, idempotency key, auditoría y revalidación; sin CRUD paralelo. |
+| Contexto | requireMcpAccessToken | El conector usa el usuario y tenant de la sesión emitida; no acepta claims de tenant, rol o sucursal enviados por el modelo. |
+
+## Matriz app → permiso → servicio → MCP
+
+| Dominio | API y servicio canónico | Guarda real | MCP y estado |
+|---|---|---|---|
+| Productos y variantes | /api/products, /api/products/search; lib/product-service.ts, product-catalog.ts, product-search.ts | products:read o products:manage; tenant y sucursal para vendedor/cajera | products.read y products.write implementados. Escritura tipada; no inventa stock, IMEI, costo, seriales ni movimientos. |
+| Precios unitarios | PATCH de productos; lib/product-price.ts | products:manage, tenant/producto/sucursal y precio esperado | prices.write implementado con preview/commit, CAS e idempotencia. |
+| Listas, tiers y descuentos | /api/price-lists y /api/price-lists/[id]; lib/price-lists.ts, pricing.ts | GET ADMIN/GERENTE; cambios products:manage; productos del tenant | Sin herramienta MCP. Pendiente: price_lists.read/write extrayendo servicio compartido, parser, tiers, auditoría e idempotencia. |
+| Clientes | /api/customers y /api/customers/[id]; lib/customer-service.ts, customer-identity.ts | Sesión, tenant, identidad y reglas de cliente | customers.read/write implementados con payload tipado y preview/commit. Historial, merge, loyalty, notas, billing, seguimiento, duplicados y tokens siguen sólo web. |
+| Ventas y pedidos | /api/orders y /api/orders/[orderId]; lib/orders.ts, payments.ts, stock.ts, order-serials.ts | Rol comercial, sucursal, crédito, IMEI/serial, stock, límites y auditoría | sales.read implementado con alcance own/branch/all, cursor y sucursal. sales.write queda fuera: crear, editar, cancelar, devolver, cobrar, cuotas y crédito no están habilitados. |
+| Informes y comisiones | /api/reports; lib/reporting.ts, costs.ts | reports:read, tenant y sucursal activa | reports.read implementado y reutiliza agregación, filtros y grupos. No muta datos. |
+| Empresa y perfil | /api/tenant/*; lib/tenant-company-profile.ts y servicios de preferencias/policies | Sesión/tenant; cambios de identidad ADMIN y reautenticación según servicio | company.read/write implementados con preview/commit. Preferencias, módulos, policies, logo, FX y costos siguen web. |
+| Crear empresa | /api/tenants; lib/company-creation-bridge.ts | OWNER/ADMIN vinculado y contexto de cuenta | company.create sólo prepara un enlace awaiting_app_confirmation; no crea empresa, sesión ni pertenencia desde MCP. |
+| Inventario y stock | /api/stock, stock/items, inventory-units, inventory-counts, reservations, shared-stock; lib/inventory.ts, stock.ts, stock-items.ts | stock:manage, sucursal, unidad/serial, políticas y auditoría | Sin herramienta. No usar products.write para stock global, conteos, reservas, transferencias o unidades serializadas. |
+| IMEI/equipos | /api/imei, inventory-units, garantías; lib/imeicheck.ts, imei-providers.ts, device-report.ts | Roles de consulta/gestión, créditos, tenant, proveedor y límites | Sin herramienta. Requiere contrato separado de proveedor, saldo, estado no verificado y datos sensibles. |
+| Pagos y cuentas | /api/payments, payment-accounts, proofs, reconciliation; lib/payments.ts, reconciliation.ts | Caja/finanzas, cuenta/tenant, idempotencia y reversión | Sin herramienta. Cobro, reversión y conciliación no se exponen como edición genérica de venta. |
+| Caja y finanzas | /api/cash, sesiones, auditoría, finance; lib/cash-movements.ts, cash-session-lock.ts, finance.ts | Rol de caja/administración, sesión abierta, moneda y auditoría | Sin herramienta. Falta contrato de lectura y operaciones con lock/idempotencia. |
+| Delivery | /api/delivery/*; lib/delivery-access.ts, delivery-operations-store.ts, delivery.ts | Módulo activo; dueño, gestión o repartidor; sucursal, cierres y claves de operación | Sin herramienta. Incluye cierres diarios/semanales y liquidaciones; debe conservar deliveryAccess y branchScope. |
+| Impresión y plantillas | /api/print/*; lib/print-templates-api.ts, print-templates-store.ts, print-jobs.ts | ADMIN para plantillas; sesión, bridge, token e impresora para jobs | Sin herramienta. Primero lectura de plantillas/estado; jobs físicos requieren confirmación y bridge autorizado. |
+| Fotos de productos | /api/products/[id]/images; lib/product-images.ts | products:manage, tenant/sucursal, MIME mágico, dimensiones y tamaño | product_images.write implementado con pipeline seguro, preview/commit y auditoría; no acepta URL arbitraria. |
+| Fiscal/facturación | /api/orders/[orderId]/external-invoice; lib/external-invoices/* y lib/sifen/* | orders:manage, datos fiscales, proveedor y configuración | Sin herramienta. Requiere sandbox, CDC, estado asíncrono, credenciales y reintentos verificados. |
+| Taller y garantías | /api/workshop/*, warranties, repairs, inspections; lib/service-order.ts, order-warranty.ts, inspection.ts | Permisos de taller/garantía, cliente/equipo/pedido y adjuntos | Sin herramienta. Debe separarse de customers.write y products.write. |
+
+## Herramientas anunciables hoy
+
+El conjunto depende de acción implementada, scope concedido, módulo activo,
+rol, permiso, tenant y sucursal. Actualmente tools/list puede anunciar:
+
+products.read, products.write, prices.write, customers.read,
+customers.write, company.read, company.write, company.create, sales.read,
+reports.read y product_images.write.
+
+sales.write permanece deliberadamente fuera de IMPLEMENTED_MCP_ACTIONS.
+Delivery, stock, pagos, caja, impresión, fiscal, IMEI, listas de precios y
+taller no aparecen en tools/list.
+
+## Siguiente corte recomendado: listas de precios
+
+1. Crear price_lists.read y price_lists.write separadas.
+2. Extraer un servicio compartido desde las rutas price-lists; MCP no debe duplicar Prisma CRUD.
+3. Reusar parsePriceListItems, verificación de productos del tenant y guardas ADMIN/GERENTE/products:manage.
+4. Exigir preview/commit, idempotency key, auditoría y revalidación antes del commit.
+5. Probar lectura, alta, edición, tiers, descuentos inválidos, producto de otra empresa, vendedor, replay y carreras concurrentes.
+6. Recién después agregar las acciones a IMPLEMENTED_MCP_ACTIONS y metadata OAuth.
+
+Cortes posteriores: stock/unidades/IMEI; delivery; impresión; pagos/caja/fiscal;
+y taller/garantías, cada uno con contrato y guardas propias.
+
+Este documento no habilita capacidades, no cambia producción y no contiene
+secretos.
