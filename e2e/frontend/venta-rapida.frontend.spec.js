@@ -136,3 +136,17 @@ test('cobro: título y acciones de pagos mantienen separación en desktop', asyn
   expect(overlap(t, a)).toBe(false)
   expect(overlap(t, g)).toBe(false)
 })
+
+test('venta rápida: divisor queda alineado al borde real de las columnas', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  const divisor = page.getByTestId('pos-divisor')
+  const layout = page.getByTestId('pos-layout')
+  const izquierda = page.locator('.pos-col-izq')
+  const before = await Promise.all([divisor.boundingBox(), izquierda.boundingBox(), layout.evaluate(element => Number.parseFloat(getComputedStyle(element).columnGap))])
+  expect(Math.abs((before[0].x + before[0].width / 2) - (before[1].x + before[1].width + before[2] / 2))).toBeLessThanOrEqual(2)
+  await divisor.focus()
+  await page.keyboard.press('ArrowRight')
+  const after = await Promise.all([divisor.boundingBox(), izquierda.boundingBox()])
+  expect(after[0].x + after[0].width / 2).toBeGreaterThan(before[0].x + before[0].width / 2)
+})
