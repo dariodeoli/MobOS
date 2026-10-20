@@ -17,14 +17,15 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
     if (stock !== undefined && (!integer(stock) || (typeof stock === 'number' && stock > 100000000))) return { ok: false, error: 'stock_invalido' }
     if (value.branchId !== undefined && (!bounded(value.branchId, 100))) return { ok: false, error: 'sucursal_invalida' }
   } else if (action === 'prices.write') {
-    if (!bounded(value.productId, 100) || !integer(value.pricePyg)) return { ok: false, error: 'producto_precio_requeridos' }
+    if (!bounded(value.productId, 100) || !integer(value.pricePyg) || !integer(value.expectedPricePyg)) return { ok: false, error: 'producto_precio_esperado_requeridos' }
   } else if (action === 'customers.write') {
     if (!bounded(value.name, 180)) return { ok: false, error: 'cliente_nombre_requerido' }
     for (const key of ['phone', 'email', 'document']) if (value[key] !== undefined && (typeof value[key] !== 'string' || value[key].length > 180)) return { ok: false, error: 'dato_cliente_invalido' }
   } else if (action === 'product_images.write') {
     if (!bounded(value.productId, 100) || !bounded(value.contentType, 40) || !['image/jpeg', 'image/png', 'image/webp'].includes(String(value.contentType))) return { ok: false, error: 'imagen_invalida' }
     if (typeof value.dataBase64 !== 'string' || value.dataBase64.length < 16 || value.dataBase64.length > 7_000_000) return { ok: false, error: 'imagen_datos_invalidos' }
-    if (!integer(value.width, 1) || !integer(value.height, 1) || value.width > 12000 || value.height > 12000) return { ok: false, error: 'dimensiones_invalidas' }
+    const width = value.width; const height = value.height
+    if (!integer(width, 1) || !integer(height, 1) || (typeof width === 'number' && width > 12000) || (typeof height === 'number' && height > 12000)) return { ok: false, error: 'dimensiones_invalidas' }
   } else if (action === 'company.write') {
     if (value.name !== undefined && !bounded(value.name, 180)) return { ok: false, error: 'empresa_nombre_invalido' }
     if (value.email !== undefined && (typeof value.email !== 'string' || value.email.length > 180)) return { ok: false, error: 'empresa_email_invalido' }
