@@ -112,6 +112,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [compra, setCompra] = useState('')
   const [garantiaMes, setGarantiaMes] = useState('')
   const [ubicacion, setUbicacion] = useState('')
+  const [confirmarCatalogo, setConfirmarCatalogo] = useState(false)
   const [variante, setVariante] = useState({ model: '', capacity: '', color: '' })
   const [guardandoCampo, setGuardandoCampo] = useState(false)
   const [consignador, setConsignador] = useState(unit.consignorName || '')
@@ -237,12 +238,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
   async function guardarVariante() {
     if (guardandoCampo) return
+    if (!confirmarCatalogo || esDemo) { toast.error('Confirmá el alcance del cambio de catálogo.'); throw new Error('Confirmá el alcance del cambio de catálogo.') }
     setGuardandoCampo(true)
     try {
-      await api.patch('/api/inventory-units', { id: unit.id, action: 'variant', ...variante })
+      await api.patch('/api/inventory-units', { id: unit.id, action: 'variant', variantScope: 'PRODUCT', ...variante })
       toast.success('Variante del catálogo guardada y auditada.')
       onChanged?.()
-    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la variante.') } finally { setGuardandoCampo(false) }
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la variante.'); throw cause } finally { setGuardandoCampo(false) }
   }
 
   async function cambiarMonedaCosto(moneda) {
@@ -536,10 +538,10 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             {/* Datos: grilla densa de 2–3 columnas con edición por campo */}
             <TarjetaFicha titulo="Ficha del equipo">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-3">
-                {esProductoApple(unit.product || {}) && <CampoFicha etiqueta="Variante Apple" ayuda="Modelo, capacidad y color se comparten con el catálogo. Editar no altera stock ni historial." puedeEditar={canManage && unit.status !== 'SOLD'} guardando={guardandoCampo} testId="unidad-variante-apple"
-                  onAbrir={() => setVariante({ model: unit.product?.model || unit.product?.name || '', capacity: unit.product?.capacity || '', color: unit.product?.color || '' })}
+                {esProductoApple(unit.product || {}) && <CampoFicha etiqueta="Variante Apple" ayuda="Modelo, capacidad y color se comparten con el catálogo. Editar no altera stock ni historial." puedeEditar={!esDemo && canManage && unit.status !== 'SOLD'} guardando={guardandoCampo} testId="unidad-variante-apple"
+                  onAbrir={() => { setConfirmarCatalogo(false); setVariante({ model: unit.product?.model || unit.product?.name || '', capacity: unit.product?.capacity || '', color: unit.product?.color || '' }) }}
                   onGuardar={guardarVariante}
-                  editor={<div className="grid gap-2 sm:grid-cols-3"><Input aria-label="Modelo Apple" maxLength={120} value={variante.model} onChange={event => setVariante(actual => ({ ...actual, model: event.target.value }))} placeholder="iPhone 15 Pro" /><Input aria-label="Capacidad Apple" maxLength={32} value={variante.capacity} onChange={event => setVariante(actual => ({ ...actual, capacity: event.target.value }))} placeholder="256GB" /><Input aria-label="Color Apple" maxLength={80} value={variante.color} onChange={event => setVariante(actual => ({ ...actual, color: event.target.value }))} placeholder="Negro" /></div>}>
+                  editor={<div className="space-y-2"><p className="text-xs text-warn">Este cambio actualiza el catálogo de todas las unidades de este producto. No cambia IMEI, estado, stock ni comprobantes ya emitidos.</p><label className="flex gap-2 text-xs"><input type="checkbox" checked={confirmarCatalogo} onChange={event => setConfirmarCatalogo(event.target.checked)} />Confirmo actualizar el catálogo para todas las unidades de este producto</label><div className="grid gap-2 sm:grid-cols-3"><Input aria-label="Modelo Apple" maxLength={80} value={variante.model} onChange={event => setVariante(actual => ({ ...actual, model: event.target.value }))} placeholder="iPhone 15 Pro" /><Input aria-label="Capacidad Apple" maxLength={20} value={variante.capacity} onChange={event => setVariante(actual => ({ ...actual, capacity: event.target.value }))} placeholder="256GB" /><Input aria-label="Color Apple" maxLength={60} value={variante.color} onChange={event => setVariante(actual => ({ ...actual, color: event.target.value }))} placeholder="Negro" /></div></div>}>
                   <span className="font-semibold">{[unit.product?.model, unit.product?.capacity, unit.product?.color].filter(Boolean).join(' · ') || unit.product?.name || 'Sin variante'}</span>
                 </CampoFicha>}
                 <CampoFicha etiqueta="Batería" ayuda="Salud de la batería informada al recibir la unidad y ciclos de carga" puedeEditar={canManage} guardando={guardandoCampo} testId="unidad-bateria"
