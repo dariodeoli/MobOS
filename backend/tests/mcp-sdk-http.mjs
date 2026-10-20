@@ -39,7 +39,7 @@ try {
   const { PrismaClient } = require('@prisma/client')
   const { PrismaPg } = require('@prisma/adapter-pg')
   const oauth = require('../lib/mcp/oauth.ts')
-  const { issueMcpAuthorizationCode, issueMcpTokens, mcpResource, pkceChallenge, requireMcpAccessToken } = oauth
+  const { issueMcpAuthorizationCode, issueMcpTokens, rotateMcpRefreshToken, mcpResource, pkceChallenge, requireMcpAccessToken } = oauth
   const makeDb = () => { const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) }); clients.push(db); return db }
   const db = makeDb()
   const tenant = await db.tenant.create({ data: { name: 'SDK HTTP', slug: 'sdk-http', email: 'sdk@example.test' } })
@@ -138,6 +138,20 @@ try {
   const tokenForm = (codeVerifier) => new URLSearchParams({ grant_type: 'authorization_code', client_id: 'sdk-http', code: authCode.code, redirect_uri: 'https://connector.example/callback', resource: mcpResource(), code_verifier: codeVerifier }).toString()
   const invalidPkce = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: tokenForm('t'.repeat(43)) })); ok(invalidPkce.status === 400, 'token rejects invalid PKCE before consuming code')
   const validPkce = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: tokenForm(verifier) })); ok(validPkce.status === 200 && (await validPkce.clone().json()).token_type === 'Bearer', 'token accepts valid PKCE after invalid attempt')
+  const pinUser = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'PIN gerente', email: 'pin-gerente@example.test', pinHash: 'unused', role: 'GERENTE', permissions: ['products:read'] } })
+  const pinSession = await db.session.create({ data: { tenantId: tenant.id, userId: pinUser.id, level: 'SELLER', deviceId: 'pin-device', tokenHash: 'c'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
+  const pinGrant = await db.mcpClientGrant.create({ data: { accountId: null, tenantId: tenant.id, userId: pinUser.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes: ['products:read'] } })
+  const pinTokens = await issueMcpTokens(db, { grantId: pinGrant.id, accountId: null, tenantId: tenant.id, sessionId: pinSession.id, userId: pinUser.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] }); const pinAuth = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${pinTokens.accessToken}` } })); ok(pinAuth?.user.id === pinUser.id && pinAuth.accountId === null, 'PIN role without account can authorize MCP safely')
+  await db.user.update({ where: { id: pinUser.id }, data: { status: 'INACTIVE' } }); const disabledPin = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${pinTokens.accessToken}` } })); ok(disabledPin === null, 'disabled PIN user loses MCP access')
+  await db.user.update({ where: { id: pinUser.id }, data: { status: 'ACTIVE' } })
+  await db.session.update({ where: { id: pinSession.id }, data: { revokedAt: new Date() } }); const revokedPin = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${pinTokens.accessToken}` } })); ok(revokedPin === null, 'revoked PIN session loses MCP access')
+  await db.session.update({ where: { id: pinSession.id }, data: { revokedAt: null } })
+  await db.tenant.update({ where: { id: tenant.id }, data: { archivedAt: new Date() } }); const archivedPin = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${pinTokens.accessToken}` } })); ok(archivedPin === null, 'archived tenant loses MCP access')
+  let archivedIssueDenied = false; try { await issueMcpTokens(db, { grantId: pinGrant.id, accountId: null, tenantId: tenant.id, sessionId: pinSession.id, userId: pinUser.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] }) } catch { archivedIssueDenied = true }; ok(archivedIssueDenied, 'archived tenant cannot issue MCP token')
+  let archivedRefreshDenied = false; try { await rotateMcpRefreshToken(db, pinTokens.refreshToken, 'sdk-http') } catch { archivedRefreshDenied = true }; ok(archivedRefreshDenied, 'archived tenant cannot refresh MCP token')
+  await db.tenant.update({ where: { id: tenant.id }, data: { archivedAt: null } })
+  const pinUser2 = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'PIN vendedor', email: 'pin-vendedor@example.test', pinHash: 'unused', role: 'VENDEDOR', permissions: ['products:read'] } })
+  const pinGrant2 = await db.mcpClientGrant.create({ data: { accountId: null, tenantId: tenant.id, userId: pinUser2.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes: ['products:read'] } }); ok(pinGrant2.id !== pinGrant.id, 'PIN users have independent grants')
   const configuredClients = process.env.MOBOS_MCP_CLIENTS_JSON
   process.env.MOBOS_MCP_CLIENTS_JSON = '[]'
   const removedClient = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${issued.accessToken}` } }))

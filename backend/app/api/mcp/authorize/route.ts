@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   if (url.searchParams.get('response_type') !== 'code') return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
   const session = await requireSession(request)
-  if (!session?.accountId) {
+  if (!session) {
     const appOrigin = (() => { try { return new URL(process.env.MOBOS_APP_URL || mcpIssuer()).origin } catch { return mcpIssuer() } })()
     const returnTo = `/mcp/autorizar?request=${encodeURIComponent(`${url.pathname}${url.search}`)}`
     const login = new URL('/login', appOrigin); login.searchParams.set('returnTo', returnTo)
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   try {
     if (request.headers.has('authorization') || !sameOrigin(request)) throw new McpOAuthError('invalid_request', 'La autorización MCP requiere la sesión web de MobOS.', 401)
     const session = await requireSession(request)
-    if (!session?.accountId) throw new McpOAuthError('login_required', 'Iniciá sesión en MobOS para autorizar el conector.', 401)
+    if (!session) throw new McpOAuthError('login_required', 'Iniciá sesión en MobOS para autorizar el conector.', 401)
     const body = request.headers.get('content-type')?.includes('application/x-www-form-urlencoded')
       ? Object.fromEntries((await request.formData()).entries()) as Record<string, unknown>
       : await request.json() as Record<string, unknown>
@@ -61,10 +61,10 @@ export async function POST(request: Request) {
       const action = actionForScope(scope)
       if (!action || !authorizeMcpAction(action, { tenantId: session.user.tenantId, user: session.user, enabledModules, grantedScopes: scopes }).allowed) throw new McpOAuthError('access_denied', `No tenés permiso para autorizar ${scope}.`, 403)
     }
-    const accountId = session.accountId
+    const accountId = session.accountId ?? null
     const tenantId = session.user.tenantId
     const issued = await prisma.$transaction(async tx => {
-      const grant = await tx.mcpClientGrant.upsert({ where: { accountId_tenantId_userId_clientId_redirectUri: { accountId, tenantId, userId: session.user.id, clientId: client.clientId, redirectUri } }, create: { accountId, tenantId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes: [...scopes] }, update: { resource, scopes: [...scopes], revokedAt: null } })
+      const grant = await tx.mcpClientGrant.upsert({ where: { tenantId_userId_clientId_redirectUri: { tenantId, userId: session.user.id, clientId: client.clientId, redirectUri } }, create: { accountId, tenantId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes: [...scopes] }, update: { resource, scopes: [...scopes], revokedAt: null } })
       const now = await dbNow(tx)
       await tx.mcpAccessToken.updateMany({ where: { grantId: grant.id, revokedAt: null }, data: { revokedAt: now } })
       await tx.mcpAuthorizationCode.updateMany({ where: { grantId: grant.id, usedAt: null }, data: { usedAt: now } })

@@ -2629,8 +2629,8 @@ model SuspendedSale {
 // acceso externo conserva el tenant, la cuenta y la sesión que lo aprobaron.
 model McpClientGrant {
   id          String   @id @default(cuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId      String
@@ -2644,7 +2644,7 @@ model McpClientGrant {
   updatedAt   DateTime @updatedAt
   codes       McpAuthorizationCode[]
   tokens      McpAccessToken[]
-  @@unique([accountId, tenantId, userId, clientId, redirectUri])
+  @@unique([tenantId, userId, clientId, redirectUri])
   @@index([tenantId, clientId, revokedAt])
 }
 
@@ -2653,8 +2653,8 @@ model McpAuthorizationCode {
   codeHash      String   @unique
   grantId       String
   grant         McpClientGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
-  accountId     String
-  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tenantId      String
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessionId     String
@@ -2677,8 +2677,8 @@ model McpAccessToken {
   refreshTokenHash String?  @unique
   grantId          String
   grant            McpClientGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
-  accountId        String
-  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId        String?
+  account         Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tenantId         String
   tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessionId        String
