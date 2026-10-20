@@ -76,7 +76,7 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
   await inicial
   await expect(page.getByText('Sin compras registradas.', { exact: true }).or(page.getByTestId('compras-tabla'))).toBeVisible()
   const proveedor = await page.evaluate(async ({ api, nombre, codigo, documento, telefono }) => {
-    const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo, document: documento, phone: telefono }) })
+    const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo, document: documento, phone: telefono, city: 'San Lorenzo del Campo Grande - ciudad con nombre extenso para validación' }) })
     const datos = await respuesta.json().catch(() => null)
     if (!respuesta.ok) throw new Error(datos?.message || `suppliers: ${respuesta.status}`)
     return datos

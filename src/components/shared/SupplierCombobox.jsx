@@ -23,6 +23,7 @@ export default function SupplierCombobox({
       datosCompletosEnMovil={datosCompletosEnMovil}
       nombre={formatearProveedor(seleccionado)}
       detalles={[seleccionado.document ? `CI/RUC ${seleccionado.document}` : '', seleccionado.phone, seleccionado.city].filter(Boolean)}
+      detallesCompletos={datosCompletosEnMovil ? [seleccionado.document ? `CI/RUC ${seleccionado.document}` : '', seleccionado.phone].filter(Boolean) : []}
       etiquetaCambiar="Cambiar proveedor"
       etiquetaQuitar="Quitar proveedor"
       onCambiar={onClear ? limpiar : undefined}
