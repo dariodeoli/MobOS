@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
-import { hasImageMagicBytes, imageDimensions, primaryImageFields, productImageUrls, readProductImage, MAX_PRODUCT_IMAGE_BYTES, generateProductImages, readProductImageFormData } from '../lib/product-images'
+import { hasImageMagicBytes, imageDimensions, primaryImageFields, productImageUrls, readProductImage, readProductImageBase64, MAX_PRODUCT_IMAGE_BYTES, generateProductImages, generateProductImagesBase64, readProductImageFormData } from '../lib/product-images'
 import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../lib/product-accessories'
 
 // #404: fotos de producto — validación por magic bytes + dimensiones del archivo.
@@ -37,6 +37,8 @@ async function main() {
   await rejects(file(new Uint8Array(300 * 1024), 'image/webp'), 413, { maxBytes: 256 * 1024 }) // miniatura grande
   // PNG con firma válida pero sin IHDR legible: no hay dimensiones.
   await rejects(file(Buffer.concat([png.subarray(0, 8), Buffer.alloc(20)]), 'image/png'), 400)
+  await assert.rejects(() => readProductImageBase64('no-es-base64', 'image/png'), statusIs(400))
+  await assert.rejects(() => readProductImageBase64(Buffer.from(png).toString('base64'), 'image/jpeg'), statusIs(415))
 
   // #404: el servidor decodifica y deriva AMBAS imágenes del mismo file.
   const source = await sharp({ create: { width: 1200, height: 600, channels: 3, background: '#de3456' } }).png().toBuffer()
@@ -47,6 +49,8 @@ async function main() {
   assert.equal(generated.thumb.width, 160)
   assert.equal(generated.thumb.height, 160)
   assert.equal(generated.thumb.mimeType, 'image/webp')
+  const throughMcp = await generateProductImagesBase64(source.toString('base64'), 'image/png')
+  assert.deepEqual([throughMcp.image.width, throughMcp.image.height, throughMcp.thumb.width, throughMcp.thumb.height], [800, 800, 160, 160])
   for (const output of [generated.image, generated.thumb]) {
     const metadata = await sharp(output.data).metadata()
     assert.equal(metadata.width, output.width)
