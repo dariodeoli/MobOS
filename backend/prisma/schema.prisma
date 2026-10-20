@@ -26,6 +26,7 @@ model Tenant {
   mcpGrants           McpClientGrant[]
   mcpAuthorizationCodes McpAuthorizationCode[]
   mcpAccessTokens     McpAccessToken[]
+  mcpChangePreviews   McpChangePreview[]
   promotions          Promotion[]
   logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
@@ -429,6 +430,8 @@ model User {
 
   orders                         Order[]
   auditLogs                      AuditLog[]
+  mcpChangePreviews              McpChangePreview[]
+  mcpGrants                      McpClientGrant[]
   uploadedPaymentProofs          PaymentProof[]          @relation("PaymentProofUploader")
   attachmentsCreated             Attachment[]            @relation("AttachmentCreatedBy")
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
@@ -2630,6 +2633,8 @@ model McpClientGrant {
   account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   clientId    String
   redirectUri String
   resource    String
@@ -2690,6 +2695,27 @@ model McpAccessToken {
   session          Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([tenantId, clientId, revokedAt])
   @@index([sessionId, revokedAt])
+}
+
+// Short-lived, tenant and user bound mutation previews for MCP connectors.
+// A preview is never an implicit write: commit must present the same payload
+// hash and an unexpired, uncommitted id.
+model McpChangePreview {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action       String
+  payloadHash  String
+  payload      Json
+  idempotencyKey String
+  status       String   @default("PREVIEW")
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  committedAt  DateTime?
+  @@unique([tenantId, userId, idempotencyKey])
+  @@index([tenantId, userId, status, expiresAt])
 }
 
 model AuditLog {
