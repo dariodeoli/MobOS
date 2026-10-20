@@ -105,6 +105,7 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
   if (input.priceListId !== undefined) fields.priceListId = input.priceListId === null || input.priceListId === '' ? null : text(input.priceListId, 128)
   if (input.blocked !== undefined || input.blockedReason !== undefined) {
     if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden bloquear clientes.')
+    if (input.blocked !== undefined && typeof input.blocked !== 'boolean') throw new CustomerServiceError('invalid', 'blocked debe ser verdadero o falso.')
     const blocked = input.blocked === true
     const reason = blocked ? nullableText(input.blockedReason, 300) : null
     if (blocked && !reason) throw new CustomerServiceError('invalid', 'Indicá el motivo del bloqueo.')
@@ -160,6 +161,7 @@ export async function updateCustomer(
   const existing = await db.customer.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true, blocked: true } })
   if (!existing) throw new CustomerServiceError('not_found', 'Cliente no encontrado.')
   const patchInput = Object.hasOwn(input, 'blockedReason') && !Object.hasOwn(input, 'blocked') ? { ...input, blocked: existing.blocked } : input
+  const requestsBlockingChange = Object.hasOwn(patchInput, 'blocked') || Object.hasOwn(patchInput, 'blockedReason')
   const fields = { ...identityFields(patchInput, true), ...optionalFields(patchInput, actor, options) }
   const identityForDuplicate = { document: fields.document ?? null, phone: fields.phone ?? null, externalId: fields.externalId ?? null }
   const duplicateRow = await duplicate(db, actor.tenantId, identityForDuplicate, id)
@@ -170,6 +172,9 @@ export async function updateCustomer(
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
   const customer = await db.customer.update({ where: { id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: customerInclude })
   await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: customer.id, metadata: { source: 'integration', fields: Object.keys(fields) } } })
+  if (requestsBlockingChange && (Boolean(fields.blocked) !== existing.blocked || Boolean(fields.blocked))) {
+    await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: fields.blocked ? 'CUSTOMER_BLOCKED' : 'CUSTOMER_UNBLOCKED', entity: 'Customer', entityId: customer.id, metadata: { reason: fields.blockedReason ?? null, previous: existing.blocked } } })
+  }
   return serializeCustomer(customer)
 }
 
