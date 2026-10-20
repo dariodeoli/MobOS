@@ -127,7 +127,11 @@ try {
   const itemRace = (unitPricePyg, idempotencyKey) => ({ mode: 'preview', operation: 'update', priceListId: raceList.id, replaceItems: true, items: [{ scope: 'PRODUCT', productId: product.id, unitPricePyg, tiers: [{ minQty: 5, unitPricePyg: unitPricePyg - 50 }] }], idempotencyKey })
   const itemRacePreviewA = await client.callTool({ name: 'price_lists.write', arguments: itemRace(910, 'sdk-http-list-race-a') }); const itemRacePayloadA = JSON.parse(itemRacePreviewA.content.find(item => item.type === 'text')?.text || '{}')
   const itemRacePreviewB = await client.callTool({ name: 'price_lists.write', arguments: itemRace(920, 'sdk-http-list-race-b') }); const itemRacePayloadB = JSON.parse(itemRacePreviewB.content.find(item => item.type === 'text')?.text || '{}')
-  const itemRaceResults = await Promise.all([itemRacePayloadA.previewId, itemRacePayloadB.previewId].map((previewId, index) => client.callTool({ name: 'price_lists.write', arguments: { ...itemRace(index === 0 ? 910 : 920, index === 0 ? 'sdk-http-list-race-a' : 'sdk-http-list-race-b'), mode: 'commit', previewId } }).catch(() => ({ isError: true }))))
+  const realDateNow = Date.now; Date.now = () => 1735689600000
+  let itemRaceResults
+  try {
+    itemRaceResults = await Promise.all([itemRacePayloadA.previewId, itemRacePayloadB.previewId].map((previewId, index) => client.callTool({ name: 'price_lists.write', arguments: { ...itemRace(index === 0 ? 910 : 920, index === 0 ? 'sdk-http-list-race-a' : 'sdk-http-list-race-b'), mode: 'commit', previewId } }).catch(() => ({ isError: true }))))
+  } finally { Date.now = realDateNow }
   const itemRaceWinners = itemRaceResults.filter(result => !result.isError && result.structuredContent?.committed === true).length
   const itemRaceRow = await db.priceList.findUnique({ where: { id: raceList.id }, include: { items: { include: { tiers: true } } } })
   const itemRaceAudits = await db.auditLog.count({ where: { tenantId: tenant.id, entity: 'PriceList', entityId: raceList.id, action: 'PRICE_LIST_UPDATED' } })
