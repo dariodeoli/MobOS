@@ -156,8 +156,6 @@ try {
   let foreignDenied = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, productId: foreignProduct.id, idempotencyKey: 'sdk-http-image-foreign' } }) } catch { foreignDenied = true }; ok(foreignDenied, 'foreign branch image denied')
   let badMime = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, contentType: 'image/jpeg', idempotencyKey: 'sdk-http-image-mime' } }) } catch { badMime = true }; ok(badMime, 'image magic MIME mismatch rejected')
   let tooLarge = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, dataBase64: Buffer.concat([Buffer.from(png, 'base64'), Buffer.alloc(5 * 1024 * 1024)]).toString('base64'), idempotencyKey: 'sdk-http-image-large' } }) } catch { tooLarge = true }; ok(tooLarge, 'image max size rejected')
-  await client.close()
-
   const raw = async (headers, body = '{}') => fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, ...headers }, body })
   const badOrigin = await fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: 'https://evil.example', 'content-type': 'application/json' }, body: '{}' }); ok(badOrigin.status === 403, 'invalid Origin rejected')
   const badMedia = await raw({ 'content-type': 'text/plain' }); ok(badMedia.status === 415, 'unsupported media type rejected')
@@ -185,7 +183,19 @@ try {
   const removedClient = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${issued.accessToken}` } }))
   ok(removedClient === null, 'revoked MCP client configuration invalidates bearer')
   process.env.MOBOS_MCP_CLIENTS_JSON = configuredClients
-  console.log(`MCP SDK HTTP 1.32.1: ${checks} PASS (HTTP aislado; initialize/list/call/notification/Origin/media type)`)
+  const openSchedule = { timezone: 'America/Asuncion', windows: [{ days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }] }
+  await db.user.update({ where: { id: user.id }, data: { accessSchedule: openSchedule } })
+  const scheduleTokens = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] })
+  ok(Boolean(scheduleTokens.accessToken), 'MCP issuance respects open access schedule')
+  const scheduleAccess = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${scheduleTokens.accessToken}` } }))
+  ok(Boolean(scheduleAccess), 'MCP access respects open access schedule')
+  await db.user.update({ where: { id: user.id }, data: { accessSchedule: { timezone: 'America/Asuncion', windows: [] } } })
+  ok(await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${scheduleTokens.accessToken}` } })) === null, 'MCP bearer is revoked when app schedule closes')
+  let scheduleIssueDenied = false; try { await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] }) } catch { scheduleIssueDenied = true }; ok(scheduleIssueDenied, 'MCP issuance denied outside access schedule')
+  let scheduleRefreshDenied = false; try { await rotateMcpRefreshToken(db, scheduleTokens.refreshToken, 'sdk-http') } catch { scheduleRefreshDenied = true }; ok(scheduleRefreshDenied, 'MCP refresh denied outside access schedule')
+  await client.close()
+
+    console.log(`MCP SDK HTTP 1.32.1: ${checks} PASS (HTTP aislado; initialize/list/call/notification/Origin/media type)`)
 } finally {
   if (httpServer) await new Promise(resolve => httpServer.close(resolve))
   await Promise.all(clients.map(db => db.$disconnect().catch(() => {})))
