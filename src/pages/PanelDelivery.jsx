@@ -72,7 +72,7 @@ export default function PanelDelivery() {
           </button>
         )}
       >
-        <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-4">
+        <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
           <div className="mx-auto max-w-6xl space-y-5">
             <div>
               {/* La identidad de tienda y persona vive en el shell (Lote 1). */}
