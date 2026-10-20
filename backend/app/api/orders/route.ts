@@ -373,8 +373,8 @@ export async function POST(request: Request) {
         // Serialize inline checkouts for this tenant/name, including when no customer exists yet.
         await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(json_build_array(${tenant}::text, lower(${customer.name}::text))::text, 0))`
         // Literal equality: names containing % or _ must not act as ILIKE patterns.
-        const matches = await tx.$queryRaw<Array<{ id: string; phone: string | null; document: string | null }>>`
-          SELECT "id", "phone", "document" FROM "Customer"
+        const matches = await tx.$queryRaw<Array<{ id: string; phone: string | null; document: string | null; nameOfficial: string | null; identityKind: string | null; givenNames: string | null; surnames: string | null }>>`
+          SELECT "id", "phone", "document", "nameOfficial", "identityKind", "givenNames", "surnames" FROM "Customer"
           WHERE "tenantId" = ${tenant} AND (lower("name") = lower(${customer.name}) OR (${customer.document ?? null}::text IS NOT NULL AND "document" = ${customer.document ?? null}) OR (${customer.phone ?? null}::text IS NOT NULL AND "phone" = ${customer.phone ?? null}))
           LIMIT 2 FOR SHARE
         `
@@ -383,6 +383,17 @@ export async function POST(request: Request) {
         if (existing) {
           if (customer.phone !== undefined && existing.phone !== null && existing.phone !== customer.phone) throw new InputError('El teléfono no coincide. Seleccioná el cliente existente y enviá customerId.', 409)
           if (customer.document !== undefined && existing.document !== null && existing.document !== customer.document) throw new InputError('El documento no coincide. Seleccioná el cliente existente y enviá customerId.', 409)
+          // An inline checkout found this record implicitly by name/phone/RUC.
+          // Fiscal identity is authoritative data: an explicit value may fill a
+          // missing field, but it must never silently replace a reviewed value
+          // on a name/phone match. Select the customer explicitly to change it.
+          const identityConflicts = [
+            ['nameOfficial', customer.nameOfficial, existing.nameOfficial],
+            ['identityKind', customer.identityKind, existing.identityKind],
+            ['givenNames', customer.givenNames, existing.givenNames],
+            ['surnames', customer.surnames, existing.surnames],
+          ].filter(([, incoming, stored]) => incoming !== undefined && incoming !== stored)
+          if (identityConflicts.length) throw new InputError('La identidad fiscal existente no coincide. Seleccioná el cliente y confirmá la edición explícitamente.', 409)
           customerId = existing.id
           const storedAddresses = customer.addresses.length
             ? await tx.customerAddress.findMany({ where: { customerId: existing.id }, select: { address: true } })
