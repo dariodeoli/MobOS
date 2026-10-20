@@ -16,6 +16,7 @@ async function selected(page, customer) {
 async function sale(page) {
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await page.getByTestId('carrito-listo').click()
   const request = page.waitForRequest(r => r.url().endsWith('/api/orders') && r.method() === 'POST')
   // Return an honest simulated failure to stay on POS and inspect emitted data.
   await page.route('**/api/orders', route => route.request().method() === 'POST'
@@ -47,7 +48,10 @@ test('persisted PERSON without phone/email sends identity on confirmation and sa
   const identity = { nameOfficial: '  JUAN PEREZ  ', identityKind: 'PERSON', givenNames: 'Juan', surnames: 'Pérez' }
   const customer = fixture(identity)
   await selected(page, customer)
-  expect(await confirm(page, customer)).toMatchObject(identity)
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
+  await expect(page.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveCount(1)
+  await page.getByLabel('Nombre del cliente en ficha', { exact: true }).fill('Nombre visible corregido')
+  expect(await confirm(page, customer)).toMatchObject({ ...identity, name: 'Nombre visible corregido' })
   const order = await sale(page)
   expect(order.customerId).toBe(customer.id)
   expect(order.customer).toEqual(identity)
@@ -57,17 +61,43 @@ test('long fiscal text remains exact through accepted RUC, manual visible name, 
   const official = `  ${'EMPRESA FISCAL; '.repeat(120)}  `
   expect(official.length).toBeGreaterThan(200)
   expect(official.length).toBeLessThanOrEqual(2000)
-  await page.route('**/api/customers?*', route => route.fulfill({ json: [] }))
+  let searchRequests = 0
+  let releaseSearch
+  await page.route('**/api/customers?*', async route => {
+    searchRequests += 1
+    await new Promise(resolve => { releaseSearch = resolve })
+    await route.fulfill({ json: [fixture({ id: 'wrong-homonym', name: 'Fiscal temporal' })] })
+  })
   await page.route('**/api/ruc?*', route => route.fulfill({ json: {
     reviewRequired: true, source: { provider: 'OwnData' }, query: { normalized: '80012345', fullRuc: '80012345-0' },
     result: { ruc: '80012345', dv: '0', fullRuc: '80012345-0', nameOfficial: official, stateRaw: 'ACTIVO', equivalenceRaw: 'SOCIEDAD' },
   } }))
   await page.goto('/pos')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Fiscal temporal')
+  await expect.poll(() => typeof releaseSearch).toBe('function')
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await page.getByLabel('Nombre del cliente en ficha', { exact: true }).fill('')
+  const staleResponse = page.waitForResponse(r => r.url().includes('/api/customers?q='))
+  releaseSearch()
+  await staleResponse
+  await expect(page.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveValue('')
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
   await page.getByLabel('CI o RUC del cliente', { exact: true }).fill('80012345')
   await page.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
   await page.getByRole('button', { name: 'Usar estos datos' }).click()
-  await page.getByLabel('Nombre visible del cliente').fill('Mostrador manual')
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
+  await expect(page.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveCount(1)
+  await expect(page.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveAttribute('maxlength', '200')
+  await page.getByLabel('Nombre del cliente en ficha', { exact: true }).fill('Mostrador manual')
+  // Wait beyond the search debounce: a card edit must never start a lookup.
+  await page.waitForTimeout(350)
+  expect(searchRequests).toBe(1)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toHaveCount(0)
+  await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toHaveValue('Mostrador manual')
+  await page.waitForTimeout(350)
+  expect(searchRequests).toBe(1)
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   const customer = fixture({ name: 'Mostrador manual', nameOfficial: official })
   expect(await confirm(page, customer, 'POST')).toMatchObject({ name: customer.name, nameOfficial: official })
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
@@ -92,6 +122,7 @@ test('customer 409 keeps editing data/error visible and retry 201 closes the edi
   await page.getByTestId('confirmar-cliente').click()
   await expect(page.getByTestId('cliente-guardado')).toContainText('Conflicto fiscal simulado')
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
   await expect(page.getByLabel('Correo del cliente')).toHaveValue('retry344@example.com')
   await page.getByTestId('confirmar-cliente').click()
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()

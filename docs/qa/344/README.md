@@ -41,3 +41,7 @@ Validaciones tras rebase sobre v1.0.235: frontend 1.598 PASS; lint 0 errores (1 
 - Los nombres fiscales largos pueden conservarse completos usando un nombre corto para el mostrador.
 - Un conflicto al guardar permite corregir o reintentar sin perder lo cargado.
 - El piloto con el proveedor real sigue pendiente; estas pruebas usan respuestas simuladas.
+
+## Compatibilidad con POS #622
+
+La rama funcional `codex/pos-620-fiscal-344` unifica el campo visible con el nombre editable del Modal compartido de #622. Véase `docs/qa/620-344/README.md`; el campo redundante fue eliminado en esa integración, preservando fiscal e id. Las ramas originales permanecen intactas.

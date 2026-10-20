@@ -204,6 +204,7 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   await cobro.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
   const pago = cobro.getByTestId('pago-fila-0')
   await pago.getByLabel('Cuenta de cobro', { exact: true }).click()
+  const primeraCuenta = (await page.getByRole('listbox').getByRole('option').first().innerText()).split('\n')[0].trim()
   await page.getByRole('listbox').getByRole('option').first().click()
   const monto = pago.getByLabel('Monto original', { exact: true })
   await monto.fill('999999999')
@@ -218,10 +219,12 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   await expect(segundoPago).toBeVisible()
   await segundoPago.getByLabel('Cuenta de cobro', { exact: true }).click()
   const cuentasSegundoPago = page.getByRole('listbox').getByRole('option')
-  await expect(cuentasSegundoPago).toHaveCount(9)
+  await expect(cuentasSegundoPago.nth(2)).toBeVisible()
+  const segundaCuenta = (await cuentasSegundoPago.nth(2).innerText()).split('\n')[0].trim()
+  expect(segundaCuenta).not.toBe(primeraCuenta)
   await cuentasSegundoPago.nth(2).click()
-  const resumenCuentas = await cobro.locator('[data-testid^="pago-fila-"]').allTextContents()
-  expect(resumenCuentas[0]).not.toBe(resumenCuentas[1])
+  await expect(pago).toContainText(primeraCuenta)
+  await expect(segundoPago).toContainText(segundaCuenta)
   const estilos = await page.evaluate(() => ({
     carrito: getComputedStyle(document.querySelector('[data-testid="pos-carrito-cuerpo"]')).overflowY,
     pagos: getComputedStyle(document.querySelector('[data-testid="pos-pagos-lista"]')).overflowY,
@@ -267,6 +270,7 @@ for (const width of [1440, 390]) {
   test(`venta rápida: tema claro/oscuro mantiene objetivos a ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.emulateMedia({ colorScheme: width < 640 ? 'dark' : 'light' })
+    if (width < 640) await page.addInitScript(() => localStorage.setItem('mobos:theme', 'dark'))
     await enterDemo(page)
     if (width >= 640) {
       const toggle = page.getByRole('button', { name: /Cambiar a tema (oscuro|claro)/ }).first()
@@ -274,6 +278,7 @@ for (const width of [1440, 390]) {
       await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true)
       await page.waitForTimeout(300)
     }
+    await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
     if (width >= 640) {
       const contrast = await page.locator('.pos-product-card').first().evaluate(element => {
@@ -301,6 +306,16 @@ for (const width of [1440, 390]) {
       expect(contrast.border).toBeGreaterThanOrEqual(3)
     }
     await capture620(page, `theme-${width}px`)
+    if (width < 640) await page.getByRole('button', { name: 'Agregar cliente', exact: true }).click()
+    await page.getByText('Datos de contacto, RUC/CI y direcciones', { exact: true }).click()
+    const themedEditor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
+    await expect(themedEditor).toBeVisible()
+    await expect(themedEditor.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveCount(1)
+    await themedEditor.getByLabel('Nombre del cliente en ficha', { exact: true }).fill('Cliente Modal Oscuro QA')
+    await capture620(page, `customer-modal-theme-${width}px`)
+    await page.keyboard.press('Escape')
+    await expect(themedEditor).toBeHidden()
+
     if (width >= 640) {
       await page.getByRole('button', { name: /Cambiar a tema claro/ }).first().click()
       await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(false)

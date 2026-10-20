@@ -47,6 +47,9 @@ const customerValue = (customer) => ({
 export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '', onStats, onSelected }) {
   const { empresa } = useSesion()
   const empresaId = empresa?.id || null
+  // Only the outer search writes this query; editing the card never selects
+  // a different customer merely because its visible name matches.
+  const [searchQuery, setSearchQuery] = useState('')
   const [matches, setMatches] = useState([])
   const [error, setError] = useState('')
   // Pre-clientes: borradores guardados al consultar un RUC que todavía no tiene
@@ -84,14 +87,14 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const elegirClienteRef = useRef(null)
   useEffect(() => { elegirClienteRef.current = elegirCliente })
   useEffect(() => {
-    const query = (value.name || '').trim()
+    const query = searchQuery.trim()
     if (!empresaId || esDemo || value.id || !query) { setBorradores([]); return }
     setBorradores(buscarPreClientes(empresaId, query))
-  }, [value.name, value.id, empresaId, esDemo])
+  }, [searchQuery, value.id, empresaId, esDemo])
   useEffect(() => {
     let active = true
-    const query = (value.name || '').trim()
-    if (!query) { setMatches([]); return () => { active = false } }
+    const query = searchQuery.trim()
+    if (!query || value.id || (colapsarFicha && abierto)) { setMatches([]); return () => { active = false } }
     const timer = setTimeout(async () => {
       try {
         // En demo la cartera es la de la pestaña (#201): seeds (#194) + lo
@@ -110,7 +113,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       } catch { if (active) setError('No se pudo consultar clientes. Reintentá antes de confirmar.') }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
-  }, [value.name, value.id, esDemo])
+  }, [searchQuery, value.id, esDemo, abierto, colapsarFicha])
 
   // Cliente restaurado (carrito guardado): se recupera su registro para la tarjeta.
   useEffect(() => {
@@ -251,7 +254,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     }
   }
   function quitarCliente() {
-    setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
+    setSearchQuery(''); setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
     enfocarBusqueda.current = true
     onChange(clienteVacio())
   }
@@ -288,7 +291,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       setGuardandoDireccion(null)
     }
   }
-  const abrirEdicion = () => { setEditar(true); setAbierto(true) }
+  const abrirEdicion = () => { setSearchQuery(''); setEditar(true); setAbierto(true) }
   // Una dirección vacía se quita sin preguntar; con datos pide confirmación.
   const pedirQuitarDireccion = (index) => {
     const { address = '', city = '', notes = '' } = value.addresses[index] || {}
@@ -377,7 +380,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
 
   const fichaContenido = (
     <div className="mt-3 space-y-4">
-        {colapsarFicha && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" value={value.name || ''} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
+        {(colapsarFicha || typeof value.nameOfficial === 'string') && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" maxLength={200} value={value.displayName ?? (value.name || '')} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{typeof value.nameOfficial === 'string' && <p className="text-xs text-mute">Nombre visible para el mostrador. La identidad fiscal se conserva aparte.</p>}{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
         {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
         <div className="flex justify-end">
           <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
@@ -387,9 +390,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         </div>
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
-          {typeof value.nameOfficial === 'string' && (
-            <Campo rotulo="Nombre visible del cliente"><Input aria-label="Nombre visible del cliente" maxLength={200} value={value.displayName || ''} onChange={event => onChange({ ...value, displayName: event.target.value })} placeholder="Nombre para el mostrador" /></Campo>
-          )}
           <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
@@ -451,7 +451,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   )
 
   return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} onKeyDown={event => {
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => { setSearchQuery(event.target.value); onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value }) }} onKeyDown={event => {
       if (event.key !== 'Enter') return
       event.preventDefault()
       if (matches[0]) elegirCliente(matches[0])
@@ -466,7 +466,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         {fichaContenido}
       </Modal>
     ) : (
-      <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}>
+      <details open={abierto} onToggle={event => { if (colapsarFicha && event.currentTarget.open) setSearchQuery(''); setAbierto(event.currentTarget.open) }} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}>
         <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
         {fichaContenido}
       </details>
