@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const accountId = session.accountId ?? null
     const tenantId = session.user.tenantId
     const issued = await prisma.$transaction(async tx => {
-      const grant = await tx.mcpClientGrant.upsert({ where: { tenantId_userId_clientId_redirectUri: { tenantId, userId: session.user.id, clientId: client.clientId, redirectUri } }, create: { accountId, tenantId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes: [...scopes] }, update: { resource, scopes: [...scopes], revokedAt: null } })
+      const grant = await tx.mcpClientGrant.upsert({ where: { tenantId_userId_clientId_redirectUri: { tenantId, userId: session.user.id, clientId: client.clientId, redirectUri } }, create: { accountId, tenantId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes: [...scopes] }, update: { accountId, resource, scopes: [...scopes], revokedAt: null } })
       const now = await dbNow(tx)
       await tx.mcpAccessToken.updateMany({ where: { grantId: grant.id, revokedAt: null }, data: { revokedAt: now } })
       await tx.mcpAuthorizationCode.updateMany({ where: { grantId: grant.id, usedAt: null }, data: { usedAt: now } })
