@@ -69,3 +69,11 @@ secretos.
 ## Corte implementado en PR #624
 
 `price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos sólo para `ADMIN`/`GERENTE` con el módulo de inventario y los scopes correspondientes. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
+
+### Evidencia del endurecimiento
+
+- El cursor MCP se serializa como cursor opaco base64url y la segunda página no repite filas.
+- El servicio web `/api/price-lists` y el MCP reutilizan el mismo servicio de creación, lectura y actualización.
+- Las actualizaciones con preview comparan `updatedAt` y usan un claim condicional; una vista previa obsoleta devuelve conflicto sin sobrescribir cambios.
+- El preview conserva los ítems normalizados y `isActive`; el commit aplica exactamente ese contrato.
+- `backend/tests/mcp-sdk-http.mjs` cubre listado, preview, commit, replay, paginación, preview obsoleto y denegación por scope/rol.
