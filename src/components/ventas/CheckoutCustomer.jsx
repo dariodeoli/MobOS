@@ -34,7 +34,7 @@ const TITULO_SECCION = 'text-[11px] font-semibold uppercase tracking-wide text-m
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
-  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName, identityKind: customer.identityKind ?? null, givenNames: customer.givenNames ?? null, surnames: customer.surnames ?? null } : {}),
+  ...('nameOfficial' in customer ? { nameOfficial: customer.nameOfficial, displayName: customer.displayName, identityKind: customer.identityKind ?? null, givenNames: customer.givenNames ?? null, surnames: customer.surnames ?? null, personConfirmed: customer.identityKind === 'PERSON' && Boolean(customer.givenNames?.trim() && customer.surnames?.trim()) } : {}),
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
   pricingTier: customer.pricingTier || 'RETAIL', priceListId: customer.priceListId || null, creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,

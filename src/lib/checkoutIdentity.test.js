@@ -53,3 +53,9 @@ test('nombre visible separado permite fiscal largo sin truncarlo', () => {
   assert.throws(() => checkoutVisibleName({ nameOfficial: raw, name: raw }, ''), /nombre visible/)
   assert.throws(() => checkoutVisibleName({ displayName: 'X'.repeat(201), nameOfficial: 'EMPRESA S.A.' }), /200 caracteres/)
 })
+
+test('cliente seleccionado conserva persona confirmada y permite empresa fiscal corta', () => {
+  assert.equal(checkoutVisibleName({ name: 'ACME S.A.', nameOfficial: 'ACME S.A.' }), 'ACME S.A.')
+  const selected = { name: 'Juan Pérez', nameOfficial: 'JUAN PEREZ', identityKind: 'PERSON', givenNames: 'Juan', surnames: 'Pérez', personConfirmed: true }
+  assert.equal(checkoutVisibleName(selected), 'Juan Pérez')
+})

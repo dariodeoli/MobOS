@@ -25,8 +25,11 @@ export function checkoutName(current, fallback = current?.name || '') {
 // result therefore requires a separate manual display name before submission.
 export function checkoutVisibleName(current, fallback = '') {
   const fiscal = typeof current?.nameOfficial === 'string' ? current.nameOfficial : null
-  const candidates = [current?.displayName, current?.name, fallback]
-  const candidate = candidates.find(value => typeof value === 'string' && value.trim() && value !== fiscal)
+  const manual = typeof current?.displayName === 'string' && current.displayName.trim() ? current.displayName : null
+  const name = typeof current?.name === 'string' && current.name.trim() ? current.name : null
+  // A short fiscal company name is also a valid visible name. For a long
+  // fiscal result, prefer an explicit display name or the caller fallback.
+  const candidate = manual || (name && (name !== fiscal || (fiscal && fiscal.trim().length <= 200)) ? name : null) || (fiscal && fiscal.trim().length <= 200 ? fiscal : null) || fallback
   const visible = typeof candidate === 'string' ? candidate.trim() : ''
   if (!visible) throw new Error('Ingresá un nombre visible de hasta 200 caracteres para el cliente.')
   if (visible.length > 200) throw new Error('El nombre visible debe tener hasta 200 caracteres; el nombre fiscal se conserva aparte.')
