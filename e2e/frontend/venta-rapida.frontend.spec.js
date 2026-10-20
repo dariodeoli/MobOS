@@ -62,3 +62,19 @@ test('venta rápida conserva objetivos táctiles y no desborda en celular', asyn
   expect(box.width).toBeGreaterThanOrEqual(44)
   expect(box.height).toBeGreaterThanOrEqual(44)
 })
+
+test('cobro: título y acciones de pagos mantienen separación en desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 })
+  await enterDemo(page)
+  await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
+  await page.getByTestId('carrito-listo').click()
+  const cobro = page.getByTestId('pos-cobro')
+  await expect(cobro).toBeVisible()
+  const titulo = cobro.getByText('Pagos de esta venta', { exact: true })
+  const agregar = cobro.getByRole('button', { name: '+ Agregar pago', exact: true })
+  const gift = cobro.getByRole('button', { name: '+ Canjear gift card', exact: true })
+  const [t, a, g] = await Promise.all([titulo.boundingBox(), agregar.boundingBox(), gift.boundingBox()])
+  const overlap = (one, two) => one.x < two.x + two.width && two.x < one.x + one.width && one.y < two.y + two.height && two.y < one.y + one.height
+  expect(overlap(t, a)).toBe(false)
+  expect(overlap(t, g)).toBe(false)
+})
