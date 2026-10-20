@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CAMPOS_VISIBLES_CUENTA, CUENTAS_DEMO } from './demoCuentasCobro.js'
+import { CAMPOS_VISIBLES_CUENTA, CUENTAS_DEMO, migrarCuentasDemoV2 } from './demoCuentasCobro.js'
 
 // #190: la demo muestra el sistema nuevo completo y sin la palabra «demo» en
 // los datos visibles (los ids internos `demo-*` no se muestran).
@@ -51,4 +51,19 @@ test('la demo cubre titular dueño, moneda alternativa y cuenta histórica inact
   const historical = CUENTAS_DEMO.find((cuenta) => cuenta.id === 'demo-transfer-sudameris-legacy')
   assert.equal(historical.isActive, false)
   assert.match(historical.reference, /histórica/i)
+})
+
+test('la migración v2 conserva ediciones, cuentas propias y bajas sin duplicar', () => {
+  const anteriores = [
+    { id: 'demo-transfer-itau', name: 'Itaú personalizado', kind: 'TRANSFER', currency: 'PYG', bank: 'Itaú', holder: 'Titular editado', accountNumber: '001-2456789', isActive: true },
+    { id: 'demo-custom-account', name: 'Cuenta propia', kind: 'CASH', currency: 'PYG', isActive: true },
+    { id: 'demo-transfer-continental', name: 'Continental desactivada', kind: 'TRANSFER', currency: 'PYG', bank: 'Continental', holder: 'Aurora Móviles', accountNumber: '002-9876543', isActive: false },
+  ]
+  const migradas = migrarCuentasDemoV2(anteriores)
+  assert.equal(migradas.filter(cuenta => cuenta.id === 'demo-transfer-itau').length, 1)
+  assert.equal(migradas.find(cuenta => cuenta.id === 'demo-transfer-itau').holder, 'Titular editado')
+  assert.equal(migradas.find(cuenta => cuenta.id === 'demo-custom-account').name, 'Cuenta propia')
+  assert.equal(migradas.find(cuenta => cuenta.id === 'demo-transfer-continental').isActive, false)
+  assert.equal(migradas.filter(cuenta => cuenta.id === 'demo-transfer-gnb-owner').length, 1)
+  assert.equal(migradas.filter(cuenta => cuenta.id === 'demo-transfer-sudameris-legacy').length, 1)
 })

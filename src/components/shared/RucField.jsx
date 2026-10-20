@@ -38,7 +38,7 @@ export default function RucField({
     // Los RUC de ejemplo marcados como fixture se admiten con el contrato demo
     // local. El resto de la demo conserva la consulta pública de OwnData y sus
     // errores honestos; nunca se convierte un 503 en una razón social inventada.
-    const result = admitRucResponse(payload, identity, Boolean(payload?.demoFixture))
+    const result = admitRucResponse(payload, identity, demo && Boolean(payload?.demoFixture))
     if (!request.isCurrent(scope.current)) return null
     if (!result) throw new Error('No se recibieron datos verificables para ese RUC.')
     // name solo adapta la presentación; datos conserva nameOfficial y toda la
