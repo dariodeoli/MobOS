@@ -1,5 +1,5 @@
 import { hasPermission, type AuthUser } from '../auth'
-import { catalogEntry, MCP_SCOPES, type McpAction, type McpCatalogEntry, type McpScope } from './catalog'
+import { catalogEntry, IMPLEMENTED_MCP_SCOPES, type McpAction, type McpCatalogEntry, type McpScope } from './catalog'
 
 export type McpAuthorizationContext = {
   tenantId: string | null | undefined
@@ -49,7 +49,7 @@ export function authorizeMcpAction(action: unknown, context: McpAuthorizationCon
 
 export function parseMcpScopes(input: unknown): McpScope[] {
   if (typeof input !== 'string') return []
-  const allowed = new Set<string>(MCP_SCOPES)
+  const allowed = new Set<string>(IMPLEMENTED_MCP_SCOPES)
   const values = input.split(/[ ]+/).filter(Boolean)
   if (!values.length || values.some(scope => !allowed.has(scope))) return []
   return [...new Set(values)] as McpScope[]

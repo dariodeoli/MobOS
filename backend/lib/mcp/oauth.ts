@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
 import { effectivePermissions, isAccessAllowed } from '../auth'
-import { actionForScope, MCP_SCOPES, type McpScope } from './catalog'
+import { actionForScope, IMPLEMENTED_MCP_SCOPES, type McpScope } from './catalog'
 
 const CODE_TTL_MS = 60_000
 const ACCESS_TTL_MS = 10 * 60_000
@@ -62,7 +62,7 @@ export function findMcpClient(clientId: unknown, redirectUri?: unknown) {
 export function normalizeMcpScopes(input: unknown): McpScope[] {
   if (!Array.isArray(input) && typeof input !== 'string') return []
   const values = Array.isArray(input) ? input : input.split(/[ ]+/)
-  if (!values.length || values.some(value => typeof value !== 'string' || !(MCP_SCOPES as readonly string[]).includes(value))) return []
+  if (!values.length || values.some(value => typeof value !== 'string' || !(IMPLEMENTED_MCP_SCOPES as readonly string[]).includes(value))) return []
   return [...new Set(values)] as McpScope[]
 }
 export function pkceChallenge(verifier: string) { return createHash('sha256').update(verifier).digest('base64url') }
@@ -128,7 +128,7 @@ export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, cli
 
 export function oauthMetadata() {
   const issuer = mcpIssuer(); const resource = mcpResource()
-  return { issuer, resource, authorization_endpoint: `${issuer}/api/mcp/authorize`, token_endpoint: `${issuer}/api/mcp/token`, revocation_endpoint: `${issuer}/api/mcp/revoke`, response_types_supported: ['code'], grant_types_supported: ['authorization_code', 'refresh_token'], code_challenge_methods_supported: ['S256'], scopes_supported: [...MCP_SCOPES], token_endpoint_auth_methods_supported: ['none'], authorization_response_iss_parameter_supported: true }
+  return { issuer, resource, authorization_endpoint: `${issuer}/api/mcp/authorize`, token_endpoint: `${issuer}/api/mcp/token`, revocation_endpoint: `${issuer}/api/mcp/revoke`, response_types_supported: ['code'], grant_types_supported: ['authorization_code', 'refresh_token'], code_challenge_methods_supported: ['S256'], scopes_supported: [...IMPLEMENTED_MCP_SCOPES], token_endpoint_auth_methods_supported: ['none'], authorization_response_iss_parameter_supported: true }
 }
 
 export function assertScopeActions(scopes: readonly string[]) {
