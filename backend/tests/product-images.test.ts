@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
-import { hasImageMagicBytes, imageDimensions, primaryImageFields, productImageUrls, readProductImage, readProductImageBase64, MAX_PRODUCT_IMAGE_BYTES, generateProductImages, generateProductImagesBase64, readProductImageFormData } from '../lib/product-images'
+import { hasImageMagicBytes, imageDimensions, primaryImageFields, productImageUrls, readProductImage, readProductImageBase64, MAX_PRODUCT_IMAGE_BYTES, MAX_PRODUCT_IMAGES, generateProductImages, generateProductImagesBase64, persistProductImage, readProductImageFormData } from '../lib/product-images'
 import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../lib/product-accessories'
 
 // #404: fotos de producto — validación por magic bytes + dimensiones del archivo.
@@ -51,6 +51,29 @@ async function main() {
   assert.equal(generated.thumb.mimeType, 'image/webp')
   const throughMcp = await generateProductImagesBase64(source.toString('base64'), 'image/png')
   assert.deepEqual([throughMcp.image.width, throughMcp.image.height, throughMcp.thumb.width, throughMcp.thumb.height], [800, 800, 160, 160])
+
+  const row = { id: 'photo-1', position: 0, isPrimary: true, variantKey: 'negro', width: 800, height: 800, contentType: 'image/webp', sizeBytes: throughMcp.image.sizeBytes, createdAt: new Date() }
+  const audits: any[] = []
+  const makeDb = ({ product = { id: 'p1', branchId: null } as any, active = 0 } = {}) => ({
+    product: { findFirst: async () => product },
+    productImage: {
+      count: async () => active,
+      findFirst: async () => null,
+      create: async () => row,
+    },
+    $transaction: async (callback: any) => callback({
+      productImage: { findFirst: async () => null, count: async () => 0, create: async () => row },
+      auditLog: { create: async ({ data }: any) => audits.push(data) },
+    }),
+  })
+  await assert.rejects(() => persistProductImage({ db: makeDb() as any, tenantId: 't1', userId: 'u1', productId: 'p1', canManage: false, image: throughMcp.image }), statusIs(403))
+  await assert.rejects(() => persistProductImage({ db: makeDb({ product: null }) as any, tenantId: 't-other', userId: 'u1', productId: 'p1', canManage: true, image: throughMcp.image }), statusIs(404))
+  await assert.rejects(() => persistProductImage({ db: makeDb({ product: { id: 'p1', branchId: 'branch-b' } }) as any, tenantId: 't1', userId: 'u1', productId: 'p1', branchId: 'branch-a', canManage: true, image: throughMcp.image }), statusIs(403))
+  await assert.rejects(() => persistProductImage({ db: makeDb({ active: MAX_PRODUCT_IMAGES }) as any, tenantId: 't1', userId: 'u1', productId: 'p1', canManage: true, image: throughMcp.image }), statusIs(409))
+  const saved = await persistProductImage({ db: makeDb() as any, tenantId: 't1', userId: 'u1', productId: 'p1', canManage: true, image: throughMcp.image, variantKey: 'negro', provenance: 'mcp' })
+  assert.equal(saved.id, 'photo-1')
+  assert.equal(saved.isPrimary, true)
+  assert.equal(audits.at(-1).metadata.provenance, 'mcp')
   for (const output of [generated.image, generated.thumb]) {
     const metadata = await sharp(output.data).metadata()
     assert.equal(metadata.width, output.width)
