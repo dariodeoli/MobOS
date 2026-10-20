@@ -5,14 +5,19 @@ import { prisma } from '../../../../lib/prisma'
 import { moduleStoreFrom } from '../../../../lib/module-store'
 import { actionForScope } from '../../../../lib/mcp/catalog'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
-import { assertScopeActions, issueMcpAuthorizationCode, findMcpClient, normalizeMcpScopes, McpOAuthError, mcpResource } from '../../../../lib/mcp/oauth'
+import { assertScopeActions, dbNow, issueMcpAuthorizationCode, findMcpClient, normalizeMcpScopes, McpOAuthError, mcpIssuer, mcpResource } from '../../../../lib/mcp/oauth'
 
 export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   if (url.searchParams.get('response_type') !== 'code') return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
   const session = await requireSession(request)
-  if (!session?.accountId) return NextResponse.json({ error: 'login_required' }, { status: 401 })
+  if (!session?.accountId) {
+    const appOrigin = (() => { try { return new URL(process.env.MOBOS_APP_URL || mcpIssuer()).origin } catch { return mcpIssuer() } })()
+    const returnTo = `${url.pathname}${url.search}`
+    const login = new URL('/login', appOrigin); login.searchParams.set('returnTo', returnTo)
+    return NextResponse.redirect(login, { status: 303 })
+  }
   const state = url.searchParams.get('state')
   if (state && !/^[A-Za-z0-9._~-]{1,256}$/.test(state)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   const client = findMcpClient(url.searchParams.get('client_id'), url.searchParams.get('redirect_uri'))
@@ -23,7 +28,10 @@ export async function GET(request: Request) {
   const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`
   const fields = [['client_id', client.clientId], ['redirect_uri', url.searchParams.get('redirect_uri') || ''], ['scope', scopes.join(' ')], ['resource', url.searchParams.get('resource') || ''], ['code_challenge', url.searchParams.get('code_challenge') || ''], ['code_challenge_method', 'S256'], ['state', url.searchParams.get('state') || '']].map(([name, value]) => hidden(name, value)).join('')
   const safeName = client.name.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char))
-  return new NextResponse(`<!doctype html><html lang="es"><body><h1>Autorizar MobOS</h1><p>${safeName} solicita: ${scopes.join(', ')}</p><form method="post">${fields}<button type="submit">Autorizar</button></form></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+  const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { name: true } })
+  const safeTenant = (tenant?.name || 'tu empresa').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char))
+  const labels = scopes.map(scope => `<li>${scope.replace(/[&<>"']/g, '')}</li>`).join('')
+  return new NextResponse(`<!doctype html><html lang="es"><body><h1>Autorizar conexión</h1><p><strong>${safeName}</strong> solicita acceso a <strong>${safeTenant}</strong>.</p><ul>${labels}</ul><form method="post">${fields}<button name="decision" value="approve" type="submit">Autorizar</button><button name="decision" value="deny" type="submit">Cancelar</button></form></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
 }
 export async function POST(request: Request) {
   try {
@@ -35,6 +43,10 @@ export async function POST(request: Request) {
       : await request.json() as Record<string, unknown>
     const client = findMcpClient(body.client_id, body.redirect_uri)
     if (!client) throw new McpOAuthError('invalid_client', 'Cliente o redirect URI no registrado.', 400)
+    if (body.decision === 'deny') {
+      const target = new URL(body.redirect_uri as string); target.searchParams.set('error', 'access_denied'); if (typeof body.state === 'string' && /^[A-Za-z0-9._~-]{1,256}$/.test(body.state)) target.searchParams.set('state', body.state)
+      return NextResponse.redirect(target, { status: 303 })
+    }
     const scopes = normalizeMcpScopes(body.scope)
     assertScopeActions(scopes)
     const redirectUri = body.redirect_uri as string
@@ -49,10 +61,17 @@ export async function POST(request: Request) {
       const action = actionForScope(scope)
       if (!action || !authorizeMcpAction(action, { tenantId: session.user.tenantId, user: session.user, enabledModules, grantedScopes: scopes }).allowed) throw new McpOAuthError('access_denied', `No tenés permiso para autorizar ${scope}.`, 403)
     }
-    const grant = await prisma.mcpClientGrant.upsert({ where: { accountId_tenantId_clientId_redirectUri: { accountId: session.accountId, tenantId: session.user.tenantId, clientId: client.clientId, redirectUri } }, create: { accountId: session.accountId, tenantId: session.user.tenantId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes: [...scopes] }, update: { userId: session.user.id, resource, scopes: [...scopes], revokedAt: null } })
-    await prisma.mcpAccessToken.updateMany({ where: { grantId: grant.id, revokedAt: null }, data: { revokedAt: new Date() } })
-    const issued = await issueMcpAuthorizationCode(prisma, { grantId: grant.id, accountId: session.accountId, tenantId: session.user.tenantId, sessionId: session.sessionId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes, codeChallenge: challenge })
-    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'MCP_ACCESS_GRANTED', entity: 'McpClientGrant', entityId: grant.id, metadata: { clientId: client.clientId, scopes } } })
+    const accountId = session.accountId
+    const tenantId = session.user.tenantId
+    const issued = await prisma.$transaction(async tx => {
+      const grant = await tx.mcpClientGrant.upsert({ where: { accountId_tenantId_clientId_redirectUri: { accountId, tenantId, clientId: client.clientId, redirectUri } }, create: { accountId, tenantId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes: [...scopes] }, update: { userId: session.user.id, resource, scopes: [...scopes], revokedAt: null } })
+      const now = await dbNow(tx)
+      await tx.mcpAccessToken.updateMany({ where: { grantId: grant.id, revokedAt: null }, data: { revokedAt: now } })
+      await tx.mcpAuthorizationCode.updateMany({ where: { grantId: grant.id, usedAt: null }, data: { usedAt: now } })
+      const issued = await issueMcpAuthorizationCode(tx, { grantId: grant.id, accountId, tenantId, sessionId: session.sessionId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes, codeChallenge: challenge }, now)
+      await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MCP_ACCESS_GRANTED', entity: 'McpClientGrant', entityId: grant.id, metadata: { clientId: client.clientId, scopes } } })
+      return issued
+    })
     const target = new URL(redirectUri); target.searchParams.set('code', issued.code); if (typeof body.state === 'string' && /^[A-Za-z0-9._~-]{1,256}$/.test(body.state)) target.searchParams.set('state', body.state)
     return NextResponse.redirect(target, { status: 303 })
   } catch (error) {
