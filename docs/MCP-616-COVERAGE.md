@@ -70,5 +70,5 @@ secretos.
 - Las actualizaciones con preview comparan `updatedAt` y usan un claim condicional; una vista previa obsoleta devuelve conflicto sin sobrescribir cambios.
 - La actualización de ítems se ejecuta dentro de la transacción de la ruta web o del commit MCP; el CAS también avanza `updatedAt` cuando sólo cambian ítems, por lo que dos previews concurrentes no pueden sobrescribirse.
 - El preview conserva los ítems normalizados y `isActive`; el commit aplica exactamente ese contrato.
-- `backend/tests/mcp-sdk-http.mjs` cubre listado, preview, commit, replay, paginación de dos páginas sin duplicados, preview obsoleto, rollback real de transacción y denegación por scope/rol.
-- Validación local del corte: 88 pruebas HTTP/SDK sobre PostgreSQL aislado, 351 unitarias (1 skip preexistente del runner), `prisma validate`, `tsc --noEmit` y build de backend con `BUILD_ID=mcp616-final`.
+- `backend/tests/mcp-sdk-http.mjs` cubre listado, preview, commit, replay, paginación de dos páginas sin duplicados, preview obsoleto, rollback real de transacción, carrera de reemplazo de ítems con un único ganador y denegación por scope/rol.
+- Validación local del corte: 89 pruebas HTTP/SDK sobre PostgreSQL aislado, 352 unitarias (1 skip preexistente del runner), `prisma validate`, `tsc --noEmit` y build de backend.
