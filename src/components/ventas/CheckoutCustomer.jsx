@@ -1,3 +1,4 @@
+import { guardarFichaClienteDemo } from '@/lib/demoCheckoutCustomer'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, ConfirmDialog, IconAction, Input, Modal } from '@/components/ui'
@@ -140,10 +141,23 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   async function aplicarDocumento(datos) {
     if (guardandoFicha || guardandoDireccion !== null) return
     const next = applyCheckoutIdentity(value, datos)
-    if (esDemo || !empresaId) {
+    if (esDemo) {
       onChange(next)
+      try {
+        const guardado = guardarFichaClienteDemo(next)
+        onChange(customerValue(guardado))
+        setRegistro(guardado)
+        setFeedbackFichaTipo('success')
+        setFeedbackFicha('Datos RUC guardados en esta demo. Se descartan al recargar.')
+        onSelected?.(guardado)
+      } catch (cause) {
+        setFeedbackFichaTipo('error')
+        setFeedbackFicha(cause?.message || 'No se pudo guardar el cliente en esta demo.')
+        setAbierto(true)
+      }
       return
     }
+    if (!empresaId) { onChange(next); return }
     setGuardandoFicha(true)
     setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando datos verificados…')
@@ -208,13 +222,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       setAbierto(true)
       return
     }
-    if (esDemo) {
-      setFeedbackFichaTipo('success')
-      setFeedbackFicha('Cliente listo para esta demo.')
-      setAbierto(false)
-      setEditar(false)
-      return
-    }
     setGuardandoFicha(true)
     setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando cliente…')
@@ -235,16 +242,19 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           billingDocument: String(billingTo?.document || '').trim() || null,
         } : {}),
       }
-      const respuesta = value.id
-        ? await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, payload)
-        : await api.post('/api/customers', payload)
+      const respuesta = esDemo
+        ? guardarFichaClienteDemo({ ...value, ...payload })
+        : value.id
+          ? await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, payload)
+          : await api.post('/api/customers', payload)
       const guardado = respuesta?.customer || respuesta
       if (!guardado?.id) throw new Error('El servidor no devolvió la ficha guardada.')
       const siguiente = customerValue(guardado)
       onChange(siguiente)
       setRegistro(guardado)
       setFeedbackFichaTipo('success')
-      setFeedbackFicha('Cliente guardado correctamente.')
+      setFeedbackFicha(esDemo ? 'Cliente guardado en esta demo. Se descarta al recargar.' : 'Cliente guardado correctamente.')
+      if (esDemo) onSelected?.(guardado)
       setAbierto(false)
       setEditar(false)
     } catch (cause) {
@@ -270,22 +280,19 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       setFeedbackFicha('Guardá primero el cliente para agregarle una dirección.')
       return
     }
-    if (esDemo) {
-      setFeedbackFichaTipo('success')
-      setFeedbackFicha('Dirección lista para esta demo.')
-      return
-    }
     setGuardandoDireccion(index)
     setFeedbackFichaTipo('status')
     setFeedbackFicha('Guardando dirección…')
     try {
-      const respuesta = await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, { addresses: value.addresses })
+      const respuesta = esDemo
+        ? guardarFichaClienteDemo(value)
+        : await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, { addresses: value.addresses })
       const guardado = respuesta?.customer || respuesta
       if (!guardado?.id) throw new Error('El servidor no devolvió la dirección guardada.')
       onChange(customerValue(guardado))
       setRegistro(guardado)
       setFeedbackFichaTipo('success')
-      setFeedbackFicha('Dirección guardada en el cliente.')
+      setFeedbackFicha(esDemo ? 'Dirección guardada en esta demo. Se descarta al recargar.' : 'Dirección guardada en el cliente.')
     } catch (cause) {
       setFeedbackFichaTipo('error')
       setFeedbackFicha(cause?.message || 'No se pudo guardar la dirección.')
