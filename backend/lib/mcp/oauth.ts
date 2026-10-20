@@ -74,7 +74,7 @@ export function validPkceVerifier(verifier: unknown, challenge: string) {
 function secret() { return randomBytes(32).toString('hex') }
 export function hashMcpSecret(value: string) { return createHash('sha256').update(value).digest('hex') }
 
-export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string; accountId: string; tenantId: string; sessionId: string; userId: string; clientId: string; redirectUri: string; resource: string; scopes: readonly string[]; codeChallenge: string }, now?: Date) {
+export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string; accountId?: string | null; tenantId: string; sessionId: string; userId: string; clientId: string; redirectUri: string; resource: string; scopes: readonly string[]; codeChallenge: string }, now?: Date) {
   now ??= await dbNow(db)
   const code = secret()
   const expiresAt = new Date(now.getTime() + CODE_TTL_MS)
@@ -91,13 +91,14 @@ export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now?:
   return row
 }
 
-export async function issueMcpTokens(db: Db, input: { grantId: string; accountId: string; tenantId: string; sessionId: string; userId: string; clientId: string; resource: string; scopes: readonly string[] }, now?: Date) {
+export async function issueMcpTokens(db: Db, input: { grantId: string; accountId?: string | null; tenantId: string; sessionId: string; userId: string; clientId: string; resource: string; scopes: readonly string[] }, now?: Date) {
   now ??= await dbNow(db)
   const grant = await db.mcpClientGrant.findUnique({ where: { id: input.grantId }, select: { revokedAt: true, accountId: true, tenantId: true, userId: true, clientId: true, resource: true, scopes: true } })
   const session = await db.session.findUnique({ where: { id: input.sessionId }, include: { user: true } })
-  const membership = await db.tenantMembership.findFirst({ where: { accountId: input.accountId, tenantId: input.tenantId, userId: input.userId, revokedAt: null }, select: { id: true } })
+  const tenant = await db.tenant.findUnique({ where: { id: input.tenantId }, select: { archivedAt: true } })
+  const membership = input.accountId ? await db.tenantMembership.findFirst({ where: { accountId: input.accountId, tenantId: input.tenantId, userId: input.userId, revokedAt: null }, select: { id: true } }) : null
   const resourceOk = input.resource === mcpResource()
-  if (!grant || grant.revokedAt || grant.accountId !== input.accountId || grant.tenantId !== input.tenantId || grant.userId !== input.userId || grant.clientId !== input.clientId || grant.resource !== input.resource || !resourceOk || !membership || !session || session.accountId !== input.accountId || session.tenantId !== input.tenantId || session.revokedAt || session.expiresAt <= now || session.userId !== input.userId || !session.user || session.user.tenantId !== input.tenantId || session.user.status !== 'ACTIVE') throw new McpOAuthError('invalid_grant', 'El consentimiento o la sesión ya no están vigentes.', 400)
+  if (!grant || grant.revokedAt || grant.accountId !== input.accountId || grant.tenantId !== input.tenantId || grant.userId !== input.userId || grant.clientId !== input.clientId || grant.resource !== input.resource || !resourceOk || (input.accountId ? !membership : false) || !tenant || tenant.archivedAt || !session || (input.accountId && session.accountId !== input.accountId) || session.tenantId !== input.tenantId || session.revokedAt || session.expiresAt <= now || session.userId !== input.userId || !session.user || session.user.tenantId !== input.tenantId || session.user.status !== 'ACTIVE') throw new McpOAuthError('invalid_grant', 'El consentimiento o la sesión ya no están vigentes.', 400)
   if (input.scopes.some(scope => !grant.scopes.includes(scope))) throw new McpOAuthError('invalid_scope', 'El token no puede ampliar scopes.', 400)
   const accessToken = secret(); const refreshToken = secret()
   await db.mcpAccessToken.create({ data: { tokenHash: hashMcpSecret(accessToken), refreshTokenHash: hashMcpSecret(refreshToken), grantId: input.grantId, accountId: input.accountId, tenantId: input.tenantId, sessionId: input.sessionId, userId: input.userId, clientId: input.clientId, resource: input.resource, scopes: [...input.scopes], expiresAt: new Date(now.getTime() + ACCESS_TTL_MS), refreshExpiresAt: new Date(now.getTime() + REFRESH_TTL_MS) } })
@@ -112,8 +113,8 @@ export async function revokeMcpRefreshFamily(rawRefreshToken: string, clientId: 
 
 export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, clientId: string, now?: Date) {
   now ??= await dbNow(db)
-  const row = await db.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, include: { grant: true, session: { include: { user: true } } } })
-  if (!row || row.revokedAt || row.rotatedAt || !row.refreshExpiresAt || row.refreshExpiresAt <= now || row.grant.revokedAt || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user || row.session.userId !== row.userId || row.session.user.status !== 'ACTIVE') {
+  const row = await db.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
+  if (!row || row.revokedAt || row.rotatedAt || !row.refreshExpiresAt || row.refreshExpiresAt <= now || row.grant.revokedAt || row.tenant.archivedAt || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user || row.session.userId !== row.userId || row.session.user.status !== 'ACTIVE') {
     if (row?.rotatedAt || row?.revokedAt) await db.mcpAccessToken.updateMany({ where: { grantId: row.grantId, revokedAt: null }, data: { revokedAt: now } })
     throw new McpOAuthError('invalid_grant', 'El refresh token fue revocado, rotado o venció.', 400)
   }
@@ -137,11 +138,11 @@ export async function requireMcpAccessToken(request: Request, now?: Date) {
   const header = request.headers.get('authorization')
   const match = header?.match(/^Bearer\s+([^\s]+)$/i)
   if (!match) return null
-  const row = await prisma.mcpAccessToken.findUnique({ where: { tokenHash: hashMcpSecret(match[1]) }, include: { grant: true, session: { include: { user: true } } } })
-  if (!row || row.revokedAt || row.expiresAt <= now || row.grant.revokedAt || !findMcpClient(row.clientId, row.grant.redirectUri) || row.resource !== mcpResource() || row.grant.resource !== row.resource || row.grant.clientId !== row.clientId || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user) return null
+  const row = await prisma.mcpAccessToken.findUnique({ where: { tokenHash: hashMcpSecret(match[1]) }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
+  if (!row || row.revokedAt || row.expiresAt <= now || row.grant.revokedAt || !findMcpClient(row.clientId, row.grant.redirectUri) || row.resource !== mcpResource() || row.grant.resource !== row.resource || row.grant.clientId !== row.clientId || row.session.revokedAt || row.session.expiresAt <= now || row.tenant.archivedAt || !row.session.user) return null
   const user = row.session.user
-  if (user.status !== 'ACTIVE' || row.session.userId !== row.userId || user.tenantId !== row.tenantId || row.session.accountId !== row.accountId || row.session.tenantId !== row.tenantId || row.scopes.some(scope => !row.grant.scopes.includes(scope))) return null
-  if (!(await prisma.tenantMembership.findFirst({ where: { accountId: row.accountId, tenantId: row.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }))) return null
+  if (user.status !== 'ACTIVE' || row.session.userId !== row.userId || user.tenantId !== row.tenantId || (row.accountId && row.session.accountId !== row.accountId) || row.session.tenantId !== row.tenantId || row.scopes.some(scope => !row.grant.scopes.includes(scope))) return null
+  if (row.accountId && !(await prisma.tenantMembership.findFirst({ where: { accountId: row.accountId, tenantId: row.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }))) return null
   await prisma.mcpAccessToken.update({ where: { id: row.id }, data: { lastUsedAt: now } })
   return { tokenId: row.id, tenantId: row.tenantId, accountId: row.accountId, sessionId: row.sessionId, scopes: row.scopes as McpScope[], user: { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, pinLength: user.pinLength, permissions: effectivePermissions(user.role, user.permissions) }, clientId: row.clientId }
 }
