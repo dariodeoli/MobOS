@@ -51,7 +51,7 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
 
   await page.getByRole('button', { name: 'Agregar otro', exact: true }).click()
   await expect(productos).toBeFocused()
-  await productos.fill('Cable USB')
+  await productos.fill('Cable USB-C')
   await productos.press('Enter')
   await expect(page.getByTestId('pos-bloque-carrito')).toContainText('2 productos')
 
@@ -59,6 +59,44 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
   await expect(page.getByTestId('pos-cobro')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440)
 })
+
+test('venta rápida: las variantes se pueden recorrer con flechas y confirmar con Enter', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await enterDemo(page)
+  const cards = page.locator('.pos-product-card')
+  const familias = await cards.allTextContents()
+  const indice = familias.findIndex(text => /desde/i.test(text))
+  expect(indice, `familia con variantes visible: ${familias.join(' | ')}`).toBeGreaterThanOrEqual(0)
+  await cards.nth(indice).click()
+  const selector = page.getByTestId('selector-variante')
+  await expect(selector).toBeVisible()
+  const opciones = selector.getByTestId('variante-opcion')
+  await expect(opciones).toHaveCount(2)
+  await expect(opciones.first()).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(opciones.nth(1)).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(selector).toBeHidden()
+  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('1 producto')
+})
+
+for (const width of [1280, 768, 430, 393, 360]) {
+  test(`venta rápida conserva layout y acciones accesibles a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 1024 ? 844 : 900 })
+    await enterDemo(page)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    if (width < 640) {
+      await expect(page.getByTestId('pos-movil')).toBeVisible()
+      const search = page.getByPlaceholder('Buscar producto…')
+      await expect(search).toBeVisible()
+      const searchBox = await search.boundingBox()
+      expect(searchBox.height).toBeGreaterThanOrEqual(44)
+    } else {
+      await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+      await expect(page.getByTestId('pos-bloque-carrito')).toBeVisible()
+    }
+  })
+}
 
 test('venta rápida conserva objetivos táctiles y no desborda en celular', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
