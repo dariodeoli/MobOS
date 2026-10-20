@@ -254,7 +254,9 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
       const account = await action()
       setAccounts(current => current.some(item => item.id === account.id)
         ? current.map(item => item.id === account.id ? account : item)
-        : [...current, account])
+        // Put a newly-created account on the current page immediately. The
+        // dense list is paginated; appending would hide it on the next page.
+        : [account, ...current])
       setForm(null)
       setEditingId(null)
       setMessage({ ok: true, text: success })
