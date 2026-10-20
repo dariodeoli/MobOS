@@ -97,6 +97,7 @@ test.describe('Configuración Lote 5', () => {
     const printCard = page.getByTestId('modulo-card-impresion')
     const messageCard = page.getByTestId('modulo-card-mensajes')
     const imeiCard = page.getByTestId('modulo-card-verificacion-imei')
+    const portalCard = page.getByTestId('modulo-card-portal-clientes')
     const advertisingCard = page.getByTestId('modulo-card-publicidad')
     const assistantsCard = page.getByTestId('modulo-card-asistentes')
     const billingCard = page.getByTestId('modulo-card-facturacion')
@@ -104,6 +105,8 @@ test.describe('Configuración Lote 5', () => {
     await expect(messageCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/plantillas')
     await expect(imeiCard).toContainText('IMEIcheck.net · actual')
     await expect(imeiCard).toContainText('IMEI.info · próximamente / no configurado')
+    await expect(portalCard).toBeVisible()
+    await expect(portalCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/configuracion/organizacion')
     await expect(advertisingCard).toContainText('Próximamente')
     await expect(advertisingCard.getByRole('button', { name: 'Próximamente', exact: true })).toBeDisabled()
     await expect(assistantsCard).toContainText('Solo catálogo')
@@ -122,6 +125,9 @@ test.describe('Configuración Lote 5', () => {
     await expect(imeiCard).toContainText('Activo')
     await page.setViewportSize({ width: 360, height: 780 })
     await expect(page.getByTestId('modulo-card-impresion')).toBeVisible()
+    for (const card of await page.locator('[data-testid^="modulo-card-"]').all()) {
+      await expect(card.locator('[data-testid^="modulo-preview-"]')).toBeVisible()
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
 })
