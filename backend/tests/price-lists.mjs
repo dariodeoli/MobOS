@@ -148,6 +148,27 @@ try {
   await req(order.POST, { method: 'POST', token: 'a-VENDEDOR', url: 'http://localhost/api/orders', body: { orderNumber: 'PL-PRICING-400', items: [{ productId: 'a', description: 'Audio', quantity: 1, unitPricePyg: 10000 }] }, status: 400 })
   await prisma.product.update({ where: { id: 'a' }, data: { pricePyg: 100000 } })
 
+  // Baja lógica con carrera de versión: una edición de ítems y la baja deben
+  // avanzar updatedAt incluso con el mismo reloj. Un PATCH basado en la vista
+  // previa antigua se rechaza y no puede reactivar ni modificar la lista.
+  const deleteRace = await req(lists.POST, { method: 'POST', body: { name: 'Lista carrera baja', items: [{ scope: 'PRODUCT', productId: 'a', unitPricePyg: 91000 }] }, status: 201 })
+  const deleteRaceBefore = await req(listById.GET, { ctx: { params: { id: deleteRace.id } } })
+  const oldVersion = deleteRaceBefore.updatedAt
+  const realDateNow = Date.now; Date.now = () => 1735689600000
+  try {
+    await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: deleteRace.id } }, body: { replaceItems: true, items: [{ scope: 'PRODUCT', productId: 'a', unitPricePyg: 92000 }] } })
+    const changed = await req(listById.GET, { ctx: { params: { id: deleteRace.id } } })
+    assert.notEqual(changed.updatedAt, oldVersion)
+    await req(listById.DELETE, { method: 'DELETE', ctx: { params: { id: deleteRace.id } } })
+    const stale = await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: deleteRace.id } }, body: { replaceItems: true, items: [{ scope: 'PRODUCT', productId: 'a', unitPricePyg: 93000 }], _expectedUpdatedAt: oldVersion }, status: 409 })
+    assert.match(stale.error || stale.message || '', /cambió|vista previa/i)
+    const deleted = await prisma.priceList.findUnique({ where: { id: deleteRace.id }, include: { items: { include: { tiers: true } } } })
+    assert.equal(deleted.isActive, false)
+    assert.equal(deleted.items[0].unitPricePyg, 92000n)
+    assert.equal(await prisma.auditLog.count({ where: { tenantId: 'a', entity: 'PriceList', entityId: deleteRace.id, action: 'PRICE_LIST_DEACTIVATED' } }), 1)
+    checks += 4
+  } finally { Date.now = realDateNow }
+
   // Lista inactiva: se ignora en la resolución y no se puede asignar.
   await req(listById.DELETE, { method: 'DELETE', ctx: { params: { id: lista.id } } })
   assert.deepEqual(await req(lists.GET, { token: 'a-VENDEDOR' }), [])

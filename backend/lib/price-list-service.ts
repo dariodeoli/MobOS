@@ -87,3 +87,33 @@ export async function updatePriceList(db: PrismaClient | any, actor: PriceListAc
     return updated
   } catch (error) { if (error instanceof PriceListServiceError) throw error; throw new PriceListServiceError('conflict', 'No se pudo actualizar la lista.') }
 }
+
+/**
+ * Deactivates a list through the same CAS/versioned service used by updates.
+ * Keeping this operation here is important: a logical delete also changes the
+ * list version, so an older preview cannot be committed after the delete.
+ */
+export async function deactivatePriceList(db: PrismaClient | any, actor: PriceListActor, id: string, expectedUpdatedAt?: string) {
+  if (!canUpdate(actor)) throw new PriceListServiceError('forbidden', 'Solo administración o gerencia gestionan listas de precios.')
+  const current = await db.priceList.findFirst({
+    where: { id, tenantId: actor.tenantId },
+    select: { id: true, name: true, isActive: true, updatedAt: true },
+  })
+  if (!current) throw new PriceListServiceError('not_found', 'Lista no encontrada.')
+  if (expectedUpdatedAt !== undefined && current.updatedAt.toISOString() !== expectedUpdatedAt) {
+    throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
+  }
+  // Deactivation is idempotent for the HTTP endpoint. Only the transition
+  // active -> inactive writes a new version and audit event.
+  if (!current.isActive) return current
+  const updatedAt = new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1))
+  const claimed = await db.priceList.updateMany({
+    where: { id, tenantId: actor.tenantId, isActive: true, updatedAt: current.updatedAt },
+    data: { isActive: false, updatedAt },
+  })
+  if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
+  const updated = await db.priceList.findUnique({ where: { id }, select: { id: true, name: true, isActive: true, updatedAt: true } })
+  if (!updated) throw new PriceListServiceError('not_found', 'Lista no encontrada.')
+  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'PRICE_LIST_DEACTIVATED', entity: 'PriceList', entityId: updated.id, metadata: { name: updated.name } } })
+  return updated
+}

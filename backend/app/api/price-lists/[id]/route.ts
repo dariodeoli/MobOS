@@ -4,15 +4,11 @@ import { error, json } from '../../../../lib/http'
 import { InputError, objectInput } from '../../../../lib/payment-input'
 import { PricingError } from '../../../../lib/pricing'
 import { PriceListInputError } from '../../../../lib/price-lists'
-import { updatePriceList, PriceListServiceError, readPriceList } from '../../../../lib/price-list-service'
+import { updatePriceList, deactivatePriceList, PriceListServiceError, readPriceList } from '../../../../lib/price-list-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 const ROLES_GESTION = ['ADMIN', 'GERENTE']
-
-async function listaDelTenant(tenantId: string, id: string) {
-  return prisma.priceList.findFirst({ where: { id, tenantId }, select: { id: true } })
-}
 
 // El detalle de una lista (categorías y precios) es información comercial
 // sensible: solo ADMIN/GERENTE. El vendedor resuelve precios por /api/pricing.
@@ -53,8 +49,12 @@ export async function DELETE(request: Request, props: RouteContext) {
   if (!session) return error('Falta sesión.', 401)
   if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
-  if (!id || !(await listaDelTenant(session.user.tenantId, id))) return error('Lista no encontrada.', 404)
-  const updated = await prisma.priceList.update({ where: { id }, data: { isActive: false } })
-  await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_DEACTIVATED', entity: 'PriceList', entityId: updated.id, metadata: { name: updated.name } } })
-  return json({ id: updated.id, isActive: updated.isActive })
+  if (!id) return error('Lista no encontrada.', 404)
+  try {
+    const updated = await prisma.$transaction(tx => deactivatePriceList(tx, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id))
+    return json({ id: updated.id, isActive: updated.isActive })
+  } catch (cause) {
+    if (cause instanceof PriceListServiceError) return error(cause.message, cause.code === 'forbidden' ? 403 : cause.code === 'not_found' ? 404 : cause.code === 'conflict' ? 409 : 400)
+    return error('No se pudo desactivar la lista.', 409)
+  }
 }
