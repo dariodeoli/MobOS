@@ -54,6 +54,14 @@ try {
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
   await db.product.createMany({ data: [1, 2, 3].map(n => ({ tenantId: tenant.id, branchId: branch.id, sku: `SDK-LIST-${n}`, name: `SDK list ${n}`, pricePyg: 1000 + n, stock: n })) })
   await db.customer.createMany({ data: [1, 2, 3].map(n => ({ tenantId: tenant.id, name: `SDK customer ${n}`, document: `CU-${n}` })) })
+  const reportDate = new Date().toISOString().slice(0, 10)
+  const reportAt = new Date(`${reportDate}T12:00:00.000Z`)
+  const reportCustomer = await db.customer.create({ data: { tenantId: tenant.id, name: 'SDK report customer', document: 'CU-REPORT' } })
+  const reportOrder = await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, customerId: reportCustomer.id, sellerId: user.id, orderNumber: 'SDK-REPORT-1', status: 'COMPLETED', subtotalPyg: 1000, totalPyg: 1000, createdAt: reportAt, items: { create: [{ description: 'Known cost', quantity: 1, unitPricePyg: 1000, totalPyg: 1000, unitCostPyg: 600 }] } } })
+  const originalPayment = await db.payment.create({ data: { tenantId: tenant.id, orderId: reportOrder.id, createdById: user.id, method: 'CASH', status: 'CONFIRMED', amountPyg: 1000, accountSnapshot: { id: 'cash', name: 'Caja', processor: 'cash' }, createdAt: reportAt } })
+  await db.payment.create({ data: { tenantId: tenant.id, orderId: reportOrder.id, createdById: user.id, method: 'CASH', status: 'CONFIRMED', amountPyg: -1000, reversalOfId: originalPayment.id, createdAt: reportAt } })
+  await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, sellerId: user.id, orderNumber: 'SDK-REPORT-CANCELLED', status: 'CANCELLED', subtotalPyg: 2000, totalPyg: 2000, createdAt: reportAt } })
+  await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, sellerId: user.id, orderNumber: 'SDK-REPORT-UNKNOWN', status: 'COMPLETED', subtotalPyg: 500, totalPyg: 500, createdAt: reportAt, items: { create: [{ description: 'Unknown cost', quantity: 1, unitPricePyg: 500, totalPyg: 500 }] } } })
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
   const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
@@ -87,6 +95,10 @@ try {
   const productPage = await client.callTool({ name: 'products.read', arguments: { limit: 2 } }); ok(!productPage.isError && Array.isArray(productPage.structuredContent?.items) && productPage.structuredContent.items.length === 2 && productPage.structuredContent.nextCursor, 'products.read first cursor page')
   const productPage2 = await client.callTool({ name: 'products.read', arguments: { limit: 2, cursor: productPage.structuredContent.nextCursor } }); ok(!productPage2.isError && productPage2.structuredContent.items.length > 0 && !productPage2.structuredContent.items.some(row => productPage.structuredContent.items.some(prev => prev.id === row.id)), 'products.read cursor has no duplicates')
   const customerPage = await client.callTool({ name: 'customers.read', arguments: { limit: 2 } }); ok(!customerPage.isError && customerPage.structuredContent.items.length === 2 && customerPage.structuredContent.nextCursor, 'customers.read first cursor page')
+  const salesPage = await client.callTool({ name: 'sales.read', arguments: { limit: 2 } }); ok(!salesPage.isError && salesPage.structuredContent.items.length === 2 && salesPage.structuredContent.nextCursor, 'sales.read first cursor page')
+  const salesPage2 = await client.callTool({ name: 'sales.read', arguments: { limit: 2, cursor: salesPage.structuredContent.nextCursor } }); ok(!salesPage2.isError && salesPage2.structuredContent.items.length > 0 && !salesPage2.structuredContent.items.some(row => salesPage.structuredContent.items.some(prev => prev.id === row.id)), 'sales.read cursor has no duplicates')
+  const report = await client.callTool({ name: 'reports.read', arguments: { from: reportDate, to: reportDate, groupBy: 'product', tzOffset: 0 } }); ok(!report.isError && report.structuredContent.totals && report.structuredContent.totals.orders === 2 && report.structuredContent.totals.linesWithoutCost === 1, 'reports.read period/cancelled/unknown-cost rules')
+  const paymentReport = await client.callTool({ name: 'reports.read', arguments: { from: reportDate, to: reportDate, groupBy: 'payments', paymentsBy: 'account', tzOffset: 0 } }); const reportGroups = paymentReport.structuredContent.groups || []; ok(reportGroups.some(group => group.key === 'cash'), 'reports.read payment account snapshot grouping')
   const badCursor = await client.callTool({ name: 'products.read', arguments: { cursor: 'invalid' } }).then(() => false).catch(() => true); ok(badCursor, 'invalid cursor rejected')
   const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
   const imageArgs = { mode: 'preview', productId: product.id, branchId: branch.id, dataBase64: png, contentType: 'image/png', idempotencyKey: 'sdk-http-image-1' }
