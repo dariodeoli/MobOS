@@ -18,7 +18,7 @@ export default function SupplierCombobox({
   if (seleccionado) {
     return <SelectorResultadoCompacto
       nombre={formatearProveedor(seleccionado)}
-      detalles={[seleccionado.city, seleccionado.phone].filter(Boolean)}
+      detalles={[seleccionado.document ? `CI/RUC ${seleccionado.document}` : '', seleccionado.phone, seleccionado.city].filter(Boolean)}
       etiquetaCambiar="Cambiar proveedor"
       etiquetaQuitar="Quitar proveedor"
       onCambiar={onClear}
