@@ -37,7 +37,9 @@ const customerValue = (customer) => ({
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
   pricingTier: customer.pricingTier || 'RETAIL', priceListId: customer.priceListId || null, creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
-  addresses: Array.isArray(customer.addresses) ? customer.addresses.map(({ id, ...address }) => address) : [],
+  // Keep the server address id so checkout can offer the saved delivery
+  // address without turning it into an untracked free-text address.
+  addresses: Array.isArray(customer.addresses) ? customer.addresses.map(address => ({ ...address })) : [],
   billingName: customer.billingName || '', billingDocument: customer.billingDocument || '',
 })
 
@@ -152,6 +154,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     const facturacion = datosFacturacionCliente(customer)
     if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
   }
+  function confirmarFicha() {
+    setAbierto(false)
+    setEditar(false)
+  }
   function quitarCliente() {
     setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
     enfocarBusqueda.current = true
@@ -210,6 +216,21 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           {stats ? <span className="text-mute">{stats.orders ?? 0} {Number(stats.orders) === 1 ? 'pedido' : 'pedidos'}{stats.lastOrderAt ? ` · última compra ${fechaLegible(stats.lastOrderAt)}` : ''}</span> : null}
           {facturarAOtro && (billingTo?.name || billingTo?.document) ? <span className="text-mute">Factura a {billingTo?.name || billingTo?.document}</span> : null}
         </div>
+        {onBillingChange && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-ok/20 pt-2 text-xs">
+            <span className="font-semibold text-mute">Factura:</span>
+            <span className="min-w-0 truncate text-fore">{facturarAOtro && (billingTo?.name || billingTo?.document) ? (billingTo.name || billingTo.document) : 'titular del cliente'}</span>
+            <button type="button" className="ml-auto min-h-9 rounded-lg border border-fono/35 px-2.5 font-semibold text-fono-light transition hover:bg-fono/10" onClick={() => { setFacturarAOtro(true); abrirEdicion() }}>
+              {facturarAOtro && (billingTo?.name || billingTo?.document) ? 'Cambiar titular' : 'Facturar a otro'}
+            </button>
+          </div>
+        )}
+        {value.addresses?.length > 0 && (
+          <div data-testid="cliente-direcciones-guardadas" className="mt-2 border-t border-ok/20 pt-2 text-xs">
+            <span className="font-semibold text-mute">Direcciones guardadas:</span>{' '}
+            <span className="text-fore">{value.addresses.map(address => address.label || address.city || address.address).filter(Boolean).join(' · ')}</span>
+          </div>
+        )}
         {value.blocked ? (
           <p role="alert" data-testid="cliente-bloqueado" className="mt-1 flex items-center gap-1 font-bold text-bad-text">
             <Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{avisoClienteBloqueado(value)}
@@ -232,13 +253,22 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   }
 
   return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} /></label>
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} onKeyDown={event => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      if (matches[0]) elegirCliente(matches[0])
+    }} /></label>
     {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
     {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
       <div className="mt-3 space-y-4">
+        <div className="flex justify-end">
+          <button type="button" data-testid="confirmar-cliente" className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 md:min-h-9" onClick={confirmarFicha}>
+            Confirmar cliente
+          </button>
+        </div>
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad</h4>
           <GrillaCampos>
