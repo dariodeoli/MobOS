@@ -17,6 +17,7 @@ import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
 import { cuentaEfectivoPyg, FOREIGN, residuoSubCentavo, updateAccountPayment } from '@/utils/pagoCuenta'
 import CreditoAutorizacion from './CreditoAutorizacion'
+import { useMediaQuery } from '@/components/shared/useMediaQuery'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -72,6 +73,10 @@ export default function PasoCobro({
   onIrAlCarrito,
   modoMovil = false,
 }) {
+  // The desktop payment footer must not exist in the DOM on touch/tablet
+  // layouts. CSS-only hiding left the sticky subtree hit-testable in the
+  // mobile sheet in Chromium, so select the render path before mounting it.
+  const ocultarPieEnTouch = useMediaQuery('(max-width: 1023px)')
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
   // «Paga al recibir» (#390): no se pide el medio todavía; el pedido queda
@@ -665,7 +670,7 @@ export default function PasoCobro({
       {/* Pie del cobro: Pagado / Pendiente y la acción, siempre a la vista
           (pegado abajo). #281 · tiles con identidad propia: Pagado (ok) ·
           Pendiente (warn). El Total vive una sola vez, en el pie del carrito. */}
-      {!modoMovil && (
+      {!modoMovil && !ocultarPieEnTouch && (
       <div data-testid="pos-pie-cobro" className="pointer-events-none lg:sticky lg:bottom-0 lg:z-10 -mx-2.5 -mb-2.5 flex flex-wrap items-center gap-2 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-2.5 pb-2.5 pt-2">
         <div data-testid="pos-tiles-resumen" className="pointer-events-auto pos-tiles flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-mute">
           <span className="flex items-baseline gap-2 rounded-lg border border-ok/35 bg-ok/[.08] px-2.5 py-1 text-ok" data-testid="cobro-pagado">
