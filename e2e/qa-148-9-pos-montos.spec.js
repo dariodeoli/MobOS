@@ -5,6 +5,7 @@
 // rechazaba sin señalar el campo (reporte de Finanzas en la épica #148).
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = SEED.api
 const PRODUCTO = SEED.products.cable.name
@@ -27,6 +28,7 @@ test('POS: un precio sobre el tope bloquea el guardado y explica qué monto revi
   const tarjeta = page.getByRole('button', { name: new RegExp(PRODUCTO) }).first()
   await expect(tarjeta).toBeVisible({ timeout: 15_000 })
   await tarjeta.click()
+  await ensureCobro(page)
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
   // Precio de venta por encima del tope de ventas (99.000.000.000): el campo lo marca.

@@ -4,6 +4,7 @@ import { openShellDestination } from './helpers/shell-navigation.js'
 // y los agregados (#221: total gastado, pedidos, última compra), la ficha, la
 // cronología y el portal se recalculan desde los pedidos, sin tocar el API.
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 
 test('demo: la venta del POS actualiza la actividad y los agregados del cliente', async ({ page }) => {
@@ -30,6 +31,7 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
   const resultado = page.getByLabel('Resultados de productos').getByRole('button').filter({ hasText: /Funda/i }).first()
   await resultado.click()
+  await ensureCobro(page)
   // La cartera demo (seeds #194) se puede buscar y elegir en el POS (#160).
   const campoCliente = page.locator('input[placeholder="Buscar cliente o escribir un nombre nuevo"]')
   await campoCliente.fill('Lucía')

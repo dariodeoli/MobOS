@@ -9,6 +9,7 @@
 import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
 import { codigoPedido } from '../src/utils/pedido.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -60,6 +61,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
 
   // Payments. The seeded tenant has two PYG accounts (CASH and
   // TRANSFER), so the account-based rows are used.
+  await ensureCobro(page)
   const addPayment = page.getByRole('button', { name: '+ Agregar pago' })
   await expect(addPayment).toBeEnabled()
   const paymentsSection = page
@@ -394,6 +396,7 @@ test('POS manual price below list stores the list price for the receipt', async 
     const paymentsSection = page
       .locator('div.space-y-3')
       .filter({ has: page.getByText('Pagos de esta venta') })
+    await ensureCobro(page)
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
     await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
     await paymentsSection.getByLabel('Monto original').fill('40000')
@@ -501,6 +504,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   await confirmarQuitar.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()
 
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
@@ -550,6 +554,7 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
@@ -613,6 +618,7 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
   // cobro pasa a confirmar la venta.
   await expect(page.getByRole('button', { name: /^Crear pedido sin pago/ })).toBeVisible()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
@@ -715,6 +721,7 @@ test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page,
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await ensureCobro(page)
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await paymentsSection.getByLabel('Cuenta de cobro').click()
   await page.getByRole('option', { name: /Caja E2E/ }).click()

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 // Carrito y cobro del POS de escritorio: una sola pantalla sin scroll de página,
 // pagos paso a paso, monto dentro de la tarjeta de la cuenta, USD y cotización
@@ -25,6 +26,7 @@ async function enterPos(page, width, height, { items = 0, pagos = [] } = {}) {
     : page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true })
   await nav.getByRole('button', { name: 'Vender', exact: true }).click()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+  if (items) await ensureCobro(page)
 }
 
 async function seedCart(page, cantidad, pagos) {

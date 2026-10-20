@@ -14,6 +14,7 @@ import { test, expect } from './helpers/seller-test.js'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const DIR = process.env.QA_286_CAPTURAS || join('docs', 'qa', '286-unidades-pos')
@@ -52,6 +53,7 @@ test('#286 · el selector de IMEI del POS lista la unidad de la sucursal (vended
     await buscar.fill(nombre)
     await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: new RegExp(nombre) }).first().click()
+    await ensureCobro(page)
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
 
     const selector = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })

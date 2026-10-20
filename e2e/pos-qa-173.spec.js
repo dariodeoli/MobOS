@@ -4,6 +4,7 @@
 // - Borrador con enlace público: se abre sin sesión y muestra el carrito.
 // Los hallazgos de dominio se reportan (no se corrigen acá).
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -46,6 +47,7 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
   const card = page.getByRole('button', { name: new RegExp(producto) })
   await expect(card).toBeVisible({ timeout: 15_000 })
   await card.click()
+  await ensureCobro(page)
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
   const pagosSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })

@@ -7,6 +7,7 @@
 //   QA_335_CAPTURAS=docs/qa/335-precios-listas npx playwright test e2e/precios-listas.spec.js
 import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -101,6 +102,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
   await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)
   await page.getByRole('button', { name: new RegExp(nombreProducto) }).first().click()
+  await ensureCobro(page)
   // La línea arranca ultra-colapsada (#243): el detalle se despliega.
   await page.getByRole('button', { name: `Ver detalle de ${nombreProducto}` }).click()
   await page.getByLabel(`Cantidad de ${nombreProducto}`).fill('3')

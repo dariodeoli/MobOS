@@ -8,6 +8,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const DIR = join('docs', 'qa', '287-objeto-unificado')
@@ -126,6 +127,7 @@ test('#287 · el catálogo del POS muestra las unidades del producto', async ({ 
     // Al agregarlo, la venta pide la unidad exacta (ya era así) y la lista sale
     // de la misma fuente.
     await fila.click()
+    await ensureCobro(page)
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
     const selector = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })
     await expect(selector).toBeVisible({ timeout: 15_000 })

@@ -5,6 +5,7 @@
 // debajo del botón en mobile. Hallazgos de otros dominios se reportan, no se
 // corrigen acá.
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from './helpers/ensure-cobro.js'
 import { SEED } from './helpers/seed-data.js'
 
 const cliente = () => `Cliente cobro UX ${Date.now().toString(36).toUpperCase()}`
@@ -29,6 +30,7 @@ async function armarVenta(page, { productos = [SEED.products.cable.name], veces 
   }
   // En celular el carrito está en la hoja que abre la barra fija.
   if (movil(page)) await page.getByTestId('pos-barra-carrito-abrir').click()
+  else await ensureCobro(page)
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 }
 

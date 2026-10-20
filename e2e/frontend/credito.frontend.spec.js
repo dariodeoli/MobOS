@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 // Crédito sobre el límite y entrega (demo frontend-only, sin backend):
 //  · una venta a crédito que supera el crédito del cliente (o de un cliente sin
@@ -38,6 +39,7 @@ async function agregarProducto(page) {
   expect(producto, 'el demo tiene un producto simple con stock').not.toBeNull()
   await page.getByPlaceholder('Buscar producto…').fill(producto.nombre)
   await page.locator('.pos-product-card', { hasText: producto.nombre }).first().click()
+  await ensureCobro(page)
   return producto
 }
 
