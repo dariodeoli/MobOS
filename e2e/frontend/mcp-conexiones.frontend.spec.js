@@ -82,6 +82,13 @@ test.describe('MCP conexiones: estados autenticados y revocación (#608)', () =>
     await expect(page.getByRole('link', { name: 'Guía de Claude' })).toBeVisible()
   })
 
+  test('provider readiness: no hereda OAuth de otro proveedor', async ({ page }) => {
+    await apiFixture(page, { json: { ...ACTIVE, providers: [{ id: 'chatgpt', name: 'ChatGPT', oauth: true }] } })
+    await useAuthenticatedFixture(page)
+    await expect(page.getByTestId('mcp-proveedor-chatgpt')).toContainText('Configurado')
+    await expect(page.getByTestId('mcp-proveedor-claude')).toContainText('Pendiente')
+  })
+
   test('revoke success: envía el ID exacto y quita la conexión', async ({ page }) => {
     const getDeletePayload = await apiFixture(page, { json: ACTIVE })
     await useAuthenticatedFixture(page)
