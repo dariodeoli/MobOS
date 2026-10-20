@@ -55,7 +55,9 @@ for (const existing of [false, true]) {
       }
       await expect(dialog).toBeHidden()
       // Wait for React to remount the logical successor and restore focus.
-      await expect(existing ? editTrigger : contactTrigger).toBeFocused()
+      // Saving a new demo card (#350) now creates an id and selected summary.
+      const savedCard = existing || close === 'confirm'
+      await expect(savedCard ? editTrigger : contactTrigger).toBeFocused()
       verifyApi()
     })
   }
