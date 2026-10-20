@@ -88,7 +88,10 @@ export default function McpConexiones() {
 
   function providerConfigured(id) {
     const explicit = providerStatuses.find(item => String(item?.id || item?.provider || '').toLowerCase() === id)
-    return explicit ? (explicit.configured === true || explicit.oauth === true) : oauthReady
+    // Provider readiness is intentionally fail-closed. A global OAuth flag or
+    // another provider's registration must never make this provider appear
+    // connected before its own client/redirect configuration is present.
+    return Boolean(explicit && (explicit.configured === true || explicit.oauth === true))
   }
 
   return (
@@ -131,7 +134,7 @@ export default function McpConexiones() {
       </Card>
 
       <Card className="space-y-2" data-testid="mcp-guia">
-        <div className="flex items-start gap-3"><Icon name="book" className="mt-0.5 h-5 w-5 shrink-0 text-mute" aria-hidden="true" /><div><h2 className="font-semibold">Guía de conexión</h2><p className="mt-1 text-sm text-mute">Copiá el endpoint y agregalo desde la configuración oficial de tu proveedor. El consentimiento OAuth lo inicia ChatGPT o Claude; MobOS nunca abre un endpoint MCP desde este botón ni comparte cookies. Las capacidades quedan limitadas por tus permisos.</p><div className="mt-3 flex flex-wrap gap-2"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt" target="_blank" rel="noreferrer">Guía de ChatGPT <Icon name="external" className="h-3.5 w-3.5" /></a><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Guía de Claude <Icon name="external" className="h-3.5 w-3.5" /></a></div></div></div>
+        <div className="flex items-start gap-3"><Icon name="book" className="mt-0.5 h-5 w-5 shrink-0 text-mute" aria-hidden="true" /><div><h2 className="font-semibold">Guía de conexión</h2><p className="mt-1 text-sm text-mute">Copiá la dirección, agregala como conector en ChatGPT o Claude y autorizá tu empresa.</p><div className="mt-3 flex flex-wrap gap-2"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt" target="_blank" rel="noreferrer">Guía de ChatGPT <Icon name="external" className="h-3.5 w-3.5" /></a><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Guía de Claude <Icon name="external" className="h-3.5 w-3.5" /></a></div></div></div>
       </Card>
 
       <ConfirmDialog open={Boolean(confirm)} onCancel={() => setConfirm(null)} onConfirm={() => revoke(confirm)} title="¿Revocar esta conexión?" description="El proveedor perderá acceso inmediatamente. Los permisos de MobOS y la auditoría se mantienen." confirmLabel="Revocar conexión" variant="danger" busy={busy} />
