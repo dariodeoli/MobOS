@@ -12,12 +12,9 @@ const REQUEST_PATH = '/api/mcp/authorize'
 function safeRequestPath(value) {
   const request = String(value || '')
   if (!request.startsWith(`${REQUEST_PATH}?`)) return ''
-  if (request.startsWith('//') || request.includes('//') || /[\\\x00-\x1f\x7f]/.test(request)) return ''
-  try {
-    if (decodeURIComponent(request).includes('//')) return ''
-  } catch {
-    return ''
-  }
+  // redirect_uri and resource are legitimate HTTPS values inside the query;
+  // validate the navigation target itself, not encoded OAuth values.
+  if (request.startsWith('//') || /[\\\x00-\x1f\x7f]/.test(request)) return ''
   try {
     const parsed = new URL(request, 'https://mobos.invalid')
     if (parsed.origin !== 'https://mobos.invalid' || parsed.pathname !== REQUEST_PATH) return ''
@@ -67,9 +64,8 @@ export default function McpAutorizar() {
     }
 
     if (estado === 'dentro') {
-      // OAuth must always leave through the canonical API host. A local
-      // VITE_API_URL must never turn a provider callback into a dev redirect.
-      const apiOrigin = String(publicUrls.api).replace(/\/$/, '')
+      // VITE_API_URL is a trusted build setting; the query cannot override it.
+      const apiOrigin = String(import.meta.env.VITE_API_URL || publicUrls.api).replace(/\/$/, '')
       window.location.replace(`${apiOrigin}${request}`)
     }
   }, [estado, esDemo, ubicacion.pathname, ubicacion.search])
