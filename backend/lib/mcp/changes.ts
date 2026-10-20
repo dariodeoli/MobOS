@@ -29,7 +29,7 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
     if (operation === 'update' && !bounded(value.priceListId, 128)) return { ok: false, error: 'lista_id_requerido' }
     if (operation === 'create' && !bounded(value.name, 120)) return { ok: false, error: 'lista_nombre_requerido' }
     if (value.name !== undefined && !bounded(value.name, 120)) return { ok: false, error: 'lista_nombre_invalido' }
-    try { validarReemplazoExplicito(value); parsePriceListItems(value.items) } catch (error) { return { ok: false, error: error instanceof PriceListInputError ? error.message : 'lista_items_invalidos' } }
+    try { if (operation === 'update') validarReemplazoExplicito(value); parsePriceListItems(value.items) } catch (error) { return { ok: false, error: error instanceof PriceListInputError ? error.message : 'lista_items_invalidos' } }
   } else if (action === 'customers.write') {
     const operation = value.operation === undefined ? 'create' : value.operation
     if (operation !== 'create' && operation !== 'update') return { ok: false, error: 'operacion_cliente_invalida' }

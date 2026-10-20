@@ -12,14 +12,14 @@ export class PriceListServiceError extends Error { constructor(public code: 'for
 const canManage = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role) || hasPermission({ permissions: [...(actor.permissions ?? [])] }, 'products:manage')
 const canUpdate = (actor: PriceListActor) => ['ADMIN', 'GERENTE'].includes(actor.role)
 function assertActor(actor: PriceListActor) { if (!canManage(actor)) throw new PriceListServiceError('forbidden', 'Solo administración o gerencia gestionan listas de precios.') }
-function validateBody(body: unknown) {
+function validateBody(body: unknown, requireExplicitReplace = false) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new PriceListServiceError('invalid', 'El cuerpo debe ser un objeto.')
   const value = body as Record<string, unknown>
   const name = value.name === undefined ? undefined : typeof value.name === 'string' && value.name.trim() ? value.name.trim() : null
   if (value.name !== undefined && !name) throw new PriceListServiceError('invalid', 'Nombre es obligatorio.')
   if (name && name.length > 120) throw new PriceListServiceError('invalid', 'Nombre no puede superar 120 caracteres.')
   if (value.isActive !== undefined && typeof value.isActive !== 'boolean') throw new PriceListServiceError('invalid', 'isActive debe ser verdadero o falso.')
-  validarReemplazoExplicito(value)
+  if (requireExplicitReplace) validarReemplazoExplicito(value)
   let items
   try { items = parsePriceListItems(value.items) } catch (error) { throw new PriceListServiceError('invalid', error instanceof Error ? error.message : 'Ítems inválidos.') }
   return { name: name ?? undefined, isActive: value.isActive as boolean | undefined, items }
@@ -55,7 +55,7 @@ export async function createPriceList(db: PrismaClient | any, actor: PriceListAc
 }
 export async function updatePriceList(db: PrismaClient | any, actor: PriceListActor, id: string, body: unknown) {
   if (!canUpdate(actor)) throw new PriceListServiceError('forbidden', 'Solo administración o gerencia gestionan listas de precios.')
-  const value = validateBody(body)
+  const value = validateBody(body, true)
   const current = await db.priceList.findFirst({ where: { id, tenantId: actor.tenantId }, select: { id: true, updatedAt: true } }); if (!current) throw new PriceListServiceError('not_found', 'Lista no encontrada.')
   const expectedUpdatedAt = (body as Record<string, unknown>)._expectedUpdatedAt
   if (expectedUpdatedAt !== undefined && (typeof expectedUpdatedAt !== 'string' || current.updatedAt.toISOString() !== expectedUpdatedAt)) throw new PriceListServiceError('conflict', 'La lista cambió después de la vista previa; generá una nueva vista previa.')
