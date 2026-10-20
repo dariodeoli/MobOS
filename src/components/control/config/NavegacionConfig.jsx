@@ -30,7 +30,7 @@ export default function NavegacionConfig({ value, onChange, onModules, modulesAc
           )}
         >
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="grid" className="h-5 w-5" /></span>
-          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
           <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
         </button>
         <nav aria-label="Secciones de Configuración" data-testid="config-grupos" data-lista-movil className="flex flex-col divide-y divide-ink-600 overflow-hidden rounded-xl border border-ink-600">
@@ -73,7 +73,7 @@ export default function NavegacionConfig({ value, onChange, onModules, modulesAc
           )}
         >
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="grid" className="h-4 w-4" /></span>
-          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
           <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
         </button>
         {group && (

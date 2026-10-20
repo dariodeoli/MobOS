@@ -142,7 +142,7 @@ export default function MenuConfiguracion({ items = [], value, onChange, onModul
           >
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-fono/15 text-fono-light"><Icon name="grid" className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">Tienda de módulos</span>
+              <span className="block truncate text-sm font-medium">Tienda de módulos</span>
               <span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span>
             </span>
             <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
