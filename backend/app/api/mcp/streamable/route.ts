@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!tenant) return error(id, -32001, 'Empresa no disponible.')
   const modules = moduleStoreFrom(tenant.settings).modules
   if (body.method === 'tools/list') {
-    const implemented = new Set(['company.read', 'products.read', 'customers.read'])
+    const implemented = new Set(['company.read', 'products.read', 'customers.read', 'sales.read', 'reports.read'])
     const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && !entry.mutating && auth.scopes.includes(entry.scope)).map(entry => ({ name: entry.action, description: entry.label, inputSchema: { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, q: { type: 'string', maxLength: 120 }, limit: { type: 'integer', minimum: 1, maximum: 50 } } } }))
     return jsonRpc(id, { tools })
   }
@@ -43,6 +43,12 @@ export async function POST(request: Request) {
   if (name === 'company.read') data = { id: auth.tenantId, name: tenant.name, slug: tenant.slug, email: tenant.email }
   else if (name === 'products.read') data = await prisma.product.findMany({ where: { tenantId: auth.tenantId, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}), ...(typeof args.q === 'string' && args.q.trim() ? { OR: [{ name: { contains: args.q.trim(), mode: 'insensitive' } }, { sku: { contains: args.q.trim(), mode: 'insensitive' } }] } : {}) }, select: { id: true, sku: true, name: true, category: true, model: true, color: true, capacity: true, pricePyg: true, stock: true, branchId: true, isActive: true }, orderBy: { name: 'asc' }, take: limit })
   else if (name === 'customers.read') data = await prisma.customer.findMany({ where: { tenantId: auth.tenantId, ...(typeof args.q === 'string' && args.q.trim() ? { OR: [{ name: { contains: args.q.trim(), mode: 'insensitive' } }, { document: { contains: args.q.trim(), mode: 'insensitive' } }] } : {}) }, select: { id: true, name: true, document: true, phone: true, email: true, blocked: true }, orderBy: { name: 'asc' }, take: limit })
-  else return error(id, -32005, 'La lectura aún no está implementada para esta capacidad.')
+  else if (name === 'sales.read') {
+    const scopeWhere = decision.dataScope === 'own' ? { sellerId: auth.user.id } : decision.dataScope === 'branch' && decision.branchId ? { branchId: decision.branchId } : {}
+    data = await prisma.order.findMany({ where: { tenantId: auth.tenantId, archivedAt: null, ...scopeWhere }, select: { id: true, orderNumber: true, status: true, fulfillmentStatus: true, totalPyg: true, createdAt: true, branchId: true, sellerId: true, customer: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: limit })
+  } else if (name === 'reports.read') {
+    const [orders, paid] = await Promise.all([prisma.order.aggregate({ where: { tenantId: auth.tenantId, status: { not: 'CANCELLED' }, archivedAt: null }, _count: { _all: true }, _sum: { totalPyg: true } }), prisma.payment.aggregate({ where: { tenantId: auth.tenantId, status: 'CONFIRMED' }, _sum: { amountPyg: true } })])
+    data = { orders: orders._count._all, totalPyg: orders._sum.totalPyg ?? 0, confirmedPaymentsPyg: paid._sum.amountPyg ?? 0 }
+  } else return error(id, -32005, 'La lectura aún no está implementada para esta capacidad.')
   return jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(safeJson(data)) }], structuredContent: { items: safeJson(data) } })
 }
