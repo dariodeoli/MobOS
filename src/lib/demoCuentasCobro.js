@@ -20,3 +20,13 @@ export const CUENTAS_DEMO = [
 // Campos visibles del listado y los selectores: la prueba de #190 verifica que
 // ninguno lleve la palabra «demo».
 export const CAMPOS_VISIBLES_CUENTA = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'aliasValue', 'reference', 'currencyLabel']
+
+export const CUENTAS_DEMO_V2_IDS = new Set(['demo-transfer-gnb-owner', 'demo-transfer-sudameris-legacy'])
+
+// Migración aditiva del escenario financiero: conserva cada registro anterior
+// (incluidas ediciones, cuentas propias y bajas) y agrega únicamente los IDs
+// introducidos por v2.
+export function migrarCuentasDemoV2(anteriores) {
+  const existentes = new Set(anteriores.map(account => account.id))
+  return [...anteriores, ...CUENTAS_DEMO.filter(account => CUENTAS_DEMO_V2_IDS.has(account.id) && !existentes.has(account.id)).map(account => ({ ...account }))]
+}
