@@ -35,7 +35,10 @@ export default function RucField({
       : await api.get(`/api/ruc?ruc=${encodeURIComponent(identity.query)}`, {
         signal: request.signal, cacheMs: 0, cache: 'no-store',
       })
-    const result = admitRucResponse(payload, identity)
+    // Los RUC de ejemplo marcados como fixture se admiten con el contrato demo
+    // local. El resto de la demo conserva la consulta pública de OwnData y sus
+    // errores honestos; nunca se convierte un 503 en una razón social inventada.
+    const result = admitRucResponse(payload, identity, Boolean(payload?.demoFixture))
     if (!request.isCurrent(scope.current)) return null
     if (!result) throw new Error('No se recibieron datos verificables para ese RUC.')
     // name solo adapta la presentación; datos conserva nameOfficial y toda la

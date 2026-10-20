@@ -42,3 +42,13 @@ test('las transferencias y el efectivo tienen datos completos', () => {
   const cajas = CUENTAS_DEMO.filter((cuenta) => cuenta.kind === 'CASH')
   assert.deepEqual(cajas.map((cuenta) => cuenta.currency).sort(), ['PYG', 'USD'], 'la caja cubre guaraníes y dólares')
 })
+
+test('la demo cubre titular dueño, moneda alternativa y cuenta histórica inactiva', () => {
+  const owner = CUENTAS_DEMO.find((cuenta) => cuenta.id === 'demo-transfer-gnb-owner')
+  assert.equal(owner.holder, 'Hernán Acosta')
+  assert.equal(owner.currency, 'USD')
+  assert.equal(owner.accountNumber, '003-4567890')
+  const historical = CUENTAS_DEMO.find((cuenta) => cuenta.id === 'demo-transfer-sudameris-legacy')
+  assert.equal(historical.isActive, false)
+  assert.match(historical.reference, /histórica/i)
+})
