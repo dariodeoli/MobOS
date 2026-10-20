@@ -45,6 +45,9 @@ env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/ruc
 echo "Carrito público: token, vencimiento y ausencia de datos internos (#403)..."
 env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/suspended-sales-public.mjs"
 
+# #638: diferenciar sesión de empresa ausente del PIN sin ampliar el acceso.
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/pin-unlock-pg.mjs"
+
 free_port() {
   node -e "const net=require('net'); const s=net.createServer(); s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port)); s.close();});"
 }
