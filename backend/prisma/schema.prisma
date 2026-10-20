@@ -2709,11 +2709,15 @@ model McpChangePreview {
   action       String
   payloadHash  String
   payload      Json
+  before       Json?
+  after        Json?
   idempotencyKey String
   status       String   @default("PREVIEW")
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   committedAt  DateTime?
+  resultEntity String?
+  resultId     String?
   @@unique([tenantId, userId, idempotencyKey])
   @@index([tenantId, userId, status, expiresAt])
 }
