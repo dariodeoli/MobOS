@@ -134,6 +134,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   // Solo el consentimiento del extractor aplica la identidad fiscal exacta.
   // El nombre de mostrador queda separado, sin adivinar nombres/apellidos.
   async function aplicarDocumento(datos) {
+    if (guardandoFicha || guardandoDireccion !== null) return
     const next = applyCheckoutIdentity(value, datos)
     if (esDemo || !empresaId) {
       onChange(next)
@@ -155,7 +156,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         : await api.post('/api/customers', payload)
       const guardado = respuesta?.customer || respuesta
       if (!guardado?.id) throw new Error('El servidor no devolvió la ficha verificada.')
-      onChange(customerValue({ ...guardado, ...next, id: guardado.id, document: guardado.document || next.document }))
+      // El proveedor puede devolver una ficha existente deduplicada. La
+      // respuesta del servidor es la fuente de verdad para direcciones e IDs;
+      // los datos del extractor sólo completan campos que no haya devuelto.
+      onChange(customerValue({ ...next, ...guardado, id: guardado.id, document: guardado.document || next.document }))
       setRegistro(guardado)
       setFeedbackFichaTipo('success')
       setFeedbackFicha('Datos RUC guardados en la ficha del cliente.')
@@ -188,7 +192,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
   }
   async function confirmarFicha() {
-    if (guardandoFicha) return
+    if (guardandoFicha || guardandoDireccion !== null) return
     const nombre = String(value.name || '').trim()
     if (!nombre) {
       setFeedbackFichaTipo('error')
@@ -251,9 +255,15 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
   async function guardarDireccion(index) {
+    if (guardandoFicha || guardandoDireccion !== null) return
     if (!value.id) {
       setFeedbackFichaTipo('error')
       setFeedbackFicha('Guardá primero el cliente para agregarle una dirección.')
+      return
+    }
+    if (esDemo) {
+      setFeedbackFichaTipo('success')
+      setFeedbackFicha('Dirección lista para esta demo.')
       return
     }
     setGuardandoDireccion(index)
