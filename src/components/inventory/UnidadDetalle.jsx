@@ -33,6 +33,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { etiquetaEnvio, etiquetaMetodoEnvio, etiquetaNecesidad, etiquetaOrigen } from 'owncoding-ui'
+import { esProductoApple } from '@/lib/appleInventory'
 
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 // #233: aclaración que acompaña toda conciliación (el panel del proveedor no
@@ -111,6 +112,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [compra, setCompra] = useState('')
   const [garantiaMes, setGarantiaMes] = useState('')
   const [ubicacion, setUbicacion] = useState('')
+  const [variante, setVariante] = useState({ model: '', capacity: '', color: '' })
   const [guardandoCampo, setGuardandoCampo] = useState(false)
   const [consignador, setConsignador] = useState(unit.consignorName || '')
   const [consignadorTel, setConsignadorTel] = useState(unit.consignorPhone || '')
@@ -231,6 +233,16 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       toast.success(exito)
       onChanged?.()
     } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el cambio.'); throw cause } finally { setGuardandoCampo(false) }
+  }
+
+  async function guardarVariante() {
+    if (guardandoCampo) return
+    setGuardandoCampo(true)
+    try {
+      await api.patch('/api/inventory-units', { id: unit.id, action: 'variant', ...variante })
+      toast.success('Variante del catálogo guardada y auditada.')
+      onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la variante.') } finally { setGuardandoCampo(false) }
   }
 
   async function cambiarMonedaCosto(moneda) {
@@ -524,6 +536,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             {/* Datos: grilla densa de 2–3 columnas con edición por campo */}
             <TarjetaFicha titulo="Ficha del equipo">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-3">
+                {esProductoApple(unit.product || {}) && <CampoFicha etiqueta="Variante Apple" ayuda="Modelo, capacidad y color se comparten con el catálogo. Editar no altera stock ni historial." puedeEditar={canManage && unit.status !== 'SOLD'} guardando={guardandoCampo} testId="unidad-variante-apple"
+                  onAbrir={() => setVariante({ model: unit.product?.model || unit.product?.name || '', capacity: unit.product?.capacity || '', color: unit.product?.color || '' })}
+                  onGuardar={guardarVariante}
+                  editor={<div className="grid gap-2 sm:grid-cols-3"><Input aria-label="Modelo Apple" maxLength={120} value={variante.model} onChange={event => setVariante(actual => ({ ...actual, model: event.target.value }))} placeholder="iPhone 15 Pro" /><Input aria-label="Capacidad Apple" maxLength={32} value={variante.capacity} onChange={event => setVariante(actual => ({ ...actual, capacity: event.target.value }))} placeholder="256GB" /><Input aria-label="Color Apple" maxLength={80} value={variante.color} onChange={event => setVariante(actual => ({ ...actual, color: event.target.value }))} placeholder="Negro" /></div>}>
+                  <span className="font-semibold">{[unit.product?.model, unit.product?.capacity, unit.product?.color].filter(Boolean).join(' · ') || unit.product?.name || 'Sin variante'}</span>
+                </CampoFicha>}
                 <CampoFicha etiqueta="Batería" ayuda="Salud de la batería informada al recibir la unidad y ciclos de carga" puedeEditar={canManage} guardando={guardandoCampo} testId="unidad-bateria"
                   onAbrir={() => setBateria({ pct: String(unit.batteryHealth ?? ''), ciclos: String(ciclos ?? '') })}
                   onGuardar={() => guardarDetalles({ batteryHealth: bateria.pct === '' ? null : Number(bateria.pct), batteryCycles: bateria.ciclos === '' ? null : Number(bateria.ciclos) }, 'Batería guardada.')}

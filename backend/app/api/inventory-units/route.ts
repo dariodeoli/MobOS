@@ -226,7 +226,7 @@ export async function PATCH(request: Request) {
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
   const action = body.action === undefined ? 'adjust' : body.action
-  if (!['adjust', 'details', 'remove', 'restore', 'move', 'inspection'].includes(action)) return error('Acción de inventario inválida.')
+  if (!['adjust', 'details', 'remove', 'restore', 'move', 'inspection', 'variant'].includes(action)) return error('Acción de inventario inválida.')
   // #240 PhoneCheck: checklist de inspección + grado calculado en el servidor.
   if (action === 'inspection') {
     const inspeccion = body?.inspection
@@ -295,6 +295,31 @@ export async function PATCH(request: Request) {
         const data = await tx.inventoryUnit.update({ where: { id }, data: { locationId: destino } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_MOVED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, from: before.locationId, to: destino } } })
         return data
+      }
+      // La variante es parte del catálogo Apple compartido por las unidades.
+      // No toca stock, costos, IMEI, sucursal ni el estado de la unidad.
+      if (action === 'variant') {
+        if (!['ADMIN', 'GERENTE'].includes(session.user.role)) throw new Error('Solo administración puede editar la variante del catálogo.')
+        if (before.status === 'SOLD') throw new Error('Una unidad vendida conserva su variante histórica.')
+        const product = await tx.product.findFirst({ where: { id: before.productId, tenantId: tenant, isActive: true }, select: { id: true, name: true, model: true, capacity: true, color: true } })
+        if (!product) throw new Error('Producto no encontrado.')
+        const appleText = `${product.name} ${product.model || ''}`
+        if (!/\b(?:apple\s+)?(?:iphone|ipad|ipod|mac(?:book|mini|studio|pro)?|watch|airpods)\b/i.test(appleText)) throw new Error('La edición de variante sólo está disponible para productos Apple.')
+        const field = (value: unknown, label: string, max: number) => {
+          if (value === undefined) return undefined
+          if (value === null || String(value).trim() === '') return null
+          const clean = String(value).trim()
+          if (clean.length > max) throw new Error(`${label} supera el máximo de ${max} caracteres.`)
+          return clean
+        }
+        const variant = { model: field(body.model, 'El modelo', 120), capacity: field(body.capacity, 'La capacidad', 32), color: field(body.color, 'El color', 80) }
+        if (Object.values(variant).every(value => value === undefined)) throw new Error('No hay cambios de variante.')
+        if ([variant.model, variant.capacity, variant.color].every(value => value === null)) throw new Error('Completá al menos un dato de la variante.')
+        const data = await tx.product.update({ where: { id: product.id }, data: variant })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_APPLE_VARIANT_UPDATED', entity: 'Product', entityId: product.id, metadata: { unitId: id, serial: before.serial, before: { model: product.model, capacity: product.capacity, color: product.color }, after: { model: data.model, capacity: data.capacity, color: data.color } } } })
+        const updatedUnit = await tx.inventoryUnit.findUnique({ where: { id } })
+        if (!updatedUnit) throw new Error('Unidad no encontrada después de actualizar la variante.')
+        return updatedUnit
       }
       if (action === 'remove') {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
