@@ -551,8 +551,8 @@ export default function PanelVendedor() {
     const destino = SUBPAGINA_DE_VISTA[routeVista] || SUBPAGINA_DE_TAB[routeVista]
     if (!destino || !accesibles.includes(SUBPAGINAS[destino].vista)) return
     const primera = tabsDeSubpagina(destino, esDemo)[0][0]
-    navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}`, { replace: true })
-  }, [subpadre, routeVista, accesibles, esDemo, navigate])
+    navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}${busquedaUrl}`, { replace: true })
+  }, [subpadre, routeVista, accesibles, esDemo, navigate, busquedaUrl])
   // #247: las finanzas se hidratan al entrar a su pantalla, a análisis o al
   // resumen (usan los mismos gastos/publicidad) y quedan en los refrescos.
   useEffect(() => {
