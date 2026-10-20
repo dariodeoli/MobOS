@@ -271,8 +271,34 @@ for (const width of [1440, 390]) {
       const toggle = page.getByRole('button', { name: /Cambiar a tema (oscuro|claro)/ }).first()
       await toggle.click()
       await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true)
+      await page.waitForTimeout(300)
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    if (width >= 640) {
+      const contrast = await page.locator('.pos-product-card').first().evaluate(element => {
+        const parse = value => value.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) ?? [0, 0, 0]
+        const luminance = value => parse(value).map(channel => channel / 255).map(channel =>
+          channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+        ).reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0)
+        const ratio = (foreground, background) => {
+          const [a, b] = [luminance(foreground), luminance(background)].sort((x, y) => y - x)
+          return (a + 0.05) / (b + 0.05)
+        }
+        const card = getComputedStyle(element)
+        const name = getComputedStyle(element.querySelector('.pos-product-name'))
+        const search = document.querySelector('#pos-busqueda-producto input')
+        const searchStyle = getComputedStyle(search)
+        const placeholder = getComputedStyle(search, '::placeholder')
+        return {
+          name: ratio(name.color, card.backgroundColor),
+          placeholder: ratio(placeholder.color, searchStyle.backgroundColor),
+          border: ratio(card.borderColor, card.backgroundColor),
+        }
+      })
+      expect(contrast.name).toBeGreaterThanOrEqual(4.5)
+      expect(contrast.placeholder).toBeGreaterThanOrEqual(4.5)
+      expect(contrast.border).toBeGreaterThanOrEqual(3)
+    }
     await capture620(page, `theme-${width}px`)
     if (width >= 640) {
       await page.getByRole('button', { name: /Cambiar a tema claro/ }).first().click()
