@@ -13,6 +13,7 @@ import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './pu
 import { puedeCaerAlDialogo, resolverCamino, tokenDeAgente } from './ruteo'
 import { impresoraDeTipo, recordarImpresoraDeTipo } from './preferencias'
 import { storeDemo } from './demo'
+import { crearConsultaEstadoAgente } from './healthAgente'
 
 export { puenteDe, resolverCamino, puedeCaerAlDialogo }
 export { esLoopback } from './ruteo'
@@ -358,30 +359,13 @@ export const guardarConfigImpresora = (cambios = {}) => {
   return siguiente
 }
 
-let cache = { hasta: 0, estado: null }
+const consultarEstadoAgente = crearConsultaEstadoAgente()
 
-// Consulta el agente con timeout corto: si no está, la app sigue funcionando
-// con el diálogo del navegador. Con token, el agente devuelve además las
-// impresoras detectadas y el estado de la cola.
+// El agente es opcional: sin una impresora o token configurados no se sondea
+// localhost. Configuración puede pedir detección explícita con forzar:true.
 export async function estadoAgente({ forzar = false } = {}) {
-  // Demo (#194): no se sondea el agente de esta computadora.
   if (isDemoRuntime) return { disponible: false, version: 'demo', equipo: 'Demo' }
-  const { url, token } = configImpresora()
-  if (!forzar && cache.estado && Date.now() < cache.hasta) return cache.estado
-  const control = new AbortController()
-  const timer = setTimeout(() => control.abort(), 1200)
-  try {
-    const respuesta = await fetch(`${url}/health`, { signal: control.signal, headers: token ? { 'x-mobos-print-token': token } : {} })
-    if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`)
-    const datos = await respuesta.json()
-    cache = { hasta: Date.now() + 5000, estado: { disponible: true, ...datos } }
-    return cache.estado
-  } catch {
-    cache = { hasta: Date.now() + 5000, estado: { disponible: false } }
-    return cache.estado
-  } finally {
-    clearTimeout(timer)
-  }
+  return consultarEstadoAgente(configImpresora(), { forzar, contexto: revisionContextoImpresion })
 }
 
 const consultarAgente = async (camino, { method = 'GET', body, signal } = {}) => {
