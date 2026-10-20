@@ -29,6 +29,12 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
 
+  const card = page.locator('.pos-product-card').first()
+  const style = await card.evaluate(element => ({ padding: getComputedStyle(element).paddingTop, width: element.getBoundingClientRect().width }))
+  expect(style.padding).toBe('12px')
+  expect(style.width).toBeGreaterThanOrEqual(180)
+  await expect(card.getByTestId('foto-producto')).toHaveCSS('width', '64px')
+
   const cliente = page.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')
   await cliente.fill('Mar')
   await expect(page.getByTestId('pos-bloque-cliente').getByRole('button').first()).toBeVisible()
