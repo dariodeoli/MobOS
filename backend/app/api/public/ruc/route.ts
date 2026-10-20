@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     // Proyección explícita: nunca exponer cuotas comerciales, requestId o metadatos del proveedor.
     return privateResponse(json({
       query: { normalized: lookup.query.normalized, fullRuc: lookup.query.fullRuc },
-      result: { nameOfficial: result.nameOfficial, name: result.nameOfficial, ruc: result.ruc, dv: result.dv, fullRuc: result.fullRuc, equivalenceRaw: result.equivalenceRaw, stateRaw: result.stateRaw },
+      result: { nameOfficial: result.nameOfficial, name: result.nameOfficial, ruc: result.ruc, dv: result.dv, fullRuc: result.fullRuc, ...(result.equivalenceRaw !== undefined ? { equivalenceRaw: result.equivalenceRaw } : {}), ...(result.sourcePartition !== undefined ? { sourcePartition: result.sourcePartition } : {}) },
       reviewRequired: true,
       source: { provider: lookup.source.provider, queriedAt: lookup.source.queriedAt },
     }))

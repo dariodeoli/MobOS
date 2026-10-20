@@ -28,7 +28,7 @@ const savedEnvironment = { ...process.env }
 process.env.RUC_API_KEY = 'test-only-key-never-a-real-credential'
 const official = '  APELLIDO, NOMBRE; S.A.  ' + 'X'.repeat(300) + '  '
 const providerPayload = (overrides = {}) => ({
-  data: { ruc: '80012345', dv: '0', fullRuc: '80012345-0', nameOfficial: official, equivalenceRaw: '  X  ', stateRaw: ' ACTIVO ', ...overrides },
+    data: { ruc: '80012345', dv: '0', fullRuc: '80012345-0', nameOfficial: official, equivalenceRaw: '  X  ', stateRaw: ' ACTIVO ', ...overrides },
   requestId: 'req_' + 'a'.repeat(24),
   meta: { environment: 'test', quota: { limit: 100, used: 1, remaining: 99, resetAfter: 300, day: '2026-10-11' },
     accounting: { charged: true, alreadyConsulted: false, cacheEnabled: false },
@@ -100,22 +100,33 @@ try {
   ok(requested === 'https://app.controlaria.online/api/v1/ruc/80012345-0', 'only normalized RUC leaves the server')
   assert.equal(result.result.name, official); checks++
   assert.equal(result.result.nameOfficial, official); checks++
-  assert.equal(result.result.stateRaw, ' ACTIVO '); checks++
   assert.equal(result.result.equivalenceRaw, '  X  '); checks++
-  const compatibilityResult = await ruc.lookupRuc('80012345', { fetchImpl: async () => {
-    const payload = providerPayload()
-    delete payload.data.stateRaw
-    payload.data.status = 'ACTIVO'
-    return Response.json(payload)
-  } })
-  assert.equal(compatibilityResult.result.stateRaw, 'ACTIVO'); checks++
+  for (const stateField of ['status', 'stateRaw']) for (const value of ['ACTIVO', 'INACTIVO', 'SUSPENDIDO', 'FUTURE_STATE']) {
+    const statePayload = providerPayload()
+    delete statePayload.data.status; delete statePayload.data.stateRaw
+    statePayload.data[stateField] = value
+    const stateResult = await ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(statePayload) })
+    ok(!Object.hasOwn(stateResult.result, 'status') && !Object.hasOwn(stateResult.result, 'stateRaw') && !Object.hasOwn(stateResult.result, 'state'), `${stateField} is not public`)
+  }
+  const noStatePayload = providerPayload()
+  delete noStatePayload.data.status; delete noStatePayload.data.stateRaw
+  const noStateResult = await ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(noStatePayload) })
+  ok(!Object.hasOwn(noStateResult.result, 'status') && !Object.hasOwn(noStateResult.result, 'stateRaw'), 'state-free response accepted')
+  const noEquivalencePayload = providerPayload()
+  delete noEquivalencePayload.data.equivalenceRaw
+  const noEquivalenceResult = await ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(noEquivalencePayload) })
+  ok(!Object.hasOwn(noEquivalenceResult.result, 'equivalenceRaw'), 'optional equivalence accepted')
   for (const field of ['taxpayerType', 'givenNames', 'surnames', 'nameNatural', 'nameParsing']) ok(!(field in result.result), field + ' is not invented')
   assert.equal(result.reviewRequired, true); checks++
   await assert.rejects(() => ruc.lookupRuc('80012345-0', { fetchImpl: async () => new Response('', { status: 404 }) }), error => error.code === 'not_found'); checks++
   await assert.rejects(() => ruc.lookupRuc('80012345-0', { fetchImpl: async () => { throw new Error('offline') } }), error => error.code === 'provider_unavailable'); checks++
   // Malformed, mismatched and oversized responses cannot become fiscal data.
-  for (const overrides of [{ ruc: '80012346' }, { dv: '6' }, { fullRuc: '80012345-6' }, { nameOfficial: '   ' }, { stateRaw: null }, { stateRaw: undefined, status: '   ' }]) {
+  for (const overrides of [{ ruc: '80012346' }, { dv: '6' }, { fullRuc: '80012345-6' }, { nameOfficial: '   ' }, { equivalenceRaw: null }, { sourcePartition: 4 }]) {
     await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(providerPayload(overrides)) }), e => e.code === 'provider_invalid'); checks++
+  }
+  for (const metaOverride of [{ environment: 'other' }, { quota: null }, { provenance: null }]) {
+    const invalidMeta = providerPayload(); Object.assign(invalidMeta.meta, metaOverride)
+    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(invalidMeta) }), e => e.code === 'provider_invalid'); checks++
   }
   const leaked = providerPayload()
   leaked.data.secret = process.env.RUC_API_KEY

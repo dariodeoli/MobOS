@@ -110,30 +110,27 @@ export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fe
   if (options.rejectSimulated && (payload.simulated === true || payload.simulado === true || data?.simulated === true || data?.simulado === true)) throw unavailable('provider_invalid')
   const base = query.lookup.split('-')[0]
   const dv = String(digitoVerificadorModulo11(base))
-  // OwnData is migrating the public contract away from taxpayer-state data.
-  // During the compatibility window older consumers still receive a generic
-  // `status: ACTIVO` marker, while newer responses omit `stateRaw`. Accept
-  // either representation here and keep the legacy field local to MobOS so
-  // existing screens do not turn a valid lookup into a provider_invalid 503.
-  const legacyState = typeof data?.stateRaw === 'string' && data.stateRaw.trim()
-    ? data.stateRaw
-    : typeof data?.status === 'string' && data.status.trim() ? data.status : null
+  // Taxpayer state is optional metadata. It is accepted for old OwnData
+  // responses only so the parser remains forward/backward compatible; it is
+  // deliberately never copied into the MobOS response contract.
   if (!data || typeof data !== 'object' || Array.isArray(data)
     || data.ruc !== base || data.dv !== dv || data.fullRuc !== `${base}-${dv}`
     || typeof data.nameOfficial !== 'string' || !data.nameOfficial.trim()
-    || typeof data.equivalenceRaw !== 'string' || !legacyState) throw unavailable('provider_invalid')
+    || (data.equivalenceRaw !== undefined && typeof data.equivalenceRaw !== 'string')
+    || (data.sourcePartition !== undefined && typeof data.sourcePartition !== 'string')) throw unavailable('provider_invalid')
+  const meta = ownDataMetadata(payload.meta)
+  if (!meta.environment || !meta.quota || !meta.provenance) throw unavailable('provider_invalid')
   const result = {
     name: data.nameOfficial, nameOfficial: data.nameOfficial,
     ruc: base, dv, fullRuc: `${base}-${dv}`,
-    equivalenceRaw: data.equivalenceRaw, stateRaw: legacyState,
-    // Compatibility aliases are raw source values, not normalized semantics.
-    state: legacyState, publicationDateText: null, sifenMandate: null, siara: null,
+    ...(typeof data.equivalenceRaw === 'string' ? { equivalenceRaw: data.equivalenceRaw } : {}),
+    ...(typeof data.sourcePartition === 'string' ? { sourcePartition: data.sourcePartition } : {}),
   }
   const lookup = {
     query: { normalized: query.lookup, fullRuc: result.fullRuc }, result, reviewRequired: true,
     source: { provider: 'OwnData', queriedAt: (options.now || new Date()).toISOString() },
     ...(typeof payload.requestId === 'string' && /^req_[0-9a-f]{24}$/.test(payload.requestId) ? { requestId: payload.requestId } : {}),
-    meta: ownDataMetadata(payload.meta),
+    meta,
   }
   // Reject rather than alter official values if a provider reflects a key.
   if (JSON.stringify(lookup).includes(key)) throw unavailable('provider_invalid')
