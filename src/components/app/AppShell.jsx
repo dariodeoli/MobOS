@@ -49,9 +49,8 @@ function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otra
 // Demo: el propietario puede recorrer las perspectivas principales sin crear
 // sesiones reales ni modificar datos. La vista cliente se abre en el portal
 // público de fixtures para conservar la misma experiencia que un QR real.
-function DemoPerspectivas({ entrarDemo, esOwner }) {
+function DemoPerspectivas({ entrarDemo, compacto = false }) {
   const [abierto, setAbierto] = useState(false)
-  if (!esOwner) return null
   const cambiar = async (perspectiva) => {
     if (perspectiva === 'cliente') {
       window.open('/portal/demo-demo-cliente-lucia-completo', '_blank', 'noopener,noreferrer')
@@ -61,9 +60,9 @@ function DemoPerspectivas({ entrarDemo, esOwner }) {
     window.location.assign('/')
   }
   return (
-    <div data-testid="demo-perspectivas" className="mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6">
-      <span className="text-xs font-semibold text-fore">Explorar demo</span>
-      <button type="button" data-testid="demo-perspectivas-toggle" className="min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700" aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
+    <div data-testid="demo-perspectivas" className={compacto ? 'flex items-center gap-1' : 'mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6'}>
+      {!compacto && <span className="text-xs font-semibold text-fore">Explorar demo</span>}
+      <button type="button" data-testid="demo-perspectivas-toggle" className={compacto ? 'min-h-9 rounded-lg border border-ink-600 bg-ink px-2 text-xs font-semibold text-fore hover:bg-ink-700' : 'min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700'} aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
         Cambiar vista
       </button>
       {abierto && (
@@ -73,7 +72,7 @@ function DemoPerspectivas({ entrarDemo, esOwner }) {
           <button type="button" data-testid="demo-vista-cliente" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('cliente')}>Cliente ↗</button>
         </div>
       )}
-      <span className="ml-auto text-[11px] text-mute">Datos ficticios · sin API real</span>
+      {!compacto && <span className="ml-auto text-[11px] text-mute">Datos ficticios · sin API real</span>}
     </div>
   )
 }
@@ -510,7 +509,7 @@ export default function AppShell({
         <PageHeader
           title={title}
           subtitle={subtitle}
-          actions={headerActions}
+          actions={<>{headerActions}{esDemo && enConfigMenu && <DemoPerspectivas entrarDemo={entrarDemo} compacto />}</>}
           aviso={esDemo && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
@@ -537,7 +536,7 @@ export default function AppShell({
             <button type="button" aria-label="Cerrar aviso de la demo" className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-mute hover:bg-ink-700 hover:text-fore" onClick={() => setAvisoGuiaDemo(false)}>×</button>
           </div>
         )}
-        {esDemo && <DemoPerspectivas entrarDemo={entrarDemo} esOwner={esOwner} />}
+        {esDemo && !enConfigMenu && <DemoPerspectivas entrarDemo={entrarDemo} />}
         <RecordSlotContext.Provider value={recordCtx}>
         <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
           {loading ? (

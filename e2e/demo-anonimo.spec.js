@@ -289,7 +289,11 @@ for (const width of [430, 768, 1440]) {
     await page.goto('/demo')
     await page.getByRole('button', { name: /Entrar como Técnico/ }).click()
     await expect(page).toHaveURL(/\/servicio$/)
-    await expect(page.getByTestId('demo-perspectivas')).toHaveCount(0)
+    const tecnicoPerspectivas = page.getByTestId('demo-perspectivas')
+    await expect(tecnicoPerspectivas).toBeVisible()
+    await tecnicoPerspectivas.getByTestId('demo-perspectivas-toggle').click()
+    await tecnicoPerspectivas.getByTestId('demo-vista-dueno').click()
+    await expect(page).toHaveURL(/\/resumen$/)
     expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
   })
 }
