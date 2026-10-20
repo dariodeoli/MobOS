@@ -2,7 +2,7 @@
 
 ## Estado de esta fase
 
-Esta entrega implementa la base local y fail-closed del catálogo MCP. No publica todavía un endpoint de conexión para Claude o ChatGPT, no crea tokens, no acepta bearer externos y no modifica datos de producción.
+Esta fase implementa un catálogo fail-closed, OAuth 2.1 + PKCE y un transporte MCP HTTP de solo lectura. No habilita clientes ni modifica datos de producción hasta configurar clientes server-side y completar las pruebas de integración PostgreSQL.
 
 El conector futuro tendrá que obtener una sesión autorizada mediante OAuth 2.1 + PKCE (`S256`), elegir explícitamente la empresa y solicitar scopes del catálogo. La sesión del conector nunca reemplaza la sesión MobOS ni puede saltar el RBAC existente.
 
@@ -29,6 +29,10 @@ Las acciones desconocidas, scopes desconocidos, módulos apagados, tenants disti
 - `backend/lib/mcp/authorization.ts`: autorización fail-closed que recibe una sesión MobOS ya validada, comprueba tenant, módulo, permiso y sucursal, y limita los metadatos de auditoría.
 - `backend/tests/mcp-authorization.test.ts`: pruebas negativas de sesión, tenant, módulo, permisos, sucursal, scopes duplicados/desconocidos y ausencia de secretos.
 
+## Límites de esta fase
+
+El transporte `POST /api/mcp/streamable` acepta únicamente bearer emitido por MobOS y expone `initialize`, `tools/list` y lecturas tipadas de empresa, productos y clientes. Las herramientas mutantes y las lecturas de ventas/reportes/fotos todavía responden como no implementadas. No se reenvían cookies ni se aceptan rutas, SQL o URLs arbitrarias.
+
 ## Diseño pendiente para OAuth y revocación
 
 1. Registrar MobOS como Authorization Server/Resource Server con metadata HTTPS y audience explícita.
@@ -43,7 +47,7 @@ La implementación OAuth requiere revisión adicional de esquema, endpoints, red
 
 ## Fase OAuth implementada en esta rama
 
-Se agregaron tablas aditivas `McpClientGrant`, `McpAuthorizationCode` y `McpAccessToken`, con migración `20261024000000_mcp_oauth`. Los códigos son de un solo uso y los tokens sólo se almacenan como hash. El refresh rota el token anterior; la revocación invalida access/refresh.
+Se agregaron tablas aditivas `McpClientGrant`, `McpAuthorizationCode` y `McpAccessToken`, con migración `20270105000000_mcp_oauth`, después de las tablas Account/TenantMembership requeridas. Los códigos son de un solo uso y los tokens sólo se almacenan como hash. El refresh rota el token anterior; la revocación invalida access/refresh.
 
 Endpoints preparados, deshabilitados hasta configurar clientes server-side:
 
@@ -52,5 +56,6 @@ Endpoints preparados, deshabilitados hasta configurar clientes server-side:
 - `POST /api/mcp/authorize` (sólo sesión MobOS por cookie y mismo origen; PKCE S256 y consentimiento por tenant)
 - `POST /api/mcp/token` (authorization code o refresh token; sin cookie como bearer)
 - `POST /api/mcp/revoke`
+- `POST /api/mcp/streamable` (MCP HTTP, lecturas autorizadas)
 
 La validación de bearer reconsulta la sesión, membresía, tenant, usuario activo y permisos actuales antes de permitir una operación. No se habilita ningún cliente hasta definir `MOBOS_MCP_CLIENTS_JSON` con client IDs y redirect URIs HTTPS exactas.
