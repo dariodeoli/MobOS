@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const decision = authorizeMcpAction(name, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: typeof args.branchId === 'string' ? args.branchId : null })
   if (!decision.allowed) return error(id, -32003, decision.reason, { code: decision.code })
   if (name === 'prices.write') {
-    const forwarded = new Request(new URL('/api/mcp/changes', request.url), { method: 'POST', headers: { authorization: request.headers.get('authorization') ?? '', 'content-type': 'application/json' }, body: JSON.stringify(args) })
+    const forwarded = new Request(new URL('/api/mcp/changes', request.url), { method: 'POST', headers: { authorization: request.headers.get('authorization') ?? '', 'content-type': 'application/json' }, body: JSON.stringify({ ...args, action: 'prices.write', payload: { productId: args.productId, pricePyg: args.pricePyg, expectedPricePyg: args.expectedPricePyg }, idempotencyKey: args.idempotencyKey }) })
     const result = await priceChange(forwarded)
     const payload = await result.json().catch(() => ({ error: 'respuesta_invalida' }))
     if (!result.ok) return error(id, -32004, typeof payload.error === 'string' ? payload.error : 'No se pudo cambiar el precio.', payload)
