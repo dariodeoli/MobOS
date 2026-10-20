@@ -48,6 +48,7 @@ export default function PrecioStockProducto({ productos = [], precios = {}, carg
     return 0
   })
   const resumen = filasStock.map(([, fila]) => `${fila.nombre}: ${fila.cantidad}`).join(' · ')
+  const stockTotal = filasStock.reduce((total, [, fila]) => total + fila.cantidad, 0)
 
   return (
     <div className={compacto ? 'min-w-0 flex-1' : 'col-span-2 min-w-0 space-y-1'}>
@@ -71,6 +72,7 @@ export default function PrecioStockProducto({ productos = [], precios = {}, carg
       </div>
       <div className="min-w-0" data-testid="pos-stock-por-sucursal" aria-label={`Stock por sucursal: ${resumen || 'sin datos'}`}>
         <span className="block text-[10px] font-semibold uppercase tracking-wide text-mute">Stock por sucursal</span>
+        {stockTotal <= 0 && <span className="block text-[11px] font-semibold text-bad">Agotado</span>}
         <div className="flex min-w-0 flex-wrap gap-x-2 text-[10px] tabular-nums">
           {filasStock.map(([id, fila]) => (
             <span key={id} className={id === sucursal?.id ? 'font-semibold text-ok' : 'text-mute'}>
