@@ -77,3 +77,8 @@
     display: contents !important;
   }
 }
+
+/* El wrapper de escritorio nunca debe quedar como capa en un viewport táctil. */
+@media (max-width: 1023px) {
+  [data-testid='pos-pie-cobro'] { display: none !important; }
+}
