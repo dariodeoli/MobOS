@@ -41,7 +41,7 @@ const customerValue = (customer) => ({
   billingName: customer.billingName || '', billingDocument: customer.billingDocument || '',
 })
 
-export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '', onStats }) {
+export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '', onStats, onSelected }) {
   const { empresa } = useSesion()
   const empresaId = empresa?.id || null
   const [matches, setMatches] = useState([])
@@ -151,6 +151,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     // salvo que esta venta ya tenga datos escritos.
     const facturacion = datosFacturacionCliente(customer)
     if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
+    // The POS uses this hook to move the operator directly to product search.
+    // It is deliberately emitted after the customer state is applied so the
+    // next Enter always belongs to the product combobox, never the sale form.
+    onSelected?.(customer)
   }
   function quitarCliente() {
     setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
@@ -232,7 +236,15 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   }
 
   return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} /></label>
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value })} onKeyDown={event => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      // Enter confirms the highlighted/first customer. If the operator is
+      // creating a new customer by name, it still advances to products rather
+      // than submitting the complete sale accidentally.
+      if (matches[0]) elegirCliente(matches[0])
+      else if (value.name.trim()) onSelected?.()
+    }} /></label>
     {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
     {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}

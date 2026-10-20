@@ -7,6 +7,17 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Venta rápida: en escritorios amplios el catálogo respira y la foto ayuda a
+   identificar el producto antes de agregarlo. El carrito conserva su columna
+   independiente; no se cambia ninguna regla de stock, IMEI o cobro. */
+@media (min-width: 1280px) {
+  .pos-f2 .pos-layout { gap: 20px; }
+  .pos-f2 .pos-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .pos-f2 .pos-product-card { min-height: 154px; padding: 12px; gap: 6px; }
+  .pos-f2 .pos-product-card > span:first-child { grid-template-columns: 64px minmax(0, 1fr); }
+  .pos-f2 .pos-product-card [data-testid='foto-producto'] { width: 64px !important; height: 64px !important; }
+}
 .pos-f2 .pos-product-card {
   gap: 2px;
   padding: 8px 10px;

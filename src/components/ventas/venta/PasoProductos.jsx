@@ -76,6 +76,9 @@ export default function PasoProductos({
   onElegirVariante,
   onCerrarVariante,
   acciones = null,
+  hayItems = false,
+  onAgregarOtro = null,
+  onCobrar = null,
 }) {
   const grillaRef = useRef(null)
   const columnas = useColumnasGrilla(grillaRef)
@@ -276,8 +279,8 @@ export default function PasoProductos({
           </div>
         ) : (
           <>
-            <div className="mb-2 flex items-center gap-2">
-              <div className="relative min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <div id="pos-busqueda-producto" className="relative min-w-0 flex-1">
                 <ProductCombobox
                   products={productos}
                   placeholder="Buscar producto…"
@@ -300,6 +303,26 @@ export default function PasoProductos({
                   className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
                 />
               </div>
+              {hayItems && onAgregarOtro && (
+                <button
+                  type="button"
+                  onClick={onAgregarOtro}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-fono/30 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-9"
+                  title="Volver a buscar y agregar otro producto"
+                >
+                  <Icon name="plus" className="h-3.5 w-3.5" /> Agregar otro
+                </button>
+              )}
+              {hayItems && onCobrar && (
+                <button
+                  type="button"
+                  onClick={onCobrar}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg bg-fono px-3 py-2 text-xs font-bold text-onbrand transition hover:brightness-110 md:min-h-9"
+                  title="Ir al cobro"
+                >
+                  Cobrar <kbd className="rounded bg-black/15 px-1.5 py-0.5 font-mono text-[10px]">F2</kbd>
+                </button>
+              )}
               {puedeCrearProducto && (
                 <button
                   type="button"
@@ -487,6 +510,7 @@ export function PosCustomer({
   setF,
   nombreLista = '',
   onStats,
+  onSelected,
 }) {
   const { perfilEmpresa } = useSesion()
   const nombreVendedor =
@@ -523,6 +547,7 @@ export function PosCustomer({
         onBillingChange={setBillingTo}
         nombreLista={nombreLista}
         onStats={onStats}
+        onSelected={onSelected}
       />
     </section>
   )
