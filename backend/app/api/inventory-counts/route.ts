@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { recomputeStock } from '../../../lib/stock'
 import { ensureStoreBranch } from '../../../lib/store-branch'
+import { assertLegacyStockMutationAllowed, setProductLocationStock } from '../../../lib/product-location-stock'
 
 const MAX_SERIALES = 5000
 
@@ -47,7 +48,9 @@ export async function POST(request: Request) {
     if (locationId && !(await prisma.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new InputError('Ubicación no encontrada para esa sucursal.', 404)
     const note = body.note === undefined || body.note === null || body.note === '' ? null : textInput(body.note, 'Nota', 300)
     const count = await prisma.$transaction(async tx => {
-      const stockRows = locationId ? [] : await tx.product.findMany({ where: { tenantId: tenant, branchId, isActive: true, NOT: { stockKind: 'EQUIPO' } }, select: { id: true, stock: true } })
+      const stockRows = locationId
+        ? await tx.productLocationBalance.findMany({ where: { tenantId: tenant, locationId, product: { branchId, isActive: true, NOT: { stockKind: 'EQUIPO' } } }, select: { productId: true, quantity: true } }).then(rows => rows.map(row => ({ id: row.productId, stock: row.quantity })))
+        : await tx.product.findMany({ where: { tenantId: tenant, branchId, isActive: true, NOT: { stockKind: 'EQUIPO' } }, select: { id: true, stock: true } })
       const stockSnapshot = Object.fromEntries(stockRows.map(row => [row.id, row.stock]))
       const serialRows = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, branchId, status: 'AVAILABLE', ...(locationId ? { locationId } : {}) }, take: 50001, select: { id: true, serial: true, productId: true } })
       if (serialRows.length > 50000) throw new InputError('La sucursal supera el límite seguro de unidades para un solo conteo.', 409)
@@ -99,16 +102,16 @@ export async function PATCH(request: Request) {
         await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_COUNT_SCANNED', entity: 'InventoryCount', entityId: count.id, metadata: { serial: serialRaw, expected, productId: unit?.productId ?? null, locationId: unit?.locationId ?? null } } })
         return json({ ...line, expected })
       }
-      // Cantidades sin serie: el modelo de saldo existente es por sucursal. No
-      // se permite registrar cantidades bajo un sector porque no existe aún un
-      // saldo por ubicación que se mantenga sincronizado con ventas/recepciones.
-      if (count.locationId) throw new InputError('El conteo por ubicación admite por ahora unidades serializadas; el saldo de productos por cantidad aún es por sucursal.', 409)
       const productId = textInput(body.productId, 'productId', 200)
       const quantity = Number(body.quantity ?? 1)
       if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000000) throw new InputError('Cantidad inválida.')
       const product = await prisma.product.findFirst({ where: { id: productId, tenantId: tenant, branchId: count.branchId }, select: { id: true, stockKind: true } })
       if (!product) throw new InputError('Producto no encontrado en la sucursal.', 404)
       if (product.stockKind === 'EQUIPO') throw new InputError('Los productos serializados deben contarse por serie.')
+      if (count.locationId) {
+        const balance = await prisma.productLocationBalance.findUnique({ where: { productId_locationId: { productId, locationId: count.locationId } }, select: { quantity: true } })
+        if (!balance) throw new InputError('Este producto todavía no tiene saldo asignado a la ubicación. Asigná el stock físico antes de contarlo por sector.', 409)
+      }
       const existing = await prisma.inventoryCountLine.findFirst({ where: { countId: count.id, productId, serial: null } })
       const line = existing
         ? await prisma.inventoryCountLine.update({ where: { id: existing.id }, data: { quantity: existing.quantity + quantity } })
@@ -131,7 +134,6 @@ export async function PATCH(request: Request) {
         if (!lines.length) throw new InputError('Escaneá al menos un equipo antes de aplicar el conteo.', 409)
         const serialLines = lines.filter(line => line.serial)
         const quantityLines = lines.filter(line => !line.serial && line.productId)
-        if (count.locationId && quantityLines.length) throw new InputError('No se puede aplicar cantidad por sector al stock global de la sucursal. Retirá esas líneas o realizá un conteo por sucursal.', 409)
         const serialSnapshot = Array.isArray(count.serialSnapshot) ? count.serialSnapshot as Array<{ id: string; serial: string; productId: string }> : null
         if (count.scope === 'FULL' && !serialSnapshot) throw new InputError('Este borrador no tiene una base serial segura; iniciá un conteo nuevo antes de aplicar.', 409)
         const expectedIds = (serialSnapshot || []).map(unit => unit.id)
@@ -140,7 +142,9 @@ export async function PATCH(request: Request) {
         const missing = count.scope === 'FULL' ? expectedUnits.filter(unit => !scanned.has(unit.serial)) : []
         const unexpected = serialLines.filter(line => !line.expected)
         const quantityDeltas: Array<{ productId: string; before: number; counted: number; delta: number }> = []
-        const productLines = count.locationId ? [] : count.scope === 'FULL'
+        const productLines = count.locationId
+          ? await tx.productLocationBalance.findMany({ where: { tenantId: tenant, locationId: count.locationId, product: { branchId: count.branchId, isActive: true, NOT: { stockKind: 'EQUIPO' } } }, select: { productId: true, quantity: true } }).then(rows => rows.map(row => ({ id: row.productId, stock: row.quantity })))
+          : count.scope === 'FULL'
           ? await tx.product.findMany({ where: { tenantId: tenant, branchId: count.branchId, isActive: true, NOT: { stockKind: 'EQUIPO' } }, select: { id: true, stock: true } })
           : await tx.product.findMany({ where: { tenantId: tenant, branchId: count.branchId, isActive: true, NOT: { stockKind: 'EQUIPO' }, id: { in: quantityLines.map(line => line.productId as string) } }, select: { id: true, stock: true } })
         const countByProduct = new Map(quantityLines.map(line => [line.productId as string, line.quantity]))
@@ -172,9 +176,18 @@ export async function PATCH(request: Request) {
         for (const change of quantityDeltas) {
           if (!adjust) continue
           if (change.delta !== 0) {
-            const updated = await tx.product.updateMany({ where: { id: change.productId, tenantId: tenant, branchId: count.branchId, stock: change.before }, data: { stock: change.counted } })
-            if (updated.count !== 1) throw new InputError('El stock cambió durante el conteo; actualizá las diferencias e intentá de nuevo.', 409)
-            await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_COUNT_QUANTITY_ADJUSTED', entity: 'Product', entityId: change.productId, metadata: { countId: count.id, reason, branchId: count.branchId, locationId: null, before: change.before, after: change.counted, delta: change.delta } } })
+            if (count.locationId) {
+              try {
+                await setProductLocationStock(tx, { tenantId: tenant, productId: change.productId, locationId: count.locationId, quantity: change.counted })
+              } catch (cause) {
+                throw new InputError(cause instanceof Error ? cause.message : 'El stock cambió durante el conteo; iniciá un conteo nuevo.', 409)
+              }
+            } else {
+              await assertLegacyStockMutationAllowed(tx, tenant, change.productId)
+              const updated = await tx.product.updateMany({ where: { id: change.productId, tenantId: tenant, branchId: count.branchId, stock: change.before }, data: { stock: change.counted } })
+              if (updated.count !== 1) throw new InputError('El stock cambió durante el conteo; actualizá las diferencias e intentá de nuevo.', 409)
+            }
+            await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_COUNT_QUANTITY_ADJUSTED', entity: 'Product', entityId: change.productId, metadata: { countId: count.id, reason, branchId: count.branchId, locationId: count.locationId, before: change.before, after: change.counted, delta: change.delta } } })
           }
         }
         const response = { expectedSerialUnits: expectedUnits.length, countedSerialUnits: scanned.size, missing: missing.length, unexpected: unexpected.length, quantities: quantityDeltas, scope: count.scope, locationId: count.locationId, reason, adjust }

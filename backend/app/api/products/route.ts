@@ -6,6 +6,7 @@ import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
 import { classifyStockKind } from '../../../lib/stock-kind'
 import { promoteToEquipo } from '../../../lib/stock'
+import { assertLegacyStockMutationAllowed } from '../../../lib/product-location-stock'
 import { INVENTORY_UNIT_RECEIVED, liberarReservasVencidas } from '../../../lib/inventory'
 import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
@@ -159,6 +160,7 @@ export async function PATCH(request: Request) {
   }
   try {
     const data = await prisma.$transaction(async tx => {
+      if (stock !== undefined) await assertLegacyStockMutationAllowed(tx, tenant, product.id)
       if (serial !== undefined) {
         const existing = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { productId: true } })
         if (existing && existing.productId !== product.id) throw new Error('Ese IMEI/serial ya existe.')

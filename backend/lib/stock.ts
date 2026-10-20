@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { assertLegacyStockMutationAllowed } from './product-location-stock'
 
 // Punto único para mover el contador agregado de stock. Centralizarlo evita
 // que cada ruta repita guardas distintas y derive en diferencias difíciles de
@@ -19,6 +20,7 @@ export async function changeStock(tx: StockTx, input: {
 }) {
   const { tenantId, productId, delta } = input
   if (delta === 0) return
+  await assertLegacyStockMutationAllowed(tx, tenantId, productId)
   const where: Prisma.ProductWhereInput = { id: productId, tenantId, ...(input.isActive === false ? {} : { isActive: true }) }
   if (input.branchId) where.OR = [{ branchId: input.branchId }, ...(input.includeBranchless ? [{ branchId: null }] : [])]
   if (delta < 0) where.stock = { gte: -delta }

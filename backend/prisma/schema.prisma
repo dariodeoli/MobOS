@@ -114,6 +114,7 @@ model Tenant {
   stockVisibilityGranted  InventoryVisibilityGrant[] @relation("StockVisibilityProvider")
   stockVisibilityReceived InventoryVisibilityGrant[] @relation("StockVisibilityRecipient")
   stockLocations          StockLocation[]
+  productLocationBalances ProductLocationBalance[]
   messageTemplates        MessageTemplate[]
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -638,6 +639,7 @@ model Product {
   transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
   priceListItems           PriceListItem[]
   inventoryCountLines      InventoryCountLine[]
+  locationBalances         ProductLocationBalance[]
 
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
@@ -883,12 +885,30 @@ model StockLocation {
   updatedAt      DateTime        @updatedAt
   inventoryUnits InventoryUnit[]
   inventoryCounts InventoryCount[]
+  productBalances ProductLocationBalance[]
 
   @@unique([branchId, name])
   @@unique([branchId, code])
   @@index([tenantId, branchId, isActive])
   supplyReceptions SupplyReception[]
   workshopParts WorkshopPart[]
+}
+
+model ProductLocationBalance {
+  id         String        @id @default(cuid())
+  tenantId   String
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  locationId String
+  location   StockLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  quantity   Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([productId, locationId])
+  @@index([tenantId, locationId, productId])
+  @@index([tenantId, productId])
 }
 
 // Permiso explícito y solo de lectura: el receptor ve disponibilidad, nunca

@@ -40,6 +40,7 @@ const modules: Record<string, unknown> = {
   '../../../lib/validation': { serialKey: (value: unknown) => value },
   '../../../lib/stock-kind': { classifyStockKind: () => 'ACCESSORY' },
   '../../../lib/stock': { promoteToEquipo: async () => undefined },
+  '../../../lib/product-location-stock': { assertLegacyStockMutationAllowed: async () => undefined },
   '../../../lib/inventory': { INVENTORY_UNIT_RECEIVED: 'X', liberarReservasVencidas: async () => undefined },
   '../../../lib/montos': { LIMITE_MONTO_GENERAL: 1e12, numero: Number, numeroOpcional: Number },
   '../../../lib/sucursal-efectiva': { sucursalEfectiva: async () => 'b1' },
