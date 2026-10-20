@@ -109,3 +109,11 @@ BUILD_ID backend final: `Xl3co1osOVJXMMBvdgpvW`. Cluster API/PG propio5574/3174/
 Proveedor360dark autenticado: ficha302x78; Cambiar/Quitar44x44; RUC117/117px y teléfono73/73px completos; ciudad74/440px con ellipsis. Capturas y JSON en `outputs/mobos-pos237-final-review/selectores/` de coordinación. Inspeccionados proveedor360dark y POS1440dark, además de las capturas de5/10líneas y390dark generadas por los casos originales.
 
 La fuente de cinco unidades queda preparada para revisión de root, sin PR, merge, deploy ni cierre de issues. Ninguna consulta OwnData, escritura productiva ni incorporación MCP/Apple557.
+
+## Regresión CI de contrato RUC demo (candidata 237)
+
+CI39453512378: FE/BE/Integration y E2E1/3/4 SUCCESS; E2E2 falló sólo por el caso19 de `ruc-demo.spec.js` (DV64 pasó en retry). El trace muestra que el campo inline se desmonta al abrir el Modal; escribir antes de esperar el diálogo dejaba su campo nuevo vacío. Ahora el test espera el diálogo y limita el campo a ese diálogo.
+
+Tras consentir, #350 guarda y colapsa la ficha. El nombre visible manual se conserva según el contrato fiscal236; la razón social oficial permanece separada. El test verifica preview oficial exacto, ausencia de aplicación sin consentimiento, tarjeta con nombre manual/RUC y reapertura con valores exactos; conserva DV inválido sin consulta y las comprobaciones de no escrituras/credenciales. No cambia producto.
+
+Validación local aislada: cinco casos RUC PASS (log `/tmp/mobos237-ruc-final.log`); cinco casos demo350 PASS (9.3s), incluidos `nameOfficial` exacto en el store, nombre visible separado, reset/recarga y cero escrituras reales (log `/tmp/mobos237-demo-fiscal-confirmation.log`).

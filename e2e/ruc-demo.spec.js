@@ -33,8 +33,11 @@ test('demo: el extractor de RUC consulta OwnData público y espera confirmación
   const cliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
   await cliente.fill('Cliente Demo QA234')
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
-  const ruc = page.getByLabel('CI o RUC del cliente', { exact: true })
+  const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
+  await expect(editor).toBeVisible()
+  const ruc = editor.getByLabel('CI o RUC del cliente', { exact: true })
   await ruc.fill('80012345-0')
+  await expect(ruc).toHaveValue('80012345-0')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   const boton = raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ })
   await expect(boton).toBeVisible()
@@ -45,16 +48,21 @@ test('demo: el extractor de RUC consulta OwnData público y espera confirmación
   await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
   await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
   const nombreOficial = (await raiz.locator('b').first().innerText()).trim()
-  expect(nombreOficial).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
+  expect(nombreOficial).toBe('COMERCIAL QA 80012345 S.A.')
 
   // Sin confirmación no se pisa nada.
   await expect(cliente).toHaveValue('Cliente Demo QA234')
   await expect(ruc).toHaveValue('80012345-0')
 
-  // Con "Usar estos datos" entra la razón social oficial del mock QA.
+  // El consentimiento guarda la identidad fiscal y conserva el nombre visible.
   await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
   await expect(raiz.getByText('Simulada en demo')).toBeHidden()
-  await expect(cliente).toHaveValue(nombreOficial)
+  // #350 guarda la ficha durante la sesión y cierra el editor al consentir.
+  await expect(editor).toBeHidden()
+  await expect(page.getByTestId('cliente-elegido-nombre')).toHaveText('Cliente Demo QA234')
+  await expect(page.getByTestId('cliente-elegido')).toContainText('80012345-0')
+  await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await expect(editor.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveValue('Cliente Demo QA234')
   await expect(ruc).toHaveValue('80012345-0')
 
   expect(api.calls.length).toBeGreaterThan(0)
@@ -68,10 +76,13 @@ test('demo: DV inválido se rechaza antes de consultar OwnData', async ({ page }
   await cerrarGuia(page)
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
-  const ruc = page.getByLabel('CI o RUC del cliente', { exact: true })
+  const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
+  await expect(editor).toBeVisible()
+  const ruc = editor.getByLabel('CI o RUC del cliente', { exact: true })
   // Un guion con dígito verificador incorrecto (el válido de 80012345 es 0) se
   // rechaza con el aviso del campo, sin consultar a nadie.
   await ruc.fill('80012345-6')
+  await expect(ruc).toHaveValue('80012345-6')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
   await expect(raiz.getByRole('alert')).toHaveText(/RUC/)
