@@ -1064,6 +1064,26 @@ export default function FormularioVenta({
     document.getElementById('pos-resumen-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // Venta rápida: después de confirmar el cliente, la siguiente acción es
+  // buscar/agregar productos. Mantener el foco acá evita que Enter termine
+  // enviando el formulario completo por accidente.
+  const enfocarBusquedaProducto = useCallback(() => {
+    if (esMovilRef.current) return
+    window.requestAnimationFrame(() => {
+      const campo = document.querySelector('#pos-busqueda-producto input')
+      campo?.focus()
+      campo?.select?.()
+    })
+  }, [])
+
+  const irACobrarRapido = useCallback(() => {
+    if (!items.length) return
+    setModoCobro(true)
+    window.requestAnimationFrame(() => {
+      document.querySelector('[data-testid="pos-cobro"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [items.length])
+
   async function guardar(e) {
     e.preventDefault()
     if (guardando || guardadoEnCurso.current || guardadoIncompleto || accesoStockInvalidado) return
@@ -2000,7 +2020,7 @@ export default function FormularioVenta({
       if (event.key === 'Escape' || editable) return
       if (event.key === 'F2') {
         event.preventDefault()
-        busqueda?.focus()
+        busqueda?.querySelector('input')?.focus()
         return
       }
       if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
@@ -2277,7 +2297,7 @@ export default function FormularioVenta({
             {pos('cliente',
             <PosCustomer
               sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={cambiarCliente}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF} onStats={setDeudaCliente} onSelected={enfocarBusquedaProducto}
             />)}
             {pos('productos',
             <PasoProductos
@@ -2318,6 +2338,9 @@ export default function FormularioVenta({
               variantePara={variantePara}
               onElegirVariante={(familia, opciones) => elegirVariante(familia, opciones)}
               onCerrarVariante={() => setVariantePara(null)}
+              hayItems={items.length > 0}
+              onAgregarOtro={enfocarBusquedaProducto}
+              onCobrar={irACobrarRapido}
               acciones={barraPos}
             />)}
 
