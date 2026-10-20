@@ -134,11 +134,19 @@
   }
 }
 
+/* Cart rows are operational data, not decorative entrance animation. Once
+   the cart grows beyond the first row every product must remain fully opaque
+   while the single document scrolls. */
+.pos-f2 .pos-carrito .mobos-aparece {
+  animation: none;
+}
+
 /* Tablet and small desktop widths: keep the two-column POS usable while
    preserving comfortable control spacing. The right column becomes a normal
    flow scroll area rather than a clipped fixed-height panel. */
 @media (min-width: 1024px) and (max-width: 1199px) {
   .pos-f2 .pos-layout {
+    --pos-gap: 16px;
     gap: 16px;
   }
   .pos-f2 .pos-columna-venta {

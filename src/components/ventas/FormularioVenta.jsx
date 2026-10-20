@@ -2399,17 +2399,9 @@ export default function FormularioVenta({
 
             {pos('cobro',
             <div data-testid="pos-cobro-stage" className="flex min-w-0 flex-col gap-2">
-              {items.length > 0 && !modoCobro && (
-                <section data-testid="pos-cobro-cta" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fono/30 bg-fono/[.06] p-4">
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wide text-fono-light">Paso 2 · Cobrar</p>
-                    <p className="mt-1 text-sm text-mute">Revisá entrega, pagos, crédito o gift cards cuando el ticket esté listo.</p>
-                  </div>
-                  <Button type="button" className="min-h-11 shrink-0" onClick={() => setModoCobro(true)}>
-                    Ir a cobrar <span className="ml-1 tabular-nums">{gs(totalGeneral)}</span>
-                  </Button>
-                </section>
-              )}
+              {/* The cart footer owns the single transition into checkout. The
+                  separate CTA used to repeat the same action immediately below
+                  it and made the POS feel cramped. */}
               {items.length > 0 && <div className={!modoCobro ? 'hidden' : undefined}>
               <PasoCobro
               customer={customer}

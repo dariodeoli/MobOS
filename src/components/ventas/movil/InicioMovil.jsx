@@ -2,14 +2,20 @@ import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 import { textoArticulos } from './posMovil'
+import MenuSecundario from '@/components/shared/MenuSecundario'
 
 // Inicio del POS en celular (#429): acciones en mosaico de dos columnas y la
 // barra azul del carrito pegada sobre la navegación. Solo presentación: cada
 // acción abre una hoja o una pantalla que ya existe.
 export function AccionesInicio({ acciones }) {
+  // Cliente, envío y nota are the only frequent context switches. The rest
+  // remains available under one canonical menu so the catalog and ticket get
+  // the first viewport on small phones.
+  const principales = acciones.filter(accion => ['cliente', 'envio', 'nota'].includes(accion.id))
+  const secundarias = acciones.filter(accion => !principales.includes(accion))
   return (
     <div data-testid="pos-acciones-movil" className="grid grid-cols-2 gap-2">
-      {acciones.map(({ id, testId, icono, titulo, detalle, onClick, disabled, destacado }) => (
+      {principales.map(({ id, testId, icono, titulo, detalle, onClick, disabled, destacado }) => (
         <button
           key={id}
           type="button"
@@ -30,6 +36,22 @@ export function AccionesInicio({ acciones }) {
           </span>
         </button>
       ))}
+      {secundarias.length > 0 && (
+        <div className="flex min-h-14 min-w-0 items-center">
+          <MenuSecundario
+            etiqueta="Más acciones"
+            ariaLabel="Más acciones de la venta"
+            direccion="abajo"
+            acciones={secundarias.map(({ testId, icono, titulo, onClick, disabled }) => ({
+              label: titulo,
+              icon: icono,
+              onClick,
+              disabled,
+              testId,
+            }))}
+          />
+        </div>
+      )}
     </div>
   )
 }
