@@ -5,6 +5,7 @@
    posCobro.css e inicioPosF2.css y gana por especificidad. */
 .pos-f2 .pos-layout {
   --pos-izq: 0.55;
+  --pos-gap: 12px;
 }
 @media (min-width: 1280px) {
   .pos-f2 .pos-layout {
@@ -108,7 +109,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc((100% - 12px) * var(--pos-izq) + 6px - 5px);
+    left: calc((100% - var(--pos-gap)) * var(--pos-izq) + (var(--pos-gap) / 2) - 5px);
     width: 10px;
     z-index: 5;
     cursor: col-resize;
@@ -168,7 +169,7 @@
    alcanzable debajo del ticket. */
 @media (min-width: 1024px) {
   .pos-f2 .pos-layout {
-    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
     height: auto !important;
     min-height: 0;
     align-items: start;
@@ -192,7 +193,8 @@
 
 @media (min-width: 1280px) {
   .pos-f2 .pos-layout {
-    grid-template-columns: minmax(0, 1.2fr) minmax(400px, 0.8fr);
+    --pos-gap: 20px;
+    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
     gap: 20px;
   }
 }

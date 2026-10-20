@@ -331,9 +331,11 @@ function useDivisorPos(layoutRef, clave) {
   }
   const limitar = (v) => Math.min(LIMITE_DIVISOR[1], Math.max(LIMITE_DIVISOR[0], v))
   const desdePuntero = (e) => {
-    const r = layoutRef.current?.getBoundingClientRect()
+    const layout = layoutRef.current
+    const r = layout?.getBoundingClientRect()
     if (!r) return null
-    return limitar(Number(((e.clientX - r.left - 8) / (r.width - 16)).toFixed(3)))
+    const gap = Number.parseFloat(window.getComputedStyle(layout).columnGap) || 12
+    return limitar(Number(((e.clientX - r.left - gap / 2) / (r.width - gap)).toFixed(3)))
   }
   const props = {
     onPointerDown: (e) => { e.currentTarget.setPointerCapture?.(e.pointerId); e.preventDefault() },
