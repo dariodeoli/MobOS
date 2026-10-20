@@ -57,6 +57,24 @@ test.describe('MCP conexiones: estados autenticados y revocación (#608)', () =>
     await expect(page.getByText('Requiere OAuth registrado').first()).toBeVisible()
   })
 
+  test('refresh fallido limpia el estado de proveedores previamente configurado', async ({ page }) => {
+    let calls = 0
+    await page.route('**/api/mcp/connections', async route => {
+      calls += 1
+      if (calls === 1) return route.fulfill({ json: ACTIVE })
+      return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'fixture unavailable' }) })
+    })
+    await useAuthenticatedFixture(page)
+    await expect(page.getByTestId('mcp-proveedor-chatgpt')).toContainText('Configurado')
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await expect.poll(() => calls).toBeGreaterThan(1)
+    await expect(page.getByTestId('mcp-oauth-no-verificado')).toBeVisible()
+    await expect(page.getByTestId('mcp-proveedor-chatgpt')).toContainText('Pendiente')
+    await expect(page.getByTestId('mcp-proveedor-claude')).toContainText('Pendiente')
+    await expect(page.getByTestId('mcp-client-id-chatgpt')).toHaveCount(0)
+    await expect(page.getByTestId('mcp-endpoint')).toHaveCount(0)
+  })
+
   for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
     test(`Mi cuenta: conexiones personales visibles para ${role} sin finanzas`, async ({ page }) => {
       await apiFixture(page, { json: ACTIVE })
