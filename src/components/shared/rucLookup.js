@@ -27,12 +27,15 @@ export function admitRucResponse(payload, identity, demo = false) {
   } else if (payload.reviewRequired !== true || payload.source?.provider !== 'OwnData'
     || payload.query?.normalized !== identity.query || payload.query?.fullRuc !== identity.fullRuc
     || result.ruc !== identity.base || result.dv !== identity.dv
-    || (result.equivalenceRaw !== undefined && typeof result.equivalenceRaw !== 'string')
-    || (result.sourcePartition !== undefined && typeof result.sourcePartition !== 'string')
+    || ('equivalenceRaw' in result && typeof result.equivalenceRaw !== 'string')
+    || ('sourcePartition' in result && (!Number.isInteger(result.sourcePartition) || result.sourcePartition < 0 || result.sourcePartition > 9))
     || result.simulado === true) return null
   // Compatibility name is an exact alias, never a display-name transformation.
-  const { status: _status, state: _state, stateRaw: _stateRaw, ...safeResult } = result
-  return { ...safeResult, name: nameOfficial, nameOfficial }
+  return { name: nameOfficial, nameOfficial, ruc: result.ruc, dv: result.dv, fullRuc: result.fullRuc,
+    ...(typeof result.equivalenceRaw === 'string' ? { equivalenceRaw: result.equivalenceRaw } : {}),
+    ...(typeof result.sourcePartition === 'number' ? { sourcePartition: result.sourcePartition } : {}),
+    ...(demo ? { simulado: true } : {}),
+  }
 }
 
 // Cancellation is best-effort; generation and scope identity remain authoritative.

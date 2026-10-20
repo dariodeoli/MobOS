@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.238 — 2026-10-20
+
+- **Acceso:** al intentar desbloquear con una sesión de empresa ausente o vencida, el aviso indica cerrar sesión y volver a ingresar; los rechazos de PIN conservan su tratamiento separado.
+- **Clientes y proveedores:** la consulta de RUC admite respuestas con estado opcional, conserva la identidad fiscal y consulta al proveedor sin depender de sus cookies de sesión.
+
 ## v1.0.237 — 2026-10-20
 
 - **Clientes:** la demo permite crear y conservar clientes durante la sesión demo; al cerrar su ficha, el foco vuelve a un control visible para continuar trabajando.

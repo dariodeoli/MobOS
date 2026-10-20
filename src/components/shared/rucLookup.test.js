@@ -9,7 +9,7 @@ function responseFor(identity, nameOfficial = '  PÉREZ   LÓPEZ, JUAN S.A.  ') 
     reviewRequired: true,
     source: { provider: 'OwnData' },
     result: { ruc: identity.base, dv: identity.dv, fullRuc: identity.fullRuc,
-      nameOfficial, name: 'Do not use this transformed alias', equivalenceRaw: '' },
+      nameOfficial, name: 'Do not use this transformed alias', stateRaw: 'ACTIVO', equivalenceRaw: '' },
   }
 }
 
@@ -46,7 +46,28 @@ test('admission preserves the exact raw fiscal name and compatibility alias', ()
   const result = admitRucResponse(payload, identity)
   assert.equal(result.nameOfficial, payload.result.nameOfficial)
   assert.equal(result.name, payload.result.nameOfficial)
-  assert.equal(Object.hasOwn(result, 'stateRaw'), false)
+  assert.equal(result.stateRaw, undefined)
+  assert.equal(result.status, undefined)
+  assert.equal(result.state, undefined)
+})
+
+test('optional source partition follows the OwnData numeric contract and unknown fields are discarded', () => {
+  const identity = parseRucInput('123456789')
+  const payload = responseFor(identity)
+  delete payload.result.equivalenceRaw
+  for (const sourcePartition of [0,3,9]) {
+    Object.assign(payload.result, {sourcePartition, status:'SUSPENDIDO', state:'INACTIVO', apiKey:'DO NOT COPY'})
+    const admitted = admitRucResponse(payload,identity)
+    assert.equal(admitted.sourcePartition,sourcePartition)
+    assert.deepEqual(Object.keys(admitted).sort(), ['dv','fullRuc','name','nameOfficial','ruc','sourcePartition'])
+  }
+  for (const sourcePartition of [-1,10,1.5,'3',null]) {
+    payload.result.sourcePartition = sourcePartition
+    assert.equal(admitRucResponse(payload,identity),null)
+  }
+  delete payload.result.sourcePartition
+  delete payload.result.stateRaw
+  assert.ok(admitRucResponse(payload,identity))
 })
 
 test('wrong identity, missing review contract, or simulated real response is not admitted', () => {
