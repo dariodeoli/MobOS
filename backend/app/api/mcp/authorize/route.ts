@@ -10,6 +10,11 @@ import { assertScopeActions, issueMcpAuthorizationCode, findMcpClient, normalize
 export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const url = new URL(request.url)
+  if (url.searchParams.get('response_type') !== 'code') return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
+  const session = await requireSession(request)
+  if (!session?.accountId) return NextResponse.json({ error: 'login_required' }, { status: 401 })
+  const state = url.searchParams.get('state')
+  if (state && !/^[A-Za-z0-9._~-]{1,256}$/.test(state)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   const client = findMcpClient(url.searchParams.get('client_id'), url.searchParams.get('redirect_uri'))
   if (!client || url.searchParams.get('code_challenge_method') !== 'S256' || !url.searchParams.get('code_challenge')) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   if ((url.searchParams.get('resource') || '') !== mcpResource()) return NextResponse.json({ error: 'invalid_target' }, { status: 400 })
@@ -17,7 +22,8 @@ export async function GET(request: Request) {
   if (!scopes.length) return NextResponse.json({ error: 'invalid_scope' }, { status: 400 })
   const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`
   const fields = [['client_id', client.clientId], ['redirect_uri', url.searchParams.get('redirect_uri') || ''], ['scope', scopes.join(' ')], ['resource', url.searchParams.get('resource') || ''], ['code_challenge', url.searchParams.get('code_challenge') || ''], ['code_challenge_method', 'S256'], ['state', url.searchParams.get('state') || '']].map(([name, value]) => hidden(name, value)).join('')
-  return new NextResponse(`<!doctype html><html lang="es"><body><h1>Autorizar MobOS</h1><p>${client.name} solicita: ${scopes.join(', ')}</p><form method="post">${fields}<button type="submit">Autorizar</button></form></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+  const safeName = client.name.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char))
+  return new NextResponse(`<!doctype html><html lang="es"><body><h1>Autorizar MobOS</h1><p>${safeName} solicita: ${scopes.join(', ')}</p><form method="post">${fields}<button type="submit">Autorizar</button></form></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
 }
 export async function POST(request: Request) {
   try {
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
     const issued = await issueMcpAuthorizationCode(prisma, { grantId: grant.id, accountId: session.accountId, tenantId: session.user.tenantId, sessionId: session.sessionId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes, codeChallenge: challenge })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'MCP_ACCESS_GRANTED', entity: 'McpClientGrant', entityId: grant.id, metadata: { clientId: client.clientId, scopes } } })
     const target = new URL(redirectUri); target.searchParams.set('code', issued.code); if (typeof body.state === 'string' && /^[A-Za-z0-9._~-]{1,256}$/.test(body.state)) target.searchParams.set('state', body.state)
-    return NextResponse.redirect(target)
+    return NextResponse.redirect(target, { status: 303 })
   } catch (error) {
     const cause = error instanceof McpOAuthError ? error : new McpOAuthError('server_error', 'No se pudo autorizar el conector.', 500)
     return NextResponse.json({ error: cause.code, error_description: cause.message }, { status: cause.status, headers: { 'Cache-Control': 'no-store' } })
