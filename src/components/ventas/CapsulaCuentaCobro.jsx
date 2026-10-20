@@ -26,7 +26,7 @@ function extrasDeCuenta(account) {
   return partes
 }
 
-export default function CapsulaCuentaCobro({ account, className, acciones = null, children = null }) {
+export default function CapsulaCuentaCobro({ account, className, acciones = null, accionesSecundarias = null, children = null }) {
   const toast = useToast()
   if (!account) return null
   const medio = KIND_LABELS[account.kind] || account.kind
@@ -35,24 +35,28 @@ export default function CapsulaCuentaCobro({ account, className, acciones = null
   const extras = extrasDeCuenta(account)
   const conLogo = Boolean(account.bank) && Boolean(logoDeBanco(account.bank))
 
-  // #391: una fila compacta (logo sin solaparse con el texto, moneda y medio) y
+  // #632: identificación y edición primero; tipo y estado en su propia fila.
+  // El nombre puede crecer sin competir con las acciones. Conservamos
   // los datos para pasarle al cliente detrás de «Ver datos para el cliente».
   return (
     <div
       data-testid="cuenta-capsula"
       className={cn('rounded-xl border border-fono/25 bg-fono/5 px-2.5 py-1', className)}
     >
-      <div className="flex items-center gap-2.5">
-        <span className="grid h-8 min-w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-600 bg-ink-800 px-1">
+      <div data-testid="cuenta-cabecera" className="flex items-start gap-2.5">
+        <span className="mt-1.5 grid h-8 w-8 min-w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-600 bg-ink-800 px-1">
           {conLogo
             ? <BancoLogo banco={account.bank} alto="h-4" />
             : <Icon name={ICONO_MEDIO[account.kind] || 'wallet'} className="h-4 w-4 text-fono-light" />}
         </span>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
-          <b className="min-w-0 truncate text-sm text-fore" data-testid="cuenta-capsula-nombre">{account.name}</b>
-          <span className="whitespace-nowrap rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{moneda} · {medio}</span>
+        <div className="min-w-0 flex-1 py-2">
+          <b className="block break-words text-sm leading-5 text-fore [overflow-wrap:anywhere]" data-testid="cuenta-capsula-nombre">{account.name}</b>
         </div>
-        {acciones}
+        {acciones && <div className="shrink-0">{acciones}</div>}
+      </div>
+      <div data-testid="cuenta-metadatos" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-fono/15 pt-1">
+        <span data-testid="cuenta-tipo" className="min-w-0 break-words text-xs font-semibold text-mute">{moneda} · {medio}</span>
+        {accionesSecundarias && <div data-testid="cuenta-estado-acciones" className="ml-auto flex min-w-0 flex-wrap items-center gap-2">{accionesSecundarias}</div>}
       </div>
       {children}
       {(filas.length > 0 || extras.length > 0) && (
