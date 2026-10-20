@@ -111,10 +111,11 @@ export async function updateTenantCompanyProfile(input: {
     phone: fields.phone === undefined ? current.phone : nullableText(fields.phone, 'El teléfono de la empresa', 40),
     ruc: fields.ruc === undefined ? current.ruc : nullableText(fields.ruc, 'El RUC de la empresa', 20),
   }
-  const updated = await db.$transaction(async tx => {
+  const persist = async (tx: Db) => {
     const tenant = await tx.tenant.update({ where: { id: input.tenantId }, data: { ...data, ...(correoCambioReseteaVerificacion(current.email, email) ? { emailVerifiedAt: null } : {}) }, select: SELECT })
     await tx.auditLog.create({ data: { tenantId: input.tenantId, userId: input.actorUserId, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: input.tenantId, metadata: { fields: keys, before: { name: current.name, email: current.email, address: current.address, city: current.city, department: current.department, phone: current.phone, ruc: current.ruc }, after: data } } })
     return tenant
-  })
+  }
+  const updated = typeof (db as any).$transaction === 'function' ? await (db as PrismaClient).$transaction(persist) : await persist(db)
   return updated
 }
