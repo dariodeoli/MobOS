@@ -89,7 +89,13 @@ function readDemo() {
   let rawV1
   try { rawV1 = leerDemo(DEMO_KEY_V1) }
   catch { throw new Error('El almacenamiento local de la demo no está disponible.') }
-  if (rawV1 !== null) return saveDemo(migrarCuentasDemoV2(parseDemo(rawV1)))
+  if (rawV1 !== null) {
+    // Normalizar los registros nuevos con las mismas reglas del seed antes de
+    // guardarlos: la primera lectura debe mostrar inmediatamente sus defaults
+    // (incluido isActive), igual que las lecturas posteriores.
+    const migradas = parseDemo(JSON.stringify(migrarCuentasDemoV2(parseDemo(rawV1))))
+    return saveDemo(migradas)
+  }
   return saveDemo(seed.map(account => ({ ...account })))
 }
 
