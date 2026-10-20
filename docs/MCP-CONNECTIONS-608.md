@@ -89,6 +89,8 @@ Las mutaciones no se ejecutan directamente desde el modelo. Las herramientas nor
 
 El preview está ligado al grant OAuth, cliente y sesión que lo creó. Otro conector, una sesión cambiada, un grant revocado o un preview vencido no puede confirmarlo. Los cambios de precio usan control de concurrencia: si el valor esperado cambió, la confirmación falla y no sobreescribe el precio.
 
+Las bajas de listas de precios también pasan por el servicio compartido. La transición activa → inactiva usa una actualización compare-and-swap sobre `updatedAt`, avanza la versión aun cuando el reloj tenga la misma marca de tiempo y registra un único `PRICE_LIST_DEACTIVATED`. Por eso una vista previa de edición tomada antes de una baja queda invalidada y no puede volver a escribir ítems o reactivar la lista.
+
 Restricciones relevantes:
 
 - `products.write` permite campos de producto y variante definidos por el servicio; no permite inventar stock, IMEI, SQL, rutas o atributos arbitrarios.

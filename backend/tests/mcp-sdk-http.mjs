@@ -31,7 +31,7 @@ try {
   command('createdb', ['-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', 'mcp_sdk_http_test'])
   const httpPort = await freePort()
   const resource = `http://localhost:${httpPort}`
-  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }, { clientId: 'sdk-http-2', name: 'SDK HTTP 2', redirectUris: ['https://connector2.example/callback'] }]) })
+  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_APP_URL: resource, MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }, { clientId: 'sdk-http-2', name: 'SDK HTTP 2', redirectUris: ['https://connector2.example/callback'] }]) })
   execFileSync(backend + '/node_modules/.bin/prisma', ['migrate', 'deploy', '--schema', backend + '/prisma/schema.prisma'], { env: { ...process.env, DATABASE_URL: dbUrl }, cwd: backend, stdio: 'inherit' })
   require.extensions['.ts'] = (module, filename) => {
     const ts = require('typescript')
@@ -67,6 +67,7 @@ try {
   await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, sellerId: user.id, orderNumber: 'SDK-REPORT-UNKNOWN', status: 'COMPLETED', subtotalPyg: 500, totalPyg: 500, createdAt: reportAt, items: { create: [{ description: 'Unknown cost', quantity: 1, unitPricePyg: 500, totalPyg: 500 }] } } })
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
+  const priceListById = require('../app/api/price-lists/[id]/route.ts')
   const { GET: protectedResourceGet } = require('../app/.well-known/oauth-protected-resource/route.ts')
   const { GET: authorizeGet } = require('../app/api/mcp/authorize/route.ts')
   const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
@@ -86,8 +87,14 @@ try {
     try {
       const chunks = []
       for await (const chunk of req) chunks.push(chunk)
-      const request = new Request(`${resource}/api/mcp/streamable`, { method: req.method, headers: req.headers, body: chunks.length ? Buffer.concat(chunks) : undefined })
-      const response = await POST(request)
+      const target = new URL(req.url || '/', resource)
+      const request = new Request(target, { method: req.method, headers: req.headers, body: chunks.length ? Buffer.concat(chunks) : undefined })
+      let response
+      if (target.pathname.startsWith('/api/price-lists/')) {
+        const id = target.pathname.split('/').pop()
+        const handler = req.method === 'DELETE' ? priceListById.DELETE : req.method === 'PATCH' ? priceListById.PATCH : priceListById.GET
+        response = await handler(request, { params: Promise.resolve({ id }) })
+      } else response = await POST(request)
       res.statusCode = response.status
       response.headers.forEach((value, key) => res.setHeader(key, value))
       res.end(Buffer.from(await response.arrayBuffer()))
@@ -137,6 +144,26 @@ try {
   const itemRaceAudits = await db.auditLog.count({ where: { tenantId: tenant.id, entity: 'PriceList', entityId: raceList.id, action: 'PRICE_LIST_UPDATED' } })
   const winningPrice = itemRaceRow?.items[0]?.unitPricePyg?.toString()
   ok(itemRaceWinners === 1 && ['910', '920'].includes(winningPrice) && itemRaceRow?.items[0]?.tiers.length === 1 && itemRaceAudits === 1, 'price list item-only previews have one CAS winner and one audit')
+  // Real HTTP race: an old MCP preview must not be committed after a web
+  // item-only edit followed by a web deactivation under the same clock.
+  const deleteRaceList = await db.priceList.create({ data: { tenantId: tenant.id, name: 'SDK HTTP delete race', items: { create: [{ scope: 'PRODUCT', productId: product.id, unitPricePyg: 930, tiers: { create: [{ minQty: 2, unitPricePyg: 900 }] } }] } } })
+  const deleteRaceArgs = { mode: 'preview', operation: 'update', priceListId: deleteRaceList.id, replaceItems: true, items: [{ scope: 'PRODUCT', productId: product.id, unitPricePyg: 940, tiers: [{ minQty: 2, unitPricePyg: 910 }] }], idempotencyKey: 'sdk-http-delete-race' }
+  const deleteRacePreview = await client.callTool({ name: 'price_lists.write', arguments: deleteRaceArgs }); const deleteRacePayload = JSON.parse(deleteRacePreview.content.find(item => item.type === 'text')?.text || '{}')
+  const fixedNow = Date.now; Date.now = () => 1735689600000
+  try {
+    // Web routes use the application session cookie; an MCP bearer is only for
+    // the connector transport and must never be treated as a web session.
+    const webHeaders = { cookie: `mobos_seller_session=${browserCookie}`, origin: resource, 'content-type': 'application/json' }
+    const editResponse = await fetch(`${resource}/api/price-lists/${deleteRaceList.id}`, { method: 'PATCH', headers: webHeaders, body: JSON.stringify({ replaceItems: true, items: [{ scope: 'PRODUCT', productId: product.id, unitPricePyg: 950, tiers: [{ minQty: 2, unitPricePyg: 920 }] }] }) })
+    ok(editResponse.status === 200, 'HTTP item-only edit advances list version')
+    const deleteResponse = await fetch(`${resource}/api/price-lists/${deleteRaceList.id}`, { method: 'DELETE', headers: webHeaders })
+    ok(deleteResponse.status === 200 && (await deleteResponse.json()).isActive === false, 'HTTP DELETE deactivates list through versioned service')
+    let staleDeleteDenied = false
+    try { await client.callTool({ name: 'price_lists.write', arguments: { ...deleteRaceArgs, mode: 'commit', previewId: deleteRacePayload.previewId } }) } catch { staleDeleteDenied = true }
+    const deleteRaceRow = await db.priceList.findUnique({ where: { id: deleteRaceList.id }, include: { items: { include: { tiers: true } } } })
+    const deleteRaceAudits = await db.auditLog.count({ where: { tenantId: tenant.id, entity: 'PriceList', entityId: deleteRaceList.id, action: 'PRICE_LIST_DEACTIVATED' } })
+    ok(staleDeleteDenied && deleteRaceRow?.isActive === false && deleteRaceRow.items[0]?.unitPricePyg === 950n && deleteRaceRow.items[0]?.tiers[0]?.unitPricePyg === 920n && deleteRaceAudits === 1, 'old MCP preview is rejected after HTTP edit plus DELETE with same clock')
+  } finally { Date.now = fixedNow }
   const preview = await client.callTool({ name: 'prices.write', arguments: { mode: 'preview', productId: product.id, pricePyg: 1100, expectedPricePyg: 1000, idempotencyKey: 'sdk-http-price-1' } }); ok(!preview.isError && JSON.stringify(preview).includes('previewId'), 'prices.write preview via SDK')
   const previewText = preview.content.find(item => item.type === 'text')?.text || ''
   const previewPayload = JSON.parse(previewText)
