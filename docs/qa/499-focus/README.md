@@ -1,7 +1,7 @@
 # #499 — retorno de foco del editor de cliente POS
 
 Fuente de auditoría: 880ebc11, rama propia `codex/499-cliente-modal-focus`.
-No modifica la fuente candidata 236. Rebase y draft con diff exclusivo pendientes de main 236.
+Rebasada sin conflictos con `--onto origin/main 880ebc11` sobre main236 `43204589a410c959cc6033c7503716a714e042bd`; diff exclusivo de foco, sin modificar otras ramas.
 
 ## Hallazgo y corrección
 
@@ -26,3 +26,7 @@ Los seis casos nuevos se incluyen además en el config frontend general de CI.
 - Cerrar la ficha del cliente devuelve el teclado al control de edición correspondiente.
 - Las ventanas fiscales anidadas conservan el foco y anuncian una sola ventana modal activa.
 - Sigue pendiente probar lectores de pantalla físicos en web y móvil; esta unidad no cierra #499 ni implica deploy.
+
+## Revalidación sobre main236
+
+8 casos de foco PASS (13.4s); FE 1598 PASS; BE 347 PASS + 1 skip; lint sin errores, builds FE/BE, Prisma y dbcheck PG fresco PASS. BUILD_ID backend `MX4ZE0V2R-reeFbuHEjox`. Lector físico sigue pendiente. Sin cambios de backend ni schema.
