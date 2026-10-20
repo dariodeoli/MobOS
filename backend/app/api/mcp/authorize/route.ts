@@ -15,9 +15,9 @@ export async function GET(request: Request) {
   const session = await requireSession(request, { allowMcpGetNoOrigin: true })
   if (!session) {
     const appOrigin = (() => { try { return new URL(process.env.MOBOS_APP_URL || mcpIssuer()).origin } catch { return mcpIssuer() } })()
-    const returnTo = `/mcp/autorizar?request=${encodeURIComponent(`${url.pathname}${url.search}`)}`
-    const login = new URL('/login', appOrigin); login.searchParams.set('returnTo', returnTo)
-    return NextResponse.redirect(login, { status: 303 })
+    const bridge = new URL('/mcp/autorizar', appOrigin)
+    bridge.searchParams.set('request', `${url.pathname}${url.search}`)
+    return NextResponse.redirect(bridge, { status: 303 })
   }
   const state = url.searchParams.get('state')
   if (state !== null && !validState(state)) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })

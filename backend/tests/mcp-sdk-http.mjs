@@ -74,7 +74,8 @@ try {
   const consentBody = await consentGet.text(); ok(consentGet.status === 200 && consentBody.includes('Autorizar conexión'), 'OAuth consent GET without Origin uses trusted issuer URL and session cookie')
   const unauthGet = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`))
   const loginLocation = unauthGet.headers.get('location') || ''
-  ok(unauthGet.status === 303 && loginLocation.includes('/login') && loginLocation.includes('returnTo='), 'unauthenticated consent GET redirects to login bridge')
+  const bridgeUrl = new URL(loginLocation)
+  ok(unauthGet.status === 303 && bridgeUrl.pathname === '/mcp/autorizar' && bridgeUrl.searchParams.get('request') === `/api/mcp/authorize?${authQuery}`, 'unauthenticated consent GET redirects to login bridge')
   httpServer = createServer(async (req, res) => {
     try {
       const chunks = []
