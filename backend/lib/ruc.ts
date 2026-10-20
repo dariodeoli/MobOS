@@ -1,5 +1,6 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
-import { AuthRateLimitError, consumeAuthAttemptWindow, hashToken } from './auth'
+import { hashToken } from './auth'
 import type { AuthAttemptStore } from './auth'
 import { digitoVerificadorModulo11 } from './sifen/cdc'
 import { ownDataMetadata, readBoundedJson } from './ruc-owndata'
@@ -29,15 +30,20 @@ export function normalizeRuc(input: unknown): NormalizedRuc {
   return { input: raw, lookup: verifier === undefined ? base : `${base}-${verifier}`, formatted: verifier === undefined ? null : `${base}-${verifier}` }
 }
 
-export type RucQuotaDb = { $transaction: <T>(fn: (tx: AuthAttemptStore) => Promise<T>) => Promise<T> }
+export type RucQuotaDb = { $transaction: <T>(fn: (tx: AuthAttemptStore & Pick<Prisma.TransactionClient, '$executeRaw' | '$queryRaw'>) => Promise<T>, options?: { maxWait: number; timeout: number }) => Promise<T> }
 
 async function consumeWindow(tx: AuthAttemptStore, scope: string, fingerprint: string, limit: number, windowMs: number, now: Date, code: 'account_rate_limited' | 'installation_rate_limited', message: string) {
-  try {
-    return await consumeAuthAttemptWindow(tx, scope, fingerprint, limit, windowMs, now)
-  } catch (cause) {
-    if (cause instanceof AuthRateLimitError) throw new RucLookupError(code, message, 429, cause.retryAfterSeconds)
-    throw cause
+  const since = new Date(now.getTime() - windowMs)
+  const where = { scope, fingerprint, createdAt: { gte: since } }
+  await tx.authAttempt.deleteMany({ where: { scope, fingerprint, createdAt: { lt: since } } })
+  const count = await tx.authAttempt.count({ where })
+  if (count >= limit) {
+    const oldest = await tx.authAttempt.findFirst({ where, orderBy: { createdAt: 'asc' }, select: { createdAt: true } })
+    const retry = Math.max(1, Math.ceil(((oldest?.createdAt.getTime() ?? now.getTime()) + windowMs - now.getTime()) / 1000))
+    throw new RucLookupError(code, message, 429, retry)
   }
+  await tx.authAttempt.create({ data: { scope, fingerprint, createdAt: now } })
+  return count + 1
 }
 
 /**
@@ -49,16 +55,25 @@ async function consumeWindow(tx: AuthAttemptStore, scope: string, fingerprint: s
  */
 export async function consumeRucQuota(accountId: string, installationId: string, options: { db?: RucQuotaDb; now?: Date } = {}) {
   const db = (options.db ?? prisma) as RucQuotaDb
-  const now = options.now ?? new Date()
-  const accountLimit = Number(process.env.RUC_ACCOUNT_HOURLY_LIMIT || 12)
-  const installationLimit = Number(process.env.RUC_INSTALLATION_MONTHLY_LIMIT || 90)
+  const accountLimit = Number(process.env.RUC_ACCOUNT_HOURLY_LIMIT ?? 12)
+  const installationLimit = Number(process.env.RUC_INSTALLATION_MONTHLY_LIMIT ?? 90)
+  if (![accountLimit, installationLimit].every(value => Number.isSafeInteger(value) && value > 0)) {
+    throw new RucLookupError('quota_not_configured', 'La consulta RUC no está disponible. Complete los datos manualmente.', 503)
+  }
   const accountFingerprint = hashToken(`ruc:account:${accountId}`)
   const installationFingerprint = hashToken(`ruc:installation:${installationId}`)
   const used = await db.$transaction(async tx => {
+    for (const key of [`ruc:account:${accountFingerprint}`, `ruc:installation:${installationFingerprint}`].sort()) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+    }
+    const clock = await tx.$queryRaw<Array<{ nowMs: bigint }>>`SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint AS "nowMs"`
+    const epochMs = Number(clock[0]?.nowMs)
+    if (!Number.isSafeInteger(epochMs) || !Number.isFinite(new Date(epochMs).getTime())) throw new Error('Invalid quota clock')
+    const now = options.now ?? new Date(epochMs)
     const accountUsed = await consumeWindow(tx, 'ruc:account', accountFingerprint, accountLimit, HOUR_MS, now, 'account_rate_limited', 'Alcanzaste el límite temporal de consultas RUC. Intentá nuevamente más tarde o completá los datos manualmente.')
     const installationUsed = await consumeWindow(tx, 'ruc:installation', installationFingerprint, installationLimit, MONTH_MS, now, 'installation_rate_limited', 'La instalación alcanzó su cuota de consultas RUC. Podés completar los datos manualmente.')
     return { accountUsed, installationUsed }
-  })
+  }, { maxWait: 10_000, timeout: 10_000 })
   return { accountRemaining: Math.max(0, accountLimit - used.accountUsed), installationRemaining: Math.max(0, installationLimit - used.installationUsed) }
 }
 
@@ -93,47 +108,64 @@ export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fe
   try {
     response = await (options.fetchImpl || fetch)(`${PROVIDER_BASE_URL}${encodeURIComponent(query.lookup)}`, {
       method: 'GET', headers: { Accept: 'application/json', 'X-API-Key': key },
-      signal, cache: 'no-store', redirect: 'error',
+      signal, cache: 'no-store', redirect: 'error', credentials: 'omit',
     })
   } catch { throw unavailable() }
-  if (response.status === 429) {
-    const retry = response.headers.get('Retry-After')
-    const seconds = retry && /^\d+$/.test(retry) && Number.isSafeInteger(Number(retry)) && Number(retry) > 0 ? Number(retry) : undefined
-    throw new RucLookupError('provider_rate_limited', 'Se alcanzó la cuota del proveedor RUC. Complete los datos manualmente o intente más tarde.', 429, seconds)
+  if (response.status !== 200 || response.redirected) {
+    let code: unknown
+    try {
+      const body = await readBoundedJson(response, signal)
+      const error = body.error
+      if (error && typeof error === 'object' && !Array.isArray(error)) code = (error as Record<string, unknown>).code
+    } catch { /* Malformed provider diagnostics are never reflected. */ }
+    const safeCodes: Record<string, number> = {
+      INVALID_RUC_FORMAT: 400, INVALID_RUC_DV: 400, ACCOUNT_PERIOD_CHANGED: 409,
+      API_KEY_REQUIRED: 401, API_KEY_INVALID: 401, API_KEY_REVOKED: 401, API_KEY_EXPIRED: 401,
+      API_KEY_ENVIRONMENT_MISMATCH: 401, INSUFFICIENT_SCOPE: 403, PLAN_REQUIRED: 403,
+      REGISTERED_RUC_NOT_FOUND: 404, DAILY_QUOTA_REACHED: 429, METHOD_NOT_ALLOWED: 405,
+      FREE_API_DISABLED: 503, COMMERCIAL_API_DISABLED: 503, COMMERCIAL_API_UNAVAILABLE: 503,
+      DNIT_DATA_UNAVAILABLE: 503, INVALID_NAME_OPTIONS: 400,
+    }
+    if (typeof code === 'string' && Object.hasOwn(safeCodes, code) && safeCodes[code] === response.status) {
+      const retry = response.headers.get('Retry-After')
+      const seconds = response.status === 429 && retry && /^\d+$/.test(retry) && Number.isSafeInteger(Number(retry)) && Number(retry) > 0 ? Number(retry) : undefined
+      // Provider credentials belong to this server; a failure must not invalidate the MobOS session.
+      const status = response.status === 401 || response.status === 403 ? 503 : response.status
+      throw new RucLookupError(code, 'No se pudo consultar el RUC. Complete o revise los datos manualmente.', status, seconds)
+    }
+    if (response.status === 429) {
+      const retry = response.headers.get('Retry-After')
+      const seconds = retry && /^\d+$/.test(retry) && Number.isSafeInteger(Number(retry)) && Number(retry) > 0 ? Number(retry) : undefined
+      throw new RucLookupError('provider_rate_limited', 'Se alcanzó la cuota del proveedor RUC. Complete los datos manualmente o intente más tarde.', 429, seconds)
+    }
+    if (response.status === 404) throw new RucLookupError('not_found', 'No encontramos ese RUC. Verifique el número o cargue los datos manualmente.', 404)
+    throw unavailable(response.status === 401 || response.status === 403 ? 'provider_not_configured' : 'provider_unavailable')
   }
-  if (response.status === 404) throw new RucLookupError('not_found', 'No encontramos ese RUC. Verifique el número o cargue los datos manualmente.', 404)
-  if (response.status === 401 || response.status === 403) throw unavailable('provider_not_configured')
-  if (response.status !== 200 || response.redirected) throw unavailable()
   let payload: Record<string, unknown>
   try { payload = await readBoundedJson(response, signal) } catch { throw unavailable('provider_invalid') }
   const data = payload.data as Record<string, unknown> | undefined
   if (options.rejectSimulated && (payload.simulated === true || payload.simulado === true || data?.simulated === true || data?.simulado === true)) throw unavailable('provider_invalid')
   const base = query.lookup.split('-')[0]
   const dv = String(digitoVerificadorModulo11(base))
-  // OwnData is migrating the public contract away from taxpayer-state data.
-  // During the compatibility window older consumers still receive a generic
-  // `status: ACTIVO` marker, while newer responses omit `stateRaw`. Accept
-  // either representation here and keep the legacy field local to MobOS so
-  // existing screens do not turn a valid lookup into a provider_invalid 503.
-  const legacyState = typeof data?.stateRaw === 'string' && data.stateRaw.trim()
-    ? data.stateRaw
-    : typeof data?.status === 'string' && data.status.trim() ? data.status : null
+  // Taxpayer-state fields are deliberately ignored, including legacy status/stateRaw.
   if (!data || typeof data !== 'object' || Array.isArray(data)
     || data.ruc !== base || data.dv !== dv || data.fullRuc !== `${base}-${dv}`
     || typeof data.nameOfficial !== 'string' || !data.nameOfficial.trim()
-    || typeof data.equivalenceRaw !== 'string' || !legacyState) throw unavailable('provider_invalid')
+    || ('equivalenceRaw' in data && typeof data.equivalenceRaw !== 'string')
+    || ('sourcePartition' in data && (!Number.isInteger(data.sourcePartition) || (data.sourcePartition as number) < 0 || (data.sourcePartition as number) > 9))) throw unavailable('provider_invalid')
+  const meta = ownDataMetadata(payload.meta)
+  if (!meta.environment || !meta.quota || !meta.provenance) throw unavailable('provider_invalid')
   const result = {
     name: data.nameOfficial, nameOfficial: data.nameOfficial,
     ruc: base, dv, fullRuc: `${base}-${dv}`,
-    equivalenceRaw: data.equivalenceRaw, stateRaw: legacyState,
-    // Compatibility aliases are raw source values, not normalized semantics.
-    state: legacyState, publicationDateText: null, sifenMandate: null, siara: null,
+    ...(typeof data.equivalenceRaw === 'string' ? { equivalenceRaw: data.equivalenceRaw } : {}),
+    ...(typeof data.sourcePartition === 'number' ? { sourcePartition: data.sourcePartition } : {}),
   }
   const lookup = {
     query: { normalized: query.lookup, fullRuc: result.fullRuc }, result, reviewRequired: true,
     source: { provider: 'OwnData', queriedAt: (options.now || new Date()).toISOString() },
     ...(typeof payload.requestId === 'string' && /^req_[0-9a-f]{24}$/.test(payload.requestId) ? { requestId: payload.requestId } : {}),
-    meta: ownDataMetadata(payload.meta),
+    meta,
   }
   // Reject rather than alter official values if a provider reflects a key.
   if (JSON.stringify(lookup).includes(key)) throw unavailable('provider_invalid')

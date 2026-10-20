@@ -86,6 +86,17 @@ try {
  await pool.query(`UPDATE "AuthAttempt" SET "createdAt"=(clock_timestamp() AT TIME ZONE 'UTC')-interval '25 hours'`)
  ok((await ask(r1,'203.0.113.204')).status===200,'ambas ventanas vencidas permiten reserva nueva')
  ok(await db1.authAttempt.count()===2,'limpieza solo scopes usados')
+ // Private account/installation budgets also serialize across independent clients.
+ await db1.authAttempt.deleteMany()
+ process.env.RUC_ACCOUNT_HOURLY_LIMIT='3';process.env.RUC_INSTALLATION_MONTHLY_LIMIT='5'
+ let privateResults=await Promise.allSettled(Array.from({length:20},(_,i)=>ruc.consumeRucQuota('account-shared',`install-${i}`,{db:i%2?db1:db2})))
+ ok(privateResults.filter(r=>r.status==='fulfilled').length===3,'private account concurrency exactly3')
+ ok(await db1.authAttempt.count({where:{scope:'ruc:account'}})===3,'account no overflow')
+ await db1.authAttempt.deleteMany()
+ privateResults=await Promise.allSettled(Array.from({length:20},(_,i)=>ruc.consumeRucQuota(`account-${i}`,'installation-shared',{db:i%2?db1:db2})))
+ ok(privateResults.filter(r=>r.status==='fulfilled').length===5,'private installation concurrency exactly5')
+ ok(await db1.authAttempt.count({where:{scope:'ruc:account'}})===5,'second-budget rejection rolls back account consumption')
+ ok(await db1.authAttempt.count({where:{scope:'ruc:installation'}})===5,'installation no overflow')
  console.log(`RUC demo PostgreSQL: ${checks} PASS (cluster aislado; proveedor mock)`)
 }finally{
  await Promise.all(dbs.map(db=>db.$disconnect()));if(pool)await pool.end()

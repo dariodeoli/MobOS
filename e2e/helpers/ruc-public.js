@@ -9,7 +9,7 @@ export function rucPublicPayload(query, nameOfficial) {
   const fullRuc = `${ruc}-${dv}`
   return {
     query: { normalized: query, fullRuc },
-    result: { ruc, dv, fullRuc, nameOfficial: nameOfficial ?? `COMERCIAL QA ${ruc} S.A.`, equivalenceRaw: 'QA', stateRaw: 'ACTIVO' },
+    result: { ruc, dv, fullRuc, nameOfficial: nameOfficial ?? `COMERCIAL QA ${ruc} S.A.`, equivalenceRaw: 'QA', sourcePartition: 3 },
     source: { provider: 'OwnData' }, reviewRequired: true,
   }
 }

@@ -45,6 +45,7 @@ function fakeRucDb(getNow) {
   return {
     async $transaction(fn) {
       return fn({
+        $executeRaw: async () => 1, $queryRaw: async () => [{ nowMs: BigInt(getNow().getTime()) }],
         authAttempt: {
           deleteMany: async ({ where }) => {
             for (let i = rows.length - 1; i >= 0; i--) {
@@ -88,19 +89,25 @@ try {
   if (oldAccountLimit === undefined) delete process.env.RUC_ACCOUNT_HOURLY_LIMIT; else process.env.RUC_ACCOUNT_HOURLY_LIMIT = oldAccountLimit
   if (oldInstallationLimit === undefined) delete process.env.RUC_INSTALLATION_MONTHLY_LIMIT; else process.env.RUC_INSTALLATION_MONTHLY_LIMIT = oldInstallationLimit
 
+  for (const value of ['NaN','Infinity','0','-1','', '1.5']) {
+    process.env.RUC_ACCOUNT_HOURLY_LIMIT = value
+    await assert.rejects(() => ruc.consumeRucQuota('u','i', {db: {$transaction: async () => {throw new Error('must not access DB')}}}), e => e.code === 'quota_not_configured'); checks++
+  }
+  if (oldAccountLimit === undefined) delete process.env.RUC_ACCOUNT_HOURLY_LIMIT; else process.env.RUC_ACCOUNT_HOURLY_LIMIT = oldAccountLimit
+
   let requested = ''
   const result = await ruc.lookupRuc('80.012.345-0', { fetchImpl: async (url, init) => {
     requested = String(url)
     ok(init.headers.Accept === 'application/json', 'provider accepts JSON')
     ok(init.headers['X-API-Key'] === process.env.RUC_API_KEY, 'exclusive server API key')
-    ok(init.method === 'GET' && init.redirect === 'error' && init.cache === 'no-store', 'fixed safe transport')
+    ok(init.method === 'GET' && init.redirect === 'error' && init.cache === 'no-store' && init.credentials === 'omit' && !('Cookie' in init.headers) && !('Authorization' in init.headers), 'fixed safe transport')
     ok(init.signal instanceof AbortSignal, 'timeout signal')
     return Response.json(providerPayload())
   }, now: new Date('2026-09-12T12:00:00.000Z') })
   ok(requested === 'https://app.controlaria.online/api/v1/ruc/80012345-0', 'only normalized RUC leaves the server')
   assert.equal(result.result.name, official); checks++
   assert.equal(result.result.nameOfficial, official); checks++
-  assert.equal(result.result.stateRaw, ' ACTIVO '); checks++
+  assert.equal(result.result.stateRaw, undefined); checks++
   assert.equal(result.result.equivalenceRaw, '  X  '); checks++
   const compatibilityResult = await ruc.lookupRuc('80012345', { fetchImpl: async () => {
     const payload = providerPayload()
@@ -108,13 +115,35 @@ try {
     payload.data.status = 'ACTIVO'
     return Response.json(payload)
   } })
-  assert.equal(compatibilityResult.result.stateRaw, 'ACTIVO'); checks++
+  assert.equal(compatibilityResult.result.stateRaw, undefined); checks++
+  for (const fields of [{ status: 'ACTIVO' }, { status: 'INACTIVO' }, { status: 'SUSPENDIDO' }, { status: 'UNKNOWN' }, { stateRaw: 'INACTIVO' }, {}]) {
+    const payload = providerPayload()
+    delete payload.data.stateRaw; delete payload.data.equivalenceRaw
+    Object.assign(payload.data, fields)
+    const admitted = await ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(payload) })
+    assert.deepEqual(Object.keys(admitted.result).sort(), ['dv','fullRuc','name','nameOfficial','ruc']); checks++
+  }
+  for (const mutate of [p => { delete p.meta }, p => { delete p.meta.provenance }, p => { p.meta.environment = 'bad' }, p => { p.meta.quota.remaining = 100 }, p => { p.meta.provenance.sourcePage = 'http://example.test' }, p => { p.meta.provenance.snapshotHash = 'bad' }]) {
+    const payload = providerPayload(); mutate(payload)
+    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(payload) }), e => e.code === 'provider_invalid'); checks++
+  }
+  for (const [code, status] of [['COMMERCIAL_API_DISABLED',503],['API_KEY_EXPIRED',401],['API_KEY_REVOKED',401],['API_KEY_INVALID',401]]) {
+    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json({error:{code,message:process.env.RUC_API_KEY}}, {status}) }), e => e.code === code && e.status === (status === 401 ? 503 : status) && !e.message.includes(process.env.RUC_API_KEY)); checks++
+  }
+  for (const overrides of [{equivalenceRaw: process.env.RUC_API_KEY}, {sourcePartition: process.env.RUC_API_KEY}]) {
+    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(providerPayload(overrides)) }), e => e.code === 'provider_invalid'); checks++
+  }
+  for (const body of ['not JSON', 'x'.repeat(65_537), JSON.stringify({error:{code:process.env.RUC_API_KEY,message:process.env.RUC_API_KEY}}), JSON.stringify({error:{code:'API_KEY_INVALID'}})]) {
+    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => new Response(body, {status:503}) }), e => e.code === 'provider_unavailable' && e.status === 503 && !e.message.includes(process.env.RUC_API_KEY)); checks++
+  }
+  const partitioned = await ruc.lookupRuc('80012345', {fetchImpl: async () => Response.json(providerPayload({sourcePartition:3}))})
+  assert.equal(partitioned.result.sourcePartition,3); checks++
   for (const field of ['taxpayerType', 'givenNames', 'surnames', 'nameNatural', 'nameParsing']) ok(!(field in result.result), field + ' is not invented')
   assert.equal(result.reviewRequired, true); checks++
   await assert.rejects(() => ruc.lookupRuc('80012345-0', { fetchImpl: async () => new Response('', { status: 404 }) }), error => error.code === 'not_found'); checks++
   await assert.rejects(() => ruc.lookupRuc('80012345-0', { fetchImpl: async () => { throw new Error('offline') } }), error => error.code === 'provider_unavailable'); checks++
   // Malformed, mismatched and oversized responses cannot become fiscal data.
-  for (const overrides of [{ ruc: '80012346' }, { dv: '6' }, { fullRuc: '80012345-6' }, { nameOfficial: '   ' }, { stateRaw: null }, { stateRaw: undefined, status: '   ' }]) {
+  for (const overrides of [{ ruc: '80012346' }, { dv: '6' }, { fullRuc: '80012345-6' }, { nameOfficial: '   ' }, { equivalenceRaw: null }, { sourcePartition: '3' }]) {
     await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(providerPayload(overrides)) }), e => e.code === 'provider_invalid'); checks++
   }
   const leaked = providerPayload()
@@ -195,6 +224,7 @@ try {
   const successBody = await response.json()
   assert.equal(successBody.result.name, official); checks++
   assert.deepEqual(successBody.quota, { accountRemaining: 11, installationRemaining: 89 }); checks++
+  assert.deepEqual(Object.keys(successBody.result).sort(), ['dv','equivalenceRaw','fullRuc','name','nameOfficial','ruc']); checks++
   const sideEffects = () => [quotaCalls, fetchCalls, audits.length, installationCalls]
   const expectDenied = async (status, code) => {
     const before = sideEffects()
@@ -235,6 +265,12 @@ try {
     await expectDenied(503, 'pilot_not_configured')
   }
   process.env.RUC_PILOT_OWNER_EMAIL = 'dariodeoli@gmail.com'
+  quotaFailure = new Error('DB-CANARY-SECRET')
+  const beforeDbFailure = fetchCalls
+  const dbDenied = await get()
+  assert.equal(dbDenied.status,503); checks++
+  assert.equal(fetchCalls,beforeDbFailure); checks++
+  assert.ok(!(await dbDenied.text()).includes('CANARY')); checks++
   quotaFailure = new ruc.RucLookupError('account_rate_limited', 'Complete los datos manualmente.', 429, 60)
   response = await get(); expectPrivate(response); assert.equal(response.status, 429); checks++
   assert.equal(response.headers.get('Retry-After'), '60'); checks++
