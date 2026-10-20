@@ -6,6 +6,7 @@ import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { moduleStoreFrom } from '../../../../lib/module-store'
 import { changePayloadHash, validateChange } from '../../../../lib/mcp/changes'
 import { updateProductPrice, ProductPriceError } from '../../../../lib/product-price'
+import { generateProductImagesBase64, persistProductImage, ProductImageError, serializeProductImage } from '../../../../lib/product-images'
 
 export const dynamic = 'force-dynamic'
 const TTL_MS = 10 * 60 * 1000
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   // Other mutation domains remain disabled until their existing application
   // services are extracted and reused here. This endpoint must not create a
   // second, weaker CRUD path.
-  if (checked.action !== 'prices.write') return json('mutacion_no_disponible', 501)
+  if (checked.action !== 'prices.write' && checked.action !== 'product_images.write') return json('mutacion_no_disponible', 501)
   const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { id: true, settings: true } })
   if (!tenant) return json('empresa_no_disponible', 404)
   const modules = moduleStoreFrom(tenant.settings).modules
@@ -36,6 +37,25 @@ export async function POST(request: Request) {
   if (!idempotencyKey) return json('idempotency_key_requerida')
   if (mode === 'preview') {
     const expiresAt = new Date(Date.now() + TTL_MS)
+    if (checked.action === 'product_images.write') {
+      let generated
+      try { generated = await generateProductImagesBase64(checked.payload.dataBase64, checked.payload.contentType) }
+      catch (error) { if (error instanceof ProductImageError) return json('imagen_invalida', error.status, { detail: error.message }); return json('imagen_invalida') }
+      const product = await prisma.product.findFirst({ where: { id: String(checked.payload.productId), tenantId: auth.tenantId, isActive: true, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true, name: true, sku: true, branchId: true } })
+      if (!product) return json('producto_no_disponible', 404)
+      const active = await prisma.productImage.count({ where: { tenantId: auth.tenantId, productId: product.id, deletedAt: null } })
+      if (active >= 12) return json('limite_imagenes', 409)
+      const before = safe({ productId: product.id, name: product.name, sku: product.sku, branchId: product.branchId, imageCount: active })
+      const after = { ...before, image: { contentType: generated.image.mimeType, width: generated.image.width, height: generated.image.height, sizeBytes: generated.image.sizeBytes, sha256: generated.image.sha256 }, thumb: { width: generated.thumb.width, height: generated.thumb.height, sizeBytes: generated.thumb.sizeBytes, sha256: generated.thumb.sha256 } }
+      const existing = await prisma.mcpChangePreview.findUnique({ where: { tenantId_userId_idempotencyKey: { tenantId: auth.tenantId, userId: auth.user.id, idempotencyKey } } })
+      if (existing) {
+        if (existing.action !== checked.action || existing.payloadHash !== hash) return json('idempotencia_reutilizada', 409)
+        return NextResponse.json({ previewId: existing.id, action: existing.action, payloadHash: existing.payloadHash, status: existing.status, expiresAt: existing.expiresAt, before: existing.before, after: existing.after, resultEntity: existing.resultEntity, resultId: existing.resultId }, { headers: { 'Cache-Control': 'no-store' } })
+      }
+      const preview = await prisma.mcpChangePreview.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: checked.action, payloadHash: hash, payload: checked.payload as Prisma.InputJsonValue, before: before as Prisma.InputJsonValue, after: after as Prisma.InputJsonValue, idempotencyKey, expiresAt } })
+      await prisma.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_PREVIEWED', entity: 'McpChangePreview', entityId: preview.id, metadata: { action: checked.action, payloadHash: hash } } })
+      return NextResponse.json({ previewId: preview.id, action: checked.action, payloadHash: hash, status: preview.status, expiresAt, before, after }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
+    }
     const product = await prisma.product.findFirst({ where: { id: String(checked.payload.productId), tenantId: auth.tenantId, isActive: true, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true, name: true, sku: true, pricePyg: true, branchId: true } })
     if (!product) return json('producto_no_disponible', 404)
     if (Number(product.pricePyg) !== checked.payload.expectedPricePyg) return json('precio_desactualizado', 409, { currentPricePyg: Number(product.pricePyg) })
@@ -56,6 +76,22 @@ export async function POST(request: Request) {
   if (preview.status === 'COMMITTED' && preview.payloadHash === hash) return NextResponse.json({ committed: true, idempotent: true, previewId: preview.id, entity: preview.resultEntity, entityId: preview.resultId }, { headers: { 'Cache-Control': 'no-store' } })
   if (preview.status !== 'PREVIEW' || preview.expiresAt <= new Date()) return json('preview_invalido', 409)
   if (preview.action !== checked.action || preview.payloadHash !== hash) return json('payload_no_coincide', 409)
+  if (checked.action === 'product_images.write') {
+    let generated
+    try { generated = await generateProductImagesBase64(checked.payload.dataBase64, checked.payload.contentType) }
+    catch (error) { if (error instanceof ProductImageError) return json('imagen_invalida', error.status, { detail: error.message }); return json('imagen_invalida') }
+    try {
+      const created = await persistProductImage({ db: prisma as any, tenantId: auth.tenantId, userId: auth.user.id, productId: String(checked.payload.productId), branchId: decision.branchId, canManage: decision.allowed, image: generated.image, thumb: generated.thumb, variantKey: typeof checked.payload.variantKey === 'string' ? checked.payload.variantKey : null, provenance: 'mcp', onPersisted: async (tx, row) => {
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: new Date() }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: new Date(), resultEntity: 'ProductImage', resultId: row.id } })
+        if (claimed.count !== 1) throw new ProductImageError(409, 'preview_invalido')
+        await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'ProductImage', entityId: row.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
+      } })
+      return NextResponse.json({ committed: true, entity: 'ProductImage', entityId: created.id, previewId: preview.id }, { headers: { 'Cache-Control': 'no-store' } })
+    } catch (error) {
+      if (error instanceof ProductImageError) return json(error.message === 'preview_invalido' ? 'preview_invalido' : 'imagen_no_guardada', error.status, { detail: error.message })
+      return json('imagen_no_guardada', 500)
+    }
+  }
   const current = await prisma.product.findFirst({ where: { id: String(checked.payload.productId), tenantId: auth.tenantId, isActive: true, ...(decision.branchId ? { OR: [{ branchId: decision.branchId }, { branchId: null }] } : {}) }, select: { id: true, pricePyg: true } })
   if (!current || Number(current.pricePyg) !== checked.payload.expectedPricePyg) return json('precio_desactualizado', 409, { currentPricePyg: current ? Number(current.pricePyg) : null })
   const result = await prisma.$transaction(async tx => {

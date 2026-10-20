@@ -42,8 +42,8 @@ export async function POST(request: Request) {
   if (!tenant) return error(id, -32001, 'Empresa no disponible.')
   const modules = moduleStoreFrom(tenant.settings).modules
   if (body.method === 'tools/list') {
-    const implemented = new Set(['company.read', 'products.read', 'customers.read', 'sales.read', 'reports.read', 'prices.write'])
-    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action === 'prices.write' || !entry.mutating) && auth.scopes.includes(entry.scope)).map(entry => ({ name: entry.action, description: entry.label, inputSchema: entry.action === 'prices.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, previewId: { type: 'string' }, productId: { type: 'string' }, pricePyg: { type: 'integer', minimum: 0 }, expectedPricePyg: { type: 'integer', minimum: 0 }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, q: { type: 'string', maxLength: 120 }, limit: { type: 'integer', minimum: 1, maximum: 50 } } } }))
+    const implemented = new Set(['company.read', 'products.read', 'customers.read', 'sales.read', 'reports.read', 'prices.write', 'product_images.write'])
+    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action === 'prices.write' || entry.action === 'product_images.write' || !entry.mutating) && auth.scopes.includes(entry.scope)).map(entry => ({ name: entry.action, description: entry.label, inputSchema: entry.action === 'prices.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, previewId: { type: 'string' }, productId: { type: 'string' }, pricePyg: { type: 'integer', minimum: 0 }, expectedPricePyg: { type: 'integer', minimum: 0 }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : entry.action === 'product_images.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'productId', 'dataBase64', 'contentType', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, previewId: { type: 'string' }, productId: { type: 'string' }, branchId: { type: 'string' }, variantKey: { type: 'string', maxLength: 100 }, dataBase64: { type: 'string', minLength: 16, maxLength: 7000000 }, contentType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp'] }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, q: { type: 'string', maxLength: 120 }, limit: { type: 'integer', minimum: 1, maximum: 50 } } } }))
     return jsonRpc(id, { tools })
   }
   if (body.method !== 'tools/call') return error(id, -32601, 'Método MCP no soportado.')
@@ -51,12 +51,15 @@ export async function POST(request: Request) {
   const args = body.params?.arguments && typeof body.params.arguments === 'object' ? body.params.arguments : {}
   const decision = authorizeMcpAction(name, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: typeof args.branchId === 'string' ? args.branchId : null })
   if (!decision.allowed) return error(id, -32003, decision.reason, { code: decision.code })
-  if (name === 'prices.write') {
-    const forwarded = new Request(new URL('/api/mcp/changes', request.url), { method: 'POST', headers: { authorization: request.headers.get('authorization') ?? '', 'content-type': 'application/json' }, body: JSON.stringify({ ...args, action: 'prices.write', payload: { productId: args.productId, pricePyg: args.pricePyg, expectedPricePyg: args.expectedPricePyg }, idempotencyKey: args.idempotencyKey }) })
+  if (name === 'prices.write' || name === 'product_images.write') {
+    const payload = name === 'product_images.write'
+      ? { productId: args.productId, branchId: args.branchId, variantKey: args.variantKey, dataBase64: args.dataBase64, contentType: args.contentType }
+      : { productId: args.productId, pricePyg: args.pricePyg, expectedPricePyg: args.expectedPricePyg }
+    const forwarded = new Request(new URL('/api/mcp/changes', request.url), { method: 'POST', headers: { authorization: request.headers.get('authorization') ?? '', 'content-type': 'application/json' }, body: JSON.stringify({ ...args, action: name, payload, idempotencyKey: args.idempotencyKey }) })
     const result = await priceChange(forwarded)
-    const payload = await result.json().catch(() => ({ error: 'respuesta_invalida' }))
-    if (!result.ok) return error(id, -32004, typeof payload.error === 'string' ? payload.error : 'No se pudo cambiar el precio.', payload)
-    return jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(safeJson(payload)) }], structuredContent: payload })
+    const responsePayload = await result.json().catch(() => ({ error: 'respuesta_invalida' }))
+    if (!result.ok) return error(id, -32004, typeof responsePayload.error === 'string' ? responsePayload.error : 'No se pudo aplicar el cambio.', responsePayload)
+    return jsonRpc(id, { content: [{ type: 'text', text: JSON.stringify(safeJson(responsePayload)) }], structuredContent: responsePayload })
   }
   if (decision.entry.mutating) return error(id, -32004, 'Esta versión del transporte sólo habilita lecturas.')
   const limit = typeof args.limit === 'number' && Number.isInteger(args.limit) ? Math.min(50, Math.max(1, args.limit)) : 20
