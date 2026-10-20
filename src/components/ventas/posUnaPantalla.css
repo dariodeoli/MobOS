@@ -184,6 +184,20 @@
   .pos-f2 .pos-cobro {
     flex: 0 0 auto;
   }
+  /* Editar la ficha no debe empujar el ticket fuera del viewport: la ficha
+     se convierte en una superficie temporal sobre el POS y conserva el
+     carrito visible detrás para poder volver al flujo sin scroll trampa. */
+  .pos-f2 .pos-cliente-editor-modal {
+    position: fixed;
+    z-index: 40;
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    width: min(620px, calc(100vw - 2rem));
+    overflow: auto;
+    background: rgb(var(--c-ink-900, 20 25 32));
+    box-shadow: 0 24px 64px rgb(0 0 0 / 35%);
+  }
   .pos-f2 [data-testid='pos-carrito-cuerpo'],
   .pos-f2 [data-testid='pos-pagos-lista'] {
     max-height: none;

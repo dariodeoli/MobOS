@@ -25,6 +25,28 @@ async function enterDemo(page) {
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
 }
 
+async function agregarLineasDistintas(page, cantidad) {
+  let candidatos = page.locator('.pos-product-card')
+  for (let intento = 0; intento < 3; intento += 1) {
+    const disponibles = (await candidatos.allTextContents()).filter(text => !/desde/i.test(text)).length
+    if (disponibles >= cantidad) break
+    const mas = page.getByRole('button', { name: 'Ver más productos', exact: true })
+    if (await mas.count() && await mas.isVisible()) await mas.click()
+    else break
+  }
+  candidatos = page.locator('.pos-product-card')
+  const total = await candidatos.count()
+  let agregados = 0
+  for (let i = 0; i < total && agregados < cantidad; i += 1) {
+    const card = candidatos.nth(i)
+    const texto = await card.innerText()
+    if (/desde/i.test(texto)) continue
+    await card.click()
+    agregados += 1
+  }
+  expect(agregados, `productos simples disponibles para ${cantidad} líneas`).toBe(cantidad)
+}
+
 test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
@@ -145,6 +167,9 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
+  const cartDuringEdit = await page.getByTestId('pos-bloque-carrito').boundingBox()
+  expect(cartDuringEdit.y).toBeLessThan(900)
+  expect(cartDuringEdit.y + cartDuringEdit.height).toBeGreaterThan(0)
   await page.getByTestId('confirmar-cliente').click()
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
 
@@ -163,6 +188,9 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   await pago.getByLabel('Cuenta de cobro', { exact: true }).click()
   await page.getByRole('listbox').getByRole('option').first().click()
   await pago.getByLabel('Monto original', { exact: true }).fill('100000')
+  await pago.getByLabel('Monto original', { exact: true }).press('Enter')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('pos-cobro')).toBeVisible()
   await cobro.getByRole('button', { name: '+ Agregar otro pago', exact: true }).click()
   await expect(cobro.getByTestId('pago-fila-1')).toBeVisible()
   const estilos = await page.evaluate(() => ({
@@ -172,6 +200,39 @@ test('venta rápida: cliente editable, cinco líneas y dos pagos sin scroll inte
   expect(estilos.carrito).toBe('visible')
   expect(estilos.pagos).toBe('visible')
 })
+
+for (const escenario of [
+  { cantidad: 1, width: 1440 },
+  { cantidad: 5, width: 1024 },
+  { cantidad: 10, width: 768 },
+]) {
+  test(`venta rápida: ticket de ${escenario.cantidad} líneas en ${escenario.width}px`, async ({ page }) => {
+    await page.setViewportSize({ width: escenario.width, height: 900 })
+    await enterDemo(page)
+    await agregarLineasDistintas(page, escenario.cantidad)
+    await expect(page.getByTestId('pos-bloque-carrito')).toContainText(`${escenario.cantidad} producto`)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(escenario.width)
+    await expect(page.getByTestId('carrito-total')).toBeVisible()
+  })
+}
+
+for (const width of [1440, 390]) {
+  test(`venta rápida: tema claro/oscuro mantiene objetivos a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.emulateMedia({ colorScheme: width < 640 ? 'dark' : 'light' })
+    await enterDemo(page)
+    if (width >= 640) {
+      const toggle = page.getByRole('button', { name: /Cambiar a tema (oscuro|claro)/ }).first()
+      await toggle.click()
+      await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    if (width >= 640) {
+      await page.getByRole('button', { name: /Cambiar a tema claro/ }).first().click()
+      await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(false)
+    }
+  })
+}
 
 test('venta rápida: divisor queda alineado al borde real de las columnas', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
