@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { ensureCobro } from '../helpers/ensure-cobro.js'
 
 const names = [
   'Caja de efectivo del mostrador principal — sucursal de demostración',
@@ -43,6 +44,8 @@ async function enter(page, width, dark) {
     await page.getByTestId('pos-barra-carrito-abrir').click()
     await page.getByTestId('carrito-cobrar').click()
     await page.getByTestId('medio-otros').click()
+  } else {
+    await ensureCobro(page)
   }
   return () => expect(writes).toEqual([])
 }
