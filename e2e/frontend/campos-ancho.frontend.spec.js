@@ -140,7 +140,7 @@ async function abrirFichaPos(page) {
   await expect(bloque).toBeVisible()
   await bloque.getByText('Datos de contacto, RUC/CI y direcciones').click()
   await bloque.getByLabel(/Facturar a otro titular/).check()
-  await bloque.getByRole('button', { name: '+ Dirección' }).click()
+  await bloque.getByRole('button', { name: 'Nueva dirección', exact: true }).click()
   await bloque.getByLabel('País', { exact: true }).scrollIntoViewIfNeeded()
   return bloque
 }
