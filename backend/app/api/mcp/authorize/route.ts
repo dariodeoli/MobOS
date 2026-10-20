@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const issued = await issueMcpAuthorizationCode(prisma, { grantId: grant.id, accountId: session.accountId, tenantId: session.user.tenantId, sessionId: session.sessionId, userId: session.user.id, clientId: client.clientId, redirectUri, resource, scopes, codeChallenge: challenge })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'MCP_ACCESS_GRANTED', entity: 'McpClientGrant', entityId: grant.id, metadata: { clientId: client.clientId, scopes } } })
     const target = new URL(redirectUri); target.searchParams.set('code', issued.code); if (typeof body.state === 'string' && /^[A-Za-z0-9._~-]{1,256}$/.test(body.state)) target.searchParams.set('state', body.state)
-    return NextResponse.json({ redirect_uri: target.href })
+    return NextResponse.redirect(target)
   } catch (error) {
     const cause = error instanceof McpOAuthError ? error : new McpOAuthError('server_error', 'No se pudo autorizar el conector.', 500)
     return NextResponse.json({ error: cause.code, error_description: cause.message }, { status: cause.status, headers: { 'Cache-Control': 'no-store' } })
