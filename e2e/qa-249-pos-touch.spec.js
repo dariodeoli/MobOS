@@ -124,8 +124,9 @@ test('mobile 390: los modales de la venta son usables (targets de 44)', async ({
   await page.setViewportSize({ width: 390, height: 844 })
   await armarCarrito(page, { abrirCarrito: false })
 
-  // Suspender venta.
-  await page.getByRole('button', { name: 'Suspender venta' }).click()
+  // Suspender venta se abre desde las acciones secundarias del celular.
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Suspender venta' }).click()
   const suspender = page.getByRole('dialog', { name: 'Suspender venta' })
   await toque(suspender.getByLabel('Etiqueta (opcional)'), 'suspender · etiqueta')
   await toque(suspender.getByRole('button', { name: 'Cancelar' }), 'suspender · cancelar')
@@ -134,6 +135,7 @@ test('mobile 390: los modales de la venta son usables (targets de 44)', async ({
   await expect(page.getByText(/Venta suspendida/)).toBeVisible({ timeout: 15_000 })
 
   // Ventas suspendidas (la lista del borrador recién creado).
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click()
   await page.getByTestId('pos-suspendidas').click()
   const suspendidas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await expect(suspendidas.getByRole('button', { name: 'Recuperar' }).first()).toBeVisible()

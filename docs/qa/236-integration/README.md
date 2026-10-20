@@ -33,6 +33,18 @@ Las reglas de pago, IMEI e identidad permanecen verificadas por las pruebas.
 - La regresión móvil se observó fallando antes y pasando después. Un solo submit
   visible y barra duplicada oculta se verifican dentro de Otros medios.
 
+## Última suite CI y correcciones de contrato
+
+El CI de `993c30ba` aprobó frontend, backend, integración y shards1/3/4;
+shard2 completó144PASS,6skips previos y tres fallos de expectativas antiguas:
+dos casos de resumen fijo y la apertura directa de Suspender en móvil.
+Se adaptan al desplazamiento del documento y a Más acciones, conservando
+barra fija móvil, acceso al total/submit, ausencia de mini scroll y targets44.
+Repetición local de ambos specs completos:6/6PASS. Un remontaje del submit
+al cargar cuentas se espera mediante aserciones reintentables de scroll,
+visibilidad en viewport y habilitación, sin sleeps ni omitir comprobaciones.
+No se hicieron cambios adicionales de producto después de `fff79114`.
+
 ## Baseline y límites
 
 Sobre frontend 235 limpio se reprodujeron los cuatro fallos previos de densidad,
