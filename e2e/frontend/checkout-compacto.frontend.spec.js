@@ -27,9 +27,11 @@ test('checkout: Enter confirma y el botón OK colapsa la ficha del cliente', asy
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
   await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
-  await page.getByTestId('confirmar-cliente').click()
+  await page.getByLabel('Teléfono del cliente').fill('981 555 123')
+  await page.getByLabel('Teléfono del cliente').press('Enter')
   await expect(page.getByTestId('confirmar-cliente')).toHaveCount(0)
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+  await expect(page.getByTestId('cliente-guardado')).toContainText('Cliente listo')
 })
 
 test('checkout: muestra facturación alternativa y direcciones guardadas sin perder ids', async ({ page }) => {
