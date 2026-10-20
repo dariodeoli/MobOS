@@ -85,6 +85,20 @@ export async function readProductImage(value: FormDataEntryValue | null, { maxBy
   return { data: bytes, mimeType, sizeBytes: bytes.byteLength, width: size.width, height: size.height, sha256: createHash('sha256').update(bytes).digest('hex'), extension: EXTENSION[mimeType] }
 }
 
+/**
+ * Decodifica una foto recibida por una integración (por ejemplo MCP) y la
+ * somete exactamente a la misma validación que el multipart web. El MIME,
+ * las dimensiones y el tamaño se obtienen del contenido; nunca se confía en
+ * metadatos enviados por el cliente.
+ */
+export async function readProductImageBase64(dataBase64: unknown, mimeType: unknown, options: { maxBytes?: number; label?: string } = {}): Promise<ValidatedImage> {
+  if (typeof dataBase64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64) || dataBase64.length % 4 !== 0) throw new ProductImageError(400, `${options.label || 'La foto'} tiene datos Base64 inválidos.`)
+  const bytes = Buffer.from(dataBase64, 'base64')
+  if (!bytes.length || bytes.toString('base64') !== dataBase64) throw new ProductImageError(400, `${options.label || 'La foto'} tiene datos Base64 inválidos.`)
+  const declaredMime = typeof mimeType === 'string' ? mimeType : ''
+  return readProductImage(new File([bytes], 'mcp-image', { type: declaredMime }), options)
+}
+
 /** Cota real del multipart aun sin Content-Length o con cabecera falsa. */
 export async function readProductImageFormData(request: Request, maxBytes: number): Promise<FormData> {
   const reader = request.body?.getReader()
@@ -160,6 +174,12 @@ export async function generateProductImages(value: FormDataEntryValue | null): P
   } finally {
     conversions -= 1
   }
+}
+
+/** Genera los derivados canónicos para una integración sin abrir otro camino de validación. */
+export async function generateProductImagesBase64(dataBase64: unknown, mimeType: unknown): Promise<{ image: ValidatedImage; thumb: ValidatedImage }> {
+  const input = await readProductImageBase64(dataBase64, mimeType)
+  return generateProductImages(new File([input.data], 'mcp-image', { type: input.mimeType }))
 }
 
 /** URLs relativas de la API; el cliente las baja con sesión y las cachea. */
