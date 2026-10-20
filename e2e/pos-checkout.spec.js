@@ -565,6 +565,40 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
     }, { api: API, cliente }), { timeout: 15_000 })
     .toBe(correo)
 })
+
+// #620: una respuesta de rechazo del endpoint de clientes no debe cerrar la
+// ficha ni mostrar un guardado exitoso. El segundo intento simula la respuesta
+// válida para verificar que el mismo editor puede reintentarse sin perder los
+// datos. La ruta está interceptada: no escribe en el tenant del arnés.
+test('POS: rechazo de guardado de cliente permanece visible y permite reintentar', async ({ page }) => {
+  let intentos = 0
+  await page.route(`${API}/api/customers`, async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    intentos += 1
+    if (intentos === 1) {
+      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'El cliente ya existe.' }) })
+    }
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: 'qa-customer-retry', name: 'Cliente Reintento QA', phone: '0981123456', addresses: [] }),
+    })
+  })
+  await page.goto('/pos')
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente Reintento QA')
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
+  await editor.getByLabel('Teléfono del cliente', { exact: true }).fill('0981123456')
+  await editor.getByTestId('confirmar-cliente').click()
+  await expect(editor.getByRole('alert')).toContainText('La API respondió con 409.')
+  await expect(editor).toBeVisible()
+  await expect(page.getByTestId('cliente-elegido-nombre')).toHaveCount(0)
+  await editor.getByTestId('confirmar-cliente').click()
+  await expect(editor).toBeHidden()
+  await expect(page.getByTestId('cliente-elegido-nombre')).toContainText('Cliente Reintento QA')
+  expect(intentos).toBe(2)
+})
 // Offline-first (Fase 1): sin conexión la venta queda en la cola local y al
 // volver la conexión se sincroniza sola, una sola vez (misma Idempotency-Key).
 test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)', async ({ page, context }) => {
