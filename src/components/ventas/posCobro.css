@@ -64,3 +64,16 @@
     display: contents !important;
   }
 }
+
+/* Guard global: el cobro puede montarse dentro de una hoja móvil sin la clase
+   pos-f2. En touch el pie no crea caja posicionada ni capa de hit testing; sus
+   hijos siguen en el flujo y conservan los indicadores/submit. */
+@media (max-width: 1023px) {
+  [data-testid='pos-pie-cobro'] {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    transform: none !important;
+    display: contents !important;
+  }
+}
