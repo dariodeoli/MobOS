@@ -178,6 +178,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     }
   }
   function usarBorrador(borrador) {
+    setSearchQuery('')
     onChange({
       ...('nameOfficial' in borrador ? { nameOfficial: borrador.nameOfficial, displayName: borrador.displayName } : {}),
       id: undefined, name: borrador.name, phone: borrador.phone || '', countryCode: borrador.countryCode || '+595',
@@ -188,6 +189,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setMatches([])
   }
   function elegirCliente(customer) {
+    setSearchQuery('')
     setEditar(false)
     setRegistro(customer)
     onChange(customerValue(customer))

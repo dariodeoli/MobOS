@@ -130,3 +130,38 @@ test('customer 409 keeps editing data/error visible and retry 201 closes the edi
   expect(requests).toHaveLength(2)
   expect(requests[1]).toEqual(requests[0])
 })
+
+
+test('choosing a pre-customer invalidates the pending search response', async ({ page }) => {
+  const draftName = 'Borrador fiscal tardío 344'
+  const api = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
+  await page.goto('/pos')
+  await page.evaluate(async ({ api, name }) => {
+    const session = await (await fetch(`${api}/api/auth/me`, { credentials: 'include' })).json()
+    const key = `mobos:preclientes:v1:${session.user?.tenantId || session.tenantId}`
+    localStorage.setItem(key, JSON.stringify([{ document: '80012345-0', name, phone: '', creadoEn: Date.now(), venceEn: Date.now() + 86400000 }]))
+  }, { api, name: draftName })
+  await page.reload()
+  let releaseSearch
+  await page.route('**/api/customers?*', async route => {
+    await new Promise(resolve => { releaseSearch = resolve })
+    await route.fulfill({ json: [fixture({ id: 'wrong-late-customer', name: draftName })] })
+  })
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(draftName)
+  await expect.poll(() => typeof releaseSearch).toBe('function')
+  await page.getByRole('button', { name: /Borrador fiscal tardío 344.*Pre-cliente/ }).click()
+  const late = page.waitForResponse(response => response.url().includes('/api/customers?q='))
+  releaseSearch()
+  await late
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await expect(page.getByLabel('CI o RUC del cliente', { exact: true })).toHaveValue('80012345-0')
+  const requests = []
+  await page.route('**/api/customers', async route => {
+    requests.push(route.request().postDataJSON())
+    await route.fulfill({ status: 201, json: fixture({ name: draftName, document: '80012345-0' }) })
+  })
+  await page.getByTestId('confirmar-cliente').click()
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+  expect(requests).toHaveLength(1)
+  expect(requests[0]).toMatchObject({ name: draftName, document: '80012345-0' })
+})

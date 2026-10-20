@@ -42,3 +42,7 @@ Se inspeccionaron visualmente el Modal oscuro desktop/móvil y el ticket5líneas
 - Corregir el nombre visible conserva la ficha y su identidad fiscal; una búsqueda tardía no los reemplaza.
 - Un error al guardar mantiene los datos para reintentar.
 - La consulta real del proveedor sigue pendiente; esta preparación no publica cambios.
+
+## Revisión final: selección de pre-cliente
+
+`usarBorrador` y `elegirCliente` limpian explícitamente la intención de búsqueda. Elegir un borrador sin id y con el mismo nombre de la consulta no siempre cambiaba otra dependencia del efecto; ahora invalida cualquier respuesta pendiente. Regresión nueva: borrador sintético en localStorage, consulta exacta pendiente, selección del pre-cliente, respuesta tardía de otra ficha y confirmación POST nuevo con el documento del borrador intacto. Suite fiscal ampliada: **5 PASS**,15,7s,0flaky; helpers fiscales12PASS; lint0errores/1warning previo y buildfrontend PASS. Backend/gates generales y capturas anteriores permanecen sin cambios.
