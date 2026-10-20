@@ -898,8 +898,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <PresenciaPedido pedidoId={order.id || row?.id} />
               {navegacion && (
                 <span className="flex items-center" role="group" aria-label="Pedidos vecinos">
-                  <button type="button" data-testid="pedido-anterior" aria-label="Pedido anterior" title="Pedido anterior" disabled={!navegacion.anterior} onClick={() => navegacion.onIr(navegacion.anterior)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:h-9 lg:w-9"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
-                  <button type="button" data-testid="pedido-siguiente" aria-label="Pedido siguiente" title="Pedido siguiente" disabled={!navegacion.siguiente} onClick={() => navegacion.onIr(navegacion.siguiente)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:h-9 lg:w-9"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
+                  <button type="button" data-testid="pedido-anterior" aria-label="Pedido anterior" title="Pedido anterior" disabled={!navegacion.anterior} onClick={() => navegacion.onIr(navegacion.anterior)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
+                  <button type="button" data-testid="pedido-siguiente" aria-label="Pedido siguiente" title="Pedido siguiente" disabled={!navegacion.siguiente} onClick={() => navegacion.onIr(navegacion.siguiente)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
                 </span>
               )}
               <Button type="button" variant="outline" className="min-h-11 min-w-11 justify-center px-3" aria-label="Imprimir comprobante" title="Imprimir comprobante" onClick={() => setComprobante(true)}>
@@ -913,7 +913,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <MenuDesplegable
                 alineacion="right"
                 ariaLabel="Más acciones del pedido"
-                trigger={<span className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fore lg:min-h-9">Más acciones<Icon name="chevron" className="h-3.5 w-3.5" /></span>}
+                trigger={<span className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-ink-500 px-3 text-xs font-semibold leading-none text-fore">Más acciones<Icon name="chevron" className="h-3.5 w-3.5" /></span>}
                 items={[
                   ...(!esDemo && !anulado ? [{ id: 'devolver', label: 'Devolver / postventa', onClick: () => setCobroAbierto(true) }] : []),
                   { id: 'nota-entrega', label: 'Nota de entrega', onClick: imprimirNotaEntrega },

@@ -308,6 +308,78 @@ for (const [width, height, maxTop, maxHeader] of [
   })
 }
 
+// #615: el encabezado de un pedido comparte un único ritmo vertical con los
+// selectores del shell. Medimos los controles reales (incluido el badge de
+// notificaciones) para evitar que una regla de una pantalla vuelva a desfasar
+// la barra en otra resolución o con el rail plegado.
+for (const width of [360, 390, 768, 1024, 1280, 1440]) {
+  for (const dark of [false, true]) {
+    test(`#615 encabezado del pedido centrado ${width}px ${dark ? 'oscuro' : 'claro'}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width < 500 ? 844 : 900 })
+      await enterDemo(page)
+      if (dark) await setDark(page)
+      await openShellDestination(page, 'Pedidos')
+      await settle(page)
+      await page.getByTestId('pedido-fila').first().click()
+      await expect(page.getByTestId('record-header')).toBeVisible()
+      await settle(page)
+
+      const controls = page.locator([
+        '[data-testid="record-header-back"]',
+        '[data-testid="pedido-anterior"]',
+        '[data-testid="pedido-siguiente"]',
+        '[data-testid="pedido-acciones"] > button',
+        '[data-testid="pedido-acciones"] [role="group"] > button',
+        '[data-testid="pedido-acciones"] > span[role="button"]',
+        '[data-testid="shell-sucursal-desktop"]:visible',
+        '[data-testid="notificaciones-aviso"]:visible',
+        '[data-testid="shell-tema"]:visible',
+      ].join(','))
+      const validar = async (rail) => {
+        const geometry = await controls.evaluateAll(nodes => nodes
+          .map(node => {
+            const r = node.getBoundingClientRect()
+            return { testid: node.dataset.testid || node.getAttribute('aria-label') || node.textContent.trim().slice(0, 20), x: r.x, y: r.y, width: r.width, height: r.height }
+          })
+          .filter(item => item.width > 0 && item.height > 0))
+        expect(geometry.length, 'controles visibles del encabezado').toBeGreaterThanOrEqual(width >= 1024 ? 6 : 4)
+        if (width >= 1280) {
+          const centers = geometry.map(item => item.y + item.height / 2)
+          expect(Math.max(...centers) - Math.min(...centers), `centros alineados con rail ${rail}`).toBeLessThanOrEqual(2)
+        } else {
+          // En celular la barra puede ocupar dos filas; cada fila es una unidad
+          // intencional y sus controles deben seguir compartiendo centro.
+          const rows = new Map()
+          for (const item of geometry) {
+            const row = Math.round(item.y)
+            const centers = rows.get(row) || []
+            centers.push(item.y + item.height / 2)
+            rows.set(row, centers)
+          }
+          for (const centers of rows.values())
+            expect(Math.max(...centers) - Math.min(...centers), 'centros verticales en cada fila móvil').toBeLessThanOrEqual(2)
+        }
+        for (const item of geometry) {
+          expect(item.height, `${item.testid} target`).toBeGreaterThanOrEqual(44)
+          expect(item.x, `${item.testid} x`).toBeGreaterThanOrEqual(-1)
+          expect(item.x + item.width, `${item.testid} ancho`).toBeLessThanOrEqual(width + 1)
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), `sin overflow horizontal ${rail}`).toBe(false)
+        if (process.env.MOBOS_615_SHOTS === '1')
+          await page.screenshot({ path: `/tmp/mobos-ui-615/${width}-${dark ? 'dark' : 'light'}-${rail}.png` })
+      }
+
+      if (width >= 1024) {
+        await validar('expandido')
+        const collapse = page.getByTestId('shell-lateral').getByRole('button', { name: 'Colapsar menú', exact: true })
+        await collapse.click()
+        await expect(page.getByTestId('shell')).toHaveAttribute('data-shell-collapsed', '1')
+        await validar('plegado')
+      } else await validar('móvil')
+    })
+  }
+}
+
 // Taller (#396/#448): cápsulas con borde de 1 y 2 por fila en celular y tablet y,
 // desde 1280 px, una fila fina por orden (≤ 48 px). La primera orden va a la vista
 // sin cabeceras apiladas.
