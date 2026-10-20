@@ -1,9 +1,8 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../../lib/auth'
-import { deleteAttachment, saveAttachment } from '../../../../../lib/attachment-storage'
 import { sucursalEfectiva } from '../../../../../lib/sucursal-efectiva'
-import { MAX_PRODUCT_IMAGES, MAX_PRODUCT_THUMB_BYTES, ProductImageError, generateProductImages, readProductImage, readProductImageFormData, serializeProductImage } from '../../../../../lib/product-images'
+import { MAX_PRODUCT_THUMB_BYTES, ProductImageError, generateProductImages, readProductImage, readProductImageFormData, serializeProductImage, persistProductImage } from '../../../../../lib/product-images'
 import { MAX_MULTIPART_BODY_BYTES } from '../../../payments/_lib'
 
 type RouteContext = { params: Promise<{ id?: string }> }
@@ -72,39 +71,23 @@ export async function POST(request: Request, props: RouteContext) {
   }
   const variantKey = typeof form.get('variantKey') === 'string' && String(form.get('variantKey')).trim() ? String(form.get('variantKey')).trim().slice(0, 120) : null
 
-  const activas = await prisma.productImage.count({ where: { tenantId, productId, deletedAt: null } })
-  if (activas >= MAX_PRODUCT_IMAGES) return error(`Un producto admite hasta ${MAX_PRODUCT_IMAGES} fotos.`, 409)
-
-  let stored: { storageKey: string | null } = { storageKey: null }
-  let storedThumb: { storageKey: string | null } = { storageKey: null }
   try {
-    stored = await saveAttachment({ tenantId, area: AREA, fileName: `foto.${image.extension}`, mimeType: image.mimeType, sha256: image.sha256, data: image.data })
-    storedThumb = thumb ? await saveAttachment({ tenantId, area: AREA, fileName: `mini.${thumb.extension}`, mimeType: thumb.mimeType, sha256: thumb.sha256, data: thumb.data }) : { storageKey: null }
-    const created = await prisma.$transaction(async tx => {
-      const last = await tx.productImage.findFirst({ where: { tenantId, productId, deletedAt: null }, orderBy: { position: 'desc' }, select: { position: true } })
-      const hasPrimary = (await tx.productImage.count({ where: { tenantId, productId, deletedAt: null, isPrimary: true } })) > 0
-      const row = await tx.productImage.create({
-        data: {
-          tenantId, productId, variantKey,
-          position: last ? last.position + 1 : 0,
-          isPrimary: !hasPrimary,
-          storagePath: stored.storageKey, thumbPath: storedThumb.storageKey,
-          // Sin volumen configurado los bytes quedan en la base (como los adjuntos).
-          data: stored.storageKey ? null : image.data,
-          thumbData: thumb && !storedThumb.storageKey ? thumb.data : null,
-          width: image.width, height: image.height, contentType: image.mimeType, sizeBytes: image.sizeBytes,
-          createdById: session.user.id,
-        },
-        select: SELECT,
-      })
-      await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PRODUCT_IMAGE_ADDED', entity: 'Product', entityId: productId, metadata: { imageId: row.id, contentType: image.mimeType, sizeBytes: image.sizeBytes, sha256: image.sha256 } } })
-      return row
+    const created = await persistProductImage({
+      db: prisma,
+      tenantId,
+      userId: session.user.id,
+      productId,
+      branchId: session.user.branchId ?? (await sucursalEfectiva(session)),
+      canManage: true,
+      image,
+      thumb,
+      variantKey,
+      provenance: 'web',
     })
-    return json(serializeProductImage(productId, created), { status: 201 })
+    return json(created, { status: 201 })
   } catch (cause) {
+    if (cause instanceof ProductImageError) return error(cause.message, cause.status)
     console.error('[product-images] no se pudo guardar la foto', cause)
-    await deleteAttachment({ storageKey: stored.storageKey })
-    await deleteAttachment({ storageKey: storedThumb.storageKey })
     return error('No se pudo guardar la foto.', 500)
   }
 }
