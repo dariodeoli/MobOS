@@ -60,9 +60,10 @@ test('cobrar un saldo en la demo actualiza la ficha del cliente con la misma cue
   assert.equal(pedido.pendingPyg, parcial.totalPendiente)
   const cobrada = { ...parcial, pagos: [...parcial.pagos, { id: 'p-saldo', medioPago: 'DINERO', monto: parcial.totalPendiente, amountPyg: parcial.totalPendiente }] }
   assert.equal(sincronizarPedidoDemoConVenta(cobrada), true)
-  assert.equal(pedido.pendingPyg, 0, 'la ficha ya no debe saldo')
-  assert.equal(pedido.collectedPyg, parcial.totalPyg)
-  assert.equal(pedido.status, 'COMPLETED')
+  const actualizado = buscarClienteDemo(parcial.clienteId).demoProfile.orders.find(fila => fila.orderNumber === parcial.orderNumber)
+  assert.equal(actualizado.pendingPyg, 0, 'la ficha ya no debe saldo')
+  assert.equal(actualizado.collectedPyg, parcial.totalPyg)
+  assert.equal(actualizado.status, 'COMPLETED')
 })
 
 test('«Cómo te pagaron» (Inicio) suma los mismos pagos que Caja, medio por medio', () => {

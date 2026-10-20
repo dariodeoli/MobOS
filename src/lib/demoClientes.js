@@ -7,8 +7,9 @@ import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
 import { pedidosDemoDeCliente } from './demo/ventas.js'
 import { analiticaDePedidos } from './customerAggregates.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
-// del navegador: los seeds se muestran siempre y lo que se crea se guarda en
-// localStorage. La ficha, la cronología y el portal se arman con estos datos
+// del navegador: los seeds se combinan con lo creado o editado en
+// memoria contextual de la pestaña. Al recargar/resetear vuelve el seed.
+// La ficha, la cronología y el portal se arman con estos datos
 // para que la demo se vea completa sin pegarle al API real.
 
 const KEY = 'mobos:demo-customers:v1'
@@ -355,7 +356,11 @@ for (const cliente of SEED_DEMO_CLIENTES) {
 // desde la ficha y las aperturas del link público. Las filas viven en memoria
 // de la pestaña (mismo criterio que el resto de la demo: al recargar se vuelve
 // al seed); los seeds son el ejemplo visible.
-const informesVistos = new Map()
+const INFORMES_KEY = 'mobos:demo-customer-report-shares:v1'
+const informesVistos = () => {
+  try { return JSON.parse(leerDemo(INFORMES_KEY, { demo: true }) || '{}') } catch { return {} }
+}
+const guardarInformeVisto = (clave, fila) => guardarDemo(INFORMES_KEY, JSON.stringify({ ...informesVistos(), [clave]: fila }), { demo: true })
 
 const claveSerial = (serial) => String(serial || '').trim().toUpperCase()
 const mascaraSerial = (serial) => {
@@ -388,12 +393,12 @@ const SEED_INFORMES_DEMO = (() => {
 /** Fila de seguimiento demo (lo de la sesión manda sobre el ejemplo del seed). */
 export function filaInformeDemo(serial) {
   const clave = claveSerial(serial)
-  return informesVistos.get(clave) || SEED_INFORMES_DEMO[clave] || null
+  return informesVistos()[clave] || SEED_INFORMES_DEMO[clave] || null
 }
 
 /** Filas de seguimiento de un cliente (la ficha las mapea por serial). */
 export function filasInformeDemo(clienteId) {
-  const claves = new Set([...Object.keys(SEED_INFORMES_DEMO), ...informesVistos.keys()])
+  const claves = new Set([...Object.keys(SEED_INFORMES_DEMO), ...Object.keys(informesVistos())])
   return [...claves].map((clave) => filaInformeDemo(clave)).filter((fila) => fila && String(fila.customerId) === String(clienteId))
 }
 
@@ -411,7 +416,7 @@ export function registrarInformeDemo(clienteId, { serial, canal = 'WHATSAPP' } =
     channel: canal,
     sharedAt: new Date().toISOString(),
   }
-  informesVistos.set(clave, fila)
+  guardarInformeVisto(clave, fila)
   return fila
 }
 
@@ -436,7 +441,7 @@ export function registrarVistoInformeDemo(clienteId, serial, { canal } = {}) {
     lastViewedAt: ahora,
     viewCount: Number(actual?.viewCount || 0) + 1,
   }
-  informesVistos.set(clave, fila)
+  guardarInformeVisto(clave, fila)
   return fila
 }
 
@@ -497,7 +502,7 @@ export function eventosServicioDemo(cliente) {
 
 export function clientesDemoGuardados() {
   try {
-    const stored = JSON.parse(leerDemo(KEY) || '[]')
+    const stored = JSON.parse(leerDemo(KEY, { demo: true }) || '[]')
     return Array.isArray(stored) ? stored : []
   } catch {
     return []
@@ -505,9 +510,7 @@ export function clientesDemoGuardados() {
 }
 
 export function guardarClienteDemo(customer) {
-  const lista = [...clientesDemoGuardados(), customer]
-  guardarDemo(KEY, JSON.stringify(lista))
-  return customer
+  return actualizarClienteDemo(customer)
 }
 
 // Perfil que consume la ficha en modo demo: mismos campos que el API, con
@@ -553,7 +556,7 @@ export function clienteDeTokenDemo(token) {
   const partes = String(token || '').replace(/^demo-/, '').split('-')
   const nivel = partes.pop()
   const id = partes.join('-')
-  const cliente = SEED_DEMO_CLIENTES.find((row) => row.id === id) || clientesDemoGuardados().find((row) => row.id === id) || null
+  const cliente = buscarClienteDemo(id)
   return { cliente, nivel: nivel === 'completo' ? 'completo' : 'rapido' }
 }
 
@@ -600,8 +603,10 @@ function trackingDemo(order) {
 
 // Payload con la forma de /api/portal/:token (cuenta por QR).
 export function demoCuentaPayload(token) {
-  const { cliente, nivel } = clienteDeTokenDemo(token)
-  if (!cliente) return null
+  const { cliente: encontrada, nivel } = clienteDeTokenDemo(token)
+  if (!encontrada) return null
+  const cliente = JSON.parse(JSON.stringify(encontrada))
+  let marcoVisto = false
   const orders = cliente.demoProfile?.orders || []
   const conSaldo = orders.filter((order) => Number(order.pendingPyg || 0) > 0).map((order) => ({ orderNumber: order.orderNumber, dueAt: haceDias(-6), pendingPyg: order.pendingPyg }))
   // Pagos (#240/#213 → portal): cada pedido trae sus movimientos (divididos y
@@ -613,7 +618,7 @@ export function demoCuentaPayload(token) {
   const pagosDemo = orders
     .flatMap((order, indice) => pagosDeOrden(order, indice).map((pago) => ({ ...pago, orderNumber: order.orderNumber })))
     .sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())
-  return {
+  const payload = {
     level: nivel,
     company: { name: 'Aurora Móviles', logo: false },
     customer: { name: cliente.name, ...(cliente.publicNote ? { publicNote: cliente.publicNote } : {}) },
@@ -666,7 +671,7 @@ export function demoCuentaPayload(token) {
     // el visto se marca al abrir la cuenta (en memoria, como el resto de demo).
     mensajes: (cliente.demoProfile?.notices || []).map((aviso) => {
       const nuevo = !aviso.firstViewedAt
-      if (nuevo) aviso.firstViewedAt = new Date().toISOString()
+      if (nuevo) { aviso.firstViewedAt = new Date().toISOString(); marcoVisto = true }
       return { content: aviso.content, createdAt: aviso.createdAt, nuevo }
     }),
     informes: orders.flatMap((order) => (order.items || []).flatMap((item) => (item.serials || []).map((serial) => ({ serial, model: item.description, orderNumber: order.orderNumber })))),
@@ -702,6 +707,8 @@ export function demoCuentaPayload(token) {
       addresses: cliente.addresses || [],
     } : {}),
   }
+  if (marcoVisto) actualizarClienteDemo(cliente)
+  return payload
 }
 
 // Payload con la forma de /api/public/portal/:token (vitrina).
@@ -724,22 +731,27 @@ export function demoVitrinaPayload(token) {
 
 /** Cartera completa de la demo: seeds (#194) + lo creado en esta pestaña (#201). */
 export function listarClientesDemo() {
-  return [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
+  const byId = new Map(SEED_DEMO_CLIENTES.map(customer => [customer.id, customer]))
+  for (const customer of clientesDemoGuardados()) {
+    if (!customer || typeof customer.id !== 'string' || !customer.id) continue
+    byId.set(customer.id, { ...byId.get(customer.id), ...customer })
+  }
+  return [...byId.values()]
 }
 
-/** Busca un cliente demo por id (seeds primero, igual que el portal). */
+/** Busca la ficha canónica: los cambios contextuales tienen prioridad al seed. */
 export function buscarClienteDemo(id) {
   return listarClientesDemo().find((row) => String(row.id) === String(id)) || null
 }
 
-/** Guarda un cliente demo sin duplicar por id (reemplaza si ya existe). */
+/** Upsert contextual por id, preservando los datos del seed sin mutarlo. */
 export function actualizarClienteDemo(customer) {
-  const lista = clientesDemoGuardados()
-  const siguiente = lista.some((row) => row.id === customer.id)
-    ? lista.map((row) => (row.id === customer.id ? customer : row))
-    : [...lista, customer]
-  guardarDemo(KEY, JSON.stringify(siguiente))
-  return customer
+  if (!customer || typeof customer.id !== 'string' || !customer.id.trim()) throw new Error('La ficha demo necesita un identificador.')
+  const guardado = { ...buscarClienteDemo(customer.id), ...customer }
+  const byId = new Map(clientesDemoGuardados().filter(row => row?.id).map(row => [row.id, row]))
+  byId.set(guardado.id, guardado)
+  guardarDemo(KEY, JSON.stringify([...byId.values()]), { demo: true })
+  return JSON.parse(JSON.stringify(guardado))
 }
 
 /**
@@ -750,7 +762,8 @@ export function actualizarClienteDemo(customer) {
  * lista, ficha y portal.
  */
 export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
-  const cliente = buscarClienteDemo(clienteId)
+  const encontrado = buscarClienteDemo(clienteId)
+  const cliente = encontrado ? JSON.parse(JSON.stringify(encontrado)) : null
   if (!cliente) return null
   const pedido = pedidoDesdeVenta(venta)
   const demo = cliente.demoProfile || (cliente.demoProfile = {})
@@ -764,7 +777,7 @@ export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
     detail: `Pedido ${codigoPedido(pedido.orderNumber) || 'Demo'} · ${formatGs(pedido.totalPyg)} · ${pedido.pendingPyg > 0 ? 'Pendiente' : 'Pagado'}`,
   }
   demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  actualizarClienteDemo(cliente)
   return pedido
 }
 
@@ -779,7 +792,8 @@ export function sincronizarPedidoDemoConVenta(venta = {}) {
   const clienteId = venta.clienteId || venta.customer?.id
   const numero = venta.orderNumber || venta.numero
   if (!clienteId || !numero) return false
-  const cliente = buscarClienteDemo(clienteId)
+  const encontrado = buscarClienteDemo(clienteId)
+  const cliente = encontrado ? JSON.parse(JSON.stringify(encontrado)) : null
   const pedido = (cliente?.demoProfile?.orders || []).find((row) => row.orderNumber === numero)
   if (!pedido) return false
   const { pagado } = totalesPedido(venta)
@@ -788,7 +802,7 @@ export function sincronizarPedidoDemoConVenta(venta = {}) {
   pedido.collectedPyg = cobrado
   pedido.pendingPyg = Math.max(0, (Number(pedido.totalPyg) || 0) - cobrado)
   if (pedido.status !== 'CANCELLED') pedido.status = pedido.pendingPyg > 0 ? 'PENDING' : 'COMPLETED'
-  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  actualizarClienteDemo(cliente)
   return true
 }
 
@@ -797,7 +811,8 @@ export function sincronizarPedidoDemoConVenta(venta = {}) {
  * (#240/#194): compartir el informe del equipo, etc. Solo en el navegador.
  */
 export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'note' } = {}) {
-  const cliente = buscarClienteDemo(clienteId)
+  const encontrado = buscarClienteDemo(clienteId)
+  const cliente = encontrado ? JSON.parse(JSON.stringify(encontrado)) : null
   if (!cliente) return null
   const demo = cliente.demoProfile || (cliente.demoProfile = {})
   const evento = {
@@ -809,7 +824,7 @@ export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'n
     detail: detalle || '',
   }
   demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  actualizarClienteDemo(cliente)
   return evento
 }
 

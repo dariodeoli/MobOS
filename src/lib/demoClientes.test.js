@@ -2,7 +2,7 @@
 // CRM recalcula la actividad y los agregados (#221) como la cuenta real.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildDemoProfile, buildDemoTimeline, buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, eventosInformeDemo, filaInformeDemo, filasInformeDemo, listarClientesDemo, registrarInformeDemo, registrarInteraccionDemo, registrarPedidoDemoDeVenta, registrarVistoInformeDemo } from './demoClientes.js'
+import { actualizarClienteDemo, buildDemoProfile, buildDemoTimeline, buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, eventosInformeDemo, filaInformeDemo, filasInformeDemo, listarClientesDemo, registrarInformeDemo, registrarInteraccionDemo, registrarPedidoDemoDeVenta, registrarVistoInformeDemo } from './demoClientes.js'
 import { demoCotizacionPayload } from './demoCotizacion.js'
 import { analiticaDePedidos, statsDePedidos } from './customerAggregates.js'
 
@@ -284,7 +284,9 @@ test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
   assert.equal(pedidoVenta.tracking.pasos.find((paso) => paso.actual).key, 'PROCESSING')
   assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), false)
   // Confirmada la entrega, el portal la sigue hasta el último paso.
-  buscarClienteDemo(LUCIA).demoProfile.orders.find((row) => row.orderNumber === venta.orderNumber).fulfillmentStatus = 'PICKED_UP'
+  const entregado = JSON.parse(JSON.stringify(buscarClienteDemo(LUCIA)))
+  entregado.demoProfile.orders.find((row) => row.orderNumber === venta.orderNumber).fulfillmentStatus = 'PICKED_UP'
+  actualizarClienteDemo(entregado)
   const entregada = demoCuentaPayload('demo-demo-cliente-lucia-rapido').orders.find((row) => row.orderNumber === venta.orderNumber)
   assert.equal(entregada.fulfillmentStatus, 'PICKED_UP')
   assert.equal(entregada.tracking.pasos.every((paso) => paso.hecho), true)
@@ -322,12 +324,14 @@ test('la cuenta demo muestra los beneficios (saldo a favor y puntos) (#240)', ()
 })
 
 test('la demo muestra los mensajes de la tienda y marca el visto (#240)', () => {
-  const aviso = buscarClienteDemo(LUCIA).demoProfile.notices.find((item) => item.id === 'demo-av-2')
+  const cliente = JSON.parse(JSON.stringify(buscarClienteDemo(LUCIA)))
+  const aviso = cliente.demoProfile.notices.find((item) => item.id === 'demo-av-2')
   aviso.firstViewedAt = null
+  actualizarClienteDemo(cliente)
   const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
   assert.equal(cuenta.mensajes.length, 2)
   assert.equal(cuenta.mensajes[0].nuevo, true, 'el más reciente llega como nuevo')
-  assert.ok(aviso.firstViewedAt, 'el visto queda marcado al abrir la cuenta')
+  assert.ok(buscarClienteDemo(LUCIA).demoProfile.notices.find(item => item.id === aviso.id).firstViewedAt, 'el visto queda marcado al abrir la cuenta')
   const segunda = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
   assert.equal(segunda.mensajes[0].nuevo, false, 'la segunda apertura ya no es nueva')
   const perfil = buildDemoProfile(buscarClienteDemo(LUCIA))
