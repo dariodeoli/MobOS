@@ -26,7 +26,7 @@ export default function SupplierCombobox({
       testId="proveedor-seleccionado"
     />
   }
-  return <BuscadorProveedor {...props} value={value} onLibre={onLibre} formatearValor={formatearProveedor}
+  return <BuscadorProveedor {...props} proveedores={proveedores} value={value} onLibre={onLibre} formatearValor={formatearProveedor}
     onSelect={(proveedor) => { onSelect?.(proveedor); onUsado?.(proveedor) }}
     onCreate={onCreate} textoCrear={etiquetaNuevo || '＋ Crear'}
     confirmarAlSalir={confirmarAlSalir} confirmarAlTipear={confirmarAlTipear} />

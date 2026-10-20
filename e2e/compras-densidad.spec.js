@@ -90,7 +90,31 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
     await expect(opcion).toHaveCount(1)
     await expect(opcion).toContainText(codigo)
     await opcion.click()
-    await expect(campo).toHaveValue(`${codigo} · ${nombre}`)
+    const seleccionado = page.getByTestId('proveedor-seleccionado')
+    await expect(seleccionado).toBeVisible()
+    await expect(seleccionado).toContainText(`${codigo} · ${nombre}`)
+    await expect(seleccionado).toHaveText(new RegExp(`${codigo}.*${nombre}`))
+    const evidenceDir = process.env.MOBOS_390_EVIDENCE_DIR
+    if (evidenceDir) {
+      mkdirSync(evidenceDir, { recursive: true })
+      for (const [width, height] of [[1440, 900], [390, 844], [360, 800]]) {
+        await page.setViewportSize({ width, height })
+        await page.screenshot({ path: `${evidenceDir}/compra-${width}-light.png` })
+        await page.evaluate(() => document.documentElement.classList.add('dark'))
+        await page.waitForTimeout(120)
+        await page.screenshot({ path: `${evidenceDir}/compra-${width}-dark.png` })
+        await page.evaluate(() => document.documentElement.classList.remove('dark'))
+      }
+      await page.setViewportSize({ width: 1440, height: 900 })
+    }
+    await seleccionado.focus()
+    await page.keyboard.press('Escape')
+    await expect(campo).toBeVisible()
+    await campo.fill(codigo.toLowerCase())
+    await expect(page.getByRole('listbox', { name: 'Proveedores' })).toBeVisible()
+    await page.getByRole('listbox', { name: 'Proveedores' }).getByRole('option').filter({ hasText: nombre }).click()
+    await page.getByTestId('proveedor-seleccionado').getByRole('button', { name: 'Quitar proveedor' }).click()
+    await expect(campo).toBeVisible()
 
     // Un nombre nuevo se crea desde el campo (abre el alta con el nombre puesto).
     await campo.fill(nuevo)
