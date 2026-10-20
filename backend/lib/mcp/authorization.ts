@@ -36,13 +36,14 @@ export function authorizeMcpAction(action: unknown, context: McpAuthorizationCon
   if (!requiredPermissions.some(permission => hasPermission(user, permission))) return deny('PERMISSION_DENIED', 'El rol o los permisos de la sesión no permiten esta acción.')
 
   const requested = context.requestedBranchId ?? null
-  if (entry.branchScoped && user.role !== 'ADMIN' && user.branchId && requested && requested !== user.branchId) {
+  const dataScope = entry.action === 'sales.read' || entry.action === 'sales.write' ? (hasPermission(user, 'orders:manage') ? 'all' : hasPermission(user, 'orders:branch') ? 'branch' : 'own') : entry.branchScoped ? 'branch' : 'all'
+  if (entry.branchScoped && user.role !== 'ADMIN' && user.branchId && requested && requested !== user.branchId && dataScope !== 'all') {
     return deny('BRANCH_DENIED', 'La sesión no puede acceder a esa sucursal.')
   }
-  if (entry.branchScoped && user.role !== 'ADMIN' && user.branchId && !requested) {
-    return { allowed: true, entry, branchId: user.branchId, dataScope: entry.action === 'sales.read' ? (hasPermission(user, 'orders:own') ? 'own' : 'branch') : 'branch' }
+  if (entry.branchScoped && user.role !== 'ADMIN' && user.branchId && !requested && dataScope !== 'all') {
+    return { allowed: true, entry, branchId: user.branchId, dataScope }
   }
-  return { allowed: true, entry, branchId: requested, dataScope: entry.action === 'sales.read' ? (hasPermission(user, 'orders:manage') ? 'all' : hasPermission(user, 'orders:branch') ? 'branch' : 'own') : entry.branchScoped ? 'branch' : 'all' }
+  return { allowed: true, entry, branchId: requested, dataScope }
 }
 
 export function parseMcpScopes(input: unknown): McpScope[] {

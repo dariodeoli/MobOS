@@ -23,6 +23,9 @@ model Tenant {
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   memberships         TenantMembership[]
+  mcpGrants           McpClientGrant[]
+  mcpAuthorizationCodes McpAuthorizationCode[]
+  mcpAccessTokens     McpAccessToken[]
   promotions          Promotion[]
   logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
@@ -208,6 +211,9 @@ model Account {
   memberships   TenantMembership[]
   sessions      Session[]
   appleIdentities AppleIdentity[]
+  mcpGrants           McpClientGrant[]
+  mcpAuthorizationCodes McpAuthorizationCode[]
+  mcpAccessTokens     McpAccessToken[]
 }
 
 enum MembershipRole {
@@ -549,6 +555,7 @@ model Session {
   reauthenticatedAt DateTime?
   createdAt  DateTime     @default(now())
   lastSeenAt DateTime     @default(now())
+  mcpAccessTokens McpAccessToken[]
 
   @@index([tenantId, userId])
   @@index([expiresAt])
@@ -2612,6 +2619,72 @@ model SuspendedSale {
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, userId])
   @@index([tenantId, branchId, resumedAt])
+}
+
+
+// Consentimientos y tokens MCP. Se almacenan solo hashes de secretos; todo
+// acceso externo conserva el tenant, la cuenta y la sesión que lo aprobaron.
+model McpClientGrant {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientId    String
+  redirectUri String
+  scopes      String[]
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  codes       McpAuthorizationCode[]
+  tokens      McpAccessToken[]
+  @@unique([accountId, tenantId, clientId, redirectUri])
+  @@index([tenantId, clientId, revokedAt])
+}
+
+model McpAuthorizationCode {
+  id            String   @id @default(cuid())
+  codeHash      String   @unique
+  grantId       String
+  grant         McpClientGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId     String
+  clientId      String
+  redirectUri   String
+  scopes        String[]
+  codeChallenge String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime @default(now())
+  @@index([grantId, expiresAt, usedAt])
+  @@index([tenantId, clientId])
+}
+
+model McpAccessToken {
+  id               String   @id @default(cuid())
+  tokenHash        String   @unique
+  refreshTokenHash String?  @unique
+  grantId          String
+  grant            McpClientGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  accountId        String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId        String
+  clientId         String
+  scopes           String[]
+  expiresAt        DateTime
+  refreshExpiresAt DateTime?
+  revokedAt        DateTime?
+  rotatedAt        DateTime?
+  createdAt        DateTime @default(now())
+  lastUsedAt       DateTime?
+  session          Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clientId, revokedAt])
+  @@index([sessionId, revokedAt])
 }
 
 model AuditLog {
