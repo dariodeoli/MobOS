@@ -14,7 +14,7 @@ export default function PageHeader({ title, subtitle, actions, aviso, backTo, br
   const conPestanas = Boolean(children)
   const filaMovilVacia = conPestanas && !backTo && !actions && !aviso
   return (
-    <div className="px-4 pt-1 md:px-6 lg:pt-3">
+    <div className="px-4 pt-1 md:px-6 lg:pt-2">
       <nav data-testid="shell-breadcrumb" aria-label="Sección actual" className="sr-only">
         {breadcrumb}
       </nav>
