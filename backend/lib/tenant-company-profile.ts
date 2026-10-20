@@ -4,6 +4,12 @@ import { correoCambioReseteaVerificacion } from './tenant-email'
 
 type Db = PrismaClient | Prisma.TransactionClient
 
+export class CompanyReauthenticationRequiredError extends Error {
+  constructor() { super('Reautenticación requerida para modificar los datos de la empresa.') }
+}
+
+const REAUTH_WINDOW_MS = 10 * 60 * 1000
+
 type Actor = {
   id: string
   tenantId: string
@@ -53,6 +59,12 @@ function assertActor(actor: Actor, tenantId: string, mutation: boolean) {
   if (mutation && actor.role !== 'ADMIN') throw new Error('Solo el dueño puede editar los datos de la empresa.')
 }
 
+export async function requireRecentCompanyReauthentication(input: { db?: Db; tenantId: string; actorUserId: string; sessionId: string }) {
+  const db = input.db ?? (await import('./prisma')).prisma
+  const session = await db.session.findFirst({ where: { id: input.sessionId, tenantId: input.tenantId, userId: input.actorUserId, revokedAt: null, expiresAt: { gt: new Date() } }, select: { reauthenticatedAt: true } })
+  if (!session?.reauthenticatedAt || Date.now() - session.reauthenticatedAt.getTime() > REAUTH_WINDOW_MS) throw new CompanyReauthenticationRequiredError()
+}
+
 async function actorFor(db: Db, tenantId: string, actorUserId: string) {
   const actor = await db.user.findFirst({ where: { id: actorUserId, tenantId }, select: { id: true, tenantId: true, role: true, permissions: true, status: true } })
   if (!actor) throw new Error('El usuario no pertenece a la empresa.')
@@ -73,11 +85,13 @@ export async function updateTenantCompanyProfile(input: {
   db?: Db
   tenantId: string
   actorUserId: string
+  sessionId: string
   fields: Partial<Record<TenantCompanyProfileField, unknown>>
 }): Promise<TenantCompanyProfile> {
   const db = input.db ?? (await import('./prisma')).prisma
   const actor = await actorFor(db, input.tenantId, input.actorUserId)
   assertActor(actor, input.tenantId, true)
+  await requireRecentCompanyReauthentication({ db, tenantId: input.tenantId, actorUserId: input.actorUserId, sessionId: input.sessionId })
   const fields = input.fields
   const keys = Object.keys(fields)
   if (!keys.length || keys.some(key => !(TENANT_COMPANY_PROFILE_FIELDS as readonly string[]).includes(key))) throw new Error('Solo se pueden actualizar datos públicos de la empresa.')

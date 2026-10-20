@@ -224,7 +224,7 @@ export async function PATCH(request: Request) {
       const allowed = ['name', 'email', 'address', 'city', 'department', 'phone', 'ruc']
       const fields = Object.fromEntries(Object.entries(body).filter(([key, value]) => allowed.includes(key) && value !== undefined))
       if (!Object.keys(fields).length) return error('Indicá qué dato actualizar.', 400)
-      const updated = await updateTenantCompanyProfile({ tenantId: session.user.tenantId, actorUserId: session.user.id, fields })
+      const updated = await updateTenantCompanyProfile({ tenantId: session.user.tenantId, actorUserId: session.user.id, fields, sessionId: session.sessionId })
       return json({ ok: true, ...updated, ...(Object.hasOwn(body, 'address') ? { address: updated.address } : {}) })
     }
     if (action === 'leaveStore') {
