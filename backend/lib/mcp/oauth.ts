@@ -13,6 +13,13 @@ const REDIRECT_URI = /^https:\/\//
 type Db = Prisma.TransactionClient | typeof prisma
 export class McpOAuthError extends Error { constructor(public code: string, message: string, public status = 400) { super(message) } }
 
+/** PostgreSQL is the authority for token/code TTLs; callers may inject a clock only in deterministic tests. */
+export async function dbNow(db: Db) {
+  const rows = await db.$queryRaw<{ now: Date }[]>`SELECT CURRENT_TIMESTAMP AS "now"`
+  if (!rows[0]?.now) throw new McpOAuthError('server_error', 'No se pudo obtener el reloj de autenticación.', 500)
+  return rows[0].now
+}
+
 export function mcpResource() {
   const value = process.env.MOBOS_MCP_RESOURCE || process.env.MOBOS_API_URL
   if (!value) throw new McpOAuthError('not_configured', 'MCP resource no está configurado.', 503)
@@ -21,7 +28,7 @@ export function mcpResource() {
 }
 
 export function mcpIssuer() {
-  const value = process.env.MOBOS_MCP_ISSUER || process.env.MOBOS_APP_URL
+  const value = process.env.MOBOS_MCP_ISSUER || process.env.MOBOS_API_URL || process.env.MOBOS_APP_URL
   if (!value) throw new McpOAuthError('not_configured', 'MCP OAuth no está configurado.', 503)
   const url = new URL(value)
   if (url.protocol !== 'https:' && !(process.env.NODE_ENV !== 'production' && url.hostname === 'localhost')) throw new McpOAuthError('not_configured', 'El issuer MCP debe ser HTTPS.', 503)
@@ -67,14 +74,16 @@ export function validPkceVerifier(verifier: unknown, challenge: string) {
 function secret() { return randomBytes(32).toString('hex') }
 export function hashMcpSecret(value: string) { return createHash('sha256').update(value).digest('hex') }
 
-export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string; accountId: string; tenantId: string; sessionId: string; userId: string; clientId: string; redirectUri: string; resource: string; scopes: readonly string[]; codeChallenge: string }, now = new Date()) {
+export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string; accountId: string; tenantId: string; sessionId: string; userId: string; clientId: string; redirectUri: string; resource: string; scopes: readonly string[]; codeChallenge: string }, now?: Date) {
+  now ??= await dbNow(db)
   const code = secret()
   const expiresAt = new Date(now.getTime() + CODE_TTL_MS)
   await db.mcpAuthorizationCode.create({ data: { codeHash: hashMcpSecret(code), grantId: input.grantId, accountId: input.accountId, tenantId: input.tenantId, sessionId: input.sessionId, userId: input.userId, clientId: input.clientId, redirectUri: input.redirectUri, resource: input.resource, scopes: [...input.scopes], codeChallenge: input.codeChallenge, expiresAt } })
   return { code, expiresAt }
 }
 
-export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now = new Date()) {
+export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now?: Date) {
+  now ??= await dbNow(db)
   const count = await db.mcpAuthorizationCode.updateMany({ where: { codeHash: hashMcpSecret(rawCode), usedAt: null, expiresAt: { gt: now } }, data: { usedAt: now } })
   if (count.count !== 1) throw new McpOAuthError('invalid_grant', 'El código no existe, venció o ya fue utilizado.', 400)
   const row = await db.mcpAuthorizationCode.findUnique({ where: { codeHash: hashMcpSecret(rawCode) }, include: { grant: true } })
@@ -82,7 +91,8 @@ export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now =
   return row
 }
 
-export async function issueMcpTokens(db: Db, input: { grantId: string; accountId: string; tenantId: string; sessionId: string; userId: string; clientId: string; resource: string; scopes: readonly string[] }, now = new Date()) {
+export async function issueMcpTokens(db: Db, input: { grantId: string; accountId: string; tenantId: string; sessionId: string; userId: string; clientId: string; resource: string; scopes: readonly string[] }, now?: Date) {
+  now ??= await dbNow(db)
   const grant = await db.mcpClientGrant.findUnique({ where: { id: input.grantId }, select: { revokedAt: true, accountId: true, tenantId: true, userId: true, clientId: true, resource: true, scopes: true } })
   const session = await db.session.findUnique({ where: { id: input.sessionId }, include: { user: true } })
   const membership = await db.tenantMembership.findFirst({ where: { accountId: input.accountId, tenantId: input.tenantId, userId: input.userId, revokedAt: null }, select: { id: true } })
@@ -94,12 +104,14 @@ export async function issueMcpTokens(db: Db, input: { grantId: string; accountId
   return { accessToken, refreshToken, expiresIn: Math.floor(ACCESS_TTL_MS / 1000) }
 }
 
-export async function revokeMcpRefreshFamily(rawRefreshToken: string, clientId: string, now = new Date()) {
+export async function revokeMcpRefreshFamily(rawRefreshToken: string, clientId: string, now?: Date) {
+  now ??= await dbNow(prisma)
   const row = await prisma.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, select: { grantId: true, rotatedAt: true, revokedAt: true } })
   if (row?.rotatedAt || row?.revokedAt) await prisma.mcpAccessToken.updateMany({ where: { grantId: row.grantId, revokedAt: null }, data: { revokedAt: now } })
 }
 
-export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, clientId: string, now = new Date()) {
+export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, clientId: string, now?: Date) {
+  now ??= await dbNow(db)
   const row = await db.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, include: { grant: true, session: { include: { user: true } } } })
   if (!row || row.revokedAt || row.rotatedAt || !row.refreshExpiresAt || row.refreshExpiresAt <= now || row.grant.revokedAt || row.session.revokedAt || row.session.expiresAt <= now || !row.session.user || row.session.userId !== row.userId || row.session.user.status !== 'ACTIVE') {
     if (row?.rotatedAt || row?.revokedAt) await db.mcpAccessToken.updateMany({ where: { grantId: row.grantId, revokedAt: null }, data: { revokedAt: now } })
@@ -120,7 +132,8 @@ export function assertScopeActions(scopes: readonly string[]) {
 }
 
 /** Validates an MCP bearer against the current MobOS session and membership. */
-export async function requireMcpAccessToken(request: Request, now = new Date()) {
+export async function requireMcpAccessToken(request: Request, now?: Date) {
+  now ??= await dbNow(prisma)
   const header = request.headers.get('authorization')
   const match = header?.match(/^Bearer\s+([^\s]+)$/i)
   if (!match) return null
