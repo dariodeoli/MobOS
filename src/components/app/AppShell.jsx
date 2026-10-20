@@ -49,8 +49,9 @@ function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otra
 // Demo: el propietario puede recorrer las perspectivas principales sin crear
 // sesiones reales ni modificar datos. La vista cliente se abre en el portal
 // público de fixtures para conservar la misma experiencia que un QR real.
-function DemoPerspectivas({ entrarDemo }) {
+function DemoPerspectivas({ entrarDemo, esOwner }) {
   const [abierto, setAbierto] = useState(false)
+  if (!esOwner) return null
   const cambiar = async (perspectiva) => {
     if (perspectiva === 'cliente') {
       window.open('/portal/demo-demo-cliente-lucia-completo', '_blank', 'noopener,noreferrer')
@@ -536,7 +537,7 @@ export default function AppShell({
             <button type="button" aria-label="Cerrar aviso de la demo" className="grid h-9 w-9 place-items-center rounded-lg text-base font-bold text-mute hover:bg-ink-700 hover:text-fore" onClick={() => setAvisoGuiaDemo(false)}>×</button>
           </div>
         )}
-        {esDemo && <DemoPerspectivas entrarDemo={entrarDemo} />}
+        {esDemo && <DemoPerspectivas entrarDemo={entrarDemo} esOwner={esOwner} />}
         <RecordSlotContext.Provider value={recordCtx}>
         <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
           {loading ? (

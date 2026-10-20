@@ -177,8 +177,7 @@
    guidance out of that navigation workspace so the first section starts near
    the shared header at every viewport, without removing the guidance from the
    rest of the demo. */
-.shell-nav-v2 .shell-body[data-config-route='1'] [data-testid='demo-guia-aviso'],
-.shell-nav-v2 .shell-body[data-config-route='1'] [data-testid='demo-perspectivas'] {
+.shell-nav-v2 .shell-body[data-config-route='1'] [data-testid='demo-guia-aviso'] {
   display: none;
 }
 
