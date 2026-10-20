@@ -10,6 +10,7 @@ function dbFixture() {
       { id: 'admin-b', tenantId: 'tenant-b', role: 'ADMIN', permissions: null, status: 'ACTIVE' },
     ],
     audits: [] as unknown[],
+    sessions: [{ id: 'session-a', tenantId: 'tenant-a', userId: 'admin-a', revokedAt: null, expiresAt: new Date(Date.now() + 60_000), reauthenticatedAt: new Date() }],
   }
   const db = {
     user: { findFirst: async ({ where }: any) => state.users.find(user => user.id === where.id && user.tenantId === where.tenantId) ?? null },
@@ -18,6 +19,7 @@ function dbFixture() {
       findFirst: async ({ where }: any) => (where.email === state.tenant.email && where.id?.not !== state.tenant.id) ? { id: state.tenant.id } : null,
       update: async ({ data }: any) => Object.assign(state.tenant, data),
     },
+    session: { findFirst: async ({ where }: any) => state.sessions.find(session => session.id === where.id && session.tenantId === where.tenantId && session.userId === where.userId) ?? null },
     auditLog: { create: async ({ data }: any) => { state.audits.push(data); return data } },
     $transaction: async (callback: any) => callback(db),
   }
@@ -29,9 +31,12 @@ const profile = await readTenantCompanyProfile({ db, tenantId: 'tenant-a', actor
 assert.equal(profile.name, 'Tienda A')
 assert.equal(profile.city, 'Asunción')
 await assert.rejects(() => readTenantCompanyProfile({ db, tenantId: 'tenant-b', actorUserId: 'admin-a' }), /no pertenece/)
-await assert.rejects(() => updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'seller-a', fields: { name: 'No' } }), /permiso|dueño/)
-await assert.rejects(() => updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'admin-a', fields: { settings: '{}' } as any }), /datos públicos/)
-const updated = await updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'admin-a', fields: { name: 'Tienda Actualizada', ruc: '80000000-1', phone: '0981000000' } })
+await assert.rejects(() => updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'seller-a', sessionId: 'session-a', fields: { name: 'No' } }), /permiso|dueño/)
+state.sessions[0].reauthenticatedAt = new Date(Date.now() - 11 * 60_000)
+await assert.rejects(() => updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'admin-a', sessionId: 'session-a', fields: { name: 'No' } }), /Reautenticación requerida/)
+state.sessions[0].reauthenticatedAt = new Date()
+await assert.rejects(() => updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'admin-a', sessionId: 'session-a', fields: { settings: '{}' } as any }), /datos públicos/)
+const updated = await updateTenantCompanyProfile({ db, tenantId: 'tenant-a', actorUserId: 'admin-a', sessionId: 'session-a', fields: { name: 'Tienda Actualizada', ruc: '80000000-1', phone: '0981000000' } })
 assert.equal(updated.name, 'Tienda Actualizada')
 assert.equal(updated.ruc, '80000000-1')
 assert.equal(updated.phone, '0981000000')
