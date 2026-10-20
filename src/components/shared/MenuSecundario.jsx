@@ -41,6 +41,7 @@ export default function MenuSecundario({ acciones = [], etiqueta = 'Más accione
                 key={accion.label}
                 type="button"
                 role="menuitem"
+                {...(accion.testId ? { 'data-testid': accion.testId } : {})}
                 disabled={accion.disabled}
                 onClick={() => { setAbierto(false); accion.onClick?.() }}
                 className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fore transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-0"

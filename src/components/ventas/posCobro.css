@@ -11,6 +11,30 @@
 .pos-f2 .pos-product-card {
   gap: 2px;
   padding: 8px 10px;
+  color: rgb(var(--c-fore));
+  border-color: rgb(var(--c-ink-600));
+  background: rgb(var(--c-ink) / 0.72);
+}
+
+/* Keep POS product identity readable in both themes. Several catalog cards
+   inherit color from a legacy surface when the document switches to dark;
+   these semantic tokens keep names, prices and muted metadata on the same
+   contrast scale as the rest of the app. */
+.pos-f2 .pos-product-name { color: rgb(var(--c-fore)); }
+.pos-f2 .pos-product-card input,
+.pos-f2 #pos-busqueda-producto input {
+  color: rgb(var(--c-fore));
+  border-color: rgb(var(--c-ink-500));
+  background: rgb(var(--c-ink) / 0.72);
+}
+.pos-f2 .pos-product-card input::placeholder,
+.pos-f2 #pos-busqueda-producto input::placeholder {
+  color: rgb(var(--c-mute));
+  opacity: 1;
+}
+html.dark .pos-f2 .pos-product-card,
+html.dark .pos-f2 [data-testid='pos-bloque-productos'] {
+  color: rgb(var(--c-fore));
 }
 
 /* Venta rápida: en escritorios amplios el catálogo respira y la foto ayuda a
