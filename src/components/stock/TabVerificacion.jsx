@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
-import { Aviso, Badge, BarraProgreso, Button, ConfirmDialog, EmptyState, Input, Label, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, EmptyState, Input, Label, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import Avatar from '@/components/shared/Avatar'
 import SerialTexto from '@/components/shared/SerialTexto'

@@ -5,7 +5,8 @@
 // acá únicamente se elige si se ve en la planilla.
 import PoliticaVerificacion from './PoliticaVerificacion'
 import { useState } from 'react'
-import { Modal, useToast } from '@/components/ui'
+import { useToast } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { COLUMNAS_PLANILLA, ORDEN_COLUMNAS, OPCIONES_PLANILLA } from '@/lib/planillaPrefs'

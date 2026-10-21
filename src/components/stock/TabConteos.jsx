@@ -1,4 +1,5 @@
-import { Aviso, Badge, Button, ConfirmDialog, EmptyState, Input, Label, Modal, Select, Skeleton, Textarea } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Input, Label, Select, Skeleton, Textarea } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import RecordHeader from '@/components/app/RecordHeader'
 import { cn } from '@/lib/utils'
