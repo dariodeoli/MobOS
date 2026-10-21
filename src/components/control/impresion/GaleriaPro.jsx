@@ -69,8 +69,9 @@ export default function GaleriaPro({ kind, store, enUso, habitual, onPersonaliza
           número, fecha, leyenda no fiscal y QR). Elegí cuál se usa por defecto para este documento.
         </p>
       </div>
-      <ul className={cn(GRILLA_DOS_COLUMNAS, 'xl:grid-cols-3')}>
-        <li
+      <div role="list" className={cn(GRILLA_DOS_COLUMNAS, 'xl:grid-cols-3')}>
+        <div
+          role="listitem"
           className="flex min-w-0 flex-col gap-2 rounded-xl border border-ink-600 p-3"
           data-testid="diseno-habitual"
         >
@@ -89,11 +90,12 @@ export default function GaleriaPro({ kind, store, enUso, habitual, onPersonaliza
               Usar el habitual
             </Button>
           </div>
-        </li>
+        </div>
         {disenos.map(diseno => {
           const activo = enUso === diseno.name
           return (
-            <li
+            <div
+          role="listitem"
               key={diseno.name}
               className="flex min-w-0 flex-col gap-2 rounded-xl border border-ink-600 p-3"
               data-testid="diseno-pro"
@@ -124,10 +126,10 @@ export default function GaleriaPro({ kind, store, enUso, habitual, onPersonaliza
                   Ver / personalizar
                 </Button>
               </div>
-            </li>
+            </div>
           )
         })}
-      </ul>
+      </div>
     </section>
   )
 }

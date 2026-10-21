@@ -175,6 +175,7 @@
         "finanzas-comisiones.spec.js",
         "frontend/aviso-privacidad.frontend.spec.js",
         "imei-mock.spec.js",
+        "impresion-pro.spec.js",
         "impresion-remota.spec.js",
         "informe-dispositivo.spec.js",
         "inventario-importacion.spec.js",
@@ -182,6 +183,8 @@
         "menu-ia.spec.js",
         "modales-tamanos.spec.js",
         "permissions.spec.js",
+        "plantillas-api.spec.js",
+        "plantillas-mensajes.spec.js",
         "pos-148-cobro-ux.spec.js",
         "pos-308-venta-segura.spec.js",
         "pos-cliente-portal.spec.js",
@@ -212,8 +215,8 @@
         "shell-roles.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 229,
-      "ms": 1191544
+      "tests": 236,
+      "ms": 1401544
     }
   ],
   "generado": "2026-10-20T04:30:15.238Z"
