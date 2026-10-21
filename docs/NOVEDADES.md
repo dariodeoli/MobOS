@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.240 — 2026-10-21
+
+- **Ventas:** el catálogo muestra el precio aplicable a una unidad, su lista de origen y el stock disponible por sucursal. Al cambiar de cliente se actualiza la referencia; elegir variantes y cobrar conserva el cálculo de la venta.
+- **Demo:** la auditoría de una caja y su saldo esperado consideran las ventas del operador que abrió ese turno; las consultas generales conservan todos los operadores.
+- **Conexiones IA:** se incorpora la base para autorizar consultas y cambios mediante conectores, con permisos de la empresa, propuesta previa y confirmación. Permanece desactivada hasta configurar y verificar los clientes externos y el mantenimiento; todavía no se habilitan conexiones reales de Claude ni ChatGPT.
+
 ## v1.0.239 — 2026-10-21
 
 - **Acceso:** los operadores que ingresaron por invitación pueden desbloquear su pantalla con su propio PIN. Un PIN equivocado permite reintentar conservando la venta; un acceso vencido o revocado pide volver a ingresar.
