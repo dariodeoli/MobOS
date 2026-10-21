@@ -22,6 +22,7 @@ import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
 import './ventasF3.css'
+import './pedidosRediseno.css'
 
 export const orderFields = (row) => {
   const pagos = pagosDelPedido(row)
@@ -207,7 +208,7 @@ const ACENTO_PAGO = (row) => {
   return 'border-l-bad/60'
 }
 
-function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false }) {
+function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false, indice = 0 }) {
   const cancelado = estaCancelado(row)
   const articulos = vistaArticulos(row)
   const total = Number.isFinite(Number(row.total)) ? gs(row.total) : '—'
@@ -226,6 +227,7 @@ function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false })
           onClick?.()
         }
       }}
+      style={{ '--i': Math.min(indice, 14) }}
       className={cn('ventas-f3-order-row', !angosta && GRID, ACENTO_PAGO(row))}
     >
       <div className="ventas-f3-order-code">
@@ -301,7 +303,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir, onCobrar }) {
   const pagado = Number(row.paid || 0)
   const pendiente = Number(row.pending || 0)
   return (
-    <VentanaDetalle open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3">
+    <VentanaDetalle open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3 ped-rd">
       <div className="space-y-4" data-testid="pedido-vista-rapida">
         <div className="flex flex-wrap items-center gap-2">
           <BadgePago row={row} v2 />
@@ -479,7 +481,7 @@ export default function SellerOrders() {
   }
 
   return (
-    <div className="ventas-f3" data-testid="ventas-pedidos-f3">
+    <div className="ventas-f3 ped-rd" data-testid="ventas-pedidos-f3">
       <SellerSection title="Pedidos">
         <Toolbar
           label="Acciones de Pedidos"
@@ -574,9 +576,10 @@ export default function SellerOrders() {
           (angosta ? (
             // #313 · móvil: una tarjeta por pedido, sin tabla comprimida.
             <div className="ventas-f3-list" data-testid="pedidos-tabla">
-              {rows.map(row => (
+              {rows.map((row, indice) => (
                 <FilaPedido
                   key={row.id}
+                  indice={indice}
                   row={row}
                   v2={v2}
                   angosta
@@ -599,9 +602,10 @@ export default function SellerOrders() {
                 <span aria-hidden="true" />
               </div>
               <div>
-                {rows.map(row => (
+                {rows.map((row, indice) => (
                   <FilaPedido
                     key={row.id}
+                    indice={indice}
                     row={row}
                     v2={v2}
                     onClick={() => abrirPedido(row)}
