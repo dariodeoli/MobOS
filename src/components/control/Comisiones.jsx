@@ -5,6 +5,9 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { apiComisionesDemo } from '@/lib/demo/comisiones'
 import { Aviso, Badge, Button, EmptyState, IconAction, Input, Skeleton, Stat, useToast } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
+import BarraGestion from '@/components/shared/BarraGestion'
+import { SaveActions } from '@/components/shared/popupKit'
+import '@/components/shared/gestionProfundo.css'
 import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
@@ -92,6 +95,8 @@ export default function Comisiones() {
   // texto tipeado tiene que persistir para que el filtro funcione.
   const [busquedaVendedor, setBusquedaVendedor] = useState('')
   const [busquedaLiquidacion, setBusquedaLiquidacion] = useState('')
+  const [altaRegla, setAltaRegla] = useState(false)
+  const [altaLiquidacion, setAltaLiquidacion] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
   const [borrador, setBorrador] = useState('')
   const [eliminando, setEliminando] = useState(null)
@@ -160,6 +165,7 @@ export default function Comisiones() {
       await api.post('/api/commission-rules', { userId: nueva.userId, percentPyg: parsePercent(nueva.percentPyg) })
       setNueva({ userId: '', percentPyg: '' })
       setBusquedaVendedor('')
+      setAltaRegla(false)
       toast.success('Regla de comisión creada.')
       await cargar()
     } catch (cause) { setError(cause?.message || 'No se pudo crear la regla.') } finally { setOcupado(false) }
@@ -231,6 +237,7 @@ export default function Comisiones() {
       setLiquidaciones(actual => [creada, ...(actual || [])])
       setPeriodo(actual => ({ ...actual, sellerId: '' }))
       setPendiente(null)
+      setAltaLiquidacion(false)
       toast.success('Liquidación cerrada', `${creada.sellerName || 'Vendedor'}: ${gs(creada.totalPyg || 0)} en comisiones.`)
       abrirComprobante(creada, creada.verificationToken)
     } catch (cause) { setError(cause?.message || 'No se pudo cerrar la liquidación.') } finally { setCerrando(false) }
@@ -327,6 +334,13 @@ export default function Comisiones() {
 
   return (
     <div className="gp ventas-f3 finanzas-tactil space-y-3" data-testid="comisiones-pagina">
+      <BarraGestion
+        etiqueta="Acciones de Comisiones"
+        testId="barra-comisiones"
+        primary={<Button type="button" onClick={() => { setError(''); setAltaRegla(true) }}>Nueva regla</Button>}
+      >
+        <Button type="button" variant="outline" onClick={() => { setError(''); setAltaLiquidacion(true) }}>Nueva liquidación</Button>
+      </BarraGestion>
       <StatGrid testId="comisiones-resumen">
         <Stat compact testId="comisiones-reglas" label="Reglas activas" valor={reglas?.length ?? '—'} />
         <Stat compact testId="comisiones-liquidaciones" label="Liquidaciones" valor={liquidaciones?.length ?? '—'} />
@@ -338,22 +352,11 @@ export default function Comisiones() {
         <p className="text-sm text-mute mb-4">
           Reglas de comisión sobre el <strong>margen</strong> de cada venta. La regla por usuario prevalece sobre la de rol.
         </p>
-        <form onSubmit={crear} className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <ComboBuscador id="comision-vendedor" ariaLabel="Vendedor de la regla" value={busquedaVendedor} options={opcionesVendedores} onChange={(texto) => { setBusquedaVendedor(texto); if (nueva.userId) setNueva({ ...nueva, userId: '' }) }} onSelect={opcion => { setBusquedaVendedor(opcion.label); setNueva({ ...nueva, userId: opcion.value }) }} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
-          </div>
-          <div className="sm:w-36">
-            <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
-            <PercentField aria-label="Porcentaje de comisión" value={nueva.percentPyg} onChange={value => setNueva({ ...nueva, percentPyg: value })} placeholder="0" required />
-          </div>
-          <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
-        </form>
-        {error && <Aviso tono="error" className="mb-4">{error}</Aviso>}
+        {error && !altaRegla && !altaLiquidacion && <Aviso tono="error" className="mb-4">{error}</Aviso>}
         {reglas === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : reglas.length === 0 ? (
-          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." action={<Button type="button" variant="outline" onClick={() => document.getElementById('comision-vendedor')?.focus()}>Agregar la primera regla</Button>} />
+          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." action={<Button type="button" variant="outline" onClick={() => setAltaRegla(true)}>Agregar la primera regla</Button>} />
         ) : (
           <ListaDensa
             lista={listaReglas}
@@ -391,33 +394,10 @@ export default function Comisiones() {
         <p className="text-sm text-mute mb-4">
           Cerrá el período de un vendedor: la comisión se congela con el detalle de cada venta y el comprobante se verifica por QR.
         </p>
-        <form onSubmit={cerrarLiquidacion} className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-end">
-          <div className="flex-1">
-            <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={busquedaLiquidacion} options={opcionesVendedores} onChange={(texto) => { setBusquedaLiquidacion(texto); if (periodo.sellerId) { setPeriodo({ ...periodo, sellerId: '' }); setPendiente(null) } }} onSelect={elegirVendedorLiquidacion} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
-          </div>
-          <div className="lg:w-40">
-            <span className="block text-[10px] font-bold uppercase text-mute mb-1">Desde</span>
-            <Input type="date" aria-label="Desde" value={periodo.from} onChange={event => setPeriodo({ ...periodo, from: event.target.value })} required />
-          </div>
-          <div className="lg:w-40">
-            <span className="block text-[10px] font-bold uppercase text-mute mb-1">Hasta</span>
-            <Input type="date" aria-label="Hasta" value={periodo.to} onChange={event => setPeriodo({ ...periodo, to: event.target.value })} required />
-          </div>
-          <Button type="submit" disabled={cerrando || !periodo.sellerId || pendiente?.alDia}>{cerrando ? 'Cerrando…' : 'Cerrar liquidación'}</Button>
-        </form>
-        {periodo.sellerId && pendiente && (pendiente.alDia ? (
-          <Aviso tono="ok" compact className="mb-4">Sin comisiones pendientes: el último corte llega al {fmtCorto(pendiente.ultimo.to)}.</Aviso>
-        ) : (
-          <p className="mb-4 text-xs text-mute">
-            Se liquida desde el {fmtCorto(pendiente.desde)}
-            {pendiente.ultimo ? ` — el último corte fue del ${fmtCorto(pendiente.ultimo.desde)} al ${fmtCorto(pendiente.ultimo.to)}` : ' (sin cortes previos de este vendedor)'}.
-          </p>
-        ))}
         {liquidaciones === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : liquidaciones.length === 0 ? (
-          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." action={<Button type="button" variant="outline" onClick={() => document.getElementById('liquidacion-vendedor')?.focus()}>Elegir vendedor</Button>} />
+          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." action={<Button type="button" variant="outline" onClick={() => setAltaLiquidacion(true)}>Elegir vendedor</Button>} />
         ) : (
           <ListaDensa
             lista={listaLiquidaciones}
@@ -453,6 +433,54 @@ export default function Comisiones() {
           />
         )}
       </section>
+
+      <Popup open={altaRegla} onClose={() => !ocupado && setAltaRegla(false)} title="Nueva regla de comisión" tamano="md" busy={ocupado}>
+        <form onSubmit={crear} className="grid gap-3">
+          <div>
+            <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
+            <ComboBuscador id="comision-vendedor" ariaLabel="Vendedor de la regla" value={busquedaVendedor} options={opcionesVendedores} onChange={(texto) => { setBusquedaVendedor(texto); if (nueva.userId) setNueva({ ...nueva, userId: '' }) }} onSelect={opcion => { setBusquedaVendedor(opcion.label); setNueva({ ...nueva, userId: opcion.value }) }} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
+          </div>
+          <div className="sm:w-40">
+            <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
+            <PercentField aria-label="Porcentaje de comisión" value={nueva.percentPyg} onChange={value => setNueva({ ...nueva, percentPyg: value })} placeholder="0" required />
+          </div>
+          {error && <Aviso tono="error">{error}</Aviso>}
+          <SaveActions pendiente={ocupado}>
+            <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
+          </SaveActions>
+        </form>
+      </Popup>
+
+      <Popup open={altaLiquidacion} onClose={() => !cerrando && setAltaLiquidacion(false)} title="Nueva liquidación" tamano="md" busy={cerrando}>
+        <form onSubmit={cerrarLiquidacion} className="grid gap-3">
+          <div>
+            <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
+            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={busquedaLiquidacion} options={opcionesVendedores} onChange={(texto) => { setBusquedaLiquidacion(texto); if (periodo.sellerId) { setPeriodo({ ...periodo, sellerId: '' }); setPendiente(null) } }} onSelect={elegirVendedorLiquidacion} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <span className="block text-[10px] font-bold uppercase text-mute mb-1">Desde</span>
+              <Input type="date" aria-label="Desde" value={periodo.from} onChange={event => setPeriodo({ ...periodo, from: event.target.value })} required />
+            </div>
+            <div>
+              <span className="block text-[10px] font-bold uppercase text-mute mb-1">Hasta</span>
+              <Input type="date" aria-label="Hasta" value={periodo.to} onChange={event => setPeriodo({ ...periodo, to: event.target.value })} required />
+            </div>
+          </div>
+        {periodo.sellerId && pendiente && (pendiente.alDia ? (
+          <Aviso tono="ok" compact className="">Sin comisiones pendientes: el último corte llega al {fmtCorto(pendiente.ultimo.to)}.</Aviso>
+        ) : (
+          <p className=" text-xs text-mute">
+            Se liquida desde el {fmtCorto(pendiente.desde)}
+            {pendiente.ultimo ? ` — el último corte fue del ${fmtCorto(pendiente.ultimo.desde)} al ${fmtCorto(pendiente.ultimo.to)}` : ' (sin cortes previos de este vendedor)'}.
+          </p>
+        ))}
+          {error && <Aviso tono="error">{error}</Aviso>}
+          <SaveActions pendiente={cerrando}>
+            <Button type="submit" disabled={cerrando || !periodo.sellerId || pendiente?.alDia}>{cerrando ? 'Cerrando…' : 'Cerrar liquidación'}</Button>
+          </SaveActions>
+        </form>
+      </Popup>
 
       <Popup open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} tamano="md">
         {comprobante && (
