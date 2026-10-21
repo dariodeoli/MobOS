@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Aviso, Badge, Button, Modal, Skeleton, useResultado } from '@/components/ui'
+import { Aviso, Badge, Button, Skeleton, useResultado } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import SearchField from '@/components/shared/SearchField'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'

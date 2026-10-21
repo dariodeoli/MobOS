@@ -36,27 +36,8 @@ import './clientePagina.css'
 import { guardarIdentidadFacturacionDemo } from '@/lib/demoBillingIdentities'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
-import {
-  Aviso,
-  Badge,
-  Button,
-  ConfirmDialog,
-  DataTable,
-  EmptyState,
-  FormField,
-  Input,
-  Label,
-  Modal,
-  MoneyInput,
-  CeldaMoneda,
-  SaveActions,
-  Select,
-  Skeleton,
-  Textarea,
-  useToast,
-  useValidacionCampos,
-  IconAction,
-} from '@/components/ui'
+import { Aviso, Badge, Button, DataTable, EmptyState, FormField, Input, Label, MoneyInput, CeldaMoneda, Select, Skeleton, Textarea, useToast, useValidacionCampos, IconAction } from '@/components/ui'
+import { ConfirmDialog, Modal, SaveActions } from '@/components/shared/popupKit'
 import { obligatorio } from 'owncoding-ui/utils'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 const FOLLOW_UP_KINDS = {
