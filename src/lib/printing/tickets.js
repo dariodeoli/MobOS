@@ -352,6 +352,7 @@ export function ticketRemito(transfer, { ancho = 80 } = {}) {
   if (transfer.notes) t.texto(transfer.notes)
   t.linea()
   t.centrado('Controlá el contenido contra este remito al recibir.')
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -368,6 +369,7 @@ export function ticketReserva(reservation, { ancho = 80 } = {}) {
   t.par('Vence', reservation.reservedUntil ? fecha(reservation.reservedUntil) : '—')
   t.linea()
   t.centrado('La unidad queda apartada hasta la fecha indicada. Pasado el vencimiento se libera automáticamente.')
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
