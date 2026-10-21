@@ -55,7 +55,7 @@ const capacidades = [
 export default function CapacidadesMobOS() {
   return (
     <section id="capacidades" className="landing-capabilities landing-container" aria-labelledby="capacidades-titulo">
-      <div className="landing-capabilities-heading">
+      <div className="landing-capabilities-heading" data-reveal>
         <p className="landing-eyebrow">UNA OPERACIÓN CONECTADA</p>
         <h2 id="capacidades-titulo">Todo el trabajo de tu tienda, en un solo lugar.</h2>
         <p>
@@ -66,7 +66,7 @@ export default function CapacidadesMobOS() {
 
       <div className="landing-capability-grid" data-testid="landing-capacidades-disponibles">
         {capacidades.map(({ titulo, detalle, Icono }) => (
-          <article className="landing-capability" key={titulo}>
+          <article className="landing-capability" key={titulo} data-reveal>
             <span className="landing-capability-icon" aria-hidden="true"><Icono size={20} /></span>
             <div>
               <h3>{titulo}</h3>
@@ -76,7 +76,7 @@ export default function CapacidadesMobOS() {
         ))}
       </div>
 
-      <aside className="landing-integrations" aria-labelledby="integraciones-titulo">
+      <aside data-reveal className="landing-integrations" aria-labelledby="integraciones-titulo">
         <p className="landing-eyebrow">EN PREPARACIÓN</p>
         <h3 id="integraciones-titulo">Nuevas conexiones para ampliar MobOS</h3>
         <p>

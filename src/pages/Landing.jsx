@@ -1,15 +1,17 @@
 import { ArrowRight, Check, ChevronDown, Menu, Store, X } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { publicUrls } from '@/lib/urls'
 import ImeiVerificador from '@/components/landing/ImeiVerificador'
 import CommercialPreview from '@/components/landing/CommercialPreview'
 import CapacidadesMobOS from '@/components/landing/CapacidadesMobOS'
 import ShowcaseMobOS from '@/components/landing/ShowcaseMobOS'
+import useReveal from '@/components/landing/useReveal'
 import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import { temaV2Activo } from '@/lib/temaV2'
 import './Landing.css'
+import './LandingRediseno.css'
 
 const NAV = [
   ['#capacidades', 'Funciones'],
@@ -91,8 +93,13 @@ export default function Landing() {
   const [open, setOpen] = useState(0)
   const [menu, setMenu] = useState(false)
   const { app } = publicUrls
+  const rootRef = useRef(null)
+  useReveal(rootRef)
   return (
-    <div className={temaV2Activo() ? 'mobos-commercial-landing tema-v2' : 'mobos-commercial-landing'}>
+    <div
+      ref={rootRef}
+      className={temaV2Activo() ? 'mobos-commercial-landing tema-v2' : 'mobos-commercial-landing'}
+    >
       <header className="landing-header">
         <div className="landing-nav landing-container">
           <a href="#inicio" aria-label="MobOS" className="landing-logo">
@@ -157,7 +164,7 @@ export default function Landing() {
       </header>
       <main>
         <section id="inicio" className="landing-hero landing-container">
-          <div className="landing-hero-copy">
+          <div className="landing-hero-copy landing-enter">
             <p className="landing-eyebrow">EL SISTEMA PARA TU TIENDA DE TELÉFONOS</p>
             <h1>
               Vende teléfonos.
@@ -184,7 +191,7 @@ export default function Landing() {
           <CommercialPreview />
         </section>
         <section className="landing-operation" aria-label="Una operación conectada">
-          <div className="landing-container">
+          <div className="landing-container" data-reveal>
             <p>
               DEL MOSTRADOR
               <br />
@@ -211,7 +218,7 @@ export default function Landing() {
         >
           {stories.map(story => (
             <article id={story.id} key={story.id} className="landing-story">
-              <div className="landing-story-copy">
+              <div className="landing-story-copy" data-reveal>
                 <p className="landing-eyebrow">
                   {story.number} / {story.label}
                 </p>
@@ -226,7 +233,7 @@ export default function Landing() {
                   ))}
                 </ul>
               </div>
-              <div>
+              <div className="landing-story-visual" data-reveal>
                 <CommercialPreview moment={story.moment} />
                 {story.id === 'cerrar' && (
                   <a
@@ -249,15 +256,15 @@ export default function Landing() {
             El permiso justo para cada rol.
           </h2>
           <dl>
-            <div>
+            <div data-reveal>
               <dt>Dueño</dt>
               <dd>Precios, permisos, caja y auditoría del negocio.</dd>
             </div>
-            <div>
+            <div data-reveal>
               <dt>Vendedor</dt>
               <dd>Ventas con PIN propio, stock, clientes y cotizaciones.</dd>
             </div>
-            <div>
+            <div data-reveal>
               <dt>Técnico</dt>
               <dd>Recepción, diagnóstico, repuestos y entrega.</dd>
             </div>
@@ -266,23 +273,19 @@ export default function Landing() {
             Proveedor → inventario → venta → posventa. Cada movimiento, con su responsable.
           </p>
         </section>
-        <section id="imei" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20">
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-dark">
-            Antes de comprar o canjear
-          </p>
-          <h2 className="mt-3 max-w-2xl font-display text-4xl font-bold tracking-[-.04em] sm:text-5xl">
-            Verifica un IMEI sin inventar un «limpio».
-          </h2>
-          <p className="mt-4 max-w-2xl leading-7 text-mute">
+        <section id="imei" className="landing-imei landing-container">
+          <p className="landing-eyebrow">Antes de comprar o canjear</p>
+          <h2 className="landing-section-title">Verifica un IMEI sin inventar un «limpio».</h2>
+          <p className="landing-lead">
             Cada consulta se confirma antes de ejecutarse (sin cargos automáticos), queda auditada
             con fuente y hora, y los estados sin dato dicen «No verificado».
           </p>
-          <div className="mt-8">
+          <div className="landing-imei-card" data-reveal>
             <ImeiVerificador />
           </div>
         </section>
 
-        <section id="precio" className="landing-pricing landing-container">
+        <section id="precio" className="landing-pricing landing-container" data-reveal>
           <div>
             <p className="landing-eyebrow">EMPEZÁ HOY</p>
             <h2>Conocé MobOS en tu tienda.</h2>
@@ -300,33 +303,27 @@ export default function Landing() {
             </a>
           </div>
         </section>
-        <section className="mx-auto max-w-4xl px-5 pb-20">
-          <p className="text-center text-xs font-bold uppercase tracking-[.2em] text-fono-dark">
-            Preguntas rápidas
-          </p>
-          <h2 className="mt-4 text-center font-display text-3xl font-bold sm:text-4xl">
-            Todo claro antes de empezar.
-          </h2>
-          <div className="mt-10 space-y-3">
+        <section className="landing-faq" data-reveal>
+          <p className="landing-eyebrow">Preguntas rápidas</p>
+          <h2 className="landing-section-title">Todo claro antes de empezar.</h2>
+          <div className="landing-faq-list">
             {faqs.map(([q, a], i) => (
               <article
                 key={q}
-                className="overflow-hidden rounded-2xl border border-fore/[.08] bg-ink shadow-card"
+                className="landing-faq-item"
+                data-open={open === i}
               >
                 <button
                   onClick={() => setOpen(open === i ? -1 : i)}
                   aria-expanded={open === i}
                   aria-controls={`faq-respuesta-${i}`}
-                  className="flex min-h-11 w-full items-center justify-between gap-4 p-5 text-left"
+                  className="landing-faq-q"
                 >
-                  <b className="text-sm sm:text-base">{q}</b>
-                  <ChevronDown
-                    className={`shrink-0 text-fono-dark transition ${open === i ? 'rotate-180' : ''}`}
-                    size={19}
-                  />
+                  <b>{q}</b>
+                  <ChevronDown className="landing-faq-chevron" size={19} />
                 </button>
                 {open === i && (
-                  <p id={`faq-respuesta-${i}`} className="px-5 pb-5 text-sm leading-6 text-mute">
+                  <p id={`faq-respuesta-${i}`} className="landing-faq-a">
                     {a}
                   </p>
                 )}
@@ -336,7 +333,7 @@ export default function Landing() {
         </section>
 
         <section id="demo" className="landing-closing">
-          <div className="landing-container">
+          <div className="landing-container" data-reveal>
             <div>
               <p className="landing-eyebrow">CONOCE MOBOS POR DENTRO</p>
               <h2>
