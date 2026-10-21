@@ -1,8 +1,12 @@
 import './compras.css'
+import Toolbar from '@/components/shared/Toolbar'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resources } from '@/lib/api'
-import { Badge, Button, Card, EmptyState, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Skeleton, Stat, useToast } from '@/components/ui'
 import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
 import PanelEscaneoSeriales from '@/components/supply/PanelEscaneoSeriales'
 import { getProductos } from '@/lib/storage'
@@ -136,21 +140,26 @@ export default function PrepararCompra() {
   }
 
   return (
-    <div className="compras-flujo space-y-4" data-testid="preparar-compra">
-      <Card className="p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <EncabezadoFlujo className="min-w-0 w-full sm:flex-1" paso="preparacion" onIr={(paso) => navigate(paso.ruta)} />
+    <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="preparar-compra">
+      <EncabezadoFlujo className="min-w-0 w-full" paso="preparacion" onIr={(paso) => navigate(paso.ruta)} />
+      <Toolbar
+        plano
+        lista
+        label="Acciones de Preparar compra"
+        testId="barra-preparar-compra"
+        className="ventas-f3-toolbar"
+        more={(
           <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
           </Button>
-        </div>
-        {totales && (
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
-            <Badge color="blue">{totales.compras} compra{totales.compras === 1 ? '' : 's'}</Badge>
-            <Badge color="orange">{totales.pendientes} IMEI pendiente{totales.pendientes === 1 ? '' : 's'}</Badge>
-          </p>
         )}
-      </Card>
+      />
+      {totales && (
+        <StatGrid testId="preparar-compra-resumen" etiqueta="Resumen de preparación">
+          <Stat compact label="Compras" valor={`${totales.compras} compra${totales.compras === 1 ? '' : 's'}`} />
+          <Stat compact label="Pendientes" valor={`${totales.pendientes} IMEI pendiente${totales.pendientes === 1 ? '' : 's'}`} valorClassName={totales.pendientes > 0 ? 'text-warn' : ''} />
+        </StatGrid>
+      )}
 
       {filtroCompra && (
         <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="preparar-compra-filtro">
@@ -164,7 +173,7 @@ export default function PrepararCompra() {
       ) : !compras.length ? (
         <EmptyState icon="box" title={filtroCompra ? `No se encontró la compra ${filtroCompra}.` : 'No hay compras por preparar.'} description={filtroCompra ? 'Puede estar cancelada o ser de otra empresa.' : 'Cuando una compra tenga IMEI pendientes, aparece acá.'} />
       ) : (
-        <div className="space-y-2.5">
+        <div className="gp-lista-cards space-y-2.5">
           {visibles.map((compra) => {
             const pendientes = (compra.lines || []).reduce((suma, fila) => suma + Number(fila.faltan || 0), 0)
             const expandida = abierta?.id === compra.id
