@@ -85,6 +85,7 @@
         "qa-253-equipo-acceso.spec.js",
         "qa-261-cotizacion-envio.spec.js",
         "qa-268-unificar-clientes.spec.js",
+        "cliente-flechas.spec.js",
         "qa-278-cierre.spec.js",
         "qa-279-push.spec.js",
         "qa-284-avatar-cache.spec.js",
