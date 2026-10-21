@@ -7,6 +7,9 @@ import { obligatorio } from 'owncoding-ui/utils'
 import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, MoneyInput, Select, useResultado, useToast, useValidacionCampos } from '@/components/ui'
 import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -244,7 +247,7 @@ export default function Precios() {
     </Card>
   )
 
-  return <div className="space-y-4">
+  return <div className="gp ventas-f3 space-y-4" data-testid="precios-pagina">
     {/* Una barra por pestaña (docs/PANTALLAS.md regla 7): la acción de la pestaña; la
         descripción vive en el tooltip de ayuda, no como texto fijo. */}
     <BarraModulo titulo="Precios" testId="barra-precios" segmentos={<SegmentosToolbar />}>
@@ -259,8 +262,8 @@ export default function Precios() {
         <p className="mt-1 text-xs text-mute">Descuento o recargo por producto o categoría, sobre el precio del cliente; se asigna en su ficha.</p>
       </div>
       {error && <Aviso tono="error">{error}</Aviso>}
-      {cargando ? <p className="text-sm text-mute">Cargando listas…</p> : !listas.length ? <EmptyState compact icon="store" title="Todavía no hay listas de precios." /> : <div className="space-y-2">
-        {listas.map(lista => <div key={lista.id} data-testid="lista-precio-fila" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+      {cargando ? <p className="text-sm text-mute">Cargando listas…</p> : !listas.length ? <EmptyState compact icon="store" title="Todavía no hay listas de precios." description="Creá una lista para dar descuento o recargo a clientes puntuales." action={<Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>} /> : <div className="gp-lista">
+        {listas.map((lista, indice) => <div key={lista.id} data-testid="lista-precio-fila" style={{ '--i': Math.min(indice, 12) }} className="gp-fila justify-between">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2 text-sm font-semibold"><span className="truncate">{lista.name}</span><Badge color={lista.isActive ? 'green' : 'slate'}>{lista.isActive ? 'Activa' : 'Inactiva'}</Badge></p>
             <p className="mt-1 text-xs text-mute">{(lista.items || []).length} ítem{(lista.items || []).length === 1 ? '' : 's'}{resumenItems(lista.items) ? ` · ${resumenItems(lista.items)}` : ''}</p>
@@ -350,9 +353,15 @@ export default function Precios() {
       </form>}
     </Popup>
 
-    <Popup open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} tamano="sm">
-      <p className="text-sm text-mute">Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría.</p>
-      <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setABorrar(null)} disabled={busy}>Cancelar</Button><Button type="button" className="border-bad/50 bg-bad/10 text-bad" onClick={borrarLista} disabled={busy}>{busy ? 'Eliminando…' : 'Eliminar lista'}</Button></div>
-    </Popup>
+    <PopupConfirmar
+      open={aBorrar !== null}
+      onCancel={() => !busy && setABorrar(null)}
+      onConfirm={borrarLista}
+      busy={busy}
+      title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`}
+      description="Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría."
+      confirmLabel="Eliminar lista"
+      variant="danger"
+    />
   </div>
 }
