@@ -219,16 +219,16 @@ const VENTAS_MANUALES = [
     observacion: 'Crédito a 15 días con seña en efectivo',
   },
   {
-    id: 'demo-venta-hoy-caja', numero: 'AUR-0404', diasAtras: 0, hora: 9, minuto: 40,
+    id: 'demo-venta-caja', numero: 'AUR-0404', diasAtras: 1, hora: 9, minuto: 40,
     clienteId: 'demo-cliente-camila', cliente: 'Camila Arévalo', vendedorId: 'demo-user-cajera',
     entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0,
     items: [linea('demo-cargador-usbc-20w', 1, 220000), linea('demo-funda-magsafe-transparente', 1, 180000)],
-    pagos: [pago('demo-pago-hoy-caja', 'POS UENO', 'Ueno · Tarjeta', 400000, '09:45')],
+    pagos: [pago('demo-pago-caja', 'POS UENO', 'Ueno · Tarjeta', 400000, '09:45')],
     observacion: 'Venta cobrada en caja con tarjeta',
   },
   // ── Pedidos en otros estados de entrega: preparación, listo para retirar y anulado.
   {
-    id: 'demo-venta-preparacion', numero: 'AUR-0405', diasAtras: 0, hora: 12, minuto: 5,
+    id: 'demo-venta-preparacion', numero: 'AUR-0405', diasAtras: 1, hora: 12, minuto: 5,
     clienteId: 'demo-cliente-natalia', cliente: 'Natalia Britez', vendedorId: 'demo-user-vendedora',
     entrega: 'RETIRO', fulfillment: 'PROCESSING', montoDelivery: 0,
     items: [linea('demo-airpods-pro-2-usbc', 1, 1850000)],
