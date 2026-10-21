@@ -3,6 +3,8 @@ import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, cle
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
 import { fijarEmpresaImpresion } from './printing/empresaImpresion'
 import { cargarLogoImpresion } from './printing/logoImpresion'
+import { cargarDisenosPro, fijarDisenosPro } from './printing/disenoPro'
+import { leerDisenosPro } from './impresionProCarga'
 import { perfilDemo } from './demo/equipo.js'
 import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
@@ -156,6 +158,20 @@ export function SesionProvider({ children }) {
   usarTenantImpresoras(usuario?.tenantId)
   useEffect(() => { fijarEmpresaImpresion({ branch: sucursal }) }, [sucursal])
   usarSucursalImpresoras(sucursal?.id)
+  // Impresión Pro: el diseño predeterminado de cotización, remito y ticket se
+  // carga por sesión (con el módulo apagado o sin predeterminado: premium normal).
+  useEffect(() => {
+    if (!usuario) { fijarDisenosPro({}); return undefined }
+    const contexto = { empresaId: empresa?.id || usuario.tenantId, userId: usuario.id, sucursalId: sucursal?.id || null, role: usuario.role, permissions: usuario.permissions || [] }
+    const recargar = () => cargarDisenosPro(() => leerDisenosPro({ contexto, esDemo: isDemoRuntime }))
+    recargar()
+    window.addEventListener('mobos:module-store-updated', recargar)
+    window.addEventListener('mobos:print-templates-updated', recargar)
+    return () => {
+      window.removeEventListener('mobos:module-store-updated', recargar)
+      window.removeEventListener('mobos:print-templates-updated', recargar)
+    }
+  }, [usuario?.id, usuario?.role, empresa?.id, sucursal?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
   async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(error => { if (esDenegacionPrivada(error)) throw error; return null }); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
   async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); marcarPinVigente(true); const contexto = await sessionApi.me().catch(error => { if (esDenegacionPrivada(error)) throw error; return null }); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }

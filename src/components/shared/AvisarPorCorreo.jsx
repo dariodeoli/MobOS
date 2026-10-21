@@ -8,6 +8,7 @@ import { useCorreoSaliente } from '@/lib/correoSaliente'
 import Icon from '@/components/shared/Icon'
 import Popup from '@/components/shared/Popup'
 import { Button } from '@/components/ui'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
 
 // «Avisar por correo» en cada cambio de estado (par de WhatsAppMenu): abre el
@@ -71,7 +72,7 @@ export default function AvisarPorCorreo({ email, category = 'ORDERS', evento = '
         title="Correo preparado"
         tamano="md"
         footer={(
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className={PIE_ACCIONES}>
             <Button type="button" variant="ghost" onClick={() => setVista(null)}>Cerrar</Button>
             {vista?.url && <Button type="button" onClick={() => { window.open(vista.url, '_self'); setVista(null) }}>Abrir en mi correo</Button>}
           </div>

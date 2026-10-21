@@ -1,10 +1,16 @@
-import { erroresPerfil } from './perfiles.js'
+import { erroresPerfil, esDocumentoFlujo } from './perfiles.js'
+export { DOCUMENTOS_FLUJO, esDocumentoFlujo } from './perfiles.js'
 import { solapesElementos } from './geometria.js'
+import { PRESETS_PRO } from '../../../backend/lib/print-templates-pro.mjs'
 export const TIPOS_PLANTILLA = {
   comprobante: 'Comprobante premium',
   'etiquetas-producto': 'Etiquetas de producto',
   'etiquetas-stock': 'Etiquetas de unidad',
+  ticket: 'Ticket',
+  cotizacion: 'Cotización',
+  remito: 'Remito',
 }
+const ENCABEZADO_PIE = ['brand', 'documentTitle', 'documentNumber', 'date', 'nonFiscal', 'qr']
 export const OBLIGATORIOS = {
   comprobante: [
     'brand',
@@ -21,11 +27,17 @@ export const OBLIGATORIOS = {
   ],
   'etiquetas-producto': ['product', 'sku', 'barcode'],
   'etiquetas-stock': ['model', 'serial', 'qr', 'barcode'],
+  ticket: [...ENCABEZADO_PIE, 'items', 'total'],
+  cotizacion: [...ENCABEZADO_PIE, 'customer', 'items', 'total'],
+  remito: [...ENCABEZADO_PIE, 'customer', 'items'],
 }
 export const OPCIONALES = {
   comprobante: [],
   'etiquetas-producto': ['price', 'brand', 'qr'],
   'etiquetas-stock': ['brand', 'condition', 'battery', 'location', 'supplierCode'],
+  ticket: ['customer', 'payments', 'warranty'],
+  cotizacion: [],
+  remito: ['total'],
 }
 export const CONTENIDOS = {
   brand: 'Empresa',
@@ -89,7 +101,7 @@ export function erroresPlantilla(kind, d) {
   if (
     !exacto(p, ['widthMm', 'heightMm', 'orientation', 'margins']) ||
     !numero(p.widthMm, 5, 216) ||
-    !((p.heightMm === null && kind === 'comprobante') || numero(p.heightMm, 10, 2000)) ||
+    !((p.heightMm === null && esDocumentoFlujo(kind)) || numero(p.heightMm, 10, 2000)) ||
     ![0, 90].includes(p.orientation)
   )
     return ['Medidas u orientación no válidas.']
@@ -185,7 +197,7 @@ export function erroresPlantilla(kind, d) {
   errors.push(...solapesElementos(d.elements))
   return [...new Set(errors)]
 }
-export const PRESETS_PLANTILLA = [
+const PRESETS_BASE = [
   {
     kind: 'comprobante',
     name: 'Comprobante premium',
@@ -503,3 +515,10 @@ export const PRESETS_PLANTILLA = [
     },
   },
 ]
+
+// Lo incorporado (el premium actual y las etiquetas base) y la galería de diseños
+// de Impresión Pro, en el mismo orden que el servidor: el primero de cada tipo es
+// el que se usa para «Restaurar».
+export const PRESETS_PRO_PLANTILLA = PRESETS_PRO.map(preset => ({ ...clonarPlantilla(preset), pro: true }))
+export const PRESETS_PLANTILLA = [...PRESETS_BASE, ...PRESETS_PRO_PLANTILLA]
+export const disenosPro = kind => PRESETS_PRO_PLANTILLA.filter(preset => preset.kind === kind)

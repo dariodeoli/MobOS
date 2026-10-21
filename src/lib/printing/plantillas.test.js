@@ -2,6 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   PRESETS_PLANTILLA,
+  PRESETS_PRO_PLANTILLA,
+  disenosPro,
+  esDocumentoFlujo,
   erroresPlantilla,
   clonarPlantilla,
   nombrePlantillaValido,
@@ -95,7 +98,7 @@ for (const [label, mutate] of [
     assert.ok(erroresPlantilla('etiquetas-producto', d).length)
   })
 test('perfiles provisionales conservan requeridos y caben físicamente', () => {
-  for (const preset of PRESETS_PLANTILLA.filter(p => p.kind !== 'comprobante'))
+  for (const preset of PRESETS_PLANTILLA.filter(p => !esDocumentoFlujo(p.kind) && !p.pro))
     for (const profile of ['generic', 'brother-ql800', '3nstar-ltt214']) {
       const d = aplicarPerfilPlantilla(preset.definition, profile, preset.kind)
       assert.deepEqual(erroresPlantilla(preset.kind, d), [], `${preset.kind}/${profile}`)
@@ -392,4 +395,24 @@ test('unidades sin base web no fabrican QR y lote mayor de 200 se rechaza', asyn
     /HTTP/,
   )
   assert.throws(() => datosUnidadPlantilla(Array.from({ length: 201 }, () => ({}))), /200/)
+})
+
+// Impresión Pro: galería de diseños por documento (presets compartidos con el servidor).
+test('galería pro: 3 o 4 diseños por documento y cada uno es válido', () => {
+  for (const kind of ['comprobante', 'ticket', 'cotizacion', 'remito', 'etiquetas-producto', 'etiquetas-stock']) {
+    const lista = disenosPro(kind)
+    assert.ok(lista.length >= 3 && lista.length <= 4, `${kind}: ${lista.length}`)
+    for (const diseno of lista) assert.deepEqual(erroresPlantilla(kind, diseno.definition), [], diseno.name)
+  }
+  assert.equal(new Set(PRESETS_PRO_PLANTILLA.map(p => `${p.kind}:${p.name}`)).size, PRESETS_PRO_PLANTILLA.length)
+  for (const preset of PRESETS_PRO_PLANTILLA) assert.equal(nombrePlantillaValido(preset.name), true, preset.name)
+})
+
+test('los diseños de documento no permiten ocultar el encabezado ni el pie estándar', () => {
+  for (const preset of PRESETS_PRO_PLANTILLA.filter(p => esDocumentoFlujo(p.kind)))
+    for (const binding of ['brand', 'documentTitle', 'documentNumber', 'date', 'nonFiscal', 'qr']) {
+      const d = clonarPlantilla(preset.definition)
+      d.elements.find(e => e.binding === binding).visible = false
+      assert.ok(erroresPlantilla(preset.kind, d).length > 0, `${preset.name}: ${binding}`)
+    }
 })

@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { InputError } from './payment-input'
-import { builtinTemplates, PRINT_TEMPLATE_KINDS, templateDefinition, templateInput, templateKind, templateName, templateRevision } from './print-templates'
+import { allBuiltinTemplates, PRINT_TEMPLATE_KINDS, templateDefinition, templateInput, templateKind, templateName, templateRevision } from './print-templates'
 
 export type TemplateContext = { tenantId: string; userId: string; role: string; branchId: string | null }
 const notFound = () => new InputError('Plantilla no encontrada.', 404)
@@ -25,7 +25,7 @@ async function lock(tx: Prisma.TransactionClient, ctx: TemplateContext) {
 export async function listTemplates(db: PrismaClient, ctx: TemplateContext, kindValue?: unknown) {
   const kind = kindValue ? templateKind(kindValue) : undefined
   const rows = await db.printTemplate.findMany({ where: { tenantId: ctx.tenantId, archivedAt: null, ...(kind ? { kind } : {}) }, orderBy: [{ kind: 'asc' }, { createdAt: 'asc' }], take: 200 })
-  return { templates: rows.map(shape), presets: builtinTemplates().filter(p => !kind || p.kind === kind) }
+  return { templates: rows.map(shape), presets: allBuiltinTemplates().filter(p => !kind || p.kind === kind) }
 }
 export async function readTemplate(db: PrismaClient, ctx: TemplateContext, id: string) {
   const row = await db.printTemplate.findFirst({ where: { id, tenantId: ctx.tenantId, archivedAt: null } })
@@ -71,7 +71,7 @@ export async function changeTemplate(db: PrismaClient, ctx: TemplateContext, id:
       await audit(tx, ctx, 'PRINT_TEMPLATE_DUPLICATED', row.id, { kind, sourceId: id, revision: row.revision })
       return shape(row)
     }
-    const definition = operation === 'action' ? builtinTemplates().find(p => p.kind === kind)!.definition : input.definition === undefined ? templateDefinition(kind, current.definition) : templateDefinition(kind, input.definition)
+    const definition = operation === 'action' ? (allBuiltinTemplates().find(p => p.kind === kind && p.name === current.name) ?? allBuiltinTemplates().find(p => p.kind === kind)!).definition : input.definition === undefined ? templateDefinition(kind, current.definition) : templateDefinition(kind, input.definition)
     const name = input.name === undefined ? current.name : templateName(input.name)
     const row = await tx.printTemplate.update({ where: { id }, data: { name, definition, revision: { increment: 1 }, updatedByUserId: ctx.userId } })
     await audit(tx, ctx, operation === 'action' ? 'PRINT_TEMPLATE_RESTORED' : 'PRINT_TEMPLATE_UPDATED', id, { kind, previousRevision: revision, revision: row.revision, changed: [ ...(input.name !== undefined ? ['name'] : []), ...(input.definition !== undefined || operation === 'action' ? ['definition'] : []) ] })

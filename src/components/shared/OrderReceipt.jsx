@@ -1,4 +1,5 @@
 import { htmlConAreaTermica } from '@/lib/printing/papelTermico'
+import { aplicarDisenoPredeterminado } from '@/lib/printing/disenoPro'
 import { gs } from '@/utils/calculos'
 import { qrDataUrl } from '@/lib/qr'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
@@ -680,7 +681,12 @@ export async function printDeliveryNote(order, options = {}) {
 
 // Remisión interna: traslado entre sucursales con la firma de quien despacha y
 // quien recibe. El remito ya lista los IMEI; acá se firma la entrega.
-export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
+// Impresión Pro: con el módulo activo y un diseño predeterminado, la remisión y
+// la proforma toman su tamaño de letra y alineación; sin módulo, premium normal.
+export async function buildRemisionHtml(transfer, opciones = {}) {
+  return aplicarDisenoPredeterminado('remito', await armarRemisionHtml(transfer, opciones))
+}
+async function armarRemisionHtml(transfer, { format = 'a4' } = {}) {
   const lines = Array.isArray(transfer.lines) ? transfer.lines : []
   const lineas = lines.map((line) => {
     const seriales = Array.isArray(line.serials) ? line.serials : []
@@ -741,7 +747,10 @@ export async function printInternalReceipt(payment, order, options = {}) {
 
 // Proforma / presupuesto de una cotización: ítems, descuento, total y validez,
 // sin el QR de aceptación (es un presupuesto impreso, no un enlace vivo).
-export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = {}) {
+export async function buildProformaHtml(quote, opciones = {}) {
+  return aplicarDisenoPredeterminado('cotizacion', await armarProformaHtml(quote, opciones))
+}
+async function armarProformaHtml(quote, { format = 'a4', enlace = '' } = {}) {
   const items = Array.isArray(quote.items) ? quote.items : []
   const logo = await getLogoDataUrl()
   // Enlace público de aceptación (opcional): el PDF que se comparte por
