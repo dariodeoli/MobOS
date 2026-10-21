@@ -1,3 +1,4 @@
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { shellCatalog, shellPrimary } from './helpers/shell-navigation.js'
 import { clickRowAction } from './helpers/row-actions.js'
 // QA #325 — Responsive móvil y roles secundarios (auditoría demo v1.0.209).
@@ -56,6 +57,7 @@ async function tema(page, valor) {
 // visibles que se salen del viewport (fuera de contenedores con scroll propio)
 // y targets con área efectiva < 44 px.
 async function medir(page) {
+  await esperarAnimaciones(page)
   return page.evaluate(() => {
     const vw = window.innerWidth
     const visible = (el) => el.offsetParent !== null && el.getClientRects().length > 0 && !el.closest('[aria-hidden="true"]')
