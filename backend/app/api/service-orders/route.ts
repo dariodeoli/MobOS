@@ -83,7 +83,7 @@ export async function GET(request: Request) {
   })
   const customerIds = [...new Set(orders.map(order => order.customerId).filter((id): id is string => Boolean(id)))]
   const clientes = customerIds.length
-    ? await prisma.customer.findMany({ where: { tenantId: tenant, id: { in: customerIds } }, select: { id: true, phone: true, countryCode: true } })
+    ? await prisma.customer.findMany({ where: { tenantId: tenant, id: { in: customerIds } }, select: { id: true, phone: true, countryCode: true, email: true } })
     : []
   const contactoPorCliente = new Map(clientes.map(cliente => [cliente.id, cliente]))
   // Garantía de origen de cada orden (#224), para el badge “Desde garantía”.
@@ -95,6 +95,7 @@ export async function GET(request: Request) {
   return json(orders.map(order => ({
     ...conDesbloqueo(order, session.user.role),
     customerPhone: order.customerId ? contactoPorCliente.get(order.customerId)?.phone || null : null,
+    customerEmail: order.customerId ? contactoPorCliente.get(order.customerId)?.email || null : null,
     customerCountryCode: order.customerId ? contactoPorCliente.get(order.customerId)?.countryCode || '+595' : '+595',
     warranty: order.warrantyCaseId ? garantiaPorId.get(order.warrantyCaseId) || null : null,
   })))

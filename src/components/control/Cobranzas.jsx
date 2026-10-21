@@ -14,6 +14,8 @@ import Popup from '@/components/shared/Popup'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
+import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { plantillaDeCuota } from '@/lib/avisos'
 import { cn } from '@/lib/utils'
 import './finanzasTactil.css'
 import { temaV2Activo } from '@/lib/temaV2'
@@ -91,6 +93,13 @@ export default function Cobranzas() {
           {row.whatsappUrl
             ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('min-h-11 rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-on-ok transition disabled:opacity-50 lg:min-h-0')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
             : <span className="text-xs text-mute">Sin WhatsApp</span>}
+          <AvisarPorCorreo
+            email={row.email}
+            category="COLLECTIONS"
+            evento={plantillaDeCuota(vencida)}
+            title={row.customerName}
+            contexto={{ cliente: row.customerName || 'cliente', nombre: row.customerName || 'cliente', pedido: codigoPedido(row.orderNumber), vencimiento: fecha(row.dueAt), saldo_pendiente: gs(row.saldoPendientePyg), dias_atraso: String(diasDeAtraso(row.dueAt)), total: gs(row.totalPyg ?? row.saldoPendientePyg) }}
+          />
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => abrirPedido(row)}>Abrir pedido</Button>
         </div>
       </article>

@@ -7,7 +7,7 @@ import Icon from '@/components/shared/Icon'
 import { Textarea } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { whatsappUrl } from '@/utils/telefono'
-import { renderPlantilla } from '@/lib/whatsappPlantillas'
+import { canalDe, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 
@@ -79,7 +79,7 @@ export default function WhatsAppMenu({
     }
   }, [abierto])
 
-  const activas = lista.filter((item) => item.isActive !== false && (!item.category || item.category === category))
+  const activas = lista.filter((item) => item.isActive !== false && canalDe(item) !== 'email' && (!item.category || item.category === category))
   // Orden de preferencia: la última usada, la sugerida para el contexto actual
   // (p. ej. la plantilla del estado de una orden de servicio), la
   // predeterminada de la categoría y, si no hay nada, la primera activa.
@@ -142,7 +142,7 @@ export default function WhatsAppMenu({
     setCargando(true); setError('')
     try {
       const rows = await api.get(`/api/message-templates?category=${encodeURIComponent(category)}`)
-      const activasRemotas = (Array.isArray(rows) ? rows : []).filter((item) => item.isActive !== false && (!item.category || item.category === category))
+      const activasRemotas = (Array.isArray(rows) ? rows : []).filter((item) => item.isActive !== false && canalDe(item) !== 'email' && (!item.category || item.category === category))
       setLista(Array.isArray(rows) ? rows : [])
       setCargado(true)
       const principal = principalDe(activasRemotas)

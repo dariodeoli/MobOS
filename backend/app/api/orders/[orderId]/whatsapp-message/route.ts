@@ -30,11 +30,20 @@ type OrderForMessage = {
   customer: { name: string | null; phone: string | null; countryCode: string | null } | null
   branch: { name: string } | null
   seller: { name: string } | null
+  tenant?: { name: string } | null
+  items?: unknown
   payments: Array<{ amountPyg: bigint | number }>
 }
 
 // Variables del contexto ORDERS compartidas por el aviso automático y el envío
 // con plantilla elegida. Los alias viejos siguen funcionando.
+function primerProducto(items: unknown) {
+  const lista = Array.isArray(items) ? items as Array<Record<string, unknown>> : []
+  const primero = lista.find(item => item && typeof item === 'object')
+  const nombre = primero?.description ?? primero?.name ?? primero?.productName
+  return typeof nombre === 'string' ? nombre : ''
+}
+
 function variablesDe(order: OrderForMessage) {
   const paid = order.payments.reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
   const pending = Math.max(0, numero(order.totalPyg) - paid)
@@ -51,6 +60,8 @@ function variablesDe(order: OrderForMessage) {
     sucursal,
     branch_name: sucursal,
     vendedor: order.seller?.name || '',
+    empresa: order.tenant?.name || '',
+    producto: primerProducto(order.items),
     fecha: order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-PY') : '',
     reservation_until: '',
   }
@@ -60,6 +71,7 @@ const orderInclude = {
   customer: { select: { name: true, phone: true, countryCode: true } },
   branch: { select: { name: true } },
   seller: { select: { name: true } },
+  tenant: { select: { name: true } },
   payments: { where: { status: 'CONFIRMED' as const, ...COUNTABLE_PAYMENT_WHERE }, select: { amountPyg: true } },
   // #178: el pedido nuevo no guarda su token histórico en claro; el enlace de
   // seguimiento del mensaje sale del enlace vigente de nivel rápido.
@@ -69,7 +81,7 @@ const orderInclude = {
 function buildPayload(order: OrderForMessage, template: { body: string; isActive: boolean } | null, fallback: string) {
   const tokenSeguimiento = order.publicToken || order.accessTokens[0]?.token || ''
   const trackingUrl = tokenSeguimiento ? `${process.env.MOBOS_APP_URL || 'https://app.moboss.online'}/pedido/${tokenSeguimiento}` : ''
-  const variables = { ...variablesDe(order), tracking_url: trackingUrl }
+  const variables = { ...variablesDe(order), tracking_url: trackingUrl, seguimiento: trackingUrl }
   const body = template?.isActive === false ? '' : (template?.body || fallback)
   const message = `${render(body, variables)}${trackingUrl && !body.includes('{{tracking_url}}') ? `\n${trackingUrl}` : ''}`.trim()
   const phone = internationalPhone(order.customer?.phone, order.customer?.countryCode)

@@ -13,6 +13,8 @@ import Icon from '@/components/shared/Icon'
 import MenuSecundario from '@/components/shared/MenuSecundario'
 import ChipsFiltro from '@/components/ventas/ChipsFiltro'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
+import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { plantillaDeTaller } from '@/lib/avisos'
 import SerialField from '@/components/shared/SerialField'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { fechaHora } from '@/utils/fecha'
@@ -887,6 +889,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 contexto={contextoWhatsApp(detalle)}
               />
             )}
+            <AvisarPorCorreo email={detalle.customerEmail} category="SERVICE" evento={plantillaDeTaller(detalle.status)} contexto={contextoWhatsApp(detalle)} title={detalle.customerName} />
             <Button type="button" variant="outline" title="Imprimir recepción (2 copias)" onClick={() => imprimir(detalle, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" />Recepción</Button>
             <Button type="button" variant="outline" title="Imprimir recepción 80 mm" onClick={() => imprimir(detalle, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" />80 mm</Button>
             <Button type="button" variant="outline" title="Reporte técnico" onClick={() => imprimir(detalle, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" />Reporte</Button>
