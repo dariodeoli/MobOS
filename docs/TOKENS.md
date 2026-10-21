@@ -135,3 +135,31 @@ vive acá por pedido del issue #400. Los define `src/index.css` (`:root` y
   oscuro 5.7 (fg-2) y 5.8 (bad). Si se cambia un valor, repetir esa medición.
 - **No es solo color**: cada fila lleva «Nuevo»/«Semi nuevo» como texto para
   lectores de pantalla y en el tooltip del modelo (`data-condicion` en el DOM).
+
+## Desbloqueo del mismo operador (#639)
+
+`POST /api/auth/unlock` confirma el PIN de la **sesión SELLER ya vigente**. Es
+una confirmación local de identidad, no un ingreso a la empresa: no recibe un
+usuario/tenant objetivo, no emite ni renueva tokens/cookies, no extiende TTL y
+no permite cambiar operador. Se admite la sesión que emitió una invitación,
+sin convertirla en COMPANY. `/api/auth/pin` conserva su requisito de sesión
+COMPANY para ingresar o cambiar de usuario.
+
+- Sesión, usuario, tenant, sucursal, horario y pertenencia deben seguir vigentes.
+  La autorización y el PIN se revalidan con locks y reloj de Postgres posterior
+  a los locks, sin confiar en datos de identidad del navegador.
+- Un PIN incorrecto con sesión válida responde **422 `INVALID_PIN`**: no es una
+  sesión vencida y no debe purgar el respaldo privado del operador. Los cinco
+  intentos fallidos y el bloqueo temporal se comparten con el ingreso por PIN.
+- Bloqueo temporal o presupuesto de consultas: **429** con `Retry-After`.
+  El presupuesto por sesión es obligatorio aun sin IP de proxy confiable;
+  las fallas de base no habilitan acceso ni un contador ilimitado en memoria.
+- Una sesión vencida/revocada o contexto no autorizado responde **401
+  `SELLER_SESSION_REQUIRED`**: el cliente invalida respaldos privados y ofrece
+  cerrar sesión/reingresar o solicitar una nueva invitación. Una respuesta200
+  cuya identidad, rol, permisos efectivos o sucursal difieran del contexto
+  visible tampoco desbloquea: se invalida la sesión local y el respaldo y se
+  pide reingreso. El PIN no recupera
+  por sí solo credenciales vencidas. El borrador de venta no se descarta.
+- JSON limitado a 1 KiB, 2 segundos y un solo campo `pin`. No se reciben ni
+  exponen credenciales en URLs, logs, respuestas o almacenamiento del navegador.

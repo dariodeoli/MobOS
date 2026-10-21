@@ -47,6 +47,7 @@ env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/sus
 
 # #638: diferenciar sesión de empresa ausente del PIN sin ampliar el acceso.
 env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/pin-unlock-pg.mjs"
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/seller-unlock-pg.mjs"
 
 free_port() {
   node -e "const net=require('net'); const s=net.createServer(); s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port)); s.close();});"
@@ -599,6 +600,7 @@ node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "
 # porque vive en AuthAttempt de la base, no en memoria del proceso.
 node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" branch-a-it "$RUC_PILOT_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/inventory-apple-variant.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Lib de traslado y de seriales en pedidos dentro de una transacción (#408)..."
 (cd "$BACKEND_ROOT" && node tests/lib-traslado-seriales.cjs)
@@ -657,6 +659,7 @@ node "$BACKEND_ROOT/tests/store-branch.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/payment-account-defaults.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/account-parties.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/seller-pin.mjs" "$BASE_URL" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/seller-unlock-http.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/cookie-session.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/mi-cuenta.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/account-delete.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"

@@ -6,8 +6,8 @@ import { pinValido } from './pin'
 import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin } from './google-oauth'
 import { accountForTenantPassword, hasActiveMembership } from './membership'
 
-const MAX_FAILED_ATTEMPTS = 5
-const LOCKOUT_MINUTES = 15
+export const MAX_FAILED_ATTEMPTS = 5
+export const LOCKOUT_MINUTES = 15
 const SESSION_DAYS = 7
 const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000
 

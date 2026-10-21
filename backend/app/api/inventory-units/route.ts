@@ -1,7 +1,8 @@
+import { isAppleDeviceProduct } from '../../../lib/apple-device.mjs'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removalFields, restoreFields } from '../../../lib/inventory'
 import { normalizarCosto } from '../../../lib/costs'
@@ -226,7 +227,9 @@ export async function PATCH(request: Request) {
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
   const action = body.action === undefined ? 'adjust' : body.action
-  if (!['adjust', 'details', 'remove', 'restore', 'move', 'inspection'].includes(action)) return error('Acción de inventario inválida.')
+  if (!['adjust', 'details', 'remove', 'restore', 'move', 'inspection', 'variant'].includes(action)) return error('Acción de inventario inválida.')
+  if (action === 'variant' && (!['ADMIN', 'GERENTE'].includes(session.user.role) || !canAccessAny(session.user, ['products:manage']))) return error('No autorizado para editar el catálogo.', 403)
+  if (action === 'variant' && body.variantScope !== 'PRODUCT') return error('Confirmá que la variante cambia el catálogo para todas las unidades.', 400)
   // #240 PhoneCheck: checklist de inspección + grado calculado en el servidor.
   if (action === 'inspection') {
     const inspeccion = body?.inspection
@@ -295,6 +298,39 @@ export async function PATCH(request: Request) {
         const data = await tx.inventoryUnit.update({ where: { id }, data: { locationId: destino } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_MOVED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, from: before.locationId, to: destino } } })
         return data
+      }
+      // La variante es parte del catálogo Apple compartido por las unidades.
+      // No toca stock, costos, IMEI, sucursal ni el estado de la unidad.
+      if (action === 'variant') {
+        if (!['ADMIN', 'GERENTE'].includes(session.user.role)) throw new Error('Solo administración puede editar la variante del catálogo.')
+        if (before.status === 'SOLD') throw new Error('Una unidad vendida conserva su variante histórica.')
+        await tx.$queryRaw(Prisma.sql`SELECT id FROM "Product" WHERE id = ${before.productId} AND "tenantId" = ${tenant} FOR UPDATE`)
+        const product = await tx.product.findFirst({ where: { id: before.productId, tenantId: tenant, isActive: true }, select: { id: true, name: true, model: true, capacity: true, color: true, branchId: true, category: true, accessoryCategory: true } })
+        if (!product) throw new Error('Producto no encontrado.')
+        const userBranchId = session.user.branchId ?? await sucursalEfectiva(session)
+        if ((userBranchId === null && product.branchId !== null) || (userBranchId && product.branchId !== null && product.branchId !== userBranchId)) throw new Error('No autorizado para esa sucursal de catálogo.')
+        if (!isAppleDeviceProduct(product)) throw new Error('La edición de variante sólo está disponible para dispositivos Apple.')
+        const field = (value: unknown, label: string, max: number) => {
+          if (value === undefined) return undefined
+          if (value === null) return null
+          if (typeof value !== 'string') throw new Error(`${label} debe ser texto.`)
+          if (value.trim() === '') return null
+          const clean = String(value).trim()
+          if (clean.length > max) throw new Error(`${label} supera el máximo de ${max} caracteres.`)
+          return clean
+        }
+        const variant = { model: field(body.model, 'El modelo', 80), capacity: field(body.capacity, 'La capacidad', 20), color: field(body.color, 'El color', 60) }
+        if (Object.values(variant).every(value => value === undefined)) throw new Error('No hay cambios de variante.')
+        if (Object.entries(variant).every(([key, value]) => (value === undefined ? product[key as 'model' | 'capacity' | 'color'] : value) === null)) throw new Error('Completá al menos un dato de la variante.')
+        const proposed = { ...product, ...Object.fromEntries(Object.entries(variant).filter(([, value]) => value !== undefined)) }
+        if (!isAppleDeviceProduct(proposed)) throw new Error('El modelo debe seguir identificando un dispositivo Apple; los accesorios se editan desde su catálogo.')
+        const changed = Object.entries(variant).some(([key, value]) => value !== undefined && value !== product[key as 'model' | 'capacity' | 'color'])
+        if (!changed) return tx.inventoryUnit.findUniqueOrThrow({ where: { id } })
+        const data = await tx.product.update({ where: { id: product.id }, data: variant })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_APPLE_VARIANT_UPDATED', entity: 'Product', entityId: product.id, metadata: { variantScope: 'PRODUCT', unitId: id, serial: before.serial, before: { model: product.model, capacity: product.capacity, color: product.color }, after: { model: data.model, capacity: data.capacity, color: data.color } } } })
+        const updatedUnit = await tx.inventoryUnit.findUnique({ where: { id } })
+        if (!updatedUnit) throw new Error('Unidad no encontrada después de actualizar la variante.')
+        return updatedUnit
       }
       if (action === 'remove') {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')

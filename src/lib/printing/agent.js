@@ -13,6 +13,7 @@ import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './pu
 import { puedeCaerAlDialogo, resolverCamino, tokenDeAgente } from './ruteo'
 import { impresoraDeTipo, recordarImpresoraDeTipo } from './preferencias'
 import { storeDemo } from './demo'
+import { crearConsultaEstadoAgente } from './healthAgente'
 
 export { puenteDe, resolverCamino, puedeCaerAlDialogo }
 export { esLoopback } from './ruteo'
@@ -358,30 +359,13 @@ export const guardarConfigImpresora = (cambios = {}) => {
   return siguiente
 }
 
-let cache = { hasta: 0, estado: null }
+const consultarEstadoAgente = crearConsultaEstadoAgente()
 
-// Consulta el agente con timeout corto: si no está, la app sigue funcionando
-// con el diálogo del navegador. Con token, el agente devuelve además las
-// impresoras detectadas y el estado de la cola.
-export async function estadoAgente({ forzar = false } = {}) {
-  // Demo (#194): no se sondea el agente de esta computadora.
+// El agente es opcional: sin una impresora o token configurados no se sondea
+// localhost. Imprimir permite sondear; Configuración puede forzar la detección.
+export async function estadoAgente({ forzar = false, accionExplicita = false } = {}) {
   if (isDemoRuntime) return { disponible: false, version: 'demo', equipo: 'Demo' }
-  const { url, token } = configImpresora()
-  if (!forzar && cache.estado && Date.now() < cache.hasta) return cache.estado
-  const control = new AbortController()
-  const timer = setTimeout(() => control.abort(), 1200)
-  try {
-    const respuesta = await fetch(`${url}/health`, { signal: control.signal, headers: token ? { 'x-mobos-print-token': token } : {} })
-    if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`)
-    const datos = await respuesta.json()
-    cache = { hasta: Date.now() + 5000, estado: { disponible: true, ...datos } }
-    return cache.estado
-  } catch {
-    cache = { hasta: Date.now() + 5000, estado: { disponible: false } }
-    return cache.estado
-  } finally {
-    clearTimeout(timer)
-  }
+  return consultarEstadoAgente(configImpresora(), { forzar, accionExplicita, contexto: revisionContextoImpresion })
 }
 
 const consultarAgente = async (camino, { method = 'GET', body, signal } = {}) => {
@@ -441,7 +425,7 @@ export async function sincronizarAgente(store) {
 // Camino que le toca a una impresora en ESTE dispositivo, consultando el
 // agente local (loopback). No imprime nada: solo decide.
 export async function caminoDeImpresion(store, impresora) {
-  const estado = await estadoAgente()
+  const estado = await estadoAgente({ accionExplicita: true })
   return { ...resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) }), agente: estado }
 }
 
@@ -493,7 +477,7 @@ export async function imprimirTicketRouter(ticket, { store, impresora, copias, u
   // Demo (#194): la impresión no está disponible; se avisa claro y no se toca
   // ni el agente local ni el backend.
   if (isDemoRuntime) return { ok: false, camino: 'demo', motivo: 'demo', error: 'Datos ficticios de demostración: la impresión no está disponible en el demo.' }
-  const estado = await estadoAgente()
+  const estado = await estadoAgente({ accionExplicita: true })
   const { camino } = resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) })
   if (camino === 'local') {
     const local = await imprimirTicketDirecto(ticket, {
@@ -604,7 +588,7 @@ export async function imprimirDocumento(ticket, { contexto = revisionContextoImp
   // abierta incluso si el agente local tarda; la disponibilidad se consulta
   // en la llamada recursiva que envía el raster.
   const configuracionExplicita = typeof ticket === 'function' && Boolean(store && impresora)
-  const estado = configuracionExplicita ? { disponible: false } : await estadoAgente()
+  const estado = configuracionExplicita ? { disponible: false } : await estadoAgente({ accionExplicita: true })
   // Sin agente local, la configuración del backend manda: el celular puede
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
   // destino equivocado. Si el backend no responde, se usa la última caché.
