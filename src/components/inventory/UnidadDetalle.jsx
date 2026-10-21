@@ -316,10 +316,9 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     event.preventDefault()
     // #233/#219: en la demo los seriales son ficticios (AUR…, 16 caracteres);
     // en la cuenta real el IMEI es de 15 dígitos.
-    const validacionDemo = esDemo ? validarImeiDemo(consultasImei) : null
-    if (esDemo && !validacionDemo.ok) { setConsultaError(validacionDemo.error); return }
-    const imei = esDemo ? validacionDemo.imei : consultasImei.replace(/\D/g, '')
-    if (!esDemo && imei.length !== 15) { setConsultaError('Ingresá el IMEI completo de 15 dígitos.'); return }
+    const validacion = esDemo ? validarImeiDemo(consultasImei) : validarImeiConsulta(consultasImei)
+    if (!validacion.ok) { setConsultaError(validacion.error); return }
+    const imei = validacion.imei
     setConsultaBusy(true); setConsultaError('')
     try {
       const filas = esDemo ? consultasDemoImei(imei) : await api.get(`/api/imei?imei=${encodeURIComponent(imei)}`).then(datos => datos?.consultas || [])

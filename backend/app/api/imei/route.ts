@@ -29,6 +29,7 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
   const verCrudo = ROLES_VER_CRUDO.includes(session.user.role)
   const imei = validarImei(params.get('imei') ?? '')
+  if (params.has('imei') && !imei.ok) return error(imei.error, 400)
   const consultas = await prisma.imeiCheckQuery.findMany({
     where: { tenantId: tenant, ...(imei.ok ? { imei: imei.imei } : {}) },
     orderBy: { requestedAt: 'desc' },
