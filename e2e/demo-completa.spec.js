@@ -195,6 +195,13 @@ test.describe('demo completa · acciones', () => {
     await expect(page.getByText('Regla por usuario').first()).toBeVisible()
     await expect(page.getByText('Borrador').first()).toBeVisible()
     await expect(page.getByText('Pagada').first()).toBeVisible()
+    // Cobra el borrador sembrado y cierra la liquidación del mes de un vendedor.
+    await page.getByRole('button', { name: 'Marcar como pagada' }).first().click()
+    await expect(page.getByTestId('comisiones-por-pagar')).toContainText('Gs 0')
+    await page.getByLabel('Vendedor de la liquidación').fill('Diego')
+    await page.getByRole('option', { name: /Diego López/ }).first().click()
+    await page.getByRole('button', { name: 'Cerrar liquidación' }).click()
+    await expect(page.getByText('Liquidación cerrada')).toBeVisible()
   })
 
   test('delivery: viajes, tarifas y cierre semanal con datos', async ({ page }) => {
