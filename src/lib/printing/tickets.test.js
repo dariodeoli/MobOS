@@ -523,7 +523,10 @@ test('la etiqueta de unidad separa modelo, identificador, IMEI, QR y barras (#22
 
 // #240: el informe de dispositivo imprime equipo, IMEI enmascarado,
 // verificación IMEI, inspección física, garantía y el QR al informe público.
-test('el informe de dispositivo imprime el equipo, el IMEI y el QR público (#240)', () => {
+test('el informe de dispositivo imprime el equipo, el IMEI y el QR público (#240)', (t) => {
+  // La vigencia del ticket debe usar el mismo reloj que los datos de la fixture.
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-22T10:00:00Z').getTime() })
+  t.after(() => t.mock.timers.reset())
   const datos = datosInformeDispositivo({
     serial: '356789102345673',
     condition: 'USED',
