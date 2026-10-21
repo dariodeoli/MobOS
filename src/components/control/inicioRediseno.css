@@ -18,9 +18,9 @@
 .inicio-atajo:active { transform: translateY(0); }
 .inicio-atajo:focus-visible { outline: 2px solid rgb(var(--c-fono)); outline-offset: 2px; }
 .inicio-atajo__icono { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: rgb(var(--c-fono) / 0.12); color: rgb(var(--c-fono-text, var(--c-fono))); }
-.inicio-atajo[data-principal='true'] { background: rgb(var(--c-fono)); border-color: rgb(var(--c-fono)); color: #fff; }
-.inicio-atajo[data-principal='true'] .inicio-atajo__icono { background: rgb(255 255 255 / 0.2); color: #fff; }
-.inicio-atajo[data-principal='true'] .inicio-atajo__ayuda { color: rgb(255 255 255 / 0.85); }
+.inicio-atajo[data-principal='true'] { background: rgb(var(--c-fono)); border-color: rgb(var(--c-fono)); color: rgb(var(--c-onbrand)); }
+.inicio-atajo[data-principal='true'] .inicio-atajo__icono { background: rgb(var(--c-onbrand) / 0.14); color: rgb(var(--c-onbrand)); }
+.inicio-atajo[data-principal='true'] .inicio-atajo__ayuda { color: rgb(var(--c-onbrand)); }
 .inicio-atajo__texto { display: grid; min-width: 0; }
 .inicio-atajo__titulo { font-size: 16px; font-weight: 700; line-height: 22px; }
 .inicio-atajo__ayuda { font-size: 12px; line-height: 16px; color: rgb(var(--c-mute)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
