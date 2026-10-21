@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import PinTeclado from '@/components/shared/PinTeclado'
+import { aplicarTecla, largoPin } from '@/components/shared/pinPadReglas'
 import { isNativeIOS } from '@/lib/plataforma'
 import { Keyboard } from '@capacitor/keyboard'
 import { App } from '@capacitor/app'
@@ -61,7 +62,7 @@ export default function PinSegmentado({
       void listener?.remove()
     }
   }, [tactil])
-  const total = Math.min(6, Math.max(4, Number(length) || 4))
+  const total = largoPin(length)
   const largo = String(value || '').length
   const refGrupo = useRef(null)
   const [enfocado, setEnfocado] = useState(false)
@@ -149,7 +150,7 @@ export default function PinSegmentado({
         className="absolute inset-0 h-full w-full cursor-text border-0 bg-transparent p-0 text-base opacity-0 outline-none [caret-color:transparent]"
       />
       </div>
-      {tactil && <PinTeclado disabled={disabled || exito} completo={largo >= total} vacio={!largo} onDigito={digito => actualizar(`${value}${digito}`)} onBorrar={() => actualizar(String(value).slice(0, -1))} />}
+      {tactil && <PinTeclado disabled={disabled || exito} completo={largo >= total} vacio={!largo} onTecla={tecla => actualizar(aplicarTecla(value, tecla, total))} />}
     </div>
   )
 }

@@ -29,6 +29,8 @@ const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 const Ops = lazy(() => import('@/pages/Ops'))
 // Preview de diseño (#279): A3/A5 del plan #250, solo DEV.
 const PreviewDiseno = lazy(() => import('@/pages/preview/PreviewDiseno'))
+// Biblioteca de objetos: ruta /biblioteca solo para el dueño (docs/PLANTILLA-OBJETOS.md).
+const Biblioteca = lazy(() => import('@/pages/preview/BibliotecaUI'))
 let BibliotecaUI
 if (import.meta.env.DEV) BibliotecaUI = lazy(() => import('@/pages/preview/BibliotecaUI'))
 // Bloques compartidos del rediseño (docs/PANTALLAS.md): solo DEV, para el spec de layout.
@@ -431,6 +433,8 @@ export default function App() {
           <Route path="/comparador" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           {/* #303: Centro de Control (lista por modelo y fotos del comparador). */}
           <Route path="/centro-control" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          {/* Biblioteca de objetos: catálogo visual interno, solo dueño. */}
+          <Route path="/biblioteca" element={<AreaProtegida owner><Biblioteca /></AreaProtegida>} />
           <Route path="/tradein" element={<Navigate to="/trade-in" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
                     <Route path="/u/:serial" element={<InformePublico />} />

@@ -331,6 +331,20 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
 > `lg` (contenido a la izquierda, formulario fijo a la derecha con `sticky`) y
 > apilado compacto en móvil (`<PanelDerecho panel={…}>…contenido…</PanelDerecho>`).
 
+### 5.1 Popup único y teclado de PIN (biblioteca de objetos)
+
+**Qué usar y cuándo** (para pantallas nuevas y rediseños; los popups actuales
+se migran de a una pantalla, no todos juntos):
+
+| Necesidad | Objeto | Notas |
+| --- | --- | --- |
+| Confirmar / avisar / formulario / detalle | `shared/Popup` (`tipo="confirmar" \| "aviso" \| "formulario" \| "detalle"`, `tamano` sm/md/lg/xl) | Mismo marco: título + X roja de 44 px, cuerpo libre, pie `acciones={{ primaria, secundaria, peligro }}` (el `peligro` reemplaza a la primaria). Móvil <768 px: hoja desde abajo; escritorio: centrado. Esc, foco atrapado y devuelto, scroll bloqueado, `busy`, animación con `prefers-reduced-motion`. Reglas en `shared/popupReglas.js`. |
+| PIN de 4–6 dígitos | `shared/PinPad` (envuelve `PinSegmentado` + `PinTeclado`) | Teclas redondas de hasta 80 px, 4 puntos, borrar, `onComplete` al llegar al último dígito. Usado en login, demo y bloqueo. Lógica de teclas en `shared/pinPadReglas.js`. El POS y las autorizaciones migran después. |
+| Catálogo visual | Página `/biblioteca` (solo dueño; en desarrollo `/biblioteca-ui`) = `pages/preview/BibliotecaUI.jsx` | Botones, campos, Popup (5 tipos), PinPad, tarjetas, chips, tabla, toasts, vacíos; claro/oscuro. Todo objeto nuevo se agrega ahí. |
+
+`Modal`, `VentanaDetalle` y `BottomSheet` siguen existiendo hasta migrar sus
+pantallas; no crear un cuarto marco.
+
 ## 5 bis. Navegación y shell
 
 El shell se arma con los objetos de la biblioteca (barra lateral, menú, cajón,
