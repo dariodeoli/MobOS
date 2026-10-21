@@ -37,6 +37,9 @@ import ResaltarAjuste from '@/components/control/config/ResaltarAjuste'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { destinoAjuste } from '@/lib/configIndice'
 import { grupoShellDeTab } from '@/components/stock/stockHelpers'
+import '@/components/shared/gestionRediseno.css'
+
+const VISTAS_GESTION = new Set(['resumen', 'metricas', 'mi-cuenta', 'cotizaciones', 'plantillas', 'promociones', 'precios', 'campanas', 'tradein-admin', 'cotizador', 'celulares', 'comparador', 'centro-control'])
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -451,6 +454,8 @@ export default function PanelVendedor() {
   // El slug plano de la URL define la vista (/pos, /pedidos, /trade-in…).
   const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
+  // Rediseño de gestión: estas vistas comparten el lenguaje visual de gestionRediseno.css.
+  const esVistaGestion = subpadre === 'finanzas' || subpadre === 'analisis' || (!subpadre && VISTAS_GESTION.has(vista))
   const tabsConfig = tabsRuta
   // En las subpáginas el título es la pestaña activa (la sección va en la miga).
   // Stock: la pestaña del shell (Unidades · Traslados · Control) es el título.
@@ -960,7 +965,7 @@ export default function PanelVendedor() {
           </div>
         )}
 
-        <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
+        <main data-gestion={esVistaGestion ? '1' : undefined} className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
           <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
           {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (<>

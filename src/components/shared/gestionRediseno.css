@@ -1,0 +1,107 @@
+/* Rediseño de las vistas de gestión (Finanzas, Análisis, Resumen, Métricas,
+   Mi cuenta, Cotizaciones, Plantillas, Promociones, Precios, Campañas, Trade-in,
+   Lista por modelo, Comparador, Centro de control). Mismo lenguaje y tokens que
+   Pedidos / Clientes / Productos / Configuración: tarjetas con radio 12, KPI en
+   una línea, filas con respuesta táctil, badges en píldora con punto, pestañas
+   subrayadas y entrada suave. Solo capa visual, acotada por [data-gestion]
+   (lo fija PanelVendedor en <main> para esas vistas). */
+
+[data-gestion] {
+  --gst-radius: 12px;
+  --gst-line: rgb(var(--c-ink-600));
+  --gst-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- Entrada: el contenido aparece escalonado --------------------------- */
+[data-gestion] > div > * { animation: gst-entra 0.3s var(--gst-ease) both; }
+[data-gestion] > div > *:nth-child(2) { animation-delay: 30ms; }
+[data-gestion] > div > *:nth-child(3) { animation-delay: 60ms; }
+[data-gestion] > div > *:nth-child(n + 4) { animation-delay: 90ms; }
+
+/* ---- Tarjetas y métricas ------------------------------------------------ */
+[data-gestion] .rounded-xl.border.shadow-card { border-radius: var(--gst-radius); transition: box-shadow 0.2s var(--gst-ease); }
+[data-gestion] .rounded-xl.border.shadow-card:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 0.07); }
+
+/* KPI en una línea, sin caja: se apoya en la línea divisoria. */
+[data-gestion] [role='group'][aria-label][tabindex='0'].overflow-x-auto {
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+[data-gestion] [role='group'][aria-label][tabindex='0'].overflow-x-auto > div { white-space: nowrap; }
+[data-gestion] .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ---- Tablas y filas densas ---------------------------------------------- */
+[data-gestion] table { border-collapse: separate; border-spacing: 0; }
+[data-gestion] thead th {
+  background: rgb(var(--c-ink-800));
+  font-size: 11px;
+  font-weight: 600;
+}
+[data-gestion] tbody tr { transition: background-color 0.15s var(--gst-ease); }
+[data-gestion] tbody tr:hover { background: rgb(var(--c-ink-800)); }
+[data-gestion] tbody tr:active { background: rgb(var(--c-ink-700)); }
+
+/* ---- Badges: píldora suave con punto de color --------------------------- */
+[data-gestion] span.inline-flex.rounded-md.border.px-2.text-xs.font-medium {
+  gap: 5px;
+  border-radius: 999px;
+  padding: 2px 9px 2px 7px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+[data-gestion] span.inline-flex.rounded-md.border.px-2.text-xs.font-medium::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---- Pestañas / segmentos: subrayado de marca ---------------------------- */
+[data-gestion] [role='tablist'] { scrollbar-width: none; max-width: 100%; }
+[data-gestion] [role='tablist']::-webkit-scrollbar { display: none; }
+[data-gestion] [role='tab'] { transition: color 0.18s var(--gst-ease), background-color 0.18s var(--gst-ease); }
+[data-gestion] [role='tab'][aria-selected='true'] { position: relative; }
+[data-gestion] [role='tab'][aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgb(var(--c-fono));
+  transform-origin: left center;
+  animation: gst-subraya 0.22s var(--gst-ease);
+}
+
+/* ---- Acciones: respuesta táctil ------------------------------------------ */
+[data-gestion] button:not(:disabled):active { transform: scale(0.97); }
+[data-gestion] button { transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; }
+
+/* ---- Celular: sin desborde horizontal ------------------------------------ */
+@media (max-width: 639px) {
+  [data-gestion] { overflow-x: clip; }
+  [data-gestion] table { max-width: 100%; }
+}
+
+@keyframes gst-entra {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes gst-subraya {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-gestion],
+  [data-gestion] *,
+  [data-gestion] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  [data-gestion] button:active { transform: none !important; }
+}

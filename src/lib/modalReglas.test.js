@@ -132,7 +132,7 @@ test('los modales de FIN adoptan cierre con cambios y error junto al campo (#323
   const precios = leer('../components/control/Precios.jsx')
   assert.ok(precios.includes('dirty={editorDirty}'), 'Precios confirma al cerrar con cambios')
   assert.ok(precios.includes('useValidacionCampos') && precios.includes('errorDe('), 'Precios valida junto al campo')
-  assert.ok(precios.includes('<SaveActions'), 'el pie de Precios se monta en el pie fijo del diálogo')
+  assert.ok(precios.includes('<FormActions'), 'el pie de Precios lleva cancelar y guardar dentro del Popup único')
   assert.ok(!precios.includes("setError('Elegí el producto"), 'el error de ítem ya no va al Aviso de página (quedaba detrás del overlay)')
   assert.ok(precios.includes('avisar.guardado('), 'el guardado avisa con el resultado canónico')
 
@@ -146,7 +146,7 @@ test('los modales de FIN adoptan cierre con cambios y error junto al campo (#323
   assert.ok(plantillas.includes('dirty={editorDirty}'), 'el editor de plantilla confirma al cerrar con cambios')
   assert.ok(plantillas.includes('useValidacionCampos(REGLAS_EDITOR)'), 'la plantilla valida con las reglas compartidas')
   assert.ok(plantillas.includes('error={errorDe(\'nombre\')}') && plantillas.includes('error={errorDe(\'cuerpo\')}'), 'los errores van junto a los campos')
-  assert.ok(plantillas.includes('<SaveActions'), 'el pie de la plantilla se monta en el pie fijo del diálogo')
+  assert.ok(plantillas.includes('<FormActions'), 'el pie de la plantilla lleva cancelar y guardar dentro del Popup único')
   assert.ok(!plantillas.includes('<span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Mensaje</span>'), 'el rótulo suelto de Mensaje ya es label')
 })
 
@@ -218,6 +218,7 @@ test('detalles y vistas previas son una ventana centrada, nunca un panel lateral
   recorrer(carpeta)
   assert.deepEqual(culpables, [], 'ninguna pantalla abre un <Drawer (panel lateral)')
   for (const ruta of ['control/Compras', 'control/PaymentAccounts', 'control/ServicioTecnico', 'control/Gastos', 'control/Caja', 'control/TradeInPipeline', 'inventory/UnidadDetalle', 'ventas/SellerOrders', 'ventas/PedidoDetalle', 'productos/ProductoDetalle', 'shared/ReportePreview', 'shared/ComprobantePreview', 'shared/EtiquetasProductoModal']) {
-    assert.ok(leer(`../components/${ruta}.jsx`).includes('<VentanaDetalle'), `${ruta} abre VentanaDetalle`)
+    const fuente = leer(`../components/${ruta}.jsx`)
+    assert.ok(fuente.includes('<VentanaDetalle') || fuente.includes('<Popup'), `${ruta} abre VentanaDetalle o el Popup único`)
   }
 })
