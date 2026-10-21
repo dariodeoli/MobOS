@@ -7,7 +7,8 @@
 // (`dirty`), error junto al campo de la palabra (y no un aviso suelto) y pie
 // `SaveActions` con un solo primario destructivo.
 import { useEffect, useState } from 'react'
-import { Aviso, Button, FormField, Input, Modal, PasswordInput, SaveActions } from '@/components/ui'
+import { Aviso, Button, FormField, Input, PasswordInput } from '@/components/ui'
+import { Modal, SaveActions } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 
 export default function DialogoDestructivo({ open, title, description, palabra, necesitaClave = false, confirmLabel, busy, error, onCancel, onConfirm }) {

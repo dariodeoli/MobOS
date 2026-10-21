@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Input, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Input, Select } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 
 const CATEGORIAS = ['Todas', 'Operación', 'Finanzas', 'Clientes', 'Mensajes', 'IMEI', 'Comercial', 'Automatización', 'Facturación', 'Reportes', 'Salud', 'Configuración']

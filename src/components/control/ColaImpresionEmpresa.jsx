@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Select, useToast } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/popupKit'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
