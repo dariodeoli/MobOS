@@ -1,9 +1,12 @@
 import Icon from '@/components/shared/Icon'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { grupoConfig } from './gruposConfig'
+import BarraCambios from './BarraCambios'
 import './configTouch.css'
+import './configRediseno.css'
 
 // Configuración (#410): desde lg el menú de secciones vive en la segunda
 // columna del shell (MenuConfiguracion), así que acá solo queda el contenido
@@ -14,10 +17,11 @@ import './configTouch.css'
 export default function NavegacionConfig({ value, onChange, onModules, modulesActive = false, items = [], seccionAbierta = true, children }) {
   const angosta = usePantallaAngosta()
   const group = grupoConfig(value)
+  const [version, setVersion] = useState(0)
 
   if (angosta && !seccionAbierta) {
     return (
-      <div data-testid="config-pagina" className="config-pagina">
+      <div data-testid="config-pagina" className="config-pagina config-entra">
         <button
           type="button"
           data-testid="config-tienda-modulos"
@@ -33,7 +37,7 @@ export default function NavegacionConfig({ value, onChange, onModules, modulesAc
           <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fore">Tienda de módulos</span><span className="block truncate text-xs text-mute">Activá funciones para tu empresa</span></span>
           <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
         </button>
-        <nav aria-label="Secciones de Configuración" data-testid="config-grupos" data-lista-movil className="flex flex-col divide-y divide-ink-600 overflow-hidden rounded-xl border border-ink-600">
+        <nav aria-label="Secciones de Configuración" data-testid="config-grupos" data-lista-movil className="config-indice flex flex-col divide-y divide-ink-600 overflow-hidden rounded-2xl border border-ink-600 bg-ink">
           {items.map(([id, label]) => (
             <button
               key={id}
@@ -41,9 +45,9 @@ export default function NavegacionConfig({ value, onChange, onModules, modulesAc
               data-tab-id={id}
               aria-label={label}
               onClick={() => onChange(id)}
-              className="flex min-h-14 w-full items-center gap-3 px-3 text-left hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
+              className="flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
             >
-              <Icon name={grupoConfig(id)?.icono || 'settings'} className="h-5 w-5 shrink-0 text-mute" />
+              <span className="config-icono grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-700 text-fono-light"><Icon name={grupoConfig(id)?.icono || 'settings'} className="h-5 w-5" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-fore">{label}</span>
                 {grupoConfig(id)?.descripcion && (
@@ -60,7 +64,7 @@ export default function NavegacionConfig({ value, onChange, onModules, modulesAc
 
   return (
     <div data-testid="config-pagina" className="config-pagina mx-auto w-full max-w-[1280px]">
-      <div className="min-w-0">
+      <div key={value} className="config-subpagina min-w-0">
         <button
           type="button"
           data-testid="config-tienda-modulos"
@@ -87,7 +91,8 @@ export default function NavegacionConfig({ value, onChange, onModules, modulesAc
             </span>
           </header>
         )}
-        {children}
+        <BarraCambios onDescartar={() => setVersion(v => v + 1)} />
+        <div key={version} className="config-contenido">{children}</div>
       </div>
     </div>
   )
