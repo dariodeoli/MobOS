@@ -611,6 +611,7 @@ node "$BACKEND_ROOT/tests/unit-code.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "
 # Créditos IMEI: el control está activo en el arnés; la empresa A parte con un lote grande
 # para las pruebas que consultan IMEI sin ser sobre créditos (imei-credits-http.mjs los reajusta).
 "$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "INSERT INTO \"ImeiCreditLot\" (\"id\",\"tenantId\",\"source\",\"granted\",\"remaining\",\"note\") VALUES ('it-lote-base','tenant-a-it','GRANT',1000,1000,'arnés') ON CONFLICT (\"id\") DO NOTHING"
+node "$BACKEND_ROOT/tests/imei-history-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 echo "Consulta de IMEI: requestId por empresa y una sola llamada al proveedor (#193)..."
 node "$BACKEND_ROOT/tests/imei-request-id.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 echo "Créditos de verificación IMEI: consumo atómico, reembolso, cupo y panel de plataforma..."

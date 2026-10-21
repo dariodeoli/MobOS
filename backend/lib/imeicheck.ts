@@ -1,3 +1,6 @@
+import { validarImei } from './imei-input.mjs'
+export { validarImei } from './imei-input.mjs'
+
 // Adaptador aislado de IMEIcheck.net (#193) — FASE 1: MODO MOCK.
 //
 // Reglas duras:
@@ -51,21 +54,6 @@ export type EstadoConsulta = 'reservado' | 'verificado' | 'parcial' | 'conciliar
 export type CampoVerificacion = { clave: string; etiqueta: string; valor: string | null; fuente: string; hora: string | null }
 
 export const NO_VERIFICADO = 'No verificado'
-
-/** IMEI de 15 dígitos con checksum Luhn. Se valida antes de llamar. */
-export function validarImei(valor: unknown): { ok: true; imei: string } | { ok: false; error: string } {
-  const imei = String(valor ?? '').replace(/\D/g, '')
-  if (!imei) return { ok: false, error: 'Falta el IMEI.' }
-  if (imei.length !== 15) return { ok: false, error: 'El IMEI debe tener 15 dígitos.' }
-  let suma = 0
-  for (let i = 0; i < 15; i += 1) {
-    let digito = Number(imei[14 - i])
-    if (i % 2 === 1) { digito *= 2; if (digito > 9) digito -= 9 }
-    suma += digito
-  }
-  if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no pasa la verificación de dígito control (Luhn).' }
-  return { ok: true, imei }
-}
 
 /** El IMEI completo nunca se guarda ni se muestra en claro en pantallas. */
 export function enmascararImei(imei: string, visibles = 4): string {

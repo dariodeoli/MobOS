@@ -306,6 +306,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
         run: npm run build
+      - name: IMEI history input validation (synthetic frontend only)
+        if: matrix.shard == 1
+        run: npx playwright test --config=e2e/imei-history.config.js
       - name: Run E2E suite (shard ${{ matrix.shard }}/4)
         env:
           # El harness arranca el backend con `next start` sobre este build: sin
