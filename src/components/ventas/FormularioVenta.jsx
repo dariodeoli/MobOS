@@ -698,6 +698,25 @@ export default function FormularioVenta({
     }
   }
 
+  // Display-only quote for one unit. Never seed the cart cache or change sale lines.
+  const resolverPreciosCatalogo = useCallback(async productIds => {
+    const ids = [...new Set(productIds)].filter(Boolean)
+    const clienteId = customer?.id || ''
+    const params = { quantity: '1', ...(clienteId ? { customerId: clienteId } : {}) }
+    const prices = {}
+    if (esDemo) {
+      for (const productId of ids) prices[productId] = await resources.priceLists.pricing({ ...params, productId })
+    } else {
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const response = await resources.priceLists.pricing({ ...params, productIds: ids.slice(offset, offset + 100).join(',') })
+        if (!response || typeof response.prices !== 'object' || !response.prices) throw new Error('Precio no disponible')
+        for (const id of ids.slice(offset, offset + 100)) if (response.prices[id]) prices[id] = { ...response.prices[id], priceList: response.priceList ?? null }
+      }
+    }
+    return prices
+  }, [customer?.id, esDemo])
+  const contextoPreciosCatalogo = `${empresa?.id || ''}:${sucursal?.id || ''}:${customer?.id || ''}`
+
   // Aplica el precio resuelto por el servidor salvo que la fila tenga precio
   // manual o un cupón (el cupón ya viene cotizado por el servidor).
   async function aplicarPrecioResuelto(key, productoId, quantity) {
@@ -2334,6 +2353,8 @@ export default function FormularioVenta({
               combos={combos}
               agregarCombo={agregarCombo}
               noticeCombo={noticeCombo}
+              resolverPreciosCatalogo={resolverPreciosCatalogo}
+              contextoPreciosCatalogo={contextoPreciosCatalogo}
               familiasVisibles={familiasServidor ?? familiasVisibles}
               catalogoServidor={catalogoServidor.activo ? catalogoServidor : null}
               agregarProducto={agregarProducto}

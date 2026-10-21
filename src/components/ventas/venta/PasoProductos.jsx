@@ -6,6 +6,7 @@ import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
 import SelectorVariante from './SelectorVariante'
+import PrecioStockProducto from './PrecioStockProducto'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
@@ -69,6 +70,8 @@ export default function PasoProductos({
   agregarCombo,
   noticeCombo,
   familiasVisibles,
+  resolverPreciosCatalogo,
+  contextoPreciosCatalogo,
   catalogoServidor = null,
   agregarProducto,
   guardando,
@@ -98,6 +101,25 @@ export default function PasoProductos({
   const porBase = new Map(familiasVisibles.map(fam => [fam.base, fam]))
   // #354: con el catálogo paginado en el servidor la página ya viene cortada.
   const familiasPagina = catalogoServidor ? familiasVisibles : pagina.filas.map(base => porBase.get(base)).filter(Boolean)
+  const { sucursal, sucursales } = useSesion()
+  const idsPrecios = [...new Set([...familiasPagina.flatMap(fam => fam.items.map(item => item.id)), ...(variantePara?.items || []).map(item => item.id)])].sort().join(',')
+  const clavePrecios = `${contextoPreciosCatalogo}:${idsPrecios}`
+  const [cotizacion, setCotizacion] = useState({ key: '', prices: {}, status: 'loading' })
+  useEffect(() => {
+    let vigente = true
+    setCotizacion({ key: clavePrecios, prices: {}, status: 'loading' })
+    if (!idsPrecios || !resolverPreciosCatalogo) {
+      setCotizacion({ key: clavePrecios, prices: {}, status: 'empty' })
+      return () => { vigente = false }
+    }
+    resolverPreciosCatalogo(idsPrecios.split(','))
+      .then(prices => { if (vigente) setCotizacion({ key: clavePrecios, prices, status: 'ready' }) })
+      .catch(() => { if (vigente) setCotizacion({ key: clavePrecios, prices: {}, status: 'error' }) })
+    return () => { vigente = false }
+  }, [clavePrecios, idsPrecios, resolverPreciosCatalogo])
+  // Context keys also hide old quotes during the render before effect cleanup.
+  const precios = cotizacion.key === clavePrecios ? cotizacion.prices : {}
+  const preciosCargando = cotizacion.key !== clavePrecios || cotizacion.status === 'loading'
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
@@ -382,7 +404,6 @@ export default function PasoProductos({
               {familiasPagina.map(fam => {
                 const p = fam.items[0]
                 // Stock y datos de la ficha para elegir sin adivinar.
-                const stockFamilia = fam.items.reduce((suma, item) => suma + num(item.stock), 0)
                 // #287: las unidades físicas del producto (IMEI/serial) se ven
                 // como parte de la vista del producto; elegirlas es el paso
                 // siguiente al agregarlo.
@@ -404,15 +425,7 @@ export default function PasoProductos({
                         icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || categoriaMeta(p).icon}
                       />
                         <strong className="pos-product-name col-span-2 min-w-0 break-words md:col-span-1 text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
-                        <span className="col-span-2 flex flex-wrap items-baseline justify-between gap-x-2">
-                          <span className="min-w-0 text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
-                            {fam.items.length > 1 ? <span className="block text-[11px] font-medium text-mute">desde</span> : null}
-                            {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
-                          </span>
-                          {stockFamilia > 0
-                            ? <b className="min-w-0 text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : `${stockFamilia} en stock`}>{fotoFamilia ? stockFamilia : `${stockFamilia} en stock${fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}`}</b>
-                            : <b className="whitespace-nowrap text-[11px] font-semibold text-bad" title="Agotado">{fotoFamilia ? '0' : 'Agotado'}</b>}
-                        </span>
+                        <PrecioStockProducto productos={fam.items} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
                         {unidadesFamilia > 0 && (
                           <span className="col-span-2 block truncate text-[11px] text-mute">
                             {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
@@ -491,6 +504,10 @@ export default function PasoProductos({
 
       {/* #308: con más de una variante no se elige sola: selector obligatorio. */}
       <SelectorVariante
+        precios={precios}
+        preciosCargando={preciosCargando}
+        sucursal={sucursal}
+        sucursales={sucursales}
         abierto={Boolean(variantePara)}
         familia={variantePara}
         onElegir={producto => onElegirVariante?.(producto, { elegir: true })}
