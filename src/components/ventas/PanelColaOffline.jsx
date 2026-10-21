@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Modal, Button, ConfirmDialog, Badge, EmptyState } from '@/components/ui'
+import { Button, Badge, EmptyState } from '@/components/ui'
+import { Modal, ConfirmDialog } from '@/components/shared/popupKit'
 import { useColaOffline } from '@/hooks/useColaOffline'
 import { ETIQUETA_CONFLICTO, ETIQUETA_OTRA_EMPRESA, ETIQUETA_SIN_EMPRESA, esDeOtraEmpresa, esSinEmpresa } from '@/lib/offline/queue'
 import { contextoActual } from '@/lib/storage'

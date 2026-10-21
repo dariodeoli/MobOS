@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Aviso, Button, Modal, useToast, useValidacionCampos } from '@/components/ui'
+import { Aviso, Button, useToast, useValidacionCampos } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import { obligatorio } from 'owncoding-ui/utils'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { api } from '@/lib/api/client'

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { Button, Modal, MoneyInput, Textarea } from '@/components/ui'
+import { Button, MoneyInput, Textarea } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import CuentaCobroCombobox from './CuentaCobroCombobox'
 import { api } from '@/lib/api'

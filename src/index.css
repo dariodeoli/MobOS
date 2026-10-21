@@ -326,10 +326,9 @@ header button::after {
 /* #386: detalles y vistas previas son una ventana centrada, nunca un panel
    lateral. La X de cierre (la del Modal de la biblioteca) es roja y de 44 px;
    usa el par de tokens bad/on-bad para mantener el contraste en claro y oscuro.
-   En celular la ventana ocupa la pantalla con margen seguro. */
-.ventana-detalle { max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
-@media (min-width: 640px) { .ventana-detalle { max-height: min(90dvh, 880px); } }
-@media (max-width: 639px) { .ventana-detalle { height: calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-width: 100%; } }
+   `VentanaDetalle` ya monta el Popup único (shared/Popup): su tamaño y la hoja
+   móvil viven ahí; estas reglas solo cubren los Modal de la biblioteca que
+   queden en otras áreas. */
 .ventana-detalle > div:first-child { position: sticky; top: 0; z-index: 1; background: rgb(var(--c-ink)); }
 /* #461: TODA ventana (el Modal compartido incluido) cierra con la misma X roja grande. */
 .ventana-detalle > div:first-child > button[aria-label="Cerrar"],
