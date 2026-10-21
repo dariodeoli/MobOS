@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.241 — 2026-10-21
+
+- **Ventas:** el POS tiene diseño nuevo: catálogo y ticket lado a lado con el total y «Cobrar» siempre a la vista, y un «Falta cobrar» grande que baja con cada pago. En el celular, el cobro y la venta registrada se ven más claros, con el vuelto grande.
+- **Pedidos y Clientes:** listados con una sola barra (búsqueda, pestañas de estado, orden), página de pedido y de cliente al estilo Shopify con columna lateral y flechas anterior/siguiente.
+- **Inventario e Inicio:** Productos y Stock con barra única y ficha con lateral; Inicio saluda y ofrece accesos grandes a Vender, Pedidos, Clientes y Stock.
+- **Impresión:** comprobantes, cotizaciones, remitos, etiquetas y los correos al cliente comparten el encabezado y pie del comprobante premium.
+- **Otros:** landing y Configuración rediseñadas con animaciones suaves (se apagan si el equipo pide menos movimiento), teclado de PIN grande como en iPhone, popups iguales en toda la app y una Biblioteca interna de componentes para el dueño.
+
 ## v1.0.240 — 2026-10-21
 
 - **Inventario:** un IMEI incompleto o con dígito de control incorrecto muestra un aviso y no devuelve consultas ajenas a ese filtro; la ficha valida antes de buscar el historial.
