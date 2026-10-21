@@ -1,0 +1,20 @@
+/* Compras y abastecimiento: se apoya en gestionRediseno.css ([data-gestion]) y
+   suma lo propio de estas vistas: filas del flujo con borde fino y respuesta al
+   pasar, y avisos con entrada suave. Solo capa visual. */
+
+[data-compras] [data-testid='por-comprar-fila'] {
+  border-radius: 12px;
+  border: 1px solid rgb(var(--c-ink-600));
+  transition: background-color 0.15s var(--gst-ease), border-color 0.15s var(--gst-ease);
+}
+[data-compras] [data-testid='por-comprar-fila']:hover { border-color: rgb(var(--c-ink-500)); }
+[data-compras] [data-testid='por-comprar-comprado'],
+[data-compras] [data-testid='seleccion-lote'] { animation: gst-entra 0.25s var(--gst-ease) both; }
+
+@media (max-width: 639px) {
+  [data-compras] .compras-flujo { max-width: 100%; overflow-x: clip; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-compras] * { animation: none !important; transition: none !important; }
+}
