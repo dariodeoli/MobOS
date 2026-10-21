@@ -6,7 +6,7 @@ import { ensureCobro } from '../helpers/ensure-cobro.js'
 // denso y sin scroll horizontal. Demo frontend-only (sin backend).
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-pos-layout-qa'
 
-async function enterPos(page, width, height = 900, dark = false, conCarrito = false, inflar = 0) {
+async function enterPos(page, width, height = 900, dark = false, conCarrito = false, inflar = 0, abrirCobro = true) {
   await page.setViewportSize({ width, height })
   await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' })
   await page.route('**/api/**', route =>
@@ -25,7 +25,7 @@ async function enterPos(page, width, height = 900, dark = false, conCarrito = fa
     : page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true })
   await nav.getByRole('button', { name: 'Vender', exact: true }).click()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
-  if (conCarrito && width >= 1024) await ensureCobro(page)
+  if (conCarrito && abrirCobro && width >= 1024) await ensureCobro(page)
 }
 
 // Catálogo grande: clona productos del demo con nombres propios (inventario real).
@@ -70,13 +70,13 @@ async function assertNoOverlap(page, label) {
       cobro: boxes['pos-cobro'],
       cliente: boxes['pos-bloque-cliente'],
       productos: boxes['pos-bloque-productos'],
-      entrega: await page.locator('#entrega').boundingBox(),
+      entrega: await caja(page.locator('#entrega')),
       monto: await caja(page.locator('#monto-entrega')),
-      pagos: await page.getByTestId('pos-bloque-pagos').boundingBox(),
-      agregar: await page.getByRole('button', { name: '+ Agregar pago' }).boundingBox(),
-      gift: await page.getByRole('button', { name: '+ Canjear gift card' }).boundingBox(),
+      pagos: await caja(page.getByTestId('pos-bloque-pagos')),
+      agregar: await caja(page.getByRole('button', { name: '+ Agregar pago' })),
+      gift: await caja(page.getByRole('button', { name: '+ Canjear gift card' })),
       total: await page.getByTestId('carrito-total').boundingBox(),
-      tiles: await page.getByTestId('pos-tiles-resumen').boundingBox(),
+      tiles: await caja(page.getByTestId('pos-tiles-resumen')),
     }
     const col = boxes['pos-columna-venta']
     if (col && (await page.viewportSize()).width >= 1024) {
@@ -102,7 +102,7 @@ async function assertNoOverlap(page, label) {
 for (const width of [1280, 1440, 1920]) {
   test(`POS sin solapes ni scroll horizontal a ${width}px`, async ({ page }) => {
     await mkdir(out, { recursive: true })
-    await enterPos(page, width, 900, false, true)
+    await enterPos(page, width, 900, false, true, 0, false)
     await assertNoOverlap(page, `${width}`)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
     // Los importes completos no se cortan.
@@ -113,29 +113,40 @@ for (const width of [1280, 1440, 1920]) {
 }
 
 for (const width of [1280, 1440, 1920]) {
-  test(`escritorio ${width}: catálogo separado de cliente, carrito + cobro a la derecha, Cobrar sin deslizar y un solo Total`, async ({ page }) => {
+  test(`escritorio ${width}: catálogo a la izquierda, ticket fijo a la derecha, Cobrar sin deslizar y un solo Total`, async ({ page }) => {
     await mkdir(out, { recursive: true })
-    await enterPos(page, width, 900, false, true)
+    await enterPos(page, width, 900, false, true, 0, false)
     const cliente = await page.getByTestId('pos-bloque-cliente').boundingBox()
     const productos = await page.getByTestId('pos-bloque-productos').boundingBox()
     const columna = await page.getByTestId('pos-columna-venta').boundingBox()
     const carrito = await page.getByTestId('pos-bloque-carrito').boundingBox()
-    const cobro = await page.getByTestId('pos-cobro').boundingBox()
-    // Catálogo a la izquierda; cliente, carrito y cobro en la columna de venta.
+    // Catálogo a la izquierda; cliente y carrito en el ticket (rediseño del POS).
     expect(productos.x + productos.width).toBeLessThanOrEqual(columna.x + 1)
     expect(Math.abs(cliente.x - carrito.x)).toBeLessThan(2)
     expect(cliente.y + cliente.height).toBeLessThanOrEqual(carrito.y + 1)
-    expect(carrito.y + carrito.height).toBeLessThanOrEqual(cobro.y + 1)
-    // «Cobrar» (submit) alcanzable sin deslizar la página.
-    const cobrar = page.getByTestId('pos-cobro').locator('button[type="submit"]').first()
+    // Ticket de ancho fijo: 410 px desde 1280, algo menos en pantallas más chicas.
+    if (width >= 1280) expect(Math.abs(columna.width - 410)).toBeLessThanOrEqual(2)
+    // Sin scroll de página: el POS mide el alto de la pantalla.
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(900 + 2)
+    // «Cobrar» (abre el cobro) alcanzable sin deslizar la página.
+    const cobrar = page.getByTestId('carrito-listo')
     const b = await cobrar.boundingBox()
     expect(b.y + b.height, 'Cobrar dentro de la pantalla').toBeLessThanOrEqual(900)
     expect(b.height).toBeGreaterThanOrEqual(44)
-    // Un solo Total visible: en el pie del carrito, no repetido en el cobro.
+    await expect(cobrar).toContainText('Cobrar')
+    // Un solo Total visible: en el pie del ticket.
     await expect(page.getByTestId('carrito-total')).toHaveCount(1)
     await expect(page.getByTestId('cobro-total')).toHaveCount(1)
-    await expect(page.getByTestId('pos-cobro').getByTestId('carrito-total')).toHaveCount(0)
+    // El cobro es una pantalla propia: «Falta cobrar» y Confirmar sin deslizar.
+    await cobrar.click()
+    const cobro = page.getByTestId('pos-cobro')
+    await expect(cobro).toBeVisible()
+    await expect(page.getByTestId('pos-falta-hero')).toContainText('Falta cobrar')
+    await expect(cobro.getByTestId('carrito-total')).toHaveCount(0)
     await expect(page.getByTestId('pos-tiles-resumen')).not.toContainText('Total')
+    const guardar = await cobro.locator('button[type="submit"]').first().boundingBox()
+    expect(guardar.y + guardar.height, 'Confirmar dentro de la pantalla').toBeLessThanOrEqual(900)
+    expect(guardar.height).toBeGreaterThanOrEqual(44)
     if (width === 1440) await page.screenshot({ path: `${out}/pos-layout-1440.png` })
   })
 }
@@ -179,8 +190,9 @@ test('teléfono: código y número en una sola fila, RUC aparte y por contenido 
 
 test('POS oscuro a 1440 sin solapes', async ({ page }) => {
   await mkdir(out, { recursive: true })
-  await enterPos(page, 1440, 900, true, true)
+  await enterPos(page, 1440, 900, true, true, 0, false)
   await assertNoOverlap(page, 'dark')
+  await ensureCobro(page)
   await page.getByTestId('pos-cobro').scrollIntoViewIfNeeded()
   await page.screenshot({ path: `${out}/1440-pos-cobro.png` })
 })
@@ -241,16 +253,17 @@ async function elegirClienteDemo(page, texto = 'Luc') {
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
 }
 
-test('escritorio 1440: columnas 50/50, catálogo de 3 columnas y primer contenido arriba', async ({ page }) => {
+test('escritorio 1440: catálogo flexible, ticket de 410 px y primer contenido arriba', async ({ page }) => {
   await mkdir(out, { recursive: true })
-  await enterPos(page, 1440, 900, false, true)
+  await enterPos(page, 1440, 900, false, true, 0, false)
   const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
-  const der = await page.getByTestId('pos-bloque-carrito').boundingBox()
-  expect(Math.abs(izq.width - der.width), `izq ${izq.width} der ${der.width}`).toBeLessThanOrEqual(24)
+  const der = await page.getByTestId('pos-columna-venta').boundingBox()
+  expect(Math.abs(der.width - 410), `ticket ${der.width}`).toBeLessThanOrEqual(2)
+  expect(izq.width).toBeGreaterThan(der.width)
   expect(Math.min(izq.y, der.y)).toBeLessThanOrEqual(132)
   const columnas = await page.locator('.pos-product-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
-  expect(columnas).toBe(3)
-  // 1024-1280: Productos lleva más ancho que el carrito (55/45).
+  expect(columnas).toBeGreaterThanOrEqual(3)
+  // 1024-1280: el ticket cede ancho (360 px) y Productos lleva más.
   await page.setViewportSize({ width: 1100, height: 900 })
   const p2 = await page.getByTestId('pos-bloque-productos').boundingBox()
   const c2 = await page.getByTestId('pos-bloque-carrito').boundingBox()

@@ -110,7 +110,7 @@ test('cliente y catálogo están separados, y la ficha elegida queda compacta (#
   await expect(page.getByTestId('confirmar-cliente')).toBeVisible()
 })
 
-test('la columna de venta crece con el documento y el total vive una sola vez (#309)', async ({ page }) => {
+test('el ticket de la columna de venta y el total vive una sola vez (#309)', async ({ page }) => {
   const id = clave()
   const nombre = `Producto 309 ${id}`
   const { productId } = await crearProducto(page, { nombre, stock: 5 })
@@ -119,10 +119,10 @@ test('la columna de venta crece con el documento y el total vive una sola vez (#
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente carrito ${id}`)
     await agregarProducto(page, nombre)
 
-    // El documento desplaza el ticket completo; la columna no crea mini scroll.
+    // Rediseño: el ticket es una tarjeta de alto fijo (la lista de líneas
+    // se desplaza por dentro, no la página).
     const columna = page.getByTestId('pos-columna-venta')
     expect(await columna.evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true)
-    expect(await columna.evaluate(el => getComputedStyle(el).overflowY)).toBe('visible')
     expect((await posicionDe(page, '#pos-resumen-venta')).position, 'el carrito no se pega solo sobre el cobro').not.toBe('sticky')
 
     // El total (una sola vez) está en el carrito y no se repite en la franja.

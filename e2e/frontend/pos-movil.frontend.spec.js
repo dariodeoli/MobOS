@@ -408,13 +408,14 @@ test('celular 390: el vuelto de una venta no reaparece en la siguiente venta sin
   await expect(page.getByTestId('exito-vuelto')).toHaveCount(0)
 })
 
-test('escritorio 1440 no cambia: columnas 50/50 y sin barra ni hojas del celular', async ({ page }) => {
+test('escritorio 1440: catálogo + ticket fijo y sin barra ni hojas del celular', async ({ page }) => {
   await enterPos(page, 1440, 900)
   await expect(page.getByTestId('pos-movil')).toHaveCount(0)
   await expect(page.getByTestId('pos-barra-carrito')).toHaveCount(0)
   const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
-  const der = await page.getByTestId('pos-bloque-carrito').boundingBox()
-  expect(Math.abs(izq.width - der.width)).toBeLessThanOrEqual(24)
+  const der = await page.getByTestId('pos-columna-venta').boundingBox()
+  expect(Math.abs(der.width - 410)).toBeLessThanOrEqual(2)
+  expect(izq.width).toBeGreaterThan(der.width)
 })
 
 // #485: adaptación sobre los flujos actuales, sin otra fuente de dinero/stock.
