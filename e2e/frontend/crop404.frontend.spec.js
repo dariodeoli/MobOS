@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aE1cAAAAASUVORK5CYII=', 'base64')
 async function imagen(page, name = 'fixture.png') {
   const b64 = await page.evaluate(() => {
@@ -40,6 +41,7 @@ for (const width of [360, 390, 1440]) for (const dark of [false, true]) test(`#4
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('img', { name: 'Foto a recortar' })).toBeVisible()
   expect(uploads).toHaveLength(0)
+  await esperarAnimaciones(page)
   for (const button of await dialog.getByRole('button').all()) {
     const box = await button.boundingBox()
     if (box) { expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize().height) }
@@ -59,6 +61,7 @@ test('#404 confirmar encuadre conserva píxeles elegidos, WebP, miniatura y orde
   await zoom.fill('1.5')
   await expect(zoom).toHaveValue('1.5')
   await zoom.fill('1')
+  await esperarAnimaciones(page)
   const box = await dialog.getByTestId('recorte-encuadre').boundingBox()
   await page.mouse.move(box.x + 80, box.y + 100); await page.mouse.down(); await page.mouse.move(box.x + 200, box.y + 100); await page.mouse.up()
   await dialog.getByRole('button', { name: 'Usar esta foto', exact: true }).click()

@@ -94,7 +94,7 @@ test('#323 · diálogo destructivo: error junto a la palabra y cierre con cambio
   await expect(zona).toBeVisible({ timeout: 20_000 })
   await zona.getByRole('button', { name: 'Cerrar mi cuenta' }).click()
 
-  const dialogo = page.getByRole('alertdialog', { name: '¿Cerrar tu cuenta?' })
+  const dialogo = page.getByRole('dialog', { name: '¿Cerrar tu cuenta?' })
   await expect(dialogo).toBeVisible()
   const palabra = dialogo.locator('#dialogo-palabra')
   await palabra.fill('CERR')

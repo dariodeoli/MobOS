@@ -685,7 +685,7 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await page.getByTestId('pos-suspendidas').click()
   const lista2 = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await lista2.getByRole('button', { name: 'Descartar' }).click()
-  await page.getByRole('dialog', { name: 'Descartar venta suspendida' }).getByRole('button', { name: 'Descartar' }).click()
+  await page.getByRole('alertdialog', { name: 'Descartar venta suspendida' }).getByRole('button', { name: 'Descartar' }).click()
   await expect(lista2.getByText('No hay borradores guardados en este navegador.')).toBeVisible()
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])

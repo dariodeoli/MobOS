@@ -21,3 +21,5 @@
 html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0; }
 /* Si el pie fijo de formularios tiene contenido, el espaciador seguro sobra. */
 .popup-pie:not(:empty) + .popup-pie-espacio { display: none; }
+/* Mientras sale, el popup ya no captura clics ni oculta el resto a los lectores. */
+.popup-fondo[data-saliendo='true'] { pointer-events: none; }

@@ -86,7 +86,7 @@ for (const width of [360, 390, 1440])
     await expect(page.getByTestId('plantillas-empresa').locator('li')).toHaveCount(2)
     await row.getByRole('button', { name: 'Restaurar', exact: true }).click()
     await page
-      .getByRole('dialog', { name: 'Restaurar formato incorporado' })
+      .getByRole('alertdialog', { name: 'Restaurar formato incorporado' })
       .getByRole('button', { name: 'Restaurar', exact: true })
       .click()
     await row.getByRole('button', { name: 'Eliminar', exact: true }).click()

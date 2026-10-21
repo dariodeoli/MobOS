@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { openShellDestination } from '../helpers/shell-navigation.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // #386: los detalles y vistas previas abren una ventana centrada (no un panel
 // pegado a la derecha) con X roja de 44 px; en celular sube como hoja (Popup único).
@@ -22,6 +23,7 @@ async function abrirVistaRapida(page, width, height) {
   await quick.click()
   const dialog = page.getByRole('dialog')
   await expect(page.getByTestId('pedido-vista-rapida')).toBeVisible()
+  await esperarAnimaciones(page)
   return { dialog, quick }
 }
 

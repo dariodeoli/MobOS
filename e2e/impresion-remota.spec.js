@@ -613,7 +613,7 @@ test.describe('impresión remota: cola con puente falso', () => {
 
     // Cancelar pide confirmación y deja el trabajo cancelado en la API.
     await fila.getByRole('button', { name: 'Cancelar', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
     await expect(page.getByText(/trabajos? cancelado/i).first()).toBeVisible({ timeout: 10_000 })
     const detalle = await apiImpresion(page, `/api/print/jobs/${jobId}`)
     expect(detalle.datos?.job?.state).toBe('CANCELADO')
@@ -651,7 +651,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       await fila.getByRole('checkbox').check()
     }
     await page.getByRole('button', { name: /Cancelar seleccionados/ }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
     await expect(page.getByText(/trabajos cancelados/i).first()).toBeVisible({ timeout: 10_000 })
     for (const id of ids) {
       const detalle = await apiImpresion(page, `/api/print/jobs/${id}`)
@@ -725,7 +725,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     const fila = page.getByRole('listitem').filter({ hasText: encolados[0].reference })
     await expect(fila).toBeVisible({ timeout: 20_000 })
     await fila.getByRole('button', { name: 'Cancelar', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
     await expect(page.getByText(/cancelado/i).first()).toBeVisible({ timeout: 10_000 })
 
     // Reconecta: el claim entrega el pendiente y nunca el cancelado.

@@ -110,7 +110,9 @@ export default function Popup({
     if (delta > 96) requestClose()
   }
 
-  if (!visible) return null
+  // Montado en la misma pasada en que `open` pasa a true: así la trampa de foco
+  // encuentra el panel (con `visible` solo, el panel aparecía un render tarde).
+  if (!visible && !open) return null
   const lista = footer ? [] : ordenarAcciones(acciones)
   const Icono = tipo === 'aviso' ? ICONOS_AVISO[tono] || Info : null
   return (
@@ -123,7 +125,7 @@ export default function Popup({
         ref={panel}
         tabIndex={-1}
         role={rol}
-        aria-modal={esSuperior ? 'true' : undefined}
+        aria-modal={open && esSuperior ? 'true' : undefined}
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         aria-busy={bloqueado || undefined}
@@ -194,11 +196,11 @@ export default function Popup({
         <Popup
           tipo="confirmar"
           title={descarte?.titulo || '¿Descartar los cambios?'}
-          description={descarte?.descripcion || 'Tenés cambios sin guardar. Si cerrás ahora se pierden.'}
+          description={descarte?.descripcion || 'Tenés cambios sin guardar en este formulario. Si cerrás ahora, se pierden.'}
           onClose={() => setDescartando(false)}
           acciones={{
             secundaria: { label: descarte?.seguir || 'Seguir editando', onClick: () => setDescartando(false) },
-            peligro: { label: descarte?.confirmar || 'Descartar', onClick: () => { setDescartando(false); onClose?.() } },
+            peligro: { label: descarte?.confirmar || 'Descartar y cerrar', onClick: () => { setDescartando(false); onClose?.() } },
           }}
         />
       )}

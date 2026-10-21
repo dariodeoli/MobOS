@@ -81,7 +81,7 @@ test('el borrador guardado registra quién lo creó y quién lo retomó, sin bor
   // Limpieza: descartar el borrador retomado.
   await lista2.getByRole('tab', { name: /Retomadas/ }).click()
   await retomada.getByRole('button', { name: 'Descartar' }).click()
-  await page.getByRole('dialog', { name: 'Descartar venta suspendida' }).getByRole('button', { name: 'Descartar' }).click()
+  await page.getByRole('alertdialog', { name: 'Descartar venta suspendida' }).getByRole('button', { name: 'Descartar' }).click()
   await expect(lista2.getByRole('article').filter({ hasText: etiqueta })).toHaveCount(0)
 })
 

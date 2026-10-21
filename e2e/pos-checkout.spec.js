@@ -782,7 +782,7 @@ test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page,
 
   // Descartarla (no se puede recuperar) deja la cola limpia.
   await panel.getByRole('button', { name: /Descartar la venta de/ }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Descartar', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Descartar', exact: true }).click()
   await expect(page.getByTestId('cola-offline')).toHaveCount(0, { timeout: 15_000 })
 })
 
