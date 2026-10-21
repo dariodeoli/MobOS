@@ -294,6 +294,8 @@ export const styles = (format, acento = acentoDeEmpresa(datosEncabezado().tenant
   .imei{display:block;font:${width ? '9px' : '10.5px'} ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--tinta-2);letter-spacing:.03em;margin-top:1px}
   .totals{width:${width ? '100%' : '62%'};margin-left:auto}
   .totals td{border:0;padding:3px 0}
+  /* La lista de métodos de pago es texto largo: tiene que poder cortar línea en un papel angosto. */
+  .totals tr.metodo td.num{white-space:normal;overflow-wrap:anywhere}
   .totals tr:last-child td{font-weight:700;font-size:${width ? '13px' : '14px'};border-top:1px solid var(--tinta);padding-top:6px}
   .totals.venta tr:last-child td{font-weight:400;font-size:inherit;border-top:0;padding-top:3px}
   .totals tr.total td{font-weight:800;font-size:${totalSize};border-top:2px solid var(--tinta);padding-top:7px;line-height:1.15}
@@ -543,7 +545,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${desglose.mostrarEfectivo && desglose.vuelto > 0 ? fila('Vuelto', escapeHtml(gs(desglose.vuelto))) : ''}
       ${desglose.mostrarPagado ? fila('Pagado', escapeHtml(gs(paid))) : ''}
       ${pendiente > 0 ? fila('Saldo pendiente', escapeHtml(gs(pendiente)), 'saldo') : ''}
-      ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago)) : ''}
+      ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago), 'metodo') : ''}
     </table>
     ${pagosRows}
     ${credito}
