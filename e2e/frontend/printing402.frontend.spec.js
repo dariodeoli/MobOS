@@ -21,7 +21,7 @@ test('#402 marca de sesión en papeles A4/58/80 y etiquetas, sin imprimir ni gua
     const outputs = []
     for (const brandColor of ['#AA3300', '#223388', 'red; background:url(x)', '#ffffff']) {
       fijarEmpresaImpresion({ tenant: { name: 'Tienda QA', brandColor }, branch: null })
-      const expected = ['#AA3300', '#223388'].includes(brandColor) ? brandColor.toLowerCase() : '#0c8876'
+      const expected = ['#AA3300', '#223388'].includes(brandColor) ? brandColor.toLowerCase() : '#047857'
       for (const format of ['a4', 'thermal-58', 'thermal-80']) {
         const builders = ['buildDeliveryNoteHtml', 'buildInternalReceiptHtml', 'buildProformaHtml', 'buildCierreCajaHtml', 'buildResumenDiaHtml', 'buildInformeDispositivoHtml', 'buildCertificadoHtml', 'buildListaCompraHtml', 'buildListaPreciosHtml', 'buildManifiestoHtml', 'buildComprobanteRecepcionHtml']
         for (const builder of builders) {
@@ -39,7 +39,7 @@ test('#402 marca de sesión en papeles A4/58/80 y etiquetas, sin imprimir ni gua
       outputs.push({ builder: 'buildStationSheetHtml', expected, color: buildStationSheetHtml([]).includes(`color:${expected}`), injected: false })
     }
     fijarEmpresaImpresion({ tenant: null, branch: null })
-    outputs.push({ builder: 'logout', expected: '#0c8876', color: paper.styles('a4').includes('#0c8876'), injected: false })
+    outputs.push({ builder: 'logout', expected: '#047857', color: paper.styles('a4').includes('#047857'), injected: false })
     return outputs
   })
   expect(results.length).toBe(149)

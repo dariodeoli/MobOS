@@ -35,11 +35,13 @@ const publicBase = () =>
 const pedidoBase = () =>
   String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') || publicUrls.clientPortal
 
+// Empresa que firma las etiquetas (misma del encabezado de todo papel).
+const empresaMarca = () => datosEncabezado().razon || APP_NAME
+
 // Remito de traslado entre sucursales: lista completa de IMEI para control
 // físico al recibir, con origen, destino, fecha y guía AEX si ya está. Si el
 // traslado tiene enlace público, el QR deja confirmar la recepción al destino.
 export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
-  const thermal = Boolean(thermalWidth(format))
   const lines = Array.isArray(transfer.lines) ? transfer.lines : []
   const lineas = lines.map((line) => {
     const seriales = Array.isArray(line.serials) ? line.serials : []
@@ -49,7 +51,23 @@ export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
   let qr = ''
   try { if (enlace) qr = await qrDataUrl(enlace, { ancho: 200 }) } catch { /* el enlace queda impreso igual */ }
   const recepcion = enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de recepción">` : ''}<p class="small">Confirmá la recepción escaneando el QR o desde ${escapeHtml(enlace)}</p>` : ''
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '10mm 4mm 6mm' : '18mm 16mm 16mm'}}body{font:${thermal ? '10px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.items{margin:14px 0;border-top:1px dashed #999}.item{padding:8px 0;border-bottom:1px dashed #999}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}.qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:12px auto 4px}.small{font-size:10px;word-break:break-all;text-align:center;color:#555}@media print{body{margin:0}}</style></head><body><h1>Remito de traslado</h1><p class="muted">${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}</p><div class="items">${lineas}</div>${transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : ''}${(transfer.dispatchedBy?.name || transfer.createdBy?.name) ? `<div class="row"><span>Despachado por</span><span>${escapeHtml(transfer.dispatchedBy?.name || transfer.createdBy.name)}</span></div>` : ''}${transfer.eta ? `<div class="row"><span>ETA</span><span>${escapeHtml(new Date(transfer.eta).toLocaleDateString('es-PY'))}</span></div>` : ''}${transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedBy?.name ? ` · ${escapeHtml(transfer.receivedBy.name)}` : ''}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : ''}${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}${recepcion}</body></html>`
+  const logo = await getLogoDataUrl()
+  const filas = [
+    transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : '',
+    (transfer.dispatchedBy?.name || transfer.createdBy?.name) ? `<div class="row"><span>Despachado por</span><span>${escapeHtml(transfer.dispatchedBy?.name || transfer.createdBy.name)}</span></div>` : '',
+    transfer.eta ? `<div class="row"><span>ETA</span><span>${escapeHtml(new Date(transfer.eta).toLocaleDateString('es-PY'))}</span></div>` : '',
+    transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedBy?.name ? ` · ${escapeHtml(transfer.receivedBy.name)}` : ''}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : '',
+  ].join('')
+  const estiloRemito = '.row{display:flex;justify-content:space-between;gap:12px;padding:4px 0}.items{margin:8px 0}.item{padding:6px 0;border-bottom:1px solid var(--linea)}.serials{font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--tinta-2);margin-top:3px}'
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: transfer?.tenant }).tenant))}${estiloRemito}</style></head><body>
+    ${header('Remito de traslado', transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : '', logo)}
+    <div class="card"><div class="label">Traslado</div><div><strong>${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')}</strong></div></div>
+    <div class="card"><div class="label">Artículos</div><div class="items">${lineas}</div></div>
+    ${filas ? `<div class="card">${filas}</div>` : ''}
+    ${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}
+    ${recepcion}
+    ${footer('Documento no fiscal.')}
+  </body></html>`
   return printHtml(html)
 }
 
@@ -95,14 +113,14 @@ export async function buildProductLabelsHtml(items = [], { format = 'thermal-58'
       } catch { /* sin barras, la etiqueta conserva nombre, precio y SKU */ }
     }
     for (let copia = 0; copia < cantidad; copia += 1) {
-      etiquetas.push(`<section class="label"><div class="brand"><span>${escapeHtml(APP_NAME)}</span><span>ETIQUETA DE PRODUCTO</span></div><div class="name">${escapeHtml(nombre)}</div><div class="price">${precio > 0 ? escapeHtml(gs(precio)) : '—'}</div>${lista ? `<div class="list">Lista: ${escapeHtml(lista)}</div>` : ''}<div class="sku">${sku ? `SKU ${escapeHtml(sku)}` : 'Sin SKU'}${cantidad > 1 ? ` · Etiqueta ${copia + 1} de ${cantidad}` : ''}</div>${barras}<footer>Verificá el precio con el lector del local.</footer></section>`)
+      etiquetas.push(`<section class="label"><div class="brand"><span>${escapeHtml(empresaMarca())}</span><span>ETIQUETA DE PRODUCTO</span></div><div class="name">${escapeHtml(nombre)}</div><div class="price">${precio > 0 ? escapeHtml(gs(precio)) : '—'}</div>${lista ? `<div class="list">Lista: ${escapeHtml(lista)}</div>` : ''}<div class="sku">${sku ? `SKU ${escapeHtml(sku)}` : 'Sin SKU'}${cantidad > 1 ? ` · Etiqueta ${copia + 1} de ${cantidad}` : ''}</div>${barras}<footer>Verificá el precio con el lector del local.</footer></section>`)
     }
   }
   const anchoHoja = width ? `${width}mm auto` : 'A4'
   const margenHoja = width ? '2mm' : '12mm'
   const anchoCuerpo = width ? `${width - 4}mm` : '186mm'
   const cuerpo = width ? 'display:block' : 'display:grid;grid-template-columns:repeat(3,1fr);gap:4mm'
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de producto</title><style>@page{size:${anchoHoja};margin:${margenHoja}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoCuerpo};font:11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720;${cuerpo}}.label{page-break-after:always;border-bottom:1px dashed #999;padding:1mm 0 2mm;text-align:center}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.name{font-size:12px;font-weight:800;min-height:2.4em}.price{font-size:22px;font-weight:900;margin:1mm 0}.list{font-size:8px;color:#555}.sku{font-size:8px;color:#555}.barcode{margin-top:1.5mm}.barcode svg{width:100%;height:auto;max-height:14mm}.code-label{display:block;font-size:6.5px;letter-spacing:.14em;color:#66707a}footer{margin-top:1mm;font-size:7px;color:#66707a}@media print{.label{margin-bottom:0;padding-bottom:1.5mm}}</style></head><body>${etiquetas.join('')}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de producto</title><style>@page{size:${anchoHoja};margin:${margenHoja}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoCuerpo};font:11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0e1116;${cuerpo}}.label{page-break-after:always;border-bottom:1px dashed #999;padding:1mm 0 2mm;text-align:center}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dce6;padding-bottom:1mm;margin-bottom:1.5mm}.name{font-size:12px;font-weight:800;min-height:2.4em}.price{font-size:22px;font-weight:900;margin:1mm 0}.list{font-size:8px;color:#555}.sku{font-size:8px;color:#555}.barcode{margin-top:1.5mm}.barcode svg{width:100%;height:auto;max-height:14mm}.code-label{display:block;font-size:6.5px;letter-spacing:.14em;color:#475569}footer{margin-top:1mm;font-size:7px;color:#475569}@media print{.label{margin-bottom:0;padding-bottom:1.5mm}}</style></head><body>${etiquetas.join('')}</body></html>`
   return htmlConAreaTermica(html, format)
 }
 
@@ -137,7 +155,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
       } catch { /* sin barras queda el código de unidad como texto */ }
     }
     etiquetas.push(`<section class="etiqueta">
-      <div class="marca"><span>${escapeHtml(APP_NAME)} · ETIQUETA</span><span>STOCK</span></div>
+      <div class="marca"><span>${escapeHtml(empresaMarca())}</span><span>ETIQUETA DE UNIDAD</span></div>
       <div class="bloque modelo"><div class="rotulo">Modelo</div><div class="modelo">${escapeHtml(datos.modelo)}</div>${contexto ? `<div class="contexto">${escapeHtml(contexto)}</div>` : ''}</div>
       <div class="bloque"><div class="rotulo">Identificador</div><div class="identificador">${escapeHtml(datos.identificador)}</div></div>
       <div class="bloque"><div class="rotulo">IMEI / Serial</div><div class="serial">${escapeHtml(datos.serial || '—')}</div></div>
@@ -146,7 +164,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
       <div class="pie">Escaneá el QR para abrir la unidad o usá el código de barras en el local.</div>
     </section>`)
   }
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#66707a;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0e1116}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dce6;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #d5dce6;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#475569}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#475569;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#475569;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#475569;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
   return htmlConAreaTermica(html, `thermal-${anchoMm}`)
 }
 
@@ -178,7 +196,7 @@ export async function buildEtiquetasLoteHtml(etiquetas = [], { ancho = 80, compr
       datos.lote ? `<div class="fila"><span>Lote</span><span>${escapeHtml(datos.lote)}</span></div>` : '',
     ].filter(Boolean).join('')
     partes.push(`<section class="etiqueta">
-      <div class="marca"><span>${escapeHtml(APP_NAME)} · ETIQUETA DE LOTE</span><span>PREPARACIÓN</span></div>
+      <div class="marca"><span>${escapeHtml(empresaMarca())}</span><span>ETIQUETA DE LOTE</span></div>
       <div class="bloque modelo"><div class="rotulo">Modelo</div><div class="modelo">${escapeHtml(datos.producto)}</div>${contexto ? `<div class="contexto">${escapeHtml(contexto)}</div>` : ''}</div>
       <div class="bloque"><div class="rotulo">Producto</div><div class="posicion">${escapeHtml(datos.posicion)}</div></div>
       <div class="bloque"><div class="rotulo">IMEI</div>${datos.pendiente ? '<div class="pendiente">Pendiente</div><div class="contexto">Se carga antes de despachar</div>' : `<div class="serial">${escapeHtml(datos.imei)}</div>`}</div>
@@ -187,7 +205,7 @@ export async function buildEtiquetasLoteHtml(etiquetas = [], { ancho = 80, compr
       <div class="pie">${datos.pendiente ? 'Unidad sin IMEI: completalo antes de despachar.' : 'Escaneá el código en la preparación y el despacho.'}</div>
     </section>`)
   }
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas del lote (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm}.posicion{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.pendiente{font-size:18px;font-weight:800;color:#9a6a00;margin-top:.6mm;text-transform:uppercase}.datos{text-align:left}.fila{display:flex;justify-content:space-between;gap:2mm;font-size:8px;line-height:1.5}.fila span:first-child{color:#66707a}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${partes.join('')}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas del lote (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0e1116}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${acentoDeEmpresa(datosEncabezado().tenant)};border-bottom:1px solid #d5dce6;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #d5dce6;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#475569}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#475569;margin-top:.8mm}.posicion{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.pendiente{font-size:18px;font-weight:800;color:#9a6a00;margin-top:.6mm;text-transform:uppercase}.datos{text-align:left}.fila{display:flex;justify-content:space-between;gap:2mm;font-size:8px;line-height:1.5}.fila span:first-child{color:#475569}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.pie{margin-top:5mm;font-size:6.5px;color:#475569;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${partes.join('')}</body></html>`
   return html
 }
 
@@ -239,10 +257,10 @@ export const styles = (format, acento = acentoDeEmpresa(datosEncabezado().tenant
   const totalSize = width ? '16px' : '20px'
   const qrSize = width ? `${width === 80 ? 38 : 32}mm` : '30mm'
   return `
-  :root{--tinta:#111418;--tinta-2:#3b424a;--gris:#666d75;--linea:#d9dde1;--suave:#f3f4f6;--acento:${acento}}
+  :root{--tinta:#0e1116;--tinta-2:#334155;--gris:#475569;--linea:#d5dce6;--suave:#f1f4f8;--acento:${acento};--disp:'Space Grotesk','Inter',ui-sans-serif,system-ui,sans-serif}
   @page{size:${page};margin:${margin}}
   *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '10mm 0 8mm' : '4mm 0 4mm'};font-variant-numeric:tabular-nums}
+  body{font:${baseFont} 'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '10mm 0 8mm' : '4mm 0 4mm'};font-variant-numeric:tabular-nums}
   /* Encabezado: empresa a la izquierda, tipo de documento y número a la derecha
      (en el rollo, apilado y centrado). */
   .brand{display:flex;flex-direction:${width ? 'column' : 'row'};align-items:${width ? 'center' : 'flex-start'};justify-content:space-between;gap:${width ? '6px' : '18px'};border-bottom:2px solid var(--acento);padding-bottom:${width ? '6px' : '10px'};margin-bottom:${width ? '8px' : '14px'};text-align:${width ? 'center' : 'left'}}
@@ -256,6 +274,7 @@ export const styles = (format, acento = acentoDeEmpresa(datosEncabezado().tenant
   .brand .sub{font-size:${width ? '9px' : '10.5px'};color:var(--tinta-2);line-height:1.45}
   .brand .doc{text-align:${width ? 'center' : 'right'};flex:none}
   .brand .tipo{font-size:${width ? '10px' : '11px'};font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--acento)}
+  .brand .rz,.brand .num,.brand .tipo,h1{font-family:var(--disp)}
   .brand .num{font-size:${width ? '17px' : '22px'};font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
   .brand .cuando{font-size:${width ? '9px' : '10.5px'};color:var(--gris);margin-top:2px}
   .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '15mm'};max-width:min(100%,${width ? `${width - 20}mm` : '60mm'});object-fit:contain;margin:0 ${width ? 'auto' : '0'} 5px}
@@ -585,15 +604,15 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
   const contactoCliente = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(quote.customer.countryCode || '')} ${escapeHtml(quote.customer.phone)}` : ''}</div></div>`
   const descuento = Number(quote.discountPyg || 0)
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cotización ${escapeHtml(quote.number || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: quote?.tenant }).tenant))}</style></head><body>
-    ${header('Cotización', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
+    ${header('Cotización', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '', razon: empresa || undefined })}
     ${empresaCard}
     ${contactoCliente}
+    <div class="card"><div class="label">Validez</div><div>${escapeHtml(validez)}</div></div>
     <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
     <table class="totals">
       <tr><td>Subtotal</td><td class="num">${escapeHtml(gs(quote.subtotalPyg ?? quote.totalPyg))}</td></tr>
       ${descuento ? `<tr><td>Descuento</td><td class="num">− ${escapeHtml(gs(descuento))}</td></tr>` : ''}
-      <tr><td>Total</td><td class="num">${escapeHtml(gs(quote.totalPyg))}</td></tr>
-      <tr><td>Validez</td><td class="num">${escapeHtml(validez)}</td></tr>
+      <tr class="total"><td>Total</td><td class="num">${escapeHtml(gs(quote.totalPyg))}</td></tr>
     </table>
     <p><span class="tag">${escapeHtml(QUOTE_STATUS[quote.status] || quote.status || '')}</span></p>
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
@@ -668,7 +687,7 @@ export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
   const logo = await getLogoDataUrl()
   const empresa = transfer.tenant?.name || ''
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remisión interna</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: transfer?.tenant }).tenant))}
-    .items{margin:10px 0;border-top:1px dashed #d5dbe0}.item{padding:8px 0;border-bottom:1px dashed #d5dbe0}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}
+    .items{margin:10px 0;border-top:1px dashed #d5dce6}.item{padding:8px 0;border-bottom:1px dashed #d5dce6}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}
     @media print{.items,.item{border-color:#000}}
   </style></head><body>
     ${header('Remisión interna', `${transfer.sourceBranch?.name || 'Origen'} → ${transfer.destinationBranch?.name || 'Destino'} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}`, logo)}
@@ -744,16 +763,16 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}
       .firmas{margin:16px 0 4px}` : ''}
   </style></head><body>
-    ${header('Factura proforma', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
+    ${header('Factura proforma', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '', razon: empresa || undefined })}
     ${avisoNoFiscal()}
     ${empresaCard}
     ${clienteCard}
+    <div class="card"><div class="label">Validez</div><div>${escapeHtml(validez)}</div></div>
     <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
     <table class="totals">
       <tr><td>Subtotal</td><td class="num">${escapeHtml(gs(quote.subtotalPyg ?? quote.totalPyg))}</td></tr>
       ${descuento ? `<tr><td>Descuento</td><td class="num">− ${escapeHtml(gs(descuento))}</td></tr>` : ''}
-      <tr><td>Total</td><td class="num">${escapeHtml(gs(quote.totalPyg))}</td></tr>
-      <tr><td>Validez</td><td class="num">${escapeHtml(validez)}</td></tr>
+      <tr class="total"><td>Total</td><td class="num">${escapeHtml(gs(quote.totalPyg))}</td></tr>
     </table>
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
     <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
@@ -882,14 +901,14 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
     ${!itemsChecklist.length && !inspeccion.verificador && !inspeccion.grado ? '<p class="muted">Sin verificación física registrada.</p>' : ''}`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.imei || datos.identificador || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
-    .fila-informe>span:first-child{color:#66707a}
-    .campos-informe{margin-top:6px;border-top:1px dashed #d5dbe0;padding-top:6px}
+    .fila-informe>span:first-child{color:#475569}
+    .campos-informe{margin-top:6px;border-top:1px dashed #d5dce6;padding-top:6px}
     .checklist{margin:5px 0 2px}
     .checklist-dos{display:flex;gap:12px}.checklist-dos table{flex:1 1 0;min-width:0}
-    .checklist th,.checklist td{border-bottom:1px dashed #d5dbe0;padding:2px 4px 2px 0;text-align:left;font-size:9px}
-    .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .checklist th,.checklist td{border-bottom:1px dashed #d5dce6;padding:2px 4px 2px 0;text-align:left;font-size:9px}
+    .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#475569}
     .checklist td:first-child{width:44%}
-    .checklist td:last-child{width:40%;color:#66707a}
+    .checklist td:last-child{width:40%;color:#475569}
     .checklist .ok{color:#0a7a68;font-weight:700}
     .checklist .no-ok{color:#a33;font-weight:700}
     .card{page-break-inside:avoid}
@@ -955,19 +974,19 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
   const controles = (datos.controles || []).map((control) => `<span class="control ${control.estado === 'sin-dato' ? 'sin-dato' : control.ok ? 'ok' : 'no-ok'}">${escapeHtml(control.label)} · ${escapeHtml(estadoControl(control.estado))}${control.valor ? ` · ${escapeHtml(control.valor)}` : ''}</span>`).join(' ')
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Certificado de inspección')} ${escapeHtml(datos.serialEnmascarado || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
-    .fila-informe>span:first-child{color:#66707a}
+    .fila-informe>span:first-child{color:#475569}
     .grado{text-align:center;margin:4px 0 0}
     .grado .letra{font-size:${format === 'a4' ? '36px' : '34px'};font-weight:900;line-height:1;letter-spacing:.04em}
-    .grado .detalle{font-size:11px;color:#66707a;margin-top:2px}
+    .grado .detalle{font-size:11px;color:#475569;margin-top:2px}
     .control{display:inline-block;border:1px solid #0a7a68;border-radius:999px;padding:1px 7px;margin:2px 3px 0 0;font-size:10px;font-weight:700;color:#0a7a68}
     .control.no-ok{border-color:#a33;color:#a33}
-    .control.sin-dato{border-color:#9aa4ad;color:#66707a}
+    .control.sin-dato{border-color:#9aa4ad;color:#475569}
     .checklist{margin:4px 0 0}
     .checklist-dos{display:flex;gap:12px}.checklist-dos table{flex:1 1 0;min-width:0}
-    .checklist td,.checklist th{border-bottom:1px dashed #d5dbe0;padding:2px 4px 2px 0;text-align:left;font-size:9px}
-    .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .checklist td,.checklist th{border-bottom:1px dashed #d5dce6;padding:2px 4px 2px 0;text-align:left;font-size:9px}
+    .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#475569}
     .checklist td:first-child{width:44%}
-    .checklist td:last-child{width:40%;color:#66707a}
+    .checklist td:last-child{width:40%;color:#475569}
     .checklist .ok{color:#0a7a68;font-weight:700}
     .checklist .no-ok{color:#a33;font-weight:700}
     .card{page-break-inside:avoid}
@@ -1069,14 +1088,14 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
     : `<div class="lineas-lista">${lineas.map((linea) => `<div class="linea-lista"><strong>☐ ${escapeHtml([linea.producto || 'Producto', linea.variante].filter(Boolean).join(' · '))}</strong>${linea.condicion ? ` · ${escapeHtml(linea.condicion)}` : ''}<div class="cuenta">${escapeHtml(String(linea.cantidad))} u${contexto(linea).length ? ` · <span class="marca-prioridad">${escapeHtml(contexto(linea).join(' · '))}</span>` : ''}</div>${linea.conImei || linea.pendientes ? `<div class="cuenta">IMEI ${escapeHtml(imei(linea))}</div>` : ''}</div>`).join('') || '<p class="muted">Sin productos en la compra.</p>'}</div>`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Lista de compra ${escapeHtml(datos.code || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
-    .fila-informe>span:first-child{color:#66707a}
-    .lista td,.lista th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
-    .lista th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .fila-informe>span:first-child{color:#475569}
+    .lista td,.lista th{border-bottom:1px dashed #d5dce6;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
+    .lista th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#475569}
     .lista .marca{width:14px;font-size:13px;line-height:1}
     .lista .ctx{color:#5b6570}
-    .linea-lista{border-bottom:1px dashed #d5dbe0;padding:5px 0;font-size:10px}
+    .linea-lista{border-bottom:1px dashed #d5dce6;padding:5px 0;font-size:10px}
     .linea-lista:last-child{border-bottom:0}
-    .linea-lista .cuenta{color:#66707a;margin-top:1px}
+    .linea-lista .cuenta{color:#475569;margin-top:1px}
     .linea-lista .marca-prioridad{color:#a33;font-weight:700}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
@@ -1191,14 +1210,14 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
     : `<div class="lineas-lista">${lineas.map((linea) => `<div class="linea-lista"><strong>${escapeHtml([linea.producto, linea.capacidad].filter(Boolean).join(' · '))} × ${escapeHtml(String(linea.cantidad))}</strong>${linea.condicion ? ` · ${escapeHtml(linea.condicion)}` : ''}<div class="cuenta">${imeisHtml(linea) || 'Sin unidades'}</div></div>`).join('') || '<p class="muted">El lote no lleva unidades.</p>'}</div>`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Manifiesto ${escapeHtml(datos.code || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
-    .fila-informe>span:first-child{color:#66707a}
-    .manifiesto td,.manifiesto th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
-    .manifiesto th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .fila-informe>span:first-child{color:#475569}
+    .manifiesto td,.manifiesto th{border-bottom:1px dashed #d5dce6;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
+    .manifiesto th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#475569}
     .imeis{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.5;color:#333}
     .pendientes{display:block;color:#a33;font-weight:700;font-size:9px}
-    .linea-lista{border-bottom:1px dashed #d5dbe0;padding:5px 0;font-size:10px}
+    .linea-lista{border-bottom:1px dashed #d5dce6;padding:5px 0;font-size:10px}
     .linea-lista:last-child{border-bottom:0}
-    .linea-lista .cuenta{color:#66707a;margin-top:1px}
+    .linea-lista .cuenta{color:#475569;margin-top:1px}
     .codigo-grande{font-size:${a4 ? '26px' : '20px'};font-weight:900;letter-spacing:.06em;font-variant-numeric:tabular-nums}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
@@ -1296,21 +1315,21 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
   const cabecera = a4 && cardPanel ? `<div class="dos-columnas">${cardEnvio}${cardPanel}</div>` : `${cardEnvio}${cardPanel}`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante de recepción ${escapeHtml(datos.envio || '')}</title><style>${styles(format, acentoDeEmpresa(datosEncabezado({ tenant: datos?.tenant }).tenant))}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
-    .fila-informe>span:first-child{color:#66707a}
-    .recepcion td,.recepcion th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px}
-    .recepcion th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .fila-informe>span:first-child{color:#475569}
+    .recepcion td,.recepcion th{border-bottom:1px dashed #d5dce6;padding:3px 4px 3px 0;text-align:left;font-size:10px}
+    .recepcion th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#475569}
     .recepcion .ok{color:#0a7a68;font-weight:700}
     .recepcion .no-ok{color:#a33;font-weight:700}
-    .linea-recepcion{border-bottom:1px dashed #d5dbe0;padding:5px 0;font-size:10px}
+    .linea-recepcion{border-bottom:1px dashed #d5dce6;padding:5px 0;font-size:10px}
     .linea-recepcion:last-child{border-bottom:0}
-    .linea-recepcion .cuenta{color:#66707a;margin-top:1px}
+    .linea-recepcion .cuenta{color:#475569;margin-top:1px}
     .linea-recepcion .ok{color:#0a7a68;font-weight:700}
     .linea-recepcion .no-ok{color:#a33;font-weight:700}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
     .dos-columnas{display:flex;gap:10px;align-items:flex-start}
     .dos-columnas .card{flex:1 1 0;min-width:0}
-    .totales-recepcion{margin-top:4px;border-top:1px solid #0f1720}
+    .totales-recepcion{margin-top:4px;border-top:1px solid #0e1116}
     .totales-recepcion td{border:0;padding:1px 0}
     .totales-recepcion tr.saldo td{font-weight:800}
     ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:4px 0}.card .label{margin-bottom:2px}
