@@ -2,12 +2,12 @@ import { useEffect, useRef } from 'react'
 import { Modal } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { CELDA_DATO } from '@/components/shared/tabla'
-import { gs, num } from '@/utils/calculos'
+import PrecioStockProducto from './PrecioStockProducto'
 
 // #308 · Venta segura: cuando la familia tiene más de una variante, el POS ya
 // no elige sola la primera: el vendedor elige modelo/capacidad/color exactos
 // antes de sumarla a la venta (el carrito no cambia hasta que elige).
-export default function SelectorVariante({ abierto, familia, onElegir, onClose }) {
+export default function SelectorVariante({ abierto, familia, onElegir, onClose, precios = {}, preciosCargando = false, sucursal = null, sucursales = [] }) {
   const items = familia?.items || []
   const opcionesRef = useRef([])
 
@@ -45,7 +45,6 @@ export default function SelectorVariante({ abierto, familia, onElegir, onClose }
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {items.map((producto, index) => {
-            const stock = num(producto.stock)
             const variante = [
               producto.model || producto.modelo,
               producto.capacity || producto.capacidad,
@@ -70,12 +69,7 @@ export default function SelectorVariante({ abierto, familia, onElegir, onClose }
                     {variante || producto.nombre || familia?.base}
                   </strong>
                   <span className={`block truncate ${CELDA_DATO}`}>{producto.sku || 'Sin SKU'}</span>
-                  <span className="block text-xs">
-                    <b className="font-semibold tabular-nums text-fore">{gs(num(producto.precioVenta))}</b>
-                    {stock > 0
-                      ? <span className="text-mute"> · {stock} en stock</span>
-                      : <span className="font-semibold text-bad"> · Agotado</span>}
-                  </span>
+                  <PrecioStockProducto productos={[producto]} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} compacto />
                 </span>
                 <Icon name="plus" className="h-4 w-4 shrink-0 text-fono-light" />
               </button>

@@ -241,6 +241,12 @@ jobs:
       - name: Platform navigation and session controls
         if: matrix.shard == 2
         run: npx playwright test --config e2e/superadmin508.frontend.config.js
+      - name: POS effective price and branch stock preview
+        if: matrix.shard == 2
+        env:
+          MOBOS_QA_PORT: "5359"
+          MOBOS_QA_OUT: /tmp/mobos-precios559-ci
+        run: npx playwright test --config e2e/precios559.frontend.config.js
       - name: Mobile PIN and login layout
         if: matrix.shard == 3
         env:
