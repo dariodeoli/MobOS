@@ -1146,10 +1146,11 @@ test('portal: el enlace vigente avisa y se puede regenerar', async ({ page }) =>
   // Reabrir: el enlace no se vuelve a mostrar, pero Regenerar está disponible.
   await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
   await expect(page.getByText(/Ya hay un enlace vigente/)).toBeVisible()
-  const regenerar = ficha.getByRole('button', { name: 'Regenerar' })
+  const regenerar = page.getByRole('dialog', { name: 'Portal del cliente' }).getByRole('button', { name: 'Regenerar' })
   await expect(regenerar).toBeEnabled()
   await regenerar.click()
-  await ficha.getByRole('button', { name: 'Regenerar', exact: true }).last().click()
+  // La confirmación es un Popup propio (alertdialog) montado en el body.
+  await page.getByRole('alertdialog', { name: /Regenerar enlace del portal/ }).getByRole('button', { name: 'Regenerar', exact: true }).click()
   await expect(page.getByAltText('QR del portal del cliente')).toBeVisible({ timeout: 15000 })
   const segundoEnlace = await page.locator('p.break-all').textContent()
   expect(segundoEnlace).toContain('/cuenta/')
@@ -1283,7 +1284,7 @@ test('servicio y garantías: la garantía pasa al taller con su historial', asyn
 
   // Conversión: se crea la orden desde el caso y el vínculo queda audible.
   await filaDe('GARANTIA').getByRole('button', { name: 'Pasar a servicio' }).click()
-  const dialogo = page.getByRole('dialog', { name: 'Pasar la garantía a servicio' })
+  const dialogo = page.getByRole('alertdialog', { name: 'Pasar la garantía a servicio' })
   await expect(dialogo.getByText(/conserva su historial/)).toBeVisible()
   await dialogo.getByRole('button', { name: 'Pasar a servicio' }).click()
   await expect(page.getByText(/quedó vinculada y el historial se conserva/)).toBeVisible()

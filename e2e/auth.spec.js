@@ -255,7 +255,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   // La garantía pendiente pasa al taller: la orden queda vinculada al caso.
   const pendiente = page.locator('[data-testid="servicio-garantia-fila"][data-tipo="GARANTIA"]').filter({ hasText: 'DEMO-W-0002' })
   await pendiente.getByRole('button', { name: 'Pasar a servicio' }).click()
-  await page.getByRole('dialog', { name: 'Pasar la garantía a servicio' }).getByRole('button', { name: 'Pasar a servicio' }).click()
+  await page.getByRole('alertdialog', { name: 'Pasar la garantía a servicio' }).getByRole('button', { name: 'Pasar a servicio' }).click()
   await expect(page.getByText(/quedó vinculada y el historial se conserva en este navegador/)).toBeVisible()
   await expect(pendiente.getByText('En servicio')).toBeVisible()
   await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'OS-#0013' })).toContainText('Desde garantía')

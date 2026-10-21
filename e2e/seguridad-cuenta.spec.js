@@ -58,7 +58,7 @@ test.describe('Seguridad de la cuenta', () => {
 
     // Eliminar definitivamente: advertencia explícita y doble confirmación.
     await eliminar.click()
-    const dialogoEliminar = page.getByRole('alertdialog', { name: '¿Eliminar la empresa para siempre?' })
+    const dialogoEliminar = page.getByRole('dialog', { name: '¿Eliminar la empresa para siempre?' })
     await expect(dialogoEliminar).toContainText('historial')
     await expect(dialogoEliminar).toContainText('irreversible')
     const confirmarEliminar = dialogoEliminar.getByRole('button', { name: 'Eliminar empresa' })

@@ -33,7 +33,9 @@ test('el tablero real (/ops) y las herramientas de precios se abren desde el men
   await openShellDestination(page, 'Tablero de operaciones')
   await expect(page).toHaveURL(/\/ops$/)
   await expect(page.getByRole('heading', { name: 'Tablero de operaciones' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Volver a la app/ })).toBeVisible()
+  // Ops va embebido en el panel: el shell es la navegación, sin «Volver a la app».
+  await expect(page.getByRole('tab', { name: /Operaciones/ }).or(page.getByRole('button', { name: /Operaciones/ })).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: /Volver a la app/ })).toHaveCount(0)
 
   // Lista por modelo y comparador viven en Inventario.
   await page.goto('/resumen')
