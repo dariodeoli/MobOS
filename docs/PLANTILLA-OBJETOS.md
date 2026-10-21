@@ -340,6 +340,7 @@ se migran de a una pantalla, no todos juntos):
 | --- | --- | --- |
 | Confirmar / avisar / formulario / detalle | `shared/Popup` (`tipo="confirmar" \| "aviso" \| "formulario" \| "detalle"`, `tamano` sm/md/lg/xl) | Mismo marco: título + X roja de 44 px, cuerpo libre, pie `acciones={{ primaria, secundaria, peligro }}` (el `peligro` reemplaza a la primaria). Móvil <768 px: hoja desde abajo; escritorio: centrado. Esc, foco atrapado y devuelto, scroll bloqueado, `busy`, animación con `prefers-reduced-motion`. Reglas en `shared/popupReglas.js`. |
 | PIN de 4–6 dígitos | `shared/PinPad` (envuelve `PinSegmentado` + `PinTeclado`) | Teclas redondas de hasta 80 px, 4 puntos, borrar, `onComplete` al llegar al último dígito. Usado en login, demo y bloqueo. Lógica de teclas en `shared/pinPadReglas.js`. El POS y las autorizaciones migran después. |
+| Confirmación con la API de `ConfirmDialog` | `shared/PopupConfirmar` | Envoltura de `Popup` (`open/onCancel/onConfirm/title/description/confirmLabel/variant/busy`). `Popup` acepta `dirty` (pide confirmar al cerrar con cambios sin guardar). Estilo de las vistas de gestión: `shared/gestionRediseno.css` (`[data-gestion]` en `<main>`). |
 | Catálogo visual | Página `/biblioteca` (solo dueño; en desarrollo `/biblioteca-ui`) = `pages/preview/BibliotecaUI.jsx` | Botones, campos, Popup (5 tipos), PinPad, tarjetas, chips, tabla, toasts, vacíos; claro/oscuro. Todo objeto nuevo se agrega ahí. |
 
 `Modal`, `VentanaDetalle` y `BottomSheet` siguen existiendo hasta migrar sus

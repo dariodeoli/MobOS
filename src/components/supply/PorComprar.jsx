@@ -8,7 +8,8 @@ import { resources } from '@/lib/api'
 import { contextoActual, getProductos } from '@/lib/storage'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
-import { Badge, Button, Card, EmptyState, Input, Modal, Money, MoneyInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, Money, MoneyInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -472,7 +473,7 @@ export default function PorComprar() {
         </div>
       )}
 
-      <Modal open={Boolean(asignar)} onClose={() => !busy && setAsignar(null)} title="Asignar compra" size="corto">
+      <Popup open={Boolean(asignar)} onClose={() => !busy && setAsignar(null)} title="Asignar compra" tamano="sm">
         <p className="mt-2 text-sm text-mute">{asignar?.etiqueta}</p>
         <label htmlFor="comprador" className="mt-4 block text-sm font-semibold">Comprador</label>
         <Select id="comprador" className="mt-2 w-full" value={comprador} onChange={(evento) => setComprador(evento.target.value)}>
@@ -496,9 +497,9 @@ export default function PorComprar() {
           <Button type="button" variant="outline" onClick={() => setAsignar(null)} disabled={busy}>Volver</Button>
           <Button type="button" onClick={confirmarAsignacion} disabled={(!comprador && !centroAsignar.trim()) || busy}>{busy ? 'Asignando…' : 'Asignar'}</Button>
         </div>
-      </Modal>
+      </Popup>
 
-      <Modal open={Boolean(cancelar)} onClose={() => !busy && setCancelar(null)} title="Cancelar necesidad" size="corto">
+      <Popup open={Boolean(cancelar)} onClose={() => !busy && setCancelar(null)} title="Cancelar necesidad" tamano="sm">
         <p className="mt-2 text-sm text-mute">
           {cancelar?.producto} · {cancelar?.cantidad} unidad{cancelar?.cantidad === 1 ? '' : 'es'}. Queda registrado quién la canceló y por qué.
         </p>
@@ -508,9 +509,9 @@ export default function PorComprar() {
           <Button type="button" variant="outline" onClick={() => setCancelar(null)} disabled={busy}>Volver</Button>
           <Button type="button" variant="danger" onClick={confirmarCancelacion} disabled={motivo.trim().length < 4 || busy}>{busy ? 'Cancelando…' : 'Cancelar necesidad'}</Button>
         </div>
-      </Modal>
+      </Popup>
 
-      <Modal open={libre} onClose={() => !busy && setLibre(false)} title="Compra libre (reposición)" size="amplio">
+      <Popup open={libre} onClose={() => !busy && setLibre(false)} title="Compra libre (reposición)" tamano="lg">
         <form onSubmit={guardarCompraLibre} className="space-y-3">
           <p className="text-sm text-mute">
             Reposición adicional <b>sin cliente ni necesidad</b>: no aparece en «Por comprar» y el stock se suma recién al
@@ -557,9 +558,9 @@ export default function PorComprar() {
             <Button type="submit" disabled={busy || !libreForm.productId || !libreForm.supplierName.trim() || Number(libreForm.quantity) < 1}>{busy ? 'Registrando…' : 'Registrar compra libre'}</Button>
           </div>
         </form>
-      </Modal>
+      </Popup>
 
-      <Modal open={agregar} onClose={() => !busy && setAgregar(false)} title="Agregar necesidad" size="amplio">
+      <Popup open={agregar} onClose={() => !busy && setAgregar(false)} title="Agregar necesidad" tamano="lg">
         <form onSubmit={guardarManual} className="space-y-3">
           <div>
             <label className="block text-sm font-semibold" htmlFor="necesidad-producto">Producto</label>
@@ -595,7 +596,7 @@ export default function PorComprar() {
             <Button type="submit" disabled={!nuevo.productId || busy}>{busy ? 'Agregando…' : 'Agregar'}</Button>
           </div>
         </form>
-      </Modal>
+      </Popup>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, FormActions, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
-import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import { Badge, Button, Card, FormActions, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api'
 import { gs } from '@/utils/calculos'
@@ -254,7 +254,7 @@ function Valuaciones({ esDemo }) {
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {!esDemo && <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />}
-    <Modal open={Boolean(form)} onClose={busy ? undefined : () => { setForm(null); setEditingId(null); setError('') }} title={editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'} size="formulario">
+    <Popup open={Boolean(form)} onClose={busy ? undefined : () => { setForm(null); setEditingId(null); setError('') }} title={editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'} tamano="md">
       {form && <form onSubmit={guardar} className="space-y-4">
         <fieldset disabled={busy} className={GRILLA_DOS_COLUMNAS}>
           <div><Label htmlFor="dv-model">Modelo</Label><Input id="dv-model" autoFocus required maxLength={150} value={form.model} onChange={(event) => change('model', event.target.value)} placeholder="Ej. iPhone 13" /></div>
@@ -270,7 +270,7 @@ function Valuaciones({ esDemo }) {
           <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar valor'}</Button>
         </FormActions>
       </form>}
-    </Modal>
+    </Popup>
     {!loading && !error && !visibles.length && <p className="text-sm text-mute">{rows.length ? 'Ningún valor coincide con la búsqueda.' : 'Todavía no hay valores cargados. Sin un valor cargado, el POS no sugiere nada.'}</p>}
     {visibles.length > 0 && <div className="overflow-x-auto" data-testid="valoraciones-tabla">
       <div className={cn(GRID_VALORACIONES, 'px-3.5 pb-2 pt-1')}>
@@ -392,9 +392,9 @@ export default function TradeInPipeline() {
     </div>}
     {/* #316: el detalle sale de la página y vive en un panel con encabezado
         real (modelo, estado y valores); la edición no empuja la lista. */}
-    <VentanaDetalle open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo">
+    <Popup open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo">
       {abiertoItem && <Device item={abiertoItem} busy={busy || uncertain} onSave={save} />}
-    </VentanaDetalle>
+    </Popup>
     <Valuaciones esDemo={esDemo} />
   </div>
 }

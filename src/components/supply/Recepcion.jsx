@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { useNavigate } from 'react-router-dom'
 import { api, resources } from '@/lib/api'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, SaveActions, Select, Skeleton, Textarea, useResultado, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, FormField, Input, SaveActions, Select, Skeleton, Textarea, useResultado, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import CameraScan from '@/components/shared/CameraScan'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Icon from '@/components/shared/Icon'
@@ -560,7 +562,7 @@ export default function Recepcion() {
           <Button type="button" variant="ghost" className="text-bad" onClick={cancelar} disabled={busy}>Cancelar recepción</Button>
         </div>
 
-        <ConfirmDialog
+        <PopupConfirmar
           open={confirmarTodo}
           onCancel={() => setConfirmarTodo(false)}
           onConfirm={recibirTodo}
@@ -570,7 +572,7 @@ export default function Recepcion() {
           busy={busy}
         />
 
-        <Modal open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`} dirty={Boolean(incidencia) && nota.trim() !== String(incidencia?.nota || '').trim()}>
+        <Popup open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`} dirty={Boolean(incidencia) && nota.trim() !== String(incidencia?.nota || '').trim()}>
           <form onSubmit={(evento) => { evento.preventDefault(); guardarIncidencia() }} className="space-y-4">
             <p className="text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción. Podés adjuntar fotos (cámara o archivo).</p>
             <FormField label="Nota" htmlFor="nota-incidencia" error={incidenciaError} hint="Mínimo 3 caracteres.">
@@ -583,7 +585,7 @@ export default function Recepcion() {
               <Button type="submit" disabled={nota.trim().length < 3 || busy}>{busy ? 'Guardando…' : 'Registrar'}</Button>
             </SaveActions>
           </form>
-        </Modal>
+        </Popup>
       </div>
     )
   }

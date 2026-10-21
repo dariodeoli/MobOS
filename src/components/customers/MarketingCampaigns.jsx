@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
-import { Aviso, Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useResultado } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, Select, Skeleton, useResultado } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { telefonoVisible } from '@/utils/telefono'
@@ -115,7 +116,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
   const plantilla = plantillas.find((item) => item.key === templateKey)
 
   return (
-    <Modal open={open} onClose={() => !enviando && onClose?.()} title="Campañas de recompra" size="amplio">
+    <Popup open={open} onClose={() => !enviando && onClose?.()} title="Campañas de recompra" tamano="lg">
       <div className="space-y-4" data-testid="marketing-panel">
         <Card className="space-y-3">
           <form onSubmit={segmentar} className="flex flex-wrap items-end gap-2">
@@ -205,6 +206,6 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
           </Card>
         )}
       </div>
-    </Modal>
+    </Popup>
   )
 }

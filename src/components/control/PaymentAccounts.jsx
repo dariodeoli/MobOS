@@ -3,9 +3,9 @@ import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
 import { Aviso, Button, Card, EmptyState, Input, Label, Select, Stat } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import StatGrid from '@/components/shared/StatGrid'
 import Toolbar from '@/components/shared/Toolbar'
-import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
@@ -314,7 +314,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
       {message && <Aviso tono={message.ok ? 'ok' : 'error'}>{message.text}</Aviso>}
       {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." action={<Button type="button" onClick={() => openForm()}>Añadir cuenta</Button>} />}
       {form && (
-        <VentanaDetalle
+        <Popup
           open
           onClose={() => !busy && cerrarForm()}
           title={editingId ? 'Editar cuenta' : 'Nueva cuenta'}
@@ -380,7 +380,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
         </fieldset>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={cerrarForm}>Cancelar</Button></div>
         </form>
-        </VentanaDetalle>
+        </Popup>
       )}
       {!loading && !loadError && accounts.length > 0 && (() => {
         const identidad = (account) => {

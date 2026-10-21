@@ -7,7 +7,7 @@ import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
 import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
-import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import Popup from '@/components/shared/Popup'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
@@ -148,7 +148,7 @@ export default function Gastos() {
       </div>
       {message && <Aviso tono="error" className="p-3">{message}</Aviso>}
     </Card>
-    <VentanaDetalle open={drawerOpen} onClose={() => !busy && setDrawerOpen(false)} title="Registrar salida, cheque o adelanto">
+    <Popup open={drawerOpen} onClose={() => !busy && setDrawerOpen(false)} title="Registrar salida, cheque o adelanto">
       <form onSubmit={save} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <FormField label={`Monto ${form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}`} htmlFor="monto-gasto" error={validacion.errorDe('monto')}>
           <MoneyInput id="monto-gasto" currency={form.currency} value={form.originalAmount} onValueChange={value => set('originalAmount', value)} onBlur={validacion.alSalir('monto')} placeholder={form.currency === 'PYG' ? '250.000' : '0,00'} />
@@ -186,7 +186,7 @@ export default function Gastos() {
         )}
         <div className="flex items-end"><Button type="submit" disabled={busy || !validacion.valido || faltaAutorizacion} title={motivoBloqueo || undefined}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
       </form>
-    </VentanaDetalle>
+    </Popup>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
       {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} data-testid="gasto-fila" className={cn('flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40', v2 && 'v2-tile')}><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
     </Card>

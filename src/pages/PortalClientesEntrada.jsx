@@ -2,10 +2,11 @@ import { ArrowRight, Link2, MessageCircle, ShieldCheck } from 'lucide-react'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
 import { publicUrls } from '@/lib/urls'
+import '@/components/publico/publicoRediseno.css'
 
 export default function PortalClientesEntrada() {
   return (
-    <main className="flex min-h-dvh flex-col overflow-hidden bg-paper text-fore">
+    <main data-publico="1" className="flex min-h-dvh flex-col overflow-hidden bg-paper text-fore">
       <div className="relative flex flex-1 items-center justify-center px-5 py-12 sm:px-8">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,_rgb(var(--c-fono-glow)_/_0.18),_transparent_68%)]" />
         <section className="relative w-full max-w-lg rounded-3xl border border-fore/10 bg-ink/90 p-6 shadow-[0_24px_70px_rgb(15_23_42_/_0.12)] backdrop-blur sm:p-9">

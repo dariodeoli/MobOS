@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Aviso, Button, Card, Label, Modal, PasswordInput } from '@/components/ui'
+import { Aviso, Button, Card, Label, PasswordInput } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import { sessionApi } from '@/lib/api/session'
 import { iniciarSesionConApple } from '@/lib/nativo/apple'
 import { isNativeIOS } from '@/lib/plataforma'
@@ -56,7 +57,7 @@ export default function EliminarCuenta({ esDemo = false }) {
         <Button type="button" variant="danger" className="min-h-11" disabled={esDemo} onClick={() => setAbierto(true)} data-testid="eliminar-cuenta-abrir">Eliminar mi cuenta</Button>
         {esDemo && <p className="mt-2 text-xs text-mute">No disponible en la demo.</p>}
       </div>
-      <Modal open={abierto} onClose={cerrar} title="¿Eliminar tu cuenta?" size="corto">
+      <Popup open={abierto} onClose={cerrar} title="¿Eliminar tu cuenta?" tamano="sm">
         <form onSubmit={(event) => { event.preventDefault(); if (clave) eliminar({ password: clave }) }} className="space-y-3">
           <p className="text-sm text-mute">Vamos a borrar tu acceso y tus datos personales. Para confirmar que sos vos, volvé a ingresar tu contraseña{ios ? ' o confirmá con Apple' : ''}.</p>
           <div>
@@ -74,7 +75,7 @@ export default function EliminarCuenta({ esDemo = false }) {
             <Button type="submit" variant="danger" className="min-h-11" disabled={busy || !clave} data-testid="eliminar-cuenta-confirmar">{busy ? 'Eliminando…' : 'Eliminar mi cuenta'}</Button>
           </div>
         </form>
-      </Modal>
+      </Popup>
     </Card>
   )
 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
 import { api, API_URL } from '@/lib/api/client'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, Stat, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Skeleton, Stat, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
@@ -446,7 +448,7 @@ export default function Comisiones() {
         )}
       </Card>
 
-      <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} size="formulario">
+      <Popup open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} tamano="md">
         {comprobante && (
           <div className="space-y-4">
             <div className="rounded-xl border border-ink-600 p-3 text-sm">
@@ -488,9 +490,9 @@ export default function Comisiones() {
             <p className="text-xs text-mute">Al escanear el QR se verifica el comprobante sin sesión: vendedor, período, total, estado y fecha de emisión. No expone ventas ni clientes. Emitir un enlace nuevo invalida el QR anterior.</p>
           </div>
         )}
-      </Modal>
+      </Popup>
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(eliminando)}
         onCancel={() => setEliminando(null)}
         onConfirm={confirmarEliminar}
@@ -500,7 +502,7 @@ export default function Comisiones() {
         confirmLabel="Eliminar regla"
         variant="danger"
       />
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(anulando)}
         onCancel={() => setAnulando(null)}
         onConfirm={() => anulando && cambiarEstado(anulando, 'cancel')}

@@ -19,6 +19,7 @@ import ProductFooter from '@/components/app/ProductFooter'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 import { CabeceraTienda } from '@/components/publico/KitPublico'
 import { varianteDeTema } from '@/lib/tenantLogo'
+import '@/components/publico/publicoRediseno.css'
 
 
 // Semáforo del checklist en el informe público (mismos tonos que la ficha).
@@ -84,9 +85,9 @@ export default function InformePublico() {
   }
 
   const marco = 'mx-auto w-full max-w-2xl px-4 pb-10'
-  if (estado === 'cargando') return <main className={`${marco} pt-10`}><Skeleton className="h-56 w-full" /></main>
+  if (estado === 'cargando') return <main data-publico="1" className={`${marco} pt-10`}><Skeleton className="h-56 w-full" /></main>
   if (estado === 'sin' || estado === 'error' || !informe?.unit) {
-    return <main className={`${marco} pt-16 text-center`}>
+    return <main data-publico="1" className={`${marco} pt-16 text-center`}>
       <p className="text-sm font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
       <h1 className="mt-2 text-2xl font-bold">No encontramos este equipo</h1>
       <p className="mt-2 text-sm text-mute">El enlace puede estar incompleto o el equipo no pertenece a esta tienda. Pedile a la tienda que te comparta el informe de nuevo.</p>
@@ -117,7 +118,7 @@ export default function InformePublico() {
   const locksCertificado = (unit.controles || []).map((control) => ({ clave: control.clave, estado: control.ok ? 'libre' : 'activo', detalle: `${control.label}: ${control.valor}` }))
 
   return (
-    <main className={`informe-publico ${marco} space-y-4 pt-8`}>
+    <main data-publico="1" className={`informe-publico ${marco} space-y-4 pt-8`}>
       <CabeceraTienda empresa={store.name} detalle={store.branch}
         logo={isDemoRuntime || demoDelEnlace ? null : `${API_URL}/api/public/units/${encodeURIComponent(serial || '')}/logo?variant=${varianteDeTema()}`}
         logoClaro={isDemoRuntime || demoDelEnlace ? null : `${API_URL}/api/public/units/${encodeURIComponent(serial || '')}/logo?variant=light`}>
