@@ -38,3 +38,16 @@ El alcance móvil/web se prueba para este editor; demo queda sólo lectura. El r
 ### Revisión de falsos positivos Apple
 
 Tras la revisión de #628 se repitieron builds/lint, frontend1597PASS, backend347PASS+1skip, UI2PASS (10,0s, cero flaky) y el gate PG/HTTP enfocado exit0 sobre el build final. Este último crea productos/unidades sintéticos para Samsung Galaxy Watch y Correa Apple Watch (409, sin cambio de color), y Apple Watch Series9 / Watch Series9 (200). También rechaza convertir el modelo de un iPhone en Samsung Galaxy Watch. El arnés completo anterior sigue como evidencia de regresión general; la regla de clasificación final se acredita con esta repetición enfocada.
+
+
+## Revisión táctil del candidato239
+
+El consentimiento reutiliza `owncoding-ui/Checkbox`, con etiqueta asociada y
+altura mínima44, en lugar del par label/input local. La regresión verifica
+foco, alternancia conEspacio, clic en el texto y confirmación antes de enviar.
+La ejecución390 con isMobile/hasTouch también verifica áreas táctiles≥44 para
+Guardar, Cancelar y consentimiento, sin desbordamiento horizontal, y conserva
+el editor y sus valores después de409. Guardar/Cancelar mantienen el patrón
+canónico toque-44 del componente compartido; no se agregó CSS paralelo.
+La captura390 de escritorio no sustituye esa ejecución táctil emulada. No se
+acredita prueba física coniPhone ni lector de pantalla por estas capturas.
