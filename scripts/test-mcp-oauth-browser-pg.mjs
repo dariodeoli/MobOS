@@ -27,7 +27,7 @@ try {
   run('pg_ctl', ['-D', pgdata, '-l', join(root, 'pg.log'), '-o', `-h 127.0.0.1 -p ${pgPort} -k ${root}`, '-w', 'start']); pgStarted = true
   run('createdb', ['-h', '127.0.0.1', '-p', String(pgPort), '-U', 'postgres', 'mobos_mcp_browser'])
   const apiOrigin = `http://localhost:${apiPort}`, resourceOrigin = 'https://api.example.test', appOrigin = 'https://app.moboss.test'
-  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_APP_URL: appOrigin, MOBOS_MCP_RESOURCE: resourceOrigin, MOBOS_MCP_ISSUER: apiOrigin, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId, name: 'Browser fixture', redirectUris: [redirectUri] }]) })
+  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_ENABLED: 'true', MOBOS_APP_URL: appOrigin, MOBOS_MCP_RESOURCE: resourceOrigin, MOBOS_MCP_ISSUER: apiOrigin, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId, name: 'Browser fixture', redirectUris: [redirectUri] }]) })
   execFileSync(join(backend, 'node_modules/.bin/prisma'), ['migrate', 'deploy', '--schema', join(backend, 'prisma/schema.prisma')], { env: { ...process.env, DATABASE_URL: dbUrl }, cwd: backend, stdio: 'ignore' })
   require.extensions['.ts'] = (m, p) => { const ts = require(join(backend, 'node_modules/typescript')); m._compile(ts.transpileModule(readFileSync(p, 'utf8'), { compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, p) }
   const { PrismaClient } = require(join(backend, 'node_modules/@prisma/client')), { PrismaPg } = require(join(backend, 'node_modules/@prisma/adapter-pg'))

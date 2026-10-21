@@ -1,3 +1,4 @@
+import { mcpOriginAllowed, mcpJsonRequest } from '../../../../lib/mcp/transport'
 import { mcpAccessFailure } from '../../../../lib/mcp/rate-limit'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
@@ -15,16 +16,6 @@ import { listPriceLists, readPriceList, PriceListServiceError } from '../../../.
 
 export const dynamic = 'force-dynamic'
 
-function originAllowed(request: Request) {
-  const origin = request.headers.get('origin')
-  if (!origin) return true
-  let originUrl: URL
-  try { originUrl = new URL(origin) } catch { return false }
-  const configured = (process.env.MOBOS_MCP_ALLOWED_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean)
-  if (configured.includes(originUrl.origin)) return true
-  try { return originUrl.origin === new URL(request.url).origin } catch { return false }
-}
-
 function jsonRpc(id: unknown, result: unknown, status = 200) {
   return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, result }, { status, headers: { 'Cache-Control': 'no-store' } })
 }
@@ -36,9 +27,8 @@ function encodeCursor(value: unknown) { return Buffer.from(JSON.stringify(value)
 const MAX_JSON_BYTES = 7_100_000
 
 export async function POST(request: Request) {
-  if (!originAllowed(request)) return NextResponse.json({ error: 'origin_not_allowed' }, { status: 403 })
-  const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
-  if (!contentType.startsWith('application/json')) return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
+  if (!mcpOriginAllowed(request)) return NextResponse.json({ error: 'origin_not_allowed' }, { status: 403 })
+  if (!mcpJsonRequest(request)) return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
   let auth: Awaited<ReturnType<typeof requireMcpAccessToken>>
   try { auth = await requireMcpAccessToken(request) } catch (error) { return mcpAccessFailure(error) }
   if (!auth) { let metadata = '/.well-known/oauth-protected-resource'; try { metadata = new URL('/.well-known/oauth-protected-resource', `${mcpResource()}/`).href } catch {} return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: { 'WWW-Authenticate': `Bearer resource_metadata="${metadata}"` } }) }
@@ -55,7 +45,7 @@ export async function POST(request: Request) {
   if (body.method === 'tools/list') {
     const implemented = new Set<string>(IMPLEMENTED_MCP_ACTIONS)
     const ownerCanCreate = Boolean(auth.accountId && auth.user.role === 'ADMIN' && await prisma.tenantMembership.findFirst({ where: { accountId: auth.accountId, tenantId: auth.tenantId, userId: auth.user.id, role: 'OWNER', revokedAt: null }, select: { id: true } }))
-    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action !== 'company.create' || ownerCanCreate) && (entry.action === 'products.write' || entry.action === 'prices.write' || entry.action === 'price_lists.write' || entry.action === 'product_images.write' || entry.action === 'customers.write' || entry.action === 'company.write' || entry.action === 'company.create' || !entry.mutating) && auth.scopes.includes(entry.scope)).filter(entry => authorizeMcpAction(entry.action, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: null }).allowed).map(entry => ({ name: entry.action, description: entry.label, inputSchema: toolInputSchema(entry.action) }))
+    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action !== 'company.create' || ownerCanCreate) && (entry.action === 'products.write' || entry.action === 'prices.write' || entry.action === 'price_lists.write' || entry.action === 'product_images.write' || entry.action === 'customers.write' || entry.action === 'company.write' || entry.action === 'company.create' || entry.action === 'sales.write' || !entry.mutating) && auth.scopes.includes(entry.scope)).filter(entry => authorizeMcpAction(entry.action, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: null }).allowed).map(entry => ({ name: entry.action, description: entry.label, inputSchema: toolInputSchema(entry.action) }))
     return jsonRpc(id, { tools })
   }
   if (body.method !== 'tools/call') return error(id, -32601, 'Método MCP no soportado.')
@@ -78,8 +68,8 @@ export async function POST(request: Request) {
       return error(id, -32003, 'No se pudo preparar el alta de empresa.', { code: 'COMPANY_CREATE_FORBIDDEN' })
     }
   }
-  if (name === 'products.write' || name === 'prices.write' || name === 'price_lists.write' || name === 'product_images.write' || name === 'customers.write' || name === 'company.write') {
-    const payload = name === 'products.write'
+  if (name === 'sales.write' || name === 'products.write' || name === 'prices.write' || name === 'price_lists.write' || name === 'product_images.write' || name === 'customers.write' || name === 'company.write') {
+    const payload = name === 'sales.write' ? { operation: args.operation, orderId: args.orderId, notes: args.notes } : name === 'products.write'
       ? { operation: args.operation, productId: args.productId, branchId: args.branchId, name: args.name, sku: args.sku, category: args.category, model: args.model, color: args.color, capacity: args.capacity, pricePyg: args.pricePyg }
       : name === 'product_images.write'
         ? { productId: args.productId, branchId: args.branchId, variantKey: args.variantKey, dataBase64: args.dataBase64, contentType: args.contentType }

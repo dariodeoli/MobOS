@@ -31,8 +31,9 @@ try {
   command('createdb', ['-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', 'mcp_sdk_http_test'])
   const httpPort = await freePort()
   const resource = `http://localhost:${httpPort}`
-  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_GRANT_MINUTE_LIMIT: '10000', MOBOS_MCP_TENANT_MINUTE_LIMIT: '100000', MOBOS_APP_URL: resource, MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }, { clientId: 'sdk-http-2', name: 'SDK HTTP 2', redirectUris: ['https://connector2.example/callback'] }]) })
+  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_ENABLED: 'true', MOBOS_MCP_GRANT_MINUTE_LIMIT: '10000', MOBOS_MCP_TENANT_MINUTE_LIMIT: '100000', MOBOS_APP_URL: resource, MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }, { clientId: 'sdk-http-2', name: 'SDK HTTP 2', redirectUris: ['https://connector2.example/callback'] }]) })
   execFileSync(backend + '/node_modules/.bin/prisma', ['migrate', 'deploy', '--schema', backend + '/prisma/schema.prisma'], { env: { ...process.env, DATABASE_URL: dbUrl }, cwd: backend, stdio: 'inherit' })
+  if (process.env.MOBOS_MCP_DB_CHECK === '1') execFileSync(process.execPath, [backend + '/../scripts/check-db-schema.mjs'], { env: { ...process.env, DATABASE_URL: dbUrl }, cwd: backend, stdio: 'inherit' })
   require.extensions['.ts'] = (module, filename) => {
     const ts = require('typescript')
     module._compile(ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, filename)
@@ -44,15 +45,26 @@ try {
   const { issueMcpAuthorizationCode, issueMcpTokens, rotateMcpRefreshToken, mcpResource, pkceChallenge, requireMcpAccessToken } = oauth
   const makeDb = () => { const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: dbUrl }) }); clients.push(db); return db }
   const db = makeDb()
+  const timezoneClock = await db.$transaction(async tx => {
+    await tx.$executeRawUnsafe("SET LOCAL TIME ZONE 'America/Asuncion'")
+    const numeric = await tx.$queryRaw`SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint AS "nowMs"`
+    const current = await oauth.dbNow(tx)
+    return Math.abs(current.getTime() - Number(numeric[0].nowMs))
+  })
+  ok(timezoneClock < 2000, 'MCP clock uses absolute PostgreSQL epoch in Asuncion timezone')
+
   const tenant = await db.tenant.create({ data: { name: 'SDK HTTP', slug: 'sdk-http', email: 'sdk@example.test' } })
   const branch = await db.branch.create({ data: { tenantId: tenant.id, name: 'Centro' } })
   const account = await db.account.create({ data: { email: 'sdk-account@example.test' } })
   const user = await db.user.create({ data: { tenantId: tenant.id, branchId: branch.id, name: 'SDK Admin', email: 'sdk-user@example.test', pinHash: 'unused', role: 'ADMIN' } })
   await db.tenantMembership.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, role: 'OWNER' } })
   const session = await db.session.create({ data: { tenantId: tenant.id, accountId: account.id, userId: user.id, level: 'SELLER', deviceId: 'sdk-http', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 3600000) } })
-  const scopes = ['products:write', 'prices:write', 'price_lists:read', 'price_lists:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'reports:read', 'company:read', 'company:write', 'company:create']
+  const scopes = ['products:write', 'prices:write', 'price_lists:read', 'price_lists:write', 'product_images:write', 'products:read', 'customers:read', 'customers:write', 'sales:read', 'sales:write', 'reports:read', 'company:read', 'company:write', 'company:create']
   const grant = await db.mcpClientGrant.create({ data: { accountId: account.id, tenantId: tenant.id, userId: user.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/callback', resource: mcpResource(), scopes } })
   const issued = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes })
+  const issuedRow = await db.mcpAccessToken.findFirst({ where: { grantId: grant.id } })
+  const absoluteRemaining = issuedRow.expiresAt.getTime() - (await oauth.dbNow(db)).getTime()
+  ok(absoluteRemaining > 590000 && absoluteRemaining <= 600000, 'access token expiry is ten minutes of absolute DB time')
   const product = await db.product.create({ data: { tenantId: tenant.id, branchId: branch.id, sku: 'SDK-PRICE-1', name: 'SDK price', pricePyg: 1000, stock: 1 } })
   await db.product.createMany({ data: [1, 2, 3].map(n => ({ tenantId: tenant.id, branchId: branch.id, sku: `SDK-LIST-${n}`, name: `SDK list ${n}`, pricePyg: 1000 + n, stock: n })) })
   await db.customer.createMany({ data: [1, 2, 3].map(n => ({ tenantId: tenant.id, name: `SDK customer ${n}`, document: `CU-${n}` })) })
@@ -68,15 +80,29 @@ try {
 
   const { POST } = require('../app/api/mcp/streamable/route.ts')
   const priceListById = require('../app/api/price-lists/[id]/route.ts')
+  const ordersById = require('../app/api/orders/[orderId]/route.ts')
   const { GET: protectedResourceGet } = require('../app/.well-known/oauth-protected-resource/route.ts')
   const { GET: authorizeGet } = require('../app/api/mcp/authorize/route.ts')
   const { POST: tokenPost } = require('../app/api/mcp/token/route.ts')
   const browserCookie = 'mcp-get-cookie'
   const protectedMetadata = await protectedResourceGet()
   const protectedScopes = (await protectedMetadata.json()).scopes_supported
-  ok(protectedMetadata.status === 200 && protectedScopes.includes('products:write') && protectedScopes.includes('price_lists:write') && protectedScopes.includes('company:create') && !protectedScopes.includes('sales:write'), 'protected resource advertises only implemented MCP scopes')
+  ok(protectedMetadata.status === 200 && protectedScopes.includes('products:write') && protectedScopes.includes('price_lists:write') && protectedScopes.includes('company:create') && protectedScopes.includes('sales:write'), 'protected resource advertises only implemented MCP scopes')
   await db.session.update({ where: { id: session.id }, data: { tokenHash: createHash('sha256').update(browserCookie).digest('hex') } })
   const authQuery = new URLSearchParams({ response_type: 'code', client_id: 'sdk-http', redirect_uri: 'https://connector.example/callback', scope: 'products:read', resource, code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'state+/=' })
+  const { POST: disabledChanges } = require('../app/api/mcp/changes/route.ts')
+  for (const disabled of [undefined, 'false', 'TRUE', '1']) {
+    if (disabled === undefined) delete process.env.MOBOS_MCP_ENABLED; else process.env.MOBOS_MCP_ENABLED = disabled
+    const beforeDisabled = await db.auditLog.count() + await db.authAttempt.count() + await db.mcpAuthorizationCode.count() + await db.mcpChangePreview.count()
+    const blockedMetadata = await protectedResourceGet()
+    const blockedConsent = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`))
+    const blockedToken = await tokenPost(new Request(`${resource}/api/mcp/token`, { method: 'POST', body: 'grant_type=refresh_token' }))
+    const blockedAccess = await POST(new Request(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, 'content-type': 'application/json' }, body: '{}' }))
+    const blockedChanges = await disabledChanges(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, 'content-type': 'application/json' }, body: '{}' }))
+    ok([blockedMetadata, blockedConsent, blockedToken, blockedAccess, blockedChanges].every(response => response.status === 503), 'disabled MCP closes discovery/OAuth/existing bearer/changes before work')
+    ok(beforeDisabled === await db.auditLog.count() + await db.authAttempt.count() + await db.mcpAuthorizationCode.count() + await db.mcpChangePreview.count(), 'disabled MCP leaves audit/quota/code/preview stores unchanged')
+  }
+  process.env.MOBOS_MCP_ENABLED = 'true'
   const consentGet = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`, { headers: { cookie: `mobos_seller_session=${browserCookie}` } }))
   const consentBody = await consentGet.text(); ok(consentGet.status === 200 && consentBody.includes('Autorizar conexión'), 'OAuth consent GET without Origin uses trusted issuer URL and session cookie')
   const unauthGet = await authorizeGet(new Request(`${resource}/api/mcp/authorize?${authQuery}`))
@@ -94,6 +120,9 @@ try {
         const id = target.pathname.split('/').pop()
         const handler = req.method === 'DELETE' ? priceListById.DELETE : req.method === 'PATCH' ? priceListById.PATCH : priceListById.GET
         response = await handler(request, { params: Promise.resolve({ id }) })
+      } else if (target.pathname.startsWith('/api/orders/')) {
+        const orderId = target.pathname.split('/').pop()
+        response = await ordersById.PATCH(request, { params: Promise.resolve({ orderId }) })
       } else response = await POST(request)
       res.statusCode = response.status
       response.headers.forEach((value, key) => res.setHeader(key, value))
@@ -268,6 +297,33 @@ try {
   let badMime = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, contentType: 'image/jpeg', idempotencyKey: 'sdk-http-image-mime' } }) } catch { badMime = true }; ok(badMime, 'image magic MIME mismatch rejected')
   let tooLarge = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, dataBase64: Buffer.concat([Buffer.from(png, 'base64'), Buffer.alloc(5 * 1024 * 1024)]).toString('base64'), idempotencyKey: 'sdk-http-image-large' } }) } catch { tooLarge = true }; ok(tooLarge, 'image max size rejected')
   const raw = async (headers, body = '{}') => fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, ...headers }, body })
+  const guardedSnapshot = async () => JSON.stringify(await Promise.all([db.product.count(), db.customer.count(), db.priceList.count(), db.productImage.count(), db.tenant.findUnique({ where: { id: tenant.id }, select: { address: true } }), db.product.findUnique({ where: { id: product.id }, select: { pricePyg: true } })]), (_, value) => typeof value === 'bigint' ? String(value) : value)
+  const ttlDomains = [
+    ['products.write', { ...productArgs, sku: 'TTL-PRODUCT' }],
+    ['prices.write', { mode: 'preview', productId: product.id, pricePyg: 2200, expectedPricePyg: Number((await db.product.findUnique({ where: { id: product.id } })).pricePyg) }],
+    ['price_lists.write', { ...listArgs, name: 'TTL price list' }],
+    ['customers.write', { ...customerArgs, document: 'TTL-CUSTOMER' }],
+    ['company.write', { ...companyArgs, address: 'TTL address' }],
+    ['product_images.write', { ...imageArgs }],
+  ]
+  for (const [name, value] of ttlDomains) {
+    const args = { ...value, idempotencyKey: `sdk-ttl-${name}` }
+    const prepared = await client.callTool({ name, arguments: args })
+    const previewId = prepared.structuredContent.previewId
+    await db.mcpChangePreview.update({ where: { id: previewId }, data: { expiresAt: new Date(Date.now() + 1700) } })
+    let locked
+    const ready = new Promise(resolve => { locked = resolve })
+    const lock = makeDb().$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${previewId} FOR UPDATE`
+      locked(); await tx.$executeRaw`SELECT pg_sleep(2.4)`
+    })
+    await ready
+    const before = await guardedSnapshot()
+    const audits = await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } })
+    let denied = false; try { await client.callTool({ name, arguments: { ...args, mode: 'commit', previewId } }) } catch { denied = true }
+    await lock
+    ok(denied && before === await guardedSnapshot() && audits === await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } }) && (await db.mcpChangePreview.findUnique({ where: { id: previewId } })).status === 'PREVIEW', `${name} expiry after preview lock rolls back mutation and audit`)
+  }
   const badOrigin = await fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: 'https://evil.example', 'content-type': 'application/json' }, body: '{}' }); ok(badOrigin.status === 403, 'invalid Origin rejected')
   const invalidBearer = await fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: 'Bearer invalid', origin: resource, 'content-type': 'application/json' }, body: '{}' }); ok(invalidBearer.status === 401 && invalidBearer.headers.get('www-authenticate') === `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource"`, 'invalid bearer has absolute resource metadata challenge')
   const oversized = await fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 90, method: 'tools/call', params: { name: 'products.read', arguments: { q: 'x'.repeat(7_100_000) } } }) }); ok(oversized.status === 413, 'oversized MCP JSON body rejected')
@@ -301,6 +357,85 @@ try {
   const removedClient = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${issued.accessToken}` } }))
   ok(removedClient === null, 'revoked MCP client configuration invalidates bearer')
   process.env.MOBOS_MCP_CLIENTS_JSON = configuredClients
+  const noteTool = listed.tools.find(tool => tool.name === 'sales.write')
+  ok(noteTool?.inputSchema.properties.operation.enum.join() === 'update_note', 'sales.write advertises only existing-order comment updates')
+  const noteCall = args => client.callTool({ name: 'sales.write', arguments: args })
+  const noteArgs = { mode: 'preview', operation: 'update_note', orderId: reportOrder.id, notes: '  Called client  ', idempotencyKey: 'sdk-note-first' }
+  const beforeNote = await db.order.findUnique({ where: { id: reportOrder.id }, include: { items: true, payments: true } })
+  const stockBeforeNote = await db.product.findUnique({ where: { id: product.id }, select: { stock: true } })
+  const notePreview = await noteCall(noteArgs)
+  ok(notePreview.structuredContent.after.notes === 'Called client' && (await db.order.findUnique({ where: { id: reportOrder.id } })).notes === beforeNote.notes, 'note preview normalizes text without mutating order')
+  const noteCommit = await noteCall({ ...noteArgs, mode: 'commit', previewId: notePreview.structuredContent.previewId })
+  ok(noteCommit.structuredContent.committed === true && noteCommit.structuredContent.order.notes === 'Called client', 'note commit uses shared guarded service')
+  const noteReplay = await noteCall({ ...noteArgs, mode: 'commit', previewId: notePreview.structuredContent.previewId })
+  ok(noteReplay.structuredContent.idempotent === true, 'note commit replay is idempotent')
+  ok(await db.auditLog.count({ where: { entityId: reportOrder.id, action: 'MCP_CHANGE_COMMITTED' } }) === 1, 'note commit audit written exactly once')
+  const afterNote = await db.order.findUnique({ where: { id: reportOrder.id }, include: { items: true, payments: true } })
+  ok(String(afterNote.totalPyg) === String(beforeNote.totalPyg) && afterNote.status === beforeNote.status && JSON.stringify(afterNote.items) === JSON.stringify(beforeNote.items) && JSON.stringify(afterNote.payments) === JSON.stringify(beforeNote.payments) && (await db.product.findUnique({ where: { id: product.id }, select: { stock: true } })).stock === stockBeforeNote.stock, 'note update cannot change money, fulfillment, items, payments or stock')
+  const prepareNote = async (key, notes = key) => { const args = { ...noteArgs, notes, idempotencyKey: key }; const result = await noteCall(args); return { ...args, mode: 'commit', previewId: result.structuredContent.previewId } }
+  const [noteParallelA, noteParallelB] = await Promise.all([prepareNote('sdk-note-parallel-a'), prepareNote('sdk-note-parallel-b')])
+  const noteParallel = await Promise.allSettled([noteCall(noteParallelA), noteCall(noteParallelB)])
+  ok(noteParallel.filter(result => result.status === 'fulfilled').length === 1 && noteParallel.filter(result => result.status === 'rejected').length === 1, 'parallel note previews claim one version without lost updates')
+  await db.order.update({ where: { id: reportOrder.id }, data: { updatedAt: new Date('2035-01-01T00:00:00.000Z') } })
+  const staleNote = await prepareNote('sdk-note-stale')
+  const webNote = await fetch(`${resource}/api/orders/${reportOrder.id}`, { method: 'PATCH', headers: { cookie: `mobos_seller_session=${browserCookie}`, origin: resource, 'content-type': 'application/json' }, body: JSON.stringify({ notes: 'Web comment' }) })
+  ok(webNote.status === 200 && new Date((await webNote.json()).updatedAt) > new Date('2035-01-01T00:00:00.000Z'), 'web comment editor advances shared version even ahead of DB clock')
+  let staleNoteDenied = false; try { await noteCall(staleNote) } catch { staleNoteDenied = true }
+  ok(staleNoteDenied && (await db.order.findUnique({ where: { id: reportOrder.id } })).notes === 'Web comment', 'web change invalidates old MCP note preview')
+  const lockExpiry = await prepareNote('sdk-note-lock-expiry')
+  await db.mcpChangePreview.update({ where: { id: lockExpiry.previewId }, data: { expiresAt: new Date(Date.now() + 1400) } })
+  let acquiredOrderLock
+  const orderLockReady = new Promise(resolve => { acquiredOrderLock = resolve })
+  const orderLock = makeDb().$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${reportOrder.id} FOR UPDATE`
+    acquiredOrderLock()
+    await tx.$executeRaw`SELECT pg_sleep(2.0)`
+  })
+  await orderLockReady
+  const auditBeforeLock = await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED', entityId: reportOrder.id } })
+  let expiryWaitDenied = false; try { await noteCall(lockExpiry) } catch { expiryWaitDenied = true }
+  await orderLock
+  ok(expiryWaitDenied && (await db.order.findUnique({ where: { id: reportOrder.id } })).notes === 'Web comment' && auditBeforeLock === await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED', entityId: reportOrder.id } }), 'preview expiring while waiting on Order lock rolls back note and commit audit')
+  const previewLockExpiry = await prepareNote('sdk-note-preview-lock-expiry')
+  await db.mcpChangePreview.update({ where: { id: previewLockExpiry.previewId }, data: { expiresAt: new Date(Date.now() + 1400) } })
+  let acquiredPreviewLock
+  const previewLockReady = new Promise(resolve => { acquiredPreviewLock = resolve })
+  const previewLock = makeDb().$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${previewLockExpiry.previewId} FOR UPDATE`
+    acquiredPreviewLock()
+    await tx.$executeRaw`SELECT pg_sleep(2.0)`
+  })
+  await previewLockReady
+  let previewExpiryDenied = false; try { await noteCall(previewLockExpiry) } catch { previewExpiryDenied = true }
+  await previewLock
+  ok(previewExpiryDenied && (await db.order.findUnique({ where: { id: reportOrder.id } })).notes === 'Web comment' && auditBeforeLock === await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED', entityId: reportOrder.id } }), 'preview expiring while waiting on preview row lock rolls back note and commit audit')
+  const rolePreview = await prepareNote('sdk-note-role')
+  await db.user.update({ where: { id: user.id }, data: { role: 'VENDEDOR', permissions: [] } })
+  let noteRoleDenied = false; try { await noteCall(rolePreview) } catch { noteRoleDenied = true }
+  ok(noteRoleDenied, 'permission downgrade blocks pending note commit')
+  await db.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } })
+  const noteOtherBranch = await db.branch.create({ data: { tenantId: tenant.id, name: 'Note other branch' } })
+  const branchPreview = await prepareNote('sdk-note-branch')
+  await db.user.update({ where: { id: user.id }, data: { branchId: noteOtherBranch.id } })
+  let noteBranchDenied = false; try { await noteCall(branchPreview) } catch { noteBranchDenied = true }
+  ok(noteBranchDenied, 'branch change cannot commit inaccessible order comment')
+  await db.user.update({ where: { id: user.id }, data: { branchId: branch.id } })
+  const revokedNote = await prepareNote('sdk-note-revoked')
+  await db.mcpClientGrant.update({ where: { id: grant.id }, data: { revokedAt: new Date() } })
+  let revokedNoteDenied = false; try { await noteCall(revokedNote) } catch { revokedNoteDenied = true }
+  ok(revokedNoteDenied && (await db.order.findUnique({ where: { id: reportOrder.id } })).notes === 'Web comment', 'revoked grant cannot commit pending note')
+  await db.mcpClientGrant.update({ where: { id: grant.id }, data: { revokedAt: null } })
+  const cancelledNoteOrder = await db.order.create({ data: { tenantId: tenant.id, branchId: branch.id, sellerId: user.id, orderNumber: 'NOTE-CANCELLED', status: 'CANCELLED', subtotalPyg: 0, totalPyg: 0 } })
+  let cancelledNoteDenied = false; try { await noteCall({ ...noteArgs, orderId: cancelledNoteOrder.id, idempotencyKey: 'sdk-note-cancelled' }) } catch { cancelledNoteDenied = true }
+  ok(cancelledNoteDenied, 'cancelled sale comment cannot be changed')
+  const expiredNote = await prepareNote('sdk-note-expired')
+  await db.mcpChangePreview.update({ where: { id: expiredNote.previewId }, data: { expiresAt: new Date(0) } })
+  let noteExpiredDenied = false; try { await noteCall(expiredNote) } catch { noteExpiredDenied = true }
+  ok(noteExpiredDenied, 'expired note preview cannot commit')
+  for (const fields of [{ operation: 'create' }, { notes: '' }, { notes: 'x'.repeat(2001) }, { totalPyg: 1 }, { billingName: 'not a note' }]) {
+    let denied = false; try { await noteCall({ ...noteArgs, ...fields, idempotencyKey: 'sdk-note-invalid' }) } catch { denied = true }
+    ok(denied, 'sales.write rejects unsupported operation or fields')
+  }
   const { consumeMcpQuota } = require('../lib/mcp/rate-limit.ts')
   process.env.MOBOS_MCP_GRANT_MINUTE_LIMIT = '3'; process.env.MOBOS_MCP_TENANT_MINUTE_LIMIT = '100'
   const parallelGrant = await Promise.allSettled(Array.from({ length: 20 }, () => consumeMcpQuota(db, 'quota-grant-concurrent', 'quota-tenant-grant')))
@@ -318,12 +453,22 @@ try {
   ok((await POST(quotaRequest())).status === 200, 'first authenticated HTTP request within quota')
   const quotaResponse = await POST(quotaRequest())
   ok(quotaResponse.status === 429 && Number(quotaResponse.headers.get('retry-after')) > 0, 'HTTP excess returns429 and bounded retry-after')
+  const forbiddenChanges = await require('../app/api/mcp/changes/route.ts').POST(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: 'https://evil.example', 'content-type': 'application/json' }, body: '{}' }))
+  ok(forbiddenChanges.status === 403, 'direct changes preserves browser origin guard')
   const previewsBeforeQuota = await db.mcpChangePreview.count()
   const changesPost = require('../app/api/mcp/changes/route.ts').POST
   const directBlocked = await changesPost(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'preview', action: 'products.write', idempotencyKey: 'direct-rate-denial', payload: { name: 'blocked', sku: 'blocked' } }) }))
   ok(directBlocked.status === 429 && await db.mcpChangePreview.count() === previewsBeforeQuota, 'direct changes endpoint cannot bypass quota or create preview')
   await db.authAttempt.deleteMany({ where: { scope: { in: ['mcp:grant', 'mcp:tenant'] } } })
   process.env.MOBOS_MCP_GRANT_MINUTE_LIMIT = '10000'; process.env.MOBOS_MCP_TENANT_MINUTE_LIMIT = '100000'
+  const badChangesMedia = await changesPost(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { 'content-type': 'application/json-invalid' }, body: '{}' }))
+  ok(badChangesMedia.status === 415, 'direct changes rejects malformed JSON media type')
+  const oversizedChanges = await changesPost(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, 'content-type': 'application/json; charset=utf-8' }, body: 'x'.repeat(7_100_001) }))
+  ok(oversizedChanges.status === 413, 'direct changes accepts allowed origin/media and rejects oversized body before parsing')
+  for (const [action, payload] of [['company.write', { name: 'Bad', extra: 'internal-secret' }], ['prices.write', { productId: product.id, pricePyg: Number.MAX_SAFE_INTEGER + 1, expectedPricePyg: 1000 }]]) {
+    const rejected = await changesPost(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'preview', action, idempotencyKey: 'direct-contract-reject', payload }) }))
+    ok(rejected.status === 400 && !(await rejected.text()).includes('internal-secret'), 'direct changes applies closed typed tool contract without echoing input')
+  }
   const openSchedule = { timezone: 'America/Asuncion', windows: [{ days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }] }
   await db.user.update({ where: { id: user.id }, data: { accessSchedule: openSchedule } })
   const scheduleTokens = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] })

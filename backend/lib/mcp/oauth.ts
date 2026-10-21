@@ -14,6 +14,10 @@ const REDIRECT_URI = /^https:\/\//
 type Db = Prisma.TransactionClient | typeof prisma
 export class McpOAuthError extends Error { constructor(public code: string, message: string, public status = 400) { super(message) } }
 
+export function assertMcpEnabled() {
+  if (process.env.MOBOS_MCP_ENABLED !== 'true') throw new McpOAuthError('mcp_disabled', 'La conexión MCP no está habilitada.', 503)
+}
+
 /** PostgreSQL is the authority for token/code TTLs; callers may inject a clock only in deterministic tests. */
 export async function dbNow(db: Db) {
   const rows = await db.$queryRaw<{ nowMs: bigint }[]>`SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint AS "nowMs"`
@@ -23,6 +27,7 @@ export async function dbNow(db: Db) {
 }
 
 export function mcpResource() {
+  assertMcpEnabled()
   const value = process.env.MOBOS_MCP_RESOURCE || process.env.MOBOS_API_URL
   if (!value) throw new McpOAuthError('not_configured', 'MCP resource no está configurado.', 503)
   const url = new URL(value); if (url.protocol !== 'https:' && !(process.env.NODE_ENV !== 'production' && url.hostname === 'localhost')) throw new McpOAuthError('not_configured', 'El resource MCP debe ser HTTPS.', 503)
@@ -30,6 +35,7 @@ export function mcpResource() {
 }
 
 export function mcpIssuer() {
+  assertMcpEnabled()
   const value = process.env.MOBOS_MCP_ISSUER || process.env.MOBOS_API_URL || process.env.MOBOS_APP_URL
   if (!value) throw new McpOAuthError('not_configured', 'MCP OAuth no está configurado.', 503)
   const url = new URL(value)
@@ -78,6 +84,7 @@ export function hashMcpSecret(value: string) { return createHash('sha256').updat
 const isMcpSecret = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)
 
 export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string; accountId?: string | null; tenantId: string; sessionId: string; userId: string; clientId: string; redirectUri: string; resource: string; scopes: readonly string[]; codeChallenge: string }, now?: Date) {
+  assertMcpEnabled()
   now ??= await dbNow(db)
   const code = secret()
   const expiresAt = new Date(now.getTime() + CODE_TTL_MS)
@@ -86,6 +93,7 @@ export async function issueMcpAuthorizationCode(db: Db, input: { grantId: string
 }
 
 export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now?: Date) {
+  assertMcpEnabled()
   if (!isMcpSecret(rawCode)) throw new McpOAuthError('invalid_grant', 'El código no es válido.', 400)
   now ??= await dbNow(db)
   const count = await db.mcpAuthorizationCode.updateMany({ where: { codeHash: hashMcpSecret(rawCode), usedAt: null, expiresAt: { gt: now } }, data: { usedAt: now } })
@@ -96,6 +104,7 @@ export async function consumeMcpAuthorizationCode(db: Db, rawCode: string, now?:
 }
 
 export async function issueMcpTokens(db: Db, input: { grantId: string; accountId?: string | null; tenantId: string; sessionId: string; userId: string; clientId: string; resource: string; scopes: readonly string[] }, now?: Date) {
+  assertMcpEnabled()
   now ??= await dbNow(db)
   const grant = await db.mcpClientGrant.findUnique({ where: { id: input.grantId }, select: { revokedAt: true, accountId: true, tenantId: true, userId: true, clientId: true, resource: true, scopes: true } })
   const session = await db.session.findUnique({ where: { id: input.sessionId }, include: { user: true } })
@@ -116,6 +125,7 @@ export async function revokeMcpRefreshFamily(rawRefreshToken: string, clientId: 
 }
 
 export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, clientId: string, now?: Date) {
+  assertMcpEnabled()
   if (!isMcpSecret(rawRefreshToken)) throw new McpOAuthError('invalid_grant', 'El refresh token no es válido.', 400)
   now ??= await dbNow(db)
   const row = await db.mcpAccessToken.findFirst({ where: { refreshTokenHash: hashMcpSecret(rawRefreshToken), clientId }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
@@ -129,6 +139,7 @@ export async function rotateMcpRefreshToken(db: Db, rawRefreshToken: string, cli
 }
 
 export function oauthMetadata() {
+  assertMcpEnabled()
   const issuer = mcpIssuer(); const resource = mcpResource()
   return { issuer, resource, authorization_endpoint: `${issuer}/api/mcp/authorize`, token_endpoint: `${issuer}/api/mcp/token`, revocation_endpoint: `${issuer}/api/mcp/revoke`, response_types_supported: ['code'], grant_types_supported: ['authorization_code', 'refresh_token'], code_challenge_methods_supported: ['S256'], scopes_supported: [...IMPLEMENTED_MCP_SCOPES], token_endpoint_auth_methods_supported: ['none'], authorization_response_iss_parameter_supported: true }
 }
@@ -139,7 +150,7 @@ export function assertScopeActions(scopes: readonly string[]) {
 
 /** Validates an MCP bearer against the current MobOS session and membership. */
 export async function requireMcpAccessToken(request: Request, now?: Date) {
-  try { return await resolveMcpAccessToken(request, now) }
+  try { assertMcpEnabled(); return await resolveMcpAccessToken(request, now) }
   catch (error) { if (error instanceof McpAccessError) throw error; throw new McpAccessError('mcp_unavailable', 503) }
 }
 async function resolveMcpAccessToken(request: Request, now?: Date) {

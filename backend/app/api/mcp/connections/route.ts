@@ -1,3 +1,4 @@
+import { readBoundedBody } from '../../../../lib/mcp/request-body'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
@@ -30,7 +31,7 @@ export async function DELETE(request: Request) {
   const session = await requireSession(request)
   if (!session) return NextResponse.json({ error: 'login_required' }, { status: 401 })
   let body: unknown
-  try { body = await request.json() } catch { return NextResponse.json({ error: 'json_invalido' }, { status: 400 }) }
+  try { const raw = await readBoundedBody(request, 4096); if (raw === null) return NextResponse.json({ error: 'request_too_large' }, { status: 413 }); body = JSON.parse(raw) } catch { return NextResponse.json({ error: 'json_invalido' }, { status: 400 }) }
   const id = body && typeof body === 'object' && typeof (body as Record<string, unknown>).id === 'string' ? (body as Record<string, string>).id : ''
   if (!id || id.length > 100) return NextResponse.json({ error: 'id_invalido' }, { status: 400 })
   const grant = await prisma.mcpClientGrant.findFirst({ where: { id, tenantId: session.user.tenantId, userId: session.user.id, ...(session.accountId ? { accountId: session.accountId } : { accountId: null }), revokedAt: null }, select: { id: true, clientId: true } })

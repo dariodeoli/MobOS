@@ -1,3 +1,6 @@
+import { invalidToolArguments } from '../../../../lib/mcp/tool-contracts'
+import { mcpOriginAllowed, mcpJsonRequest } from '../../../../lib/mcp/transport'
+import { readOrderComment, updateOrderComment, normalizeOrderCommentFields, OrderCommentError } from '../../../../lib/order-comment-service'
 import { mcpAccessFailure } from '../../../../lib/mcp/rate-limit'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
@@ -20,6 +23,8 @@ function json(error: string, status = 400, extra: Record<string, unknown> = {}) 
 function safe(value: unknown) { return JSON.parse(JSON.stringify(value, (_, v) => typeof v === 'bigint' ? Number(v) : v)) }
 
 export async function POST(request: Request) {
+  if (!mcpOriginAllowed(request)) return json('origin_not_allowed', 403)
+  if (!mcpJsonRequest(request)) return json('unsupported_media_type', 415)
   let auth: Awaited<ReturnType<typeof requireMcpAccessToken>>
   try { auth = await requireMcpAccessToken(request) } catch (error) { return mcpAccessFailure(error) }
   if (!auth) return json('invalid_token', 401)
@@ -29,10 +34,12 @@ export async function POST(request: Request) {
   if (!mode) return json('modo_invalido')
   const checked = validateChange(body.action, body.payload)
   if (!checked.ok) return json(checked.error)
+  const argumentError = invalidToolArguments(checked.action, { ...checked.payload, mode, idempotencyKey: body.idempotencyKey, ...(body.previewId === undefined ? {} : { previewId: body.previewId }) })
+  if (argumentError) return json('argumentos_invalidos')
   // Other mutation domains remain disabled until their existing application
   // services are extracted and reused here. This endpoint must not create a
   // second, weaker CRUD path.
-  if (!['products.write', 'prices.write', 'price_lists.write', 'product_images.write', 'customers.write', 'company.write'].includes(checked.action)) return json('mutacion_no_disponible', 501)
+  if (!['sales.write', 'products.write', 'prices.write', 'price_lists.write', 'product_images.write', 'customers.write', 'company.write'].includes(checked.action)) return json('mutacion_no_disponible', 501)
   const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { id: true, settings: true } })
   if (!tenant) return json('empresa_no_disponible', 404)
   const modules = moduleStoreFrom(tenant.settings).modules
@@ -42,11 +49,35 @@ export async function POST(request: Request) {
   // Creating a list follows the web canAccessAny(products:manage) guard;
   // editing an existing commercial list remains restricted to management.
   if (checked.action === 'price_lists.write' && checked.payload.operation === 'update' && !['ADMIN', 'GERENTE'].includes(auth.user.role)) return json('role_denied', 403)
+  if (checked.action === 'sales.write') checked.payload.notes = normalizeOrderCommentFields({ notes: checked.payload.notes }).notes
   const hash = changePayloadHash(checked.action, checked.payload)
   const idempotencyKey = typeof body.idempotencyKey === 'string' && /^[A-Za-z0-9._:-]{8,120}$/.test(body.idempotencyKey) ? body.idempotencyKey : ''
   if (!idempotencyKey) return json('idempotency_key_requerida')
   if (mode === 'preview') {
     const expiresAt = new Date((await dbNow(prisma)).getTime() + TTL_MS)
+    if (checked.action === 'sales.write') {
+      try {
+        const value = await prisma.$transaction(async tx => {
+          const lock = `mcp:note-preview:${auth.grantId}:${idempotencyKey}`
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lock}, 0))`
+          const { order } = await readOrderComment(tx, { id: auth.user.id, tenantId: auth.tenantId }, String(checked.payload.orderId), auth)
+          const existing = await tx.mcpChangePreview.findUnique({ where: { grantId_idempotencyKey: { grantId: auth.grantId, idempotencyKey } } })
+          if (existing) {
+            if (existing.action !== checked.action || existing.payloadHash !== hash || existing.sessionId !== auth.sessionId || existing.clientId !== auth.clientId) throw new OrderCommentError('conflict', 'La clave ya corresponde a otra vista previa.')
+            return existing
+          }
+          const before = safe({ id: order.id, notes: order.notes, updatedAt: order.updatedAt })
+          const after = { ...before, notes: checked.payload.notes }
+          const created = await tx.mcpChangePreview.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, action: checked.action, payloadHash: hash, payload: checked.payload as Prisma.InputJsonValue, before, after, idempotencyKey, expiresAt } })
+          await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_PREVIEWED', entity: 'McpChangePreview', entityId: created.id, metadata: { action: checked.action, payloadHash: hash } } })
+          return created
+        })
+        return NextResponse.json(safe({ previewId: value.id, action: value.action, payloadHash: value.payloadHash, status: value.status, expiresAt: value.expiresAt, before: value.before, after: value.after, resultEntity: value.resultEntity, resultId: value.resultId }), { headers: { 'Cache-Control': 'no-store' } })
+      } catch (error) {
+        if (error instanceof OrderCommentError) return json(`venta_${error.code}`, error.status)
+        return json('venta_no_preparada', 503)
+      }
+    }
     if (checked.action === 'company.write') {
       let before
       try { before = await readTenantCompanyProfile({ tenantId: auth.tenantId, actorUserId: auth.user.id }) } catch { return json('empresa_no_disponible', 404) }
@@ -133,17 +164,41 @@ export async function POST(request: Request) {
   if (typeof body.previewId !== 'string' || body.previewId.length > 100) return json('preview_requerido')
   const preview = await prisma.mcpChangePreview.findFirst({ where: { id: body.previewId, tenantId: auth.tenantId, userId: auth.user.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId } })
   if (!preview) return json('preview_invalido', 409)
+  if (preview.status === 'COMMITTED' && preview.payloadHash === hash && checked.action === 'sales.write') {
+    try { await readOrderComment(prisma, { id: auth.user.id, tenantId: auth.tenantId }, String(checked.payload.orderId), auth) }
+    catch (error) { return error instanceof OrderCommentError ? json(`venta_${error.code}`, error.status) : json('venta_no_actualizada', 503) }
+  }
   if (preview.status === 'COMMITTED' && preview.payloadHash === hash) return NextResponse.json({ committed: true, idempotent: true, previewId: preview.id, entity: preview.resultEntity, entityId: preview.resultId }, { headers: { 'Cache-Control': 'no-store' } })
   const now = await dbNow(prisma)
   if (preview.status !== 'PREVIEW' || preview.expiresAt <= now) return json('preview_invalido', 409)
   if (preview.action !== checked.action || preview.payloadHash !== hash) return json('payload_no_coincide', 409)
+  if (checked.action === 'sales.write') {
+    try {
+      const result = await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const order = await updateOrderComment(tx, { id: auth.user.id, tenantId: auth.tenantId }, String(checked.payload.orderId), { notes: checked.payload.notes }, { expectedUpdatedAt: (preview.before as any)?.updatedAt, binding: auth })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Order', resultId: order.id } })
+        if (claimed.count !== 1) throw new OrderCommentError('conflict', 'La vista previa ya no está disponible.')
+        await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'Order', entityId: order.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
+        return { id: order.id, notes: order.notes, updatedAt: order.updatedAt }
+      })
+      return NextResponse.json({ committed: true, entity: 'Order', entityId: result.id, previewId: preview.id, order: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
+    } catch (error) {
+      if (error instanceof OrderCommentError) return json(`venta_${error.code}`, error.status)
+      return json('venta_no_actualizada', 503)
+    }
+  }
   if (checked.action === 'product_images.write') {
     let generated
     try { generated = await generateProductImagesBase64(checked.payload.dataBase64, checked.payload.contentType) }
     catch (error) { if (error instanceof ProductImageError) return json('imagen_invalida', error.status, { detail: error.message }); return json('imagen_invalida') }
     try {
       const created = await persistProductImage({ db: prisma as any, tenantId: auth.tenantId, userId: auth.user.id, productId: String(checked.payload.productId), branchId: decision.branchId, canManage: decision.allowed, image: generated.image, thumb: generated.thumb, variantKey: typeof checked.payload.variantKey === 'string' ? checked.payload.variantKey : null, provenance: 'mcp', onPersisted: async (tx, row) => {
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'ProductImage', resultId: row.id } })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'ProductImage', resultId: row.id } })
         if (claimed.count !== 1) throw new ProductImageError(409, 'preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'ProductImage', entityId: row.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
       } })
@@ -160,7 +215,9 @@ export async function POST(request: Request) {
         const customer = checked.payload.operation === 'update'
           ? await updateCustomer(tx, actor, String(checked.payload.customerId), checked.payload as any)
           : await createCustomer(tx, actor, checked.payload as any)
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'Customer', resultId: customer.id } })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Customer', resultId: customer.id } })
         if (claimed.count !== 1) throw new CustomerServiceError('conflict', 'preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'Customer', entityId: customer.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
         return customer
@@ -176,7 +233,9 @@ export async function POST(request: Request) {
       const result = await prisma.$transaction(async tx => {
         const actor = { id: auth.user.id, tenantId: auth.tenantId, role: auth.user.role, permissions: auth.user.permissions }
         const value = checked.payload.operation === 'update' ? await updatePriceList(tx, actor, String(checked.payload.priceListId), { ...checked.payload, _expectedUpdatedAt: (preview.before as any)?.updatedAt }) : await createPriceList(tx, actor, checked.payload)
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'PriceList', resultId: value.id } })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'PriceList', resultId: value.id } })
         if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'PriceList', entityId: value.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
         return value
@@ -192,7 +251,9 @@ export async function POST(request: Request) {
       const result = await prisma.$transaction(async tx => {
         const fields = Object.fromEntries(Object.entries(checked.payload).filter(([key]) => (TENANT_COMPANY_PROFILE_FIELDS as readonly string[]).includes(key)))
         const company = await updateTenantCompanyProfile({ db: tx, tenantId: auth.tenantId, actorUserId: auth.user.id, sessionId: auth.sessionId, fields })
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'Tenant', resultId: auth.tenantId } })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Tenant', resultId: auth.tenantId } })
         if (claimed.count !== 1) throw new Error('preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'Tenant', entityId: auth.tenantId, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
         return company
@@ -211,7 +272,9 @@ export async function POST(request: Request) {
         const product = checked.payload.operation === 'update'
           ? await updateProduct(tx, actor, String(checked.payload.productId), checked.payload as any)
           : await createProduct(tx, actor, checked.payload as any)
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'Product', resultId: product.id } })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Product', resultId: product.id } })
         if (claimed.count !== 1) throw new Error('preview_invalido')
         return product
       })
@@ -226,7 +289,9 @@ export async function POST(request: Request) {
     try {
       const changed = await prisma.$transaction(async tx => {
         const result = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(checked.payload.productId), pricePyg: Number(checked.payload.pricePyg), expectedPricePyg: Number(checked.payload.expectedPricePyg), includeAudit: true }, tx)
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: now }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt: now, resultEntity: 'Product', resultId: result.productId } })
+        await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        const committedAt = await dbNow(tx)
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Product', resultId: result.productId } })
         if (claimed.count !== 1) throw new ProductPriceError('preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'Product', entityId: result.productId, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
         return result

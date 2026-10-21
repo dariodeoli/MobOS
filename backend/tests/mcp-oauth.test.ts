@@ -3,6 +3,12 @@ const assert = require('node:assert/strict')
 const { actionForScope } = require('../lib/mcp/catalog')
 const { sameOriginForMcp } = require('../lib/google-oauth')
 const { assertScopeActions, normalizeMcpScopes, pkceChallenge, validPkceVerifier, configuredMcpClients, findMcpClient, oauthMetadata } = require('../lib/mcp/oauth')
+const previousEnabled = process.env.MOBOS_MCP_ENABLED
+for (const disabled of [undefined, 'false', 'TRUE', '1', 'invalid']) {
+  if (disabled === undefined) delete process.env.MOBOS_MCP_ENABLED; else process.env.MOBOS_MCP_ENABLED = disabled
+  assert.throws(() => oauthMetadata(), { code: 'mcp_disabled', status: 503 })
+}
+process.env.MOBOS_MCP_ENABLED = 'true'
 const verifier = 'a'.repeat(43)
 assert.equal(validPkceVerifier(verifier, pkceChallenge(verifier)), true)
 assert.equal(validPkceVerifier('b'.repeat(43), pkceChallenge(verifier)), false)
@@ -41,3 +47,5 @@ async function verifyMcpClock() {
   for (const rows of [[], [{ nowMs: 'invalid' }], [{ nowMs: 99999999999999999999n }]]) await assert.rejects(dbNow({ $queryRaw: async () => rows }), /reloj/)
 }
 verifyMcpClock().catch((error: unknown) => { console.error(error); process.exitCode = 1 })
+
+if (previousEnabled === undefined) delete process.env.MOBOS_MCP_ENABLED; else process.env.MOBOS_MCP_ENABLED = previousEnabled

@@ -1,3 +1,4 @@
+import { assertMcpEnabled } from '../../../../lib/mcp/oauth'
 import { NextResponse } from 'next/server'
 import { requireSession } from '../../../../lib/auth'
 import { sameOriginForMcp } from '../../../../lib/google-oauth'
@@ -11,6 +12,7 @@ import { readBoundedBody } from '../../../../lib/mcp/request-body'
 export const dynamic = 'force-dynamic'
 const validState = (value: unknown): value is string => typeof value === 'string' && new TextEncoder().encode(value).byteLength >= 1 && new TextEncoder().encode(value).byteLength <= 2048 && !/[\u0000-\u001f\u007f]/.test(value)
 export async function GET(request: Request) {
+  try { assertMcpEnabled() } catch { return NextResponse.json({ error: 'mcp_disabled' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }) }
   const url = new URL(request.url)
   if (url.searchParams.get('response_type') !== 'code') return NextResponse.json({ error: 'unsupported_response_type' }, { status: 400 })
   const session = await requireSession(request, { allowMcpGetNoOrigin: true })
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
+    assertMcpEnabled()
     if (request.headers.has('authorization') || !sameOriginForMcp(request)) throw new McpOAuthError('invalid_request', 'La autorización MCP requiere la sesión web de MobOS.', 401)
     const session = await requireSession(request, { allowMcpOrigin: true })
     if (!session) throw new McpOAuthError('login_required', 'Iniciá sesión en MobOS para autorizar el conector.', 401)

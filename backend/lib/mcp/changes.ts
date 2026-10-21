@@ -1,8 +1,9 @@
+import { toolInputSchema } from './tool-contracts'
 import { createHash } from 'node:crypto'
 import { parsePriceListItems, validarReemplazoExplicito, PriceListInputError } from '../price-lists'
 
-export type ChangeAction = 'products.write' | 'prices.write' | 'price_lists.write' | 'customers.write' | 'company.write' | 'product_images.write'
-const ACTIONS = new Set<ChangeAction>(['products.write', 'prices.write', 'price_lists.write', 'customers.write', 'company.write', 'product_images.write'])
+export type ChangeAction = 'products.write' | 'prices.write' | 'price_lists.write' | 'customers.write' | 'company.write' | 'product_images.write' | 'sales.write'
+const ACTIONS = new Set<ChangeAction>(['products.write', 'prices.write', 'price_lists.write', 'customers.write', 'company.write', 'product_images.write', 'sales.write'])
 
 function bounded(value: unknown, max: number) { return typeof value === 'string' && value.trim().length > 0 && value.length <= max }
 function integer(value: unknown, min = 0) { return typeof value === 'number' && Number.isInteger(value) && value >= min }
@@ -11,7 +12,11 @@ export function validateChange(action: unknown, payload: unknown): { ok: true; a
   if (typeof action !== 'string' || !ACTIONS.has(action as ChangeAction)) return { ok: false, error: 'accion_no_disponible' }
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { ok: false, error: 'payload_invalido' }
   const value = payload as Record<string, unknown>
-  if (action === 'products.write') {
+  const properties = toolInputSchema(action).properties
+  if (Object.keys(value).some(key => ['mode', 'idempotencyKey', 'previewId'].includes(key) || !Object.hasOwn(properties, key))) return { ok: false, error: 'payload_campo_no_permitido' }
+  if (action === 'sales.write') {
+    if (Object.keys(value).some(key => !['operation', 'orderId', 'notes'].includes(key)) || value.operation !== 'update_note' || !bounded(value.orderId, 100) || !bounded(value.notes, 2000)) return { ok: false, error: 'comentario_venta_invalido' }
+  } else if (action === 'products.write') {
     const operation = value.operation === undefined ? 'create' : value.operation
     if (operation !== 'create' && operation !== 'update') return { ok: false, error: 'operacion_producto_invalida' }
     if (operation === 'create' && (!bounded(value.name, 160) || !bounded(value.sku, 80))) return { ok: false, error: 'producto_nombre_sku_requeridos' }

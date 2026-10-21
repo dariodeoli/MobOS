@@ -24,7 +24,7 @@ Una capacidad es MCP implementada sólo si está en IMPLEMENTED_MCP_ACTIONS, pas
 | Precios unitarios | PATCH de productos; lib/product-price.ts | products:manage, tenant/producto/sucursal y precio esperado | prices.write implementado con preview/commit, CAS e idempotencia. |
 | Listas, tiers y descuentos | /api/price-lists y /api/price-lists/[id]; lib/price-list-service.ts, price-lists.ts, pricing.ts | Lectura ADMIN/GERENTE; cambios con la guarda products:manage; productos del tenant | price_lists.read/write implementados con servicio compartido, cursor, tiers, auditoría, preview/commit, CAS e idempotencia. |
 | Clientes | /api/customers y /api/customers/[id]; lib/customer-service.ts, customer-identity.ts | Sesión, tenant, identidad y reglas de cliente | customers.read/write implementados con payload tipado y preview/commit. Historial, merge, loyalty, notas, billing, seguimiento, duplicados y tokens siguen sólo web. |
-| Ventas y pedidos | /api/orders y /api/orders/[orderId]; lib/orders.ts, payments.ts, stock.ts, order-serials.ts | Rol comercial, sucursal, crédito, IMEI/serial, stock, límites y auditoría | sales.read implementado con alcance own/branch/all, cursor y sucursal. sales.write queda fuera: crear, editar, cancelar, devolver, cobrar, cuotas y crédito no están habilitados. |
+| Ventas y pedidos | /api/orders y /api/orders/[orderId]; lib/orders.ts, payments.ts, stock.ts, order-serials.ts | Rol comercial, sucursal, crédito, IMEI/serial, stock, límites y auditoría | sales.read implementado con alcance own/branch/all, cursor y sucursal. sales.write sólo permite update_note mediante el servicio compartido order-comment-service.ts; crear, editar importes/artículos, cancelar, devolver, cobrar, cuotas y crédito no están habilitados. |
 | Informes y comisiones | /api/reports; lib/reporting.ts, costs.ts | reports:read, tenant y sucursal activa | reports.read implementado y reutiliza agregación, filtros y grupos. No muta datos. |
 | Empresa y perfil | /api/tenant/*; lib/tenant-company-profile.ts y servicios de preferencias/policies | Sesión/tenant; cambios de identidad ADMIN y reautenticación según servicio | company.read/write implementados con preview/commit. Preferencias, módulos, policies, logo, FX y costos siguen web. |
 | Crear empresa | /api/tenants; lib/company-creation-bridge.ts | OWNER/ADMIN vinculado y contexto de cuenta | company.create sólo prepara un enlace awaiting_app_confirmation; no crea empresa, sesión ni pertenencia desde MCP. |
@@ -45,9 +45,9 @@ rol, permiso, tenant y sucursal. Actualmente tools/list puede anunciar:
 
 products.read, products.write, prices.write, customers.read,
 customers.write, company.read, company.write, company.create, sales.read,
-reports.read y product_images.write.
+reports.read, sales.write (sólo update_note), price_lists.read/write y product_images.write.
 
-sales.write permanece deliberadamente fuera de IMPLEMENTED_MCP_ACTIONS.
+sales.write se anuncia sólo para operation:update_note; price_lists.read/write también se anuncian con sus guardas.
 Delivery, stock, pagos, caja, impresión, fiscal, IMEI y taller no aparecen en
 tools/list.
 
@@ -61,7 +61,7 @@ secretos.
 
 ## Corte implementado en PR #624
 
-`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos con las mismas guardas de la aplicación: lectura ADMIN/GERENTE; creación con ADMIN/GERENTE o permiso explícito `products:manage`; edición restringida a ADMIN/GERENTE. Siempre se exige módulo de inventario, tenant y scope. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` permanece fuera de este corte.
+`price_lists.read` y `price_lists.write` ya están respaldados por `backend/lib/price-list-service.ts` y expuestos con las mismas guardas de la aplicación: lectura ADMIN/GERENTE; creación con ADMIN/GERENTE o permiso explícito `products:manage`; edición restringida a ADMIN/GERENTE. Siempre se exige módulo de inventario, tenant y scope. La lectura usa cursor y límite; la escritura usa el flujo MCP de preview/commit existente, validación canónica de ítems, TTL, vinculación de grant/cliente/sesión, idempotencia y auditoría. `sales.write` sólo agrega comentarios; el resto de ventas sigue fuera de este corte.
 
 ### Evidencia del endurecimiento
 

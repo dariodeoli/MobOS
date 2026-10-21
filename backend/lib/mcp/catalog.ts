@@ -55,7 +55,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
   { action: 'company.write', scope: 'company:write', label: 'Editar datos de la empresa', moduleId: 'equipo', permission: 'dashboard:read', allowedRoles: ['ADMIN'], mutating: true, branchScoped: false },
   { action: 'company.create', scope: 'company:create', label: 'Preparar una nueva empresa', moduleId: 'equipo', permission: 'dashboard:read', allowedRoles: ['ADMIN'], mutating: true, branchScoped: false },
   { action: 'sales.read', scope: 'sales:read', label: 'Leer ventas y pedidos', moduleId: 'ventas', permission: 'orders:own', alternativePermissions: ['orders:branch', 'orders:manage'], mutating: false, branchScoped: true },
-  { action: 'sales.write', scope: 'sales:write', label: 'Crear o editar ventas', moduleId: 'ventas', permission: 'orders:manage', mutating: true, branchScoped: true },
+  { action: 'sales.write', scope: 'sales:write', label: 'Editar sólo el comentario de una venta existente', moduleId: 'ventas', permission: 'orders:manage', mutating: true, branchScoped: true },
   { action: 'reports.read', scope: 'reports:read', label: 'Leer informes', moduleId: 'reportes', permission: 'reports:read', mutating: false, branchScoped: false },
   { action: 'product_images.write', scope: 'product_images:write', label: 'Subir fotos de productos', moduleId: 'inventario', permission: 'products:manage', mutating: true, branchScoped: true },
 ] as const
@@ -65,7 +65,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
 export const IMPLEMENTED_MCP_ACTIONS = [
   'products.read', 'products.write', 'prices.write', 'price_lists.read', 'price_lists.write',
   'customers.read', 'customers.write', 'company.read', 'company.write',
-  'company.create', 'sales.read', 'reports.read', 'product_images.write',
+  'company.create', 'sales.read', 'sales.write', 'reports.read', 'product_images.write',
 ] as const satisfies readonly McpAction[]
 export const IMPLEMENTED_MCP_SCOPES = MCP_CATALOG
   .filter(entry => (IMPLEMENTED_MCP_ACTIONS as readonly string[]).includes(entry.action))
