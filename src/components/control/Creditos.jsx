@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
+import { creditosDemo } from '@/lib/demo/cobranza'
 import { useSesion } from '@/lib/sesion'
 import { Aviso, BarraProgreso, Badge, Button, Card, EmptyState, Money, Skeleton, Stat } from '@/components/ui'
 import StatGrid from '@/components/shared/StatGrid'
@@ -57,7 +58,7 @@ export default function Creditos() {
   const [busy, setBusy] = useState(false)
 
   async function load() {
-    if (esDemo) return
+    if (esDemo) { setData(creditosDemo()); return }
     setBusy(true); setError('')
     try {
       const params = new URLSearchParams()
@@ -71,7 +72,6 @@ export default function Creditos() {
   const lista = usePaginaLista(rows, { tamano: { compacto: 5, amplio: 20 } })
   const totals = data?.totals || { outstandingPyg: 0, overduePyg: 0, customersWithDebt: 0, overdueCustomers: 0 }
 
-  if (esDemo) return <Card><h2 className="font-bold">Créditos y mora</h2><p className="mt-2 text-sm text-mute">La demo no consume créditos reales. Ingresá con una cuenta real para ver el control de clientes a crédito.</p></Card>
   return (
     <div className="finanzas-tactil space-y-3">
       <Card>

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
-import { api, API_URL } from '@/lib/api/client'
+import { api as apiReal, API_URL } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { apiComisionesDemo } from '@/lib/demo/comisiones'
 import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Skeleton, Stat, useToast } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
 import PopupConfirmar from '@/components/shared/PopupConfirmar'
@@ -25,6 +27,9 @@ import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import './finanzasTactil.css'
+
+// En la demo las reglas y liquidaciones viven en memoria de la pestaña.
+const api = isDemoRuntime ? apiComisionesDemo : apiReal
 
 // Una fila por regla y por liquidación: tabla desde lg/xl, tarjeta debajo
 // (`ListaDensa`), con botones de 44px bajo lg.

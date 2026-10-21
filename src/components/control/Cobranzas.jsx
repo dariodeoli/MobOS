@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { codigoPedido } from '@/utils/pedido'
 import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
+import { cuotasDemo, marcarAvisoDemo } from '@/lib/demo/cobranza'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
@@ -24,6 +26,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 export default function Cobranzas() {
   const toast = useToast()
+  const { esDemo } = useSesion()
   const v2 = temaV2Activo()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
@@ -34,8 +37,9 @@ export default function Cobranzas() {
 
   const cargar = useCallback(async () => {
     setError('')
+    if (esDemo) { setData(cuotasDemo()); return }
     try { setData(await api.get('/api/collections/reminders')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las cuotas.'); setData({ rows: [] }) }
-  }, [])
+  }, [esDemo])
   useEffect(() => { cargar() }, [cargar])
 
   const rows = data?.rows || []
@@ -59,7 +63,7 @@ export default function Cobranzas() {
     if (row.whatsappUrl) window.open(row.whatsappUrl, '_blank', 'noopener,noreferrer')
     setEnviando(row.id)
     try {
-      const resultado = await api.post('/api/collections/reminders', { paymentId: row.id, ...(row.avisadoEn ? { force: true } : {}) })
+      const resultado = esDemo ? marcarAvisoDemo(row.id) : await api.post('/api/collections/reminders', { paymentId: row.id, ...(row.avisadoEn ? { force: true } : {}) })
       setAviso(`Recordatorio de ${row.customerName || 'el cliente'} registrado y auditado.`)
       await cargar()
       if (resultado?.whatsappUrl && !row.whatsappUrl) window.open(resultado.whatsappUrl, '_blank', 'noopener,noreferrer')

@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { getProductos, refrescar } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { demoStockAlerts } from '@/lib/demoInventory'
 import { api } from '@/lib/api/client'
 import { purchasesApi } from '@/lib/api/purchases'
 import { suppliersApi } from '@/lib/api/suppliers'
@@ -388,12 +389,11 @@ export default function Compras() {
 
   async function sugerirReposicion() {
     setError(''); setMessage('')
-    if (demo) { setError('La sugerencia de reposición usa las alertas de stock reales.'); return }
     setBusy(true)
     try {
       const params = new URLSearchParams()
       if (branchId) params.set('branchId', branchId)
-      const payload = await api.get(`/api/stock-alerts${params.toString() ? `?${params}` : ''}`)
+      const payload = demo ? demoStockAlerts(getProductos()) : await api.get(`/api/stock-alerts${params.toString() ? `?${params}` : ''}`)
       const bajos = (payload?.alerts || []).filter((item) => Number(item.stock) < Number(item.reorderPoint))
       if (!bajos.length) { setMessage('No hay productos bajo su umbral de reposición.'); return }
       setLines(bajos.map((item) => ({ productId: item.id, sku: item.sku || '', nombre: item.name || '', quantity: String(Math.max(1, Number(item.reorderPoint) - Number(item.stock))), unitCostPyg: '0', lotReference: '' })))

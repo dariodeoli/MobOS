@@ -296,7 +296,7 @@ function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
   // Finanzas oculta créditos/cuotas/comisiones en demo (necesitan el API real);
   // Estado del sistema se muestra con su aviso de "no disponible" (#201).
-  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas' || id === 'comisiones') ? !esDemo : true))
+  if (slug === 'finanzas') return tabs
   return tabs
 }
 
@@ -511,7 +511,7 @@ export default function PanelVendedor() {
   // Ids visibles en el menú según el rol: deciden qué ítem resalta cuando la
   // vista es una pestaña de sección a la que se entra desde el menú (#251).
   // Campañas de recompra: solo administración/gerencia y solo con datos reales.
-  const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
+  const puedeCampanas = ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const navActual = useMemo(() => {
     const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
     // App de iPhone v1: solo Vender, Pedidos, Clientes y Configuración.

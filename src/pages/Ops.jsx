@@ -3,6 +3,7 @@ import TableroOps from '@/components/ops/TableroOps'
 import { api, resources } from '@/lib/api'
 import { demoSessionActive } from '@/lib/demoMode'
 import { consultasDemoImei } from '@/lib/demoImei'
+import { listVentas } from '@/lib/storage'
 import { colasDelTaller, equiposEnProceso, imeiConsultable, kpisOps, locksDeConsulta, pasosDelLote, resumenOps } from '@/lib/opsTablero'
 
 // F3 real (#241): el tablero de operaciones con DATOS REALES de la empresa en
@@ -75,7 +76,15 @@ export default function Ops({ embebido = false }) {
       return
     }
     if (demoSessionActive()) {
-      pendientes.push('En la demo no se leen pedidos reales: los KPIs de ventas quedan en cero.')
+      // Demo: los KPIs salen de los pedidos ficticios de esta pestaña, con la
+      // forma que devuelve el API (pagos acreditados y total del pedido).
+      siguientesPedidos = listVentas().map((venta) => ({
+        id: venta.id,
+        createdAt: venta.creadoEn,
+        status: venta.anulada ? 'CANCELLED' : 'COMPLETED',
+        totalPyg: Number(venta.totalPyg ?? venta.precio) || 0,
+        payments: (venta.pagos || []).filter((pago) => !pago.status || pago.status === 'CONFIRMED').map((pago) => ({ status: 'CONFIRMED', amountPyg: Number(pago.amountPyg ?? pago.monto) || 0, paidAt: pago.fecha || pago.paidAt || venta.creadoEn })),
+      }))
     } else {
       try {
         siguientesPedidos = await api.get('/api/orders?limit=200&filtro=todos')

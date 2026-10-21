@@ -66,6 +66,48 @@ const SEED_TRADE_INS = [
       { at: haceDias(1), fromStatus: 'REPAIR', toStatus: 'READY', notes: 'Listo para publicar en oferta.' },
     ],
   },
+  {
+    id: 'demo-trade-in-3', status: 'RECEIVED', serial: 'AUR-TI-0003', device: 'iPhone 11 · 64 GB',
+    customerName: 'Rosana Viveros', customerId: 'demo-cliente-rosana', condition: 'regular', batteryHealth: 78,
+    valuePyg: 950000, acceptedValuePyg: 950000, repairCostPyg: 0, destination: 'NORMAL',
+    createdAt: haceDias(1), updatedAt: haceDias(1),
+    history: [{ at: haceDias(1), fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido en mostrador como parte de pago.' }],
+  },
+  {
+    id: 'demo-trade-in-4', status: 'REPAIR', serial: 'AUR-TI-0004', device: 'iPhone 13 Pro · 256 GB',
+    customerName: 'Gloria Martínez', customerId: 'demo-cliente-gloria', condition: 'bueno', batteryHealth: 84,
+    valuePyg: 3000000, acceptedValuePyg: 2900000, repairCostPyg: 450000, destination: 'WHOLESALE',
+    createdAt: haceDias(7), updatedAt: haceDias(2),
+    history: [
+      { at: haceDias(7), fromStatus: null, toStatus: 'RECEIVED', notes: 'Canje en la venta AUR-0330.' },
+      { at: haceDias(5), fromStatus: 'RECEIVED', toStatus: 'REVIEW', notes: 'Pantalla con marca; batería al 84%.' },
+      { at: haceDias(2), fromStatus: 'REVIEW', toStatus: 'REPAIR', notes: 'Cambio de pantalla en el taller.' },
+    ],
+  },
+  {
+    id: 'demo-trade-in-5', status: 'STOCK', serial: 'AUR-TI-0005', device: 'iPhone 12 · 128 GB',
+    customerName: 'Estela Ramírez', customerId: 'demo-cliente-estela', condition: 'excelente', batteryHealth: 91,
+    valuePyg: 1700000, acceptedValuePyg: 1700000, repairCostPyg: 0, destination: 'NORMAL', pricePyg: 2350000,
+    createdAt: haceDias(18), updatedAt: haceDias(10),
+    history: [
+      { at: haceDias(18), fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido como parte de pago.' },
+      { at: haceDias(16), fromStatus: 'RECEIVED', toStatus: 'REVIEW', notes: 'Sin hallazgos.' },
+      { at: haceDias(14), fromStatus: 'REVIEW', toStatus: 'READY', notes: 'Listo para vender.' },
+      { at: haceDias(10), fromStatus: 'READY', toStatus: 'STOCK', notes: 'Publicado en stock a Gs 2.350.000.' },
+    ],
+  },
+  {
+    id: 'demo-trade-in-6', status: 'SOLD_EXTERNAL', serial: 'AUR-TI-0006', device: 'Samsung Galaxy S21 · 128 GB',
+    customerName: 'Fernando Ortellado', customerId: 'demo-cliente-fernando', condition: 'regular', batteryHealth: 74,
+    valuePyg: 800000, acceptedValuePyg: 750000, repairCostPyg: 0, destination: 'WHOLESALE', pricePyg: 1000000,
+    createdAt: haceDias(30), updatedAt: haceDias(21),
+    history: [
+      { at: haceDias(30), fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido como parte de pago.' },
+      { at: haceDias(27), fromStatus: 'RECEIVED', toStatus: 'REVIEW', notes: 'Equipo Android: no se vende en la tienda.' },
+      { at: haceDias(24), fromStatus: 'REVIEW', toStatus: 'READY', notes: 'Listo para colocar con un mayorista.' },
+      { at: haceDias(21), fromStatus: 'READY', toStatus: 'SOLD_EXTERNAL', notes: 'Vendido a mayorista de Ciudad del Este.' },
+    ],
+  },
 ]
 export function loadDemoTradeIns() {
   assertDemo()

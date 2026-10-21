@@ -184,6 +184,48 @@ const VENTAS_MANUALES = [
     pagos: [pago('demo-pago-extra-11-0', 'DINERO USD', 'Caja · Dólares', 200000, '11:30')],
     observacion: 'Pedido con pagos variados',
   },
+  // ── Ventas a crédito (fiado/cuotas): alimentan «A crédito», Créditos y mora y
+  // Cobranzas. `creditDays` es el plazo; los vencimientos son relativos a hoy.
+  {
+    id: 'demo-venta-credito-1', numero: 'AUR-0400', diasAtras: 41, hora: 11, minuto: 5,
+    clienteId: 'demo-cliente-ramiro', cliente: 'Ramiro Cáceres', vendedorId: 'demo-user-vendedor',
+    entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0, creditDays: 30,
+    items: [linea('demo-iphone-15-128-azul', 2, 4850000), linea('demo-cargador-usbc-20w', 2, 220000)],
+    pagos: [pago('demo-pago-credito-1-a', 'TRANSFERENCIA', 'Itaú · Cuenta corriente', 4000000, '11:10')],
+    observacion: 'Mayorista a crédito a 30 días',
+  },
+  {
+    id: 'demo-venta-credito-2', numero: 'AUR-0401', diasAtras: 14, hora: 15, minuto: 30,
+    clienteId: 'demo-cliente-distribuidora-luque', cliente: 'Distribuidora Luque S.A.', vendedorId: 'demo-user-gerente',
+    entrega: 'DELIVERY', fulfillment: 'DELIVERED', montoDelivery: 40000, creditDays: 30,
+    items: [linea('demo-iphone-14-128-medianoche', 3, 3600000)],
+    pagos: [pago('demo-pago-credito-2-a', 'TRANSFERENCIA', 'Continental · Cuenta corriente', 3000000, '15:40')],
+    observacion: 'Factura a 30 días, entrega en depósito',
+  },
+  {
+    id: 'demo-venta-credito-3', numero: 'AUR-0402', diasAtras: 58, hora: 10, minuto: 0,
+    clienteId: 'demo-cliente-hugo', cliente: 'Hugo Benítez', vendedorId: 'demo-user-vendedora',
+    entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0, creditDays: 7,
+    items: [linea('demo-iphone-12-128-verde', 1, 2350000)],
+    pagos: [pago('demo-pago-credito-3-a', 'DINERO', '', 1500000, '10:05')],
+    observacion: 'Crédito a 7 días con cuota pendiente (en mora)',
+  },
+  {
+    id: 'demo-venta-credito-4', numero: 'AUR-0403', diasAtras: 9, hora: 17, minuto: 10,
+    clienteId: 'demo-cliente-maria', cliente: 'María González', vendedorId: 'demo-user',
+    entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0, creditDays: 15,
+    items: [linea('demo-airpods-pro-2-usbc', 1, 1850000), linea('demo-funda-magsafe-transparente', 1, 180000)],
+    pagos: [pago('demo-pago-credito-4-a', 'DINERO', '', 1000000, '17:15')],
+    observacion: 'Crédito a 15 días con seña en efectivo',
+  },
+  {
+    id: 'demo-venta-hoy-caja', numero: 'AUR-0404', diasAtras: 0, hora: 9, minuto: 40,
+    clienteId: 'demo-cliente-camila', cliente: 'Camila Arévalo', vendedorId: 'demo-user-cajera',
+    entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0,
+    items: [linea('demo-cargador-usbc-20w', 1, 220000), linea('demo-funda-magsafe-transparente', 1, 180000)],
+    pagos: [pago('demo-pago-hoy-caja', 'POS UENO', 'Ueno · Tarjeta', 400000, '09:45')],
+    observacion: 'Venta cobrada en caja con tarjeta',
+  },
 ]
 
 // Ventas manuales (ids estables, casos puntuales) + ~120 días de historial
@@ -270,6 +312,7 @@ export function ventasDemoLegacy(ahora = new Date()) {
       fulfillmentStatus: venta.fulfillment || (venta.entrega === 'DELIVERY' ? 'DELIVERED' : 'PICKED_UP'),
       montoDelivery: Number(venta.montoDelivery) || 0,
       deliveryPyg: Number(venta.montoDelivery) || 0,
+      ...(Number(venta.creditDays) > 0 ? { creditDays: Number(venta.creditDays) } : {}),
       observacion: venta.observacion || '',
     }
   })

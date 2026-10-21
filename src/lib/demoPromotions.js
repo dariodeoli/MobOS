@@ -3,7 +3,15 @@ const KEY = 'mobos:demo-promotions:v1'
 export function readDemoPromotions() {
   const saved = leerDemo(KEY)
   if (saved) return JSON.parse(saved)
-  return [{ id: 'demo-ten', code: 'DEMO10', name: 'Ejemplo ficticio: 10%', kind: 'PERCENT', value: 10, productId: null, startsAt: '2026-01-01T00:00:00Z', endsAt: '2030-01-01T00:00:00Z', maxUnits: null, usedUnits: 0, isActive: true }]
+  // Vigencias relativas a hoy: los cupones de ejemplo nunca envejecen.
+  const dia = (dias) => new Date(Date.now() + dias * 86400000).toISOString()
+  return [
+    { id: 'demo-ten', code: 'DEMO10', name: 'Ejemplo ficticio: 10%', kind: 'PERCENT', value: 10, productId: null, startsAt: dia(-120), endsAt: dia(365), maxUnits: null, usedUnits: 0, isActive: true },
+    { id: 'demo-airpods', code: 'AIRPODS150', name: 'AirPods Pro 2: Gs 150.000 menos', kind: 'AMOUNT', value: 150000, productId: 'demo-airpods-pro-2-usbc', startsAt: dia(-10), endsAt: dia(12), maxUnits: 10, usedUnits: 4, isActive: true },
+    { id: 'demo-funda', code: 'FUNDA50', name: 'Funda MagSafe: Gs 50.000 menos', kind: 'AMOUNT', value: 50000, productId: 'demo-funda-magsafe-transparente', startsAt: dia(-30), endsAt: dia(30), maxUnits: 25, usedUnits: 25, isActive: true },
+    { id: 'demo-quincena', code: 'QUINCENA5', name: 'Quincena: 5% en todo', kind: 'PERCENT', value: 5, productId: null, startsAt: dia(-3), endsAt: dia(4), maxUnits: 60, usedUnits: 17, isActive: true },
+    { id: 'demo-verano', code: 'VERANO20', name: 'Verano: 20% en accesorios', kind: 'PERCENT', value: 20, productId: null, startsAt: dia(-75), endsAt: dia(-40), maxUnits: 80, usedUnits: 63, isActive: false },
+  ]
 }
 export function saveDemoPromotion(data) {
   const rows = readDemoPromotions()

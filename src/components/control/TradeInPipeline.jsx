@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge, Button, Card, FormActions, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
 import { useSesion } from '@/lib/sesion'
+import { guardarValuacionDemo, listarValuacionesDemo } from '@/lib/demo/valuaciones'
 import { api } from '@/lib/api'
 import { gs } from '@/utils/calculos'
 import { normalizarModelo } from '@/utils/tradeInCheckout'
@@ -183,7 +184,7 @@ function Valuaciones({ esDemo }) {
   const lock = useRef(false)
 
   const load = useCallback(async () => {
-    if (esDemo) return
+    if (esDemo) { setRows(listarValuacionesDemo()); return }
     setLoading(true); setError('')
     try {
       const data = await api.get('/api/device-valuations?all=1')
@@ -216,7 +217,7 @@ function Valuaciones({ esDemo }) {
     lock.current = true; setBusy(true); setError(''); setMessage('')
     try {
       const payload = { model, storage: form.storage.trim(), condition: form.condition, baseValuePyg, maxValuePyg, notes: form.notes.trim(), isActive: form.isActive }
-      const saved = editingId ? await api.patch('/api/device-valuations', { id: editingId, ...payload }) : await api.post('/api/device-valuations', payload)
+      const saved = esDemo ? guardarValuacionDemo(editingId, payload) : editingId ? await api.patch('/api/device-valuations', { id: editingId, ...payload }) : await api.post('/api/device-valuations', payload)
       setRows(current => current.some(row => row.id === saved.id) ? current.map(row => row.id === saved.id ? saved : row) : [saved, ...current])
       setMessage(editingId ? 'Valor actualizado.' : 'Valor creado. El POS ya puede sugerirlo.')
       setForm(null); setEditingId(null)
@@ -228,7 +229,7 @@ function Valuaciones({ esDemo }) {
     if (lock.current) return
     lock.current = true; setBusy(true); setError(''); setMessage('')
     try {
-      const saved = await api.patch('/api/device-valuations', { id: row.id, isActive: !row.isActive })
+      const saved = esDemo ? guardarValuacionDemo(row.id, { isActive: !row.isActive }) : await api.patch('/api/device-valuations', { id: row.id, isActive: !row.isActive })
       setRows(current => current.map(item => item.id === saved.id ? saved : item))
       setMessage(saved.isActive ? 'Valor activado.' : 'Valor desactivado: el POS deja de sugerirlo y conserva el historial.')
     } catch (err) { setError(err.message || 'No se pudo cambiar el estado del valor.') }
@@ -249,11 +250,10 @@ function Valuaciones({ esDemo }) {
         <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Añadir valor</Button>
       </div>
     </div>
-    {esDemo && <p className="text-sm text-mute">Demo: los valores de toma se administran en la empresa real.</p>}
     {loading && <p role="status" className="text-sm text-mute">Cargando valores…</p>}
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
-    {!esDemo && <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />}
+    <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />}
     <Popup open={Boolean(form)} onClose={busy ? undefined : () => { setForm(null); setEditingId(null); setError('') }} title={editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'} tamano="md">
       {form && <form onSubmit={guardar} className="space-y-4">
         <fieldset disabled={busy} className={GRILLA_DOS_COLUMNAS}>
