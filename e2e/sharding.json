@@ -101,6 +101,7 @@
         "qa-323-plt-modales.spec.js",
         "qa-344-fiscal-pos.spec.js",
         "qa-564-imei-demo.spec.js",
+        "pos-cliente-ruc.spec.js",
         "ruc-demo.spec.js",
         "seguridad-cuenta.spec.js",
         "selector-sucursal.spec.js",

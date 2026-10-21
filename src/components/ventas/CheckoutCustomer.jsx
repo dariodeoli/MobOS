@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils'
 import { fechaLegible } from '@/utils/pedido'
 import { avisoClienteBloqueado } from '@/utils/cobroPos'
 import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
+import { detectarDocumento, fichaTieneDocumento, MENSAJE_DOCUMENTO_INVALIDO, nombreVisibleDesdeRuc } from '@/lib/clienteDocumento'
+import { consultarRucAdmitido, sinAccesoConsultaRuc } from '@/components/shared/RucField'
 
 // Los clientes demo no traen `stats`: se arman con su historial de ejemplo.
 function estadisticasDemo(cliente) {
@@ -91,6 +93,15 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     return () => cancelAnimationFrame(frame)
   }, [abierto, colapsarFicha])
   const enfocarBusqueda = useRef(false)
+  // Alta por documento (CI/RUC sin ficha): consulta única por número, con
+  // resultado en memoria y descarte de respuestas viejas.
+  const [consultandoDoc, setConsultandoDoc] = useState(false)
+  const valueRef = useRef(value)
+  valueRef.current = value
+  const docSeq = useRef(0)
+  const docCache = useRef(new Map())
+  const docAuto = useRef(new Set())
+  const resolverDocumentoRef = useRef(null)
   const stats = registro?.id === value.id ? (registro?.stats || estadisticasDemo(registro)) : null
   // La deuda abierta del cliente elegido sube al POS para anticipar el crédito.
   const deudaStats = stats ? Number(stats.pendingPyg || 0) : null
@@ -150,6 +161,74 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     enfocarBusqueda.current = false
     cajaRef.current?.querySelector('input')?.focus()
   })
+
+  // Escribir una CI/RUC sin ficha: se consulta el validador de RUC y se abre el
+  // alta con nombre y documento; si ya hay una ficha con ese documento, se liga.
+  async function resolverDocumento(texto, { auto = false } = {}) {
+    const doc = detectarDocumento(texto)
+    if (!doc) return false
+    if (doc.estado === 'dv_invalido') { if (!auto) setError(MENSAJE_DOCUMENTO_INVALIDO); return true }
+    const { identity } = doc
+    const seq = ++docSeq.current
+    const vigente = () => seq === docSeq.current && !valueRef.current.id && valueRef.current.name === texto
+    setConsultandoDoc(true)
+    setError('')
+    try {
+      let existentes
+      try {
+        const filas = esDemo ? listarClientesDemo() : await api.get(`/api/customers?q=${encodeURIComponent(identity.base)}`)
+        existentes = filas.filter(cliente => fichaTieneDocumento(cliente, identity))
+      } catch { if (vigente()) setError('No se pudo consultar clientes. Reintentá antes de confirmar.'); return true }
+      if (!vigente()) return true
+      if (existentes.length) { if (!auto) elegirCliente(existentes[0]); return true }
+      let datos = docCache.current.get(identity.fullRuc)
+      if (datos === undefined) {
+        try {
+          datos = await consultarRucAdmitido(identity, { demo: esDemo })
+          docCache.current.set(identity.fullRuc, datos)
+        } catch (cause) {
+          if (!sinAccesoConsultaRuc(cause)) {
+            // Falla transitoria (cuota, red): se avisa solo si la persona lo pidió.
+            if (!auto && vigente()) { setFeedbackFichaTipo('error'); setFeedbackFicha(cause?.message || 'No se pudo consultar el RUC. Completá los datos manualmente.') }
+            if (auto) return true
+          } else docCache.current.set(identity.fullRuc, null)
+          datos = null
+        }
+      }
+      if (!vigente()) return true
+      const base = clearCheckoutIdentity(valueRef.current)
+      if (datos) {
+        const visible = nombreVisibleDesdeRuc(datos.nameOfficial)
+        onChange({ ...applyCheckoutIdentity(base, datos), name: visible, displayName: visible })
+        setFeedbackFichaTipo('status')
+        setFeedbackFicha('Datos del RUC cargados. Completá teléfono y correo y confirmá el cliente.')
+      } else {
+        onChange({ ...base, document: identity.fullRuc, name: '', displayName: '' })
+        setFeedbackFichaTipo('status')
+        setFeedbackFicha('Escribí el nombre del cliente y confirmá la ficha.')
+      }
+      setSearchQuery('')
+      setMatches([])
+      setBorradores([])
+      setAbierto(true)
+      return true
+    } finally {
+      if (seq === docSeq.current) setConsultandoDoc(false)
+    }
+  }
+  useEffect(() => { resolverDocumentoRef.current = resolverDocumento })
+  // Al terminar de escribir un documento válido (pausa), se consulta solo.
+  useEffect(() => {
+    const doc = detectarDocumento(searchQuery)
+    if (!doc || doc.estado !== 'valido' || value.id || (colapsarFicha && abierto) || doc.identity.base.length < 6) return undefined
+    if (docAuto.current.has(doc.identity.fullRuc)) return undefined
+    const texto = searchQuery
+    const timer = setTimeout(() => {
+      docAuto.current.add(doc.identity.fullRuc)
+      resolverDocumentoRef.current?.(texto, { auto: true })
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [searchQuery, value.id, colapsarFicha, abierto])
 
   // Solo el consentimiento del extractor aplica la identidad fiscal exacta.
   // El nombre de mostrador queda separado, sin adivinar nombres/apellidos.
@@ -281,6 +360,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     }
   }
   function quitarCliente() {
+    docSeq.current += 1; setConsultandoDoc(false)
     setSearchQuery(''); setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
     enfocarBusqueda.current = true
     onChange(clienteVacio())
@@ -475,14 +555,16 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   )
 
   return <div ref={cajaRef} className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => { setSearchQuery(event.target.value); onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value }) }} onKeyDown={event => {
+    <label className="block text-sm font-semibold"><span className="sr-only">Cliente</span><Input aria-label="Nombre, teléfono, CI o RUC del cliente" aria-invalid={errorNombre ? true : undefined} value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => { docSeq.current += 1; setConsultandoDoc(false); setSearchQuery(event.target.value); onChange({ ...clearCheckoutIdentity(value), id: undefined, name: event.target.value, displayName: event.target.value }) }} onKeyDown={event => {
       if (event.key !== 'Enter') return
       event.preventDefault()
       if (matches[0]) elegirCliente(matches[0])
+      else if (detectarDocumento(value.name)) resolverDocumento(value.name)
       else if (value.name.trim()) onSelected?.()
     }} /></label>
     {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
-    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: completá sus datos y confirmá la ficha para guardarlo.</p>}</div>}
+    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && !consultandoDoc && <p className="text-xs text-fono-light">Cliente nuevo: completá sus datos y confirmá la ficha para guardarlo.</p>}{!matches.length && !consultandoDoc && detectarDocumento(value.name)?.estado === 'valido' && <button type="button" data-testid="consultar-ruc-buscador" className="min-h-11 rounded-lg border border-fono/40 px-3 text-sm font-semibold text-fono-light hover:border-fono md:min-h-9" onClick={() => resolverDocumento(value.name)}>Consultar RUC y crear cliente</button>}</div>}
+    {consultandoDoc && <p role="status" data-testid="consultando-ruc" className="text-xs font-semibold text-fono-light">Consultando RUC…</p>}
     {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     {colapsarFicha && abierto ? (
