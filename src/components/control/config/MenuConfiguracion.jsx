@@ -21,7 +21,7 @@ function ItemSeccion({ id, label, activo, onChange }) {
       aria-current={activo ? 'page' : undefined}
       onClick={() => onChange(id)}
       className={cn(
-        'flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm transition hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono',
+        'flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-sm transition hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono',
         activo ? 'bg-ink-700 font-semibold text-fore' : 'text-mute hover:text-fore',
       )}
     >
@@ -93,7 +93,7 @@ export default function MenuConfiguracion({ items = [], value, onChange, onModul
           value={consulta}
           onChange={event => setConsulta(event.target.value)}
           onKeyDown={alTeclear}
-          className="h-10 w-full rounded-lg border border-ink-600 bg-ink pl-8 pr-2 text-sm text-fore placeholder:text-mute focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
+          className="h-11 w-full rounded-xl border border-ink-600 bg-ink pl-8 pr-2 text-sm text-fore placeholder:text-mute focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
         />
       </div>
 
