@@ -13,9 +13,9 @@ import PopupConfirmar from './PopupConfirmar'
 
 const TAMANOS = { corto: 'sm', formulario: 'md', amplio: 'lg', completo: 'xl' }
 
-export function Modal({ open = true, onClose, title, children, className, size = 'formulario', busy = false, dirty = false, descarte, accion, testId }) {
+export function Modal({ open = true, onClose, title, children, className, size = 'formulario', busy = false, dirty = false, descarte, accion, portal = true, testId }) {
   return (
-    <Popup open={open} onClose={onClose} title={title} tamano={TAMANOS[size] || size} className={className} busy={busy} dirty={dirty} descarte={descarte} accion={accion} testId={testId}>
+    <Popup open={open} onClose={onClose} title={title} tamano={TAMANOS[size] || size} className={className} busy={busy} dirty={dirty} descarte={descarte} accion={accion} portal={portal} testId={testId}>
       {children}
     </Popup>
   )

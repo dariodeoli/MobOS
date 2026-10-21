@@ -1,4 +1,5 @@
 import { createContext, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CircleAlert, CircleCheck, CircleX, Info } from 'lucide-react'
 import { useDialogFocusTrap } from 'owncoding-ui'
 import { Button } from '@/components/ui'
@@ -48,6 +49,7 @@ export default function Popup({
   children,
   busy = false,
   dirty = false,
+  portal = true,
   descarte,
   accion = null,
   className,
@@ -115,7 +117,7 @@ export default function Popup({
   if (!visible && !open) return null
   const lista = footer ? [] : ordenarAcciones(acciones)
   const Icono = tipo === 'aviso' ? ICONOS_AVISO[tono] || Info : null
-  return (
+  const nodo = (
     <div
       className="popup-fondo fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4"
       data-saliendo={saliendo || undefined}
@@ -206,4 +208,9 @@ export default function Popup({
       )}
     </div>
   )
+  // En `document.body`: un popup abierto desde dentro de otro (confirmaciones,
+  // recortes) o de una vista con animaciones no queda atrapado en un `transform`
+  // ni en el `overflow` de su padre. `portal={false}` lo deja en línea (el cobertor
+  // opaco de la pantalla bloqueada necesita contener al diálogo).
+  return portal && typeof document !== 'undefined' ? createPortal(nodo, document.body) : nodo
 }

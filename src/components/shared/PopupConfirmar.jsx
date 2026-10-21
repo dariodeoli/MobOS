@@ -13,6 +13,7 @@ export default function PopupConfirmar({
   cancelLabel = 'Cancelar',
   variant = 'primary',
   busy = false,
+  portal = true,
   testId,
 }) {
   const principal = { label: busy ? 'Procesando…' : confirmLabel, onClick: onConfirm, disabled: busy }
@@ -24,6 +25,7 @@ export default function PopupConfirmar({
       description={description}
       onClose={onCancel}
       busy={busy}
+      portal={portal}
       testId={testId}
       acciones={{
         secundaria: { label: cancelLabel, onClick: onCancel, disabled: busy },

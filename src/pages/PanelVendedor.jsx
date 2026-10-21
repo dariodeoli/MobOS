@@ -1108,7 +1108,7 @@ export default function PanelVendedor() {
       <Modal
         open={cambiarAbierto}
         onClose={() => { if (!cambiando) { setCambiarAbierto(false); setPin(''); setCambioPinInvalido(false) } }}
-        title="Cambiar vendedor" size="corto">
+        title="Cambiar vendedor" size="corto" portal={!locked}>
         <p className="mt-2 text-sm text-mute">
           Elegí quién registra la próxima venta y confirmá su PIN.
         </p>
@@ -1195,6 +1195,7 @@ export default function PanelVendedor() {
 
       <div className={locked && salirAbierto ? 'fixed inset-0 z-[70] bg-paper' : undefined} data-testid={locked && salirAbierto ? 'bloqueo-fondo-opaco' : undefined}>
       <ConfirmDialog
+        portal={!locked}
         open={salirAbierto}
         onCancel={() => setSalirAbierto(false)}
         onConfirm={confirmarSalir}
