@@ -30,6 +30,12 @@ test('checkout: Enter confirma y el botón OK colapsa la ficha del cliente', asy
   await page.getByTestId('confirmar-cliente').click()
   await expect(page.getByTestId('confirmar-cliente')).toHaveCount(0)
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+  await page.getByRole('button', { name: 'Editar datos del cliente', exact: true }).click()
+  await page.getByLabel('Teléfono del cliente').fill('981 555 123')
+  await page.getByLabel('Teléfono del cliente').press('Enter')
+  await expect(page.getByTestId('confirmar-cliente')).toHaveCount(0)
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
+  await expect(page.getByTestId('cliente-guardado')).toContainText('Cliente listo')
 })
 
 test('checkout: muestra facturación alternativa y direcciones guardadas sin perder ids', async ({ page }) => {
@@ -42,18 +48,34 @@ test('checkout: muestra facturación alternativa y direcciones guardadas sin per
   await elegido.getByRole('button', { name: 'Facturar a otro', exact: true }).click()
   await expect(page.getByLabel(/Facturar a otro titular/)).toBeChecked()
   await expect(page.getByLabel('Nombre del titular de factura')).toBeVisible()
-  await expect(page.getByLabel('RUC del titular de factura')).toBeVisible()
+  const ruc = page.getByLabel('RUC del titular de factura')
+  await expect(ruc).toBeVisible()
+  const [r, n] = await Promise.all([ruc.boundingBox(), page.getByLabel('Nombre del titular de factura').boundingBox()])
+  expect(Math.abs(r.y - n.y)).toBeLessThan(5)
+  expect(r.width / (r.width + n.width)).toBeGreaterThan(0.25)
+  expect(r.width / (r.width + n.width)).toBeLessThan(0.35)
 })
 
 test('checkout: carrito y pagos no crean scroll interno en desktop', async ({ page }) => {
   await enterPos(page)
-  await page.locator('.pos-product-card', { hasText: 'Funda MagSafe' }).first().click()
+  for (const nombre of ['Funda MagSafe', 'Funda Silicona Negra', 'Cargador USB-C 20W']) {
+    await page.locator('.pos-product-card', { hasText: nombre }).first().click()
+  }
   const carrito = page.getByTestId('pos-bloque-carrito')
-  await expect(carrito).toContainText('1 producto')
+  await expect(carrito).toContainText('3 productos')
+  const [body, action] = await Promise.all([page.getByTestId('pos-carrito-cuerpo').boundingBox(), page.getByTestId('carrito-listo').boundingBox()])
+  expect(body.y + body.height).toBeLessThanOrEqual(action.y + 1)
   await page.getByTestId('carrito-listo').click()
   const cobro = page.getByTestId('pos-cobro')
   await expect(cobro).toBeVisible()
-  await cobro.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
+  await cobro.getByRole('button', { name: /^\+ Agregar(?: otro)? pago$/ }).click()
+  const pago = cobro.getByTestId('pago-fila-0')
+  await pago.getByLabel('Cuenta de cobro', {exact:true}).click()
+  await page.getByRole('listbox').getByRole('option').first().click()
+  await pago.getByLabel('Monto original', {exact:true}).fill('100000')
+  await cobro.getByRole('button', { name: /^\+ Agregar(?: otro)? pago$/ }).click()
+  await expect(cobro.getByTestId('pago-fila-0')).toBeVisible()
+  await expect(cobro.getByTestId('pago-fila-1')).toBeVisible()
   const estilos = await page.evaluate(() => ({
     carrito: getComputedStyle(document.querySelector('[data-testid="pos-carrito-cuerpo"]')).overflowY,
     pagos: getComputedStyle(document.querySelector('[data-testid="pos-pagos-lista"]')).overflowY,

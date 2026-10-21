@@ -61,6 +61,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const [abierto, setAbierto] = useState(false)
   const [quitarDireccion, setQuitarDireccion] = useState(null)
   const [fichaAbierta, setFichaAbierta] = useState(false)
+  const [guardandoFicha, setGuardandoFicha] = useState(false)
+  const [guardandoDireccion, setGuardandoDireccion] = useState(null)
+  const [feedbackFicha, setFeedbackFicha] = useState('')
+  const [feedbackFichaTipo, setFeedbackFichaTipo] = useState('status')
   // Registro completo del cliente elegido (con sus estadísticas): se guarda
   // aparte del valor del formulario para no viajar en el payload de la venta.
   const [registro, setRegistro] = useState(null)
@@ -129,11 +133,44 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
 
   // Solo el consentimiento del extractor aplica la identidad fiscal exacta.
   // El nombre de mostrador queda separado, sin adivinar nombres/apellidos.
-  function aplicarDocumento(datos) {
+  async function aplicarDocumento(datos) {
+    if (guardandoFicha || guardandoDireccion !== null) return
     const next = applyCheckoutIdentity(value, datos)
-    onChange(next)
-    if (!esDemo && empresaId && next.nameOfficial)
-      guardarPreCliente(empresaId, next, { dias: diasDeBorrador(empresa) })
+    if (esDemo || !empresaId) {
+      onChange(next)
+      return
+    }
+    setGuardandoFicha(true)
+    setFeedbackFichaTipo('status')
+    setFeedbackFicha('Guardando datos verificados…')
+    try {
+      const payload = {
+        name: String(next.name || next.nameOfficial || '').trim(),
+        document: String(next.document || '').trim() || undefined,
+        phone: String(next.phone || '').trim() || undefined,
+        countryCode: next.countryCode || '+595',
+        email: String(next.email || '').trim() || undefined,
+      }
+      const respuesta = value.id
+        ? await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, payload)
+        : await api.post('/api/customers', payload)
+      const guardado = respuesta?.customer || respuesta
+      if (!guardado?.id) throw new Error('El servidor no devolvió la ficha verificada.')
+      // El proveedor puede devolver una ficha existente deduplicada. La
+      // respuesta del servidor es la fuente de verdad para direcciones e IDs;
+      // los datos del extractor sólo completan campos que no haya devuelto.
+      onChange(customerValue({ ...next, ...guardado, id: guardado.id, document: guardado.document || next.document }))
+      setRegistro(guardado)
+      setFeedbackFichaTipo('success')
+      setFeedbackFicha('Datos RUC guardados en la ficha del cliente.')
+    } catch (cause) {
+      onChange(next)
+      if (empresaId && next.nameOfficial) guardarPreCliente(empresaId, next, { dias: diasDeBorrador(empresa) })
+      setFeedbackFichaTipo('error')
+      setFeedbackFicha(cause?.message || 'No se pudieron guardar los datos RUC. Revisá e intentá de nuevo.')
+    } finally {
+      setGuardandoFicha(false)
+    }
   }
   function usarBorrador(borrador) {
     onChange({
@@ -154,10 +191,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     const facturacion = datosFacturacionCliente(customer)
     if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
   }
-  function confirmarFicha() {
-    setAbierto(false)
-    setEditar(false)
-  }
   function quitarCliente() {
     setMatches([]); setError(''); setEditar(false); setRegistro(null); setFichaAbierta(false)
     enfocarBusqueda.current = true
@@ -166,6 +199,36 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
 
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
+  async function guardarDireccion(index) {
+    if (guardandoFicha || guardandoDireccion !== null) return
+    if (!value.id) {
+      setFeedbackFichaTipo('error')
+      setFeedbackFicha('Guardá primero el cliente para agregarle una dirección.')
+      return
+    }
+    if (esDemo) {
+      setFeedbackFichaTipo('success')
+      setFeedbackFicha('Dirección lista para esta demo.')
+      return
+    }
+    setGuardandoDireccion(index)
+    setFeedbackFichaTipo('status')
+    setFeedbackFicha('Guardando dirección…')
+    try {
+      const respuesta = await api.patch(`/api/customers/${encodeURIComponent(value.id)}`, { addresses: value.addresses })
+      const guardado = respuesta?.customer || respuesta
+      if (!guardado?.id) throw new Error('El servidor no devolvió la dirección guardada.')
+      onChange(customerValue(guardado))
+      setRegistro(guardado)
+      setFeedbackFichaTipo('success')
+      setFeedbackFicha('Dirección guardada en el cliente.')
+    } catch (cause) {
+      setFeedbackFichaTipo('error')
+      setFeedbackFicha(cause?.message || 'No se pudo guardar la dirección.')
+    } finally {
+      setGuardandoDireccion(null)
+    }
+  }
   const abrirEdicion = () => { setEditar(true); setAbierto(true) }
   // Una dirección vacía se quita sin preguntar; con datos pide confirmación.
   const pedirQuitarDireccion = (index) => {
@@ -241,6 +304,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             {avisos.map(aviso => <span key={aviso} className="inline-flex items-center gap-1"><Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{aviso}</span>)}
           </p>
         ) : null}
+        {feedbackFicha && <p role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('mt-1 font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</p>}
         <ClienteResumenPopup
           row={registro || { ...value, wholesale: value.pricingTier === 'WHOLESALE', stats }}
           open={fichaAbierta}
@@ -264,11 +328,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     <details open={abierto} onToggle={event => setAbierto(event.currentTarget.open)} className={cn('rounded-xl border border-ink-600 p-3', colapsarFicha && 'py-0 open:pb-3')}><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
       <div className="mt-3 space-y-4">
-        <div className="flex justify-end">
-          <button type="button" data-testid="confirmar-cliente" className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 md:min-h-9" onClick={confirmarFicha}>
-            Confirmar cliente
-          </button>
-        </div>
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad</h4>
           <GrillaCampos>
@@ -277,9 +336,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         </section>
         <section aria-label="Contacto" className="space-y-2">
           <h4 className={TITULO_SECCION}>Contacto</h4>
-          <GrillaCampos>
-            <Campo como="div" ancho="telefono" rotulo="Teléfono"><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
-            <Campo ancho="correo" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
+          <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
+            <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
+            <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
+            <Campo ancho="correo" className="md:col-span-2 md:min-w-0 md:max-w-none" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
           </GrillaCampos>
         </section>
         {onBillingChange && (
@@ -299,16 +359,16 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             {facturarAOtro && (
               <>
                 <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
-                <GrillaCampos className="mt-3">
-                  <Campo ancho="flexible" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
-                  <Campo como="div" ancho="documento" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => onBillingChange(applyCheckoutIdentity(billingTo || {}, datos))} esDemo={esDemo} /></Campo>
+                <GrillaCampos className="mt-3 md:!grid md:grid-cols-[minmax(0,30%)_minmax(0,70%)] md:flex-none">
+                  <Campo como="div" ancho="documento" className="md:min-w-0 md:max-w-none" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => onBillingChange(applyCheckoutIdentity(billingTo || {}, datos))} esDemo={esDemo} /></Campo>
+                  <Campo ancho="flexible" className="md:min-w-0 md:max-w-none" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
                 </GrillaCampos>
               </>
             )}
           </section>
         )}
         <section aria-label="Direcciones" className="space-y-2">
-          <div className="flex items-center justify-between"><h4 className={TITULO_SECCION}>Direcciones</h4><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
+          <div className="flex items-center justify-between"><h4 className={TITULO_SECCION}>Direcciones</h4><Button type="button" variant="outline" onClick={addAddress}>Nueva dirección</Button></div>
           {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
           {(value.addresses || []).map((address, index) => (
             <div key={index} data-testid="direccion-tarjeta" className="space-y-3 rounded-xl border border-ink-600 p-3">
@@ -325,7 +385,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
                 <Campo ancho="flexible" rotulo="Dirección"><Input autoCapitalize="sentences" value={address.address || ''} onChange={event => setAddress(index, 'address', capitalizarPrimera(event.target.value))} placeholder="Calle, número y referencia" /></Campo>
                 <Campo ancho="flexible" rotulo="Notas"><Input autoCapitalize="sentences" value={address.notes || ''} onChange={event => setAddress(index, 'notes', capitalizarPrimera(event.target.value))} placeholder="Horario, piso, referencia" /></Campo>
               </GrillaCampos>
-              <div className="self-end"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => pedirQuitarDireccion(index)} /></div>
+              <div className="flex items-center gap-2 self-end">
+                {value.id && <Button type="button" variant="outline" disabled={guardandoDireccion !== null} onClick={() => guardarDireccion(index)}>{guardandoDireccion === index ? 'Guardando…' : 'Guardar dirección en cliente'}</Button>}
+                <IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => pedirQuitarDireccion(index)} />
+              </div>
               </div>
             </div>
           ))}

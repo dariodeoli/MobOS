@@ -24,19 +24,37 @@
     min-height: 0;
     height: 100%;
     gap: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .pos-f2 .pos-col-izq > * {
     flex: none;
   }
   .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] {
-    flex: 1 1 auto;
+    /* An expanded customer card must push the catalog down. Keeping the
+       catalog as a flexing inner scroller made its original hitbox remain
+       underneath the open <details> panel (#602). */
+    flex: 0 0 auto;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-cliente'] {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 2;
   }
   .pos-f2 .pos-columna-venta {
     height: 100%;
     min-height: 0;
+    /* The payment column contains optional delivery, payment and stock
+       guidance blocks. Let the column scroll as one unit instead of shrinking
+       its children into each other at laptop heights (the warning used to sit
+       on top of the payment actions around 1280x720). */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 4px;
   }
   .pos-f2 .pos-carrito {
     flex: 1 1 0;
@@ -52,8 +70,28 @@
     min-height: 0;
   }
   .pos-f2 .pos-cobro {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
+    overflow: visible;
+  }
+  /* Never compress the payment block to satisfy the fixed POS height. Its
+     payment rows are the only part that needs an internal scroll. */
+  .pos-f2 [data-testid='pos-bloque-pagos'] {
+    flex: 0 0 auto;
+  }
+  .pos-f2 [data-testid='pos-pagos-lista'] {
+    /* Payment rows can contain a multi-line gift-card form. Constraining this
+       list leaves its controls outside the block's hitbox, underneath the
+       guide/footer. The parent payment column is the scroll container. */
+    max-height: none;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  /* The sticky footer used to intercept payment controls when the warning or
+     an open customer/payment panel grew beyond the fixed POS height. The
+     parent column already scrolls, so keep the footer in normal flow. */
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    position: static;
   }
   .pos-f2 .pos-carrito.pos-carrito-colapsado + .pos-cobro {
     flex: 1 1 0;
@@ -92,5 +130,34 @@
   .pos-divisor:hover::after,
   .pos-divisor:focus-visible::after {
     opacity: 0.8;
+  }
+}
+
+/* Tablet and small desktop widths: keep the two-column POS usable while
+   preserving comfortable control spacing. The right column becomes a normal
+   flow scroll area rather than a clipped fixed-height panel. */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .pos-f2 .pos-layout {
+    gap: 16px;
+  }
+  .pos-f2 .pos-columna-venta {
+    max-height: var(--pos-alto, none);
+  }
+  .pos-f2 [data-testid='pos-tiles-resumen'] {
+    flex-basis: 100%;
+  }
+  .pos-f2 [data-testid='pos-pie-cobro'] > div:last-child {
+    flex-basis: 100%;
+  }
+}
+
+/* Narrow viewports use the sheet-based POS, but these rules also protect the
+   inline layout when a tablet browser reports a narrow CSS viewport. */
+@media (max-width: 1023px) {
+  .pos-f2 [data-testid='pos-pie-cobro'] {
+    position: static;
+  }
+  .pos-f2 [data-testid='pos-bloque-pagos'] {
+    flex: 0 0 auto;
   }
 }
