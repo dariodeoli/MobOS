@@ -1,3 +1,5 @@
+import { isAppleDeviceProduct } from '../../backend/lib/apple-device.mjs'
+
 // Contrato de catálogo para inventario Apple (#583).
 //
 // Apple se identifica por variante (modelo, capacidad, color y condición) y
@@ -6,7 +8,6 @@
 // deliberadamente puro: no crea stock ni asume disponibilidad cuando la API no
 // la envía.
 
-const APPLE_PREFIX = /^(?:apple\s+)?(?:iphone|ipad|ipod|mac(?:book|mini|studio|pro)?|watch|airpods)\b/i
 const CAPACITY = /\b(\d+(?:\.\d+)?\s*(?:TB|GB|MB))\b/i
 
 export const INVENTORY_CATALOG_MODE = Object.freeze({ APPLE: 'apple', GENERIC: 'generic' })
@@ -15,11 +16,7 @@ export function normalizarTexto(value = '') {
   return String(value ?? '').trim().replace(/\s+/g, ' ')
 }
 
-export function esProductoApple(product = {}) {
-  const texto = [product.brand, product.manufacturer, product.model, product.name, product.nombre]
-    .map(normalizarTexto).filter(Boolean).join(' ')
-  return /\bapple\b/i.test(texto) || APPLE_PREFIX.test(texto)
-}
+export const esProductoApple = isAppleDeviceProduct
 
 function extraerCapacidad(texto) {
   return normalizarTexto(texto).match(CAPACITY)?.[1]?.replace(/\s+/g, '').toUpperCase() || ''
