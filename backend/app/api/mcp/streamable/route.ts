@@ -6,7 +6,7 @@ import { MCP_CATALOG, IMPLEMENTED_MCP_ACTIONS } from '../../../../lib/mcp/catalo
 import { requireMcpAccessToken, mcpResource } from '../../../../lib/mcp/oauth'
 import { POST as priceChange } from '../changes/route'
 import { aggregateReport, dayBounds, parseReportQuery, MAX_REPORT_ORDERS } from '../../../../lib/reporting'
-import { numero } from '../../../../lib/montos'
+import { toolInputSchema, invalidToolArguments, decodeToolCursor } from '../../../../lib/mcp/tool-contracts'
 import { readTenantCompanyProfile } from '../../../../lib/tenant-company-profile'
 import { prepareCompanyCreation, CompanyCreationPreparationError } from '../../../../lib/company-creation-bridge'
 import { readBoundedBody } from '../../../../lib/mcp/request-body'
@@ -31,33 +31,8 @@ function error(id: unknown, code: number, message: string, data?: unknown) {
   return NextResponse.json({ jsonrpc: '2.0', id: id ?? null, error: { code, message, ...(data === undefined ? {} : { data }) } }, { status: 200, headers: { 'Cache-Control': 'no-store' } })
 }
 function safeJson(value: unknown) { return JSON.parse(JSON.stringify(value, (_, v) => typeof v === 'bigint' ? Number(v) : v)) }
-function decodeCursor(value: unknown) { if (typeof value !== 'string' || value.length > 300) return null; try { const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')); return decoded && typeof decoded === 'object' ? decoded : null } catch { return null } }
 function encodeCursor(value: unknown) { return Buffer.from(JSON.stringify(value)).toString('base64url') }
 const MAX_JSON_BYTES = 7_100_000
-const READ_ARGUMENTS = new Set(['branchId', 'q', 'cursor', 'limit', 'from', 'to', 'groupBy', 'tzOffset', 'paymentsBy', 'listId'])
-const MUTATION_ARGUMENTS: Record<string, Set<string>> = {
-  'products.write': new Set(['mode', 'operation', 'previewId', 'productId', 'branchId', 'name', 'sku', 'category', 'model', 'color', 'capacity', 'pricePyg', 'idempotencyKey']),
-  'prices.write': new Set(['mode', 'previewId', 'productId', 'pricePyg', 'expectedPricePyg', 'idempotencyKey']),
-  'product_images.write': new Set(['mode', 'previewId', 'productId', 'branchId', 'variantKey', 'dataBase64', 'contentType', 'idempotencyKey']),
-  'customers.write': new Set(['mode', 'previewId', 'operation', 'customerId', 'name', 'firstName', 'secondName', 'document', 'phone', 'email', 'addresses', 'idempotencyKey']),
-  'company.write': new Set(['mode', 'previewId', 'name', 'email', 'address', 'city', 'department', 'phone', 'ruc', 'idempotencyKey']),
-  'company.create': new Set(['companyName']),
-  'price_lists.write': new Set(['mode', 'previewId', 'operation', 'priceListId', 'name', 'isActive', 'items', 'replaceItems', 'idempotencyKey']),
-}
-function invalidArguments(name: string, args: unknown) {
-  if (!args || typeof args !== 'object' || Array.isArray(args)) return 'arguments debe ser un objeto.'
-  const allowed = MUTATION_ARGUMENTS[name] ?? READ_ARGUMENTS
-  for (const key of Object.keys(args as Record<string, unknown>)) if (!allowed.has(key)) return `Argumento no permitido: ${key}.`
-  if (name === 'sales.read' && (args as Record<string, unknown>).q !== undefined) return 'q no está soportado para sales.read.'
-  const value = args as Record<string, unknown>
-  if (value.q !== undefined && (typeof value.q !== 'string' || value.q.length > 120)) return 'q inválido.'
-  if (value.branchId !== undefined && (typeof value.branchId !== 'string' || value.branchId.length > 100)) return 'branchId inválido.'
-  if (value.listId !== undefined && (typeof value.listId !== 'string' || value.listId.length > 120)) return 'listId inválido.'
-  if (value.limit !== undefined && (!Number.isInteger(value.limit) || (value.limit as number) < 1 || (value.limit as number) > 50)) return 'limit inválido.'
-  if (value.tzOffset !== undefined && (!Number.isInteger(value.tzOffset) || (value.tzOffset as number) < -840 || (value.tzOffset as number) > 840)) return 'tzOffset inválido.'
-  for (const key of ['from', 'to']) if (value[key] !== undefined && (typeof value[key] !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value[key] as string) || Number.isNaN(Date.parse(`${value[key]}T00:00:00Z`)))) return `${key} inválido.`
-  return null
-}
 
 export async function POST(request: Request) {
   if (!originAllowed(request)) return NextResponse.json({ error: 'origin_not_allowed' }, { status: 403 })
@@ -78,7 +53,7 @@ export async function POST(request: Request) {
   if (body.method === 'tools/list') {
     const implemented = new Set<string>(IMPLEMENTED_MCP_ACTIONS)
     const ownerCanCreate = Boolean(auth.accountId && auth.user.role === 'ADMIN' && await prisma.tenantMembership.findFirst({ where: { accountId: auth.accountId, tenantId: auth.tenantId, userId: auth.user.id, role: 'OWNER', revokedAt: null }, select: { id: true } }))
-    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action !== 'company.create' || ownerCanCreate) && (entry.action === 'products.write' || entry.action === 'prices.write' || entry.action === 'price_lists.write' || entry.action === 'product_images.write' || entry.action === 'customers.write' || entry.action === 'company.write' || entry.action === 'company.create' || !entry.mutating) && auth.scopes.includes(entry.scope)).filter(entry => authorizeMcpAction(entry.action, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: null }).allowed).map(entry => ({ name: entry.action, description: entry.label, inputSchema: entry.action === 'company.create' ? { type: 'object', additionalProperties: false, required: ['companyName'], properties: { companyName: { type: 'string', minLength: 2, maxLength: 100 } } } : entry.action === 'products.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, operation: { type: 'string', enum: ['create', 'update'] }, previewId: { type: 'string' }, productId: { type: 'string' }, branchId: { type: 'string' }, name: { type: 'string', maxLength: 160 }, sku: { type: 'string', maxLength: 80 }, category: { type: 'string', maxLength: 120 }, model: { type: 'string', maxLength: 80 }, color: { type: 'string', maxLength: 60 }, capacity: { type: 'string', maxLength: 20 }, pricePyg: { type: 'integer', minimum: 0 }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : entry.action === 'price_lists.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'operation', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, operation: { type: 'string', enum: ['create', 'update'] }, previewId: { type: 'string' }, priceListId: { type: 'string' }, name: { type: 'string', maxLength: 120 }, isActive: { type: 'boolean' }, replaceItems: { type: 'boolean' }, items: { type: 'array' }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : entry.action === 'prices.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, previewId: { type: 'string' }, productId: { type: 'string' }, pricePyg: { type: 'integer', minimum: 0 }, expectedPricePyg: { type: 'integer', minimum: 0 }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : entry.action === 'product_images.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'productId', 'dataBase64', 'contentType', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, previewId: { type: 'string' }, productId: { type: 'string' }, branchId: { type: 'string' }, variantKey: { type: 'string', maxLength: 100 }, dataBase64: { type: 'string', minLength: 16, maxLength: 7000000 }, contentType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp'] }, idempotencyKey: { type: 'string', minLength: 8, maxLength: 120 } } } : entry.action === 'customers.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'] }, previewId: { type: 'string' }, operation: { type: 'string', enum: ['create', 'update'] }, customerId: { type: 'string' }, name: { type: 'string', maxLength: 180 }, firstName: { type: 'string', maxLength: 120 }, secondName: { type: 'string', maxLength: 120 }, document: { type: 'string', maxLength: 100 }, phone: { type: 'string', maxLength: 100 }, email: { type: 'string', maxLength: 200 }, addresses: { type: 'array' } } } : entry.action === 'company.write' ? { type: 'object', additionalProperties: false, required: ['mode', 'idempotencyKey'], properties: { mode: { type: 'string', enum: ['preview', 'commit'], properties: { } }, previewId: { type: 'string' }, name: { type: 'string', maxLength: 120 }, email: { type: 'string', maxLength: 160 }, address: { type: 'string', maxLength: 400 }, city: { type: 'string', maxLength: 120 }, department: { type: 'string', maxLength: 120 }, phone: { type: 'string', maxLength: 40 }, ruc: { type: 'string', maxLength: 20 } } } : entry.action === 'sales.read' ? { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, cursor: { type: 'string', maxLength: 300 }, limit: { type: 'integer', minimum: 1, maximum: 50 } } } : { type: 'object', additionalProperties: false, properties: { branchId: { type: 'string' }, q: { type: 'string', maxLength: 120 }, listId: { type: 'string', maxLength: 120 }, cursor: { type: 'string', maxLength: 300 }, limit: { type: 'integer', minimum: 1, maximum: 50 }, from: { type: 'string' }, to: { type: 'string' }, groupBy: { type: 'string' }, tzOffset: { type: 'integer' }, paymentsBy: { type: 'string' } } } }))
+    const tools = MCP_CATALOG.filter(entry => implemented.has(entry.action) && (entry.action !== 'company.create' || ownerCanCreate) && (entry.action === 'products.write' || entry.action === 'prices.write' || entry.action === 'price_lists.write' || entry.action === 'product_images.write' || entry.action === 'customers.write' || entry.action === 'company.write' || entry.action === 'company.create' || !entry.mutating) && auth.scopes.includes(entry.scope)).filter(entry => authorizeMcpAction(entry.action, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: null }).allowed).map(entry => ({ name: entry.action, description: entry.label, inputSchema: toolInputSchema(entry.action) }))
     return jsonRpc(id, { tools })
   }
   if (body.method !== 'tools/call') return error(id, -32601, 'Método MCP no soportado.')
@@ -88,7 +63,7 @@ export async function POST(request: Request) {
   const rawArgs = body.params.arguments
   if (rawArgs !== undefined && (!rawArgs || typeof rawArgs !== 'object' || Array.isArray(rawArgs))) return error(id, -32602, 'arguments debe ser un objeto.')
   const args = (rawArgs ?? {}) as Record<string, unknown>
-  const argumentError = invalidArguments(name, args)
+  const argumentError = invalidToolArguments(name, args)
   if (argumentError) return error(id, -32602, argumentError)
   const decision = authorizeMcpAction(name, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: typeof args.branchId === 'string' ? args.branchId : null })
   if (!decision.allowed) return error(id, -32003, decision.reason, { code: decision.code })
@@ -121,7 +96,7 @@ export async function POST(request: Request) {
   }
   if (decision.entry.mutating) return error(id, -32004, 'Esta versión del transporte sólo habilita lecturas.')
   const limit = args.limit === undefined ? 20 : args.limit as number
-  const cursor = decodeCursor(args.cursor)
+  const cursor = decodeToolCursor(name, args.cursor)
   if (args.cursor !== undefined && !cursor) return error(id, -32602, 'Cursor inválido.')
   let data: unknown
   if (name === 'company.read') data = await readTenantCompanyProfile({ tenantId: auth.tenantId, actorUserId: auth.user.id })

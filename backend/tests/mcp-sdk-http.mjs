@@ -113,6 +113,22 @@ try {
   ok(listed.tools.some(tool => tool.name === 'company.create'), 'company.create advertised via SDK')
   await client.notification({ method: 'notifications/initialized' }); ok(true, 'notification via SDK')
   ok(listed.tools.some(tool => tool.name === 'products.write'), 'products.write advertised via SDK')
+  const Ajv = require('ajv')
+  const ajv = new Ajv({ strict: false })
+  for (const tool of listed.tools) {
+    const schema = tool.inputSchema
+    ok((schema.required ?? []).every(key => schema.properties?.[key]), `advertised required fields usable: ${tool.name}`)
+    ajv.compile(schema)
+  }
+  for (const name of ['customers.write', 'company.write']) {
+    const validate = ajv.compile(listed.tools.find(tool => tool.name === name).inputSchema)
+    ok(validate({ mode: 'preview', name: 'Example', idempotencyKey: 'schema-request-1' }), `${name} accepts announced mutation payload`)
+  }
+  for (const [name, args] of [['products.read', { cursor: Buffer.from('[]').toString('base64url') }], ['sales.read', { cursor: Buffer.from(JSON.stringify({ id: 'x', createdAt: 'invalid' })).toString('base64url') }], ['reports.read', { from: '2026-02-30' }], ['company.read', { q: 'not-supported' }]]) {
+    let rejected = false
+    try { await client.callTool({ name, arguments: args }) } catch { rejected = true }
+    ok(rejected, `reject unsupported or invalid read arguments: ${name}`)
+  }
   const productArgs = { mode: 'preview', operation: 'create', branchId: branch.id, name: 'MCP product', sku: 'MCP-PRODUCT-1', category: 'Accesorios', pricePyg: 2500, idempotencyKey: 'sdk-http-product-1' }
   const productPreview = await client.callTool({ name: 'products.write', arguments: productArgs }); ok(!productPreview.isError, 'product create preview via SDK')
   const productPreviewPayload = JSON.parse(productPreview.content.find(item => item.type === 'text')?.text || '{}')
