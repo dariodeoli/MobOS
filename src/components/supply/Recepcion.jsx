@@ -439,12 +439,12 @@ export default function Recepcion() {
             </div>
           </div>
           <StatGrid testId="recepcion-resumen" className="mt-3" etiqueta="Resumen de la recepción">
-            <Stat compact label="Recibidas" valor={estados.RECIBIDO || 0} valorClassName="text-ok" />
-            <Stat compact label="Sin escanear" valor={pendientes.length} />
-            {(estados.FALTANTE || 0) > 0 && <Stat compact label="Faltantes" valor={estados.FALTANTE} valorClassName="text-bad" />}
-            {(estados.DANADO || 0) > 0 && <Stat compact label="Dañadas" valor={estados.DANADO} valorClassName="text-bad" />}
-            {(estados.INCORRECTO || 0) > 0 && <Stat compact label="Incorrectas" valor={estados.INCORRECTO} valorClassName="text-warn" />}
-            {(estados.SOBRANTE || 0) > 0 && <Stat compact label="Sobrantes" valor={estados.SOBRANTE} />}
+            <Stat compact label="Estado" valor={`${estados.RECIBIDO || 0} recibidas`} valorClassName="text-ok" />
+            <Stat compact label="Pendiente" valor={`${pendientes.length} sin escanear`} />
+            {(estados.FALTANTE || 0) > 0 && <Stat compact label="Incidencia" valor={`${estados.FALTANTE} faltantes`} valorClassName="text-bad" />}
+            {(estados.DANADO || 0) > 0 && <Stat compact label="Incidencia" valor={`${estados.DANADO} dañadas`} valorClassName="text-bad" />}
+            {(estados.INCORRECTO || 0) > 0 && <Stat compact label="Incidencia" valor={`${estados.INCORRECTO} incorrectas`} valorClassName="text-warn" />}
+            {(estados.SOBRANTE || 0) > 0 && <Stat compact label="Extra" valor={`${estados.SOBRANTE} sobrantes`} />}
           </StatGrid>
         </Card>
 
