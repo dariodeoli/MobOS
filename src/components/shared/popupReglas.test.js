@@ -29,7 +29,7 @@ test('el peligro reemplaza a la primaria y la secundaria va primero en el DOM', 
 
 test('el Popup cumple foco, Esc, X de 44 px, hoja móvil y reducir movimiento', () => {
   const jsx = leer('./Popup.jsx')
-  assert.match(jsx, /useDialogFocusTrap\(open, cerrar, panel, \{ busy \}\)/)
+  assert.match(jsx, /useDialogFocusTrap\(open, cerrar, panel, \{ busy: bloqueado \}\)/)
   assert.match(jsx, /aria-label="Cerrar"/)
   assert.match(jsx, /h-11 w-11/)
   assert.match(jsx, /items-end[^"]*md:items-center/)

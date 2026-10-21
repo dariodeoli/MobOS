@@ -1,4 +1,5 @@
-import { Aviso, Badge, Button, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Textarea } from '@/components/ui'
+import { Aviso, Badge, Button, FormField, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Modal, SaveActions } from '@/components/shared/popupKit'
 import { puedeTerminarConteo } from '@/lib/validacionGlobal'
 import { serialEnmascarado, ultimos4 } from '@/utils/serial'
 import { ROTULO_SECCION } from '@/components/shared/tabla'

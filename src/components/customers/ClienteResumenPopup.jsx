@@ -1,4 +1,5 @@
-import { Badge, Button, FilaDato, Modal } from '@/components/ui'
+import { Badge, Button, FilaDato } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'

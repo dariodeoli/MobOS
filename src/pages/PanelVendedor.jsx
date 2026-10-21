@@ -15,7 +15,8 @@ import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import VistaErrorBoundary from '@/components/app/VistaErrorBoundary'
-import { ConfirmDialog, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Select, Skeleton, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
@@ -1105,7 +1106,7 @@ export default function PanelVendedor() {
       <Modal
         open={cambiarAbierto}
         onClose={() => { if (!cambiando) { setCambiarAbierto(false); setPin(''); setCambioPinInvalido(false) } }}
-        title="Cambiar vendedor" size="corto">
+        title="Cambiar vendedor" size="corto" portal={!locked}>
         <p className="mt-2 text-sm text-mute">
           Elegí quién registra la próxima venta y confirmá su PIN.
         </p>
@@ -1192,6 +1193,7 @@ export default function PanelVendedor() {
 
       <div className={locked && salirAbierto ? 'fixed inset-0 z-[70] bg-paper' : undefined} data-testid={locked && salirAbierto ? 'bloqueo-fondo-opaco' : undefined}>
       <ConfirmDialog
+        portal={!locked}
         open={salirAbierto}
         onCancel={() => setSalirAbierto(false)}
         onConfirm={confirmarSalir}

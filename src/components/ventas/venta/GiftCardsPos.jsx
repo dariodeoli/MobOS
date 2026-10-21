@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Button, ConfirmDialog, Input, Label, Modal, MoneyInput, Select, Skeleton } from '@/components/ui'
+import { Aviso, Button, Input, Label, MoneyInput, Select, Skeleton } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'

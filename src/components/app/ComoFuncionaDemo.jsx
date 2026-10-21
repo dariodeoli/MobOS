@@ -1,5 +1,5 @@
 import Icon from '@/components/shared/Icon'
-import { Modal } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 
 // Reglas visibles de la demo pública (#201): qué es ficticio, qué se guarda y
 // qué se simula. Se muestra en la entrada y desde el banner del panel.

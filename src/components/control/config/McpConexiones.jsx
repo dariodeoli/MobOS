@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Skeleton } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'

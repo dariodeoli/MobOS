@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Aviso, Badge, Button, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Skeleton, useToast } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { demoConsultaImei, htmlComprobanteImei, imeiValido, resumenImei, textoNota } from '@/lib/imeiComprobante'

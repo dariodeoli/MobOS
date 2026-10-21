@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { shellPrimary } from '../helpers/shell-navigation.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // Densidad (#448 / #461): listas de 40–48 px por fila, tarjetas de «Por comprar»
 // de hasta 96 px, colores por condición y depósito (con contraste ≥ 4.5), orden
@@ -215,6 +216,7 @@ test('toda ventana cierra con la X roja grande (Modal compartido)', async ({ pag
   await page.getByRole('button', { name: 'Cómo funciona' }).first().click()
   const cerrar = page.getByRole('dialog', { name: 'Cómo funciona la demo' }).getByRole('button', { name: 'Cerrar' })
   await expect(cerrar).toBeVisible()
+  await esperarAnimaciones(page)
   const caja = await cerrar.boundingBox()
   expect(caja.width).toBeGreaterThanOrEqual(44)
   expect(caja.height).toBeGreaterThanOrEqual(44)

@@ -8,7 +8,9 @@
 
 .popup-fondo { animation: popup-fondo-entra 160ms ease-out both; }
 .popup-fondo[data-saliendo='true'] { animation: popup-fondo-sale 180ms ease-in both; }
-.popup-panel { animation: popup-hoja-entra 240ms cubic-bezier(.2, .8, .2, 1) both; }
+/* `backwards`: al terminar no queda ningún transform, que haría de bloque contenedor
+   de los `fixed` anidados (confirmaciones y recortes abiertos desde otro popup). */
+.popup-panel { animation: popup-hoja-entra 240ms cubic-bezier(.2, .8, .2, 1) backwards; }
 .popup-panel[data-saliendo='true'] { animation: popup-hoja-sale 180ms ease-in both; }
 @media (min-width: 768px) {
   .popup-panel { animation-name: popup-centro-entra; animation-duration: 200ms; }
@@ -19,3 +21,7 @@
 }
 /* iOS nativo: el panel ya aplica el margen seguro (igual que BottomSheet). */
 html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0; }
+/* Si el pie fijo de formularios tiene contenido, el espaciador seguro sobra. */
+.popup-pie:not(:empty) + .popup-pie-espacio { display: none; }
+/* Mientras sale, el popup ya no captura clics ni oculta el resto a los lectores. */
+.popup-fondo[data-saliendo='true'] { pointer-events: none; }

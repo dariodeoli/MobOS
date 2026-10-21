@@ -48,17 +48,8 @@ import { alInvalidarSnapshots } from '@/lib/offline/snapshot'
 import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
 import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
-import {
-  Aviso,
-  Button,
-  Card,
-  ConfirmDialog,
-  EmptyState,
-  Input,
-  Label,
-  Modal,
-  useToast,
-} from '@/components/ui'
+import { Aviso, Button, Card, EmptyState, Input, Label, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'

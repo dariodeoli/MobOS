@@ -96,7 +96,7 @@ test.describe('ficha del integrante en Equipo', () => {
 
     // Cambio de rol con confirmación desde la propia fila.
     await fila().getByRole('combobox', { name: `Rol de ${nombre}` }).selectOption('CAJERA')
-    const cambiar = page.getByRole('dialog', { name: '¿Cambiar el rol del integrante?' })
+    const cambiar = page.getByRole('alertdialog', { name: '¿Cambiar el rol del integrante?' })
     await expect(cambiar).toContainText('Vendedor')
     await expect(cambiar).toContainText('Cajera')
     await cambiar.getByRole('button', { name: 'Cambiar rol' }).click()
@@ -113,7 +113,7 @@ test.describe('ficha del integrante en Equipo', () => {
 
     // Desactivar: explícito sobre el historial y con confirmación.
     await fila().getByRole('button', { name: `Desactivar a ${nombre} (conserva el historial)` }).click()
-    const baja = page.getByRole('dialog', { name: '¿Desactivar integrante?' })
+    const baja = page.getByRole('alertdialog', { name: '¿Desactivar integrante?' })
     await expect(baja).toContainText('historial')
     await expect(baja).toContainText('reactivarlo')
     await baja.getByRole('button', { name: 'Desactivar integrante' }).click()

@@ -47,7 +47,7 @@ test('#323 · recibir unidad: etiquetas visibles, error adentro y cierre con cam
   // Con datos cargados, cerrar pide confirmación (dirty del objeto estándar).
   await dialogo.getByLabel('IMEI o serial', { exact: true }).fill('DEMOQA0000000001')
   await page.keyboard.press('Escape')
-  const descarte = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+  const descarte = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
   await expect(descarte).toBeVisible()
   await page.screenshot({ path: join(DIR, 'recibir-unidad-descarte-1440-light.png') })
   await descarte.getByRole('button', { name: 'Descartar y cerrar' }).click()
@@ -82,5 +82,5 @@ test('#323 · recibir mercadería usa el pie estándar y no marca cambios en la 
   // confirmación de descarte.
   await page.keyboard.press('Escape')
   await expect(dialogo).toHaveCount(0)
-  await expect(page.getByRole('dialog', { name: '¿Descartar los cambios?' })).toHaveCount(0)
+  await expect(page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })).toHaveCount(0)
 })

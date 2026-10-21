@@ -1,24 +1,26 @@
 import { selectInventorySection } from './helpers/shell-navigation.js'
 // #237 — Modales con ancho estándar: capturas antes/después de los principales
-// y control del ancho renderizado por tamaño (corto 448 · formulario 576 ·
-// amplio 768 · completo 1024). QA237_FASE=antes|despues (por defecto despues):
+// y control del ancho renderizado por tamaño (corto 384 · formulario 512 ·
+// amplio 768 · completo 1024: escala del Popup único). QA237_FASE=antes|despues (por defecto despues):
 // en "antes" solo captura; en "despues" además exige el ancho del estándar.
 import { test, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 
 const API = SEED.api
 const FASE = process.env.QA237_FASE === 'antes' ? 'antes' : 'despues'
 const DIR = join('test-results', 'qa-237')
 mkdirSync(DIR, { recursive: true })
-const ANCHO_ESPERADO = { corto: 448, formulario: 576, amplio: 768, completo: 1024 }
+const ANCHO_ESPERADO = { corto: 384, formulario: 512, amplio: 768, completo: 1024 }
 const medidos = {}
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
 async function capturar(page, dialogo, nombre, tamano) {
   await expect(dialogo).toBeVisible()
+  await esperarAnimaciones(page)
   const caja = await dialogo.boundingBox()
   medidos[nombre] = { ancho: Math.round(caja.width), tamano, fase: FASE }
   await dialogo.screenshot({ path: join(DIR, `237-${nombre}-${FASE}.png`) })

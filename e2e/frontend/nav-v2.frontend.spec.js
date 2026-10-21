@@ -267,7 +267,7 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
     .toBe('rgb(16, 185, 129)')
   await openProfile()
   await profile.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
-  const logout = page.getByRole('dialog', { name: '¿Cerrar sesión?' })
+  const logout = page.getByRole('alertdialog', { name: '¿Cerrar sesión?' })
   await expect(logout).toBeVisible()
   await logout.getByRole('button', { name: 'Cancelar', exact: true }).click()
   await openProfile()

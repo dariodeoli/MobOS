@@ -214,11 +214,12 @@ test('los modales de CRM adoptan cierre con cambios, error junto al campo y resu
 
 test('detalles y vistas previas son una ventana centrada, nunca un panel lateral (#386)', () => {
   const ventana = leer('../components/shared/VentanaDetalle.jsx')
-  assert.ok(ventana.includes("import { Modal } from '@/components/ui'"), 'VentanaDetalle compone el Modal del kit')
+  assert.ok(ventana.includes("import Popup from './Popup'"), 'VentanaDetalle compone el Popup único')
   assert.ok(!ventana.includes('function Drawer('), 'la app no define su propio Drawer')
   const css = leer('../index.css')
-  assert.ok(css.includes('.ventana-detalle') && css.includes('min-width: 44px; min-height: 44px'), 'la X de cierre mide 44 px')
-  assert.ok(css.includes('background: rgb(var(--c-bad))'), 'la X de cierre es roja (token bad)')
+  const popup = leer('../components/shared/Popup.jsx')
+  assert.ok(popup.includes('h-11 w-11') && popup.includes('bg-bad'), 'la X de cierre del Popup mide 44 px y es roja (token bad)')
+  assert.ok(css.includes('min-width: 44px; min-height: 44px') && css.includes('background: rgb(var(--c-bad))'), 'la X de los Modal restantes mide 44 px y es roja')
   const carpeta = fileURLToPath(new URL('../components', import.meta.url))
   const culpables = []
   const recorrer = (dir) => {
