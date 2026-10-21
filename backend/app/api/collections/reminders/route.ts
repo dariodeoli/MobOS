@@ -55,7 +55,7 @@ async function contexto(request: Request) {
 async function datosDeAviso(tenantId: string) {
   const [tenant, plantillas] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, collectionLateFeeBpPerDay: true } }),
-    prisma.messageTemplate.findMany({ where: { tenantId, category: 'COLLECTIONS' }, select: { key: true, body: true, isActive: true, isDefault: true } }),
+    prisma.messageTemplate.findMany({ where: { tenantId, category: 'COLLECTIONS', channel: 'whatsapp' }, select: { key: true, body: true, isActive: true, isDefault: true } }),
   ])
   return { tenantName: tenant?.name?.trim() || 'la tienda', moraBpPorDia: tenant?.collectionLateFeeBpPerDay ?? 0, plantillas }
 }

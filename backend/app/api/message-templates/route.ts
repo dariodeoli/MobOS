@@ -3,60 +3,27 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { tenantModuleEnabled } from '../../../lib/tenant-module-access'
+import {
+  CATEGORIES, CATEGORY_TO_CONTEXT, CONTEXT_TO_CATEGORY, EMAIL_PREFIX, defaultKeys, deletedKeysFrom,
+  isCampaignKey, isEmailKey, planSeed, withDeletedKey,
+  type Category, type Channel,
+} from '../../../lib/message-templates'
 
 // Soporta las dos interfaces históricas de la API:
 // - `category` (ORDERS | CUSTOMERS | SERVICE | COLLECTIONS) — componente WhatsAppTemplates.
 // - `context` (pedidos | clientes | servicio | cobranzas) — componente PlantillasWhatsApp.
 // Se persisten AMBOS campos (espejo): la categoría es canónica y el contexto
 // es el alias en minúsculas. La migración conserva ambas columnas.
+//
+// Las plantillas listas (WhatsApp + correo) son del núcleo: solo las de
+// campañas (promoción, recompra, mayorista) dependen del módulo «mensajes».
+// `channel` = whatsapp (por defecto) | email | all. Las de correo llevan la
+// clave `email.<evento>` y un asunto (`subject`).
 
-type Category = 'ORDERS' | 'CUSTOMERS' | 'SERVICE' | 'COLLECTIONS'
-
-const CATEGORIES: Category[] = ['ORDERS', 'CUSTOMERS', 'SERVICE', 'COLLECTIONS']
-const CATEGORY_TO_CONTEXT: Record<Category, string> = { ORDERS: 'pedidos', CUSTOMERS: 'clientes', SERVICE: 'servicio', COLLECTIONS: 'cobranzas' }
-const CONTEXT_TO_CATEGORY: Record<string, Category> = { pedidos: 'ORDERS', clientes: 'CUSTOMERS', servicio: 'SERVICE', cobranzas: 'COLLECTIONS' }
-async function mensajesDisponibles(tenantId: string) {
-  return await tenantModuleEnabled(tenantId, 'mensajes') ? null : error('El módulo de mensajes está desactivado para esta empresa.', 403)
+async function campanasActivas(tenantId: string) {
+  return tenantModuleEnabled(tenantId, 'mensajes')
 }
-
-// Plantillas base por contexto, listas para usar (tono profesional y emojis
-// medidos). La siembra es idempotente: agrega solo las que faltan por clave, así
-// que una tienda existente recibe las nuevas sin duplicar ni resucitar las
-// borradas.
-const DEFAULTS: Record<Category, Array<[string, string, string]>> = {
-  ORDERS: [
-    ['recibido', 'Pedido recibido', '¡Hola {{cliente}}! 🧾 Recibimos tu pedido {{pedido}} por {{total}}. Te avisamos apenas avance. ¡Gracias por tu compra!'],
-    ['ready_for_pickup', 'Pedido listo para retirar', '¡Hola {{cliente}}! 👋 Tu pedido {{pedido}} ya está listo para retirar en {{sucursal}}. Te esperamos. ¡Gracias por tu compra! — {{empresa}}'],
-    ['ready_to_ship', 'Pedido listo para enviar', '¡Hola {{cliente}}! 📦 Tu pedido {{pedido}} ya está preparado y sale para envío. Te paso el seguimiento apenas esté en camino.'],
-    ['arrived_from_depot', 'Pedido llegó a sucursal', '¡Hola {{cliente}}! 🚚 Tu pedido {{pedido}} ya llegó a {{sucursal}}. Lo estamos revisando y te avisamos cuando puedas retirarlo.'],
-    ['en_camino', 'Pedido en camino', '¡Hola {{cliente}}! 🚚 Tu pedido {{pedido}} salió y está en camino. En breve lo recibís.'],
-    ['reservation', 'Reserva confirmada', '¡Hola {{cliente}}! ⏳ Te reservamos el pedido {{pedido}} hasta {{reservation_until}}. Si necesitás más tiempo, avisanos y lo extendemos.'],
-    ['saldo_pendiente', 'Saldo pendiente del pedido', '¡Hola {{cliente}}! 👋 Te recordamos que el pedido {{pedido}} tiene un saldo pendiente de {{saldo_pendiente}}. Podés pasar por {{sucursal}} o coordinar el pago por acá. ¡Gracias!'],
-    ['pago_pendiente', 'Pago pendiente', '¡Hola {{cliente}}! 👋 Tu pedido {{pedido}} tiene un pago pendiente de {{saldo_pendiente}}. Podés pasar por {{sucursal}} o coordinarlo por acá.'],
-    ['entregado', 'Pedido entregado', '¡Hola {{cliente}}! ✅ Tu pedido {{pedido}} quedó entregado. Gracias por elegirnos.'],
-    ['envio_seguimiento', 'Seguimiento de envío', '¡Hola {{cliente}}! 📍 Tu pedido {{pedido}} ya está en camino. Podés seguirlo acá: {{seguimiento}}'],
-  ],
-  CUSTOMERS: [
-    ['seguimiento', 'Seguimiento postventa', '¡Hola {{nombre}}! 😊 Te escribimos de {{empresa}} para saber cómo te fue con tu compra. Si necesitás algo, estamos por acá.'],
-    ['promocion', 'Promoción vigente', '¡Hola {{nombre}}! 🎉 Tenemos una promo pensada para vos en {{empresa}}: pasá por {{sucursal}} o respondé este mensaje y te contamos.'],
-    ['recompra', 'Recompra', '¡Hola {{nombre}}! 📱 ¿Pensando en cambiar el equipo? En {{empresa}} tenemos novedades que te pueden interesar. Te esperamos.'],
-    ['mayorista', 'Precios mayoristas', '¡Hola {{nombre}}! 🛒 En {{empresa}} accedés a precios mayoristas. Si querés, te enviamos la lista actualizada.'],
-    ['agradecimiento', 'Agradecimiento por la compra', '¡Gracias por tu compra, {{nombre}}! 🙌 Cualquier consulta sobre tu equipo, escribinos: estamos para ayudarte. — {{empresa}}'],
-    ['saldo_cliente', 'Recordatorio de saldo', '¡Hola {{nombre}}! 👋 Te recordamos que tu saldo pendiente es {{saldo_pendiente}}. Si ya lo abonaste, ignorá este mensaje. ¡Gracias por tu confianza!'],
-  ],
-  SERVICE: [
-    ['equipo_recibido', 'Equipo recibido', '¡Hola {{cliente}}! 🛠️ Recibimos tu {{equipo}} en {{sucursal}}. Ya empieza la revisión y te avisamos con el diagnóstico.'],
-    ['diagnostico_listo', 'Diagnóstico listo', '¡Hola {{cliente}}! 🔍 Ya tenemos el diagnóstico de tu {{equipo}}: {{estado}}. Te escribimos para coordinar los próximos pasos.'],
-    ['esperando_repuesto', 'Esperando repuesto', '¡Hola {{cliente}}! ⏳ Tu {{equipo}} está esperando un repuesto. Apenas llegue te avisamos para continuar con la reparación.'],
-    ['reparado', 'Equipo reparado', '¡Hola {{cliente}}! ✅ Tu {{equipo}} ya está reparado. Podés retirarlo en {{sucursal}} con el comprobante.'],
-    ['reparacion_lista', 'Reparación lista', '¡Hola {{cliente}}! ✅ Tu {{equipo}} ya está listo para retirar en {{sucursal}}. Te esperamos con el comprobante.'],
-    ['presupuesto', 'Presupuesto del servicio', '¡Hola {{cliente}}! 🧾 El presupuesto de tu {{equipo}} es {{total}}. Si lo aprobás, arrancamos con la reparación.'],
-  ],
-  COLLECTIONS: [
-    ['cuota_por_vencer', 'Cuota por vencer', '¡Hola {{cliente}}! 👋 Te recordamos que la cuota del pedido {{pedido}} vence el {{vencimiento}} por {{saldo_pendiente}}. Podés coordinar el pago con nosotros. ¡Gracias! — {{empresa}}'],
-    ['cuota_vencida', 'Cuota vencida', '¡Hola {{cliente}}! 👋 La cuota del pedido {{pedido}} venció el {{vencimiento}} y tiene un saldo de {{saldo_pendiente}} ({{dias_atraso}} día(s) de atraso). Podés coordinar el pago con nosotros. ¡Gracias! — {{empresa}}'],
-  ],
-}
+const campanasApagadas = () => error('Las plantillas de campañas necesitan el módulo de mensajes activo.', 403)
 
 const slugDe = (value: string) => value
   .normalize('NFD')
@@ -84,23 +51,17 @@ function categoriaDe(body: Record<string, unknown>, fallback: Category): Categor
   return fallback
 }
 
-function seedData(category: Category) {
-  return DEFAULTS[category].map(([key, name, body]) => ({
-    tenantKey: key,
-    name,
-    body,
-    category,
-    context: CATEGORY_TO_CONTEXT[category],
-  }))
-}
-
-async function seedCategory(tenantId: string, category: Category) {
+async function seedCategory(tenantId: string, category: Category, deleted: string[]) {
   // Sin corte por "ya existe": createMany + skipDuplicates es idempotente y
-  // agrega solo las claves nuevas.
-  await prisma.messageTemplate.createMany({
-    data: DEFAULTS[category].map(([key, name, body]) => ({ tenantId, key, name, body, category, context: CATEGORY_TO_CONTEXT[category] })),
-    skipDuplicates: true,
-  })
+  // agrega solo las claves nuevas. Las que la empresa borró no se reviven.
+  const existing = await prisma.messageTemplate.findMany({ where: { tenantId, category }, select: { key: true } })
+  const faltan = planSeed(category, existing.map(item => item.key), deleted)
+  if (faltan.length) {
+    await prisma.messageTemplate.createMany({
+      data: faltan.map(item => ({ tenantId, key: item.key, name: item.name, body: item.body, subject: item.subject ?? null, channel: item.channel, category, context: CATEGORY_TO_CONTEXT[category] })),
+      skipDuplicates: true,
+    })
+  }
   // Espejo context ↔ category: `skipDuplicates` no corrige las filas sembradas
   // por versiones viejas, que quedaron con el contexto por defecto 'clientes'
   // (issue #34). Se alinean al listar sin tocar la clave: el aviso por estado
@@ -109,6 +70,21 @@ async function seedCategory(tenantId: string, category: Category) {
     where: { tenantId, category, context: { not: CATEGORY_TO_CONTEXT[category] } },
     data: { context: CATEGORY_TO_CONTEXT[category] },
   })
+  // Las de correo sembradas antes de la columna `channel` ya nacen con 'email'.
+  await prisma.messageTemplate.updateMany({ where: { tenantId, key: { startsWith: EMAIL_PREFIX }, channel: { not: 'email' } }, data: { channel: 'email' } })
+}
+
+function canalPedido(value: unknown): Channel | 'all' | null {
+  if (value === null || value === undefined || value === '') return 'whatsapp'
+  const text = String(value).trim().toLowerCase()
+  return text === 'all' || text === 'whatsapp' || text === 'email' ? text : null
+}
+
+function asuntoDe(value: unknown): string | null | 'invalid' {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string') return 'invalid'
+  const text = value.trim()
+  return text.length > 200 ? 'invalid' : text || null
 }
 
 async function marcarPredeterminada(tenantId: string, id: string, category: Category) {
@@ -120,39 +96,46 @@ async function marcarPredeterminada(tenantId: string, id: string, category: Cate
 
 export async function GET(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   const tenantId = session.user.tenantId
   const params = new URL(request.url).searchParams
   const requestedCategory = params.get('category')?.trim().toUpperCase() || ''
   const requestedContext = params.get('context')?.trim().toLowerCase() || ''
   const requested = (CATEGORIES.includes(requestedCategory as Category) && requestedCategory) || (CONTEXT_TO_CATEGORY[requestedContext] || '')
   if ((params.get('category') && !requested) || (params.get('context') && !requested)) return error('Categoría de plantilla inválida.')
+  const channel = canalPedido(params.get('channel'))
+  if (!channel) return error('Canal de plantilla inválido.')
   const categories = (requested ? [requested] : CATEGORIES) as Category[]
-  for (const category of categories) await seedCategory(tenantId, category)
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } })
+  const deleted = deletedKeysFrom(tenant?.settings)
+  for (const category of categories) await seedCategory(tenantId, category, deleted)
+  const campanas = await campanasActivas(tenantId)
   const templates = await prisma.messageTemplate.findMany({
-    where: { tenantId, ...(requested ? { category: requested } : {}) },
+    where: { tenantId, ...(requested ? { category: requested } : {}), ...(channel === 'all' ? {} : { channel }) },
     orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
   })
-  return json(templates)
+  return json(campanas ? templates : templates.filter(item => !isCampaignKey(item.key)))
 }
 
 export async function POST(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
+  const campanas = await campanasActivas(tenantId)
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const duplicateId = typeof body.duplicateOf === 'string' ? body.duplicateOf : typeof body.duplicate === 'string' ? body.duplicate : ''
   if (duplicateId) {
     const original = await prisma.messageTemplate.findFirst({ where: { id: duplicateId, tenantId } })
     if (!original) return error('Plantilla no encontrada.', 404)
+    if (!campanas && isCampaignKey(original.key)) return campanasApagadas()
     const copy = await prisma.$transaction(async tx => {
       const created = await tx.messageTemplate.create({
         data: {
           tenantId,
-          key: nuevaKey(original.name),
+          key: `${isEmailKey(original.key) ? EMAIL_PREFIX : ''}${nuevaKey(original.name)}`.slice(0, 64),
           name: `${original.name} (copia)`.slice(0, 120),
           body: original.body,
+          subject: original.subject,
+          channel: original.channel,
           category: original.category,
           context: original.context,
           isActive: original.isActive,
@@ -168,18 +151,24 @@ export async function POST(request: Request) {
   const text = typeof body.body === 'string' ? body.body.trim() : ''
   const category = categoriaDe(body, 'CUSTOMERS')
   if (!category) return error('Categoría de plantilla inválida.')
+  const channel = canalPedido(body.channel)
+  if (!channel || channel === 'all') return error('Canal de plantilla inválido.')
+  const subject = asuntoDe(body.subject)
+  if (subject === 'invalid') return error('El asunto admite hasta 200 caracteres.')
   if (!name || name.length > 120) return error('El nombre de la plantilla es obligatorio (hasta 120 caracteres).')
   if (!text || text.length > 1200) return error('El mensaje es obligatorio (hasta 1.200 caracteres).')
+  if (channel === 'email' && !subject) return error('El asunto del correo es obligatorio.')
   const isActive = typeof body.isActive === 'boolean' ? body.isActive : true
   const isDefault = body.isDefault === true
   const created = await prisma.$transaction(async tx => {
     if (isDefault) {
-      await tx.messageTemplate.updateMany({ where: { tenantId, category, isDefault: true }, data: { isDefault: false } })
+      await tx.messageTemplate.updateMany({ where: { tenantId, category, channel, isDefault: true }, data: { isDefault: false } })
     }
+    const key = `${channel === 'email' ? EMAIL_PREFIX : ''}${nuevaKey(name)}`.slice(0, 64)
     const template = await tx.messageTemplate.create({
-      data: { tenantId, key: nuevaKey(name), name, body: text, category, context: CATEGORY_TO_CONTEXT[category], isActive, isDefault },
+      data: { tenantId, key, name, body: text, subject: channel === 'email' ? subject : null, channel, category, context: CATEGORY_TO_CONTEXT[category], isActive, isDefault },
     })
-    await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MESSAGE_TEMPLATE_CREATED', entity: 'MessageTemplate', entityId: template.id, metadata: { key: template.key, category: template.category, isDefault: template.isDefault } } })
+    await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MESSAGE_TEMPLATE_CREATED', entity: 'MessageTemplate', entityId: template.id, metadata: { key: template.key, category: template.category, channel, isDefault: template.isDefault } } })
     return template
   })
   return json(created, { status: 201 })
@@ -187,7 +176,6 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
@@ -195,7 +183,8 @@ export async function PATCH(request: Request) {
   if (!id) return error('Plantilla no encontrada.', 404)
   const current = await prisma.messageTemplate.findFirst({ where: { id, tenantId } })
   if (!current) return error('Plantilla no encontrada.', 404)
-  const data: { name?: string; body?: string; category?: string; context?: string; isActive?: boolean } = {}
+  if (isCampaignKey(current.key) && !await campanasActivas(tenantId)) return campanasApagadas()
+  const data: { name?: string; body?: string; subject?: string | null; category?: string; context?: string; isActive?: boolean } = {}
   if (body.name !== undefined) {
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     if (!name || name.length > 120) return error('El nombre de la plantilla es obligatorio (hasta 120 caracteres).')
@@ -205,6 +194,12 @@ export async function PATCH(request: Request) {
     const text = typeof body.body === 'string' ? body.body.trim() : ''
     if (!text || text.length > 1200) return error('El mensaje es obligatorio (hasta 1.200 caracteres).')
     data.body = text
+  }
+  if (body.subject !== undefined) {
+    if (current.channel !== 'email') return error('Solo las plantillas de correo llevan asunto.')
+    const subject = asuntoDe(body.subject)
+    if (subject === 'invalid' || !subject) return error('El asunto del correo es obligatorio (hasta 200 caracteres).')
+    data.subject = subject
   }
   const nextCategory: Category = (body.category !== undefined || body.context !== undefined)
     ? (categoriaDe(body, current.category as Category) ?? (current.category as Category))
@@ -221,7 +216,7 @@ export async function PATCH(request: Request) {
   if (!Object.keys(data).length && !(body.isDefault !== undefined)) return error('No hay cambios para aplicar.')
   const updated = await prisma.$transaction(async tx => {
     if (isDefault) {
-      await tx.messageTemplate.updateMany({ where: { tenantId, category: nextCategory, isDefault: true, id: { not: id } }, data: { isDefault: false } })
+      await tx.messageTemplate.updateMany({ where: { tenantId, category: nextCategory, channel: current.channel, isDefault: true, id: { not: id } }, data: { isDefault: false } })
     }
     await tx.messageTemplate.update({ where: { id }, data: { ...data, isDefault } })
     await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MESSAGE_TEMPLATE_UPDATED', entity: 'MessageTemplate', entityId: id, metadata: { changed: Object.keys(data), category: nextCategory, isDefault } } })
@@ -232,14 +227,23 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  const guard = await mensajesDisponibles(session.user.tenantId); if (guard) return guard
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const id = new URL(request.url).searchParams.get('id') || ''
   if (!id) return error('Falta la plantilla a eliminar.')
+  const current = await prisma.messageTemplate.findFirst({ where: { id, tenantId }, select: { key: true } })
+  if (!current) return error('Plantilla no encontrada.', 404)
+  if (isCampaignKey(current.key) && !await campanasActivas(tenantId)) return campanasApagadas()
   const deleted = await prisma.$transaction(async tx => {
     const result = await tx.messageTemplate.deleteMany({ where: { id, tenantId } })
-    if (result.count) await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MESSAGE_TEMPLATE_DELETED', entity: 'MessageTemplate', entityId: id, metadata: {} } })
+    if (result.count) {
+      // Una plantilla lista que la empresa borra no se vuelve a sembrar.
+      if (defaultKeys().has(current.key)) {
+        const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { settings: true } })
+        await tx.tenant.update({ where: { id: tenantId }, data: { settings: withDeletedKey(tenant.settings, current.key) as never } })
+      }
+      await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'MESSAGE_TEMPLATE_DELETED', entity: 'MessageTemplate', entityId: id, metadata: { key: current.key } } })
+    }
     return result.count
   })
   if (!deleted) return error('Plantilla no encontrada.', 404)
