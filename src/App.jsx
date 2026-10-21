@@ -16,6 +16,7 @@ import AvisoMetricas from '@/components/app/AvisoMetricas'
 import TraficoSitio from '@/components/app/TraficoSitio'
 import { isNativeIOS } from '@/lib/plataforma'
 import PuertaNativa from '@/components/nativo/PuertaNativa'
+import McpAutorizar from '@/components/auth/McpAutorizar'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -327,6 +328,7 @@ export default function App() {
         <Routes>
           <Route path="/demo" element={<DemoAccess />} />
           <Route path="/login" element={<SoloFuera />} />
+          <Route path="/mcp/autorizar" element={<McpAutorizar />} />
           {/* Públicas informativas de la landing (#322). */}
           <Route path="/privacidad" element={<LegalPublica />} />
           <Route path="/terminos" element={<LegalPublica />} />

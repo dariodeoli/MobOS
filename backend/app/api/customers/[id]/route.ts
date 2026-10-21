@@ -1,11 +1,10 @@
-import { customerIdentityInput, serializeCustomer } from '../../../../lib/customer-identity'
+import { serializeCustomer } from '../../../../lib/customer-identity'
 import { netPaid } from '../../../../lib/payment-net-pure'
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
-import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
-import { LIMITE_MONTO_GENERAL, numero } from '../../../../lib/montos'
-import { addressesInput, leerPorcentajeSeguro } from '../_lib'
+import { numero } from '../../../../lib/montos'
+import { updateCustomer } from '../../../../lib/customer-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -140,99 +139,18 @@ export async function GET(request: Request, props: RouteContext) {
 // Edición de la ficha: datos de contacto, tipo comercial y crédito. El tipo y
 // el crédito quedan reservados a administración/gerencia.
 export async function PATCH(request: Request, props: RouteContext) {
-  const params = await props.params;
+  const params = await props.params
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Cliente obligatorio.')
-  const existing = await prisma.customer.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true, firstName: true, secondName: true, blocked: true } })
-  if (!existing) return error('Cliente no encontrado.', 404)
   try {
-    const body = objectInput(await request.json())
-    const gestionaCredito = ['ADMIN', 'GERENTE'].includes(session.user.role)
-    const data: Record<string, unknown> = { ...customerIdentityInput(body) }
-    if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 200)
-    // Nombres desdoblados (#160): al tocar cualquiera de las partes se
-    // recompone el nombre completo visible.
-    if (body.firstName !== undefined || body.secondName !== undefined) {
-      const parte = (valor: unknown, actual: string | null) => valor === undefined
-        ? actual
-        : (typeof valor === 'string' && valor.trim() ? valor.trim().slice(0, 120) : null)
-      const firstName = parte(body.firstName, existing.firstName)
-      const secondName = parte(body.secondName, existing.secondName)
-      const compuesto = [firstName, secondName].filter(Boolean).join(' ')
-      if (!compuesto && body.name === undefined) throw new InputError('El nombre no puede quedar vacío.')
-      data.firstName = firstName
-      data.secondName = secondName
-      if (compuesto) data.name = compuesto
-    }
-    // Seguro del cliente (#160): el toggle y su porcentaje los maneja
-    // administración/gerencia (afecta costo real y margen).
-    if (body.insuranceEnabled !== undefined || body.insuranceRatePct !== undefined) {
-      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden configurar el seguro.', 403)
-      if (body.insuranceEnabled !== undefined) {
-        if (typeof body.insuranceEnabled !== 'boolean') throw new InputError('El seguro debe estar activo o inactivo.')
-        data.insuranceEnabled = body.insuranceEnabled
-      }
-      const rate = leerPorcentajeSeguro(body.insuranceRatePct)
-      if (rate === 'invalido') throw new InputError('El seguro debe ser un porcentaje entre 0 y 100 (hasta 2 decimales).')
-      if (rate !== undefined) data.insuranceRatePct = rate
-    }
-    // Cliente bloqueado (#399): solo administración/gerencia; el motivo es
-    // obligatorio al bloquear y el cambio queda auditado aparte.
-    let cambioBloqueo: { blocked: boolean; reason: string | null } | null = null
-    if (body.blocked !== undefined || body.blockedReason !== undefined) {
-      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden bloquear clientes.', 403)
-      if (body.blocked !== undefined && typeof body.blocked !== 'boolean') throw new InputError('blocked debe ser verdadero o falso.')
-      const blocked = body.blocked === undefined ? existing.blocked : body.blocked
-      const reason = blocked && typeof body.blockedReason === 'string' && body.blockedReason.trim() ? body.blockedReason.trim().slice(0, 300) : null
-      if (blocked && !reason) throw new InputError('Indicá el motivo del bloqueo.')
-      data.blocked = blocked
-      data.blockedReason = reason
-      data.blockedAt = blocked ? new Date() : null
-      cambioBloqueo = { blocked, reason }
-    }
-    if (body.document !== undefined) data.document = typeof body.document === 'string' && body.document.trim() ? body.document.trim().slice(0, 100) : null
-    if (body.phone !== undefined) data.phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim().slice(0, 100) : null
-    if (body.countryCode !== undefined) data.countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
-    if (body.email !== undefined) data.email = typeof body.email === 'string' && body.email.trim() ? body.email.trim().slice(0, 200) : null
-    if (body.notes !== undefined) data.notes = typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim().slice(0, 2000) : null
-    if (body.publicNote !== undefined) data.publicNote = typeof body.publicNote === 'string' && body.publicNote.trim() ? body.publicNote.trim().slice(0, 2000) : null
-    if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags.filter(tag => typeof tag === 'string' && tag.trim()).map(tag => tag.trim().slice(0, 50)).slice(0, 20) : []
-    if (body.pricingTier !== undefined) {
-      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el tipo de cliente.', 403)
-      data.pricingTier = body.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
-    }
-    if (body.creditDays !== undefined) {
-      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el crédito.', 403)
-      const days = body.creditDays === null || body.creditDays === '' ? null : Number(body.creditDays)
-      if (days !== null && (!Number.isSafeInteger(days) || days < 0 || days > 365)) throw new InputError('Plazo de crédito inválido (0 a 365 días).')
-      data.creditDays = days
-    }
-    if (body.creditLimitPyg !== undefined) {
-      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el crédito.', 403)
-      const limit = body.creditLimitPyg === null || body.creditLimitPyg === '' ? null : Number(body.creditLimitPyg)
-      if (limit !== null && (!Number.isSafeInteger(limit) || limit < 0 || limit > LIMITE_MONTO_GENERAL)) throw new InputError('Límite de crédito inválido.')
-      data.creditLimitPyg = limit
-    }
-    // Lista de precios negociada: vacía significa volver al precio de la ficha.
-    if (body.priceListId !== undefined) {
-      const listId = body.priceListId === null || body.priceListId === '' ? null : String(body.priceListId).trim().slice(0, 128)
-      if (listId && !(await prisma.priceList.findFirst({ where: { id: listId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } }))) throw new InputError('Lista de precios no encontrada.')
-      data.priceListId = listId
-    }
-    // Direcciones: se reemplaza el conjunto completo (mismo contrato que el alta).
-    if (body.addresses !== undefined) {
-      data.addresses = { deleteMany: {}, create: addressesInput(body.addresses) ?? [] }
-    }
-    if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
-    const updated = await prisma.customer.update({ where: { id: existing.id, tenantId: session.user.tenantId }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
-    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: updated.id, metadata: { fields: Object.keys(data) } } })
-    if (cambioBloqueo && (cambioBloqueo.blocked !== existing.blocked || cambioBloqueo.blocked)) {
-      await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: cambioBloqueo.blocked ? 'CUSTOMER_BLOCKED' : 'CUSTOMER_UNBLOCKED', entity: 'Customer', entityId: updated.id, metadata: { reason: cambioBloqueo.reason, previous: existing.blocked } } })
-    }
-    return json(serializeCustomer(updated))
+    const body = await request.json() as Record<string, unknown>
+    const result = await updateCustomer(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body, { allowIdentityCollision: true, allowUnprivilegedCommercial: true })
+    return json(result)
   } catch (cause) {
-    return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el cliente.', cause instanceof InputError ? cause.status : 400)
+    const code = (cause as { code?: string }).code
+    const status = code === 'not_found' ? 404 : code === 'conflict' ? 409 : code === 'forbidden' ? 403 : 400
+    return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el cliente.', status)
   }
 }

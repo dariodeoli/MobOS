@@ -4,6 +4,9 @@ const KEY = 'mobos:demo-cash:v1'
 // Espejo de esperadoCaja() de backend/lib/cash-expected-pure.ts: apertura + parte móvil, sin recorte.
 export const esperadoCaja = (aperturaPyg, movilPyg) => Number(aperturaPyg) + Number(movilPyg)
 
+// The owner of a demo cash session is also the owner of its sale payments.
+export const vendedorDeCajaDemo = (cash = {}) => cash.openedById || 'demo-user'
+
 const DEFAULT = {
   id: 'demo-cash-session',
   tenantId: 'mobos-demo',
@@ -143,7 +146,8 @@ export const esEfectivoDemo = (pago) => String(pago.medioPago || '').toUpperCase
 export function getDemoCashMovilPorMoneda(cash = read(), until = new Date(), sales = []) {
   const openedAt = new Date(cash.openedAt || 0).getTime()
   const end = new Date(until).getTime()
-  const payments = sales.flatMap(sale => (sale.vendedorId === 'demo-user' ? sale.pagos || [] : []))
+  const openedById = vendedorDeCajaDemo(cash)
+  const payments = sales.flatMap(sale => (sale.vendedorId === openedById ? sale.pagos || [] : []))
   const porMoneda = { PYG: 0, USD: 0 }
   for (const payment of payments) {
     const paidAt = new Date(payment.fecha || 0).getTime()

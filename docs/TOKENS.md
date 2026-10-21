@@ -163,3 +163,23 @@ COMPANY para ingresar o cambiar de usuario.
   por sí solo credenciales vencidas. El borrador de venta no se descarta.
 - JSON limitado a 1 KiB, 2 segundos y un solo campo `pin`. No se reciben ni
   exponen credenciales en URLs, logs, respuestas o almacenamiento del navegador.
+
+## 9. Tokens MCP
+
+Los códigos de autorización, access tokens y refresh tokens MCP se persisten sólo como hashes SHA-256 hexadecimales de 64 caracteres. El secreto en claro existe únicamente durante la respuesta OAuth.
+
+Las expiraciones MCP usan el epoch numérico de `clock_timestamp()` de PostgreSQL mediante `dbNow` (sin reinterpretar la zona horaria del adaptador); el reloj de la aplicación no decide si un código, sesión o token sigue vigente. Las operaciones de consumo y rotación usan actualizaciones condicionales para mantener el uso único bajo concurrencia.
+
+Una reautorización revoca en una sola transacción los access/refresh tokens vigentes y marca como usados los códigos pendientes del grant antes de crear el nuevo código. Esto evita que una autorización anterior vuelva a emitir credenciales después de que el usuario reautoriza o cambia sus scopes.
+
+Cada credencial conserva `accountId`, `tenantId`, `userId`, `sessionId`, `clientId` y `resource`. El bearer sólo es válido si la sesión actual conserva el mismo usuario, empresa, cuenta, membresía y resource.
+
+Antes del claim de cualquiera de las siete mutaciones MCP se reutiliza el guard
+canónico del access token dentro de la transacción, después de los locks del
+dominio y del preview. Se revisan expiración/revocación, grant/sesión, membresía,
+usuario/horario y permisos/módulo/sucursal vigentes, sin extender TTL ni debitar
+cuota otra vez. Si rol, sucursal o permisos efectivos cambiaron desde la entrada,
+el commit falla cerrado y revierte; requiere nueva propuesta con contexto actual.
+Los bytes de imagen temporales se retiran del preview tras commit y mediante
+mantenimiento acotado para propuestas vencidas/revocadas; hash y resultado se
+conservan para idempotencia (política y límites: MCP-652-PREVIEW-RETENTION.md).

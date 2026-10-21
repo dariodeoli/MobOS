@@ -13,6 +13,8 @@ import { canSeeCostForSession, redactProductCosts } from '../../../lib/cost-visi
 import { catalogMeta, catalogSearchFilter, parseCatalogPage } from '../../../lib/product-catalog'
 import { accessoryCatalogFilter, parseAccessoryCategory, parseCompatibleModels } from '../../../lib/product-accessories'
 import { PRIMARY_IMAGE_INCLUDE, primaryImageFields } from '../../../lib/product-images'
+import { updateProductPrice, ProductPriceError } from '../../../lib/product-price'
+import { createProduct as createProductShared, updateProduct as updateProductShared, ProductServiceError } from '../../../lib/product-service'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
@@ -86,7 +88,21 @@ export async function POST(request: Request) {
   const tenant = await tenantId(request); if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request); if (!session) return error('Sesión inválida.', 401)
   if (!canAccessAny(session.user, ['products:manage'])) return error('No autorizado.', 403)
-  const b = await request.json(); const price = Number(b.pricePyg ?? b.price ?? 0); const stock = Number(b.stock ?? 0)
+  const b = await request.json()
+  // The MCP-safe product contract is shared with the web route. Legacy POS
+  // payloads (stock, serials, costs and physical-unit fields) continue through
+  // the full path below so existing inventory semantics remain unchanged.
+  const sharedKeys = new Set(['name', 'sku', 'category', 'model', 'color', 'capacity', 'compatibleModels', 'accessoryCategory', 'pricePyg', 'price', 'branchId'])
+  if (Object.keys(b).every(key => sharedKeys.has(key)) && b.stock === undefined && b.imei === undefined) {
+    try {
+      const created = await createProductShared(prisma, { id: session.user.id, tenantId: tenant, role: session.user.role, permissions: session.user.permissions, branchId: session.user.branchId }, b)
+      return json(created, { status: 201 })
+    } catch (cause) {
+      const code = cause instanceof ProductServiceError ? cause.code : 'invalid'
+      return error(cause instanceof Error ? cause.message : 'No se pudo crear el producto.', code === 'forbidden' ? 403 : code === 'not_found' ? 404 : code === 'conflict' ? 409 : 400)
+    }
+  }
+  const price = Number(b.pricePyg ?? b.price ?? 0); const stock = Number(b.stock ?? 0)
   const cost = b.costPyg === undefined || b.costPyg === null || b.costPyg === '' ? undefined : Number(b.costPyg)
   const wholesalePricePyg = b.wholesalePricePyg === undefined || b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg)
   const priceUsd = b.priceUsd === undefined || b.priceUsd === null || b.priceUsd === '' ? null : Number(b.priceUsd)
@@ -135,6 +151,26 @@ export async function PATCH(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['products:manage'])) return error('No autorizado.', 403)
   const b = await request.json(); if (!b.id) return error('Producto obligatorio.')
+  const sharedKeys = new Set(['id', 'name', 'sku', 'category', 'model', 'color', 'capacity', 'compatibleModels', 'accessoryCategory', 'pricePyg', 'price', 'branchId'])
+  if (Object.keys(b).every(key => sharedKeys.has(key))) {
+    try {
+      const updated = await updateProductShared(prisma, { id: session.user.id, tenantId: tenant, role: session.user.role, permissions: session.user.permissions, branchId: session.user.branchId }, String(b.id), b)
+      return json(updated)
+    } catch (cause) {
+      const code = cause instanceof ProductServiceError ? cause.code : 'invalid'
+      return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el producto.', code === 'forbidden' ? 403 : code === 'not_found' ? 404 : code === 'conflict' ? 409 : 400)
+    }
+  }
+  const priceOnly = Object.keys(b).every(key => ['id', 'pricePyg', 'expectedPricePyg'].includes(key)) && b.pricePyg !== undefined
+  if (priceOnly) {
+    try {
+      const changed = await updateProductPrice({ tenantId: tenant, user: session.user, effectiveBranchId: session.user.branchId ?? await sucursalEfectiva(session), productId: String(b.id), pricePyg: Number(b.pricePyg), expectedPricePyg: b.expectedPricePyg === undefined ? undefined : Number(b.expectedPricePyg) })
+      return json(changed)
+    } catch (e) {
+      const code = e instanceof ProductPriceError ? e.code : 'price_update_failed'
+      return error(code, code === 'product_not_found' ? 404 : code === 'permission_denied' || code === 'branch_denied' ? 403 : 409)
+    }
+  }
   const price = b.pricePyg === undefined ? undefined : Number(b.pricePyg); const stock = b.stock === undefined ? undefined : Number(b.stock)
   const cost = b.costPyg === undefined ? undefined : b.costPyg === null || b.costPyg === '' ? null : Number(b.costPyg)
   const insuranceRate = b.insuranceRate === undefined ? undefined : b.insuranceRate === null || b.insuranceRate === '' ? null : Number(b.insuranceRate)

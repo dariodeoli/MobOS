@@ -67,6 +67,15 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
 
   const buscador = () => page.getByPlaceholder('Buscar producto…')
   const tarjeta = () => page.getByRole('button', { name: /^iPhone 12 128GB/ }).first()
+  const stockPorSucursal = () => tarjeta().getByTestId('pos-stock-por-sucursal')
+  // The inventory oracle counts the whole family. Sum its displayed branch
+  // rows rather than assuming every available unit belongs to Casa Central.
+  const totalVisiblePorSucursal = async () => {
+    const rows = (await stockPorSucursal().locator(':scope > span').allTextContents()).slice(1)
+    const counts = rows.map(row => row.match(/: (\d+|Agotado)$/)?.[1])
+    if (!rows.length || counts.some(value => value === undefined)) return -1
+    return counts.reduce((sum, value) => sum + (value === 'Agotado' ? 0 : Number(value)), 0)
+  }
 
   const disponiblesDeLaFamilia = () => page.evaluate(async () => {
     const { listDemoUnits } = await import('/src/lib/demoInventory.js')
@@ -81,7 +90,8 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await buscador().fill('iPhone 12 128GB')
   const antes = await disponiblesDeLaFamilia()
   expect(antes.length).toBeGreaterThan(0)
-  await expect(tarjeta()).toContainText(`${antes.length} en stock`, { timeout: 20_000 })
+  await expect(stockPorSucursal().getByText('Stock por sucursal', { exact: true })).toBeVisible()
+  await expect.poll(totalVisiblePorSucursal, { timeout: 20_000 }).toBe(antes.length)
 
   // Se recibe una unidad desde Inventario (misma sesión, sin recargar el POS).
   await openShellDestination(page, 'Unidades (IMEI)')
@@ -104,7 +114,7 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await openShellDestination(page, 'POS')
   await expect(buscador()).toBeVisible({ timeout: 20_000 })
   await buscador().fill('iPhone 12 128GB')
-  await expect(tarjeta()).toContainText(`${despues.length} en stock`, { timeout: 20_000 })
+  await expect.poll(totalVisiblePorSucursal, { timeout: 20_000 }).toBe(despues.length)
   mkdirSync('test-results/qa-257-demo', { recursive: true })
   if (process.env.MOBOS_QA_SCREENSHOTS !== '0') await page.screenshot({ path: 'test-results/qa-257-demo/unidad-demo-en-pos.jpg', type: 'jpeg', quality: 78 })
 })
