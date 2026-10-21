@@ -47,8 +47,8 @@ test('Clientes preserves reviewed fiscal profile and unchanged summary/communica
   for (const [file, expected] of [
     // Rediseño página de cliente: solo estructura visual (encabezado, KPI, columna lateral); la lógica no cambió.
     // #498: alta/edición fiscal demo y geometría de teclado revisadas; cubierta por ruc498-identidad frontend y demoBillingIdentities.
-    ['CustomerProfile.jsx', 'cac0848c8c54153bff96aa49c03384c9771a36f27aea9b83a8d0c48de0476054'],
-    ['ClienteResumenPopup.jsx', 'a12e1ed5afa6d281167d0f105f573f3eac7b9d3054e64371a3eb09193163c98a'],
+    ['CustomerProfile.jsx', '1f233f0e20893a08d9709aab36a322e1163804ec2c49a1481f0a69bf002ef079'],
+    ['ClienteResumenPopup.jsx', '5aba729a4e2996ca117f801c4682081c3301acb359c63a84afa162ddee1bffa2'],
     [
       'CustomerCommunicationCard.jsx',
       '0e4be9e86ebc7167a8651ff7ee4c3ca063db1aff3c72e00e0b3f911bb42cf407',
