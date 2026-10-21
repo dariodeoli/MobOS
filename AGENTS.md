@@ -6,6 +6,8 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
 
 ## Para todos (orquestador, agentes e implementador)
 
+- **Formato de coordinación y entrega:** seguí [docs/agentes/FORMATO-TRABAJO.md](docs/agentes/FORMATO-TRABAJO.md): mapa previo, hasta tres agentes, brief corto, QA conjunta y reporte de 8–12 líneas. Orquestador e integrador siguen separados; el proceso técnico de publicación vigente es [docs/RELEASE.md](docs/RELEASE.md).
+
 - Commits convencionales, por unidad de trabajo, sin atribución de IA.
 - No pushear secretos ni archivos `.env`.
 - Campos de formulario: seguí docs/CAMPOS.md (skill **rdi**) y usá los componentes compartidos antes de crear un input. Versión portable: `docs/PLANTILLA-CAMPOS.md`.
