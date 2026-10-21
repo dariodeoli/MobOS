@@ -180,3 +180,8 @@
 @media (min-width: 480px) {
   .gp-kpi + .gp-kpi { border-top: 0; border-left: 1px solid var(--gp-line); padding-left: 16px; }
 }
+
+/* Caja: las cifras con detalle largo parten línea en vez de pisar a la vecina. */
+.gp [data-testid='caja-resumen'] > div { flex: 1 1 9rem; min-width: 9rem; }
+.gp [data-testid='caja-resumen'] > div > span { white-space: normal; overflow-wrap: anywhere; }
+.gp [data-testid='caja-resumen'] > div > span.tabular-nums { white-space: nowrap; }
