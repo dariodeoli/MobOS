@@ -38,8 +38,10 @@ import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { destinoAjuste } from '@/lib/configIndice'
 import { grupoShellDeTab } from '@/components/stock/stockHelpers'
 import '@/components/shared/gestionRediseno.css'
+import '@/components/supply/comprasRediseno.css'
 
-const VISTAS_GESTION = new Set(['resumen', 'metricas', 'mi-cuenta', 'cotizaciones', 'plantillas', 'promociones', 'precios', 'campanas', 'tradein-admin', 'cotizador', 'celulares', 'comparador', 'centro-control'])
+const VISTAS_COMPRAS = new Set(['compras', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion'])
+const VISTAS_GESTION = new Set(['resumen', 'metricas', 'mi-cuenta', 'cotizaciones', 'plantillas', 'promociones', 'precios', 'campanas', 'tradein-admin', 'cotizador', 'celulares', 'comparador', 'centro-control', 'compras', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion'])
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -965,7 +967,7 @@ export default function PanelVendedor() {
           </div>
         )}
 
-        <main data-gestion={esVistaGestion ? '1' : undefined} className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
+        <main data-gestion={esVistaGestion ? '1' : undefined} data-compras={!subpadre && VISTAS_COMPRAS.has(vista) ? '1' : undefined} className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
           <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
           {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (<>

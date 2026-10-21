@@ -11,6 +11,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { BotonWhatsApp, CabeceraTienda } from '@/components/publico/KitPublico'
 import { useLogoDocumento } from '@/components/publico/useLogoDocumento'
 import ProductFooter from '@/components/app/ProductFooter'
+import '@/components/publico/publicoRediseno.css'
 
 
 function bulletList(text) {
@@ -50,7 +51,7 @@ export default function GarantiaPublica() {
   const pct = days != null && total ? Math.min(100, Math.max(0, Math.round((days / total) * 100))) : null
   const serial = warranty?.serial || ''
   return (
-    <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
+    <main data-publico="1" className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
         <div className="mb-5">
           <CabeceraTienda key={logo || documentoActual} logo={logo} logoClaro={logoClaro} empresa={warranty?.company?.name || warranty?.store?.name} detalle={[warranty?.company?.name ? warranty?.store?.name : null, warranty?.store?.city].filter(Boolean).join(' · ')}>

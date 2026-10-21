@@ -12,6 +12,7 @@ import { demoVitrinaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import ProductFooter from '@/components/app/ProductFooter'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import '@/components/publico/publicoRediseno.css'
 
 
 // Vitrina pública del cliente: solo lectura, por token. Muestra la marca de la
@@ -52,7 +53,7 @@ export default function PortalCliente() {
   const logoUrl = `${API_URL}/api/portal/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`
 
   return (
-    <main className="min-h-dvh bg-ink-950 px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-fore sm:py-12">
+    <main data-publico="1" className="min-h-dvh bg-ink-950 px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-fore sm:py-12">
       {/* #317: en escritorio el portal aprovecha el ancho en dos columnas —el
           resumen como lateral pegajosa y el movimiento como columna principal—
           manteniendo la lectura móvil de siempre, en una sola columna. */}
