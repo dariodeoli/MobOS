@@ -115,6 +115,26 @@ test('Caja: el esperado y la auditoría usan UNA definición (apertura + efectiv
   assert.equal(resumen.esperadoPyg, esperadoTurno, 'con un solo turno en el día, los dos esperados coinciden')
 })
 
+test('#558: auditoría y esperado excluyen cobros de otros cajeros del turno', () => {
+  const now = new Date('2026-10-20T15:00:00Z')
+  const at = '2026-10-20T14:55:00Z'
+  const ventas = [
+    { vendedorId: 'demo-user', pagos: [{ id: 'p-demo', medioPago: 'DINERO', monto: 100, fecha: at }] },
+    { vendedorId: 'otro-cajero', pagos: [{ id: 'p-otro', medioPago: 'DINERO', monto: 900, fecha: at }] },
+  ]
+  for (const [owner, expected, id] of [['demo-user', 150, 'p-demo'], ['otro-cajero', 950, 'p-otro']]) {
+    const cash = { openedById: owner, openedAt: '2026-10-20T14:00:00Z', openingPyg: 50, movements: [] }
+    const audit = construirDemoAuditoriaEfectivo({ ventas, cash, desde: '2026-10-20', hasta: '2026-10-20' })
+    assert.equal(getDemoCashExpected(cash, now, ventas), expected)
+    assert.equal(audit.resumen.esperadoPyg, expected)
+    assert.deepEqual(audit.operaciones.map(row => row.id), [id])
+  }
+  // Day/range reports without a session owner intentionally cover all sellers.
+  const rango = construirDemoAuditoriaEfectivo({ ventas, cash: { openingPyg: 50 }, desde: '2026-10-20', hasta: '2026-10-20' })
+  assert.equal(rango.resumen.esperadoPyg, 1050)
+  assert.deepEqual(rango.operaciones.map(row => row.id).sort(), ['p-demo', 'p-otro'])
+})
+
 test('#500: auditoría conserva el día de Paraguay después de medianoche UTC y al cambiar el día local', () => {
   for (const [instant, day] of [
     ['2026-10-15T23:59:00Z', '2026-10-15'],
