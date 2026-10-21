@@ -1,0 +1,21 @@
+/* Popup único: hoja desde abajo en móvil, centrado en escritorio. */
+@keyframes popup-fondo-entra { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popup-fondo-sale { from { opacity: 1; } to { opacity: 0; } }
+@keyframes popup-hoja-entra { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes popup-hoja-sale { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@keyframes popup-centro-entra { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes popup-centro-sale { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px) scale(.97); } }
+
+.popup-fondo { animation: popup-fondo-entra 160ms ease-out both; }
+.popup-fondo[data-saliendo='true'] { animation: popup-fondo-sale 180ms ease-in both; }
+.popup-panel { animation: popup-hoja-entra 240ms cubic-bezier(.2, .8, .2, 1) both; }
+.popup-panel[data-saliendo='true'] { animation: popup-hoja-sale 180ms ease-in both; }
+@media (min-width: 768px) {
+  .popup-panel { animation-name: popup-centro-entra; animation-duration: 200ms; }
+  .popup-panel[data-saliendo='true'] { animation-name: popup-centro-sale; animation-duration: 180ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .popup-fondo, .popup-panel, .popup-fondo[data-saliendo='true'], .popup-panel[data-saliendo='true'] { animation: none; }
+}
+/* iOS nativo: el panel ya aplica el margen seguro (igual que BottomSheet). */
+html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0; }

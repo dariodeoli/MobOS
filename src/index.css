@@ -525,3 +525,34 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login .demo-acceso [data-testid="pin-teclado"] { margin-top: 8px; gap: 4px 24px; }
   .auth-login .demo-acceso .pin-tecla { width: 44px; height: 44px; font-size: 1.25rem; }
 }
+
+/* PinPad (biblioteca de objetos): teclas redondas grandes estilo iPhone y
+   cuatro puntos. Va al final para ganar a las reglas puntuales de login,
+   bloqueo y demo; `--pin-tecla` se achica con la altura para que la pantalla
+   siga entrando sin scroll. Solo agrega reglas bajo `.pin-pad`. */
+.pin-seg.pin-pad { --pin-tecla: clamp(52px, min(21vw, 9.5dvh), 80px); max-width: 20rem; }
+.pin-seg.pin-pad [data-testid='pin-indicadores'] { width: fit-content; margin-inline: auto; }
+.pin-seg.pin-pad [data-testid='pin-indicadores'] > div { gap: 16px; }
+.pin-seg.pin-pad .pin-seg-celda { width: 14px; height: 14px; min-height: 0; aspect-ratio: 1; border-radius: 50%; border-width: 1.5px; max-height: none; }
+.pin-seg.pin-pad .pin-seg-punto { width: 10px; height: 10px; }
+.pin-seg.pin-pad .pin-seg-check { width: 12px; height: 12px; }
+.pin-seg.pin-pad input { min-height: 44px; top: -16px; cursor: default; }
+.pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { width: 100%; grid-template-columns: repeat(3, var(--pin-tecla)); justify-content: space-between; gap: clamp(8px, 1.6dvh, 16px) 0; margin-top: 20px; }
+.pin-seg.pin-pad[data-teclado-tactil='true'] .pin-tecla { width: var(--pin-tecla); height: var(--pin-tecla); border: 0; background: rgb(var(--c-ink-700)); font-size: clamp(1.5rem, calc(var(--pin-tecla) * .42), 2rem); }
+.pin-seg.pin-pad[data-teclado-tactil='true'] .pin-tecla:hover { background: rgb(var(--c-ink-600)); }
+.pin-seg.pin-pad[data-teclado-tactil='true'] .pin-tecla:active:not(:disabled) { background: rgb(var(--c-ink-500)); }
+.pin-seg.pin-pad[data-teclado-tactil='true'] .pin-tecla svg { width: calc(var(--pin-tecla) * .36); height: calc(var(--pin-tecla) * .36); }
+@media (max-height: 700px) {
+  .pin-seg.pin-pad { --pin-tecla: clamp(44px, min(21vw, 8.4dvh), 80px); }
+  .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 12px; gap: clamp(6px, 1.2dvh, 16px) 0; }
+}
+@media (max-width: 767px) and (max-height: 700px) {
+  .auth-login-pin:has(details[open]) .pin-seg.pin-pad { --pin-tecla: 44px; margin-block: 6px; }
+  .auth-login-pin:has(details[open]) .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 8px; gap: 4px 0; }
+}
+/* Demo: los perfiles comparten pantalla con el teclado, así que sus teclas son
+   algo menores que en bloqueo/login pero siguen siendo grandes (≥48 px). */
+@media (max-width: 767px) {
+  .auth-login .demo-acceso .pin-seg.pin-pad { --pin-tecla: clamp(48px, 6.4dvh, 56px); margin-top: 4px; }
+  .auth-login .demo-acceso .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 8px; gap: 4px 0; }
+}

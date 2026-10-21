@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
-import PinSegmentado from '@/components/shared/PinSegmentado'
+import PinPad from '@/components/shared/PinPad'
 import { PERFILES_DEMO, perfilDemoPorPin } from '@/lib/demo/equipo.js'
 import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 
@@ -104,7 +104,7 @@ export default function DemoAccess() {
           <label htmlFor="demo-pin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-mute">
             <KeyRound size={13} className="text-fono-dark" /> Ingresar otro PIN
           </label>
-          <PinSegmentado
+          <PinPad
             id="demo-pin"
             discreto
             disabled={busy}
@@ -119,7 +119,7 @@ export default function DemoAccess() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-mute">
-          <p className="inline-flex items-center gap-1.5">
+          <p className="hidden items-center gap-1.5 sm:inline-flex">
             <ShieldCheck size={14} className="text-fono-dark" />
             Sesión local · datos ficticios
           </p>

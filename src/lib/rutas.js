@@ -46,6 +46,10 @@ export const RUTA_DE_VISTA = {
   'centro-control': '/centro-control',
 }
 
+// Páginas internas fuera del panel (no son una vista del nav): solo dueño.
+// /biblioteca = catálogo de objetos compartidos (docs/PLANTILLA-OBJETOS.md).
+export const RUTAS_INTERNAS = { biblioteca: '/biblioteca' }
+
 // URL canónica de una vista; null si el id no existe.
 export function rutaDeVista(id) {
   return RUTA_DE_VISTA[id] || null

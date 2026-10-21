@@ -1,5 +1,7 @@
-// Catálogo visual interno (#538). Solo vive en desarrollo y enseña los objetos
-// que la aplicación ya usa; sus valores son ficticios y no ejecuta operaciones.
+// Biblioteca de objetos de MobOS (#538): catálogo visual interno con cada objeto
+// compartido, sus variantes y estados en claro y oscuro. Vive en `/biblioteca`
+// (solo dueño/admin) y en desarrollo en `/biblioteca-ui`; sus valores son
+// ficticios y no ejecuta operaciones. Índice de uso: docs/PLANTILLA-OBJETOS.md.
 import { useEffect, useState } from 'react'
 import {
   Aviso,
@@ -23,12 +25,18 @@ import {
   Stat,
   Subtabs,
   Textarea,
+  useToast,
 } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import FieldRow from '@/components/shared/FieldRow'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import PhoneField from '@/components/shared/PhoneField'
+import PinPad from '@/components/shared/PinPad'
+import Popup from '@/components/shared/Popup'
+import SearchField from '@/components/shared/SearchField'
+import SegmentedField from '@/components/shared/SegmentedField'
+import Switch from '@/components/shared/Switch'
 import RucField from '@/components/shared/RucField'
 import StatusChip from '@/components/shared/StatusChip'
 import { temaOscuro } from '@/lib/tema'
@@ -51,6 +59,9 @@ const SECCIONES = [
   ['identidad', 'Identidad'],
   ['datos', 'Datos'],
   ['estados', 'Estados'],
+  ['popups', 'Popups'],
+  ['pin', 'PIN'],
+  ['chips', 'Chips y avisos'],
 ]
 
 function Muestra({ titulo, detalle, children, className = '' }) {
@@ -73,6 +84,19 @@ export default function BibliotecaUI() {
   const [monto, setMonto] = useState('1250000')
   const [ruc, setRuc] = useState('80000000-0')
   const [telefono, setTelefono] = useState('981234567')
+  const [popup, setPopup] = useState(null)
+  const [activo, setActivo] = useState(true)
+  const [periodo, setPeriodo] = useState('mes')
+  const [busqueda, setBusqueda] = useState('')
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState(false)
+  const [pinOk, setPinOk] = useState(false)
+  const toast = useToast()
+  const cerrarPopup = () => setPopup(null)
+  // PIN de muestra: 1234 es válido; nunca se envía a ningún servicio.
+  const validarPin = (valor) => {
+    if (valor === '1234') { setPinError(false); setPinOk(true) } else { setPinError(true); setPinOk(false); setTimeout(() => setPin(''), 600) }
+  }
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', oscuro)
@@ -132,6 +156,9 @@ export default function BibliotecaUI() {
               <div><Label htmlFor="catalogo-select">Sucursal</Label><Select id="catalogo-select" defaultValue="centro"><option value="centro">Sucursal de muestra</option><option value="norte">Otra sucursal</option></Select></div>
               <div><Label htmlFor="catalogo-password">Contraseña</Label><PasswordInput id="catalogo-password" defaultValue="muestra-segura" /></div>
               <div className="sm:col-span-2"><Label htmlFor="catalogo-nota">Nota</Label><Textarea id="catalogo-nota" rows={2} defaultValue="Texto de ejemplo para revisar el campo." /></div>
+              <div><Label htmlFor="catalogo-buscar">Buscador</Label><SearchField id="catalogo-buscar" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar producto o IMEI" aria-label="Buscar producto o IMEI" /></div>
+              <div className="flex items-center gap-3"><Switch id="catalogo-activo" checked={activo} onChange={e => setActivo(e.target.checked)} aria-label="Activo" /><Label htmlFor="catalogo-activo" className="mb-0">Activo</Label></div>
+              <div className="sm:col-span-2"><SegmentedField value={periodo} onChange={setPeriodo} options={[['dia', 'Día'], ['semana', 'Semana'], ['mes', 'Mes']]} /></div>
               <div className="sm:col-span-2"><FieldRow label="Monto" htmlFor="catalogo-monto" hint="Entrada formateada localmente"><MoneyInput id="catalogo-monto" value={monto} onValueChange={valor => setMonto(String(valor))} /></FieldRow></div>
             </div>
           </Muestra>
@@ -162,8 +189,52 @@ export default function BibliotecaUI() {
               <div className="grid gap-2 sm:grid-cols-2"><Aviso tono="ok">Aviso de confirmación</Aviso><Aviso tono="warn">Aviso preventivo</Aviso><Nota tono="info">Nota informativa</Nota></div>
             </div>
           </Muestra>
+
+          <Muestra titulo="Popup único" detalle="Un solo marco: encabezado con X roja, cuerpo libre y pie de acciones. En móvil sube como hoja; en escritorio va centrado." className="lg:col-span-2">
+            <div id="popups" className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setPopup('confirmar')}>Confirmar</Button>
+              <Button type="button" variant="outline" onClick={() => setPopup('peligro')}>Confirmar (peligro)</Button>
+              <Button type="button" variant="outline" onClick={() => setPopup('formulario')}>Formulario</Button>
+              <Button type="button" variant="outline" onClick={() => setPopup('detalle')}>Detalle</Button>
+              <Button type="button" variant="outline" onClick={() => setPopup('aviso')}>Aviso</Button>
+            </div>
+          </Muestra>
+
+          <Muestra titulo="Teclado de PIN" detalle="Teclas redondas grandes, cuatro puntos, borrar y validación al completar (de muestra: 1234 es correcto).">
+            <div id="pin" className="space-y-2">
+              <PinPad tecladoTactil value={pin} onChange={v => { setPinError(false); setPinOk(false); setPin(v) }} onComplete={validarPin} invalido={pinError} exito={pinOk} ariaLabel="PIN de muestra" />
+              <p role="status" className={`text-center text-sm ${pinError ? 'text-bad-text' : 'text-mute'}`}>{pinError ? 'PIN incorrecto' : pinOk ? 'PIN correcto' : 'Se valida solo al completar.'}</p>
+            </div>
+          </Muestra>
+
+          <Muestra titulo="Chips, insignias y avisos" detalle="Estados semánticos, toasts y avisos en línea.">
+            <div id="chips" className="space-y-3">
+              <div className="flex flex-wrap gap-2"><Badge color="green">Activo</Badge><Badge color="orange">Pendiente</Badge><Badge color="red">Vencido</Badge><Badge color="slate">Borrador</Badge><StatusChip dominio="pedido" estado="PENDING" /><StatusChip dominio="pedido" estado="COMPLETED" /></div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => toast.success('Cliente se guardó')}>Toast de éxito</Button>
+                <Button type="button" variant="outline" onClick={() => toast.error('No se pudo guardar', 'Revisá los datos y probá de nuevo.')}>Toast de error</Button>
+              </div>
+              <Aviso tono="error">Aviso de error</Aviso>
+            </div>
+          </Muestra>
         </div>
       </div>
+
+      <Popup open={popup === 'confirmar'} onClose={cerrarPopup} tipo="confirmar" title="¿Guardar los cambios?" description="Se aplican a esta sucursal." acciones={{ primaria: { label: 'Guardar', onClick: cerrarPopup }, secundaria: { label: 'Volver', onClick: cerrarPopup } }}>
+        <p className="text-mute">Confirmación de muestra: no guarda nada.</p>
+      </Popup>
+      <Popup open={popup === 'peligro'} onClose={cerrarPopup} tipo="confirmar" title="¿Anular la venta?" acciones={{ peligro: { label: 'Anular venta', onClick: cerrarPopup }, secundaria: { label: 'Volver', onClick: cerrarPopup } }}>
+        <p className="text-mute">Esta acción de muestra no se puede deshacer.</p>
+      </Popup>
+      <Popup open={popup === 'formulario'} onClose={cerrarPopup} tipo="formulario" title="Nuevo cliente" acciones={{ primaria: { label: 'Guardar cliente', onClick: cerrarPopup }, secundaria: { label: 'Cancelar', onClick: cerrarPopup } }}>
+        <div className="space-y-3"><FormField label="Nombre" htmlFor="popup-nombre"><Input id="popup-nombre" placeholder="Nombre y apellido" /></FormField><FormField label="Teléfono" htmlFor="popup-tel"><PhoneField id="popup-tel" value={telefono} onChange={setTelefono} /></FormField></div>
+      </Popup>
+      <Popup open={popup === 'detalle'} onClose={cerrarPopup} tipo="detalle" title="Pedido MOB-31843" footer={<div className="flex justify-end"><Button type="button" variant="outline" className="min-h-11" onClick={cerrarPopup}>Cerrar</Button></div>}>
+        <DataTable columns={COLUMNAS} rows={FILAS} caption="Pedidos de muestra" getRowKey={fila => fila.id} />
+      </Popup>
+      <Popup open={popup === 'aviso'} onClose={cerrarPopup} tipo="aviso" tono="warn" title="Sin conexión" acciones={{ primaria: { label: 'Entendido', onClick: cerrarPopup } }}>
+        <p className="text-mute">Guardamos la venta en este equipo y la enviamos al volver la conexión.</p>
+      </Popup>
 
       <Modal open={modalAbierto} onClose={() => setModalAbierto(false)} title="Diálogo de muestra">
         <p className="text-sm text-mute">Este diálogo solo permite revisar el contenedor y el cierre. No ejecuta cambios.</p>
