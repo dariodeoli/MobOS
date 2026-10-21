@@ -212,7 +212,7 @@ for (const width of [320, 375, 390, 430]) test(`#546 cabecera móvil ${width}px:
   await header.getByTestId('shell-equipo-online-mobile').click()
   await expect(page.getByRole('dialog', { name: 'Equipo en línea' })).toBeVisible()
 })
-async function geometria516(locator){return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}
+async function geometria516(locator){await locator.page().evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>null))));return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}
 async function campo516(locator,width){
  await expect(locator).toBeVisible()
  const r=await locator.boundingBox();expect(r.width).toBeGreaterThanOrEqual(44);expect(r.height).toBeGreaterThanOrEqual(44)
