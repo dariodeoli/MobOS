@@ -1,5 +1,6 @@
 import './stockF4.css'
 import './stockToque.css'
+import './stockRediseno.css'
 import { useEffect, useMemo, useRef } from 'react'
 import { Aviso, Card } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -51,7 +52,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
   const limpiarFiltrosEstado = () => { limpiarFiltros(); if (tab !== 'unidades') cambiarTab('unidades') }
   if (!inventarioOperativo) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
-  return <div className={cn('space-y-3', temaV2Activo() && 'tema-v2')}>
+  return <div className={cn('stock-rediseno space-y-3', temaV2Activo() && 'tema-v2')}>
       {/* Una sola barra por pestaña del shell (Unidades · Traslados · Control): sin
           segunda fila de pestañas ni caja extra antes de la lista. */}
       {!(tab === 'conteos' && ctx.conteoId) && <BarraStock ctx={ctx} grupo={grupoActivo} elegirEstado={elegirEstado} limpiar={limpiarFiltrosEstado} />}
