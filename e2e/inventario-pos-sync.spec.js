@@ -161,7 +161,7 @@ test('el POS ve las unidades cargadas después, sin recargar (#257)', async ({ p
     await openShellDestination(page, 'POS')
     await expect(buscador).toBeVisible({ timeout: 20_000 })
     await buscador.fill(nombre)
-    await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })
+    await expect(tarjeta().getByTestId('pos-stock-por-sucursal').getByText(`${SEED.branchName}: 1`, { exact: true })).toBeVisible({ timeout: 20_000 })
     await page.screenshot({ path: 'test-results/qa-257-pos/unidad-en-pos.jpg', type: 'jpeg', quality: 78 })
   } finally {
     await page.evaluate(async ({ api, datos }) => {
