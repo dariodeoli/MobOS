@@ -62,3 +62,26 @@ test('la acción de imprimir descubre el agente sin configuración global y comp
   assert.equal((await consultar(sinConfig, { accionExplicita: true })).disponible, true)
   assert.equal(llamadas, 1)
 })
+
+
+test('una impresión explícita reintenta al arrancar el agente antes del minuto sin duplicar peticiones', async () => {
+  let reloj = 0; let llamadas = 0; let online = false; let completar
+  const consultar = crearConsultaEstadoAgente({ now: () => reloj, fetchImpl: () => {
+    llamadas++
+    if (!online) return Promise.reject(new Error('ECONNREFUSED'))
+    return new Promise(resolve => { completar = resolve })
+  } })
+  assert.deepEqual(await consultar(configurado), { disponible: false })
+  reloj = 1000
+  online = true
+  assert.deepEqual(await consultar(configurado), { disponible: false })
+  assert.equal(llamadas, 1, 'el sondeo pasivo conserva el enfriamiento negativo')
+  const primera = consultar(configurado, { accionExplicita: true })
+  const simultanea = consultar(configurado, { accionExplicita: true })
+  assert.equal(llamadas, 2, 'la impresión explícita vuelve a detectar el agente recién iniciado')
+  completar(Response.json({ ok: true }))
+  assert.deepEqual(await primera, { ok: true, disponible: true })
+  assert.deepEqual(await simultanea, { ok: true, disponible: true })
+  assert.equal((await consultar(configurado, { accionExplicita: true })).disponible, true)
+  assert.equal(llamadas, 2, 'la salud positiva sigue compartida durante cinco segundos')
+})

@@ -8,7 +8,9 @@ export function crearConsultaEstadoAgente({ fetchImpl = (...args) => fetch(...ar
     const { url, token, impresora } = config
     if (!forzar && !accionExplicita && !token && !impresora) return { disponible: false }
     const clave = JSON.stringify([contexto, url, token])
-    if (!forzar && cache?.clave === clave && now() < cache.hasta) return cache.estado
+    // Una impresión pedida por la persona debe detectar un agente recién iniciado.
+    if (!forzar && cache?.clave === clave && now() < cache.hasta
+      && !(accionExplicita && cache.estado.disponible === false)) return cache.estado
     if (pendiente?.clave === clave) return pendiente.promesa
     const promesa = (async () => {
       const control = new AbortController()

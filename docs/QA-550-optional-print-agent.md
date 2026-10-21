@@ -31,7 +31,7 @@ suprimía la consulta de salud al imprimir con una impresora elegida por el
 llamador y sin configuración global guardada. Eso desviaba documentos hacia
 el camino remoto en lugar de enviar el trabajo al agente local. Se separó la
 observación pasiva de una acción explícita de impresión; esta última permite
-consultar el agente sin vaciar la caché negativa ni duplicar peticiones.
+consultar el agente sin configuración global guardada.
 No se cambiaron las expectativas de trabajos ni los mocks para esconder la regresión.
 
 También se fijó el reloj del test de garantía #240 en la fecha de su fixture
@@ -56,3 +56,19 @@ Novedades para el dueño:
 - Los reportes cerrados dejan de buscar una impresora local.
 - Al solicitar una impresión se conserva la detección del agente y sus copias.
 - Si no hay agente, sigue disponible el respaldo del navegador.
+
+
+## Revisión del candidato239: agente recién iniciado
+
+La revisión detectó otro caso: después de una consulta fallida, la caché negativa
+podía demorar durante un minuto una impresión explícita aunque el agente ya
+hubiera arrancado. La acción explícita ahora vuelve a consultar sólo cuando la
+salud guardada es negativa. La observación pasiva conserva los60 segundos de
+enfriamiento, la salud positiva conserva cinco segundos y solicitudes simultáneas
+siguen compartiendo una petición en curso.
+
+Se agregó una regresión de helper y otra de navegador con el ciclo agente ausente
+→ agente disponible → impresión local inmediata. Ambos fallaron antes del arreglo
+(helper no reintentaba; navegador devolvía ok:false y no enviaba el trabajo).
+Las expectativas no se redujeron y toda la red local fue interceptada; ninguna
+impresora física se contactó.
