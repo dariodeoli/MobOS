@@ -26,7 +26,6 @@ const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
 const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
-const Ops = lazy(() => import('@/pages/Ops'))
 // Preview de diseño (#279): A3/A5 del plan #250, solo DEV.
 const PreviewDiseno = lazy(() => import('@/pages/preview/PreviewDiseno'))
 // Biblioteca de objetos: ruta /biblioteca solo para el dueño (docs/PLANTILLA-OBJETOS.md).
@@ -244,8 +243,10 @@ export default function App() {
   // ruta real `/ops` (solo con VITE_OPS_V2=1, ya con datos reales). Fuera del
   // menú hasta la aprobación del piloto; la lógica vive en `lib/flags.js`.
   const vistaOps = rutaV2(window.location.pathname, flagsV2({ dev: import.meta.env.DEV, env: import.meta.env }))
-  if (vistaOps) {
-    const PaginaOps = vistaOps === 'activo' ? Ops : OpsPreview
+  // El tablero real (`activo`) vive dentro del panel (mismo shell, ruta /ops);
+  // solo la vista previa con datos ficticios sigue siendo una página aparte.
+  if (vistaOps === 'preview') {
+    const PaginaOps = OpsPreview
     return (
       <>
         <MetadatosPagina />
@@ -408,6 +409,7 @@ export default function App() {
           <Route path="/servicio" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/garantias" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/autorizaciones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          <Route path="/ops" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/resumen" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           {/* #251: el menú dice «Inicio»; /inicio es alias de la ruta canónica. */}
           <Route path="/inicio" element={<Navigate to="/resumen" replace />} />

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { openShellDestination } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
 
@@ -45,6 +46,7 @@ async function settle(page) {
   await expect(page.locator('main[aria-busy="true"]')).toHaveCount(0)
   await expect(page.locator('main').first()).toContainText(/\S/)
   await page.waitForTimeout(150)
+  await esperarAnimaciones(page)
 }
 
 async function check(page, label) {
@@ -71,13 +73,12 @@ for (const dark of [false, true]) {
         await settle(page)
         await check(page, `${screen} · ${width}px · ${dark ? 'dark' : 'light'}`)
       }
-      // /ops lives outside the panel shell: same contract, same session.
-      await page.goto('/ops', { waitUntil: 'domcontentloaded' })
+      // /ops se muestra dentro del shell del panel: mismo contrato, misma sesión.
+      await openShellDestination(page, 'Tablero de operaciones')
+      await expect(page.getByTestId('shell')).toBeVisible()
       await expect(page.getByTestId('ops-tablero')).toBeVisible()
       await expect(page.getByTestId('ops-actualizado')).toBeVisible()
       await check(page, `Operaciones · ${width}px · ${dark ? 'dark' : 'light'}`)
-      await page.goBack({ waitUntil: 'domcontentloaded' })
-      await expect(page.getByTestId('shell')).toBeVisible()
     }
   })
 }
@@ -118,7 +119,8 @@ test('Inicio: Vendedor muestra el nombre completo a 1280, "Para resolver hoy" al
 test('Operaciones: badge "Demo", KPIs de 2 columnas compactos y botones de 44px en celular', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
-  await page.goto('/ops', { waitUntil: 'domcontentloaded' })
+  await openShellDestination(page, 'Tablero de operaciones')
+  await expect(page.getByTestId('shell')).toBeVisible()
   await expect(page.getByTestId('ops-tablero')).toBeVisible()
   const badge = page.getByTestId('ops-actualizado')
   await expect(badge).toContainText(/^Demo/)
@@ -127,8 +129,28 @@ test('Operaciones: badge "Demo", KPIs de 2 columnas compactos y botones de 44px 
   const b = await page.getByTestId('ops-kpi-pedidos').boundingBox()
   expect(Math.abs(a.y - b.y), 'dos KPIs por fila').toBeLessThanOrEqual(1)
   expect(a.height, 'KPI compacto').toBeLessThanOrEqual(96)
-  for (const target of [page.getByTestId('ops-refrescar'), page.getByRole('link', { name: /Volver a la app/ })])
-    expect((await target.boundingBox()).height).toBeGreaterThanOrEqual(44)
+  expect((await page.getByTestId('ops-refrescar').boundingBox()).height).toBeGreaterThanOrEqual(44)
+  // Embebido: sin enlace «Volver a la app» (el shell ya es la navegación).
+  await expect(page.getByRole('link', { name: /Volver a la app/ })).toHaveCount(0)
+})
+
+test('Inicio → Operaciones mantiene el shell (header y navegación) sin recarga completa', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await enterDemo(page)
+  await openShellDestination(page, 'Inicio')
+  await page.evaluate(() => { window.__sinRecarga = true })
+  await openShellDestination(page, 'Tablero de operaciones')
+  await expect(page).toHaveURL(/\/ops$/)
+  await expect(page.getByTestId('ops-tablero')).toBeVisible()
+  await expect(page.getByTestId('shell')).toBeVisible()
+  await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="resumen"]')).toBeVisible()
+  await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="ops"]')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('shell-lateral')).toBeVisible()
+  expect(await page.evaluate(() => window.__sinRecarga), 'no hubo recarga completa').toBe(true)
+  // Abrir /ops directo muestra lo mismo dentro del shell.
+  await page.goto('/ops', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('shell')).toBeVisible()
+  await expect(page.getByTestId('ops-tablero')).toBeVisible()
 })
 
 test('Cotizaciones: "Más" es un botón de 44px y "Más estados" despliega chips, sin selects', async ({ page }) => {

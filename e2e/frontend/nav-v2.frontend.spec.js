@@ -8,6 +8,7 @@ import {
   selectInventorySection,
 } from '../helpers/shell-navigation.js'
 import { ensureCobro } from '../helpers/ensure-cobro.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 const output = '/tmp/mobos-nav-v2-qa'
 const widths = [320, 360, 390, 430, 1440]
@@ -345,7 +346,6 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
     ).toEqual(Object.keys(groups))
     await expect(context.locator('[aria-current="page"]')).toHaveCount(1)
     for (const [group, ids] of Object.entries(groups)) {
-      if (group === 'ops') continue // standalone protected operational board requires backend
       await clickShellTab(page, 'shell-contexto', group)
       for (const id of ids) {
         if (ids.length > 1) await clickShellTab(page, 'shell-subcontexto', id)
@@ -1376,6 +1376,7 @@ for (const width of [320, 390, 1440]) {
         .evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
       expect(columns).toBe(width === 1440 ? 2 : 1)
       await noOverflow(page)
+      await esperarAnimaciones(page)
       for (const control of await root
         .locator('button, select, summary, .entregas-f3-consent')
         .all()) {
@@ -1613,7 +1614,7 @@ for (const denied of [false, true]) {
       await page.getByRole('button', { name: 'Rendiciones', exact: true }).click()
       await expect(page.getByTestId('rendicion-admin')).toContainText('Pendiente')
       await page.getByTestId('rendicion-verificar').click()
-      const dialog = page.getByRole('dialog', { name: '¿Verificar la rendición?' })
+      const dialog = page.getByRole('alertdialog', { name: '¿Verificar la rendición?' })
       await expect(dialog).toBeVisible()
       expect(verificationRequests).toEqual([])
       await page.keyboard.press('Escape')
@@ -2050,6 +2051,7 @@ for (const width of [320, 390, 1440]) {
       await expect(root.getByRole('checkbox')).toHaveCount(0)
       await expect(root.getByTestId('resumen-taller')).toContainText('En pantalla')
       await noOverflow(page)
+      await esperarAnimaciones(page)
       expect(
         await root.getByTestId('servicio-tabla').evaluate(el => el.scrollWidth <= el.clientWidth),
       ).toBe(true)
@@ -2086,6 +2088,7 @@ for (const width of [320, 390, 1440]) {
       const detail = page.getByTestId('taller-detalle')
       await expect(detail).toContainText('Distribuidora del Este S.A.')
       await expect(detail).toContainText('Esperando repuesto')
+      await esperarAnimaciones(page)
       for (const name of [
         'Recepción',
         '80 mm',

@@ -32,18 +32,8 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 2,
-    "chicos": [
-      {
-        "que": "button",
-        "texto": "PDF de la cotización",
-        "ancho": 192,
-        "alto": 36,
-        "dibujo": "192x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 2
-      }
-    ]
+    "totalChicos": 0,
+    "chicos": []
   },
   {
     "superficie": "portal-cotizacion-publica",

@@ -5,24 +5,33 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 3,
+    "totalChicos": 8,
     "chicos": [
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Unidades",
+        "ancho": 111,
+        "alto": 40,
+        "dibujo": "111x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "Configuración",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 te",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Vendido hoy",
-        "ancho": 187,
-        "alto": 24,
-        "dibujo": "187x24",
-        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
@@ -60,8 +69,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 9,
+    "totalChicos": 12,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Unidades",
+        "ancho": 111,
+        "alto": 40,
+        "dibujo": "111x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 5
+      },
       {
         "que": "button",
         "texto": "Actualizar",
@@ -73,29 +91,20 @@
       },
       {
         "que": "button",
-        "texto": "Compras",
-        "ancho": 71,
+        "texto": "Configuración",
+        "ancho": 207,
         "alto": 36,
-        "dibujo": "71x36",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
-        "veces": 2
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 te",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Vendido hoy",
-        "ancho": 187,
-        "alto": 24,
-        "dibujo": "187x24",
-        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
@@ -133,42 +142,33 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 16,
+    "totalChicos": 4,
     "chicos": [
       {
         "que": "button",
-        "texto": "Activos (5)",
-        "ancho": 83,
-        "alto": 36,
-        "dibujo": "83x36",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
-        "veces": 10
-      },
-      {
-        "que": "button",
-        "texto": "Actualizar",
+        "texto": "Servicio",
         "ancho": 102,
-        "alto": 36,
-        "dibujo": "102x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 4
+        "alto": 40,
+        "dibujo": "102x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 2
       },
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Configuración",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 te",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Vendido hoy",
-        "ancho": 187,
-        "alto": 24,
-        "dibujo": "187x24",
-        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       }
     ]

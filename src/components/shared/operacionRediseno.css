@@ -179,9 +179,11 @@
 }
 
 /* ---- Detalle: columna principal + lateral ------------------------------- */
-.op-rd-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.op-rd-page { overflow-x: clip; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .op-rd-main,
-.op-rd-side { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.op-rd-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; align-content: start; }
+.op-rd-main > *,
+.op-rd-side > * { min-width: 0; }
 @media (min-width: 1024px) {
   .op-rd-page { grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); }
 }

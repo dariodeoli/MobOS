@@ -47,6 +47,7 @@ const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const MiCuenta = lazy(() => import('@/components/cuenta/MiCuenta'))
 const Equipo = lazy(() => import('@/components/control/Equipo'))
+const Ops = lazy(() => import('@/pages/Ops'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
@@ -131,8 +132,8 @@ const SELLER_NAV = [
   },
 ]
 
-// El tablero real (/ops) vive fuera del panel: se ofrece como entrada solo
-// cuando el rollout está activo (`VITE_OPS_V2`, ver lib/flags.js).
+// El tablero real (/ops) se muestra dentro del panel (mismo shell): se ofrece
+// como entrada solo cuando el rollout está activo (`VITE_OPS_V2`, ver lib/flags.js).
 const { opsV2 } = flagsV2({ dev: import.meta.env.DEV, env: import.meta.env })
 
 const OWNER_NAV = [
@@ -624,9 +625,6 @@ export default function PanelVendedor() {
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
   function ir(id, opciones = {}) {
-    // El tablero real (/ops) vive fuera del panel, con su propio shell: se
-    // entra con una navegación completa, igual que abriendo la URL directa.
-    if (id === 'ops') { window.location.assign('/ops'); return }
     // Mi cuenta (#253): el dueño la ve como pestaña de Configuración (su lugar
     // en la IA de siete grupos); el resto del equipo entra a la vista personal
     // /mi-cuenta, que no pide permisos de administración.
@@ -1024,6 +1022,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}
           {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
+          {esOwner && opsV2 && vista === 'ops' && <Ops embebido />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (
             <div>

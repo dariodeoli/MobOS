@@ -123,10 +123,9 @@ async function clickTab(container, id) {
     }
     await item.click()
   }
-  if (id !== 'ops')
-    await expect
-      .poll(() => container.locator(`[data-tab-id="${id}"][aria-current="page"]`).count())
-      .toBe(1)
+  await expect
+    .poll(() => container.locator(`[data-tab-id="${id}"][aria-current="page"]`).count())
+    .toBe(1)
   return true
 }
 // Every tab id of a container, including the ones inside the "Más" popover.
@@ -260,11 +259,6 @@ export async function shellCatalog(page) {
       continue
     }
     for (const group of await tabIds(context)) {
-      // Standalone destinations are named without leaving the shell (e.g. /ops).
-      if (group === 'ops') {
-        destinations.add(label(group))
-        continue
-      }
       await clickTab(context, group)
       const segments = page.getByTestId('shell-subcontexto')
       if (group === 'precios') await segments.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
