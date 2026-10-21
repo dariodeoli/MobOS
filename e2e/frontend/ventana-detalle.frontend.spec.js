@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { openShellDestination } from '../helpers/shell-navigation.js'
 
 // #386: los detalles y vistas previas abren una ventana centrada (no un panel
-// pegado a la derecha) con X roja de 44 px; en celular ocupa la pantalla.
+// pegado a la derecha) con X roja de 44 px; en celular sube como hoja (Popup único).
 // Demo frontend-only (sin backend).
 async function abrirVistaRapida(page, width, height) {
   await page.route('**/api/**', route =>
@@ -48,11 +48,12 @@ test.describe('ventana de detalle centrada (#386)', () => {
     expect(r).toBeGreaterThan(b + 60)
   })
 
-  test('390: ocupa la pantalla, sin scroll horizontal y la X siempre visible', async ({ page }) => {
+  test('390: sube como hoja a todo el ancho, sin scroll horizontal y la X siempre visible', async ({ page }) => {
     const { dialog } = await abrirVistaRapida(page, 390, 844)
     const box = await dialog.boundingBox()
-    expect(box.width).toBeGreaterThanOrEqual(390 - 24 - 1)
-    expect(box.height).toBeGreaterThanOrEqual(844 - 24 - 1)
+    expect(box.width).toBeGreaterThanOrEqual(390 - 1)
+    expect(box.height).toBeLessThanOrEqual(844 * 0.92 + 1)
+    expect(Math.abs(box.y + box.height - 844), 'pegada al borde inferior').toBeLessThanOrEqual(2)
     expect(box.x).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(390)
     const { box: x } = await medirCierre(dialog)

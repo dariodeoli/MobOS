@@ -507,7 +507,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   // Con IMEI elegido, la papelera pide confirmación: cancelar conserva la línea
   // con su unidad reservada (#243).
   await page.getByRole('button', { name: `Eliminar ${SEED.products.iphone.name}` }).click()
-  const confirmarQuitar = page.getByRole('dialog')
+  const confirmarQuitar = page.getByRole('alertdialog')
   await expect(confirmarQuitar).toContainText('un IMEI elegido')
   await confirmarQuitar.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()

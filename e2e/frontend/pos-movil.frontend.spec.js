@@ -547,7 +547,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
       await expect(cover).toHaveCount(0)
     }
     await pin.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
-    await page.getByRole('dialog', { name: '¿Cerrar sesión?', exact: true }).getByRole('button', { name: 'Salir', exact: true }).click()
+    await page.getByRole('alertdialog', { name: '¿Cerrar sesión?', exact: true }).getByRole('button', { name: 'Salir', exact: true }).click()
     await expect(page.getByTestId('shell')).toHaveCount(0)
   })
 }

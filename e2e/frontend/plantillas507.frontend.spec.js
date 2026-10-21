@@ -91,7 +91,7 @@ for (const width of [360, 390, 1440])
       .click()
     await row.getByRole('button', { name: 'Eliminar', exact: true }).click()
     await page
-      .getByRole('dialog', { name: 'Eliminar plantilla' })
+      .getByRole('alertdialog', { name: 'Eliminar plantilla' })
       .getByRole('button', { name: 'Eliminar', exact: true })
       .click()
     await expect(page.getByTestId('plantillas-empresa').locator('li')).toHaveCount(1)

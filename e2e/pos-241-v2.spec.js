@@ -18,7 +18,7 @@ import { SEED } from './helpers/seed-data.js'
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const RAICES_POS = ['#pos-resumen-venta', '[data-testid="pos-cobro"]']
-const RAICES_MODAL = ['[role="dialog"]']
+const RAICES_MODAL = ['[role="dialog"], [role="alertdialog"]']
 
 const preparar = (page, modo, v2) =>
   page.addInitScript(({ modo, v2 }) => {
@@ -203,7 +203,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         await expect(carrito.getByTestId('linea-descuento')).toBeVisible()
         await carrito.getByRole('button', { name: /^Ver menos detalle de / }).first().click()
         await carrito.getByRole('button', { name: /^Eliminar / }).first().click()
-        const confirmacion = page.getByRole('dialog', { name: '¿Eliminar la línea?' })
+        const confirmacion = page.getByRole('alertdialog', { name: '¿Eliminar la línea?' })
         await expect(confirmacion).toBeVisible()
         await page.screenshot({ path: `${SHOTS}/c241f3p5-${sufijo}-modal-confirmacion.png` })
         const contrasteConfirmacion = await auditarContraste(page, [], RAICES_MODAL)

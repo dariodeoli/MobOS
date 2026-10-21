@@ -82,7 +82,7 @@ test('#300 · cerrar la cuenta vive en una zona destructiva separada', async ({ 
 
   // Confirmación reforzada: contraseña + la palabra CERRAR.
   await cerrar.click()
-  const dialogo = page.getByRole('dialog', { name: '¿Cerrar tu cuenta?' })
+  const dialogo = page.getByRole('alertdialog', { name: '¿Cerrar tu cuenta?' })
   await expect(dialogo).toBeVisible()
   await expect(dialogo.getByText('Escribí CERRAR para confirmar')).toBeVisible()
   await expect(dialogo.getByLabel('Contraseña de la empresa')).toBeVisible()
