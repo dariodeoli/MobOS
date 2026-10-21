@@ -1,6 +1,6 @@
 import CreditoAutorizacion from '../venta/CreditoAutorizacion'
 import { useEffect, useRef, useState } from 'react'
-import { Aviso, Button } from '@/components/ui'
+import { Aviso, BarraProgreso, Button } from '@/components/ui'
 import BottomSheet from '@/components/shared/BottomSheet'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import Icon from '@/components/shared/Icon'
@@ -128,7 +128,7 @@ export default function CobroMovil({
   const saldo = pendiente
   const aPagar = Math.min(montoPago ?? saldo, saldo)
   const rapidas = usaCuentas ? cuentasRapidas(cuentas) : mediosLegacy()
-  const etiquetaSaldo = reales.length === 0 ? 'Total' : 'Saldo'
+  const etiquetaSaldo = 'Falta cobrar'
 
   function irA(siguiente) {
     cambioDePaso.current = Date.now()
@@ -238,6 +238,9 @@ export default function CobroMovil({
           <>
             <div className="space-y-2 rounded-2xl border border-ink-600 bg-ink-800 px-4 py-5">
               <Importe etiqueta={montoPago != null && montoPago < saldo ? 'Este pago' : etiquetaSaldo} valor={gs(aPagar)} testId="cobro-total-grande" />
+              {totalGeneral > 0 && (
+                <BarraProgreso valor={Math.min(100, Math.max(0, Math.round((totalPagado / totalGeneral) * 100)))} tono="fono" etiqueta="Progreso del cobro" className="pos-falta-barra mt-3 w-full bg-ink-600" />
+              )}
               {montoPago != null && montoPago < saldo && (
                 <p className="text-center text-sm text-mute">Saldo: <b className="tabular-nums text-fore">{gs(saldo)}</b></p>
               )}
@@ -273,7 +276,7 @@ export default function CobroMovil({
             )}
 
             {cuentas && (
-              <div className="space-y-2" data-testid="cobro-medios">
+              <div className="pos-medios space-y-2" data-testid="cobro-medios">
                 {rapidas.map(m => (
                   <BotonMedio
                     key={m.id}

@@ -1,6 +1,7 @@
 import '../control/inicioPosF2.css'
 import './posCobro.css'
 import './posUnaPantalla.css'
+import './posRediseno.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -346,7 +347,11 @@ function useDivisorPos(layoutRef, clave) {
     onKeyDown: (e) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       e.preventDefault()
-      const base = izq ?? (window.innerWidth >= 1280 ? 0.5 : 0.55)
+      // Sin ajuste previo el ticket mide fijo: se parte del reparto real.
+      const layout = layoutRef.current
+      const izqReal = layout?.querySelector('.pos-col-izq')?.getBoundingClientRect().width
+      const gap = layout ? Number.parseFloat(window.getComputedStyle(layout).columnGap) || 12 : 12
+      const base = izq ?? (izqReal && layout ? Number((izqReal / (layout.getBoundingClientRect().width - gap)).toFixed(3)) : (window.innerWidth >= 1280 ? 0.5 : 0.55))
       const v = limitar(Number((base + (e.key === 'ArrowLeft' ? -0.02 : 0.02)).toFixed(3)))
       setIzq(v); guardar(v)
     },
@@ -369,6 +374,13 @@ export default function FormularioVenta({
   useAlturaPos(layoutRef)
   // «Listo, ir a cobrar»: el carrito se resume y el cobro gana la altura.
   const [modoCobro, setModoCobro] = useState(false)
+  // Al entrar o salir del cobro cambia lo que hay bajo la grilla (resumen del
+  // día): se vuelve a medir el alto de la pantalla.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const marco = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+    return () => cancelAnimationFrame(marco)
+  }, [modoCobro])
   const divisor = useDivisorPos(layoutRef, `mobos:pos-divisor:${contextoActual().userId || 'anon'}`)
   // POS en celular (#429): <768 px cambia solo la presentación (acciones,
   // barra del carrito y hojas). Es la misma venta: el estado, el guardado y
@@ -2168,7 +2180,7 @@ export default function FormularioVenta({
         </Aviso>
       )}
       {ok && !esMovil && (
-        <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
+        <Aviso tono="ok" como="div" aria-live="polite" data-testid="pos-exito-escritorio" className="pos-exito-escritorio mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <CheckAnimado size={36} className="shrink-0" />
           <span className="min-w-0">
             <b className="block">
@@ -2304,6 +2316,8 @@ export default function FormularioVenta({
         <div
           ref={layoutRef}
           data-testid="pos-layout"
+          data-cobro={modoCobro && !esMovil && items.length > 0 ? 'si' : undefined}
+          data-divisor={divisor.izq != null ? 'manual' : undefined}
           style={divisor.izq != null ? { '--pos-izq': divisor.izq } : undefined}
           className={`pos-layout relative grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}
         >

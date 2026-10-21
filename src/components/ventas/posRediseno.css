@@ -1,0 +1,398 @@
+/* Rediseño del POS de ventas (docs/pos-rediseno/PROPUESTA.md).
+   Solo capa visual y estructura: catálogo a la izquierda, ticket fijo a la
+   derecha, «Falta cobrar» como número grande del cobro. No toca montos,
+   payload ni reglas de negocio. Se carga después de posUnaPantalla.css y gana
+   por orden; usa los tokens --c-* (claro/oscuro) de la app. */
+
+/* ───────────── Escritorio (≥1024): una pantalla, sin scroll de página ───────────── */
+@media (min-width: 1024px) {
+  .pos-f2 .pos-layout {
+    --pos-ticket: 360px;
+    --pos-gap: 14px;
+    grid-template-columns: minmax(0, 1fr) var(--pos-ticket);
+    gap: var(--pos-gap);
+    height: var(--pos-alto, auto) !important;
+    min-height: 0;
+    align-items: stretch;
+  }
+  /* Divisor arrastrable (conservado): sin ajuste manual el ticket mide fijo. */
+  .pos-f2 .pos-layout:not([data-divisor]) .pos-divisor {
+    left: calc(100% - var(--pos-ticket) - (var(--pos-gap) / 2) - 5px);
+  }
+  .pos-f2 .pos-layout[data-divisor] {
+    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
+  }
+  .pos-f2 .pos-col-izq,
+  .pos-f2 .pos-columna-venta {
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+  }
+
+  /* Catálogo: ocupa el alto y se desplaza por dentro. */
+  .pos-f2 .pos-col-izq {
+    overflow: hidden;
+    gap: 6px;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 16px;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] > :first-child {
+    position: sticky;
+    top: -10px;
+    z-index: 3;
+    margin-top: -10px;
+    padding-top: 10px;
+    background: rgb(var(--c-ink));
+  }
+
+  /* Ticket: una tarjeta continua (cliente · líneas · opciones · total · Cobrar). */
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgb(var(--c-ink-600));
+    border-radius: 16px;
+    background: rgb(var(--c-ink));
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-cliente'] {
+    flex: 0 0 auto;
+    border: 0;
+    border-bottom: 1px solid rgb(var(--c-ink-600));
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    max-height: 46%;
+    overflow-y: auto;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-carrito'] {
+    flex: 1 1 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-cobro-stage'] {
+    flex: 0 0 auto;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) [data-testid='pos-carrito-cuerpo'] {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-carrito {
+    min-height: 0;
+  }
+
+  /* Cobro en pantalla propia: resumen de la venta a la izquierda, pagos a la derecha. */
+  .pos-f2 .pos-layout[data-cobro] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-col-izq,
+  .pos-f2 .pos-layout[data-cobro] .pos-divisor {
+    display: none;
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-columna-venta {
+    display: grid;
+    grid-template-columns: 330px minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    gap: 12px 16px;
+    align-content: start;
+    width: 100%;
+    max-width: 1100px;
+    margin-inline: auto;
+    padding: 2px 2px 8px;
+    overflow-y: auto;
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-columna-venta > [data-testid='pos-bloque-cliente'] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-columna-venta > [data-testid='pos-bloque-carrito'] {
+    grid-column: 1;
+    grid-row: 2;
+    border: 1px solid rgb(var(--c-ink-600));
+    border-radius: 16px;
+    background: rgb(var(--c-ink));
+    box-shadow: none;
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-columna-venta > [data-testid='pos-cobro-stage'] {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    min-width: 0;
+  }
+  .pos-f2 .pos-layout[data-cobro] [data-testid='pos-bloque-cliente'] {
+    border-radius: 16px;
+  }
+  /* En la pantalla de cobro el resumen del día no le quita alto a los pagos. */
+  .pos-f2:has(.pos-layout[data-cobro]) [data-testid='resumen-columna'] {
+    display: none;
+  }
+}
+@media (min-width: 1280px) {
+  .pos-f2 .pos-layout {
+    --pos-ticket: 410px;
+    --pos-gap: 16px;
+    gap: var(--pos-gap);
+    grid-template-columns: minmax(0, 1fr) var(--pos-ticket);
+  }
+  .pos-f2 .pos-layout[data-divisor] {
+    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
+  }
+  .pos-f2 .pos-layout[data-cobro] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ───────────── Catálogo: tarjetas y chips del prototipo ───────────── */
+.pos-f2 .pos-product-card {
+  border-radius: 16px;
+  background: rgb(var(--c-ink));
+  border: 1px solid rgb(var(--c-ink-600));
+}
+.pos-f2 .pos-product-card:hover { border-color: rgb(var(--c-fono)); }
+.pos-f2 .pos-product-card:active { transform: scale(0.98); }
+.pos-f2 [data-testid='pos-chips-accesorio'] button {
+  border-radius: 999px;
+  font-weight: 600;
+}
+.pos-f2 [data-testid='pos-chips-accesorio'] button[aria-pressed='true'] {
+  background: rgb(var(--c-fore));
+  color: rgb(var(--c-paper));
+  border-color: transparent;
+}
+.pos-f2 #pos-busqueda-producto input {
+  min-height: 44px;
+  border-radius: 12px;
+}
+/* «Cobrar» del catálogo repetía la acción del ticket. */
+@media (min-width: 1024px) {
+  .pos-f2 [data-testid='pos-bloque-productos'] button[title='Ir al cobro'] { display: none; }
+}
+
+/* ───────────── Ticket: líneas, opciones y total ───────────── */
+.pos-f2 [data-testid='pos-bloque-carrito'] > div:first-child {
+  background: transparent;
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+.pos-f2 [data-testid='pos-bloque-carrito'] h3 { font-weight: 700; }
+.pos-f2 .pos-tk-total {
+  gap: 8px;
+}
+.pos-f2 .pos-tk-total [data-testid='carrito-total'] strong,
+.pos-f2 .pos-tk-total strong[data-testid='carrito-total'] {
+  font-size: 26px;
+}
+.pos-f2 [data-testid='pos-bloque-carrito'] > div:last-child {
+  background: transparent;
+  border-top: 1px solid rgb(var(--c-ink-600));
+  padding: 10px 14px 14px;
+}
+.pos-f2 .pos-tk-cobrar {
+  min-height: 56px;
+  width: 100%;
+  border-radius: 14px;
+  font-size: 17px;
+  background: rgb(var(--c-fono));
+  color: rgb(var(--c-onbrand));
+}
+.pos-f2 .pos-tk-cobrar:active { transform: scale(0.98); }
+.pos-f2 .pos-tk-items { color: rgb(var(--c-mute)); }
+
+/* ───────────── Cobro: «Falta cobrar» ───────────── */
+.pos-falta-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 14px 16px;
+  text-align: center;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 16px;
+  background: rgb(var(--c-ink));
+}
+.pos-falta-etiqueta {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--c-mute));
+}
+.pos-falta-numero {
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: rgb(var(--c-fore));
+}
+.pos-falta-hero[data-completo='si'] .pos-falta-numero { color: rgb(var(--c-ok)); }
+.pos-falta-detalle { font-size: 13px; color: rgb(var(--c-mute)); }
+.pos-f2 [data-testid='pos-cobro'] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  gap: 12px;
+}
+.pos-f2 [data-testid='pos-cobro-header'] { border-bottom: 0; padding: 0 2px; }
+.pos-f2 [data-testid='pos-bloque-pagos'] {
+  border-color: rgb(var(--c-ink-600));
+  background: rgb(var(--c-ink));
+  border-radius: 16px;
+  padding: 12px;
+}
+.pos-f2 [data-testid='pos-pie-cobro'] {
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 16px;
+  background: rgb(var(--c-ink));
+  margin: 0;
+  padding: 10px 12px;
+}
+.pos-f2 [data-testid='pos-pie-cobro'] button[type='submit'] {
+  min-height: 56px;
+  border-radius: 14px;
+  font-size: 17px;
+}
+
+/* ───────────── Neutralizar la identidad de color por bloque (#281) ─────────────
+   El prototipo usa superficies neutras: solo el verde de marca marca la acción. */
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] {
+  --bloque: var(--c-ink-600);
+  border-top: 1px solid rgb(var(--c-ink-600));
+  border-radius: 16px;
+}
+.shell-nav-v2 .pos-f2 section[data-testid^='pos-'] > [data-bloque-cab],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > div:first-child {
+  background: transparent;
+  border-bottom-color: rgb(var(--c-ink-600));
+  border-radius: 0;
+}
+.shell-nav-v2 .pos-f2 section[data-testid^='pos-'] > [data-bloque-cab] {
+  margin: 0 0 8px;
+  padding: 0;
+  border-bottom: 0;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] h3,
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'] h3,
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] h3 {
+  font-size: 15px;
+  color: rgb(var(--c-fore));
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-cliente'],
+  .shell-nav-v2 .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-carrito'] {
+    border: 0;
+    border-radius: 0;
+  }
+  .shell-nav-v2 .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-cliente'] {
+    border-bottom: 1px solid rgb(var(--c-ink-600));
+    padding: 10px 14px;
+  }
+  .shell-nav-v2 .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-carrito'] > div:first-child {
+    padding: 8px 14px;
+  }
+}
+
+/* Pie del cobro: resumen arriba y acción principal a todo el ancho. */
+.pos-f2 [data-testid='pos-pie-cobro'] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.pos-f2 [data-testid='pos-pie-cobro'] > div:last-child {
+  flex-basis: auto;
+  width: 100%;
+}
+.pos-f2 [data-testid='pos-pie-cobro'] > div:last-child > button { width: 100%; }
+
+/* ───────────── Acción principal en verde de marca (como el prototipo) ─────────────
+   El shell pinta los botones primarios en neutro; en el POS la acción que
+   avanza la venta usa el verde de marca. Las hojas del celular viven en un
+   portal, por eso van por data-testid y no por .pos-f2. */
+.shell-nav-v2 .pos-f2 .pos-tk-cobrar,
+.shell-nav-v2 .pos-f2 [data-testid='pos-pie-cobro'] button[type='submit'],
+button[data-testid='carrito-cobrar'],
+button[data-testid='cobro-confirmar-venta'],
+button[data-testid='recibido-exacto'],
+button[data-testid='teclado-aceptar'],
+button[data-testid='cuenta-marcar-pagado'],
+button[data-testid='parcial-confirmar'],
+button[data-testid='exito-listo'],
+.pos-barra-carrito-cta {
+  background: rgb(var(--c-fono)) !important;
+  color: rgb(var(--c-onbrand)) !important;
+  border-color: transparent !important;
+}
+button[data-testid='carrito-cobrar'],
+button[data-testid='cobro-confirmar-venta'],
+button[data-testid='exito-listo'] {
+  border-radius: 16px;
+  min-height: 56px;
+  font-family: inherit;
+}
+button[data-testid='carrito-cobrar']:disabled,
+button[data-testid='cobro-confirmar-venta']:disabled,
+.shell-nav-v2 .pos-f2 [data-testid='pos-pie-cobro'] button[type='submit']:disabled {
+  opacity: 0.45;
+}
+
+/* Barra flotante «N ítems · Ver venta · Gs.» del celular. */
+[data-testid='pos-barra-carrito'] {
+  border-radius: 18px;
+}
+[data-testid='pos-barra-carrito-abrir'] {
+  background: rgb(var(--c-fono)) !important;
+  color: rgb(var(--c-onbrand)) !important;
+  border-radius: 18px;
+  min-height: 60px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+[data-testid='pos-barra-carrito-abrir'] * { color: inherit; }
+
+/* Cobro del celular: medios como tarjetas y «Falta cobrar» con su barra. */
+.pos-medios > button {
+  border-radius: 16px;
+  background: rgb(var(--c-ink));
+  min-height: 60px;
+}
+.pos-medios > button:hover:not(:disabled),
+.pos-medios > button:focus-visible {
+  border-color: rgb(var(--c-fono));
+  background: rgb(var(--c-fono) / 0.08);
+}
+[data-testid='cobro-movil'] [data-testid='cobro-total-grande'] { color: rgb(var(--c-fore)); }
+
+/* Éxito: vuelto grande para entregar, acciones del recibo lado a lado. */
+.pos-exito-vuelto {
+  font-size: 22px;
+  box-shadow: 0 0 0 4px rgb(var(--c-ok) / 0.18);
+}
+.pos-exito-acciones > a,
+.pos-exito-acciones > button {
+  justify-content: center;
+}
+/* Escritorio: la venta registrada es una tarjeta clara con sus acciones al lado. */
+.pos-exito-escritorio {
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 14px;
+  background: rgb(var(--c-fono) / 0.1);
+  border: 1px solid rgb(var(--c-fono) / 0.4);
+}
+.pos-exito-escritorio > span b { font-size: 17px; }
+.pos-exito-escritorio button,
+.pos-exito-escritorio a { min-height: 44px; border-radius: 12px; }
+
+/* Celular: el catálogo respira; «Cobrar» vive en la barra flotante. */
+@media (max-width: 1023px) {
+  .pos-f2 [data-testid='pos-bloque-productos'] button[title='Ir al cobro'] { display: none; }
+}

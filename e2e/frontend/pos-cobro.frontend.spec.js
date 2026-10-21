@@ -79,11 +79,11 @@ for (const [width, height] of [[1280, 720], [1440, 900]]) {
       ancho: document.documentElement.scrollWidth, anchoVp: window.innerWidth,
     }))
     expect(medidas.ancho).toBeLessThanOrEqual(medidas.anchoVp)
-    // La página desplaza el contenido completo; el ticket no crea mini scroll.
+    // Rediseño: la página no se desplaza y la lista de líneas del ticket
+    // sí lo hace por dentro; cada fila se alcanza igual.
     await page.getByTestId('carrito-editar').click()
     const cuerpo = page.getByTestId('pos-carrito-cuerpo')
     await expect(cuerpo).toBeVisible()
-    expect(await cuerpo.evaluate(el => el.scrollHeight <= el.clientHeight + 1)).toBe(true)
     const filas = cuerpo.locator('[data-estado]')
     await expect(filas).toHaveCount(5)
     for (const fila of await filas.all()) {
@@ -238,10 +238,11 @@ test('divisor arrastrable: cambia el reparto catálogo/venta y se recuerda', asy
   const d = await page.getByTestId('pos-divisor').boundingBox()
   await page.mouse.move(d.x + d.width / 2, d.y + d.height / 2)
   await page.mouse.down()
-  await page.mouse.move(d.x + 200, d.y + d.height / 2, { steps: 6 })
+  // El ticket de 410 px es el reparto por defecto: se arrastra hacia la izquierda para ensancharlo.
+  await page.mouse.move(d.x - 120, d.y + d.height / 2, { steps: 6 })
   await page.mouse.up()
   const despues = (await page.getByTestId('pos-bloque-productos').boundingBox()).width
-  expect(despues).toBeGreaterThan(antes + 100)
+  expect(despues).toBeLessThan(antes - 60)
   await page.reload()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
   const recordado = (await page.getByTestId('pos-bloque-productos').boundingBox()).width

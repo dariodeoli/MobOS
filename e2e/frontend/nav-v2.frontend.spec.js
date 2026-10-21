@@ -248,7 +248,8 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
         return button && getComputedStyle(button).backgroundColor
       }),
     )
-    .toBe('rgb(242, 244, 247)')
+    // Rediseño del POS: la barra del carrito usa el verde de marca de cada tema.
+    .toBe('rgb(5, 241, 156)')
   await page.screenshot({ path: `${output}/390-pos-dark.png`, fullPage: true })
   await openProfile()
   await profile.getByRole('button', { name: 'Cambiar a tema claro', exact: true }).click()
@@ -262,7 +263,7 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
         return button && getComputedStyle(button).backgroundColor
       }),
     )
-    .toBe('rgb(14, 17, 22)')
+    .toBe('rgb(16, 185, 129)')
   await openProfile()
   await profile.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   const logout = page.getByRole('dialog', { name: '¿Cerrar sesión?' })

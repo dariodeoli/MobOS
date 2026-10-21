@@ -457,9 +457,6 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
   await expect(cobro).toBeHidden()
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
-  await ensureCobro(page)
-  expect((await cobro.textContent()).trim()).not.toMatch(/^\d/)
-
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
   await expect(page.getByTestId('carrito-total')).toBeVisible()
 
@@ -472,10 +469,16 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
     await mas.evaluate(el => Boolean(el.closest('[data-testid="pos-bloque-productos"]'))),
     'lo secundario vive dentro del encabezado de Productos',
   ).toBe(true)
+  // Rediseño: catálogo a la izquierda y ticket a la derecha; el cliente abre el ticket, sobre sus líneas.
   const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
-  const yCliente = await cliente.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
-  const yMas = await mas.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
-  expect(yMas, 'el cliente va primero, sobre las herramientas del catálogo').toBeGreaterThan(yCliente)
+  const lineas = page.getByRole('heading', { name: 'Productos de esta venta', exact: true })
+  const yCliente = await cliente.evaluate(el => el.getBoundingClientRect().top)
+  const yLineas = await lineas.evaluate(el => el.getBoundingClientRect().top)
+  expect(yCliente, 'el cliente va primero en el ticket').toBeLessThan(yLineas)
+  // El cobro es una pantalla propia («Falta cobrar»).
+  await ensureCobro(page)
+  expect((await cobro.textContent()).trim()).not.toMatch(/^\d/)
+  await expect(page.getByTestId('pos-falta-hero')).toContainText('Falta cobrar')
 })
 
 // Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea
