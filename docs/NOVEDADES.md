@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.239 — 2026-10-21
+
+- **Acceso:** los operadores que ingresaron por invitación pueden desbloquear su pantalla con su propio PIN. Un PIN equivocado permite reintentar conservando la venta; un acceso vencido o revocado pide volver a ingresar.
+- **Impresión:** los informes cerrados dejan de consultar el agente local. Si el agente se inicia después de un intento fallido, una nueva impresión vuelve a detectarlo de inmediato.
+- **Inventario:** administradores y gerentes autorizados pueden corregir modelo, capacidad y color del catálogo Apple desde la ficha de una unidad disponible, con confirmación explícita del alcance sobre todo el producto. Los comprobantes históricos conservan sus datos.
+
 ## v1.0.238 — 2026-10-20
 
 - **Acceso:** al intentar desbloquear con una sesión de empresa ausente o vencida, el aviso indica cerrar sesión y volver a ingresar; los rechazos de PIN conservan su tratamiento separado.
