@@ -25,7 +25,7 @@ import { isNativeIOS, moduloDisponible } from '@/lib/plataforma'
 import ProximamenteIOS from '@/components/nativo/ProximamenteIOS'
 import { alPasarASegundoPlano, marcarPinVigente, pinVigente } from '@/lib/nativo/bloqueo'
 import { faceIdAlAbrir, tipoBiometria, verificarBiometria } from '@/lib/nativo/biometria'
-import DemoNoDisponible from '@/components/app/DemoNoDisponible'
+import SeguridadDemo from '@/components/control/config/SeguridadDemo'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import ComandosAtajos from '@/components/control/ComandosAtajos'
 import { usePrefetchSecciones } from '@/hooks/usePrefetchSecciones'
@@ -1074,7 +1074,7 @@ export default function PanelVendedor() {
               )}
               {vista === 'seguridad' && (esDemo ? (
                 <div className="space-y-3">
-                  <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
+                  <SeguridadDemo />
                   <Historial />
                 </div>
               ) : (

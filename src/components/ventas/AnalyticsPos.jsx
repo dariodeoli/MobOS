@@ -48,7 +48,7 @@ function Lista({ titulo, filas, valorDe, etiquetaDe }) {
       <h3 className={ROTULO_SECCION}>{titulo}</h3>
       <div className="mt-2 space-y-1.5">
         {filas.map((fila) => (
-          <div key={fila.clave}>
+          <div key={fila.clave ?? fila.id}>
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="min-w-0 truncate text-fore">{etiquetaDe(fila)}</span>
               <span className="shrink-0 tabular-nums text-mute">{gs(valorDe(fila))}</span>

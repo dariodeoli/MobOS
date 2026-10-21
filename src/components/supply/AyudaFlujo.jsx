@@ -115,9 +115,9 @@ export default function EncabezadoFlujo({ paso, onIr, className }) {
           side="bottom"
           align="end"
           trigger={(
-            <button type="button" aria-label={`Ayuda: ${ayuda.titulo}`} data-testid="flujo-ayuda" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-ink-600 text-mute hover:text-fore">
+            <span data-testid="flujo-ayuda" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-ink-600 text-mute hover:text-fore">
               <Icon name="info" className="h-4 w-4" />
-            </button>
+            </span>
           )}
         >
           <div className="max-w-xs space-y-2 p-1 text-sm" data-testid="flujo-detalle">

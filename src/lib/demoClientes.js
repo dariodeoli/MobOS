@@ -738,12 +738,15 @@ export function demoVitrinaPayload(token) {
     nivel,
     tienda: { nombre: 'Aurora Móviles', tieneLogo: false },
     cliente: { nombre: cliente.name, ...(cliente.publicNote ? { notaPublica: cliente.publicNote } : {}) },
-    saldoFavorPyg: 0,
-    puntosPyg: 0,
+    saldoFavorPyg: Number(cliente.saldoFavorPyg || 0),
+    puntosPyg: Number(cliente.puntosPyg || 0),
     // Seguimiento de la entrega (#240 → portal): los pasos del método, igual
     // que la cuenta completa.
     pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: order.fulfillmentStatus || 'DELIVERED', tracking: trackingDemo(order), totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
-    garantias: [],
+    // Garantías activas solo en el nivel completo (como el portal real).
+    garantias: nivel === 'completo'
+      ? (cliente.demoProfile?.warranties || []).map((garantia) => ({ producto: garantia.description, estado: garantia.status, serial: garantia.serial, venceAt: garantia.expiresAt || null }))
+      : [],
   }
 }
 

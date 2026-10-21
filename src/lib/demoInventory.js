@@ -90,6 +90,8 @@ function unidad(producto, indice) {
     notes: NOTAS_DEMO[indice] || '',
     createdAt: hace(indice <= ESTADOS.length ? 30 - indice : 30 + indice - ESTADOS.length),
     lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
+    // Inspección del taller: los verificados con grado B quedan «Verificado» en el rack; con grado A y costo, «Listo para vender».
+    ...(indice % 4 === 0 ? { inspection: indice % 8 === 4 ? { puntaje: 82, grado: 'B', bateriaSalud: condicion === 'NEW' ? 100 : 80 + (indice % 16) } : { puntaje: 96, grado: 'A', bateriaSalud: condicion === 'NEW' ? 100 : 80 + (indice % 16) } } : {}),
     // #219: la demo espeja la forma real (`lastVerifiedAt` es lo que leen la
     // fila y la ficha); `verifiedAt` queda por compatibilidad.
     lastVerifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
