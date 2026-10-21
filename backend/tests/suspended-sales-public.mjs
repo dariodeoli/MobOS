@@ -30,7 +30,7 @@ try {
   // Some migrations depend on the baseline's recorded order; raw concatenation can
   // run an ALTER/trigger before its referenced table and leave a partial schema.
   Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_APP_URL: 'https://app.example.test', MOBOS_AUTH_SECRET: 'cd'.repeat(32) })
-  execFileSync(join(backend, 'node_modules/.bin/prisma'), ['migrate', 'deploy', '--schema', join(backend, 'prisma/schema.prisma')], { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+  execFileSync(join(backend, 'node_modules/.bin/prisma'), ['migrate', 'deploy', '--schema', join(backend, 'prisma/schema.prisma')], { env: process.env, cwd: backend, stdio: ['ignore', 'pipe', 'pipe'] })
   require.extensions['.ts'] = (m, p) => m._compile(ts.transpileModule(readFileSync(p, 'utf8'), { compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, p)
   ;({ prisma } = require('../lib/prisma.ts'))
   const { hashToken } = require('../lib/auth.ts')
