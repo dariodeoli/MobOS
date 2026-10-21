@@ -19,6 +19,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 - **Impresión:** comprobantes, cotizaciones, remitos, etiquetas y los correos al cliente comparten el encabezado y pie del comprobante premium.
 - **Otros:** landing y Configuración rediseñadas con animaciones suaves (se apagan si el equipo pide menos movimiento), teclado de PIN grande como en iPhone, popups iguales en toda la app y una Biblioteca interna de componentes para el dueño.
 
+- **Rediseño, segunda parte:** Finanzas, Análisis, Cotizaciones, Precios, Compras, Recepción, Delivery, Taller y Garantías tienen el mismo diseño; todas las ventanas usan el mismo marco (X roja, botones abajo, hoja desde abajo en el celular, aviso antes de descartar cambios).
+- **Inicio:** Operaciones se abre dentro de la app, sin recargar ni perder el menú.
+- **Clientes:** en la venta, escribir una cédula o RUC nuevo y apretar Enter trae el nombre («Nombres Apellidos») y abre el alta ya rellena.
+- **Portal del cliente:** pedido, cotización, garantía e informe con el estilo del comprobante premium.
+- **Demo:** se entra como Dueño o Vendedor y se cambia de rol con «Ver como»; todas las pantallas tienen datos y funcionan.
+
 ## v1.0.240 — 2026-10-21
 
 - **Inventario:** un IMEI incompleto o con dígito de control incorrecto muestra un aviso y no devuelve consultas ajenas a ese filtro; la ficha valida antes de buscar el historial.
