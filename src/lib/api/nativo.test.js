@@ -41,6 +41,7 @@ test('el token del vendedor manda salvo en /api/auth/pin, que usa el de la empre
   await guardarTokens({ sellerToken: 'VENDEDOR' })
   assert.equal(cabecerasNativas('/api/orders').Authorization, 'Bearer VENDEDOR')
   assert.equal(cabecerasNativas('/api/auth/pin').Authorization, 'Bearer EMPRESA')
+  assert.equal(cabecerasNativas('/api/auth/unlock').Authorization, 'Bearer VENDEDOR')
 })
 
 test('los tokens persisten en el almacén seguro y se recuperan al arrancar', async () => {

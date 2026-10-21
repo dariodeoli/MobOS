@@ -3,6 +3,7 @@ import { limpiarTokens, cabecerasNativas } from './nativo'
 import { isNativeIOS } from '../plataforma'
 import { invalidarSnapshotsPrivados } from '../offline/snapshot'
 import { desactivarPush } from '../nativo/push'
+import { mismoContextoDeDesbloqueo } from './unlockContext'
 
 const COMPANY_CONTEXT_KEY = 'owncoding_hub_company_context'
 const LEGACY_KEYS = ['owncoding_hub_access_token', 'owncoding_hub_company_token']
@@ -172,6 +173,17 @@ export const sessionApi = {
   },
   // Alias temporal para consumidores que ya conocen el flujo PIN.
   login: (credentials) => sessionApi.loginSeller(credentials),
+  // Reconfirmar el mismo operador con su sesión vigente; no abre empresa,
+  // cambia usuario ni renueva tokens. También funciona para una invitación.
+  unlockSeller: async (pin, expectedUser, options) => {
+    const result = await api.post('/api/auth/unlock', { pin }, options)
+    if (!mismoContextoDeDesbloqueo(expectedUser, result?.user)) {
+      await clearSession()
+      await invalidarSnapshotsPrivados()
+      throw new Error('La sesión o sus permisos cambiaron. Cerrá sesión y volvé a ingresar antes de continuar.')
+    }
+    return result
+  },
   me: (options) => api.get('/api/auth/me', options),
   logoutSeller: () => api.post('/api/auth/logout'),
   logoutCompany: () => {

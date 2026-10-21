@@ -47,6 +47,7 @@ env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/sus
 
 # #638: diferenciar sesión de empresa ausente del PIN sin ampliar el acceso.
 env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/pin-unlock-pg.mjs"
+env -u DATABASE_URL -u DIRECT_URL PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/seller-unlock-pg.mjs"
 
 free_port() {
   node -e "const net=require('net'); const s=net.createServer(); s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port)); s.close();});"
@@ -658,6 +659,7 @@ node "$BACKEND_ROOT/tests/store-branch.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/payment-account-defaults.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/account-parties.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/seller-pin.mjs" "$BASE_URL" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/seller-unlock-http.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/cookie-session.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/mi-cuenta.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/account-delete.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
