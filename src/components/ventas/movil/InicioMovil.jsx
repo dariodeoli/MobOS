@@ -74,7 +74,7 @@ export function BarraCarrito({ cantidad, total, onAbrir }) {
         <span className="flex min-w-0 items-center gap-2 text-left">
           <Icon name="cart" className="h-5 w-5 shrink-0" />
           <span className="min-w-0">
-            <span className="block text-[11px] font-semibold uppercase tracking-wider opacity-90">Carrito</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wider opacity-90">Ver venta</span>
             <span data-testid="barra-cantidad" className="block truncate text-sm font-bold">{textoArticulos(cantidad)}</span>
           </span>
         </span>

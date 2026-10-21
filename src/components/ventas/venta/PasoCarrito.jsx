@@ -193,9 +193,9 @@ export default function PasoCarrito({
         {/* El Total vive acá, una sola vez: `cobro-total` envuelve la fila y
             `carrito-total` es el importe (ambos alcanzables en un solo lugar).
             «Listo, ir a cobrar» comparte la fila en escritorio. */}
-        <div className="flex items-center gap-3">
+        <div className="pos-tk-total flex flex-col gap-2">
           <div data-testid="cobro-total" className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
+            <span className="pos-tk-total-etiqueta text-[11px] font-bold uppercase tracking-wider text-mute">Total <span className="pos-tk-items font-normal normal-case tracking-normal">· {unidades} {unidades === 1 ? 'ítem' : 'ítems'}</span></span>
             <strong data-testid="carrito-total" className="pos-money-value v2-numero whitespace-nowrap text-[clamp(1.25rem,5vw,1.5rem)] font-extrabold tracking-tight tabular-nums text-fore">
               {gs(totalGeneral ?? totalCarrito)}
             </strong>
@@ -205,9 +205,10 @@ export default function PasoCarrito({
               type="button"
               data-testid="carrito-listo"
               onClick={onListo}
-              className="hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
+              className="pos-tk-cobrar hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
             >
-              Listo, ir a cobrar
+              <span>Cobrar</span> <span className="tabular-nums">{gs(totalGeneral ?? totalCarrito)}</span>
+              <span className="sr-only">Listo, ir a cobrar</span>
             </button>
           )}
         </div>

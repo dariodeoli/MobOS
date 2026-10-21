@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Aviso, Button, ConfirmDialog, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
+import { Aviso, BarraProgreso, Button, ConfirmDialog, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
 import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
 import { formatearCodigo, limpiarCodigo } from '@/lib/codigoSegmentado'
 import Icon from '@/components/shared/Icon'
@@ -171,6 +171,22 @@ export default function PasoCobro({
           </Button>
         )}
       </header>
+      {/* «Falta cobrar»: el número grande del cobro baja con cada pago hasta
+          cero. Solo presentación: usa los mismos importes del pie. */}
+      {!modoMovil && totalGeneral > 0 && (
+        <div
+          data-testid="pos-falta-hero"
+          data-completo={pendiente <= 0 ? 'si' : undefined}
+          role="group"
+          aria-label="Falta cobrar"
+          className="pos-falta-hero"
+        >
+          <span className="pos-falta-etiqueta">{pendiente <= 0 ? 'Cobro completo' : 'Falta cobrar'}</span>
+          <strong className="pos-falta-numero pos-money-value v2-numero tabular-nums">{gs(Math.max(0, pendiente))}</strong>
+          <span className="pos-falta-detalle">de {gs(totalGeneral)} · pagado {gs(totalPagado)}</span>
+          <BarraProgreso valor={Math.min(100, Math.max(0, Math.round((totalPagado / totalGeneral) * 100)))} tono="fono" etiqueta="Progreso del cobro" className="pos-falta-barra mt-2.5 w-full bg-ink-600" />
+        </div>
+      )}
       {/* Entrega, crédito, nota y «paga al recibir» en un bloque compacto: la
           entrega y «Vender a crédito» comparten renglón; la nota es un casillero
           que despliega su campo debajo. */}
