@@ -140,7 +140,7 @@ vive acá por pedido del issue #400. Los define `src/index.css` (`:root` y
 
 Los códigos de autorización, access tokens y refresh tokens MCP se persisten sólo como hashes SHA-256 hexadecimales de 64 caracteres. El secreto en claro existe únicamente durante la respuesta OAuth.
 
-Las expiraciones MCP usan `CURRENT_TIMESTAMP` de PostgreSQL mediante `dbNow`; el reloj de la aplicación no decide si un código, sesión o token sigue vigente. Las operaciones de consumo y rotación usan actualizaciones condicionales para mantener el uso único bajo concurrencia.
+Las expiraciones MCP usan el epoch numérico de `clock_timestamp()` de PostgreSQL mediante `dbNow` (sin reinterpretar la zona horaria del adaptador); el reloj de la aplicación no decide si un código, sesión o token sigue vigente. Las operaciones de consumo y rotación usan actualizaciones condicionales para mantener el uso único bajo concurrencia.
 
 Una reautorización revoca en una sola transacción los access/refresh tokens vigentes y marca como usados los códigos pendientes del grant antes de crear el nuevo código. Esto evita que una autorización anterior vuelva a emitir credenciales después de que el usuario reautoriza o cambia sus scopes.
 

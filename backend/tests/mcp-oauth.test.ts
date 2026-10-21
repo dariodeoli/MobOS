@@ -34,3 +34,10 @@ assert.ok(findMcpClient('claude', 'https://claude.example/callback'))
 assert.equal(findMcpClient('claude', 'https://other.example/callback'), null)
 if (before === undefined) delete process.env.MOBOS_MCP_CLIENTS_JSON; else process.env.MOBOS_MCP_CLIENTS_JSON = before
 console.log('mcp oauth tests: ok')
+const { dbNow } = require('../lib/mcp/oauth')
+async function verifyMcpClock() {
+  const epoch = BigInt(Date.parse('2026-10-21T04:00:00.000Z'))
+  assert.equal((await dbNow({ $queryRaw: async () => [{ nowMs: epoch }] })).toISOString(), '2026-10-21T04:00:00.000Z')
+  for (const rows of [[], [{ nowMs: 'invalid' }], [{ nowMs: 99999999999999999999n }]]) await assert.rejects(dbNow({ $queryRaw: async () => rows }), /reloj/)
+}
+verifyMcpClock().catch((error: unknown) => { console.error(error); process.exitCode = 1 })

@@ -16,9 +16,10 @@ export class McpOAuthError extends Error { constructor(public code: string, mess
 
 /** PostgreSQL is the authority for token/code TTLs; callers may inject a clock only in deterministic tests. */
 export async function dbNow(db: Db) {
-  const rows = await db.$queryRaw<{ now: Date }[]>`SELECT CURRENT_TIMESTAMP AS "now"`
-  if (!rows[0]?.now) throw new McpOAuthError('server_error', 'No se pudo obtener el reloj de autenticación.', 500)
-  return rows[0].now
+  const rows = await db.$queryRaw<{ nowMs: bigint }[]>`SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint AS "nowMs"`
+  const epoch = Number(rows[0]?.nowMs)
+  if (!Number.isSafeInteger(epoch) || !Number.isFinite(new Date(epoch).getTime())) throw new McpOAuthError('server_error', 'No se pudo obtener el reloj de autenticación.', 500)
+  return new Date(epoch)
 }
 
 export function mcpResource() {
