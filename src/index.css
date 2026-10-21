@@ -551,8 +551,8 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login-pin:has(details[open]) .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 8px; gap: 4px 0; }
 }
 /* Demo: los perfiles comparten pantalla con el teclado, así que sus teclas son
-   algo menores que en bloqueo/login pero siguen siendo grandes (≥48 px). */
+   algo menores que en bloqueo/login pero siguen siendo grandes (76-80 px). */
 @media (max-width: 767px) {
-  .auth-login .demo-acceso .pin-seg.pin-pad { --pin-tecla: clamp(48px, 6.4dvh, 56px); margin-top: 4px; }
-  .auth-login .demo-acceso .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 8px; gap: 4px 0; }
+  .auth-login .demo-acceso .pin-seg.pin-pad { --pin-tecla: clamp(48px, min(20vw, 9dvh), 80px); margin-top: 4px; }
+  .auth-login .demo-acceso .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 12px; gap: clamp(6px, 1.2dvh, 12px) 0; }
 }

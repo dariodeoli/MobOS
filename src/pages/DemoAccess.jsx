@@ -69,7 +69,7 @@ export default function DemoAccess() {
       titulo={<>Entrá al sistema.<br /><span className="text-fono-dark">Probá el flujo real.</span></>}
       subtitulo="Usá los mismos menús de MobOS con datos ficticios aislados. Nada se envía a una tienda real."
     >
-      <AuthPanel className="demo-acceso p-4 sm:p-6 lg:p-7">
+      <AuthPanel className="demo-acceso min-w-0 p-4 sm:p-6 lg:p-7">
         <AuthPanelHeader compacto volver={publicUrls.landing} volverLabel="Volver a la landing" subtitulo="Demo interactiva · datos ficticios" />
 
         <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Elegí un perfil y entrá</h1>
@@ -78,7 +78,7 @@ export default function DemoAccess() {
         {/* #328: cápsulas compactas en grilla (2 en móvil, 3 en escritorio) para
             que la pantalla entre sin scroll en 390×844; el botón completo es el
             target (≥44px) y el nombre accesible sigue siendo «Entrar como <Rol>». */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="-mx-1 flex w-full min-w-0 snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0" data-testid="demo-perfiles">
           {demoProfiles.map((profile) => (
             <button
               type="button"
@@ -87,14 +87,14 @@ export default function DemoAccess() {
               onClick={() => abrirPerfil(profile)}
               aria-label={`Entrar como ${profile.nombre}`}
               title={`${profile.description} ${profile.permissions}`}
-              className="min-h-11 rounded-xl border bg-paper/70 p-2.5 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 [border-color:var(--landing-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
+              className="min-h-11 shrink-0 snap-start rounded-xl border bg-paper/70 p-2.5 text-left sm:shrink transition hover:border-fono-dark/60 hover:bg-fono-dark/5 [border-color:var(--landing-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
             >
               <span className="flex items-center justify-between gap-1">
                 <span className="truncate text-sm font-bold leading-5 text-fore">{profile.nombre}</span>
                 <span className="shrink-0 rounded-md bg-fono-dark/10 px-1.5 py-px font-mono text-xs font-bold tracking-widest text-fore">{profile.pin}</span>
               </span>
-              <span className="mt-0.5 block text-xs font-medium leading-4 text-mute">{profile.description}</span>
-              <span className="block truncate text-xs leading-4 text-mute">{profile.persona}</span>
+              <span className="mt-0.5 hidden text-xs font-medium leading-4 text-mute sm:block">{profile.description}</span>
+              <span className="hidden truncate text-xs leading-4 text-mute sm:block">{profile.persona}</span>
             </button>
           ))}
         </div>
