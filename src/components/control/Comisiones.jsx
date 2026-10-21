@@ -46,8 +46,9 @@ const diaLocal = (fecha) => `${fecha.getFullYear()}-${String(fecha.getMonth() + 
 const hoy = () => diaLocal(new Date())
 const inicioDeMes = () => { const fecha = new Date(); return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-01` }
 
-// El QR abre la verificación pública del comprobante (sin sesión).
-const enlaceVerificacion = (token) => token && API_URL ? `${API_URL}/api/public/commission-settlements/${encodeURIComponent(token)}` : ''
+// El QR abre la verificación pública del comprobante (sin sesión). En demo el
+// token es ficticio: no se arma un enlace a la API real.
+const enlaceVerificacion = (token) => token && API_URL && !isDemoRuntime ? `${API_URL}/api/public/commission-settlements/${encodeURIComponent(token)}` : ''
 
 // Respaldo A4 del comprobante cuando la térmica no está disponible: mismo
 // contenido que el ticket, con el QR para verificar la liquidación. El enlace
