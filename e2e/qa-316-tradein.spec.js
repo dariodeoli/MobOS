@@ -4,6 +4,7 @@
 // Capturas: MOBOS_CAPTURAS=docs/QA-316-tradein npx playwright test e2e/qa-316-tradein.spec.js
 import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-316-tradein'
 
@@ -22,6 +23,7 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   await expect(page.getByTestId('tradein-tabla')).toBeVisible({ timeout: 20_000 })
   const filas = page.getByTestId('tradein-fila')
   await expect(filas.first()).toBeVisible()
+  await esperarAnimaciones(page)
   const antes = await filas.first().boundingBox()
 
   // El detalle ya no se expande debajo de la fila: se abre en un panel.
@@ -29,6 +31,7 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   const detalle = page.getByTestId('tradein-detalle')
   await expect(detalle).toBeVisible()
   await expect(detalle.getByText('Valor de toma')).toBeVisible()
+  await esperarAnimaciones(page)
   const despues = await filas.first().boundingBox()
   expect(despues.y).toBeCloseTo(antes.y, 0)
   expect((await filas.first().innerText()).includes('Serial / IMEI')).toBe(false)
@@ -37,6 +40,7 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   // El panel se cierra con Escape y deja la página como estaba.
   await page.keyboard.press('Escape')
   await expect(detalle).toBeHidden()
+  await esperarAnimaciones(page)
   expect((await filas.first().boundingBox()).y).toBeCloseTo(antes.y, 0)
 
   // El alta de valor de toma se abre en modal (con acciones visibles).

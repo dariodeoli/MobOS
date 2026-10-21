@@ -49,7 +49,7 @@ test.describe('reglas de comisión en Finanzas', () => {
 
     // Eliminar con confirmación.
     await regla().getByTitle('Eliminar regla').click()
-    await page.getByRole('dialog', { name: '¿Eliminar regla?' }).getByRole('button', { name: 'Eliminar regla' }).click()
+    await page.getByRole('alertdialog', { name: '¿Eliminar regla?' }).getByRole('button', { name: 'Eliminar regla' }).click()
     await expect(page.getByText('Regla de comisión eliminada.')).toBeVisible()
     await expect(page.getByTestId('regla-comision').filter({ hasText: nombre })).toHaveCount(0)
 
