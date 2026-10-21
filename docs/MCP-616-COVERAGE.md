@@ -2,7 +2,7 @@
 
 ## Alcance y método
 
-Matriz auditada contra la rama candidata e1a330b9 (origin/codex/mcp-608-conexiones-ia). Se compararon las rutas API, sus guardas, los servicios compartidos, backend/lib/mcp/catalog.ts, authorization.ts, app/api/mcp/streamable/route.ts y las pruebas HTTP/SDK.
+Corte auditado del 21 de octubre de 2026 en codex/mcp-608-complete-20261021, con base origin/main ca28dbe y fuente609 reconciliada. Se compararon las rutas API, sus guardas, los servicios compartidos, backend/lib/mcp/catalog.ts, authorization.ts, app/api/mcp/streamable/route.ts y las pruebas HTTP/SDK.
 
 Una capacidad es MCP implementada sólo si está en IMPLEMENTED_MCP_ACTIONS, pasa autorización de tenant, módulo, usuario, rol, permiso, sucursal y scope, y tiene una rama real en tools/call. Estar en MCP_CATALOG no la habilita.
 

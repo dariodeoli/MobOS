@@ -116,7 +116,7 @@ Cada solicitud, consentimiento, rechazo, mutación y revocación deja metadatos 
 4. Conectar un cliente real usando su callback oficial y ejecutar `initialize`, `tools/list` y una preview/commit controlada.
 5. Revisar auditoría y revocar el grant.
 
-Hasta completar el paso 4 no se debe presentar la integración como conectada a ChatGPT/Claude ni desplegarla en una tienda o entorno productivo.
+El código puede prepararse y desplegarse desactivado por defecto tras review y gates de publicación. Antes de completar el paso 4 y definir/aplicar retención de payloads no se debe activar MCP remoto ni presentar la integración como conectada a ChatGPT/Claude.
 
 ## Límites del servidor (#647)
 
