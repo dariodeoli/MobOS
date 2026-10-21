@@ -291,13 +291,10 @@ const MIGA_SUBPAGINA = {
   configuracion: 'Configuración',
   ayuda: 'Ayuda',
 }
-// Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
-function tabsDeSubpagina(slug, esDemo) {
-  const tabs = SUBPAGINAS[slug]?.tabs || []
-  // Finanzas oculta créditos/cuotas/comisiones en demo (necesitan el API real);
-  // Estado del sistema se muestra con su aviso de "no disponible" (#201).
-  if (slug === 'finanzas') return tabs
-  return tabs
+// Pestañas de cada subpágina. La demo muestra todas (créditos, cuotas y comisiones
+// salen de los datos ficticios de la pestaña).
+function tabsDeSubpagina(slug) {
+  return SUBPAGINAS[slug]?.tabs || []
 }
 
 // Configuración en siete secciones (#IA): los slugs viejos siguen funcionando

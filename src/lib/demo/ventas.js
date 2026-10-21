@@ -226,6 +226,31 @@ const VENTAS_MANUALES = [
     pagos: [pago('demo-pago-hoy-caja', 'POS UENO', 'Ueno · Tarjeta', 400000, '09:45')],
     observacion: 'Venta cobrada en caja con tarjeta',
   },
+  // ── Pedidos en otros estados de entrega: preparación, listo para retirar y anulado.
+  {
+    id: 'demo-venta-preparacion', numero: 'AUR-0405', diasAtras: 0, hora: 12, minuto: 5,
+    clienteId: 'demo-cliente-natalia', cliente: 'Natalia Britez', vendedorId: 'demo-user-vendedora',
+    entrega: 'RETIRO', fulfillment: 'PROCESSING', montoDelivery: 0,
+    items: [linea('demo-airpods-pro-2-usbc', 1, 1850000)],
+    pagos: [pago('demo-pago-preparacion', 'TRANSFERENCIA', 'Continental · Cuenta corriente', 1850000, '12:10')],
+    observacion: 'Pedido en preparación, retira esta tarde',
+  },
+  {
+    id: 'demo-venta-listo-retiro', numero: 'AUR-0406', diasAtras: 1, hora: 15, minuto: 25,
+    clienteId: 'demo-cliente-bruno', cliente: 'Bruno Insfrán', vendedorId: 'demo-user-vendedor',
+    entrega: 'RETIRO', fulfillment: 'READY_FOR_PICKUP', montoDelivery: 0,
+    items: [linea('demo-iphone-14-256-azul', 1, 3950000)],
+    pagos: [pago('demo-pago-listo-retiro-a', 'DINERO', '', 2000000, '15:30'), pago('demo-pago-listo-retiro-b', 'PIX', 'Pix · Itaú', 1950000, '15:32')],
+    observacion: 'Listo para retirar, avisado por WhatsApp',
+  },
+  {
+    id: 'demo-venta-anulada', numero: 'AUR-0407', diasAtras: 4, hora: 18, minuto: 0,
+    clienteId: 'demo-cliente-sandra', cliente: 'Sandra Báez', vendedorId: 'demo-user-vendedor', status: 'CANCELLED',
+    entrega: 'RETIRO', fulfillment: 'PROCESSING', montoDelivery: 0,
+    items: [linea('demo-funda-magsafe-transparente', 1, 180000)],
+    pagos: [],
+    observacion: 'Anulado: el cliente cambió de modelo',
+  },
 ]
 
 // Ventas manuales (ids estables, casos puntuales) + ~120 días de historial
@@ -300,7 +325,8 @@ export function ventasDemoLegacy(ahora = new Date()) {
       totalPyg: total,
       pagos,
       totalPagado: pagado,
-      totalPendiente: Math.max(0, total - pagado),
+      // Un pedido anulado no queda debiendo nada (misma regla que `totalesPedido`).
+      totalPendiente: venta.status === 'CANCELLED' ? 0 : Math.max(0, total - pagado),
       estadoPago: estadoPagoDeVenta(venta),
       medioPago: pagos[0]?.medioPago || '',
       vendedorId: venta.vendedorId,
@@ -313,6 +339,7 @@ export function ventasDemoLegacy(ahora = new Date()) {
       montoDelivery: Number(venta.montoDelivery) || 0,
       deliveryPyg: Number(venta.montoDelivery) || 0,
       ...(Number(venta.creditDays) > 0 ? { creditDays: Number(venta.creditDays) } : {}),
+      ...(venta.status ? { status: venta.status } : {}),
       observacion: venta.observacion || '',
     }
   })
@@ -335,9 +362,9 @@ export function pedidosDemoDeCliente(clienteId, ahora = new Date()) {
         orderNumber: venta.numero,
         totalPyg: total,
         collectedPyg: cobrado,
-        pendingPyg: Math.max(0, total - cobrado),
+        pendingPyg: venta.status === 'CANCELLED' ? 0 : Math.max(0, total - cobrado),
         createdAt: creadoEnDeVenta(venta, ahora),
-        status: cobrado >= total && total > 0 ? 'COMPLETED' : 'PENDING',
+        status: venta.status === 'CANCELLED' ? 'CANCELLED' : cobrado >= total && total > 0 ? 'COMPLETED' : 'PENDING',
         deliveryType: venta.entrega,
         fulfillmentStatus: venta.fulfillment || (venta.entrega === 'DELIVERY' ? 'DELIVERED' : 'PICKED_UP'),
         branch: { id: 'mobos-demo-central', name: 'Casa Central' },

@@ -145,3 +145,89 @@ test('demo completa · en 375px ninguna vista del Dueño ni del resto de roles d
   }
   expect(desbordes, desbordes.join('\n')).toEqual([])
 })
+
+// Acciones principales de las pantallas que antes no funcionaban en la demo.
+test.describe('demo completa · acciones', () => {
+  test.beforeEach(async ({ page }) => {
+    // Evita abrir WhatsApp (sitio externo) al probar los envíos: solo registra el intento.
+    await page.addInitScript(() => { window.__abiertas = []; window.open = (url) => { window.__abiertas.push(String(url)); return null } })
+    await entrarComo(page, 'dueno')
+  })
+
+  test('gastos: cargar un movimiento actualiza el libro y los contadores', async ({ page }) => {
+    await irA(page, '/finanzas/gastos')
+    const antes = await page.getByTestId('gastos-movimientos').innerText()
+    await page.getByRole('button', { name: 'Registrar movimiento' }).click()
+    await page.getByLabel('Monto (Gs)').fill('120000')
+    await page.getByLabel('Descripción').fill('Cafetera nueva')
+    await page.getByLabel('Contraparte').fill('Casa Hogar')
+    await page.getByRole('button', { name: 'Guardar movimiento' }).click()
+    await expect(page.getByText('Cafetera nueva')).toBeVisible()
+    expect(await page.getByTestId('gastos-movimientos').innerText()).not.toBe(antes)
+  })
+
+  test('campañas de recompra: segmentos con clientes y envío marcado en la ficha', async ({ page }) => {
+    await irA(page, '/campanas')
+    await expect(page.getByText(/\d+ en el segmento/)).toBeVisible()
+    await expect(page.getByText('Rosana Viveros').first()).toBeVisible()
+    await page.getByRole('button', { name: /Abrir el próximo/ }).click()
+    expect(await page.evaluate(() => window.__abiertas.length)).toBe(1)
+    await expect(page.getByText(/Contactado/).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Mayoristas dormidos' }).click()
+    await expect(page.getByText(/Celulares del Este|Import Tech/).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Deudores al día' }).click()
+    await expect(page.getByText(/Ramiro Cáceres|María González|Hugo Benítez/).first()).toBeVisible()
+  })
+
+  test('créditos y cuotas: mora, vencimientos y aviso por WhatsApp registrado', async ({ page }) => {
+    await irA(page, '/finanzas/creditos')
+    await expect(page.getByTestId('creditos-en-mora')).not.toContainText('Gs 0')
+    await expect(page.getByTestId('credito-fila').first()).toBeVisible()
+    await irA(page, '/finanzas/cuotas')
+    await expect(page.getByTestId('cuota-fila').first()).toBeVisible()
+    await page.getByRole('button', { name: /^WhatsApp$/ }).first().click()
+    expect(await page.evaluate(() => window.__abiertas.length)).toBe(1)
+    await expect(page.getByText(/Avisado/).first()).toBeVisible()
+  })
+
+  test('comisiones: reglas y liquidaciones sembradas', async ({ page }) => {
+    await irA(page, '/finanzas/comisiones')
+    await expect(page.getByText('Regla por usuario').first()).toBeVisible()
+    await expect(page.getByText('Borrador').first()).toBeVisible()
+    await expect(page.getByText('Pagada').first()).toBeVisible()
+  })
+
+  test('delivery: viajes, tarifas y cierre semanal con datos', async ({ page }) => {
+    await irA(page, '/delivery')
+    await page.getByRole('button', { name: 'Viajes y cierres' }).click()
+    await expect(page.getByTestId('delivery-trip').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Tarifas' }).click()
+    await expect(page.getByText('Tarifa vigente')).toBeVisible()
+    await page.getByRole('button', { name: 'Cierre semanal' }).click()
+    await page.locator('#weekly-branch').selectOption({ label: 'Casa Central' })
+    await page.locator('#weekly-driver').selectOption({ label: 'Marcos Aquino' })
+    await page.getByRole('button', { name: 'Consultar semana' }).click()
+    await expect(page.getByTestId('delivery-weekly-totals')).toBeVisible()
+    await expect(page.getByText(/Semana cerrada/)).toBeVisible()
+  })
+
+  test('trade-in: valores de toma editables', async ({ page }) => {
+    await irA(page, '/trade-in')
+    await expect(page.getByText('Valores de toma').first()).toBeVisible()
+    await expect(page.getByText('iPhone 15 Pro Max').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Añadir valor' }).click()
+    await page.locator('#dv-model').fill('iPhone 16')
+    await page.locator('#dv-base').fill('6000000')
+    await page.getByRole('button', { name: /Guardar|Crear/ }).last().click()
+    await expect(page.getByText('iPhone 16').first()).toBeVisible()
+  })
+
+  test('traslados, verificaciones y bajas de stock tienen historial', async ({ page }) => {
+    await irA(page, '/stock/traslados')
+    await expect(page.getByText(/AEX-004711/)).toBeVisible()
+    await irA(page, '/stock/verificacion')
+    await expect(page.getByText('Todavía no hay verificaciones')).toHaveCount(0)
+    await irA(page, '/stock/eliminados')
+    await expect(page.getByRole('button', { name: 'Restaurar' }).first()).toBeVisible()
+  })
+})

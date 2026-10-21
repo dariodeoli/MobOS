@@ -3,7 +3,7 @@ import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
-import { listGastos, addGasto } from '@/lib/storage'
+import { listGastos, addGasto, updateGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
 import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
@@ -117,7 +117,14 @@ export default function Gastos() {
     setBusy(true)
     try {
       if (isDemoRuntime) {
-        addGasto({ monto: Number(originalAmount), motivo: form.description, fecha: form.date, categoria: 'Otros' })
+        const enGs = form.currency === 'PYG' ? Number(originalAmount) : Math.round(Number(originalAmount) * Number(form.exchangeRatePyg || 0))
+        addGasto({
+          monto: enGs, amountPyg: enGs, originalAmount: Number(originalAmount), currency: form.currency,
+          exchangeRatePyg: form.currency === 'PYG' ? 1 : Number(form.exchangeRatePyg || 0),
+          motivo: form.description, description: form.description, fecha: form.date, categoria: KINDS[form.kind] || 'Otros',
+          kind: form.kind, counterparty: form.counterparty, reference: form.reference,
+          status: form.kind === 'CHEQUE' ? 'PENDING' : 'CLEARED',
+        })
         setRows(listGastos()); setForm(inicial()); setDrawerOpen(false); return
       }
       await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null, ...(requiereAutorizacion && authGasto ? { expenseAuthorizationId: authGasto.id } : {}) })
@@ -126,7 +133,9 @@ export default function Gastos() {
   }
   async function updateStatus(id, action) {
     setBusy(true); setMessage('')
-    try { await api.post(`/api/finance${branch}`, { action, id }); await load() } catch (error) { setMessage(error.message || 'No se pudo actualizar el movimiento.') } finally { setBusy(false) }
+    try {
+      if (isDemoRuntime) { updateGasto(id, { status: action === 'void' ? 'VOID' : 'CLEARED' }); await load() } else { await api.post(`/api/finance${branch}`, { action, id }); await load() }
+    } catch (error) { setMessage(error.message || 'No se pudo actualizar el movimiento.') } finally { setBusy(false) }
   }
   const total = rows.filter(row => row.kind === 'EXPENSE' && row.status !== 'VOID').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
   const chequesPendientes = rows.filter(row => row.kind === 'CHEQUE' && row.status === 'PENDING').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
@@ -188,7 +197,7 @@ export default function Gastos() {
       </form>
     </Popup>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
-      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} data-testid="gasto-fila" className={cn('flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40', v2 && 'v2-tile')}><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
+      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} data-testid="gasto-fila" className={cn('flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40', v2 && 'v2-tile')}><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
     </Card>
   </div>
 }

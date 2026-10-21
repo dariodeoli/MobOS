@@ -253,7 +253,7 @@ function Valuaciones({ esDemo }) {
     {loading && <p role="status" className="text-sm text-mute">Cargando valores…</p>}
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
-    <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />}
+    <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />
     <Popup open={Boolean(form)} onClose={busy ? undefined : () => { setForm(null); setEditingId(null); setError('') }} title={editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'} tamano="md">
       {form && <form onSubmit={guardar} className="space-y-4">
         <fieldset disabled={busy} className={GRILLA_DOS_COLUMNAS}>

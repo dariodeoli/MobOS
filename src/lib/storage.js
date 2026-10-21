@@ -1090,6 +1090,13 @@ export function moverStock(productoId, delta) {
 export function listGastos() {
   return cache.gastos
 }
+export function updateGasto(id, cambios) {
+  const actual = cache.gastos.find(item => item.id === id)
+  if (!actual) return null
+  const siguiente = { ...actual, ...cambios }
+  entUpsert('gastos', siguiente)
+  return siguiente
+}
 export function addGasto(gasto) {
   const nuevo = {
     id: 'gasto-' + Date.now().toString(36),

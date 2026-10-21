@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { api } from '@/lib/api/client'
+import { api as apiReal } from '@/lib/api/client'
+import { apiViajesDemo } from '@/lib/demo/viajes'
 import { useSesion } from '@/lib/sesion'
 import { Aviso, Badge, Button, FormField, Input, Money, MoneyInput, Select, Textarea, useToast } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
@@ -21,6 +22,8 @@ const formClass = 'space-y-4'
 export default function DeliveryOperations() {
   const { esDemo, empresa, usuario, sucursales = [], sucursal } = useSesion()
   const toast = useToast()
+  // Demo: viajes, tarifas y cierres viven en memoria de la pestaña.
+  const api = esDemo ? apiViajesDemo : apiReal
   const [tab, setTab] = useState('viajes'), [rows, setRows] = useState([]), [tariffs, setTariffs] = useState([]), [team, setTeam] = useState([]), [orders, setOrders] = useState([])
   const [owner, setOwner] = useState(false), [loading, setLoading] = useState(false), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [trip, setTrip] = useState(null), [tariff, setTariff] = useState(null), [resolution, setResolution] = useState(null), [deactivate, setDeactivate] = useState(null), [adjustment, setAdjustment] = useState(null), [confirmClose, setConfirmClose] = useState(false)
@@ -47,7 +50,7 @@ export default function DeliveryOperations() {
     }
   }, [scopeKey, sucursal?.id])
   const load = useCallback(async () => {
-    if (esDemo || !scope.current.mounted || scope.current.key !== scopeKey) return
+    if (!scope.current.mounted || scope.current.key !== scopeKey) return
     loadRequest.current?.abort()
     const controller = new AbortController(), { signal } = controller
     loadRequest.current = controller
@@ -65,7 +68,7 @@ export default function DeliveryOperations() {
       if (!signal.aborted) console.error('[delivery-operations]', cause)
       if (current()) setError(cause.message || 'No se pudieron cargar los viajes.')
     } finally { if (current()) setLoading(false) }
-  }, [esDemo, unresolved, scopeKey])
+  }, [api, unresolved, scopeKey])
   useEffect(() => { load() }, [load])
 
   async function run(action, message, finish) {
@@ -113,7 +116,6 @@ export default function DeliveryOperations() {
   const activeTariff = trip && tariffs.find(rate => rate.isActive && dateText(rate.validFrom) <= trip.performedOn && dateText(rate.validUntil) >= trip.performedOn)
   const tier = activeTariff?.tiers.find(row => Number(trip.distanceKm) > 0 && Number(trip.distanceKm) <= row.upToKm)
 
-  if (esDemo) return <Aviso>Los viajes, honorarios y cierres semanales se configuran en una empresa real. La demo no activa tarifas ni registra ventas.</Aviso>
   return <section className="op-rd space-y-4" aria-label="Viajes y cierres semanales">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <ChipsReparto flat value={tab} onChange={value => { setTab(value); setError('') }} items={owner ? [['viajes', 'Viajes'], ['tarifas', 'Tarifas'], ['cierres', 'Cierre semanal']] : [['viajes', 'Viajes']]} />

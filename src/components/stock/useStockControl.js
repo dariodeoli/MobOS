@@ -235,7 +235,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
       const payload = esDemo ? demoStockAlerts(getProductos()) : await api.get(`/api/stock-alerts${query}`)
       setStockAlerts(payload || { alerts: [], outOfStock: [] })
     } catch (cause) { setAlertsError(cause?.message || 'No se pudieron cargar las alertas.') } finally { setAlertsLoading(false) }
-  }, [inventarioOperativo, canViewAlerts, sucursal?.id])
+  }, [inventarioOperativo, canViewAlerts, sucursal?.id, esDemo])
   // #331: bandeja de autorizaciones de stock. Solo la carga quien puede
   // resolverlas (dueño/gerencia); el contador de Control y de la pestaña sale
   // de estas filas. La resolución no cambia la semántica: la aprobada se
