@@ -12,4 +12,3 @@ export function validarImei(valor) {
   if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no tiene un dígito de control válido (Luhn): revisá que esté bien escrito.' }
   return { ok: true, imei }
 }
-
