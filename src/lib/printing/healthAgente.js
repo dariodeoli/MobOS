@@ -4,9 +4,9 @@
 export function crearConsultaEstadoAgente({ fetchImpl = (...args) => fetch(...args), now = Date.now } = {}) {
   let cache = null
   let pendiente = null
-  return async function consultar(config, { forzar = false, contexto = 0 } = {}) {
+  return async function consultar(config, { forzar = false, accionExplicita = false, contexto = 0 } = {}) {
     const { url, token, impresora } = config
-    if (!forzar && !token && !impresora) return { disponible: false }
+    if (!forzar && !accionExplicita && !token && !impresora) return { disponible: false }
     const clave = JSON.stringify([contexto, url, token])
     if (!forzar && cache?.clave === clave && now() < cache.hasta) return cache.estado
     if (pendiente?.clave === clave) return pendiente.promesa

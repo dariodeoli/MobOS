@@ -362,10 +362,10 @@ export const guardarConfigImpresora = (cambios = {}) => {
 const consultarEstadoAgente = crearConsultaEstadoAgente()
 
 // El agente es opcional: sin una impresora o token configurados no se sondea
-// localhost. Configuración puede pedir detección explícita con forzar:true.
-export async function estadoAgente({ forzar = false } = {}) {
+// localhost. Imprimir permite sondear; Configuración puede forzar la detección.
+export async function estadoAgente({ forzar = false, accionExplicita = false } = {}) {
   if (isDemoRuntime) return { disponible: false, version: 'demo', equipo: 'Demo' }
-  return consultarEstadoAgente(configImpresora(), { forzar, contexto: revisionContextoImpresion })
+  return consultarEstadoAgente(configImpresora(), { forzar, accionExplicita, contexto: revisionContextoImpresion })
 }
 
 const consultarAgente = async (camino, { method = 'GET', body, signal } = {}) => {
@@ -425,7 +425,7 @@ export async function sincronizarAgente(store) {
 // Camino que le toca a una impresora en ESTE dispositivo, consultando el
 // agente local (loopback). No imprime nada: solo decide.
 export async function caminoDeImpresion(store, impresora) {
-  const estado = await estadoAgente()
+  const estado = await estadoAgente({ accionExplicita: true })
   return { ...resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) }), agente: estado }
 }
 
@@ -477,7 +477,7 @@ export async function imprimirTicketRouter(ticket, { store, impresora, copias, u
   // Demo (#194): la impresión no está disponible; se avisa claro y no se toca
   // ni el agente local ni el backend.
   if (isDemoRuntime) return { ok: false, camino: 'demo', motivo: 'demo', error: 'Datos ficticios de demostración: la impresión no está disponible en el demo.' }
-  const estado = await estadoAgente()
+  const estado = await estadoAgente({ accionExplicita: true })
   const { camino } = resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) })
   if (camino === 'local') {
     const local = await imprimirTicketDirecto(ticket, {
@@ -588,7 +588,7 @@ export async function imprimirDocumento(ticket, { contexto = revisionContextoImp
   // abierta incluso si el agente local tarda; la disponibilidad se consulta
   // en la llamada recursiva que envía el raster.
   const configuracionExplicita = typeof ticket === 'function' && Boolean(store && impresora)
-  const estado = configuracionExplicita ? { disponible: false } : await estadoAgente()
+  const estado = configuracionExplicita ? { disponible: false } : await estadoAgente({ accionExplicita: true })
   // Sin agente local, la configuración del backend manda: el celular puede
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
   // destino equivocado. Si el backend no responde, se usa la última caché.

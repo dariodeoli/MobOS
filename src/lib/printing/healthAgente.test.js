@@ -51,3 +51,14 @@ test('token configurado permite consulta y sólo envía el token del puente', as
   } })
   assert.equal((await consultar({ ...sinConfig, token: 'token-prueba' })).disponible, true)
 })
+
+// Los documentos pueden pasar una impresora explícita sin guardarla en caché.
+test('la acción de imprimir descubre el agente sin configuración global y comparte su caché', async () => {
+  let llamadas = 0
+  const consultar = crearConsultaEstadoAgente({ fetchImpl: async () => { llamadas++; return Response.json({ ok: true }) } })
+  assert.equal((await consultar(sinConfig)).disponible, false)
+  assert.equal(llamadas, 0)
+  assert.equal((await consultar(sinConfig, { accionExplicita: true })).disponible, true)
+  assert.equal((await consultar(sinConfig, { accionExplicita: true })).disponible, true)
+  assert.equal(llamadas, 1)
+})

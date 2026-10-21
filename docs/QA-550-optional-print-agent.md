@@ -23,3 +23,36 @@ Validación local con proveedor HTTP simulado; ninguna prueba física:
   enfriamiento; ruta localhost interceptada sin contactar una impresora.
 
 Preparado en rama; esta evidencia no acredita integración ni publicación.
+
+## Corrección de las regresiones de CI (#550 y #646)
+
+La CI del primer PR detectó un alcance incorrecto de la guardia: también
+suprimía la consulta de salud al imprimir con una impresora elegida por el
+llamador y sin configuración global guardada. Eso desviaba documentos hacia
+el camino remoto en lugar de enviar el trabajo al agente local. Se separó la
+observación pasiva de una acción explícita de impresión; esta última permite
+consultar el agente sin vaciar la caché negativa ni duplicar peticiones.
+No se cambiaron las expectativas de trabajos ni los mocks para esconder la regresión.
+
+También se fijó el reloj del test de garantía #240 en la fecha de su fixture
+(#646): su fecha de garantía vencía el21/10/2026 y dependía del reloj del equipo.
+El reloj se restaura con el hook de limpieza del contexto del test, incluso
+si una aserción falla. El comportamiento productivo no cambió por esa prueba.
+
+Verificación de esta corrección:
+
+- Helper de salud:5 PASS, incluida impresión explícita sin configuración global.
+- Frontend unit:1608 PASS; backend unit:347 PASS y1 omitido.
+- Playwright print513:10 PASS (envío local, copias, invalidación de contexto,
+  rechazo tardío y respaldo); print550:1 PASS (reporte cerrado y agente ausente).
+- Builds frontend/backend con BUILD_ID, Prisma y lint sin errores.
+- db:check contra PostgreSQL descartable de este worktree: coincide con schema.
+- Playwright de documentos/informes/recepción/cierre:23 PASS al primer intento,
+  contra ese cluster aislado y con el agente interceptado, sin impresión física
+  ni consultas de producción.
+
+Novedades para el dueño:
+
+- Los reportes cerrados dejan de buscar una impresora local.
+- Al solicitar una impresión se conserva la detección del agente y sus copias.
+- Si no hay agente, sigue disponible el respaldo del navegador.
