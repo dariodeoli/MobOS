@@ -41,6 +41,8 @@ En una unidad exclusivamente documental, la validación local puede limitarse a 
 
 ## Datos, migraciones y recuperación
 
+En el contexto del integrador, antes de builds y publicación, fijar UTF-8 con `export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8`; conservar los archivos de documentación en UTF-8.
+
 - Antes de migrar, inspeccionar en modo de sólo lectura el esquema real, diferencias, dependencias y estado de la operación; mantener migraciones aditivas, idempotentes y re-ejecutables según AGENTS.md. Coordinar con el integrador una ventana fuera de la limpieza de demos, comprobando primero el horario y la configuración actuales. No afirmar un cron fijo sin verificarlo ni ejecutar migraciones de producción desde un agente de unidad. Las pruebas aisladas conservan sus procedimientos y recursos propios.
 - Ante un problema, inspeccionar el diff y respaldar los cambios antes de proponer una reversión. Revertir únicamente cambios propios identificados, con autorización aplicable; nunca aplicar un rollback destructivo automático, borrar cambios ajenos o restaurar todo el checkout por comodidad.
 - Retirar un worktree sólo después de comprobar que su trabajo está integrado por contenido y que no está en uso. Inventariar commits, archivos privados/ignorados, capturas, permisos y enlaces antes de cualquier operación; coordinar registros compartidos con los agentes activos. Preferir un archivo recuperable con manifiesto y pasos de restauración. No perder secretos ni archivos ignorados, no tocar worktrees activos, no eliminar ramas o ejecutar limpiezas generales como consecuencia automática de un merge.
