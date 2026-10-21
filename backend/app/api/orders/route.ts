@@ -7,6 +7,8 @@ import { requireSession } from '../../../lib/auth'
 import { loadTenantPreferences, PREPARED_FULFILLMENT } from '../../../lib/tenant-preferences'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
+import { moduloActivo } from '../../../lib/modulos-catalogo.mjs'
+import { moduloApagadoMensaje } from '../../../lib/modulos-guard'
 import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
@@ -299,7 +301,10 @@ export async function POST(request: Request) {
   // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
   // acá para fallar temprano y se consume dentro de la transacción. Hasta el
   // porcentaje configurado por la empresa (default 10%) no pide autorización.
-  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true, insurancePct: true } })
+  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true, insurancePct: true, settings: true } })
+  // Módulos apagados: el servidor no aplica gift cards, promociones, combos, listas de precios ni trade-in aunque el front los mande.
+  const moduloOn = (id: string) => moduloActivo({ settings: limitesEmpresa?.settings }, id)
+  const exigirModulo = (id: string) => { if (!moduloOn(id)) throw new InputError(moduloApagadoMensaje(id), 403) }
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
   const insurancePct = Math.min(100, Math.max(0, Number(limitesEmpresa?.insurancePct ?? 0)))
   // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
@@ -416,6 +421,7 @@ export async function POST(request: Request) {
           customerInsurance = { enabled: resuelto.insuranceEnabled === true, ratePct: resuelto.insuranceRatePct === null ? null : Number(resuelto.insuranceRatePct) }
         }
       }
+      if (!moduloOn('listas-precios')) priceListId = null
       const priceList = priceListId
         ? await tx.priceList.findFirst({ where: { id: priceListId, tenantId: tenant, isActive: true }, include: { items: { include: { tiers: { orderBy: { minQty: 'asc' } } } } } })
         : null
@@ -464,6 +470,8 @@ export async function POST(request: Request) {
         const serials = itemSerials(item.inventoryUnitSerials, quantity)
         if (serials.some(serial => serialsInOrder.has(serial))) throw new InputError('Un IMEI/serial no puede repetirse en la misma venta.')
         serials.forEach(serial => serialsInOrder.add(serial))
+        if (item.couponCode !== undefined) exigirModulo('promociones')
+        if ((item.comboId !== undefined && item.comboId !== null && item.comboId !== '') || (item.comboName !== undefined && item.comboName !== null && item.comboName !== '')) exigirModulo('promociones')
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
         // Combo: la línea puede recordar de qué combo salió. Se valida contra la
@@ -675,6 +683,8 @@ export async function POST(request: Request) {
       let confirmed = 0
       const normalizedPayments = []
       for (const payment of payments) {
+        if (payment?.method === 'GIFT_CARD') exigirModulo('gift-cards')
+        if (payment?.method === 'TRADE_IN') exigirModulo('tradein')
         const normalizedPayment = await normalizePayment(tx, tenant, payment)
         normalizedPayments.push(normalizedPayment)
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
