@@ -1,6 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // #250 Fase 6: política de reposición (stock de seguridad + plazo de entrega)
 // por producto y sucursal. Alimenta la reposición sugerida y las alertas.
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)

@@ -4,6 +4,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { crearTraslado } from '../../../lib/transfers'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const INT_MAX = 2147483647
 const text = (value: unknown, max = 160) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
@@ -45,6 +46,7 @@ export async function GET(request: Request) {  const tenant = await tenantId(req
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'multisucursal'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
 // al despachar) y/o la ETA del lote (#218). Solo ADMIN/GERENTE de la empresa,
 // gerente desde su sucursal.
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'multisucursal'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!permitted(session.user)) return error('No autorizado.', 403)

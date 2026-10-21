@@ -6,6 +6,7 @@ import { InputError, objectInput, textInput } from '../../../../../../lib/paymen
 import { canManageDelivery } from '../../../../../../lib/delivery'
 import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { numero } from '../../../../../../lib/montos'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 // Verificación de la rendición en la tienda (vendedor/caja/gerencia). Al
 // confirmarla, los pre-cobros del repartidor pasan a CONFIRMED —y con eso
@@ -28,9 +29,10 @@ const settlementInclude = Prisma.validator<Prisma.DeliverySettlementInclude>()({
 })
 
 export async function POST(request: Request, context: { params: Promise<{ settlementId: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
+  if (request.method !== 'GET' && !await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canManageDelivery(session.user)) return error('No autorizado para verificar rendiciones.', 403)
   try {
     const { settlementId } = await context.params

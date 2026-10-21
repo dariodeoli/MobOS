@@ -7,6 +7,7 @@ import { normalizarCentro, prioridadPorPromesa } from '../../../../lib/supply-de
 import { puedeVerCliente } from '../../../../lib/supply-customer'
 import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../../../../lib/supply-priority'
 import { numeroOpcional } from '../../../../lib/montos'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // #250 Fase 1 (Centro de Abastecimiento): API del panel «Por comprar».
 //
@@ -153,6 +154,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)
@@ -216,6 +218,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)

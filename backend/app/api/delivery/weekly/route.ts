@@ -3,6 +3,7 @@ import { closeWeek, weeklyView } from '../../../../lib/delivery-operations-store
 import { weekInput } from '../../../../lib/delivery-operations'
 import { textInput } from '../../../../lib/payment-input'
 import { json } from '../../../../lib/http'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 export async function GET(request: Request) {
   try {
     const actor = await deliveryAccess(request, true), params = new URL(request.url).searchParams
@@ -10,6 +11,7 @@ export async function GET(request: Request) {
   } catch (cause) { return deliveryFailure(cause) }
 }
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   try { return json(await closeWeek(await deliveryAccess(request, true), await deliveryBody(request))) }
   catch (cause) { return deliveryFailure(cause) }
 }

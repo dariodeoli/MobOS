@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { codigoEnvio, ENVIO_ESTADOS, ENVIO_ESTADOS_RECEPCION, expandirItemsEnvio, METODOS_ENVIO, normalizarSeriales, transicionEnvioValida } from '../../../../lib/supply'
 import { aexQuote, aexWebTrackingUrl } from '../../../../lib/aex'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // #250 Fase 4 (Centro de Abastecimiento): lotes/envíos entrantes de una compra.
 //
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)
@@ -164,6 +166,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)

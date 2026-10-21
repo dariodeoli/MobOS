@@ -5,6 +5,7 @@ import { error, json } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
 import { diffCampos } from '../../../lib/audit'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const CONDITIONS = Object.values(ProductCondition)
 const LIMIT = 200
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'tradein'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan valores de toma.', 403)
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'tradein'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan valores de toma.', 403)

@@ -21,6 +21,7 @@ import {
   type ReconciliationBatchLike,
   type ReconciliationPayment,
 } from '../../../../lib/reconciliation'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // Conciliación por cuenta, medio y procesadora (#144): ingresos del período,
 // lotes recibidos contra lo esperado, diferencias y trazabilidad pago → pedido.
@@ -195,6 +196,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'conciliacion'); if (moduloApagado) return moduloApagado
   const ctx = await scope(request)
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
   try {

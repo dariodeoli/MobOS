@@ -3,6 +3,7 @@ import { closeDay, dailyView } from '../../../../lib/delivery-operations-store'
 import { dayInput } from '../../../../lib/delivery-operations'
 import { textInput } from '../../../../lib/payment-input'
 import { json } from '../../../../lib/http'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 /** Vista y cierre del día del reparto. Las fechas son días civiles de America/Asuncion. */
 export async function GET(request: Request) {
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   try { return json(await closeDay(await deliveryAccess(request, true), await deliveryBody(request)), { status: 201 }) }
   catch (cause) { return deliveryFailure(cause) }
 }

@@ -3,17 +3,16 @@ import { requireAccountContext, requireSession } from './auth'
 import { canManageDelivery, canUseDelivery } from './delivery'
 import { InputError } from './payment-input'
 import { error } from './http'
-import { tenantModuleEnabled } from './tenant-module-access'
+import { assertModulo, moduloHabilitado } from './modulos-guard'
 
-export async function assertDeliveryModule(tenantId: string) {
-  if (!await tenantModuleEnabled(tenantId, 'delivery')) throw new InputError('El módulo Delivery está desactivado para esta empresa.', 403)
-}
-export async function deliveryModuleEnabled(tenantId: string) { return tenantModuleEnabled(tenantId, 'delivery') }
+export async function assertDeliveryModule(tenantId: string) { return assertModulo(tenantId, 'delivery') }
+export async function deliveryModuleEnabled(tenantId: string) { return moduloHabilitado(tenantId, 'delivery') }
 
 export async function deliveryAccess(request: Request, ownerOnly = false) {
   const session = await requireSession(request)
   if (!session) throw new InputError('Falta sesión.', 401)
-  await assertDeliveryModule(session.user.tenantId)
+  // Con el módulo apagado las lecturas (historial, rendiciones) siguen; las escrituras dan 403.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())) await assertDeliveryModule(session.user.tenantId)
   // La contraseña compartida o un ADMIN no prueban que sea el dueño real.
   const account = session.accountId ? await requireAccountContext(request) : null
   const membership = account && account.tenantId === session.user.tenantId && account.sellerUserId === session.user.id

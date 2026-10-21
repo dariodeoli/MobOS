@@ -1,3 +1,4 @@
+// modulo-guard-exento: guarda propia con la empresa del token MCP (ver ia-conectores en el handler)
 import { scopeForAction } from '../../../../lib/mcp/catalog'
 import { withoutMcpImageBytes } from '../../../../lib/mcp/preview-retention'
 import { invalidToolArguments } from '../../../../lib/mcp/tool-contracts'
@@ -10,6 +11,7 @@ import { prisma } from '../../../../lib/prisma'
 import { dbNow, revalidateMcpAccessToken, requireMcpAccessToken } from '../../../../lib/mcp/oauth'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { moduleStoreFrom } from '../../../../lib/module-store'
+import { moduloApagadoMensaje } from '../../../../lib/modulos-guard'
 import { changePayloadHash, validateChange } from '../../../../lib/mcp/changes'
 import { updateProductPrice, ProductPriceError } from '../../../../lib/product-price'
 import { createProduct, updateProduct, ProductServiceError } from '../../../../lib/product-service'
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
   const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { id: true, settings: true } })
   if (!tenant) return json('empresa_no_disponible', 404)
   const modules = moduleStoreFrom(tenant.settings).modules
+  if (modules['ia-conectores']?.enabled !== true) return json('modulo_desactivado', 403)
   const branchId = typeof checked.payload.branchId === 'string' ? checked.payload.branchId : null
   const decision = authorizeMcpAction(checked.action, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: branchId })
   if (!decision.allowed) return json(decision.code.toLowerCase(), 403)

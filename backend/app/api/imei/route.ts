@@ -3,8 +3,8 @@ import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { creditosDeServicio, correspondeReembolso, estadoCreditos, reembolsarConsulta, reservarConsulta } from '../../../lib/imei-credits'
 import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, modoImeicheck, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
-import { tenantModuleEnabled } from '../../../lib/tenant-module-access'
 import { findImeiProvider, publicImeiProviders } from '../../../lib/imei-providers'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
 //
@@ -24,7 +24,6 @@ export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const tenant = session.user.tenantId
-  if (!await tenantModuleEnabled(tenant, 'verificacion-imei')) return error('La verificación de IMEI está desactivada para esta empresa.', 403)
   if (!canAccessAny(session.user, ROLES_CONSULTA)) return error('No autorizado.', 403)
   const params = new URL(request.url).searchParams
   const verCrudo = ROLES_VER_CRUDO.includes(session.user.role)
@@ -62,9 +61,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'verificacion-imei'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!await tenantModuleEnabled(session.user.tenantId, 'verificacion-imei')) return error('La verificación de IMEI está desactivada para esta empresa.', 403)
   if (!canAccessAny(session.user, ROLES_CONSULTA)) return error('No autorizado.', 403)
   const tenant = session.user.tenantId
   let body: any

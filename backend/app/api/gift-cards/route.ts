@@ -6,6 +6,7 @@ import { LIMITE_MONTO_VENTAS } from '../../../lib/montos'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { crearCodigoGiftCard } from '../../../lib/gift-card-code'
 import { esMontoGiftCard, snapshotCuentaGiftCard } from '../../../lib/gift-cards'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const PERMISOS = ['pos:use', 'payments:manage', 'orders:manage', 'orders:own', 'orders:branch']
 
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'gift-cards'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, PERMISOS)) return error('No autorizado.', 403)

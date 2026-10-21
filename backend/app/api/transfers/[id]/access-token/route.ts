@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { moduloGuard } from '../../../../../lib/modulos-guard'
 
 const nuevoToken = () => randomBytes(24).toString('base64url')
 
@@ -9,6 +10,7 @@ const nuevoToken = () => randomBytes(24).toString('base64url')
 // el token vigente (lo crea si falta); con regenerate=true lo rota y el
 // enlace anterior deja de funcionar.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'multisucursal'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN' && session.user.role !== 'GERENTE') return error('No autorizado.', 403)
