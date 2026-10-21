@@ -19,3 +19,5 @@
 }
 /* iOS nativo: el panel ya aplica el margen seguro (igual que BottomSheet). */
 html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0; }
+/* Si el pie fijo de formularios tiene contenido, el espaciador seguro sobra. */
+.popup-pie:not(:empty) + .popup-pie-espacio { display: none; }

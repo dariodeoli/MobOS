@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { createContext, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { CircleAlert, CircleCheck, CircleX, Info } from 'lucide-react'
 import { useDialogFocusTrap } from 'owncoding-ui'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { DURACION_SALIDA_POPUP, ordenarAcciones, resolverPopup } from './popupReglas'
 import './popup.css'
+
+// Contexto del Popup: permite que `SaveActions`/`FormActions`/`useDialog*` de
+// `popupKit` (mismos nombres que el Modal de la biblioteca) cierren el popup,
+// bloqueen el cierre mientras se guarda y se rendericen en el pie fijo.
+export const ContextoPopup = createContext(null)
+
+function crearRegistro() {
+  const activos = new Set()
+  return { activos, registrar(id, on) { if (on) activos.add(id); else activos.delete(id); return activos.size > 0 } }
+}
 
 // Popup ÚNICO de MobOS: mismo marco para confirmar, formularios, detalles y
 // avisos. Encabezado con título y X roja de 44 px, cuerpo libre (`children`) y
@@ -38,10 +48,21 @@ export default function Popup({
   children,
   busy = false,
   dirty = false,
+  descarte,
+  accion = null,
   className,
   testId,
 }) {
   const [descartando, setDescartando] = useState(false)
+  const [pie, setPie] = useState(null)
+  const pendientes = useRef(crearRegistro()).current
+  const cambios = useRef(crearRegistro()).current
+  const [hayPendientes, setHayPendientes] = useState(false)
+  const [hayCambiosReg, setHayCambiosReg] = useState(false)
+  const [arrastre, setArrastre] = useState(0)
+  const inicioArrastre = useRef(null)
+  const bloqueado = Boolean(busy || hayPendientes)
+  const sucio = Boolean(dirty || hayCambiosReg)
   const panel = useRef(null)
   const titleId = useId()
   const descId = useId()
@@ -64,12 +85,30 @@ export default function Popup({
   // `dirty`: con cambios sin guardar el cierre pide confirmación (igual que
   // el Modal de la biblioteca); el guardado real cierra por `onClose` directo.
   const cerrar = useCallback(() => {
-    if (busy) return
-    if (dirty) { setDescartando(true); return }
+    if (bloqueado) return
+    if (sucio) { setDescartando(true); return }
     onClose?.()
-  }, [busy, dirty, onClose])
-  useEffect(() => { if (!open || !dirty) setDescartando(false) }, [open, dirty])
-  const { esSuperior, requestClose } = useDialogFocusTrap(open, cerrar, panel, { busy })
+  }, [bloqueado, sucio, onClose])
+  useEffect(() => { if (!open || !sucio) setDescartando(false) }, [open, sucio])
+  const { esSuperior, requestClose } = useDialogFocusTrap(open, cerrar, panel, { busy: bloqueado })
+  const registrar = useCallback((id, on) => setHayPendientes(pendientes.registrar(id, on)), [pendientes])
+  const registrarCambios = useCallback((id, on) => setHayCambiosReg(cambios.registrar(id, on)), [cambios])
+  const contexto = useMemo(() => ({ requestClose, registrar, registrarCambios, pie }), [requestClose, registrar, registrarCambios, pie])
+
+  // Hoja móvil: arrastrar el asa hacia abajo cierra (igual que la BottomSheet previa).
+  const alBajar = e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    inicioArrastre.current = e.clientY
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+  const alMover = e => { if (inicioArrastre.current != null) setArrastre(Math.max(0, e.clientY - inicioArrastre.current)) }
+  const alSoltar = e => {
+    if (inicioArrastre.current == null) return
+    const delta = e.clientY - inicioArrastre.current
+    inicioArrastre.current = null
+    setArrastre(0)
+    if (delta > 96) requestClose()
+  }
 
   if (!visible) return null
   const lista = footer ? [] : ordenarAcciones(acciones)
@@ -87,7 +126,8 @@ export default function Popup({
         aria-modal={esSuperior ? 'true' : undefined}
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        aria-busy={busy || undefined}
+        aria-busy={bloqueado || undefined}
+        style={arrastre ? { translate: `0 ${arrastre}px`, transition: 'none' } : undefined}
         data-testid={testId}
         data-tipo={tipo}
         data-saliendo={saliendo || undefined}
@@ -97,7 +137,18 @@ export default function Popup({
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-4 md:px-5">
+        <div
+          data-testid="bottom-sheet-asa"
+          className="touch-none select-none md:hidden"
+          onPointerDown={alBajar}
+          onPointerMove={alMover}
+          onPointerUp={alSoltar}
+          onPointerCancel={alSoltar}
+        >
+          <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-ink-500" aria-hidden="true" />
+          <div className="h-2" aria-hidden="true" />
+        </div>
+        <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-2 md:px-5 md:pt-4">
           <div className="flex min-w-0 items-center gap-3">
             {Icono && <Icono aria-hidden="true" className={cn('h-6 w-6 shrink-0', TONO_ICONO[tono])} />}
             <div className="min-w-0">
@@ -105,17 +156,22 @@ export default function Popup({
               {description && <p id={descId} className="mt-0.5 text-sm text-mute">{description}</p>}
             </div>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+          {accion}
           <button
             type="button"
             onClick={requestClose}
-            disabled={busy}
+            disabled={bloqueado}
             aria-label="Cerrar"
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bad text-2xl font-bold leading-none text-on-bad transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bad disabled:opacity-40"
           >
             ×
           </button>
+          </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
+        <ContextoPopup.Provider value={contexto}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
+        </ContextoPopup.Provider>
         {(footer || lista.length > 0) ? (
           <div className="border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 md:px-5 md:pb-4">
             {footer || (
@@ -127,18 +183,22 @@ export default function Popup({
             )}
           </div>
         ) : (
-          <div className="shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
+          <>
+            {/* Pie fijo para `FormActions`/`SaveActions` (se oculta si nadie escribe en él). */}
+            <div ref={setPie} className="popup-pie border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 empty:hidden md:px-5 md:pb-4" />
+            <div className="popup-pie-espacio shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
+          </>
         )}
       </div>
       {descartando && (
         <Popup
           tipo="confirmar"
-          title="¿Descartar los cambios?"
-          description="Tenés cambios sin guardar. Si cerrás ahora se pierden."
+          title={descarte?.titulo || '¿Descartar los cambios?'}
+          description={descarte?.descripcion || 'Tenés cambios sin guardar. Si cerrás ahora se pierden.'}
           onClose={() => setDescartando(false)}
           acciones={{
-            secundaria: { label: 'Seguir editando', onClick: () => setDescartando(false) },
-            peligro: { label: 'Descartar', onClick: () => { setDescartando(false); onClose?.() } },
+            secundaria: { label: descarte?.seguir || 'Seguir editando', onClick: () => setDescartando(false) },
+            peligro: { label: descarte?.confirmar || 'Descartar', onClick: () => { setDescartando(false); onClose?.() } },
           }}
         />
       )}
