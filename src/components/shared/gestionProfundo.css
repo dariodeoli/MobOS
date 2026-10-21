@@ -128,7 +128,7 @@
 
 /* ---- Detalle / panel: columna principal + lateral derecha ---------------- */
 .gp-dos { display: grid; gap: 16px; align-items: start; }
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .gp-dos { grid-template-columns: minmax(0, 1fr) 20rem; }
 }
 .gp-principal, .gp-lateral { display: grid; min-width: 0; gap: 16px; }
