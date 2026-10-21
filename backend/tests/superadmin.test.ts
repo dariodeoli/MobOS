@@ -82,8 +82,10 @@ test('verificación de correo: cambiar el correo de la empresa la deja sin verif
   assert.equal(correoCambioReseteaVerificacion('a@x.test', 'b@x.test'), true)
   assert.equal(correoCambioReseteaVerificacion('a@x.test', ' A@X.test '), false)
   assert.equal(correoCambioReseteaVerificacion(null, 'b@x.test'), true)
-  const ruta = readFileSync(join(RAIZ, 'app/api/account/route.ts'), 'utf8')
-  assert.match(ruta, /correoCambioReseteaVerificacion\(current\.email, nextEmail\) \? \{ emailVerifiedAt: null \}/)
+  // updateProfile delegates to the shared service; keeping this assertion on
+  // the service avoids coupling the invariant to a route implementation.
+  const ruta = readFileSync(join(RAIZ, 'lib/tenant-company-profile.ts'), 'utf8')
+  assert.match(ruta, /correoCambioReseteaVerificacion\(current\.email, email\) \? \{ emailVerifiedAt: null \}/)
 })
 
 test('google: la identidad guarda el correo verificado en cada login (único origen de GoogleIdentity.email)', () => {

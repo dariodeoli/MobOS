@@ -9,7 +9,7 @@ import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 import { recoveryDeadline } from '../../../lib/tenant-archive'
 import { purgeTenantData, type TenantPurgeCounts } from '../../../lib/tenant-purge'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
-import { correoCambioReseteaVerificacion } from '../../../lib/tenant-email'
+import { updateTenantCompanyProfile } from '../../../lib/tenant-company-profile'
 import { formatUnitCode, normalizeUnitCodePrefix, resolveUnitCodePrefix } from '../../../lib/unit-code'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
@@ -221,48 +221,11 @@ export async function PATCH(request: Request) {
       return json({ ok: true, ...updated })
     }
     if (action === 'updateProfile') {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      const name = body.name === undefined ? undefined : input(body.name, 'Nombre de la tienda', 2, 120)
-      const email = body.email === undefined ? undefined : input(body.email, 'Correo de la empresa', 3, 160)
-      const profileField = (value: unknown, field: string, max: number) => {
-        if (value === undefined) return undefined
-        if (value === null || value === '') return null
-        return input(value, field, 1, max)
-      }
-      const address = profileField(body.address, 'La dirección de la empresa', 400)
-      const city = profileField(body.city, 'La ciudad de la empresa', 120)
-      const department = profileField(body.department, 'El departamento de la empresa', 120)
-      const phone = profileField(body.phone, 'El teléfono de la empresa', 40)
-      const ruc = profileField(body.ruc, 'El RUC de la empresa', 20)
-      const hasProfile = [address, city, department, phone, ruc].some(value => value !== undefined)
-      if (name === undefined && email === undefined && !hasProfile) return error('Indicá qué dato actualizar.', 400)
-      if (email !== undefined && !emailPattern.test(email)) return error('El correo de la empresa no es válido.', 400)
-      const current = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { name: true, email: true, address: true, city: true, department: true, phone: true, ruc: true } })
-      if (!current) return error('Empresa no encontrada.', 404)
-      const nextName = name ?? current.name
-      const nextEmail = email ? email.toLowerCase() : current.email
-      if (nextEmail !== current.email && await prisma.tenant.findFirst({ where: { email: nextEmail, id: { not: session.user.tenantId } }, select: { id: true } })) return error('Ese correo ya lo usa otra empresa.', 409)
-      const perfil = {
-        address: address === undefined ? current.address : address,
-        city: city === undefined ? current.city : city,
-        department: department === undefined ? current.department : department,
-        phone: phone === undefined ? current.phone : phone,
-        ruc: ruc === undefined ? current.ruc : ruc,
-      }
-      // Cambiar el correo de la empresa NO mueve la pertenencia OWNER a la cuenta
-      // del correo nuevo: la sesión de administrador (reautenticada con la
-      // contraseña o el PIN) prueba el control de la EMPRESA, no del correo nuevo.
-      // La cuenta de ese correo, si existe, es de otra persona o de otra empresa,
-      // y vincularla por coincidencia sería el mismo error que el login evita
-      // (passwordAccountDecision). Las cuentas y pertenencias quedan intactas; la
-      // cuenta del correo nuevo se crea/vincula recién al entrar con la
-      // contraseña de la empresa. Mover el OWNER exigiría verificar el correo
-      // nuevo (enlace o Google): fuera de este alcance.
-      await prisma.$transaction(async tx => {
-        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { name: nextName, email: nextEmail, ...perfil, ...(correoCambioReseteaVerificacion(current.email, nextEmail) ? { emailVerifiedAt: null } : {}) } })
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: { name: current.name, email: current.email, address: current.address, city: current.city, department: current.department, phone: current.phone, ruc: current.ruc }, after: { name: nextName, email: nextEmail, ...perfil } } } })
-      })
-      return json({ ok: true, name: nextName, email: nextEmail, ...perfil })
+      const allowed = ['name', 'email', 'address', 'city', 'department', 'phone', 'ruc']
+      const fields = Object.fromEntries(Object.entries(body).filter(([key, value]) => allowed.includes(key) && value !== undefined))
+      if (!Object.keys(fields).length) return error('Indicá qué dato actualizar.', 400)
+      const updated = await updateTenantCompanyProfile({ tenantId: session.user.tenantId, actorUserId: session.user.id, fields, sessionId: session.sessionId })
+      return json({ ok: true, ...updated, ...(Object.hasOwn(body, 'address') ? { address: updated.address } : {}) })
     }
     if (action === 'leaveStore') {
       if (body.confirm !== 'ABANDONAR') return error('Escribí ABANDONAR para confirmar que dejás la tienda.', 400)

@@ -52,6 +52,7 @@ const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarant
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
+const McpConexiones = lazy(() => import('@/components/control/config/McpConexiones'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
 const CentroControl = lazy(() => import('@/components/control/CentroControl'))
@@ -550,8 +551,8 @@ export default function PanelVendedor() {
     const destino = SUBPAGINA_DE_VISTA[routeVista] || SUBPAGINA_DE_TAB[routeVista]
     if (!destino || !accesibles.includes(SUBPAGINAS[destino].vista)) return
     const primera = tabsDeSubpagina(destino, esDemo)[0][0]
-    navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}`, { replace: true })
-  }, [subpadre, routeVista, accesibles, esDemo, navigate])
+    navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}${busquedaUrl}`, { replace: true })
+  }, [subpadre, routeVista, accesibles, esDemo, navigate, busquedaUrl])
   // #247: las finanzas se hidratan al entrar a su pantalla, a análisis o al
   // resumen (usan los mismos gastos/publicidad) y quedan en los refrescos.
   useEffect(() => {
@@ -1079,7 +1080,7 @@ export default function PanelVendedor() {
               {vista === 'dispositivos' && <Impresoras />}
               {/* #324: Sistema muestra los chequeos y la cola ficticios en
                   demo; fuera de demo lee los servicios reales como siempre. */}
-              {vista === 'sistema' && <EstadoSistema />}
+              {vista === 'sistema' && <><EstadoSistema />{sesion?.esPropietario && <McpConexiones />}</>}
             </NavegacionConfig>
           )}
           {subpadre === 'ayuda' && (

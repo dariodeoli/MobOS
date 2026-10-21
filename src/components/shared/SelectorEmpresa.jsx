@@ -32,10 +32,12 @@ export function useCambioEmpresa() {
   const toast = useToast()
   const [sinCuenta, setSinCuenta] = useState(false)
   const [datos, setDatos] = useState({ tenants: [], canCreate: false })
+  const [listaCargada, setListaCargada] = useState(false)
   const [dialogo, setDialogo] = useState(null) // { tipo: 'pendientes', destino } | { tipo: 'crear' }
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
   const [nombre, setNombre] = useState('')
+  const deepLinkProcesado = useRef(false)
   const empresaId = empresa?.id
   const puedeGestionarEmpresas = usuario?.canManageCompanies === true
   const usuarioId = usuario?.id
@@ -43,17 +45,50 @@ export function useCambioEmpresa() {
   useEffect(() => {
     // La sesión de tienda no equivale a una cuenta personal multiempresa.
     // Consultar ese endpoint sin capacidad devuelve401 y revoca el contexto privado.
-    if (esDemo || !empresaId || !puedeGestionarEmpresas) { setDatos({ tenants: [], canCreate: false }); setSinCuenta(!esDemo && Boolean(empresaId)); return undefined }
+    if (esDemo || !empresaId || !puedeGestionarEmpresas) { setDatos({ tenants: [], canCreate: false }); setListaCargada(true); setSinCuenta(!esDemo && Boolean(empresaId)); return undefined }
     let vivo = true
+    setListaCargada(false)
     sessionApi.listTenants()
-      .then((respuesta) => { if (vivo) { setSinCuenta(false); setDatos({ tenants: Array.isArray(respuesta?.tenants) ? respuesta.tenants : [], canCreate: Boolean(respuesta?.canCreate) }) } })
+      .then((respuesta) => { if (vivo) { setSinCuenta(false); setDatos({ tenants: Array.isArray(respuesta?.tenants) ? respuesta.tenants : [], canCreate: Boolean(respuesta?.canCreate) }); setListaCargada(true) } })
       .catch((cause) => {
         console.error('[empresas] no se pudo cargar la lista de empresas:', cause)
         // Dueño sin sesión de vendedor vinculada a la cuenta: no es un fallo mudo.
-        if (vivo && (cause?.status === 401 || cause?.status === 403)) setSinCuenta(true)
+        if (vivo) { if (cause?.status === 401 || cause?.status === 403) setSinCuenta(true); setListaCargada(true) }
       })
     return () => { vivo = false }
   }, [esDemo, empresaId, usuarioId, puedeGestionarEmpresas])
+
+  // Los conectores sólo pueden preparar este enlace; el formulario y el
+  // endpoint normal siguen siendo la única vía para crear una empresa. Nunca
+  // prellenar si la pestaña cambió de cuenta/empresa desde que se emitió.
+  useEffect(() => {
+    if (deepLinkProcesado.current || !listaCargada || esDemo || !empresaId || !usuarioId || typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('crearEmpresa') !== '1') return
+    deepLinkProcesado.current = true
+    const expectedTenantId = params.get('expectedTenantId')
+    const expectedUserId = params.get('expectedUserId')
+    const nombrePreparado = (params.get('nombre') || '').trim().slice(0, 100)
+    const limpiarDeepLink = () => {
+      params.delete('crearEmpresa')
+      params.delete('nombre')
+      params.delete('expectedTenantId')
+      params.delete('expectedUserId')
+      const query = params.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`)
+    }
+    if (!datos.canCreate || !expectedTenantId || !expectedUserId || expectedTenantId !== empresaId || expectedUserId !== usuarioId) {
+      limpiarDeepLink()
+      const mensaje = 'El enlace de creación pertenece a otra sesión. Volvé a preparar la empresa desde tu cuenta.'
+      setError(mensaje)
+      toast.error(mensaje)
+      return
+    }
+    limpiarDeepLink()
+    setError('')
+    setNombre(nombrePreparado)
+    setDialogo({ tipo: 'crear' })
+  }, [datos.canCreate, listaCargada, empresaId, usuarioId, esDemo, toast])
 
   const visible = !esDemo && (datos.tenants.length >= 2 || datos.canCreate)
   const actualId = datos.tenants.find((item) => item.current)?.id || empresaId
