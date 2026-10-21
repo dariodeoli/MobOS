@@ -74,4 +74,3 @@ export default function McpAutorizar() {
   if (error) return <ErrorPanel>{error}</ErrorPanel>
   return <LoadingScreen mensaje="Preparando autorización…" />
 }
-
