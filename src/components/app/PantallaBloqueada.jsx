@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeLogo from '@/components/app/ThemeLogo'
-import PinSegmentado from '@/components/shared/PinSegmentado'
+import PinPad from '@/components/shared/PinPad'
 import { Button, Eyebrow } from '@/components/ui'
 import { identidadDeUsuario } from '@/lib/identidad'
 import { vibrar } from '@/lib/nativo/haptics'
@@ -107,7 +107,7 @@ export default function PantallaBloqueada({
               </div>
             ) : (
               <>
-              <PinSegmentado
+              <PinPad
                 id="lock-pin"
                 discreto
                 autoFocus

@@ -101,6 +101,7 @@ const protectedSections = {
   '/inventario/eliminados': 'Eliminados',
   // #303: administración de la lista por modelo y las fotos del comparador.
   '/centro-control': 'Centro de Control',
+  '/biblioteca': 'Biblioteca de objetos',
 }
 
 function normalizePathname(pathname = '/') {

@@ -31,9 +31,9 @@ assert.equal(html.match(/<h1/g)?.length, 1, 'mantiene un solo título principal'
 const preheaderStart = html.indexOf('class="email-preheader"')
 const preheaderEnd = html.indexOf('</div>', preheaderStart)
 assert.ok(preheaderStart > 0 && html.slice(preheaderStart, preheaderEnd).includes('Seguridad de la cuenta'), 'incluye un preheader útil y oculto')
-assert.ok(html.includes('Mob<span style="color:#166534">OS</span>'), 'usa el wordmark de texto seguro')
-assert.ok(html.indexOf('Seguridad de la cuenta', preheaderEnd) > preheaderEnd, 'muestra el contexto como badge visible')
-assert.ok(html.includes('background:#166534') && html.includes('color:#FFFFFF'), 'el CTA usa una combinación de alto contraste')
+assert.ok(html.includes('aria-label="Tienda Test"') && html.includes('>Tienda Test</p>'), 'el encabezado muestra la empresa como texto seguro')
+assert.ok(html.indexOf('Seguridad de la cuenta', preheaderEnd) > preheaderEnd, 'muestra el tipo de documento en versalitas')
+assert.ok(html.includes('background:#047857') && html.includes('color:#FFFFFF'), 'el CTA usa una combinación de alto contraste')
 assert.ok(html.includes('font-size:15px;line-height:1.7'), 'el cuerpo conserva tamaño y altura de línea legibles')
 
 // CTA y URL de respaldo apuntan exactamente al mismo destino.
@@ -88,5 +88,14 @@ assert.ok(escapedReceipt)
 assert.ok(!escapedReceipt.html.includes(unsafe) && !escapedReceipt.html.includes('<img src=x'), 'no inserta HTML dinámico sin escapar')
 assert.ok(escapedReceipt.html.includes('&lt;img src=x onerror=alert(1)&gt;'), 'conserva el contenido dinámico como texto escapado')
 assert.ok(escapedReceipt.html.includes('https://app.moboss.online/p?a=1&amp;b=2'), 'escapa URLs dentro de atributos y texto visible')
+
+// Estándar del comprobante premium (#407): empresa arriba, tipo de documento en
+// versalitas de color, Total grande sin caja y pie «Generado por MobOS para …».
+for (const message of messages) {
+  assert.ok(message!.html.includes('letter-spacing:.14em;text-transform:uppercase'), 'tipo de documento en versalitas de color')
+  assert.ok(message!.html.includes('Generado por MobOS para'), 'pie común con la empresa')
+  assert.ok(message!.text.includes('Generado por MobOS para'), 'el texto plano lleva el mismo pie')
+}
+assert.ok(receipt.html.includes('font-size:22px;font-weight:800') && !receipt.html.includes('border-radius:12px;border-collapse:separate;overflow:hidden"><thead>'), 'el Total es una línea grande en negrita, sin caja')
 
 console.log('email-template: shell premium, accesibilidad, variantes, respaldo y escaping verificados')

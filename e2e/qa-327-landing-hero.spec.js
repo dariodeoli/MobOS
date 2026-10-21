@@ -8,6 +8,7 @@
 //
 // Evidencia: `docs/qa/327-landing-padding/{antes,despues}` (con `MOBOS_CAPTURAS`).
 import { test, expect } from '@playwright/test'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -24,6 +25,7 @@ async function tema(page, valor) {
 
 // Espacio entre el header sticky y la pill del hero, en píxeles redondeados.
 async function aireDeLaPill(page) {
+  await esperarAnimaciones(page)
   return page.evaluate(() => {
     const header = document.querySelector('header')
     const pill = document.querySelector('#inicio p')
@@ -90,6 +92,7 @@ test('landing eyebrow stays close to the header on mobile and desktop', async ({
     await page.goto('/landing-preview')
     await expect(page.locator('#inicio p').first()).toBeVisible()
     await page.evaluate(() => document.fonts.ready)
+    await esperarAnimaciones(page)
     const geometry = await page.evaluate(() => {
       const header = document.querySelector('header').getBoundingClientRect()
       const pill = document.querySelector('#inicio p').getBoundingClientRect()

@@ -317,6 +317,12 @@ export default function SellerCustomers() {
     return ultimo(b) - ultimo(a)
   })
 
+  // Flechas anterior/siguiente de la ficha: vecinos en el orden de la lista en pantalla.
+  const vecinoPerfil = (paso) => {
+    const indice = ordenados.findIndex((row) => row.id === profileCustomer?.id)
+    return indice < 0 ? null : ordenados[indice + paso] || null
+  }
+
   useEffect(() => {
     if (esDemo) return
     api.get('/api/follow-ups?due=today').then(setSeguimientos).catch(() => setSeguimientos([]))
@@ -451,7 +457,7 @@ export default function SellerCustomers() {
     {!data.loading && !data.error && vista === 'grid' && <ul className={cn(GRILLA_DOS_COLUMNAS, 'clientes-f3-grid')}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
     {!data.loading && !data.error && !sinClientes && vista === 'list' && <ClientesTabla vacio={vacioFiltrado} rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
     {!data.loading && !data.error && data.hayMas && <div className="clientes-f3-pagination flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
-    <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} />
+    <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} anterior={vecinoPerfil(-1)} siguiente={vecinoPerfil(1)} onNavegar={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} />
     {/* Unificar duplicados (#268) desde la selección de la lista: dos fichas. */}
     <UnificarClienteModal
       open={Boolean(parUnificar)}

@@ -28,7 +28,7 @@ const modules = ['Punto de venta', 'Caja y finanzas', 'Inventario', 'Clientes', 
 
 function PreviewFrame({ id, title, label, icon: Icon, children, wide = false, tone = 'green', status = 'MUESTRA' }) {
   return (
-    <article className={`landing-showcase-card${wide ? ' landing-showcase-card--wide' : ''}`} data-testid={`showcase-${id}`} data-tone={tone}>
+    <article className={`landing-showcase-card${wide ? ' landing-showcase-card--wide' : ''}`} data-testid={`showcase-${id}`} data-tone={tone} data-reveal>
       <div className="landing-showcase-title">
         <span className="landing-showcase-icon" aria-hidden="true"><Icon size={18} /></span>
         <h3>{title}</h3>
@@ -159,7 +159,7 @@ function AnalyticsPreview() {
 
 export default function ShowcaseMobOS() {
   return <section className="landing-showcase landing-container" aria-labelledby="landing-showcase-title" data-testid="landing-showcase">
-    <header className="landing-showcase-heading"><p className="landing-eyebrow">ASÍ SE VE EL TRABAJO DIARIO</p><h2 id="landing-showcase-title">Una vista clara de cada parte del negocio.</h2><p>Recorré ejemplos ilustrativos de las herramientas de MobOS. La información en pantalla es ficticia.</p></header>
+    <header className="landing-showcase-heading" data-reveal><p className="landing-eyebrow">ASÍ SE VE EL TRABAJO DIARIO</p><h2 id="landing-showcase-title">Una vista clara de cada parte del negocio.</h2><p>Recorré ejemplos ilustrativos de las herramientas de MobOS. La información en pantalla es ficticia.</p></header>
     <div className="landing-showcase-grid">
       <PreviewFrame id="pos" title="Punto de venta" label="Catálogo y carrito" icon={ShoppingBag} tone="green"><SalePreview /></PreviewFrame>
       <PreviewFrame id="caja" title="Caja" label="Apertura, movimientos y saldo" icon={CircleDollarSign} tone="amber"><CashPreview /></PreviewFrame>

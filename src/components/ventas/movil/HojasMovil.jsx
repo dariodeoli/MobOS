@@ -204,12 +204,17 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
       footer={<Button type="button" data-testid="exito-listo" className="min-h-14 w-full text-base" onClick={onClose}>Nueva venta</Button>}
     >
       <div className="space-y-4">
-        <div className="space-y-2 rounded-2xl border border-ok/35 bg-ok/[.06] px-4 py-6 text-center">
+        <div className="pos-exito-hero space-y-2 rounded-2xl border border-ok/35 bg-ok/[.06] px-4 py-6 text-center">
           <CheckAnimado size={48} className="mx-auto" />
           {titulo && <p className="text-lg font-extrabold">{titulo}</p>}
           {total > 0 && <p className="v2-numero text-2xl font-extrabold tabular-nums" data-testid="exito-total">{gs(total)}</p>}
           {esDemo && <p className="text-xs font-semibold text-mute">Modo demo: la venta queda guardada solo en este navegador.</p>}
         </div>
+        {vuelto > 0 && (
+          <div role="status" data-testid="exito-vuelto" className="pos-exito-vuelto rounded-2xl bg-ok px-4 py-4 text-center text-xl font-extrabold text-on-ok">
+            Vuelto: <span className="tabular-nums">{gs(vuelto)}</span>
+          </div>
+        )}
         {(cliente || nota) && (
           <div className="rounded-2xl border border-ink-600 bg-ink-800 px-4 py-2 text-sm" data-testid="exito-resumen">
             {cliente && <div className="flex min-h-11 items-center justify-between gap-2">
@@ -225,13 +230,9 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
           </div>
         )}
         {pregunta}
-        {vuelto > 0 && (
-          <div role="status" data-testid="exito-vuelto" className="rounded-2xl bg-ok px-4 py-3 text-center text-lg font-extrabold text-on-ok">
-            Vuelto: <span className="tabular-nums">{gs(vuelto)}</span>
-          </div>
-        )}
         <div className="space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Enviar o imprimir el recibo</p>
+          <div className="pos-exito-acciones grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
           {whatsapp && (
             <a className={fila} href={whatsapp} target="_blank" rel="noopener noreferrer" data-testid="exito-whatsapp">
               <Icon name="send" className="h-5 w-5 text-ok" /> WhatsApp
@@ -240,6 +241,7 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
           <button type="button" className={fila} onClick={onImprimir} data-testid="exito-imprimir">
             <Icon name="printer" className="h-5 w-5 text-fono-light" /> Comprobante / imprimir
           </button>
+          </div>
           <button type="button" className={fila} onClick={onVerPedido} data-testid="exito-ver-pedido">
             <Icon name="receipt" className="h-5 w-5 text-fono-light" /> Ver pedido
           </button>

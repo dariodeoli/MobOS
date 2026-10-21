@@ -1,0 +1,21 @@
+/* Rediseño de Stock / planilla / unidades IMEI (solo presentación).
+   Archivo propio, acotado a .stock-rediseno: no cambia planilla.css, que
+   también usan Por comprar y el catálogo del POS. */
+.stock-rediseno [data-testid='barra-inventario'],
+.stock-rediseno [data-testid='barra-traslados'],
+.stock-rediseno [data-testid='barra-control'] {
+  padding: 8px;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 12px;
+  background: rgb(var(--c-ink));
+}
+.stock-rediseno .stock-lista-encabezado { border-bottom: 1px solid rgb(var(--c-ink-600)); }
+.stock-rediseno .stock-lista-fila { transition: background-color .12s ease, box-shadow .12s ease; animation: stock-entra .2s ease both; }
+.stock-rediseno .stock-lista-fila:hover { box-shadow: inset 3px 0 0 rgb(var(--c-fono) / 0.6); }
+.stock-rediseno .stock-tarjeta { transition: border-color .12s ease, transform .12s ease; animation: stock-entra .2s ease both; }
+.stock-rediseno .stock-tarjeta:hover { border-color: rgb(var(--c-fono) / 0.5); transform: translateY(-1px); }
+@keyframes stock-entra { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .stock-rediseno .stock-lista-fila, .stock-rediseno .stock-tarjeta { animation: none; transition: none; }
+  .stock-rediseno .stock-tarjeta:hover { transform: none; }
+}

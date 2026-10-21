@@ -25,11 +25,14 @@ import ImeiVerificacionModal from './ImeiVerificacionModal'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
+import Avatar from '@/components/shared/Avatar'
+import MenuSecundario from '@/components/shared/MenuSecundario'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_CUSTOMER_TEMPLATES, ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
 import { ajustarDialogoAlTeclado } from '@/lib/nativo/teclado'
 import './identidadFiscal.css'
+import './clientePagina.css'
 import { guardarIdentidadFacturacionDemo } from '@/lib/demoBillingIdentities'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
@@ -192,7 +195,7 @@ function CronologiaCliente({ desde, creadoPor, pedidos, total, onHistorial }) {
   )
 }
 
-export default function CustomerProfile({ customer, open, onClose, tabInicial = 'resumen' }) {
+export default function CustomerProfile({ customer, open, onClose, tabInicial = 'resumen', anterior = null, siguiente = null, onNavegar }) {
   const toast = useToast()
   const { usuario, esDemo, empresa } = useSesion()
   // Modo demo (#189): nada de la ficha se guarda contra el API real. Los
@@ -1201,7 +1204,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   return (
-    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} size="amplio">
+    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} size="completo">
       {loading && (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-10 w-2/3" />
@@ -1234,65 +1237,72 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               inferior marca dónde termina la zona fija. El offset negativo
               compensa el padding del modal (el sticky se ancla al content-box)
               y los márgenes negativos hacen que el fondo cubra todo el ancho. */}
-          <header className="sticky -top-4 z-20 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 bg-ink-800 px-4 pb-3 pt-4 sm:-top-6 sm:-mx-6 sm:px-6 sm:pt-6" data-testid="perfil-cabecera-fija">
-            <div className="min-w-0">
-              <h3 className="truncate text-lg font-bold">{profile.customer?.name || customer?.name}</h3>
-              <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
-                {documentValue && <span>{documentValue}</span>}
-                {(phone || profile?.customer?.phone) && <span className="tabular-nums">{telefonoVisible(phone, profile?.customer?.countryCode || customer?.countryCode)}</span>}
-                {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
-                {ciudadCliente && <span className="truncate">{ciudadCliente}</span>}
-              </p>
-              {(profile.customer?.billingName || profile.customer?.billingDocument) && (
-                <p className="mt-1 text-xs text-mute">
-                  Factura a: <b className="text-fore">{profile.customer.billingName || 'Sin razón social'}</b>
-                  {profile.customer.billingDocument ? ` · RUC ${profile.customer.billingDocument}` : ''}
-                </p>
-              )}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge color={mayorista ? 'orange' : 'slate'}>{mayorista ? 'Mayorista' : 'Cliente final'}</Badge>
-                {profile.customer?.taxExempt && <Badge color="blue">Exento de impuestos</Badge>}
-                {profile.customer?.acceptsWhatsappMarketing && <Badge color="green">WhatsApp marketing</Badge>}
-                {profile.customer?.acceptsSmsMarketing && <Badge color="green">SMS marketing</Badge>}
-                {profile.customer?.acceptsEmailMarketing && <Badge color="green">Email marketing</Badge>}
-                {(profile.customer?.tags || []).map((tag) => <Badge key={tag} color="slate">{tag}</Badge>)}
+          <header className="cp-cabecera sticky -top-4 z-20 -mx-4 border-b border-ink-600 bg-ink-800 px-4 pb-2 pt-4 sm:-top-6 sm:-mx-6 sm:px-6 sm:pt-6" data-testid="perfil-cabecera-fija">
+            <div className="cp-cabecera-fila">
+              <Avatar user={{ name: profile.customer?.name || customer?.name }} hasAvatar={false} size="xl" className="cp-avatar" />
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-lg font-bold leading-6">{profile.customer?.name || customer?.name}</h3>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <Badge color={mayorista ? 'orange' : 'slate'}>{mayorista ? 'Mayorista' : 'Cliente final'}</Badge>
+                  {profile.customer?.taxExempt && <Badge color="blue">Exento de impuestos</Badge>}
+                  {profile.customer?.acceptsWhatsappMarketing && <Badge color="green">WhatsApp marketing</Badge>}
+                  {profile.customer?.acceptsSmsMarketing && <Badge color="green">SMS marketing</Badge>}
+                  {profile.customer?.acceptsEmailMarketing && <Badge color="green">Email marketing</Badge>}
+                  {(profile.customer?.tags || []).map((tag) => <Badge key={tag} color="slate">{tag}</Badge>)}
+                </div>
               </div>
-            </div>
-            <span className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirPortal}>
-                <Icon name="external" className="h-4 w-4" />
-                Portal del cliente{esDemo ? '' : ''}
-              </Button>
-              {/* Unificar duplicados (#268): solo dueño/gerencia y fuera de demo. */}
-              {!esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role) && !profile?.customer?.archivedAt && (
-                <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="unificar-cliente-boton" onClick={() => setUnificarAbierto(true)}>
-                  <Icon name="users" className="h-4 w-4" />
-                  Unificar
+              <span className="cp-acciones">
+                {(anterior || siguiente) && (
+                  <span className="cp-flechas" role="group" aria-label="Cliente anterior y siguiente">
+                    <button type="button" className="cp-flecha" aria-label="Cliente anterior" title={anterior ? `Anterior: ${anterior.name}` : 'No hay cliente anterior'} disabled={!anterior} onClick={() => anterior && onNavegar?.(anterior)}>
+                      <Icon name="arrowLeft" className="h-4 w-4" />
+                    </button>
+                    <button type="button" className="cp-flecha" aria-label="Cliente siguiente" title={siguiente ? `Siguiente: ${siguiente.name}` : 'No hay cliente siguiente'} disabled={!siguiente} onClick={() => siguiente && onNavegar?.(siguiente)}>
+                      <Icon name="arrowRight" className="h-4 w-4" />
+                    </button>
+                  </span>
+                )}
+                <Button type="button" variant="outline" className="cp-boton" onClick={abrirPortal}>
+                  <Icon name="external" className="h-4 w-4" />
+                  <span className="max-sm:sr-only">Portal del cliente</span>
                 </Button>
-              )}
-              {phone && (
-                <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">
-                  <WhatsAppMenu
-                    telefono={phone}
-                    countryCode={profile.customer?.countryCode || customer?.countryCode}
-                    category="CUSTOMERS"
-                    storageKey={ULTIMA_PLANTILLA_CLIENTES}
-                    title={profile.customer?.name || customer?.name}
-                    plantillas={esDemo ? DEMO_CUSTOMER_TEMPLATES : undefined}
-                    contexto={{
-                      cliente: profile.customer?.name || customer?.name || '',
-                      nombre: profile.customer?.name || customer?.name || '',
-                      saldo_pendiente: deuda > 0 ? formatGs(deuda) : '',
-                      producto: dispositivos[0]?.model || '',
-                      ultima_compra: ultimaCompra ? fecha(ultimaCompra) : '',
-                    }}
-                  />
-                </span>
-              )}
-            </span>
-            {/* #312: las solapas viven en la zona fija, no al final del
-                resumen: se ven al abrir y al scrollear cualquier pestaña. */}
-            <div className="flex w-full gap-2 overflow-x-auto" role="tablist" aria-label="Secciones de la ficha">
+                {phone && (
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">
+                    <WhatsAppMenu
+                      telefono={phone}
+                      countryCode={profile.customer?.countryCode || customer?.countryCode}
+                      category="CUSTOMERS"
+                      storageKey={ULTIMA_PLANTILLA_CLIENTES}
+                      title={profile.customer?.name || customer?.name}
+                      plantillas={esDemo ? DEMO_CUSTOMER_TEMPLATES : undefined}
+                      contexto={{
+                        cliente: profile.customer?.name || customer?.name || '',
+                        nombre: profile.customer?.name || customer?.name || '',
+                        saldo_pendiente: deuda > 0 ? formatGs(deuda) : '',
+                        producto: dispositivos[0]?.model || '',
+                        ultima_compra: ultimaCompra ? fecha(ultimaCompra) : '',
+                      }}
+                    />
+                  </span>
+                )}
+                <MenuSecundario
+                  direccion="abajo"
+                  soloIconoMovil
+                  acciones={[
+                    { label: 'Ver pedidos', icon: 'receipt', onClick: () => setTab('pedidos') },
+                    { label: 'Ver cronología', icon: 'clock', onClick: () => setTab('cronologia') },
+                    { label: 'Editar datos y notas', icon: 'edit', onClick: () => setTab('datos') },
+                    // Unificar duplicados (#268): solo dueño/gerencia y fuera de demo.
+                    ...(!esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role) && !profile?.customer?.archivedAt
+                      ? [{ separador: true }, { label: 'Unificar con otra ficha', icon: 'users', testId: 'unificar-cliente-boton', onClick: () => setUnificarAbierto(true) }]
+                      : []),
+                  ]}
+                />
+              </span>
+            </div>
+            {/* #312: las solapas viven en la zona fija: se ven al abrir y al
+                scrollear cualquier sección. */}
+            <div className="cp-secciones" role="tablist" aria-label="Secciones de la ficha">
               {TABS.map((item) => (
                 <button
                   key={item.key}
@@ -1300,7 +1310,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   role="tab"
                   aria-selected={tab === item.key}
                   onClick={() => setTab(item.key)}
-                  className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
+                  className="cp-seccion"
                 >
                   {item.label}
                   {tabCounts[item.key] !== undefined && ` (${tabCounts[item.key]})`}
@@ -1325,12 +1335,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
             onMerged={() => { setUnificarAbierto(false); setRevision((actual) => actual + 1) }}
           />
 
-          {tab === 'resumen' && (
-          <>
-          {/* #448: KPI en UNA tira que no se pisa (cada métrica baja la cifra si no entra)
-              y la cronología del cliente: desde cuándo es cliente, su primer y último pedido. */}
+          {/* KPI en UNA línea, siempre arriba (patrón Shopify): se ve en cualquier sección. */}
           <ResumenMetricas
             testId="perfil-kpis"
+            className="cp-kpis"
             items={[
               { titulo: 'Total gastado', valor: formatGs(totalComprado) },
               { titulo: 'Saldo pendiente', valor: formatGs(deuda), tono: deuda > 0 ? 'text-warn' : '', nota: deuda > 0 ? 'Deuda' : 'Al día' },
@@ -1340,6 +1348,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               ...(warranties.length > 0 ? [{ titulo: 'Garantías activas', valor: garantiasActivas }] : []),
             ]}
           />
+          <div className="cp-layout">
+          <div className="cp-principal space-y-5">
+          {tab === 'resumen' && (
+          <>
           <CronologiaCliente
             desde={profile.customer?.createdAt}
             creadoPor={profile.customer?.createdBy?.name || 'Sistema'}
@@ -1364,22 +1376,6 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               <p className="mt-2 text-xs text-mute">Podés avisarle por WhatsApp desde la cabecera de la ficha.</p>
             </div>
           )}
-
-          <div className="grid gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm sm:grid-cols-2 lg:grid-cols-4" data-testid="perfil-datos-clave">
-            <p><span className="text-mute">Antigüedad:</span> <b>{antiguedadTexto(antiguedadDiasFicha)}</b></p>
-            <p><span className="text-mute">RUC:</span> <b>{rucCliente || '—'}</b></p>
-            <p><span className="text-mute">Paga impuestos:</span> <b>{pagaImpuestos ? 'Sí' : 'No (exento)'}</b></p>
-            <p><span className="text-mute">Seguro:</span> <b>{seguroActivo ? `Activo${seguroPct ? ` · ${seguroPct}%` : ' · % de la empresa'}` : 'Inactivo'}</b></p>
-            <p className="min-w-0 truncate sm:col-span-2 lg:col-span-4" title={direccionPrincipal?.address || ''}>
-              <span className="text-mute">Dirección:</span> <b>{direccionPrincipal ? `${direccionPrincipal.address}${direccionPrincipal.city ? ` · ${direccionPrincipal.city}` : ''}` : '—'}</b>
-            </p>
-            <p className="flex flex-wrap items-center gap-1.5 sm:col-span-2 lg:col-span-4">
-              <span className="text-mute">Etiquetas:</span>
-              {(profile.customer?.tags || []).length
-                ? (profile.customer.tags || []).map((tag) => <Badge key={tag} color="slate" className="w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{tag}</Badge>)
-                : <span className="text-mute">Sin etiquetas</span>}
-            </p>
-          </div>
 
           {orders.length > 0 && (
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
@@ -2137,6 +2133,43 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               )}
             </div>
           )}
+          </div>
+          {/* Columna lateral (patrón Shopify): contacto, datos fiscales,
+              direcciones y etiquetas, siempre a la vista. */}
+          <aside className="cp-lateral" aria-label="Datos del cliente">
+            <section className="cp-tarjeta" data-testid="perfil-contacto">
+              <h4 className="cp-tarjeta-titulo">Contacto</h4>
+              <ul className="cp-lista">
+                {(phone || profile?.customer?.phone) ? <li className="tabular-nums">{telefonoVisible(phone, profile?.customer?.countryCode || customer?.countryCode)}</li> : null}
+                {profile.customer?.email ? <li className="truncate" title={profile.customer.email}>{profile.customer.email}</li> : null}
+                {ciudadCliente ? <li className="truncate">{ciudadCliente}</li> : null}
+                {!(phone || profile?.customer?.phone) && !profile.customer?.email && !ciudadCliente ? <li className="text-mute">Sin datos de contacto</li> : null}
+              </ul>
+            </section>
+            <section className="cp-tarjeta" data-testid="perfil-datos-clave">
+              <h4 className="cp-tarjeta-titulo">Datos fiscales y ficha</h4>
+              <div className="cp-datos">
+                {documentValue ? <p><span className="text-mute">CI/RUC del cliente:</span> <b>{documentValue}</b></p> : null}
+                <p><span className="text-mute">Antigüedad:</span> <b>{antiguedadTexto(antiguedadDiasFicha)}</b></p>
+                <p><span className="text-mute">RUC:</span> <b>{rucCliente || '—'}</b></p>
+                {(profile.customer?.billingName || profile.customer?.billingDocument) && (
+                  <p><span className="text-mute">Factura a:</span> <b>{profile.customer.billingName || 'Sin razón social'}</b></p>
+                )}
+                <p><span className="text-mute">Paga impuestos:</span> <b>{pagaImpuestos ? 'Sí' : 'No (exento)'}</b></p>
+                <p><span className="text-mute">Seguro:</span> <b>{seguroActivo ? `Activo${seguroPct ? ` · ${seguroPct}%` : ' · % de la empresa'}` : 'Inactivo'}</b></p>
+                <p className="min-w-0" title={direccionPrincipal?.address || ''}>
+                  <span className="text-mute">Dirección:</span> <b>{direccionPrincipal ? `${direccionPrincipal.address}${direccionPrincipal.city ? ` · ${direccionPrincipal.city}` : ''}` : '—'}</b>
+                </p>
+                <p className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-mute">Etiquetas:</span>
+                  {(profile.customer?.tags || []).length
+                    ? <b>{(profile.customer.tags || []).length} {(profile.customer.tags || []).length === 1 ? 'asignada' : 'asignadas'}</b>
+                    : <span className="text-mute">Sin etiquetas</span>}
+                </p>
+              </div>
+            </section>
+          </aside>
+          </div>
         </div>
       )}
 

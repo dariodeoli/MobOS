@@ -43,7 +43,7 @@ export function siglaProveedor(nombre = '', codigo = '') {
 
 // Color de acento de la marca de la empresa: solo un hex válido; si no hay, el
 // de la app. Es el único color de los papeles (el resto es gris).
-export const ACENTO_POR_DEFECTO = '#0c8876'
+export const ACENTO_POR_DEFECTO = '#047857'
 export function acentoDeEmpresa(tenant = null) {
   const crudo = texto(tenant?.brandColor || tenant?.primaryColor || tenant?.colorMarca)
   if (!/^#[0-9a-f]{6}$/i.test(crudo)) return ACENTO_POR_DEFECTO

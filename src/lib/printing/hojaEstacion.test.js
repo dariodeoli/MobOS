@@ -72,9 +72,9 @@ test('hojas individuales y en serie respetan marca y descartan CSS no válido', 
     assert.ok(!explicita.includes('Empresa actual'))
     for (const brandColor of ['#ffffff', 'red; background:url(x)']) {
       const html = buildStationSheetHtml([], { tenant: { name: 'Segura', brandColor } })
-      assert.match(html, /color:#0c8876/)
+      assert.match(html, /color:#047857/)
       assert.ok(!html.includes('background:url(x)'))
     }
   } finally { fijarEmpresaImpresion({ tenant: null, branch: null }) }
-  assert.match(buildStationSheetHtml([]), /color:#0c8876/)
+  assert.match(buildStationSheetHtml([]), /color:#047857/)
 })

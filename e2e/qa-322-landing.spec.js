@@ -196,11 +196,18 @@ test('la sección de capacidades comunica módulos y deja claras las integracion
     await expect(
       page.locator('.landing-integrations').getByText('EN PREPARACIÓN', { exact: true }),
     ).toBeVisible()
-    const motion = await capacidades.locator('article').first().evaluate((element) => {
+    // Rediseño: las tarjetas ya no llevan la animación propia
+    // (`landing-capability-enter`); aparecen con el reveal por scroll
+    // compartido (`data-reveal` + `is-in`) y conservan la transición sutil de hover.
+    const tarjeta = capacidades.locator('article').first()
+    await tarjeta.scrollIntoViewIfNeeded()
+    await expect(tarjeta).toHaveAttribute('data-reveal', 'true')
+    await expect(tarjeta).toHaveClass(/is-in/)
+    const motion = await tarjeta.evaluate((element) => {
       const styles = getComputedStyle(element)
       return { animationName: styles.animationName, transitionDuration: styles.transitionDuration }
     })
-    expect(motion.animationName, `animación sutil habilitada a ${width}px`).toBe('landing-capability-enter')
+    expect(motion.transitionDuration, `transición de hover habilitada a ${width}px`).not.toBe('0s')
     const anchoDocumento = await page.evaluate(() => document.documentElement.scrollWidth)
     expect(anchoDocumento, `sin desborde horizontal a ${width}px`).toBe(width)
   }

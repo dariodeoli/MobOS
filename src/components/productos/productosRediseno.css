@@ -1,0 +1,81 @@
+/* Rediseño de Productos (solo presentación; lenguaje del prototipo del POS).
+   Estilos propios y acotados a .prod-rediseno / .prod-ficha: no tocan tokens
+   globales ni el catálogo del POS que comparte planilla.css. */
+
+/* Barra única: búsqueda + filtros + orden/vista en una sola tarjeta. */
+.prod-rediseno .prod-barra {
+  padding: 8px;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 12px;
+  background: rgb(var(--c-ink));
+}
+.prod-rediseno .prod-barra form { flex-wrap: nowrap; }
+.prod-rediseno [data-testid='chips-accesorio'] { flex-basis: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; }
+.prod-rediseno [data-testid='chips-accesorio']::-webkit-scrollbar { display: none; }
+.prod-rediseno [data-testid='chips-accesorio'] > button { flex: none; white-space: nowrap; }
+.prod-rediseno [data-testid='chips-accesorio'] > button[aria-pressed='true'] {
+  background: rgb(var(--c-fono) / 0.14);
+  border-color: rgb(var(--c-fono) / 0.5);
+}
+
+/* KPI en una línea; en celular se desplaza sin romper el ancho de página. */
+.prod-rediseno [data-testid='resumen-productos'] { border-radius: 12px; background: rgb(var(--c-ink)); }
+
+/* Tabla: encabezado fijo, filas densas con hover y entrada suave. */
+.prod-rediseno [data-testid='catalogo-tabla'] > div:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgb(var(--c-ink));
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+.prod-rediseno [data-testid='producto-fila'] {
+  transition: background-color .12s ease, border-color .12s ease, transform .12s ease;
+  animation: prod-entra .22s ease both;
+}
+.prod-rediseno [data-testid='catalogo-tabla'] [data-testid='producto-fila']:hover { background-color: rgb(var(--c-fono) / 0.06); }
+.prod-rediseno [data-testid='producto-fila']:focus-visible { outline: 2px solid rgb(var(--c-fono)); outline-offset: 2px; }
+.prod-rediseno button[data-testid='producto-fila']:hover { transform: translateY(-1px); }
+
+/* Ficha del producto: columna principal + lateral derecha desde 1024 px. */
+.prod-ficha__pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -4px 0 8px;
+  font-size: 12px;
+  color: rgb(var(--c-mute));
+}
+.prod-ficha__pager button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--c-ink-600));
+  color: rgb(var(--c-fore));
+  background: transparent;
+}
+.prod-ficha__pager button:hover:not(:disabled) { border-color: rgb(var(--c-fono)); }
+.prod-ficha__pager button:disabled { opacity: .4; cursor: default; }
+.prod-ficha__pager button:focus-visible { outline: 2px solid rgb(var(--c-fono)); outline-offset: 2px; }
+.prod-ficha__resumen > * { min-width: 0; }
+@media (min-width: 1024px) {
+  .prod-ficha__resumen {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .prod-ficha__resumen > * { margin-top: 0 !important; }
+  .prod-ficha__resumen > :first-child { grid-column: 1; grid-row: 1 / span 3; }
+  .prod-ficha__resumen > :not(:first-child) { grid-column: 2; }
+}
+.prod-ficha > section { animation: prod-entra .22s ease both; }
+
+@keyframes prod-entra { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .prod-rediseno [data-testid='producto-fila'], .prod-ficha > section { animation: none; transition: none; }
+  .prod-rediseno button[data-testid='producto-fila']:hover { transform: none; }
+}

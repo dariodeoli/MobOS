@@ -1,3 +1,4 @@
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { openShellProfile, lockShell } from './helpers/shell-navigation.js'
 // Auditoría responsive mobile (pedido de Dario, #249): POS + pantallas clave a
 // 360/390/414 px y tablet (768). Mide scroll horizontal, elementos cortados y
@@ -105,6 +106,7 @@ const CLAVE = {
 // que se salen del viewport (fuera de contenedores scrollables a propósito) y
 // controles interactivos por debajo de 44 px.
 async function auditar(page, claves = []) {
+  await esperarAnimaciones(page)
   return page.evaluate((claves) => {
     const vw = window.innerWidth
     // #337: el contenido de un <details> cerrado conserva layout en Chromium

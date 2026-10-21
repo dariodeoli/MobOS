@@ -872,7 +872,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   // el aviso de quién más lo está viendo. En modo panel, el drawer de siempre.
   if (pagina) {
     return (
-      <div className="ventas-f3 ventas-f3-detail space-y-4" data-testid="pedido-detalle-f3">
+      <div className="ventas-f3 ventas-f3-detail ped-rd space-y-4" data-testid="pedido-detalle-f3">
         <RecordHeader
           backLabel="Pedidos"
           onBack={onClose}
@@ -930,7 +930,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   }
 
   return (
-    <VentanaDetalle open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="ventas-f3 ventas-f3-detail" size="lg">
+    <VentanaDetalle open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="ventas-f3 ventas-f3-detail ped-rd" size="lg">
       {cuerpo}
     </VentanaDetalle>
   )

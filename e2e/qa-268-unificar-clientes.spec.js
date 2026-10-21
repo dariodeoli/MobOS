@@ -45,6 +45,8 @@ test('unificar dos fichas: preview, principal, archivo con puntero y cronología
   const ficha = page.getByRole('dialog')
   await ficha.getByText('Saldo pendiente', { exact: false }).first().waitFor({ timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/02-antes-unificar.png` })
+  // Rediseño de la página de cliente: «Unificar» vive en «Más acciones».
+  await ficha.getByRole('button', { name: 'Más acciones' }).click()
   await ficha.getByTestId('unificar-cliente-boton').click()
   await page.getByTestId('unificar-cliente').getByLabel('Buscar el cliente duplicado').fill(`Unificar B ${marca}`)
   await page.getByTestId('unificar-resultados').getByText(`Unificar B ${marca}`).click()

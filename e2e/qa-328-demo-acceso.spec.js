@@ -37,9 +37,9 @@ for (const tema of ['light', 'dark']) {
     })
     expect(medidas.scrollHeight).toBeLessThanOrEqual(medidas.innerHeight)
     expect(medidas.scrollWidth).toBeLessThanOrEqual(medidas.innerWidth)
-
-    // Descripciones cortas visibles (contrato de la suite #235).
-    await expect(page.getByText('Ventas y clientes.')).toBeVisible()
-    await expect(page.getByText('Operación completa.')).toBeVisible()
+    // Dario (demo con teclado grande): en móvil las tarjetas son chips de una
+    // fila desplazable (rol + PIN); las descripciones quedan para ≥640 px.
+    await expect(page.getByTestId('demo-perfiles')).toBeVisible()
+    await expect(page.getByText('Ventas y clientes.')).toBeHidden()
   })
 }

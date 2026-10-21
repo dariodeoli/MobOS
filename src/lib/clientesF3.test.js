@@ -45,8 +45,9 @@ test('Clientes preserves create/import/export payloads, validation and original 
 
 test('Clientes preserves reviewed fiscal profile and unchanged summary/communication engines', () => {
   for (const [file, expected] of [
+    // Rediseño página de cliente: solo estructura visual (encabezado, KPI, columna lateral); la lógica no cambió.
     // #498: alta/edición fiscal demo y geometría de teclado revisadas; cubierta por ruc498-identidad frontend y demoBillingIdentities.
-    ['CustomerProfile.jsx', 'fc75fbf655aee76c78b754cb12eddff12a13ee3d60498535eadaeafe3c4af427'],
+    ['CustomerProfile.jsx', 'cac0848c8c54153bff96aa49c03384c9771a36f27aea9b83a8d0c48de0476054'],
     ['ClienteResumenPopup.jsx', 'a12e1ed5afa6d281167d0f105f573f3eac7b9d3054e64371a3eb09193163c98a'],
     [
       'CustomerCommunicationCard.jsx',
