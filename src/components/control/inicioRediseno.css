@@ -1,0 +1,55 @@
+/* Rediseño de Inicio (solo presentación, lenguaje del prototipo del POS).
+   Archivo propio: no toca inicioPosF2.css, que comparte el POS. */
+.inicio-saludo { display: grid; gap: 12px; }
+.inicio-saludo__titulo { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.01em; color: rgb(var(--c-fore)); }
+.inicio-saludo__sub { font-size: 13px; color: rgb(var(--c-mute)); }
+.inicio-atajos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.inicio-atajo {
+  display: flex; align-items: center; gap: 12px; min-height: 64px; min-width: 44px; padding: 10px 14px;
+  text-align: left; border-radius: 12px; border: 1px solid rgb(var(--c-ink-600)); background: rgb(var(--c-ink));
+  color: rgb(var(--c-fore)); cursor: pointer;
+  transition: transform .15s ease, border-color .15s ease, background-color .15s ease;
+  animation: inicio-entra .25s ease both;
+}
+.inicio-atajo:nth-child(2) { animation-delay: 40ms; }
+.inicio-atajo:nth-child(3) { animation-delay: 80ms; }
+.inicio-atajo:nth-child(4) { animation-delay: 120ms; }
+.inicio-atajo:hover { border-color: rgb(var(--c-fono)); transform: translateY(-1px); }
+.inicio-atajo:active { transform: translateY(0); }
+.inicio-atajo:focus-visible { outline: 2px solid rgb(var(--c-fono)); outline-offset: 2px; }
+.inicio-atajo__icono { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: rgb(var(--c-fono) / 0.12); color: rgb(var(--c-fono-text, var(--c-fono))); }
+.inicio-atajo[data-principal='true'] { background: rgb(var(--c-fono)); border-color: rgb(var(--c-fono)); color: #fff; }
+.inicio-atajo[data-principal='true'] .inicio-atajo__icono { background: rgb(255 255 255 / 0.2); color: #fff; }
+.inicio-atajo[data-principal='true'] .inicio-atajo__ayuda { color: rgb(255 255 255 / 0.85); }
+.inicio-atajo__texto { display: grid; min-width: 0; }
+.inicio-atajo__titulo { font-size: 16px; font-weight: 700; line-height: 22px; }
+.inicio-atajo__ayuda { font-size: 12px; line-height: 16px; color: rgb(var(--c-mute)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 900px) {
+  .inicio-atajos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inicio-atajo { min-height: 76px; }
+}
+
+/* KPI del día en una línea desde 900 px (cuatro columnas). */
+@media (min-width: 900px) {
+  .inicio-f2 .inicio-kpi-stripe { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inicio-f2 .inicio-kpi-stripe--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inicio-f2 .inicio-kpi + .inicio-kpi { border-left: 1px solid rgb(var(--c-ink-600)); border-top: 0; }
+}
+.inicio-f2 .inicio-kpi-stripe { animation: inicio-entra .3s ease both; }
+
+.inicio-actividad { border: 1px solid rgb(var(--c-ink-600)); border-radius: 12px; background: rgb(var(--c-ink)); padding: 4px 14px 6px; }
+.inicio-actividad__cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.inicio-actividad__cab h3 { font-size: 14px; font-weight: 600; color: rgb(var(--c-fore)); }
+.inicio-actividad__ver { min-height: 44px; padding: 0 4px; font-size: 12px; font-weight: 600; color: rgb(var(--c-fono-text, var(--c-fono))); background: none; border: 0; cursor: pointer; }
+.inicio-actividad__ver:focus-visible { outline: 2px solid rgb(var(--c-fono)); outline-offset: 2px; }
+.inicio-actividad__fila { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; min-height: 44px; padding: 6px 0; border-top: 1px solid rgb(var(--c-ink-600)); font-size: 13px; }
+.inicio-actividad__punto { width: 8px; height: 8px; border-radius: 999px; background: rgb(var(--c-fono)); grid-row: span 2; }
+.inicio-actividad__cliente { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inicio-actividad__detalle { grid-column: 2; font-size: 12px; color: rgb(var(--c-mute)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inicio-actividad__monto { grid-column: 3; grid-row: 1 / span 2; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+@keyframes inicio-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .inicio-atajo, .inicio-f2 .inicio-kpi-stripe { animation: none; transition: none; }
+  .inicio-atajo:hover { transform: none; }
+}

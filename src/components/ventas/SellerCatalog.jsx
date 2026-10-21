@@ -33,6 +33,7 @@ import { useStockDisplay } from '@/hooks/useStockDisplay'
 import { estiloCondicion } from '@/lib/stockDisplay'
 import { familiaCondicion } from '@/lib/planilla'
 import '@/components/stock/planilla.css'
+import '@/components/productos/productosRediseno.css'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -222,13 +223,14 @@ export default function SellerCatalog() {
     toast.success(`${lista.length} producto(s) exportados.`)
   }
 
+  const indiceSeleccion = seleccion ? ordenadas.findIndex((row) => row.id === seleccion.id) : -1
   const enStock = data.rows.filter((fila) => Number(fila.stock) > 0).length
   const agotados = data.rows.length - enStock
   // #352: con costo null (permiso apagado) no se muestra «Valor a costo» en Gs 0.
   const hayCosto = data.rows.some((fila) => (fila.costPyg ?? fila.precioCosto) != null)
   const valorCosto = data.rows.reduce((suma, fila) => suma + Number(fila.costPyg ?? fila.precioCosto ?? 0) * Number(fila.stock || 0), 0)
 
-  return <SellerSection title="Productos"><div data-testid="catalogo-productos" className="min-w-0 space-y-3 max-lg:[&_button]:min-h-11 max-lg:[&_button]:min-w-11">
+  return <SellerSection title="Productos"><div data-testid="catalogo-productos" className="prod-rediseno min-w-0 space-y-3 max-lg:[&_button]:min-h-11 max-lg:[&_button]:min-w-11">
     {/* #256: barra de módulo única (identidad + acciones juntas). */}
     <BarraModulo
       icono="phone"
@@ -256,7 +258,7 @@ export default function SellerCatalog() {
       ]}
     />
 
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="prod-barra flex flex-wrap items-center gap-2" data-testid="productos-barra-filtros">
       <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }}>
         <div className="relative min-w-0 flex-1">
           <SearchField
@@ -325,6 +327,6 @@ export default function SellerCatalog() {
         </div>
       </div>
     </Modal>
-    {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
+    {seleccion && <ProductoDetalle key={seleccion.id} product={seleccion} posicion={indiceSeleccion >= 0 ? `${indiceSeleccion + 1} de ${ordenadas.length}` : undefined} onAnterior={indiceSeleccion > 0 ? () => setSeleccion(ordenadas[indiceSeleccion - 1]) : undefined} onSiguiente={indiceSeleccion >= 0 && indiceSeleccion < ordenadas.length - 1 ? () => setSeleccion(ordenadas[indiceSeleccion + 1]) : undefined} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
   </div></SellerSection>
 }

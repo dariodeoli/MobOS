@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
+import MenuSecundario from '@/components/shared/MenuSecundario'
+import './productosRediseno.css'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import Cronologia from '@/components/shared/Cronologia'
 import MedidorBateria from '@/components/shared/MedidorBateria'
@@ -53,7 +55,7 @@ const esCompraRecibida = (action) => /recibida/i.test(String(action || ''))
 // Detalle premium de un producto: resumen operativo, stock por estado, equipos
 // (IMEI), kardex, precios, compras, historial y edición para administración o
 // gerencia.
-export default function ProductoDetalle({ product, canManage, esDemo, onClose, onChanged, onSell }) {
+export default function ProductoDetalle({ product, canManage, esDemo, onClose, onChanged, onSell, onAnterior, onSiguiente, posicion }) {
   const toast = useToast()
   const [current, setCurrent] = useState(product)
   const { sucursal } = useSesion()
@@ -235,7 +237,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   return (
     <>
       <VentanaDetalle open onClose={onClose} title={nombre(current)} size="xl">
-      <div className="space-y-5">
+      <div className="prod-ficha space-y-5">
         {/* #306: índice de secciones, fijo arriba mientras se recorre la ficha. */}
         <nav className="-mx-4 -mt-4 sticky top-0 z-20 flex gap-1.5 overflow-x-auto border-b border-ink-600 bg-ink-800 px-4 py-2 sm:-mx-5 sm:-mt-5 sm:px-5" role="tablist" aria-label="Secciones del producto" data-testid="producto-secciones">
           {SECCIONES.map((seccion) => (
@@ -253,8 +255,15 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           ))}
         </nav>
 
-        <section id="producto-seccion-resumen" data-testid="producto-seccion-resumen" className="space-y-5">
-          <div className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
+        <section id="producto-seccion-resumen" data-testid="producto-seccion-resumen" className="prod-ficha__resumen space-y-5">
+          <div className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4 prod-ficha__hero">
+            {(onAnterior || onSiguiente) && (
+              <div className="prod-ficha__pager" data-testid="producto-pager">
+                <button type="button" onClick={onAnterior} disabled={!onAnterior || busy} aria-label="Producto anterior" title="Producto anterior" data-testid="producto-anterior"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
+                {posicion && <span aria-live="polite">{posicion}</span>}
+                <button type="button" onClick={onSiguiente} disabled={!onSiguiente || busy} aria-label="Producto siguiente" title="Producto siguiente" data-testid="producto-siguiente"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={current?.condition === 'NEW' ? 'green' : 'orange'}>{CONDITION[current?.condition] || current?.condition || 'Nuevo'}</Badge>
               <Badge color="slate">{categoria(current) || 'Sin categoría'}</Badge>
@@ -280,7 +289,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <Button disabled={busy} onClick={() => onSell?.(current)}>Vender</Button>
               <Button variant="outline" disabled={busy} onClick={() => setEtiquetasOpen(true)}>Etiqueta de precio</Button>
               {canManage && !esDemo && <Button variant="outline" disabled={busy} onClick={() => { if (!editando) irASeccion('precios'); setEditando(value => !value) }}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
-              {canManage && !esDemo && <button type="button" disabled={busy} onClick={desactivar} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad">Desactivar</button>}
+              {canManage && !esDemo && <MenuSecundario direccion="abajo" acciones={[{ icon: 'trash', label: 'Desactivar', disabled: busy, onClick: desactivar }]} />}
             </div>
             {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
           </div>

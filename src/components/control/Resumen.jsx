@@ -1,4 +1,5 @@
 import './inicioPosF2.css'
+import { InicioSaludo, InicioActividad } from './InicioCabecera'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -413,6 +414,8 @@ export default function Resumen() {
   return (
     <div className="inicio-f2 space-y-3">
 
+      <InicioSaludo onIr={navigate} />
+
       {/* ── Encabezado + período ─────────────────────────────────── */}
       <Toolbar
         plano
@@ -495,6 +498,8 @@ export default function Resumen() {
           sub={`${d.ventas} ${d.ventas === 1 ? 'venta' : 'ventas'} en el período`}
         />
       </div>
+
+      <InicioActividad ventas={ventas} prods={prods} onIr={navigate} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <TarjetaGrafico
