@@ -3,7 +3,7 @@ export function customerDisplayName(customer) {
     ? `${customer.givenNames.trim()} ${customer.surnames.trim()}` : customer.name || ''
 }
 export function acceptedCustomerIdentity(form, result) {
-  return { ...form, nameOfficial: result.nameOfficial ?? result.name, document: result.fullRuc || form.document,
+  return { ...form, ...(result.displayName ? { name: result.displayName, displayName: result.displayName } : {}), nameOfficial: result.nameOfficial ?? result.name, document: result.fullRuc || form.document,
     identityKind: '', givenNames: '', surnames: '', personConfirmed: false }
 }
 export function customerIdentityPayload(form) {

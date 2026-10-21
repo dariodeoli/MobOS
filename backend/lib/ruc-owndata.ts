@@ -82,3 +82,16 @@ export async function readBoundedJson(response: Response, signal: AbortSignal): 
     reader.releaseLock()
   }
 }
+
+/** Optional caller-confirmed view. Invalid/missing presentation never invalidates fiscal identity. */
+export function ownDataIndividualPresentation(value: unknown) {
+  if (!record(value) || value.version !== '2' || value.subjectKind !== 'individual'
+    || value.classificationSource !== 'caller_confirmed' || !Array.isArray(value.methods)
+    || value.methods.length !== 1 || value.methods[0] !== 'full'
+    || !['parsed', 'partial', 'ambiguous', 'not_applicable'].includes(String(value.status))
+    || !record(value.values)) return undefined
+  const full = value.values.full
+  if (full !== null && (typeof full !== 'string' || !full.trim() || full.length > 2000)) return undefined
+  return { version: '2' as const, methods: ['full'], subjectKind: 'individual' as const,
+    classificationSource: 'caller_confirmed' as const, values: { full: full as string | null } }
+}

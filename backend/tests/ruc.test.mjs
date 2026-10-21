@@ -15,7 +15,7 @@ function load(path, modules) {
   const source = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText
-  runInNewContext(source, { exports, process, URL, Response, Headers, AbortSignal, TextDecoder, setTimeout, clearTimeout,
+  runInNewContext(source, { exports, process, URL, URLSearchParams, Response, Headers, AbortSignal, TextDecoder, setTimeout, clearTimeout,
     require: name => Object.hasOwn(modules, name) ? modules[name] : require(name) })
   return exports
 }
@@ -25,6 +25,9 @@ const metadata = require('../lib/ruc-owndata.ts')
 const ruc = load('../lib/ruc.ts', { './prisma': { prisma: {} }, './auth': auth,
   './ruc-owndata': metadata, './sifen/cdc': require('../lib/sifen/cdc.ts') })
 const savedEnvironment = { ...process.env }
+delete process.env.OWNDATA_API_KEY
+delete process.env.OWNDATA_API_ORIGIN
+process.env.NODE_ENV = 'test'
 process.env.RUC_API_KEY = 'test-only-key-never-a-real-credential'
 const official = '  APELLIDO, NOMBRE; S.A.  ' + 'X'.repeat(300) + '  '
 const providerPayload = (overrides = {}) => ({
@@ -95,6 +98,45 @@ try {
   }
   if (oldAccountLimit === undefined) delete process.env.RUC_ACCOUNT_HOURLY_LIMIT; else process.env.RUC_ACCOUNT_HOURLY_LIMIT = oldAccountLimit
 
+  const presentedPayload = () => ({ ...providerPayload(), namePresentation: {
+    version: '2', methods: ['full'], subjectKind: 'individual', classificationSource: 'caller_confirmed',
+    status: 'parsed', values: { full: 'NOMBRE APELLIDO' }, secret: process.env.RUC_API_KEY,
+  } })
+  let nameRequest
+  const named = await ruc.lookupRuc('80012345', { subjectKind: 'individual', fetchImpl: async url => { nameRequest = new URL(url); return Response.json(presentedPayload()) } })
+  assert.equal(nameRequest.search, '?nameMethods=full&subjectKind=individual'); checks++
+  assert.equal(named.namePresentation.values.full, 'NOMBRE APELLIDO'); checks++
+  assert.equal(named.result.nameOfficial, official); checks++
+  ok(!JSON.stringify(named).includes(process.env.RUC_API_KEY), 'presentation never includes unknown secrets')
+  const unconfirmed = await ruc.lookupRuc('80012345', { fetchImpl: async url => { assert.equal(new URL(url).search, ''); return Response.json(presentedPayload()) } })
+  assert.equal(unconfirmed.namePresentation, undefined); checks++
+  for (const mutate of [p => { delete p.namePresentation }, p => { p.data.namePresentation = p.namePresentation; delete p.namePresentation },
+    p => { p.namePresentation.subjectKind = 'legal_entity' }, p => { p.namePresentation.classificationSource = 'unverified' },
+    p => { p.namePresentation.values.full = 42 }, p => { p.namePresentation.values.full = '' }]) {
+    const payload = presentedPayload(); mutate(payload)
+    const fallback = await ruc.lookupRuc('80012345', {subjectKind:'individual',fetchImpl:async()=>Response.json(payload)})
+    assert.equal(fallback.namePresentation, undefined); assert.equal(fallback.result.nameOfficial, official); checks++
+  }
+  const noView = presentedPayload(); noView.namePresentation.values.full = null
+  assert.equal((await ruc.lookupRuc('80012345',{subjectKind:'individual',fetchImpl:async()=>Response.json(noView)})).namePresentation.values.full,null); checks++
+  for (const query of ['subjectKind=company','subjectKind=individual&subjectKind=individual']) { assert.throws(()=>ruc.rucSubjectKind(new URLSearchParams(query)),e=>e.code==='INVALID_NAME_OPTIONS'); checks++ }
+  assert.equal(ruc.rucSubjectKind(new URLSearchParams('subjectKind=individual')),'individual'); checks++
+  process.env.OWNDATA_API_KEY='od_live_TEST_ONLY_NOT_A_REAL_KEY'
+  process.env.OWNDATA_API_ORIGIN='https://app.controlaria.online'
+  const livePayload=providerPayload(); livePayload.meta.environment='live'
+  await ruc.lookupRuc('80012345',{fetchImpl:async(_url,init)=>{assert.equal(init.headers['X-API-Key'],process.env.OWNDATA_API_KEY);return Response.json(livePayload)}}); checks++
+  await assert.rejects(()=>ruc.lookupRuc('80012345',{fetchImpl:async()=>Response.json(providerPayload())}),e=>e.code==='provider_invalid'); checks++
+  for(const origin of ['http://app.controlaria.online','https://evil.invalid','https://user:password@app.controlaria.online','https://app.controlaria.online/path','https://app.controlaria.online/?x=1']) {
+    process.env.OWNDATA_API_ORIGIN=origin
+    await assert.rejects(()=>ruc.lookupRuc('80012345',{fetchImpl:async()=>{throw new Error('must not fetch')}}),e=>e.code==='provider_not_configured'); checks++
+  }
+  delete process.env.OWNDATA_API_ORIGIN
+  process.env.OWNDATA_API_KEY='od_test_TEST_ONLY_NOT_A_REAL_KEY';process.env.NODE_ENV='production'
+  await assert.rejects(()=>ruc.lookupRuc('80012345',{fetchImpl:async()=>{throw new Error('must not fetch')}}),e=>e.code==='provider_not_configured'); checks++
+  delete process.env.OWNDATA_API_KEY;process.env.NODE_ENV='test'
+  for (const [code,status] of [['PLAN_REQUIRED',403],['INSUFFICIENT_SCOPE',403],['REGISTERED_RUC_NOT_FOUND',404],['DAILY_QUOTA_REACHED',429],['COMMERCIAL_API_DISABLED',503]]) {
+    await assert.rejects(()=>ruc.lookupRuc('80012345',{fetchImpl:async()=>Response.json({error:{code,message:process.env.RUC_API_KEY}},{status,headers:{'Retry-After':'17'}})}),e=>e.code===code && e.status===status && (status!==429 || e.retryAfterSeconds===17) && !e.message.includes(process.env.RUC_API_KEY)); checks++
+  }
   let requested = ''
   const result = await ruc.lookupRuc('80.012.345-0', { fetchImpl: async (url, init) => {
     requested = String(url)
@@ -128,7 +170,7 @@ try {
     await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(payload) }), e => e.code === 'provider_invalid'); checks++
   }
   for (const [code, status] of [['COMMERCIAL_API_DISABLED',503],['API_KEY_EXPIRED',401],['API_KEY_REVOKED',401],['API_KEY_INVALID',401]]) {
-    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json({error:{code,message:process.env.RUC_API_KEY}}, {status}) }), e => e.code === code && e.status === (status === 401 ? 503 : status) && !e.message.includes(process.env.RUC_API_KEY)); checks++
+    await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json({error:{code,message:process.env.RUC_API_KEY}}, {status}) }), e => e.code === code && e.status === status && !e.message.includes(process.env.RUC_API_KEY)); checks++
   }
   for (const overrides of [{equivalenceRaw: process.env.RUC_API_KEY}, {sourcePartition: process.env.RUC_API_KEY}]) {
     await assert.rejects(() => ruc.lookupRuc('80012345', { fetchImpl: async () => Response.json(providerPayload(overrides)) }), e => e.code === 'provider_invalid'); checks++

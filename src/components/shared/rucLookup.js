@@ -17,7 +17,7 @@ export function parseRucInput(value) {
   return { base, dv, query, fullRuc: `${base}-${dv}` }
 }
 
-export function admitRucResponse(payload, identity, demo = false) {
+export function admitRucResponse(payload, identity, demo = false, individualConfirmed = false) {
   const result = demo ? payload : payload?.result
   if (!identity || !result || typeof result !== 'object' || Array.isArray(result)) return null
   const nameOfficial = demo ? result.name : result.nameOfficial
@@ -30,8 +30,14 @@ export function admitRucResponse(payload, identity, demo = false) {
     || ('equivalenceRaw' in result && typeof result.equivalenceRaw !== 'string')
     || ('sourcePartition' in result && (!Number.isInteger(result.sourcePartition) || result.sourcePartition < 0 || result.sourcePartition > 9))
     || result.simulado === true) return null
-  // Compatibility name is an exact alias, never a display-name transformation.
-  return { name: nameOfficial, nameOfficial, ruc: result.ruc, dv: result.dv, fullRuc: result.fullRuc,
+  const presentation = payload?.namePresentation
+  const full = presentation?.values?.full
+  const displayName = individualConfirmed && !demo && presentation?.version === '2'
+    && presentation.subjectKind === 'individual' && presentation.classificationSource === 'caller_confirmed'
+    && Array.isArray(presentation.methods) && presentation.methods.length === 1 && presentation.methods[0] === 'full'
+    && typeof full === 'string' && full.trim() && full.length <= 2000 ? full : nameOfficial
+  // Fiscal identity remains source-preserving; presentation is explicitly separate.
+  return { name: displayName, nameOfficial, ...(displayName !== nameOfficial ? { displayName } : {}), ruc: result.ruc, dv: result.dv, fullRuc: result.fullRuc,
     ...(typeof result.equivalenceRaw === 'string' ? { equivalenceRaw: result.equivalenceRaw } : {}),
     ...(typeof result.sourcePartition === 'number' ? { sourcePartition: result.sourcePartition } : {}),
     ...(demo ? { simulado: true } : {}),
@@ -61,6 +67,7 @@ export function createRucRequestGuard() {
             && scope.disabled === currentScope.disabled
             && scope.lookupDisabled === currentScope.lookupDisabled
             && scope.visible === currentScope.visible
+            && scope.individualConfirmed === currentScope.individualConfirmed
         },
       }
     },

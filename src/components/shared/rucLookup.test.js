@@ -149,3 +149,21 @@ test('component source keeps uncached internal transport and acceptance-only cal
   assert.match(source, /onDescartar=\{\(\) => guard\.current\.cancel\(\)\}/)
   assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
 })
+
+test('explicit individual presentation is root-only and never replaces official identity', () => {
+  const identity = parseRucInput('80012345-0')
+  const payload = { query: {normalized:identity.query,fullRuc:identity.fullRuc}, reviewRequired:true,source:{provider:'OwnData'},
+    result:{ruc:identity.base,dv:identity.dv,fullRuc:identity.fullRuc,nameOfficial:'APELLIDO, NOMBRE'},
+    namePresentation:{version:'2',methods:['full'],subjectKind:'individual',classificationSource:'caller_confirmed',values:{full:'NOMBRE APELLIDO'}} }
+  assert.equal(admitRucResponse(payload,identity,false,false).name,'APELLIDO, NOMBRE')
+  const admitted=admitRucResponse(payload,identity,false,true)
+  assert.equal(admitted.displayName,'NOMBRE APELLIDO')
+  assert.equal(admitted.nameOfficial,'APELLIDO, NOMBRE')
+  for(const mutate of [p=>{p.namePresentation.values.full=null},p=>{p.namePresentation.subjectKind='legal_entity'},p=>{p.namePresentation.classificationSource='unverified'},p=>{p.result.namePresentation=p.namePresentation;delete p.namePresentation}]){
+    const copy=structuredClone(payload);mutate(copy)
+    assert.equal(admitRucResponse(copy,identity,false,true).name,'APELLIDO, NOMBRE')
+  }
+  const guard=createRucRequestGuard();const original={query:'80012345',individualConfirmed:false}
+  const request=guard.begin(original)
+  assert.equal(request.isCurrent({...original,individualConfirmed:true}),false)
+})

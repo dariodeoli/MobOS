@@ -3,9 +3,9 @@ import { prisma } from './prisma'
 import { hashToken } from './auth'
 import type { AuthAttemptStore } from './auth'
 import { digitoVerificadorModulo11 } from './sifen/cdc'
-import { ownDataMetadata, readBoundedJson } from './ruc-owndata'
+import { ownDataMetadata, ownDataIndividualPresentation, readBoundedJson } from './ruc-owndata'
 
-const PROVIDER_BASE_URL = 'https://app.controlaria.online/api/v1/ruc/'
+const PROVIDER_ORIGIN = 'https://app.controlaria.online'
 const HOUR_MS = 60 * 60 * 1000
 const MONTH_MS = 31 * 24 * HOUR_MS
 
@@ -99,14 +99,35 @@ function unavailable(code = 'provider_unavailable') {
   return new RucLookupError(code, 'La consulta RUC no está disponible. Complete o revise los datos manualmente.', 503)
 }
 
-export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fetch; now?: Date; rejectSimulated?: boolean } = {}) {
+/** New server variables take precedence; legacy key remains a migration bridge. */
+export function ownDataConfiguration() {
+  const key = (process.env.OWNDATA_API_KEY ?? process.env.RUC_API_KEY)?.trim()
+  if (!key || /[\r\n]/.test(key)) throw unavailable('provider_not_configured')
+  let origin: URL
+  try { origin = new URL(process.env.OWNDATA_API_ORIGIN ?? PROVIDER_ORIGIN) } catch { throw unavailable('provider_not_configured') }
+  // Credentials must only be sent to the official provider, never an arbitrary ENV host.
+  if (origin.origin !== PROVIDER_ORIGIN || origin.pathname !== '/' || origin.search || origin.hash || origin.username || origin.password) throw unavailable('provider_not_configured')
+  const environment = key.startsWith('od_live_') ? 'live' : key.startsWith('od_test_') ? 'test' : undefined
+  if (process.env.NODE_ENV === 'production' && environment !== 'live') throw unavailable('provider_not_configured')
+  return { key, origin: origin.origin, environment }
+}
+
+export function rucSubjectKind(params: URLSearchParams): 'individual' | undefined {
+  const values = params.getAll('subjectKind')
+  if (!values.length) return undefined
+  if (values.length !== 1 || values[0] !== 'individual') throw new RucLookupError('INVALID_NAME_OPTIONS', 'Confirmá explícitamente si consultás una persona o completá los datos manualmente.', 400)
+  return 'individual'
+}
+
+export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fetch; now?: Date; rejectSimulated?: boolean; subjectKind?: 'individual' } = {}) {
   const query = normalizeRuc(input)
-  const key = process.env.RUC_API_KEY?.trim()
-  if (!key) throw unavailable('provider_not_configured')
+  const { key, origin, environment } = ownDataConfiguration()
+  const url = new URL(`/api/v1/ruc/${encodeURIComponent(query.lookup)}`, origin)
+  if (options.subjectKind === 'individual') { url.searchParams.set('nameMethods', 'full'); url.searchParams.set('subjectKind', 'individual') }
   const signal = AbortSignal.timeout(8_000)
   let response: Response
   try {
-    response = await (options.fetchImpl || fetch)(`${PROVIDER_BASE_URL}${encodeURIComponent(query.lookup)}`, {
+    response = await (options.fetchImpl || fetch)(url.toString(), {
       method: 'GET', headers: { Accept: 'application/json', 'X-API-Key': key },
       signal, cache: 'no-store', redirect: 'error', credentials: 'omit',
     })
@@ -129,9 +150,14 @@ export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fe
     if (typeof code === 'string' && Object.hasOwn(safeCodes, code) && safeCodes[code] === response.status) {
       const retry = response.headers.get('Retry-After')
       const seconds = response.status === 429 && retry && /^\d+$/.test(retry) && Number.isSafeInteger(Number(retry)) && Number(retry) > 0 ? Number(retry) : undefined
-      // Provider credentials belong to this server; a failure must not invalidate the MobOS session.
-      const status = response.status === 401 || response.status === 403 ? 503 : response.status
-      throw new RucLookupError(code, 'No se pudo consultar el RUC. Complete o revise los datos manualmente.', status, seconds)
+      const message = response.status === 401 ? 'La credencial de OwnData requiere revisión en la configuración del servidor. Podés completar los datos manualmente.'
+        : code === 'PLAN_REQUIRED' ? 'OwnData requiere un plan activo para esta consulta. Podés completar los datos manualmente.'
+        : code === 'INSUFFICIENT_SCOPE' ? 'La credencial de OwnData no tiene permiso para consultar RUC. Podés completar los datos manualmente.'
+        : code === 'COMMERCIAL_API_DISABLED' ? 'La API comercial de OwnData requiere activación. Podés completar los datos manualmente.'
+        : response.status === 404 ? 'No encontramos ese RUC. Verificá el número o completá los datos manualmente.'
+        : response.status === 429 ? 'Se alcanzó la cuota de OwnData. Podés completar los datos manualmente o consultar más tarde.'
+        : 'No se pudo consultar OwnData. Complete o revise los datos manualmente.'
+      throw new RucLookupError(code, message, response.status, seconds)
     }
     if (response.status === 429) {
       const retry = response.headers.get('Retry-After')
@@ -154,14 +180,16 @@ export async function lookupRuc(input: unknown, options: { fetchImpl?: typeof fe
     || ('equivalenceRaw' in data && typeof data.equivalenceRaw !== 'string')
     || ('sourcePartition' in data && (!Number.isInteger(data.sourcePartition) || (data.sourcePartition as number) < 0 || (data.sourcePartition as number) > 9))) throw unavailable('provider_invalid')
   const meta = ownDataMetadata(payload.meta)
-  if (!meta.environment || !meta.quota || !meta.provenance) throw unavailable('provider_invalid')
+  if (!meta.environment || (environment && meta.environment !== environment) || !meta.quota || !meta.provenance) throw unavailable('provider_invalid')
   const result = {
     name: data.nameOfficial, nameOfficial: data.nameOfficial,
     ruc: base, dv, fullRuc: `${base}-${dv}`,
     ...(typeof data.equivalenceRaw === 'string' ? { equivalenceRaw: data.equivalenceRaw } : {}),
     ...(typeof data.sourcePartition === 'number' ? { sourcePartition: data.sourcePartition } : {}),
   }
+  const namePresentation = options.subjectKind === 'individual' ? ownDataIndividualPresentation(payload.namePresentation) : undefined
   const lookup = {
+    ...(namePresentation ? { namePresentation } : {}),
     query: { normalized: query.lookup, fullRuc: result.fullRuc }, result, reviewRequired: true,
     source: { provider: 'OwnData', queriedAt: (options.now || new Date()).toISOString() },
     ...(typeof payload.requestId === 'string' && /^req_[0-9a-f]{24}$/.test(payload.requestId) ? { requestId: payload.requestId } : {}),

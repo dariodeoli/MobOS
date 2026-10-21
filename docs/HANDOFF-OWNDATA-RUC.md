@@ -170,3 +170,17 @@ Rollback boundary: remove only this follow-up's ID allowlist/select/test/documen
 `status: complete` for this bounded offline fix only. `skill_resolution: paths-injected`.
 
 Loaded before work: `/Users/dariodeoli/.codex/plugins/cache/claude-cowork/engineering/1.2.0/skills/code-review/SKILL.md`, `/Users/dariodeoli/.codex/skills/work-unit-commits/SKILL.md`, `/Users/dariodeoli/.codex/skills/memory/SKILL.md`, and repository AGENTS.md. Direct delegated executor work; no SDD artifacts or review transaction was created.
+
+## Actualización #663 — contrato y configuración
+
+Esta sección actualiza las instrucciones anteriores de configuración y HTTP401/403; conserva los controles de acceso del piloto.
+
+La configuración recomendada del **backend** es `OWNDATA_API_ORIGIN=https://app.controlaria.online` y `OWNDATA_API_KEY` mediante el gestor privado de secretos. `OWNDATA_API_KEY` tiene prioridad sobre `RUC_API_KEY`; este último queda únicamente como compatibilidad migratoria. Un valor nuevo vacío no cae silenciosamente a la clave anterior. El origen está restringido al HTTPS oficial, sin ruta, query, usuario ni contraseña; no se aceptan hosts arbitrarios ni redirects. No publicar estas variables como `VITE_*`, HTML o configuración móvil. No registrar valores ni usar URLs con credenciales.
+
+El prefijo `od_live_`/`od_test_` determina el ambiente esperado y debe coincidir con `meta.environment`. Producción exige credencial Live; una clave test o sin prefijo reconocido falla cerrada antes de consultar. Desarrollo permite test. La activación real, alcance `ruc:read`, vigencia, cuota y plan se verifican operacionalmente con el integrador, sin crear ni rotar claves desde este cambio. Configurar una variable no prueba activación ni entrega real.
+
+El usuario puede confirmar explícitamente que consulta una persona. Sólo entonces MobOS envía `nameMethods=full&subjectKind=individual` en la misma consulta, sin consulta extra ni retry. Se admite únicamente `namePresentation` de la raíz con versión2, método full, subjectKind individual y classificationSource caller_confirmed; `values.full` es una presentación opcional. Ausencia, null o presentación no válida conservan `data.nameOfficial`, sin inferir persona ni reordenar texto. El nombre fiscal permanece intacto; el nombre presentado se aplica por separado sólo al confirmar “Usar estos datos”. Cambiar la opción invalida una propuesta pendiente. Empresas y consultas sin confirmación conservan el nombre oficial.
+
+Los errores conocidos de credencial mantienen HTTP401 y PLAN_REQUIRED/INSUFFICIENT_SCOPE mantienen403, con código seguro y `details.provider=OwnData` en la ruta privada. Exclusivamente GET `/api/ruc`, código permitido y marcador exacto preservan los snapshots de MobOS; un401 propio, cuerpo inválido o error de otra ruta sigue invalidando el contexto privado. No se exponen textos internos del proveedor. 404 permite entrada manual;429 conserva Retry-After;503 diferencia activación/configuración de un resultado inválido. Auth, piloto, origen, cuotas persistidas, reloj PostgreSQL y fail-closed continúan vigentes.
+
+Verificación de operación pendiente: comprobar presencia de ENV sin valores, clave Live activa y respuesta live, luego extraer desde formulario autenticado sin cookies de OwnData. Revisar la propuesta y descartarla sin guardar datos de negocio. Registrar SHA desplegado, resultado HTTP/código seguro y ausencia de duplicados; un error de activación o credencial es configuración, no parser. La actualización no migra bases ni cambia Redis, TLS o proxies.
