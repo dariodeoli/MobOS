@@ -286,9 +286,12 @@ for (const width of [430, 768, 1440]) {
     await expect(perspectivas).toBeVisible()
     await perspectivas.getByTestId('demo-perspectivas-toggle').click()
     await expect(page.getByTestId('demo-vista-dueno')).toBeVisible()
-    await page.evaluate(() => { sessionStorage.clear(); localStorage.clear() })
-    await page.goto('/demo')
-    await page.getByRole('button', { name: /Entrar como Técnico/ }).click()
+    // Esc cierra el desplegable.
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('demo-ver-como-menu')).toBeHidden()
+    // Dueño -> Técnico dentro de la demo (2 toques), sin volver a la entrada.
+    await perspectivas.getByTestId('demo-perspectivas-toggle').click()
+    await page.getByTestId('demo-vista-tecnico').click()
     await expect(page).toHaveURL(/\/servicio$/)
     const tecnicoPerspectivas = page.getByTestId('demo-perspectivas')
     await expect(tecnicoPerspectivas).toBeVisible()
@@ -591,7 +594,9 @@ test('la entrada /demo no duplica la guía y el PIN está siempre a la vista (#2
   await expect(page.getByText('Ventas y clientes.')).toBeVisible()
   await expect(page.getByText('Operación completa.')).toBeVisible()
 
-  // "Ingresar otro PIN" está abierto: el campo se ve sin desplegar nada.
+  // "Ingresar otro PIN" queda plegado: se despliega con un toque.
+  await expect(page.locator('#demo-pin')).toBeHidden()
+  await page.getByTestId('demo-pin-toggle').click()
   const pin = page.locator('#demo-pin')
   await expect(pin).toBeVisible()
   mkdirSync('test-results/qa-235', { recursive: true })

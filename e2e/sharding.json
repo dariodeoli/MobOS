@@ -116,6 +116,7 @@
         "demo-anonimo.spec.js",
         "demo-finanzas-anonimo.spec.js",
         "demo-finanzas.spec.js",
+        "demo-ver-como.spec.js",
         "documentos-no-fiscales.spec.js",
         "dsn-241-dominios.spec.js",
         "finanzas-caja.spec.js",

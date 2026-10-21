@@ -83,6 +83,7 @@ for (const [width, height] of [[375, 667], [390, 844]]) {
 
 test('entrada demo 390: el código no se superpone con el resto', async ({ page }) => {
   await entrarDemo(page, 390, 844)
+  await page.getByTestId('demo-pin-toggle').click()
   await expect(page.locator('#demo-pin')).toBeVisible()
   const solapes = await sinSolapes(page, ['[data-testid="pin-segmentado"]', '#demo-pin-status', 'label[for="demo-pin"]'])
   expect(solapes).toEqual([])
