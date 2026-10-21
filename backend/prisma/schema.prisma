@@ -23,6 +23,10 @@ model Tenant {
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   memberships         TenantMembership[]
+  mcpGrants           McpClientGrant[]
+  mcpAuthorizationCodes McpAuthorizationCode[]
+  mcpAccessTokens     McpAccessToken[]
+  mcpChangePreviews   McpChangePreview[]
   promotions          Promotion[]
   logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
@@ -208,6 +212,9 @@ model Account {
   memberships   TenantMembership[]
   sessions      Session[]
   appleIdentities AppleIdentity[]
+  mcpGrants           McpClientGrant[]
+  mcpAuthorizationCodes McpAuthorizationCode[]
+  mcpAccessTokens     McpAccessToken[]
 }
 
 enum MembershipRole {
@@ -423,6 +430,8 @@ model User {
 
   orders                         Order[]
   auditLogs                      AuditLog[]
+  mcpChangePreviews              McpChangePreview[]
+  mcpGrants                      McpClientGrant[]
   uploadedPaymentProofs          PaymentProof[]          @relation("PaymentProofUploader")
   attachmentsCreated             Attachment[]            @relation("AttachmentCreatedBy")
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
@@ -549,6 +558,7 @@ model Session {
   reauthenticatedAt DateTime?
   createdAt  DateTime     @default(now())
   lastSeenAt DateTime     @default(now())
+  mcpAccessTokens McpAccessToken[]
 
   @@index([tenantId, userId])
   @@index([expiresAt])
@@ -2612,6 +2622,104 @@ model SuspendedSale {
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, userId])
   @@index([tenantId, branchId, resumedAt])
+}
+
+
+// Consentimientos y tokens MCP. Se almacenan solo hashes de secretos; todo
+// acceso externo conserva el tenant, la cuenta y la sesión que lo aprobaron.
+model McpClientGrant {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  redirectUri String
+  resource    String
+  scopes      String[]
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  codes       McpAuthorizationCode[]
+  tokens      McpAccessToken[]
+  @@unique([accountId, tenantId, userId, clientId, redirectUri])
+  @@index([tenantId, clientId, revokedAt])
+}
+
+model McpAuthorizationCode {
+  id            String   @id @default(cuid())
+  codeHash      String   @unique
+  grantId       String
+  grant         McpClientGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId     String
+  userId        String
+  clientId      String
+  redirectUri   String
+  resource      String
+  scopes        String[]
+  codeChallenge String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime @default(now())
+  @@index([grantId, expiresAt, usedAt])
+  @@index([tenantId, clientId])
+}
+
+model McpAccessToken {
+  id               String   @id @default(cuid())
+  tokenHash        String   @unique
+  refreshTokenHash String?  @unique
+  grantId          String
+  grant            McpClientGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  accountId        String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId        String
+  userId           String
+  clientId         String
+  resource         String
+  scopes           String[]
+  expiresAt        DateTime
+  refreshExpiresAt DateTime?
+  revokedAt        DateTime?
+  rotatedAt        DateTime?
+  createdAt        DateTime @default(now())
+  lastUsedAt       DateTime?
+  session          Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([tenantId, clientId, revokedAt])
+  @@index([sessionId, revokedAt])
+}
+
+// Short-lived, tenant and user bound mutation previews for MCP connectors.
+// A preview is never an implicit write: commit must present the same payload
+// hash and an unexpired, uncommitted id.
+model McpChangePreview {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action       String
+  payloadHash  String
+  payload      Json
+  before       Json?
+  after        Json?
+  idempotencyKey String
+  status       String   @default("PREVIEW")
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  committedAt  DateTime?
+  resultEntity String?
+  resultId     String?
+  @@unique([tenantId, userId, idempotencyKey])
+  @@index([tenantId, userId, status, expiresAt])
 }
 
 model AuditLog {
