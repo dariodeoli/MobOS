@@ -734,7 +734,7 @@ export default function PanelVendedor() {
           const esperado = usuario?.pin || (esOwner ? '3001' : '2001')
           if (pinIntento !== esperado) throw new Error('PIN inválido. Probá de nuevo.')
         } else {
-          await sessionApi.loginSeller({ sellerId: sesion?.vendedorId, pin: pinIntento }, { signal })
+          await sessionApi.unlockSeller(pinIntento, usuario, { signal })
         }
       }, {
         alIniciar: () => { setLockBusy(true); setLockError('') },
@@ -746,7 +746,7 @@ export default function PanelVendedor() {
         alTerminar: () => setLockBusy(false),
       })
     },
-    [esDemo, esOwner, sesion?.vendedorId, usuario?.pin],
+    [esDemo, esOwner, usuario],
   )
 
   // Face ID opcional (Configuración, solo dueño/admin): se pide ANTES del PIN,
