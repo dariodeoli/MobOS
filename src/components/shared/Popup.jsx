@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, CircleX, Info } from 'lucide-react'
 import { useDialogFocusTrap } from 'owncoding-ui'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useTemaV2 } from '@/lib/temaV2'
 import { DURACION_SALIDA_POPUP, ordenarAcciones, resolverPopup } from './popupReglas'
 import './popup.css'
 
@@ -55,6 +56,7 @@ export default function Popup({
   className,
   testId,
 }) {
+  const temaV2 = useTemaV2()
   const [descartando, setDescartando] = useState(false)
   const [pie, setPie] = useState(null)
   const pendientes = useRef(crearRegistro()).current
@@ -119,8 +121,9 @@ export default function Popup({
   const Icono = tipo === 'aviso' ? ICONOS_AVISO[tono] || Info : null
   const nodo = (
     <div
-      className="popup-fondo fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4"
+      className={cn('popup-fondo fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4', temaV2 && 'tema-v2')}
       data-saliendo={saliendo || undefined}
+      aria-hidden={saliendo || undefined}
       onMouseDown={e => e.target === e.currentTarget && requestClose()}
     >
       <div

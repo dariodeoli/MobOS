@@ -5,6 +5,7 @@
 // confirmación cuando hay cambios sin guardar. Capturas claro/oscuro/móvil.
 
 import { test, expect } from '@playwright/test'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { mkdirSync } from 'node:fs'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 
@@ -90,6 +91,7 @@ test.describe('#323 modal estándar en impresión', () => {
     await entrarDemo(page)
     const modal = await abrirFormulario(page)
 
+    await esperarAnimaciones(page) // la hoja móvil termina de subir antes de medir
     // El pie está fijo: la acción primaria se ve aunque el cuerpo scrollee.
     const primaria = modal.getByRole('button', { name: 'Guardar impresora' })
     await expect(primaria).toBeVisible()
