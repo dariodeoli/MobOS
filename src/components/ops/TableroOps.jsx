@@ -10,6 +10,7 @@ import { Aviso, BarraProgreso, Button, Skeleton } from '@/components/ui'
 import { CELDA_DATO, CELDA_IDENTIDAD, ROTULO_SECCION } from '@/components/shared/tabla'
 import { ETIQUETA_RACK, ORDEN_RACK } from '@/lib/tallerRack'
 import { cn } from '@/lib/utils'
+import '@/components/shared/operacionRediseno.css'
 
 // Tablero ops F3 (#241). Lo comparten las dos caras detrás del flag:
 // - modo `preview` (`/ops-preview`): mock sin API, para la aprobación del piloto.
@@ -47,7 +48,7 @@ export default function TableroOps({
   const esPreview = modo === 'preview'
   const vacio = cargando && !kpis.length
   return (
-    <main className="v2-piloto min-h-dvh bg-paper px-4 py-6 text-fore sm:px-8" data-testid={esPreview ? 'ops-preview' : 'ops-tablero'}>
+    <main className="op-rd v2-piloto min-h-dvh bg-paper px-4 py-6 text-fore sm:px-8" data-testid={esPreview ? 'ops-preview' : 'ops-tablero'}>
       <div className="mx-auto max-w-6xl space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -115,6 +116,8 @@ export default function TableroOps({
           )
         })()}
 
+        <div className="op-rd-page">
+        <div className="op-rd-main">
         <section className="rounded-2xl border border-ink-600 bg-ink p-4" aria-label="Equipos en proceso">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">Equipos en proceso</h2>
@@ -163,7 +166,9 @@ export default function TableroOps({
           </div>
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-3" aria-label="Colas de trabajo">
+        </div>
+        <div className="op-rd-side">
+        <section className="grid gap-3" aria-label="Colas de trabajo">
           {vacio
             ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)
             : colas.map((cola) => (
@@ -185,6 +190,8 @@ export default function TableroOps({
               </article>
             ))}
         </section>
+        </div>
+        </div>
 
         <p className="text-center text-xs text-mute">
           {esPreview

@@ -188,14 +188,14 @@ test('los modales de CRM adoptan cierre con cambios, error junto al campo y resu
   const delivery = leer('../components/delivery/StoreDelivery.jsx')
   assert.ok(delivery.includes('dirty={Boolean(rechazar)'), 'rechazar la rendición confirma al cerrar con motivo')
   assert.ok(delivery.includes("error={errorDe('motivo')}"), 'el motivo de la rendición va junto al campo')
-  assert.ok(delivery.includes('<SaveActions pendiente={ocupado}'), 'el rechazo usa el pie estándar')
+  assert.ok(delivery.includes('<Popup') && delivery.includes("cierra: true"), 'el rechazo usa el pie estándar del Popup único')
 
   const servicio = leer('../components/control/ServicioTecnico.jsx')
   assert.ok(servicio.includes('dirty={formSucio}') && servicio.includes('dirty={catalogoSucio}'), 'la orden y el catálogo confirman al cerrar con cambios')
   assert.ok(servicio.includes("error={errorOrden('customerName')}") && servicio.includes("error={errorOrden('device')}"), 'cliente y dispositivo muestran su error junto al campo')
   assert.ok(servicio.includes('<FormField label="Servicio del catálogo"'), 'el selector del catálogo tiene label visible')
   assert.ok(servicio.includes('<FormField label="Nombre del servicio"'), 'el catálogo tiene labels visibles')
-  assert.ok(servicio.includes('<SaveActions pendiente={busy}>'), 'la orden usa el pie estándar')
+  assert.ok(servicio.includes("form: 'form-taller-orden'") && servicio.includes('busy={busy}'), 'la orden usa el pie estándar del Popup único')
   assert.ok(!servicio.includes('useDialogDirty(formSucio)'), 'el dirty de la orden va en el objeto del diálogo')
 })
 
@@ -217,7 +217,9 @@ test('detalles y vistas previas son una ventana centrada, nunca un panel lateral
   }
   recorrer(carpeta)
   assert.deepEqual(culpables, [], 'ninguna pantalla abre un <Drawer (panel lateral)')
-  for (const ruta of ['control/Compras', 'control/PaymentAccounts', 'control/ServicioTecnico', 'control/Gastos', 'control/Caja', 'control/TradeInPipeline', 'inventory/UnidadDetalle', 'ventas/SellerOrders', 'ventas/PedidoDetalle', 'productos/ProductoDetalle', 'shared/ReportePreview', 'shared/ComprobantePreview', 'shared/EtiquetasProductoModal']) {
+  for (const ruta of ['control/Compras', 'control/PaymentAccounts', 'control/Gastos', 'control/Caja', 'control/TradeInPipeline', 'inventory/UnidadDetalle', 'ventas/SellerOrders', 'ventas/PedidoDetalle', 'productos/ProductoDetalle', 'shared/ReportePreview', 'shared/ComprobantePreview', 'shared/EtiquetasProductoModal']) {
     assert.ok(leer(`../components/${ruta}.jsx`).includes('<VentanaDetalle'), `${ruta} abre VentanaDetalle`)
   }
+  // Operación (rediseño): el detalle del taller usa el Popup único (misma ventana centrada, X roja, pie de acciones).
+  assert.ok(leer('../components/control/ServicioTecnico.jsx').includes('<Popup'), 'control/ServicioTecnico abre el Popup único')
 })

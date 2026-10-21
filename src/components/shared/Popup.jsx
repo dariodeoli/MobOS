@@ -19,7 +19,9 @@ import './popup.css'
 //     …cuerpo…
 //   </Popup>
 //
-// `acciones.*` = `{ label, onClick, disabled?, cargando?, type?, form? }`.
+// `acciones.*` = `{ label, onClick, disabled?, cargando?, type?, form?, cierra? }`;
+// `cierra: true` cierra por el mismo camino que Esc o la × (con `dirty`,
+// pide confirmar antes de descartar).
 // `footer` (nodo) reemplaza al pie estándar cuando hace falta algo propio.
 // `busy` bloquea Esc, X y fondo mientras se guarda.
 const ICONOS_AVISO = { info: Info, ok: CircleCheck, warn: CircleAlert, bad: CircleX }
@@ -37,6 +39,8 @@ export default function Popup({
   footer = null,
   children,
   busy = false,
+  dirty = false,
+  descarte,
   className,
   testId,
 }) {
@@ -46,6 +50,7 @@ export default function Popup({
   const { rol, ancho } = resolverPopup({ tipo, tamano })
   const [visible, setVisible] = useState(open)
   const [saliendo, setSaliendo] = useState(false)
+  const [descartando, setDescartando] = useState(false)
 
   // Salida animada: se mantiene montado hasta que termina (sin espera si el
   // usuario pidió reducir movimiento).
@@ -59,7 +64,14 @@ export default function Popup({
     return () => clearTimeout(t)
   }, [open, visible])
 
-  const cerrar = useCallback(() => { if (!busy) onClose?.() }, [busy, onClose])
+  // Con `dirty` el cierre interactivo (Esc, fondo, ×) pide confirmación en
+  // vez de perder los cambios en silencio (mismo texto que el Modal histórico).
+  useEffect(() => { if (!open || !dirty) setDescartando(false) }, [open, dirty])
+  const cerrar = useCallback(() => {
+    if (busy) return
+    if (dirty) { setDescartando(true); return }
+    onClose?.()
+  }, [busy, dirty, onClose])
   const { esSuperior, requestClose } = useDialogFocusTrap(open, cerrar, panel, { busy })
 
   if (!visible) return null
@@ -111,8 +123,8 @@ export default function Popup({
           <div className="border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 md:px-5 md:pb-4">
             {footer || (
               <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end" data-testid="popup-acciones">
-                {lista.map(({ clave, label, variante, ...resto }) => (
-                  <Button key={clave} variant={variante} className="min-h-11 w-full md:h-11 md:w-auto md:min-w-28" data-accion={clave} {...resto}>{label}</Button>
+                {lista.map(({ clave, label, variante, cierra, ...resto }) => (
+                  <Button key={clave} variant={variante} className="min-h-11 w-full md:h-11 md:w-auto md:min-w-28" data-accion={clave} onClick={cierra ? requestClose : undefined} {...resto}>{label}</Button>
                 ))}
               </div>
             )}
@@ -121,6 +133,18 @@ export default function Popup({
           <div className="shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
         )}
       </div>
+      {descartando && (
+        <Popup
+          tipo="confirmar"
+          title={descarte?.titulo || '¿Descartar los cambios?'}
+          description={descarte?.descripcion || 'Tenés cambios sin guardar en este formulario. Si cerrás ahora, se pierden.'}
+          onClose={() => setDescartando(false)}
+          acciones={{
+            secundaria: { label: descarte?.seguir || 'Seguir editando', onClick: () => setDescartando(false) },
+            peligro: { label: descarte?.confirmar || 'Descartar y cerrar', onClick: () => { setDescartando(false); onClose?.() } },
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -6,6 +6,8 @@ import { formatGs } from '@/utils/moneda'
 import { fechaHora } from '@/utils/fecha'
 import { obligatorio } from 'owncoding-ui/utils'
 import Icon from '@/components/shared/Icon'
+import '@/components/shared/operacionRediseno.css'
+import Popup from '@/components/shared/Popup'
 import BarraModulo from '@/components/shared/BarraModulo'
 import {
   Aviso,
@@ -15,9 +17,7 @@ import {
   EmptyState,
   FormField,
   Input,
-  Modal,
   MoneyInput,
-  SaveActions,
   Select,
   Skeleton,
   Textarea,
@@ -297,7 +297,7 @@ export default function Autorizaciones() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="op-rd space-y-4">
       {/* #256/#278: barra de módulo única (identidad + acciones juntas), sin
           encabezado grande duplicado. */}
       <BarraModulo
@@ -321,20 +321,21 @@ export default function Autorizaciones() {
           (no cambia condiciones reales).
         </Aviso>
       )}
-      <Card>
-        <div className="flex flex-wrap gap-2">
+      <Card className="op-rd-barra" data-testid="autorizaciones-barra">
+        <div className="op-rd-tabs" role="group" aria-label="Filtrar solicitudes por estado">
           {FILTERS.map(([value, label]) => (
             <button
               key={value}
               type="button"
               onClick={() => setFiltro(value)}
+              aria-pressed={filtro === value}
               className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${filtro === value ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
             >
               {label}
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="op-rd-barra-filtros">
           <label htmlFor="filtro-tipo" className={ROTULO_SECCION}>Tipo</label>
           <Select id="filtro-tipo" className="w-56" value={tipo} onChange={event => setTipo(event.target.value)}>
             <option value="">Todos los tipos</option>
@@ -490,12 +491,17 @@ export default function Autorizaciones() {
         </div>
       </Card>
 
-      <Modal
+      <Popup
         open={Boolean(approveTarget)}
         onClose={() => {
           if (!busy) setApproveTarget(null)
         }}
-        title={`Aprobar ${KINDS[approveTarget?.kind] || 'solicitud'}`} size="formulario">
+        busy={busy}
+        title={`Aprobar ${KINDS[approveTarget?.kind] || 'solicitud'}`}
+        acciones={{
+          secundaria: { label: 'Cancelar', disabled: busy, onClick: () => setApproveTarget(null) },
+          primaria: { label: <><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aprobar'}</>, disabled: busy, onClick: confirmarAprobar },
+        }}>
         {approveTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
@@ -606,30 +612,20 @@ export default function Autorizaciones() {
                 placeholder="Condición acordada…"
               />
             </FormField>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setApproveTarget(null)}
-                disabled={busy}
-              >
-                Cancelar
-              </Button>
-              <Button type="button" onClick={confirmarAprobar} disabled={busy}>
-                <Icon name="check" className="h-4 w-4" />
-                {busy ? 'Guardando…' : 'Aprobar'}
-              </Button>
-            </div>
           </div>
         )}
-      </Modal>
+      </Popup>
 
-      <Modal
+      <Popup
         open={Boolean(rejectTarget)}
         onClose={() => setRejectTarget(null)}
         dirty={Boolean(rejectTarget) && rejectNote.trim() !== ''}
         busy={busy}
-        title={`Rechazar ${KINDS[rejectTarget?.kind] || 'solicitud'}`} size="formulario">
+        title={`Rechazar ${KINDS[rejectTarget?.kind] || 'solicitud'}`}
+        acciones={{
+          secundaria: { label: 'Cancelar', disabled: busy, cierra: true },
+          peligro: { label: busy ? 'Guardando…' : 'Rechazar', disabled: busy, onClick: confirmarRechazar },
+        }}>
         {rejectTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
@@ -652,19 +648,9 @@ export default function Autorizaciones() {
                 placeholder="Explicá al vendedor por qué no se autoriza…"
               />
             </FormField>
-            <SaveActions pendiente={busy}>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={confirmarRechazar}
-                disabled={busy}
-              >
-                {busy ? 'Guardando…' : 'Rechazar'}
-              </Button>
-            </SaveActions>
           </div>
         )}
-      </Modal>
+      </Popup>
     </div>
   )
 }

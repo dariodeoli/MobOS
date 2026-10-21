@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { Aviso, Badge, Button, Card, EmptyState, FormActions, FormField, Input, Label, MenuDesplegable, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
-import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import { Aviso, Badge, Button, Card, EmptyState, FormField, Input, Label, MenuDesplegable, MoneyInput, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import Toolbar from '@/components/shared/Toolbar'
@@ -842,7 +842,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
       )}
 
       {/* Filtros avanzados (#315): panel lateral, sin recargar la lista. */}
-      <VentanaDetalle open={filtrosOpen} onClose={() => setFiltrosOpen(false)} title="Filtros del taller">
+      <Popup open={filtrosOpen} onClose={() => setFiltrosOpen(false)} title="Filtros del taller" acciones={{ secundaria: { label: 'Limpiar', disabled: !filtrosActivos, onClick: limpiarFiltros }, primaria: { label: 'Aplicar filtros', onClick: () => setFiltrosOpen(false) } }}>
         <div className="space-y-4">
           <p className="text-sm text-mute">Acotan la lista general. La etapa se elige en la barra; acá van técnico, tipo y fechas.</p>
           <div>
@@ -863,16 +863,39 @@ export default function ServicioTecnico({ accionesVista = [] }) {
             <div><Label htmlFor="filtro-desde">Recibidas desde</Label><Input id="filtro-desde" type="date" value={filtros.desde} onChange={event => setFiltros(actual => ({ ...actual, desde: event.target.value }))} /></div>
             <div><Label htmlFor="filtro-hasta">Hasta</Label><Input id="filtro-hasta" type="date" value={filtros.hasta} onChange={event => setFiltros(actual => ({ ...actual, hasta: event.target.value }))} /></div>
           </div>
-          <FormActions>
-            <Button type="button" variant="ghost" disabled={!filtrosActivos} onClick={limpiarFiltros}>Limpiar</Button>
-            <Button type="button" onClick={() => setFiltrosOpen(false)}>Aplicar filtros</Button>
-          </FormActions>
         </div>
-      </VentanaDetalle>
+      </Popup>
 
       {/* Detalle de la reparación (#315): etapas, inspección y acciones en un
           solo nivel, sin perderse en la tabla. */}
-      <VentanaDetalle open={Boolean(detalle)} onClose={() => setDetalleId(null)} title={detalle ? `Reparación ${detalle.serviceNumber || ''}`.trim() : 'Reparación'}>
+      <Popup
+        open={Boolean(detalle)}
+        onClose={() => setDetalleId(null)}
+        tipo="detalle"
+        tamano="xl"
+        title={detalle ? `Reparación ${detalle.serviceNumber || ''}`.trim() : 'Reparación'}
+        footer={detalle ? (
+          <div className="taller-f3-detail-actions flex flex-wrap items-center gap-2 md:justify-end">
+            {detalle.customerPhone && (
+              <WhatsAppMenu
+                telefono={detalle.customerPhone}
+                countryCode={detalle.customerCountryCode || '+595'}
+                category="SERVICE"
+                storageKey={ULTIMA_PLANTILLA_SERVICIO}
+                title={detalle.customerName}
+                preferKey={PLANTILLA_POR_ESTADO[detalle.status] || ''}
+                contexto={contextoWhatsApp(detalle)}
+              />
+            )}
+            <Button type="button" variant="outline" title="Imprimir recepción (2 copias)" onClick={() => imprimir(detalle, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" />Recepción</Button>
+            <Button type="button" variant="outline" title="Imprimir recepción 80 mm" onClick={() => imprimir(detalle, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" />80 mm</Button>
+            <Button type="button" variant="outline" title="Reporte técnico" onClick={() => imprimir(detalle, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" />Reporte</Button>
+            <Button type="button" variant="outline" title="Enviar a la ticketera" onClick={() => imprimirAgente(detalle)}><Icon name="send" className="h-3.5 w-3.5" />Ticketera</Button>
+            <Button type="button" variant="outline" onClick={() => { setDetalleId(null); editar(detalle) }}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
+            {SIGUIENTE[detalle.status] && <Button type="button" disabled={advanceBusy || loading} onClick={() => avanzar(detalle)}>Pasar a {ESTADO_LABEL[SIGUIENTE[detalle.status]]}</Button>}
+          </div>
+        ) : null}
+      >
         {detalle && (() => {
           const tipo = tipoDeFila(detalle)
           const ganancia = utilidad(detalle)
@@ -889,6 +912,8 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 <Badge color={ESTADO_TONE[detalle.status] || 'slate'} className="whitespace-nowrap">{ESTADO_LABEL[detalle.status] || detalle.status}</Badge>
               </div>
 
+              <div className="op-rd-page">
+              <div className="op-rd-main">
               <section aria-label="Etapas de la reparación">
                 <p className="text-xs font-semibold uppercase tracking-wider text-mute">Etapas de la reparación</p>
                 <ol className="mt-2 space-y-1.5" data-testid="taller-pasos">
@@ -911,6 +936,8 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 <div className="mt-2"><InspeccionEquipo tipo={tipo} puntos={puntosDe(tipo)} marcados={detalle.checklist || {}} disabled /></div>
               </section>
 
+              </div>
+              <div className="op-rd-side">
               <section aria-label="Datos de la orden" className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-2">
                 <p className="text-sm"><span className="text-mute">Técnico: </span>{detalle.technicianName || 'Sin asignar'}</p>
                 <p className="text-sm"><span className="text-mute">Recibido: </span>{fechaHora(detalle.receivedAt || detalle.createdAt) || '—'}</p>
@@ -926,34 +953,28 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 <p className="text-sm"><span className="text-mute">Mano de obra: </span>{gs(detalle.laborPyg || 0)}</p>
                 <p className={cn('text-sm font-semibold tabular-nums sm:col-span-2', ganancia >= 0 ? 'text-ok' : 'text-bad')}>Utilidad: {ganancia >= 0 ? '+' : ''}{gs(ganancia)}</p>
               </section>
+              </div>
+              </div>
 
-              <FormActions className="taller-f3-detail-actions">
-                {detalle.customerPhone && (
-                  <WhatsAppMenu
-                    telefono={detalle.customerPhone}
-                    countryCode={detalle.customerCountryCode || '+595'}
-                    category="SERVICE"
-                    storageKey={ULTIMA_PLANTILLA_SERVICIO}
-                    title={detalle.customerName}
-                    preferKey={PLANTILLA_POR_ESTADO[detalle.status] || ''}
-                    contexto={contextoWhatsApp(detalle)}
-                  />
-                )}
-                <Button type="button" variant="outline" title="Imprimir recepción (2 copias)" onClick={() => imprimir(detalle, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" />Recepción</Button>
-                <Button type="button" variant="outline" title="Imprimir recepción 80 mm" onClick={() => imprimir(detalle, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" />80 mm</Button>
-                <Button type="button" variant="outline" title="Reporte técnico" onClick={() => imprimir(detalle, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" />Reporte</Button>
-                <Button type="button" variant="outline" title="Enviar a la ticketera" onClick={() => imprimirAgente(detalle)}><Icon name="send" className="h-3.5 w-3.5" />Ticketera</Button>
-                <Button type="button" variant="outline" onClick={() => { setDetalleId(null); editar(detalle) }}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
-                {SIGUIENTE[detalle.status] && <Button type="button" disabled={advanceBusy || loading} onClick={() => avanzar(detalle)}>Pasar a {ESTADO_LABEL[SIGUIENTE[detalle.status]]}</Button>}
-              </FormActions>
             </div>
           )
         })()}
-      </VentanaDetalle>
+      </Popup>
 
-      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} dirty={formSucio} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
+      <Popup
+        open={Boolean(form)}
+        onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }}
+        dirty={formSucio}
+        busy={busy}
+        tamano="lg"
+        title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'}
+        acciones={{
+          secundaria: { label: 'Cancelar', disabled: busy || checklistOpen || catalogoOpen, cierra: true },
+          primaria: { label: busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear orden', type: 'submit', form: 'form-taller-orden', disabled: busy },
+        }}
+      >
         {form && (
-          <form onSubmit={guardar} className="space-y-3">
+          <form id="form-taller-orden" onSubmit={guardar} className="space-y-3">
             <div className={GRILLA_DOS_COLUMNAS}>
               <FormField label="Cliente *" htmlFor="cliente" error={errorOrden('customerName')}>
                 <div className="relative">
@@ -1074,17 +1095,26 @@ export default function ServicioTecnico({ accionesVista = [] }) {
             </div>
 
             <div><Label htmlFor="notas">Notas</Label><Textarea id="notas" rows={2} value={form.notes} onChange={set('notes')} placeholder="Observaciones, repuestos, estado físico" autoCapitalize="sentences" /></div>
-            <SaveActions pendiente={busy}>
-              <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear orden'}</Button>
-            </SaveActions>
           </form>
         )}
-      </Modal>
+      </Popup>
 
-      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} dirty={catalogoSucio} title="Catálogo de servicios" size="amplio">
+      <Popup
+        open={catalogoOpen}
+        onClose={() => setCatalogoOpen(false)}
+        dirty={catalogoSucio}
+        tamano="lg"
+        title="Catálogo de servicios"
+        acciones={{
+          secundaria: servicioEdit.id
+            ? { label: 'Cancelar edición', onClick: () => setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' }) }
+            : { label: 'Cerrar', onClick: () => setCatalogoOpen(false) },
+          primaria: { label: servicioEdit.id ? 'Guardar' : 'Agregar', type: 'submit', form: 'form-taller-catalogo', disabled: catalogoBusy },
+        }}
+      >
         <div className="space-y-3">
           <p className="text-sm text-mute">Servicios por tipo de dispositivo con precio sugerido opcional. El precio de cada orden se puede cambiar a mano.</p>
-          <form onSubmit={guardarServicio} className="space-y-3">
+          <form id="form-taller-catalogo" onSubmit={guardarServicio} className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem]">
               <FormField label="Nombre del servicio" htmlFor="catalogo-nombre">
                 <Input id="catalogo-nombre" value={servicioEdit.name} onChange={event => setServicioEdit(current => ({ ...current, name: event.target.value }))} placeholder="Ej. Cambio de display" />
@@ -1096,10 +1126,6 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 <MoneyInput id="catalogo-precio" value={servicioEdit.precio} onValueChange={value => setServicioEdit(current => ({ ...current, precio: value === '' ? '' : String(value) }))} placeholder="Sugerido" />
               </FormField>
             </div>
-            <FormActions>
-              {servicioEdit.id && <Button type="button" variant="ghost" onClick={() => setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })}>Cancelar edición</Button>}
-              <Button type="submit" disabled={catalogoBusy}>{servicioEdit.id ? 'Guardar' : 'Agregar'}</Button>
-            </FormActions>
           </form>
           {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
           <div className="max-h-72 space-y-1 overflow-y-auto" data-testid="catalogo-servicios">
@@ -1118,9 +1144,9 @@ export default function ServicioTecnico({ accionesVista = [] }) {
             <Button type="button" variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>
           </div>
         </div>
-      </Modal>
+      </Popup>
 
-      <Modal open={checklistOpen} onClose={() => setChecklistOpen(false)} title={`Checklist de recepción · ${form?.deviceType || 'iPhone'}`} size="formulario">
+      <Popup open={checklistOpen} onClose={() => setChecklistOpen(false)} title={`Checklist de recepción · ${form?.deviceType || 'iPhone'}`} acciones={{ secundaria: { label: 'Cerrar', onClick: () => setChecklistOpen(false) } }}>
         <div className="space-y-3">
           <p className="text-sm text-mute">Estos puntos se ofrecen al recibir un equipo de este tipo. Los que quites dejan de mostrarse, pero las órdenes viejas conservan lo marcado.</p>
           <div className="max-h-64 space-y-1 overflow-y-auto" data-testid="checklist-puntos">
@@ -1140,7 +1166,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
             <Button type="button" variant="outline" disabled={checklistBusy} onClick={cargarChecklistSugerido}>Usar checklist sugerido</Button>
           </div>
         </div>
-      </Modal>
+      </Popup>
     </Card>
   )
 }

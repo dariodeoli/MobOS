@@ -134,7 +134,7 @@ test('Taller financial save, catalog, inspection and print handlers keep their c
     'setReferenciaForm(JSON.stringify(datos))',
     'const hayDesgloseForm',
     // Order modal: submit handler, dirty guard and busy lock.
-    '<form onSubmit={guardar}',
+    '<form id="form-taller-orden" onSubmit={guardar}',
     'dirty={formSucio}',
     'busy || checklistOpen || catalogoOpen ? undefined',
   ])
