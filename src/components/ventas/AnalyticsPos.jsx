@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Aviso, BarraProgreso, Button, Modal, Skeleton } from '@/components/ui'
+import { Aviso, BarraProgreso, Button, Skeleton } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
@@ -202,5 +203,5 @@ export default function AnalyticsPos({ open = true, onClose, inline = false }) {
   )
   return inline
     ? <section aria-label="Ventas del día" data-testid="ventas-del-dia">{contenido}</section>
-    : <Modal open={open} onClose={onClose} title="Ventas del día" size="amplio">{contenido}</Modal>
+    : <Popup open={open} onClose={onClose} title="Ventas del día" tamano="lg">{contenido}</Popup>
 }

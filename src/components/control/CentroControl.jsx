@@ -3,11 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ESTADOS_CELULAR, addCelular, cargarLineupIphone, deleteCelular, deleteComparadorImagen, listCelulares, listComparadorImagenes, modoDatosActual, rankCelular, setComparadorImagen, updateCelular } from '@/lib/storage'
 import { procesarImagenComparador } from '@/utils/imagen'
 import { useLive } from '@/hooks/useLive'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Label, Select, Subtabs, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, IconAction, Input, Label, Select, Subtabs, useToast } from '@/components/ui'
 import BarraModulo from '@/components/shared/BarraModulo'
 import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 
 // #303 · Centro de Control: el lugar donde se cargan los datos que consumen
 // Lista por modelo y Comparador —la lista de precios por modelo y las fotos
@@ -195,7 +196,7 @@ function SeccionCelulares() {
         })
       )}
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(aBorrar)}
         title="¿Eliminar el modelo?"
         description={aBorrar ? `${aBorrar.texto} sale de la Lista por modelo y del Comparador.` : ''}
@@ -323,7 +324,7 @@ function SeccionImagenes() {
         </section>
       )}
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(aBorrar)}
         title="¿Eliminar la foto?"
         description={aBorrar ? `${aBorrar.modelo} · ${aBorrar.color} vuelve a mostrar la maqueta en el Comparador.` : ''}

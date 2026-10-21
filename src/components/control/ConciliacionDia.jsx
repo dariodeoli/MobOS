@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { Aviso, Badge, Button, Card, FormField, Input, Modal, MoneyInput, Select, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, FormField, Input, MoneyInput, Select, Textarea, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
@@ -15,7 +16,7 @@ export default function ConciliacionDia() {
   const session = useSesion()
   const [open, setOpen] = useState(false)
   const scope = JSON.stringify([session.empresa?.id, session.usuario?.id, session.usuario?.role, session.sucursal?.id, session.esDemo])
-  return <><Button type="button" onClick={() => setOpen(true)}>Verificar día por sucursal</Button>{open ? <Modal open onClose={() => setOpen(false)} title="Conciliar día por sucursal" size="formulario"><Dia key={scope} session={session} /></Modal> : null}</>
+  return <><Button type="button" onClick={() => setOpen(true)}>Verificar día por sucursal</Button>{open ? <Popup open onClose={() => setOpen(false)} title="Conciliar día por sucursal" tamano="md"><Dia key={scope} session={session} /></Popup> : null}</>
 }
 function Dia({ session }) {
   const { esDemo, sucursal, sucursales = [] } = session

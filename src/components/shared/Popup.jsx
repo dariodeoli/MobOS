@@ -37,9 +37,11 @@ export default function Popup({
   footer = null,
   children,
   busy = false,
+  dirty = false,
   className,
   testId,
 }) {
+  const [descartando, setDescartando] = useState(false)
   const panel = useRef(null)
   const titleId = useId()
   const descId = useId()
@@ -59,7 +61,14 @@ export default function Popup({
     return () => clearTimeout(t)
   }, [open, visible])
 
-  const cerrar = useCallback(() => { if (!busy) onClose?.() }, [busy, onClose])
+  // `dirty`: con cambios sin guardar el cierre pide confirmación (igual que
+  // el Modal de la biblioteca); el guardado real cierra por `onClose` directo.
+  const cerrar = useCallback(() => {
+    if (busy) return
+    if (dirty) { setDescartando(true); return }
+    onClose?.()
+  }, [busy, dirty, onClose])
+  useEffect(() => { if (!open || !dirty) setDescartando(false) }, [open, dirty])
   const { esSuperior, requestClose } = useDialogFocusTrap(open, cerrar, panel, { busy })
 
   if (!visible) return null
@@ -121,6 +130,18 @@ export default function Popup({
           <div className="shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
         )}
       </div>
+      {descartando && (
+        <Popup
+          tipo="confirmar"
+          title="¿Descartar los cambios?"
+          description="Tenés cambios sin guardar. Si cerrás ahora se pierden."
+          onClose={() => setDescartando(false)}
+          acciones={{
+            secundaria: { label: 'Seguir editando', onClick: () => setDescartando(false) },
+            peligro: { label: 'Descartar', onClick: () => { setDescartando(false); onClose?.() } },
+          }}
+        />
+      )}
     </div>
   )
 }

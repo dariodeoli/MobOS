@@ -7,8 +7,8 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
-import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import { Aviso, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
@@ -92,7 +92,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
   const subtotal = Number(cotizacion.subtotalPyg ?? items.reduce((suma, fila) => suma + fila.subtotal, 0))
   const descuento = Number(cotizacion.discountPyg || 0)
   return (
-    <VentanaDetalle className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" size="xl">
+    <Popup className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" tamano="xl">
       <div className="space-y-3" data-testid="cotizacion-previa">
         <p className="text-xs text-mute">Así se ve el documento que revisa y aprueba el cliente.</p>
         <div className="overflow-x-auto rounded-xl border border-ink-600 bg-white">
@@ -118,7 +118,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
           <Button type="button" variant="outline" onClick={onClose}>{etiquetaCerrar}</Button>
         </FormActions>
       </div>
-    </VentanaDetalle>
+    </Popup>
   )
 }
 
@@ -637,12 +637,12 @@ export default function SellerQuotes() {
             </button>
           </div>
         )}
-    <Modal
+    <Popup
       className="ventas-f3 ventas-f3-dialog"
       open={crearOpen}
       onClose={() => !busy && setCrearOpen(false)}
       title="Nueva cotización"
-      size="amplio"
+      tamano="lg"
       dirty={Boolean(form.customerName.trim() || form.notes.trim() || form.discountPyg || items.some(item => item.description.trim() || item.productId))}
     >
       <form id="cotizacion-form" onSubmit={crear} className="min-w-0 space-y-4" noValidate>
@@ -748,19 +748,19 @@ export default function SellerQuotes() {
           <Button type="submit" form="cotizacion-form" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button>
         </FormActions>
       </form>
-    </Modal>
+    </Popup>
     <FichaClienteModal
       open={fichaAbierta}
       nombreInicial={form.customerName.trim()}
       onClose={() => setFichaAbierta(false)}
       onCreada={(ficha) => { setFichaAbierta(false); setClienteSeleccionado(ficha); setForm(current => ({ ...current, customerId: ficha.id, customerName: ficha.name })); setClientes([]) }}
     />
-    <Modal className="ventas-f3 ventas-f3-dialog" open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`} size="amplio">
+    <Popup className="ventas-f3 ventas-f3-dialog" open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`} tamano="lg">
       {historial && (esDemo
         ? <Cronologia eventos={historialDemoCotizacion(historial.id)} vacio="Sin actividad" descripcionVacio="Los cambios de estado, el envío y la conversión en pedido de esta cotización demo aparecerán acá." />
         : <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />)}
-    </Modal>
-    <Modal className="ventas-f3 ventas-f3-dialog" open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
+    </Popup>
+    <Popup className="ventas-f3 ventas-f3-dialog" open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
       <div className="space-y-4 text-center">
         <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: revisa la <b>versión congelada</b> del presupuesto y la aprueba con un código enviado a su correo o teléfono. Recién al aprobar se genera el pedido.</p>
         {Number(enlace?.version) > 0 && <p data-testid="enlace-version" className="text-[11px] uppercase tracking-wider text-mute">Versión {enlace.version} congelada</p>}
@@ -791,8 +791,8 @@ export default function SellerQuotes() {
           />
         </div>
       </div>
-    </Modal>
-    <Modal className="ventas-f3 ventas-f3-dialog" open={correo !== null} onClose={() => { if (!correoBusy) { setCorreo(null); setCorreoError(''); setCorreoAviso('') } }} title={`Enviar ${correo?.number || 'la cotización'} por correo`}>
+    </Popup>
+    <Popup className="ventas-f3 ventas-f3-dialog" open={correo !== null} onClose={() => { if (!correoBusy) { setCorreo(null); setCorreoError(''); setCorreoAviso('') } }} title={`Enviar ${correo?.number || 'la cotización'} por correo`}>
       {correo && <div className="space-y-4">
         <p className="text-sm text-mute">{correo.customerId ? `El cliente recibe el detalle y el enlace para aceptarla o rechazarla, y el envío queda en el historial de la cotización y en su ficha.` : 'La cotización no está ligada a una ficha de cliente: indicá a qué correo enviarla (queda registrado en el historial).'}</p>
         {correo.customerId && !String(correo.customer?.email || '').trim() && <Aviso tono="warn">Este cliente todavía no tiene correo guardado: lo guardamos en su ficha al enviar.</Aviso>}
@@ -808,7 +808,7 @@ export default function SellerQuotes() {
           <Button type="button" disabled={correoBusy || !correoForm.to.trim()} onClick={() => enviarCorreo(false)}>{correoBusy ? 'Enviando…' : 'Enviar cotización'}</Button>
         </div>
       </div>}
-    </Modal>
+    </Popup>
     {/* #314: vista previa del borrador (antes de guardar) y de la cotización
         guardada (antes de enviarla). */}
     <PreviaCotizacion

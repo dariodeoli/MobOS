@@ -6,23 +6,8 @@ import { formatGs, formatGsInput, errorMonto, parseGsInput } from '@/utils/moned
 import { getDemoCash, getDemoCashExpectedByCurrency, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
 import { fechaHora } from '@/utils/fecha'
-import {
-  Aviso,
-  Badge,
-  Button,
-  Card,
-  FormField,
-  Input,
-  Label,
-  Modal,
-  Money,
-  MoneyInput,
-  Select,
-  Skeleton,
-  Stat,
-  Textarea,
-} from '@/components/ui'
-import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import { Aviso, Badge, Button, Card, FormField, Input, Label, Money, MoneyInput, Select, Skeleton, Stat, Textarea } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import AuditoriaMedios from './AuditoriaMedios'
 import AuditoriaEfectivo from './AuditoriaEfectivo'
@@ -1021,7 +1006,7 @@ export default function Caja() {
           </div>
         </Card>
       )}
-      <VentanaDetalle open={bancoOpen} onClose={() => setBancoOpen(false)} title="Conciliación bancaria" size="lg">
+      <Popup open={bancoOpen} onClose={() => setBancoOpen(false)} title="Conciliación bancaria" tamano="lg">
         <div className="space-y-4">
               <div>
                 <Label htmlFor="extracto-csv">Extracto (CSV)</Label>
@@ -1151,7 +1136,7 @@ export default function Caja() {
                 </div>
               )}
             </div>
-      </VentanaDetalle>
+      </Popup>
       {otrosTurnos.length > 0 && (
         <Card>
           <h3 className="font-bold">Turnos abiertos en la sucursal</h3>
@@ -1220,7 +1205,7 @@ export default function Caja() {
           </Button>
         </Card>
       )}
-      <VentanaDetalle
+      <Popup
         open={conteoOpen}
         onClose={() => !saving && setConteoOpen(false)}
         title="Cerrar caja"
@@ -1267,8 +1252,8 @@ export default function Caja() {
         >
           {saving ? 'Cerrando…' : <>Cerrar caja · <Money value={contado} /></>}
         </Button>
-      </VentanaDetalle>
-      <VentanaDetalle
+      </Popup>
+      <Popup
         open={Boolean(turnoAjeno)}
         onClose={() => !saving && setTurnoAjeno(null)}
         title={`Cerrar turno de ${turnoAjeno?.openedByName || 'otra persona'}`}
@@ -1324,8 +1309,8 @@ export default function Caja() {
             Cerrar turno · <Money value={contadoAjenoTotal} />
           </Button>
         </div>
-      </VentanaDetalle>
-      <Modal
+      </Popup>
+      <Popup
         open={cronologia}
         onClose={() => setCronologia(false)}
         title="Cronología de la sesión de caja"
@@ -1338,8 +1323,8 @@ export default function Caja() {
             descripcionVacio="La apertura, los movimientos, el cierre y el arqueo de esta sesión aparecerán acá."
           />
         )}
-      </Modal>
-      <VentanaDetalle open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
+      </Popup>
+      <Popup open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
         <form onSubmit={registrarCompraProveedor} className="space-y-3">
           <FormField label="Proveedor" htmlFor="prov-proveedor">
             <Input id="prov-proveedor" required maxLength={200} value={proveedorForm.supplierName} onChange={evento => setProveedorForm(actual => ({ ...actual, supplierName: evento.target.value }))} placeholder="Ej.: Depósito 2" />
@@ -1379,8 +1364,8 @@ export default function Caja() {
             <Button type="submit" disabled={proveedorBusy || !proveedorForm.supplierName.trim() || !proveedorForm.concept.trim() || !proveedorForm.amountPyg || (proveedorForm.condition === 'CREDITO' && !proveedorForm.dueAt)}>{proveedorBusy ? 'Guardando…' : 'Registrar compra'}</Button>
           </div>
         </form>
-      </VentanaDetalle>
-      <VentanaDetalle open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
+      </Popup>
+      <Popup open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
         <form onSubmit={confirmarAccionProveedor} className="space-y-3">
           <p className="text-sm text-mute">
             {proveedorAccion?.tipo === 'pagar-taller'
@@ -1409,7 +1394,7 @@ export default function Caja() {
             <Button type="submit" disabled={proveedorBusy || (proveedorAccion?.tipo !== 'pagar-taller' && !proveedorMonto)}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'consumir' ? 'Registrar consumo' : 'Registrar pago'}</Button>
           </div>
         </form>
-      </VentanaDetalle>
+      </Popup>
       <ReportePreview
         open={reporteOpen}
         onClose={() => setReporteOpen(false)}

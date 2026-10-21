@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { obligatorio, largoMaximo } from 'owncoding-ui/utils'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, SaveActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { Aviso, Badge, Button, Card, FormField, Input, FormActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
@@ -212,13 +214,13 @@ export default function WhatsAppTemplates() {
           </div>
         </div>
       )}
-      <Modal
+      <Popup
         open={editor !== null}
         onClose={() => setEditor(null)}
         dirty={editorDirty}
         busy={busy}
         title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'}
-        size="amplio"
+        tamano="lg"
       >
         <form onSubmit={guardar} className="space-y-3">
           <div className={GRILLA_DOS_COLUMNAS}>
@@ -265,12 +267,13 @@ export default function WhatsAppTemplates() {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isDefault === true} onChange={(event) => setEditor((current) => ({ ...current, isDefault: event.target.checked }))} />Predeterminada de {NOMBRE_CATEGORIA[editor?.category] || 'la categoría'}</label>
           </div>
           {editorError && <Aviso tono="error">{editorError}</Aviso>}
-          <SaveActions pendiente={busy}>
+          <FormActions>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Cancelar</Button>
             <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : editor?.id ? 'Guardar cambios' : 'Crear plantilla'}</Button>
-          </SaveActions>
+          </FormActions>
         </form>
-      </Modal>
-      <ConfirmDialog
+      </Popup>
+      <PopupConfirmar
         open={Boolean(eliminar)}
         onCancel={() => !busy && setEliminar(null)}
         onConfirm={eliminarPlantilla}
