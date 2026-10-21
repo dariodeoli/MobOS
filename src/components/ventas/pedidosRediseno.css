@@ -1,0 +1,176 @@
+/* Rediseño de Pedidos (listado + detalle): solo capa visual, acotada a la raíz
+   de Pedidos (.ped-rd). Patrón Shopify: barra única con pestañas de estado, KPI
+   en una línea, filas densas con badge de estado, detalle en dos columnas. */
+
+.ped-rd {
+  --ped-radius: 12px;
+  --ped-line: rgb(var(--c-ink-600));
+  --ped-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- Listado: barra única ---------------------------------------------- */
+.ped-rd .ventas-f3-toolbar { gap: 8px 12px; }
+
+/* Chips de estado como pestañas (subrayado), con desplazamiento propio. */
+.ped-rd .ventas-f3-chips {
+  flex-wrap: nowrap;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
+}
+.ped-rd .ventas-f3-chips::-webkit-scrollbar { display: none; }
+.ped-rd .ventas-f3-chips > button {
+  position: relative;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: rgb(var(--c-mute));
+  transition: color 0.18s var(--ped-ease), background-color 0.18s var(--ped-ease);
+}
+.ped-rd .ventas-f3-chips > button:hover { background: rgb(var(--c-ink-800)); color: rgb(var(--c-fore)); }
+.ped-rd .ventas-f3-chips > button[data-chip-mas] { border: 0; font-weight: 500; }
+.ped-rd .ventas-f3-chips > button[aria-pressed='true'] {
+  background: rgb(var(--c-ink-800));
+  color: rgb(var(--c-fore));
+}
+.ped-rd .ventas-f3-chips > button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgb(var(--c-fono));
+  animation: ped-subraya 0.22s var(--ped-ease);
+  transform-origin: left center;
+}
+
+/* KPI en una línea, sin caja: se apoya en la línea divisoria. */
+.ped-rd [data-testid='resumen-pedidos'] {
+  border: 0;
+  border-bottom: 1px solid var(--ped-line);
+  border-radius: 0;
+  background: transparent;
+}
+.ped-rd [data-testid='resumen-pedidos'] > div { border-right-color: transparent; flex-wrap: nowrap; }
+.ped-rd [data-testid='resumen-pedidos'] > div > span { white-space: nowrap; }
+
+/* Barra única: la búsqueda cede ancho para que todo quepa en una fila. */
+@media (min-width: 1024px) {
+  .ped-rd [data-slot='search'] { min-width: 11rem; max-width: 15rem; flex-basis: 13rem; }
+}
+
+/* ---- Listado: filas densas --------------------------------------------- */
+.ped-rd .ventas-f3-list {
+  border-radius: var(--ped-radius);
+  overflow: hidden;
+}
+.ped-rd .ventas-f3-list-header {
+  background: rgb(var(--c-ink-800));
+  font-size: 11px;
+  font-weight: 600;
+}
+.ped-rd .ventas-f3-order-row {
+  transition: background-color 0.15s var(--ped-ease);
+  animation: ped-fila 0.32s var(--ped-ease) both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+.ped-rd .ventas-f3-order-row:active { background: rgb(var(--c-ink-700)); }
+.ped-rd .ventas-f3-order-code { font-variant-numeric: tabular-nums; }
+.ped-rd .ventas-f3-name { font-weight: 600; letter-spacing: -0.005em; }
+.ped-rd .ventas-f3-order-total { font-weight: 700; }
+
+/* Badges de estado: píldora suave con punto de color. */
+.ped-rd .ventas-f3-order-statuses .v2-chip,
+.ped-rd [data-testid='pedido-vista-rapida'] .v2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 2px 9px 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.ped-rd .ventas-f3-order-statuses .v2-chip::before,
+.ped-rd [data-testid='pedido-vista-rapida'] .v2-chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ped-rd .ventas-f3-quick { transition: background-color 0.15s, color 0.15s, transform 0.12s; }
+.ped-rd .ventas-f3-quick:hover { background: rgb(var(--c-ink-700)); }
+.ped-rd .ventas-f3-quick:active { transform: scale(0.94); }
+
+/* ---- Detalle: dos columnas + feedback ---------------------------------- */
+.ped-rd.ventas-f3-detail { animation: ped-entra 0.28s var(--ped-ease) both; }
+.ped-rd .ventas-f3-detail-header,
+.ped-rd .ventas-f3-detail-section {
+  border-radius: var(--ped-radius);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+.ped-rd .ventas-f3-page,
+.ped-rd .ventas-f3-page-main,
+.ped-rd .ventas-f3-page-side { gap: 16px; }
+.ped-rd .ventas-f3-card-title { padding: 12px 14px 6px; font-size: 14px; }
+.ped-rd .ventas-f3-detail-section { transition: box-shadow 0.2s var(--ped-ease); }
+.ped-rd .ventas-f3-detail-section:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 0.07); }
+.ped-rd .ventas-f3-detail-totals dd { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ped-rd [data-testid='pedido-lateral'] { animation: ped-entra-lado 0.34s var(--ped-ease) both; animation-delay: 60ms; }
+
+/* Acciones: respuesta táctil al presionar. */
+.ped-rd button:not(:disabled):active { transform: scale(0.97); }
+.ped-rd [data-testid='pedido-anterior'],
+.ped-rd [data-testid='pedido-siguiente'] { border-radius: 10px; }
+
+/* Modal de vista rápida */
+.ped-rd [data-testid='pedido-vista-rapida'] { animation: ped-entra 0.22s var(--ped-ease) both; }
+
+/* Cabecera del detalle (slot del shell, fuera del cuerpo). */
+[data-testid='pedido-acciones'] button { transition: background-color 0.15s, border-color 0.15s, transform 0.1s; }
+[data-testid='pedido-acciones'] button:not(:disabled):active { transform: scale(0.96); }
+
+/* ---- Celular: sin desborde horizontal ---------------------------------- */
+@media (max-width: 639px) {
+  .ped-rd .ventas-f3-list { border-left: 0; border-right: 0; border-radius: 0; }
+  .ped-rd .ventas-f3-page,
+  .ped-rd .ventas-f3-page-main,
+  .ped-rd .ventas-f3-page-side { gap: 12px; }
+}
+
+@keyframes ped-fila {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ped-entra {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ped-entra-lado {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ped-subraya {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ped-rd,
+  .ped-rd *,
+  .ped-rd *::after,
+  [data-testid='pedido-acciones'] button {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ped-rd button:active,
+  [data-testid='pedido-acciones'] button:active { transform: none !important; }
+}
