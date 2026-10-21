@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readUnlockPin, UnlockInputError } from '../lib/seller-unlock'
 
-const request = (body: string | Uint8Array, headers: Record<string, string> = {}) => new Request('https://api.example.test/api/auth/unlock', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body })
+const request = (body: string | Uint8Array, headers: Record<string, string> = {}) => {
+  // Copy byte fixtures into an owned ArrayBuffer accepted by DOM BodyInit,
+  // preserving invalid UTF-8 bytes without a cast or text conversion.
+  const payload: string | ArrayBuffer = body instanceof Uint8Array ? new ArrayBuffer(body.byteLength) : body
+  if (body instanceof Uint8Array && payload instanceof ArrayBuffer) new Uint8Array(payload).set(body)
+  return new Request('https://api.example.test/api/auth/unlock', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: payload })
+}
 
 test('self-unlock only accepts a PIN, never a target user or tenant', async () => {
   assert.equal(await readUnlockPin(request('{"pin":"1234"}')), '1234')
