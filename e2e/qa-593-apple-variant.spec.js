@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 for (const width of [1440, 390]) {
-  test(`Apple catalog scope and retry preserve variant editor at ${width}px`, async ({ page }) => {
+  test(`Apple catalog scope and retry preserve variant editor at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 950 })
     await page.goto('/inventario/unidades')
     const fixture = await page.evaluate(async ({ api, branchId }) => {
@@ -39,6 +39,7 @@ for (const width of [1440, 390]) {
     await field.getByTestId('unidad-variante-apple-guardar').click()
     await expect(page.getByText('Conflicto de catálogo simulado')).toBeVisible()
     await expect(field.getByLabel('Modelo Apple')).toHaveValue('iPhone 15 Pro')
+    await page.screenshot({ path: testInfo.outputPath(`apple-catalog-scope-${width}.png`), fullPage: true })
     await field.getByTestId('unidad-variante-apple-guardar').click()
     await expect(field.getByLabel('Modelo Apple')).toHaveCount(0)
     expect(requests).toHaveLength(2)
