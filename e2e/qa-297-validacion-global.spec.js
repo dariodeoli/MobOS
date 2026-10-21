@@ -124,6 +124,7 @@ test('#297 · impresora sin configuración: guardar bloqueado hasta completar no
 test('#297 · promoción incompleta: crear cupón bloqueado hasta completar los datos', async ({ page }) => {
   await entrarDemo(page)
   await page.goto('/promociones')
+  await page.getByRole('button', { name: 'Nuevo cupón' }).click()
   const form = page.locator('form').filter({ hasText: 'Crear cupón' })
   const crear = form.getByRole('button', { name: 'Crear cupón' })
 

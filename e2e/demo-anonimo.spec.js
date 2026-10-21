@@ -399,6 +399,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
 
   const codigo = `C${marca.toUpperCase().slice(-6)}`
   await page.goto('/promociones')
+  await page.getByRole('button', { name: 'Nuevo cupón' }).click()
   const formCupon = page.locator('form').filter({ hasText: 'Crear cupón' })
   await formCupon.getByLabel('Código').fill(codigo)
   await formCupon.getByLabel('Nombre').fill(`Cupón cierre ${marca}`)
