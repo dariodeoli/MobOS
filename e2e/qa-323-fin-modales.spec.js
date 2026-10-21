@@ -91,7 +91,7 @@ test.describe('modal estándar en FIN (#323)', () => {
     // Con motivo, cerrar con cambios pide confirmación y no rechaza nada.
     await modal.getByLabel('Motivo del rechazo').fill('Fuera de política de la tienda.')
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
     await expect(modal).toHaveCount(0)

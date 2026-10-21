@@ -238,7 +238,7 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
     const papelera = fila.getByRole('button', { name: `Eliminar ${nombre}` })
     await expect(papelera).toHaveAttribute('title', 'Eliminar línea')
     await papelera.click()
-    const confirmar = page.getByRole('dialog')
+    const confirmar = page.getByRole('alertdialog')
     await expect(confirmar).toContainText('un descuento')
     await confirmar.getByRole('button', { name: 'Cancelar' }).click()
     await expect(fila.getByTestId('linea-descuento')).toHaveText('− Gs 10.000')

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, FormActions, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Card, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import { useSesion } from '@/lib/sesion'
 import { guardarValuacionDemo, listarValuacionesDemo } from '@/lib/demo/valuaciones'
