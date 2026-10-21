@@ -5,51 +5,60 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 21,
+    "totalChicos": 14,
     "chicos": [
       {
         "que": "button",
-        "texto": "Volver a pedidos",
-        "ancho": 165,
+        "texto": "Cobrar saldo · Gs 45.000",
+        "ancho": 196,
         "alto": 36,
-        "dibujo": "165x36",
+        "dibujo": "196x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 11
+        "veces": 9
       },
       {
         "que": "button",
-        "texto": "Rápido",
-        "ancho": 84,
+        "texto": "Configuración",
+        "ancho": 207,
         "alto": 36,
-        "dibujo": "84x36",
-        "clase": "inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-l",
-        "veces": 6
-      },
-      {
-        "que": "button",
-        "texto": "Archivar",
-        "ancho": 74,
-        "alto": 34,
-        "dibujo": "74x34",
-        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
-        "veces": 2
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 te",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Vendido hoy",
-        "ancho": 187,
-        "alto": 24,
-        "dibujo": "187x24",
-        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Regenerar acceso QR",
+        "ancho": 149,
+        "alto": 30,
+        "dibujo": "149x30",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-1.5 text-x",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "＋ Agregar nota",
+        "ancho": 91,
+        "alto": 16,
+        "dibujo": "91x16",
+        "clase": "mt-1 inline-flex min-h-11 items-center text-xs font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver perfil",
+        "ancho": 54,
+        "alto": 16,
+        "dibujo": "54x16",
+        "clase": "mt-1 inline-flex min-h-11 items-center text-xs font-semibold",
         "veces": 1
       }
     ]
@@ -78,34 +87,16 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 11,
+    "totalChicos": 18,
     "chicos": [
       {
         "que": "button",
-        "texto": "Todas",
-        "ancho": 54,
-        "alto": 28,
-        "dibujo": "54x28",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "texto": "Abiertas",
+        "ancho": 79,
+        "alto": 38,
+        "dibujo": "79x38",
+        "clase": "",
         "veces": 7
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
-        "veces": 1
-      },
-      {
-        "que": "button",
-        "texto": "Vendido hoy",
-        "ancho": 187,
-        "alto": 24,
-        "dibujo": "187x24",
-        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
-        "veces": 1
       },
       {
         "que": "button",
@@ -114,15 +105,33 @@
         "alto": 36,
         "dibujo": "160x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "Pedidos",
+        "ancho": 102,
+        "alto": 40,
+        "dibujo": "102x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Configuración",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 te",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Actualizar",
-        "ancho": 84,
-        "alto": 34,
-        "dibujo": "84x34",
-        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       }
     ]
@@ -151,8 +160,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 14,
+    "totalChicos": 12,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Estado y sincronización",
+        "ancho": 184,
+        "alto": 28,
+        "dibujo": "184x28",
+        "clase": "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 te",
+        "veces": 7
+      },
       {
         "que": "button",
         "texto": "Actualizar estado",
@@ -160,34 +178,7 @@
         "alto": 36,
         "dibujo": "175x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 7
-      },
-      {
-        "que": "button",
-        "texto": "Impresoras",
-        "ancho": 110,
-        "alto": 28,
-        "dibujo": "110x28",
-        "clase": "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 te",
         "veces": 5
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
-        "veces": 1
-      },
-      {
-        "que": "button",
-        "texto": "Vendido hoy",
-        "ancho": 187,
-        "alto": 24,
-        "dibujo": "187x24",
-        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
-        "veces": 1
       }
     ]
   },

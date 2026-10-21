@@ -38,8 +38,13 @@ test('el tablero ops preview usa los tokens v2 y no llama al API', async ({ page
   expect(llamadas, `llamadas al API: ${llamadas.join(', ')}`).toEqual([])
 })
 
-test('la ruta real /ops responde con el flag activo (tablero real, no el mock)', async ({ page }) => {
-  await page.goto('/ops')
-  await expect(page.getByTestId('ops-tablero')).toBeVisible()
-  await expect(page.getByTestId('ops-preview')).toHaveCount(0)
+// El tablero real vive dentro del panel (mismo shell): requiere sesión de dueño.
+test.describe('ruta real /ops', () => {
+  test.use({ storageState: 'e2e/.auth/admin.json' })
+  test('responde con el flag activo (tablero real, no el mock) dentro del shell', async ({ page }) => {
+    await page.goto('/ops')
+    await expect(page.getByTestId('ops-tablero')).toBeVisible()
+    await expect(page.getByTestId('ops-preview')).toHaveCount(0)
+    await expect(page.getByTestId('shell')).toBeVisible()
+  })
 })

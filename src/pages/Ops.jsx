@@ -52,7 +52,7 @@ async function completarLocks(equipos) {
   return equipos.map((equipo) => (porId[equipo.id] === undefined ? equipo : { ...equipo, locks: porId[equipo.id] }))
 }
 
-export default function Ops() {
+export default function Ops({ embebido = false }) {
   const [unidades, setUnidades] = useState([])
   const [equipos, setEquipos] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -113,6 +113,7 @@ export default function Ops() {
   return (
     <TableroOps
       modo="real"
+      embebido={embebido}
       kpis={kpis}
       equipos={equipos}
       colas={colas}

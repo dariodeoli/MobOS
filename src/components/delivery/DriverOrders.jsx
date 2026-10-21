@@ -1,12 +1,14 @@
 import { useCallback, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Aviso, Badge, Button, Input, Modal, Money, MoneyInput, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Input, Money, MoneyInput, Select, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import Icon from '@/components/shared/Icon'
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import { ChipsReparto } from './ChipsReparto'
 import './entregasF3.css'
+import '@/components/shared/operacionRediseno.css'
 import { codigoPedido } from '@/utils/pedido'
 import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
@@ -140,7 +142,7 @@ export default function DriverOrders() {
   }
 
   return (
-    <div className="entregas-f3-assignments">
+    <div className="op-rd entregas-f3-assignments">
       <div className="entregas-f3-filters">
         <ChipsReparto flat value={estado} onChange={setEstado} items={[['activos', 'A entregar'], ['entregados', 'Entregados']]} />
         <button type="button" onClick={data.refresh} disabled={data.loading} className="entregas-f3-refresh">Actualizar</button>
@@ -154,7 +156,16 @@ export default function DriverOrders() {
         renderFila={row => <PedidoReparto key={row.id} row={row} onCobrar={abrirCobro} onEstado={cambiarEstado} busy={ocupado === row.id} />}
       />
 
-      <Modal open={Boolean(cobro)} onClose={() => !enviando && setCobro(null)} title="Registrar cobro en la calle" size="corto">
+      <Popup
+        open={Boolean(cobro)}
+        onClose={() => !enviando && setCobro(null)}
+        busy={enviando}
+        title="Registrar cobro en la calle"
+        acciones={{
+          secundaria: { label: 'Cancelar', disabled: enviando, onClick: () => setCobro(null) },
+          primaria: { label: enviando ? 'Registrando…' : 'Registrar cobro', disabled: enviando, onClick: registrarCobro, 'data-testid': 'reparto-cobro-confirmar' },
+        }}
+      >
         {cobro && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
@@ -182,13 +193,9 @@ export default function DriverOrders() {
             <p className="rounded-xl border border-warn/25 bg-warn/10 px-3 py-2 text-xs text-warn">
               El cobro queda pendiente hasta que la tienda verifique tu rendición.
             </p>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" disabled={enviando} onClick={() => setCobro(null)}>Cancelar</Button>
-              <Button type="button" disabled={enviando} onClick={registrarCobro} data-testid="reparto-cobro-confirmar">{enviando ? 'Registrando…' : 'Registrar cobro'}</Button>
-            </div>
           </div>
         )}
-      </Modal>
+      </Popup>
     </div>
   )
 }

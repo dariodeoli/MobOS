@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, ConfirmDialog, EmptyState, Skeleton, useToast } from '@/components/ui'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
+import { Badge, Button, EmptyState, Skeleton, useToast } from '@/components/ui'
 import SegmentedField from '@/components/shared/SegmentedField'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
@@ -13,6 +14,7 @@ import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { ESTADO_GARANTIA, ESTADO_GARANTIA_BADGE, SIGUIENTE_GARANTIA } from '@/lib/estadosPedido'
 import { SIGUIENTE_SERVICIO, etiquetaServicio } from '@/lib/estadosServicio'
 import Garantias from './Garantias'
+import '@/components/shared/operacionRediseno.css'
 import ServicioTecnico from './ServicioTecnico'
 import TableroServicioGarantias from './TableroServicioGarantias'
 
@@ -169,7 +171,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
   }
 
   return (
-    <div className="space-y-4" data-testid="servicio-garantias">
+    <div className="op-rd space-y-4" data-testid="servicio-garantias">
       {vista !== 'servicio' && (
         <div className="flex flex-wrap items-center gap-2">
           <SegmentedField value={vista} onChange={setVista} ariaLabel="Ver taller o garantías" options={TABS} />
@@ -247,7 +249,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
         </div>
       )}
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(confirmar)}
         onCancel={() => { if (!convirtiendo) setConfirmar(null) }}
         onConfirm={convertir}

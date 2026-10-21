@@ -1,0 +1,249 @@
+/* Rediseño de Operación (Repartos, Taller/Servicio, Garantías, Autorizaciones,
+   Ops): solo capa visual, acotada a la raíz .op-rd. Mismo lenguaje que Pedidos,
+   Clientes y Productos (pedidosRediseno.css): barra única con pestañas de
+   estado, KPI en una línea, filas densas con badge de punto de color, detalle
+   en columna principal + lateral y animaciones sutiles. Los tokens son los de
+   siempre (--c-*): claro/oscuro salen solos. */
+
+.op-rd {
+  --op-radius: 12px;
+  --op-line: rgb(var(--c-ink-600));
+  --op-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- Barra única: pestañas de estado ----------------------------------- */
+.op-rd .ventas-f3-chips,
+.op-rd .entregas-f3-chips,
+.op-rd .op-rd-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+.op-rd .ventas-f3-chips::-webkit-scrollbar,
+.op-rd .entregas-f3-chips::-webkit-scrollbar,
+.op-rd .op-rd-tabs::-webkit-scrollbar { display: none; }
+.op-rd .ventas-f3-chips > button,
+.op-rd .entregas-f3-chips > button,
+.op-rd .op-rd-tabs > button {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: rgb(var(--c-mute));
+  transition: color 0.18s var(--op-ease), background-color 0.18s var(--op-ease);
+}
+.op-rd .ventas-f3-chips > button:hover,
+.op-rd .entregas-f3-chips > button:hover,
+.op-rd .op-rd-tabs > button:hover { background: rgb(var(--c-ink-800)); color: rgb(var(--c-fore)); }
+.op-rd .ventas-f3-chips > button[aria-pressed='true'],
+.op-rd .entregas-f3-chips > button[aria-pressed='true'],
+.op-rd .op-rd-tabs > button[aria-pressed='true'] {
+  background: rgb(var(--c-ink-800));
+  border-color: transparent;
+  color: rgb(var(--c-fore));
+}
+.op-rd .ventas-f3-chips > button[aria-pressed='true']::after,
+.op-rd .entregas-f3-chips > button[aria-pressed='true']::after,
+.op-rd .op-rd-tabs > button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgb(var(--c-fono));
+  transform-origin: left center;
+  animation: op-subraya 0.22s var(--op-ease);
+}
+
+/* Barra de filtros de Autorizaciones y Repartos: una sola fila compacta. */
+.op-rd .op-rd-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.op-rd .op-rd-barra-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.op-rd .entregas-f3-filters {
+  gap: 8px 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--op-line);
+  border-radius: var(--op-radius);
+  background: rgb(var(--c-ink));
+}
+.op-rd .entregas-f3-refresh { border-radius: 10px; }
+
+/* ---- KPI en una línea --------------------------------------------------- */
+.op-rd [data-testid='resumen-garantias'],
+.op-rd [data-testid='resumen-servicio-garantias'],
+.op-rd [data-testid='resumen-taller'] {
+  border: 0;
+  border-bottom: 1px solid var(--op-line);
+  border-radius: 0;
+  background: transparent;
+}
+.op-rd [data-testid='resumen-garantias'] > div,
+.op-rd [data-testid='resumen-servicio-garantias'] > div { border-right-color: transparent; flex-wrap: nowrap; }
+
+/* Ops: los indicadores pasan de tarjetas a una tira de una línea. */
+.op-rd section[aria-label='Indicadores de hoy'] {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  gap: 0;
+  border-bottom: 1px solid var(--op-line);
+  scrollbar-width: none;
+}
+.op-rd section[aria-label='Indicadores de hoy']::-webkit-scrollbar { display: none; }
+.op-rd section[aria-label='Indicadores de hoy'] > article {
+  display: flex;
+  flex: 1 0 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 14px;
+}
+.op-rd section[aria-label='Indicadores de hoy'] > article > p { margin: 0; }
+.op-rd section[aria-label='Indicadores de hoy'] [data-testid^='ops-valor-'] {
+  font-size: 18px;
+  line-height: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Filas densas con hover y entrada suave ----------------------------- */
+.op-rd .taller-f3-row,
+.op-rd [data-testid='garantia-fila'],
+.op-rd [data-testid='servicio-garantia-fila'],
+.op-rd [data-testid='autorizacion-fila'],
+.op-rd .entregas-f3-order,
+.op-rd [data-testid='ops-equipo'],
+.op-rd [data-testid='ops-cola-item'] {
+  border-radius: var(--op-radius);
+  transition: background-color 0.15s var(--op-ease), border-color 0.15s var(--op-ease), box-shadow 0.2s var(--op-ease);
+  animation: op-fila 0.32s var(--op-ease) both;
+}
+.op-rd [data-testid='ops-cola-item'] { border-radius: 8px; }
+.op-rd .taller-f3-row:nth-child(2),
+.op-rd [data-testid='garantia-fila']:nth-child(2),
+.op-rd [data-testid='servicio-garantia-fila']:nth-child(2),
+.op-rd [data-testid='autorizacion-fila']:nth-child(2),
+.op-rd .entregas-f3-order:nth-child(2) { animation-delay: 22ms; }
+.op-rd .taller-f3-row:nth-child(3),
+.op-rd [data-testid='garantia-fila']:nth-child(3),
+.op-rd [data-testid='servicio-garantia-fila']:nth-child(3),
+.op-rd [data-testid='autorizacion-fila']:nth-child(3),
+.op-rd .entregas-f3-order:nth-child(3) { animation-delay: 44ms; }
+.op-rd .taller-f3-row:nth-child(n + 4),
+.op-rd [data-testid='garantia-fila']:nth-child(n + 4),
+.op-rd [data-testid='servicio-garantia-fila']:nth-child(n + 4),
+.op-rd [data-testid='autorizacion-fila']:nth-child(n + 4),
+.op-rd .entregas-f3-order:nth-child(n + 4) { animation-delay: 66ms; }
+.op-rd .taller-f3-row:hover,
+.op-rd .entregas-f3-order:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 0.07); }
+.op-rd .taller-f3-code { font-variant-numeric: tabular-nums; }
+.op-rd .taller-f3-identity b,
+.op-rd .entregas-f3-name { font-weight: 600; letter-spacing: -0.005em; }
+
+/* Repartos: tarjetas en 2 columnas cuando hay lugar. */
+@media (min-width: 900px) {
+  .op-rd .entregas-f3-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- Badges de estado: píldora suave con punto de color ---------------- */
+.op-rd .v2-chip:not(:has(svg)):not([data-sin-punto]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 2px 9px 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.op-rd .v2-chip:not(:has(svg)):not([data-sin-punto])::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---- Detalle: columna principal + lateral ------------------------------- */
+.op-rd-page { overflow-x: clip; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.op-rd-main,
+.op-rd-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; align-content: start; }
+.op-rd-main > *,
+.op-rd-side > * { min-width: 0; }
+@media (min-width: 1024px) {
+  .op-rd-page { grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); }
+}
+.op-rd-side { animation: op-entra-lado 0.34s var(--op-ease) both; animation-delay: 60ms; }
+[data-testid='taller-detalle'] .op-rd-side section,
+.op-rd .op-rd-side section { border-radius: var(--op-radius); }
+[data-testid='taller-detalle'] { animation: op-entra 0.28s var(--op-ease) both; }
+@media (min-width: 768px) {
+  [data-testid='taller-detalle'] .op-rd-page { grid-template-columns: minmax(0, 3fr) minmax(14rem, 2fr); }
+}
+
+/* Tarjetas de Ops. */
+.op-rd section[aria-label='Equipos en proceso'],
+.op-rd article[data-testid^='ops-cola-'] { border-radius: var(--op-radius); }
+
+/* ---- Acciones: respuesta táctil al presionar ---------------------------- */
+.op-rd button:not(:disabled):active,
+.popup-panel button:not(:disabled):active { transform: scale(0.97); }
+.op-rd .taller-f3-row button,
+.op-rd [data-testid='garantia-fila'] button,
+.op-rd [data-testid='autorizacion-fila'] button { transition: background-color 0.15s, border-color 0.15s, transform 0.1s; }
+
+/* ---- Celular: sin desborde horizontal ----------------------------------- */
+@media (max-width: 639px) {
+  .op-rd .entregas-f3-filters { padding: 2px 4px; }
+  .op-rd .entregas-f3-refresh { margin-left: 0; }
+  .op-rd .op-rd-page,
+  .op-rd .op-rd-main,
+  .op-rd .op-rd-side { gap: 12px; }
+}
+.popup-panel .taller-f3-detail-actions { min-width: 0; }
+.popup-panel .taller-f3-detail-actions > * { min-width: 0; }
+.popup-panel [data-testid='taller-detalle'] { overflow-wrap: anywhere; }
+
+@keyframes op-fila {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes op-entra {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes op-entra-lado {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes op-subraya {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .op-rd,
+  .op-rd *,
+  .op-rd *::after,
+  [data-testid='taller-detalle'],
+  [data-testid='taller-detalle'] * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .op-rd button:active,
+  .popup-panel button:active { transform: none !important; }
+}

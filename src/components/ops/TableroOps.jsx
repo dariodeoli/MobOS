@@ -10,6 +10,7 @@ import { Aviso, BarraProgreso, Button, Skeleton } from '@/components/ui'
 import { CELDA_DATO, CELDA_IDENTIDAD, ROTULO_SECCION } from '@/components/shared/tabla'
 import { ETIQUETA_RACK, ORDEN_RACK } from '@/lib/tallerRack'
 import { cn } from '@/lib/utils'
+import '@/components/shared/operacionRediseno.css'
 
 // Tablero ops F3 (#241). Lo comparten las dos caras detrás del flag:
 // - modo `preview` (`/ops-preview`): mock sin API, para la aprobación del piloto.
@@ -42,21 +43,26 @@ export default function TableroOps({
   error = '',
   actualizado = null,
   demo = false,
+  embebido = false,
   onRefrescar,
 }) {
   const esPreview = modo === 'preview'
   const vacio = cargando && !kpis.length
+  const Raiz = embebido ? 'div' : 'main'
   return (
-    <main className="v2-piloto min-h-dvh bg-paper px-4 py-6 text-fore sm:px-8" data-testid={esPreview ? 'ops-preview' : 'ops-tablero'}>
-      <div className="mx-auto max-w-6xl space-y-5">
+    <Raiz className={cn('op-rd v2-piloto text-fore', embebido ? 'min-w-0' : 'min-h-dvh bg-paper px-4 py-6 sm:px-8')} data-testid={esPreview ? 'ops-preview' : 'ops-tablero'}>
+      <div className={cn('space-y-5', !embebido && 'mx-auto max-w-6xl')}>
         <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <ThemeLogo className="h-8 w-auto" />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[.18em] text-fono-text">MobOS Ops</p>
-              <h1 className="text-xl font-bold tracking-tight">Tablero de operaciones</h1>
+          {/* Embebido: el shell del panel ya pone logo y título. */}
+          {!embebido && (
+            <div className="flex items-center gap-3">
+              <ThemeLogo className="h-8 w-auto" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[.18em] text-fono-text">MobOS Ops</p>
+                <h1 className="text-xl font-bold tracking-tight">Tablero de operaciones</h1>
+              </div>
             </div>
-          </div>
+          )}
           {esPreview ? (
             <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', TONOS.warn)}>
               Propuesta F3 · no activada (aprobación del piloto pendiente)
@@ -75,7 +81,7 @@ export default function TableroOps({
                   <Icon name="refresh" className="h-3.5 w-3.5" /> Actualizar
                 </Button>
               )}
-              <a href="/" className="inline-flex min-h-11 items-center px-1 text-xs font-semibold text-fono-text hover:underline">← Volver a la app</a>
+              {!embebido && <a href="/" className="inline-flex min-h-11 items-center px-1 text-xs font-semibold text-fono-text hover:underline">← Volver a la app</a>}
             </div>
           )}
         </header>
@@ -115,6 +121,8 @@ export default function TableroOps({
           )
         })()}
 
+        <div className="op-rd-page">
+        <div className="op-rd-main">
         <section className="rounded-2xl border border-ink-600 bg-ink p-4" aria-label="Equipos en proceso">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">Equipos en proceso</h2>
@@ -163,7 +171,9 @@ export default function TableroOps({
           </div>
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-3" aria-label="Colas de trabajo">
+        </div>
+        <div className="op-rd-side">
+        <section className="grid grid-cols-1 gap-3" aria-label="Colas de trabajo">
           {vacio
             ? [0, 1, 2].map((i) => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)
             : colas.map((cola) => (
@@ -185,6 +195,8 @@ export default function TableroOps({
               </article>
             ))}
         </section>
+        </div>
+        </div>
 
         <p className="text-center text-xs text-mute">
           {esPreview
@@ -192,7 +204,7 @@ export default function TableroOps({
             : 'Datos en vivo de tu empresa: rack del taller y los últimos 200 pedidos. Se actualiza solo cada minuto.'}
         </p>
       </div>
-      <ProductFooter />
-    </main>
+      {!embebido && <ProductFooter />}
+    </Raiz>
   )
 }

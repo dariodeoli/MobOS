@@ -13,9 +13,22 @@ import { usosDeModal } from '../../scripts/auditoria-modales.mjs'
 
 const leer = (ruta) => leerFuente(fileURLToPath(new URL(ruta, import.meta.url)), 'utf8')
 
+function contarPopups(dir) {
+  let total = 0
+  for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+    const ruta = join(dir, entrada.name)
+    if (entrada.isDirectory()) total += contarPopups(ruta)
+    else if (/\.jsx$/.test(entrada.name) && !/Popup(Confirmar)?\.jsx$/.test(entrada.name)) total += (leerFuente(ruta, 'utf8').match(/<Popup(Confirmar)?[\s>]/g) || []).length
+  }
+  return total
+}
+
 test('cada <Modal> usa un tamaño estándar y no declara max-w a mano', () => {
   const usos = usosDeModal()
-  assert.ok(usos.length >= 90, `se auditan todos los modales (encontrados: ${usos.length})`)
+  // Los modales migrados al Popup único (rediseño) siguen contando como
+  // ventanas auditadas: el piso protege que el escáner no deje de verlos.
+  const popups = contarPopups(fileURLToPath(new URL('../components', import.meta.url)))
+  assert.ok(usos.length + popups >= 90, `se auditan todas las ventanas (Modal: ${usos.length}, Popup: ${popups})`)
 
   const culpables = usos
     .filter((uso) => uso.ancho || uso.classNameDinamico)
@@ -188,14 +201,14 @@ test('los modales de CRM adoptan cierre con cambios, error junto al campo y resu
   const delivery = leer('../components/delivery/StoreDelivery.jsx')
   assert.ok(delivery.includes('dirty={Boolean(rechazar)'), 'rechazar la rendición confirma al cerrar con motivo')
   assert.ok(delivery.includes("error={errorDe('motivo')}"), 'el motivo de la rendición va junto al campo')
-  assert.ok(delivery.includes('<SaveActions pendiente={ocupado}'), 'el rechazo usa el pie estándar')
+  assert.ok(delivery.includes('<Popup') && delivery.includes("cierra: true"), 'el rechazo usa el pie estándar del Popup único')
 
   const servicio = leer('../components/control/ServicioTecnico.jsx')
   assert.ok(servicio.includes('dirty={formSucio}') && servicio.includes('dirty={catalogoSucio}'), 'la orden y el catálogo confirman al cerrar con cambios')
   assert.ok(servicio.includes("error={errorOrden('customerName')}") && servicio.includes("error={errorOrden('device')}"), 'cliente y dispositivo muestran su error junto al campo')
   assert.ok(servicio.includes('<FormField label="Servicio del catálogo"'), 'el selector del catálogo tiene label visible')
   assert.ok(servicio.includes('<FormField label="Nombre del servicio"'), 'el catálogo tiene labels visibles')
-  assert.ok(servicio.includes('<SaveActions pendiente={busy}>'), 'la orden usa el pie estándar')
+  assert.ok(servicio.includes("form: 'form-taller-orden'") && servicio.includes('busy={busy}'), 'la orden usa el pie estándar del Popup único')
   assert.ok(!servicio.includes('useDialogDirty(formSucio)'), 'el dirty de la orden va en el objeto del diálogo')
 })
 
@@ -221,4 +234,6 @@ test('detalles y vistas previas son una ventana centrada, nunca un panel lateral
     const fuente = leer(`../components/${ruta}.jsx`)
     assert.ok(fuente.includes('<VentanaDetalle') || fuente.includes('<Popup'), `${ruta} abre VentanaDetalle o el Popup único`)
   }
+  // Operación (rediseño): el detalle del taller usa el Popup único (misma ventana centrada, X roja, pie de acciones).
+  assert.ok(leer('../components/control/ServicioTecnico.jsx').includes('<Popup'), 'control/ServicioTecnico abre el Popup único')
 })
