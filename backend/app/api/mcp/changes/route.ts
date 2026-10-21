@@ -1,3 +1,4 @@
+import { withoutMcpImageBytes } from '../../../../lib/mcp/preview-retention'
 import { invalidToolArguments } from '../../../../lib/mcp/tool-contracts'
 import { mcpOriginAllowed, mcpJsonRequest } from '../../../../lib/mcp/transport'
 import { readOrderComment, updateOrderComment, normalizeOrderCommentFields, OrderCommentError } from '../../../../lib/order-comment-service'
@@ -5,7 +6,7 @@ import { mcpAccessFailure } from '../../../../lib/mcp/rate-limit'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
-import { dbNow, requireMcpAccessToken } from '../../../../lib/mcp/oauth'
+import { dbNow, revalidateMcpAccessToken, requireMcpAccessToken } from '../../../../lib/mcp/oauth'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { moduleStoreFrom } from '../../../../lib/module-store'
 import { changePayloadHash, validateChange } from '../../../../lib/mcp/changes'
@@ -198,7 +199,12 @@ export async function POST(request: Request) {
       const created = await persistProductImage({ db: prisma as any, tenantId: auth.tenantId, userId: auth.user.id, productId: String(checked.payload.productId), branchId: decision.branchId, canManage: decision.allowed, image: generated.image, thumb: generated.thumb, variantKey: typeof checked.payload.variantKey === 'string' ? checked.payload.variantKey : null, provenance: 'mcp', onPersisted: async (tx, row) => {
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
         const committedAt = await dbNow(tx)
-        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'ProductImage', resultId: row.id } })
+        const current = await tx.mcpChangePreview.findUnique({ where: { id: preview.id }, select: { payload: true } })
+        const liveAuth = await revalidateMcpAccessToken(tx, auth.tokenId, 'product_images:write')
+        const liveTenant = await tx.tenant.findUnique({ where: { id: auth.tenantId }, select: { settings: true } })
+        const liveDecision = liveAuth && liveTenant && authorizeMcpAction('product_images.write', { tenantId: liveAuth.tenantId, user: liveAuth.user, enabledModules: moduleStoreFrom(liveTenant.settings).modules, grantedScopes: liveAuth.scopes, requestedBranchId: decision.branchId })
+        if (!current?.payload || typeof current.payload !== 'object' || !Object.hasOwn(current.payload, 'dataBase64') || !liveDecision?.allowed) throw new ProductImageError(409, 'preview_invalido')
+        const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, payload: withoutMcpImageBytes(checked.payload), resultEntity: 'ProductImage', resultId: row.id } })
         if (claimed.count !== 1) throw new ProductImageError(409, 'preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'ProductImage', entityId: row.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
       } })

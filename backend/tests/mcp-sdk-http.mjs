@@ -469,6 +469,100 @@ try {
     const rejected = await changesPost(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'preview', action, idempotencyKey: 'direct-contract-reject', payload }) }))
     ok(rejected.status === 400 && !(await rejected.text()).includes('internal-secret'), 'direct changes applies closed typed tool contract without echoing input')
   }
+  const { pruneMcpImagePreviews } = require('../lib/mcp/preview-retention.ts')
+  const imageStored = await db.mcpChangePreview.findUnique({ where: { id: imagePreviewPayload.previewId } })
+  ok(!Object.hasOwn(imageStored.payload, 'dataBase64') && imageStored.payloadHash && imageStored.resultId === imageCommit.structuredContent.entityId, 'image commit scrubs bytes atomically while retaining replay hash/result')
+  ok(await db.productImage.count({ where: { id: imageStored.resultId, deletedAt: null } }) === 1, 'scrub preserves canonical product photo')
+  await pruneMcpImagePreviews(db, { tenantId: tenant.id, limit: 200 })
+  let fixtureIndex = 0
+  const retentionPreview = (extra = {}) => db.mcpChangePreview.create({ data: { tenantId: tenant.id, userId: user.id, grantId: grant.id, clientId: 'sdk-http', sessionId: session.id, action: 'product_images.write', payloadHash: 'a'.repeat(64), payload: { productId: product.id, dataBase64: png, contentType: 'image/png' }, idempotencyKey: `retention-${++fixtureIndex}`, expiresAt: new Date(Date.now() + 60000), ...extra } })
+  const validRetention = await retentionPreview()
+  const expiredRetention = await retentionPreview({ expiresAt: new Date(Date.now() - 1000) })
+  const retentionForeignTenant = await db.tenant.create({ data: { name: 'Retention other', slug: 'retention-other', email: 'retention-other@example.test' } })
+  const retentionForeignUser = await db.user.create({ data: { tenantId: retentionForeignTenant.id, name: 'Other', pinHash: 'unused', role: 'ADMIN' } })
+  const foreignRetention = await retentionPreview({ tenantId: retentionForeignTenant.id, userId: retentionForeignUser.id, grantId: null, sessionId: null, expiresAt: new Date(Date.now() - 1000) })
+  const timezoneRetentionDb = { $transaction: (callback, options) => db.$transaction(async tx => { await tx.$executeRawUnsafe("SET LOCAL TIME ZONE 'Pacific/Auckland'"); return callback(tx) }, options) }
+  const firstRetention = await pruneMcpImagePreviews(timezoneRetentionDb, { tenantId: tenant.id, limit: 1 })
+  ok(firstRetention.scrubbed === 1 && firstRetention.batchLimit === 1 && !Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: expiredRetention.id } })).payload, 'dataBase64'), 'bounded maintenance scrubs expired preview')
+  ok(Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: validRetention.id } })).payload, 'dataBase64') && Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: foreignRetention.id } })).payload, 'dataBase64'), 'maintenance preserves valid proposal and isolates optional tenant scope')
+  const revokedGrant = await db.mcpClientGrant.create({ data: { tenantId: tenant.id, userId: user.id, accountId: account.id, clientId: 'sdk-http', redirectUri: 'https://connector.example/revoked-retention', resource, scopes, revokedAt: new Date() } })
+  const revokedRetention = await retentionPreview({ grantId: revokedGrant.id })
+  await pruneMcpImagePreviews(db, { tenantId: tenant.id })
+  ok(!Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: revokedRetention.id } })).payload, 'dataBase64'), 'maintenance scrubs revoked grant before proposal TTL')
+  const batchRetention = await Promise.all([1, 2, 3].map(() => retentionPreview({ expiresAt: new Date(Date.now() - 1000) })))
+  const boundedCleanup = await pruneMcpImagePreviews(db, { tenantId: tenant.id, limit: 2 })
+  ok(boundedCleanup.scrubbed === 2 && (await db.mcpChangePreview.findMany({ where: { id: { in: batchRetention.map(row => row.id) } } })).filter(row => Object.hasOwn(row.payload, 'dataBase64')).length === 1, 'cleanup enforces per-run batch bound without deleting rows')
+  await pruneMcpImagePreviews(db, { tenantId: tenant.id })
+  const heldRetention = await retentionPreview({ expiresAt: new Date(Date.now() - 1000) })
+  let retentionLocked
+  const retentionReady = new Promise(resolve => { retentionLocked = resolve })
+  const retentionLock = makeDb().$transaction(async tx => { await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${heldRetention.id} FOR UPDATE`; retentionLocked(); await tx.$executeRaw`SELECT pg_sleep(0.7)` })
+  await retentionReady
+  const skippedCleanup = await pruneMcpImagePreviews(db, { tenantId: tenant.id })
+  ok(skippedCleanup.scrubbed === 0 && Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: heldRetention.id } })).payload, 'dataBase64'), 'cleanup skips row locked by another transaction instead of racing')
+  await retentionLock
+  ok((await pruneMcpImagePreviews(db, { tenantId: tenant.id })).scrubbed === 1, 'later cleanup safely retries previously locked row')
+  const raceImageArgs = { ...imageArgs, idempotencyKey: 'retention-commit-race' }
+  const raceImagePreview = await client.callTool({ name: 'product_images.write', arguments: raceImageArgs })
+  const raceImageId = raceImagePreview.structuredContent.previewId
+  const [raceImageResult] = await Promise.all([client.callTool({ name: 'product_images.write', arguments: { ...raceImageArgs, mode: 'commit', previewId: raceImageId } }), pruneMcpImagePreviews(db, { tenantId: tenant.id })])
+  const raceReplay = await client.callTool({ name: 'product_images.write', arguments: { ...raceImageArgs, mode: 'commit', previewId: raceImageId } })
+  ok(raceImageResult.structuredContent.committed && raceReplay.structuredContent.idempotent && !Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: raceImageId } })).payload, 'dataBase64'), 'valid commit versus cleanup remains replayable without temporary bytes')
+  const expiryImageArgs = { ...imageArgs, idempotencyKey: 'retention-expiring-commit' }
+  const expiryImagePreview = await client.callTool({ name: 'product_images.write', arguments: expiryImageArgs })
+  const expiryImageId = expiryImagePreview.structuredContent.previewId
+  await db.mcpChangePreview.update({ where: { id: expiryImageId }, data: { expiresAt: new Date(Date.now() + 350) } })
+  let expiryImageLocked
+  const expiryImageReady = new Promise(resolve => { expiryImageLocked = resolve })
+  const expiryImageLock = makeDb().$transaction(async tx => { await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${expiryImageId} FOR UPDATE`; expiryImageLocked(); await tx.$executeRaw`SELECT pg_sleep(0.9)` })
+  await expiryImageReady
+  const canonicalBeforeExpiry = await db.productImage.count()
+  const expireCommit = client.callTool({ name: 'product_images.write', arguments: { ...expiryImageArgs, mode: 'commit', previewId: expiryImageId } }).then(() => false).catch(() => true)
+  await pruneMcpImagePreviews(db, { tenantId: tenant.id })
+  await expiryImageLock
+  ok(await expireCommit && await db.productImage.count() === canonicalBeforeExpiry, 'commit expiring during cleanup/lock cannot persist canonical image')
+  await pruneMcpImagePreviews(db, { tenantId: tenant.id })
+  ok(!Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: expiryImageId } })).payload, 'dataBase64'), 'expired failed commit bytes cleared by subsequent bounded run')
+  for (const loss of ['revoked', 'expired']) {
+    const pendingArgs = { ...imageArgs, idempotencyKey: `retention-token-${loss}` }
+    const pending = await client.callTool({ name: 'product_images.write', arguments: pendingArgs })
+    const pendingId = pending.structuredContent.previewId
+    const shortToken = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource, scopes: ['product_images:write'] })
+    const shortTokenId = (await db.mcpAccessToken.findUnique({ where: { tokenHash: oauth.hashMcpSecret(shortToken.accessToken) }, select: { id: true } })).id
+    if (loss === 'expired') await db.mcpAccessToken.update({ where: { id: shortTokenId }, data: { expiresAt: new Date(Date.now() + 1500) } })
+    let locked, release
+    const ready = new Promise(resolve => { locked = resolve })
+    const released = new Promise(resolve => { release = resolve })
+    const holder = makeDb().$transaction(async tx => { await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${pendingId} FOR UPDATE`; locked(); await released })
+    await ready
+    const photosBeforeTokenLoss = await db.productImage.count()
+    const auditsBeforeTokenLoss = await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } })
+    const pendingResponse = POST(new Request(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${shortToken.accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 654, method: 'tools/call', params: { name: 'product_images.write', arguments: { ...pendingArgs, mode: 'commit', previewId: pendingId } } }) }))
+    let waiter = false
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const rows = await db.$queryRaw`SELECT count(*)::int AS count FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%McpChangePreview%'`
+      if (rows[0].count > 0) { waiter = true; break }
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    ok(waiter, 'token loss regression reaches preview lock after initial bearer validation')
+    if (loss === 'revoked') await db.mcpAccessToken.update({ where: { id: shortTokenId }, data: { revokedAt: new Date() } })
+    else await db.$executeRaw`SELECT pg_sleep(1.7)`
+    release(); await holder
+    const pendingResult = await (await pendingResponse).json()
+    const pendingRow = await db.mcpChangePreview.findUnique({ where: { id: pendingId } })
+    ok(Boolean(pendingResult.error) && await db.productImage.count() === photosBeforeTokenLoss && await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } }) === auditsBeforeTokenLoss && pendingRow.status === 'PREVIEW' && Object.hasOwn(pendingRow.payload, 'dataBase64'), `access token ${loss} while blocked rolls back photo/preview/audit`)
+  }
+  const { POST: maintenancePost } = require('../app/api/internal/mcp-previews/route.ts')
+  const maintenanceRequest = (token, body = '{}') => new Request(`${resource}/api/internal/mcp-previews`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body })
+  delete process.env.MOBOS_MAINTENANCE_TOKEN
+  ok((await maintenancePost(maintenanceRequest())).status === 503, 'unconfigured retention endpoint fails closed')
+  process.env.MOBOS_MAINTENANCE_TOKEN = 'synthetic-maintenance-only'
+  ok((await maintenancePost(maintenanceRequest('wrong'))).status === 401, 'retention rejects invalid maintenance token')
+  for (const body of ['{"limit":201}', '{"tenantId":"other"}', '[]']) ok((await maintenancePost(maintenanceRequest(process.env.MOBOS_MAINTENANCE_TOKEN, body))).status === 400, 'retention rejects invalid/untrusted options')
+  ok((await maintenancePost(maintenanceRequest(process.env.MOBOS_MAINTENANCE_TOKEN, 'x'.repeat(4097)))).status === 413, 'retention body is byte bounded')
+  const maintenanceResponse = await maintenancePost(maintenanceRequest(process.env.MOBOS_MAINTENANCE_TOKEN, '{"limit":1}'))
+  const maintenanceText = await maintenanceResponse.text()
+  ok(maintenanceResponse.status === 200 && !maintenanceText.includes(png) && !maintenanceText.includes('synthetic-maintenance-only'), 'maintenance response returns counts only without bytes/tokens')
   const openSchedule = { timezone: 'America/Asuncion', windows: [{ days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }] }
   await db.user.update({ where: { id: user.id }, data: { accessSchedule: openSchedule } })
   const scheduleTokens = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] })

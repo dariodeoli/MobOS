@@ -159,15 +159,30 @@ async function resolveMcpAccessToken(request: Request, now?: Date) {
   if (!match || !isMcpSecret(match[1])) return null
   now ??= await dbNow(prisma)
   const row = await prisma.mcpAccessToken.findUnique({ where: { tokenHash: hashMcpSecret(match[1]) }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
+  const auth = await validateMcpAccessRow(prisma, row, now)
+  if (!auth) return null
+  await consumeMcpQuota(prisma, row!.grantId, row!.tenantId)
+  await prisma.mcpAccessToken.update({ where: { id: row!.id }, data: { lastUsedAt: now } })
+  return auth
+}
+
+async function validateMcpAccessRow(db: Db, row: Prisma.McpAccessTokenGetPayload<{ include: { grant: true; tenant: { select: { archivedAt: true } }; session: { include: { user: true } } } }> | null, now: Date) {
   if (!row || row.revokedAt || row.expiresAt <= now || row.grant.revokedAt || !findMcpClient(row.clientId, row.grant.redirectUri) || row.resource !== mcpResource() || row.grant.resource !== row.resource || row.grant.clientId !== row.clientId || row.session.revokedAt || row.session.level !== 'SELLER' || row.session.expiresAt <= now || row.tenant.archivedAt || !row.session.user) return null
   const user = row.session.user
   if (user.status !== 'ACTIVE' || row.session.userId !== row.userId || user.tenantId !== row.tenantId || (row.accountId && row.session.accountId !== row.accountId) || row.session.tenantId !== row.tenantId || row.scopes.some(scope => !row.grant.scopes.includes(scope))) return null
   if (!isAccessAllowed(user.accessSchedule, now)) {
-    await prisma.session.updateMany({ where: { id: row.sessionId, revokedAt: null }, data: { revokedAt: now } })
+    await db.session.updateMany({ where: { id: row.sessionId, revokedAt: null }, data: { revokedAt: now } })
     return null
   }
-  if (row.accountId && !(await prisma.tenantMembership.findFirst({ where: { accountId: row.accountId, tenantId: row.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }))) return null
-  await consumeMcpQuota(prisma, row.grantId, row.tenantId)
-  await prisma.mcpAccessToken.update({ where: { id: row.id }, data: { lastUsedAt: now } })
+  if (row.accountId && !(await db.tenantMembership.findFirst({ where: { accountId: row.accountId, tenantId: row.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }))) return null
   return { tokenId: row.id, grantId: row.grantId, tenantId: row.tenantId, accountId: row.accountId, sessionId: row.sessionId, scopes: row.scopes as McpScope[], user: { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, pinLength: user.pinLength, permissions: effectivePermissions(user.role, user.permissions) }, clientId: row.clientId }
+}
+
+/** Reuse the bearer guard after a domain/preview lock wait, without debiting quota twice. */
+export async function revalidateMcpAccessToken(db: Db, tokenId: string, scope: McpScope) {
+  assertMcpEnabled()
+  const now = await dbNow(db)
+  const row = await db.mcpAccessToken.findUnique({ where: { id: tokenId }, include: { grant: true, tenant: { select: { archivedAt: true } }, session: { include: { user: true } } } })
+  const auth = await validateMcpAccessRow(db, row, now)
+  return auth?.scopes.includes(scope) ? auth : null
 }

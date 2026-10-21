@@ -197,3 +197,5 @@ El arnés habilita el flag sólo en entorno sintético y restaura el entorno al
 finalizar. Ningún registro OAuth externo ni clave productiva fue creado.
 
 Privacidad de imágenes: los bytes no se devuelven en logs, auditorías ni respuestas. El payload privado de McpChangePreview sí conserva dataBase64 para realizar commit; la expiración impide usarlo pero no lo elimina físicamente. La limpieza/retención de previews debe definirse antes de activación real.
+
+La unidad #652 implementa scrub al commit y mantenimiento interno acotado para previews vencidos/revocados; ver [retención](MCP-652-PREVIEW-RETENTION.md). El scheduler sigue sin activar y los límites de backups/WAL son independientes.
