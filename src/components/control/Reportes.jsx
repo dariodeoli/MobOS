@@ -31,6 +31,8 @@ import {
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import Toolbar from '@/components/shared/Toolbar'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import StatusChip from '@/components/shared/StatusChip'
 import { CELDA_NUMERO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
@@ -226,8 +228,8 @@ export default function Reportes() {
   }
 
   return (
-    <div className="finanzas-tactil space-y-4">
-      <Card className="p-3">
+    <div className="gp ventas-f3 finanzas-tactil space-y-4" data-testid="reportes-pagina">
+      <div>
         <Toolbar
           plano
           lista
@@ -273,7 +275,7 @@ export default function Reportes() {
             </Button>
           )}
         />
-      </Card>
+      </div>
 
       {exportError && (
         <Card className="border-bad/40 bg-bad/10">
@@ -299,7 +301,7 @@ export default function Reportes() {
 
       {datosComisiones && tipo === 'comisiones' && (
         <>
-<div role="group" aria-label="Resumen de comisiones" className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+<div role="group" aria-label="Resumen de comisiones" className="gp-kpis grid grid-cols-1 min-[480px]:grid-cols-3">
             <KpiReporte label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={etiquetaRango(rango)} />
             <KpiReporte label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
             <KpiReporte label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
@@ -365,7 +367,7 @@ export default function Reportes() {
 
       {totales && tipo !== 'comisiones' && (
         <>
-          <div data-testid="reportes-kpis" role="group" aria-label="Resumen del período" className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 min-[1100px]:grid-cols-4">
+          <div data-testid="reportes-kpis" role="group" aria-label="Resumen del período" className="gp-kpis grid grid-cols-1 min-[480px]:grid-cols-2 min-[1100px]:grid-cols-4">
             <KpiReporte destacado label="Total del período" valor={gs(totales.totalPyg)} sub={`${totales.orders} ventas · ${etiquetaRango(rango)}`} />
             <KpiReporte label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
             <KpiReporte label="Margen real" valor={gs(totales.netProfitPyg ?? totales.profitPyg)} sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${formatPercent(totales.netMarginPct)}%`} />
@@ -405,7 +407,7 @@ export default function Reportes() {
 
           <section data-testid="reportes-metricas" aria-labelledby="reportes-metricas-titulo" className="space-y-4 print:hidden">
             <h2 id="reportes-metricas-titulo" className="text-base font-semibold text-fore">Métricas y evolución</h2>
-            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+            <div className="gp-kpis grid grid-cols-1 min-[480px]:grid-cols-3">
               <KpiReporte label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
               <KpiReporte label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
               <KpiReporte label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
@@ -563,7 +565,7 @@ function TablaImpresion({ testId, titulo, encabezados, filas }) {
 // ocupa su propia casilla de la grilla y el texto parte línea: nunca se pisa.
 function KpiReporte({ label, valor, sub, destacado = false }) {
   return (
-    <div className={cn('min-w-0 rounded-xl border bg-ink-800 px-4 py-3', destacado ? 'border-fono/60' : 'border-ink-600')}>
+    <div className={cn('gp-kpi', destacado && 'gp-kpi-destacado')}>
       <div className="text-xs font-medium text-mute">{label}</div>
       <div className="mt-0.5 break-words text-xl font-semibold leading-7 tabular-nums text-fore">{valor}</div>
       {sub && <div className="mt-0.5 break-words text-xs leading-4 text-mute">{sub}</div>}

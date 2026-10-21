@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '@/components/shared/gestionProfundo.css'
 import { listVentas, listGastos, listAds, productosById, getVendedores } from '@/lib/storage'
 import { responder, SUGERENCIAS } from '@/utils/asistente'
 import { Card, Button, Input, Badge } from '@/components/ui'
@@ -82,7 +83,7 @@ export default function Asistente() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="gp space-y-4">
       <Card className="space-y-3">
         <div className="flex items-center gap-2">
           <span className="text-2xl">

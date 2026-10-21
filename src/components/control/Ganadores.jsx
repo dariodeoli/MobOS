@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import '@/components/shared/gestionProfundo.css'
 import { useUrlState } from '@/hooks/useUrlState'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, productosById } from '@/lib/storage'
@@ -39,7 +40,7 @@ export default function Ganadores() {
   const hayCostos = topApi ? topApi.hayCostos : local.some((p) => p.ganancia !== null && p.ganancia !== undefined)
 
   return (
-    <div className="space-y-4">
+    <div className="gp space-y-4" data-testid="ganadores-pagina">
       <PeriodoTabs periodo={periodo} setPeriodo={setPeriodo} />
       <TarjetaGrafico
         testId="ganadores"

@@ -168,3 +168,15 @@
   .gp, .gp *, .gp *::after { animation: none !important; transition: none !important; }
   .gp button:active { transform: none !important; }
 }
+
+/* ---- KPI con detalle (Análisis): tira con divisores, sin cajas ------------ */
+.gp-kpis {
+  display: grid;
+  border-bottom: 1px solid var(--gp-line);
+}
+.gp-kpi { min-width: 0; padding: 10px 16px 10px 0; }
+.gp-kpi + .gp-kpi { border-top: 1px solid var(--gp-line); padding-left: 0; }
+.gp-kpi-destacado > div:nth-child(2) { color: rgb(var(--c-fono-light, var(--c-fore))); }
+@media (min-width: 480px) {
+  .gp-kpi + .gp-kpi { border-top: 0; border-left: 1px solid var(--gp-line); padding-left: 16px; }
+}
