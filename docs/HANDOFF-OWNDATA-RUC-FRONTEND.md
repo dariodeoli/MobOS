@@ -39,3 +39,12 @@ Rollback only src/components/shared/RucField.jsx and the RUC-specific architectu
 - The ninth RUC digit remains part of the base unless a hyphen explicitly separates a valid DV.
 - Official data is offered for review, with explicit acceptance or discard; manual entry remains available.
 - Demo extraction remains fictitious and makes no real registry request.
+
+
+## Actualización #663
+
+La opción “Confirmo que es una persona: consultar nombre completo” está desmarcada inicialmente. Se incluye en la identidad de la petición; cambiarla descarta una propuesta anterior o tardía. Sólo solicita `subjectKind=individual` al backend; el servidor agrega `nameMethods=full` en la misma llamada OwnData. Las empresas y consultas sin confirmación mantienen el nombre oficial.
+
+La propuesta puede mostrar `namePresentation.values.full` de la raíz, validada en backend y admitida sólo con la confirmación explícita. `nameOfficial` se conserva sin modificación; `displayName` es separado y no implica separar nombres/apellidos ni acreditar identidad. Los campos exclusivamente fiscales, incluida la identidad de factura guardada, conservan el nombre oficial. El POS y los clientes pueden aplicar la presentación al nombre visible; el titular de cuenta usa la presentación confirmada. No se guarda ni sobrescribe nada al extraer: “Usar estos datos” aplica al formulario, y guardar sigue siendo una acción posterior.
+
+Un error de credencial OwnData401 o permiso/plan403, sólo en GET privado `/api/ruc` con marcador/código admitidos, conserva la sesión y snapshots de MobOS. Un401 propio o cuerpo inválido sigue invalidando el contexto; no hay excepción general para401/403 ni reintentos automáticos. Cuota429 respeta Retry-After; los demás estados conservan carga manual y mensajes seguros.

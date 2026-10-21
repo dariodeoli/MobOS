@@ -1,3 +1,4 @@
+import { isOwnDataCredentialError, readRucErrorBody } from './rucProviderError.js'
 import { ApiError } from './errors'
 import { CACHE_GET_MS, cacheDeConsultas } from './requestCache'
 import { isDemoRuntime } from '@/lib/demoMode'
@@ -141,16 +142,20 @@ async function ejecutarConsulta({ path, init, body, headers, metodo, clave, vent
 
   if (revision !== revisionConsultas) throw new ApiError('El contexto de acceso cambió.', { code: 'CONTEXT_CHANGED' })
   // El estado HTTP deniega aunque el cuerpo esté vacío o tenga JSON inválido.
-  const denegadoPorEstado = CODIGOS_QUE_INVALIDAN.has(response.status)
+  const rucDenial = metodo === 'GET' && typeof path === 'string' && path.split('?')[0] === '/api/ruc' && [401, 403].includes(response.status)
+  let rucError = null
+  if (rucDenial) { try { rucError = await readRucErrorBody(response) } catch { /* fail closed below */ } }
+  const providerFailure = rucDenial && isOwnDataCredentialError(path, metodo, response.status, rucError)
+  const denegadoPorEstado = CODIGOS_QUE_INVALIDAN.has(response.status) && !providerFailure
   if (denegadoPorEstado) { invalidarConsultas(); await invalidarSnapshotsPrivados({ siGeneracion: generacion }) }
   let payload
-  try { payload = await readBody(response) } catch (error) {
+  try { payload = rucDenial ? rucError : await readBody(response) } catch (error) {
     if (!denegadoPorEstado) throw error
     payload = null
   }
   if (!denegadoPorEstado && revision !== revisionConsultas) throw new ApiError('El contexto de acceso cambió.', { code: 'CONTEXT_CHANGED' })
   if (signal?.aborted) throw new ApiError('La solicitud fue cancelada.', { code: 'REQUEST_ABORTED' })
-  const denegado = denegadoPorEstado || esDenegacionPrivada(payload)
+  const denegado = denegadoPorEstado || (!providerFailure && esDenegacionPrivada(payload))
   if (!response.ok || denegado) {
     if (denegado && !denegadoPorEstado) { invalidarConsultas(); await invalidarSnapshotsPrivados({ siGeneracion: generacion }) }
     const retryAfter = response.status === 429 ? Number(response.headers.get('retry-after')) : 0
@@ -159,7 +164,7 @@ async function ejecutarConsulta({ path, init, body, headers, metodo, clave, vent
       : response.status === 429 ? ' Reintentá en unos segundos.' : ''
     throw new ApiError(`${payload?.message || `La API respondió con ${response.status}.`}${retryHint}`, {
       status: response.ok && denegado ? 403 : response.status,
-      code: payload?.code || (response.status === 401 ? 'UNAUTHORIZED' : 'API_ERROR'),
+      code: payload?.code || (providerFailure ? payload.details.code : response.status === 401 ? 'UNAUTHORIZED' : 'API_ERROR'),
       details: payload?.details ?? payload,
     })
   }

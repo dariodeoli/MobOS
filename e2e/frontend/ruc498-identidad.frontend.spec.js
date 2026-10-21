@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mockRucPublic } from '../helpers/ruc-public.js'
+import { mockRucPublic, rucPublicPayload } from '../helpers/ruc-public.js'
 
 async function enter(page, width, dark, mockOptions) {
   await page.setViewportSize({ width, height: 844 })
@@ -237,3 +237,55 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     await verifyApi()
   })
 }
+
+for (const width of [390,1440]) test(`663 persona explícita presentación raíz y fiscal intacto ${width}`,async({page})=>{
+  const calls=[]
+  const verify=await enter(page,width,false,{respond:({query,subjectKind})=>{
+    calls.push(subjectKind)
+    return {status:200,json:{...rucPublicPayload(query,'APELLIDO, NOMBRE'),
+      ...(subjectKind==='individual'?{namePresentation:{version:'2',methods:['full'],subjectKind:'individual',classificationSource:'caller_confirmed',values:{full:'NOMBRE APELLIDO'}}}:{})}}
+  }})
+  await page.getByText('Datos de contacto, RUC/CI y direcciones',{exact:true}).click()
+  const identity=page.locator('section[aria-label="Identidad"]')
+  const check=identity.getByRole('checkbox',{name:'Confirmo que es una persona: consultar nombre completo'})
+  await expect(check).not.toBeChecked()
+  await extract(identity,'CI o RUC del cliente','1234567')
+  await expect(identity).toContainText('APELLIDO, NOMBRE')
+  await check.check()
+  await expect(identity.getByRole('button',{name:'Usar estos datos'})).toHaveCount(0)
+  await identity.getByRole('button',{name:/Extraer/}).click()
+  await expect(identity).toContainText('NOMBRE APELLIDO')
+  await page.screenshot({path:`/tmp/mobos663-persona-${width}.png`,fullPage:true})
+  const state=()=>page.getByTestId('estado-fiscal').textContent().then(JSON.parse)
+  expect((await state()).value.name).toBe('')
+  await identity.getByRole('button',{name:'Usar estos datos'}).click()
+  expect((await state()).value.nameOfficial).toBe('APELLIDO, NOMBRE')
+  expect((await state()).value.displayName).toBe('NOMBRE APELLIDO')
+  expect(calls).toEqual([null,'individual'])
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+  verify()
+})
+
+test('663 cambiar confirmación invalida respuesta individual pendiente sin duplicar',async({page})=>{
+  let release,seen
+  const gate=new Promise(resolve=>{release=resolve})
+  const requested=new Promise(resolve=>{seen=resolve})
+  let calls=0
+  const verify=await enter(page,390,false,{respond:async({query,subjectKind})=>{
+    calls++;seen();await gate
+    return {status:200,json:{...rucPublicPayload(query,'FISCAL QA'),namePresentation:{version:'2',methods:['full'],subjectKind,classificationSource:'caller_confirmed',values:{full:'VISTA ANTERIOR'}}}}
+  }})
+  await page.getByText('Datos de contacto, RUC/CI y direcciones',{exact:true}).click()
+  const identity=page.locator('section[aria-label="Identidad"]')
+  await identity.getByRole('textbox',{name:'CI o RUC del cliente',exact:true}).fill('1234567')
+  const checkbox=identity.getByRole('checkbox',{name:'Confirmo que es una persona: consultar nombre completo'})
+  await checkbox.check()
+  await identity.getByRole('button',{name:/Extraer/}).click()
+  await requested
+  await checkbox.uncheck()
+  release()
+  await expect(identity.getByRole('button',{name:'Usar estos datos'})).toHaveCount(0)
+  expect((JSON.parse(await page.getByTestId('estado-fiscal').textContent())).value.name).toBe('')
+  expect(calls).toBe(1)
+  verify()
+})

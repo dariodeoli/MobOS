@@ -17,8 +17,9 @@ function archivosFuente() {
 }
 
 test('la consulta de RUC vive solo en el objeto compartido RucField', () => {
-  // La ruta privada sigue centralizada; la demo usa transporte público exclusivo (#498).
-  const permitidos = new Set(['components/shared/RucField.jsx', 'lib/demoRuc.js'])
+  // La consulta privada sigue en RucField; cliente/helper sólo reconocen su error de credencial (#663).
+  // La demo usa transporte público exclusivo (#498).
+  const permitidos = new Set(['components/shared/RucField.jsx', 'lib/demoRuc.js', 'lib/api/client.js', 'lib/api/rucProviderError.js'])
   const culpables = archivosFuente()
     .filter((archivo) => /api\/ruc/.test(archivo.contenido) && !permitidos.has(archivo.ruta))
     .map((archivo) => archivo.ruta)
@@ -175,13 +176,13 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
 
 test('RucField adapta la variante compacta conservando admisión fiscal y aceptación expresa', () => {
   const source = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
-  assert.match(source, /import \{ RucField as CampoRuc \} from 'owncoding-ui'/)
+  assert.match(source, /import \{ RucField as CampoRuc, Checkbox \} from 'owncoding-ui'/)
   assert.match(source, /<CampoRuc\b/)
   assert.doesNotMatch(source, /<input\b|<Input\b/)
   assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
-  assert.match(source, /consultarRucDemoReal\(identity\.query, \{ apiUrl: API_URL, signal: request\.signal \}\)/)
+  assert.match(source, /consultarRucDemoReal\(identity\.query, \{ apiUrl: API_URL, signal: request\.signal, individualConfirmed \}\)/)
   assert.match(source, /await api\.get\(`\/api\/ruc\?ruc=/)
-  assert.match(source, /admitRucResponse\(payload, identity, demo && Boolean\(payload\?\.demoFixture\)\)/)
+  assert.match(source, /admitRucResponse\(payload, identity, demo && Boolean\(payload\?\.demoFixture\), individualConfirmed\)/)
   assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
   assert.match(source, /if \(!request\.isCurrent\(scope\.current\)\) return/)
   const extractStart = source.indexOf('const consultar = useCallback')
@@ -192,7 +193,7 @@ test('RucField adapta la variante compacta conservando admisión fiscal y acepta
   assert.match(acceptance, /resultado\?\.request\.isCurrent\(scope\.current\)/)
   assert.match(acceptance, /const aceptar = onAplicar \|\| onDatos/)
   assert.match(acceptance, /aceptar\?\.\(resultado\.datos\)/)
-  assert.match(source, /name: result\.nameOfficial/)
+  assert.match(source, /name: result\.displayName \?\? result\.nameOfficial/)
   assert.match(source, /onAplicar=\{aplicar\}/)
   assert.match(source, /onDescartar=\{\(\) => guard\.current\.cancel\(\)\}/)
 })

@@ -31,10 +31,11 @@ export async function mockRucPublic(page, { respond } = {}) {
     }
     const headers = await request.allHeaders()
     if (headers.cookie || headers.authorization || request.postData()) credentialLeaks.push({ cookie: headers.cookie, authorization: headers.authorization, body: request.postData() })
-    expect([...url.searchParams.keys()]).toEqual(['ruc'])
+    expect([...url.searchParams.keys()]).toEqual(url.searchParams.has('subjectKind') ? ['ruc', 'subjectKind'] : ['ruc'])
+    if (url.searchParams.has('subjectKind')) expect(url.searchParams.get('subjectKind')).toBe('individual')
     const query = url.searchParams.get('ruc')
     calls.push(query)
-    const answer = respond ? await respond({ query, call: calls.length, request }) : null
+    const answer = respond ? await respond({ query, subjectKind: url.searchParams.get('subjectKind'), call: calls.length, request }) : null
     if (answer?.abort) return route.abort()
     return route.fulfill(answer ?? { status: 200, json: rucPublicPayload(query) })
   })

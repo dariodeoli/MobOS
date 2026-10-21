@@ -9,7 +9,7 @@ const DEMO_RUC_FIXTURES = Object.freeze({
 
 // Única consulta real admitida en demo. No usa el cliente de la tienda ni
 // recibe una ruta elegida por el llamador; nunca adjunta sesión o credenciales.
-export async function consultarRucDemoReal(query, { apiUrl, signal, fetchImpl = fetch, timeoutMs = 15000 } = {}) {
+export async function consultarRucDemoReal(query, { apiUrl, signal, fetchImpl = fetch, timeoutMs = 15000, individualConfirmed = false } = {}) {
   if (!/^[1-9]\d{0,8}(?:-\d)?$/.test(String(query || ''))) throw new ApiError('Ingresá un RUC válido.', { code: 'invalid_ruc' })
   const base = String(query).split('-')[0]
   const fixture = DEMO_RUC_FIXTURES[base]
@@ -25,7 +25,7 @@ export async function consultarRucDemoReal(query, { apiUrl, signal, fetchImpl = 
   if (signal?.aborted) controller.abort()
   else signal?.addEventListener('abort', abort, { once: true })
   try {
-    const response = await fetchImpl(`${apiUrl.replace(/\/$/, '')}/api/public/ruc?ruc=${encodeURIComponent(query)}`, {
+    const response = await fetchImpl(`${apiUrl.replace(/\/$/, '')}/api/public/ruc?ruc=${encodeURIComponent(query)}${individualConfirmed ? '&subjectKind=individual' : ''}`, {
       method: 'GET', credentials: 'omit', cache: 'no-store', redirect: 'error',
       headers: { Accept: 'application/json' }, signal: controller.signal,
     })

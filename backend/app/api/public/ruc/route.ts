@@ -1,5 +1,5 @@
 import { error, json } from '../../../../lib/http'
-import { lookupRuc, RucLookupError } from '../../../../lib/ruc'
+import { lookupRuc, RucLookupError, ownDataConfiguration, rucSubjectKind } from '../../../../lib/ruc'
 import { reserveDemoRucQuota } from '../../../../lib/ruc-demo-quota'
 import { logError } from '../../../../lib/log'
 import { publicRucInput } from '../../../../lib/ruc-public'
@@ -15,14 +15,16 @@ export async function GET(request: Request) {
   try {
     const normalized = publicRucInput(request)
     // Configuración ausente: no gastar intentos ni salir a la red.
-    if (!process.env.RUC_API_KEY?.trim()) throw new RucLookupError('provider_not_configured', 'La consulta RUC no está configurada. Completá los datos manualmente.', 503)
+    ownDataConfiguration()
+    const subjectKind = rucSubjectKind(new URL(request.url).searchParams)
     await reserveDemoRucQuota(request)
-    const lookup = await lookupRuc(normalized, { rejectSimulated: true })
+    const lookup = await lookupRuc(normalized, { rejectSimulated: true, subjectKind })
     const result = lookup.result
     // Proyección explícita: nunca exponer cuotas comerciales, requestId o metadatos del proveedor.
     return privateResponse(json({
       query: { normalized: lookup.query.normalized, fullRuc: lookup.query.fullRuc },
       result: { nameOfficial: result.nameOfficial, name: result.nameOfficial, ruc: result.ruc, dv: result.dv, fullRuc: result.fullRuc, ...(result.equivalenceRaw !== undefined ? { equivalenceRaw: result.equivalenceRaw } : {}), ...(result.sourcePartition !== undefined ? { sourcePartition: result.sourcePartition } : {}) },
+      ...(lookup.namePresentation ? { namePresentation: lookup.namePresentation } : {}),
       reviewRequired: true,
       source: { provider: lookup.source.provider, queriedAt: lookup.source.queriedAt },
     }))

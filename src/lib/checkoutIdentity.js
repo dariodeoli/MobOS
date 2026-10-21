@@ -7,7 +7,7 @@ export function applyCheckoutIdentity(current, result) {
   const official = result?.nameOfficial ?? result?.name
   if (typeof official !== 'string' || !official.trim()) return { ...current, document: result?.fullRuc || current.document }
   return { ...acceptedCustomerIdentity(current, result), name: official,
-    displayName: current.displayName ?? current.name ?? '' }
+    displayName: result.displayName ?? current.displayName ?? current.name ?? '' }
 }
 
 export function clearCheckoutIdentity(current) {
