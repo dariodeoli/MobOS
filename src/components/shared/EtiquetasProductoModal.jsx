@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatoPermitido } from '@/lib/printing/preferencias'
-import { Button, FormActions, Input, useResultado } from '@/components/ui'
+import { Button, Input, useResultado } from '@/components/ui'
+import { FormActions } from '@/components/shared/popupKit'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'

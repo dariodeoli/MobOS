@@ -1,6 +1,7 @@
 import DocumentoPlantilla from '@/components/control/impresion/DocumentoPlantilla'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Aviso, Button, ConfirmDialog, FormActions, useResultado, useToast } from '@/components/ui'
+import { Aviso, Button, useResultado, useToast } from '@/components/ui'
+import { ConfirmDialog, FormActions } from '@/components/shared/popupKit'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import CompartirImagen from '@/components/shared/CompartirImagen'
