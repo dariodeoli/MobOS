@@ -17,6 +17,7 @@ import ThemeLogo from '@/components/app/ThemeLogo'
 import { RecordSlotContext } from '@/components/app/RecordHeader'
 import { SegmentosToolbarContext } from '@/components/app/SegmentosToolbar'
 import DemoBanner from '@/components/app/DemoBanner'
+import DemoVerComo, { DemoVerComoLista } from '@/components/app/DemoVerComo'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useColaOffline } from '@/hooks/useColaOffline'
@@ -44,38 +45,6 @@ function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otra
   if (otraEmpresa > 0) return `${otraEmpresa} venta${otraEmpresa === 1 ? '' : 's'} pendiente${otraEmpresa === 1 ? '' : 's'} en otra empresa`
   if (!enLinea) return 'POS sin conexión'
   return ''
-}
-
-// Demo: el propietario puede recorrer las perspectivas principales sin crear
-// sesiones reales ni modificar datos. La vista cliente se abre en el portal
-// público de fixtures para conservar la misma experiencia que un QR real.
-function DemoPerspectivas({ entrarDemo, compacto = false }) {
-  const [abierto, setAbierto] = useState(false)
-  const cambiar = async (perspectiva) => {
-    if (perspectiva === 'cliente') {
-      window.open('/portal/demo-demo-cliente-lucia-completo', '_blank', 'noopener,noreferrer')
-      return
-    }
-    await entrarDemo(perspectiva === 'tecnico' ? 'TECNICO' : 'ADMIN')
-    window.location.assign('/')
-  }
-  return (
-    <div data-testid="demo-perspectivas" className={compacto ? 'flex items-center gap-1' : 'mx-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 px-3 py-2 md:mx-6'}>
-      {!compacto && <span className="text-xs font-semibold text-fore">Explorar demo</span>}
-      <button type="button" data-testid="demo-perspectivas-toggle" aria-label="Cambiar vista de demo" title="Cambiar vista de demo" className={compacto ? 'flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border border-ink-600 bg-ink px-2 text-xs font-semibold text-fore hover:bg-ink-700' : 'min-h-11 rounded-lg border border-ink-600 bg-ink px-3 text-xs font-semibold text-fore hover:bg-ink-700'} aria-expanded={abierto} onClick={() => setAbierto(value => !value)}>
-        {compacto && <Icon name="users" className="h-4 w-4 shrink-0" />}
-        <span className={compacto ? 'max-lg:sr-only' : undefined}>Cambiar vista</span>
-      </button>
-      {abierto && (
-        <div role="group" aria-label="Perspectivas de la demo" className="flex flex-wrap gap-1">
-          <button type="button" data-testid="demo-vista-dueno" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('dueno')}>Dueño</button>
-          <button type="button" data-testid="demo-vista-tecnico" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('tecnico')}>Técnico</button>
-          <button type="button" data-testid="demo-vista-cliente" className="min-h-9 rounded-lg px-2.5 text-xs text-mute hover:bg-ink-700 hover:text-fore" onClick={() => cambiar('cliente')}>Cliente ↗</button>
-        </div>
-      )}
-      {!compacto && <span className="ml-auto text-[11px] text-mute">Datos ficticios · sin API real</span>}
-    </div>
-  )
 }
 
 export default function AppShell({
@@ -510,7 +479,7 @@ export default function AppShell({
         <PageHeader
           title={title}
           subtitle={subtitle}
-          actions={<>{headerActions}{esDemo && <DemoPerspectivas entrarDemo={entrarDemo} compacto />}</>}
+          actions={<>{headerActions}{esDemo && <DemoVerComo entrarDemo={entrarDemo} />}</>}
           aviso={esDemo && !enConfigMenu && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
@@ -627,6 +596,7 @@ export default function AppShell({
               <SelectorEmpresa control={cambioEmpresa} variante="lista" alElegir={() => setProfileOpen(false)} />
             </div>
           )}
+          {esDemo && <DemoVerComoLista entrarDemo={entrarDemo} alElegir={() => setProfileOpen(false)} />}
           {onMiCuenta && (
             <button
               type="button"
