@@ -1,3 +1,4 @@
+import { mcpAccessFailure } from '../../../../lib/mcp/rate-limit'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
@@ -19,7 +20,8 @@ function json(error: string, status = 400, extra: Record<string, unknown> = {}) 
 function safe(value: unknown) { return JSON.parse(JSON.stringify(value, (_, v) => typeof v === 'bigint' ? Number(v) : v)) }
 
 export async function POST(request: Request) {
-  const auth = await requireMcpAccessToken(request)
+  let auth: Awaited<ReturnType<typeof requireMcpAccessToken>>
+  try { auth = await requireMcpAccessToken(request) } catch (error) { return mcpAccessFailure(error) }
   if (!auth) return json('invalid_token', 401)
   let body: any
   try { const raw = await readBoundedBody(request, 7_100_000); if (raw === null) return json('request_too_large', 413); body = JSON.parse(raw) } catch { return json('json_invalido') }

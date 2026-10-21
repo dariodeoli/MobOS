@@ -31,7 +31,7 @@ try {
   command('createdb', ['-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', 'mcp_sdk_http_test'])
   const httpPort = await freePort()
   const resource = `http://localhost:${httpPort}`
-  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_APP_URL: resource, MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }, { clientId: 'sdk-http-2', name: 'SDK HTTP 2', redirectUris: ['https://connector2.example/callback'] }]) })
+  Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_MCP_GRANT_MINUTE_LIMIT: '10000', MOBOS_MCP_TENANT_MINUTE_LIMIT: '100000', MOBOS_APP_URL: resource, MOBOS_MCP_RESOURCE: resource, MOBOS_MCP_ISSUER: resource, MOBOS_MCP_ALLOWED_ORIGINS: resource, MOBOS_MCP_CLIENTS_JSON: JSON.stringify([{ clientId: 'sdk-http', name: 'SDK HTTP', redirectUris: ['https://connector.example/callback'] }, { clientId: 'sdk-http-2', name: 'SDK HTTP 2', redirectUris: ['https://connector2.example/callback'] }]) })
   execFileSync(backend + '/node_modules/.bin/prisma', ['migrate', 'deploy', '--schema', backend + '/prisma/schema.prisma'], { env: { ...process.env, DATABASE_URL: dbUrl }, cwd: backend, stdio: 'inherit' })
   require.extensions['.ts'] = (module, filename) => {
     const ts = require('typescript')
@@ -301,6 +301,29 @@ try {
   const removedClient = await requireMcpAccessToken(new Request(`${resource}/api/mcp/streamable`, { headers: { authorization: `Bearer ${issued.accessToken}` } }))
   ok(removedClient === null, 'revoked MCP client configuration invalidates bearer')
   process.env.MOBOS_MCP_CLIENTS_JSON = configuredClients
+  const { consumeMcpQuota } = require('../lib/mcp/rate-limit.ts')
+  process.env.MOBOS_MCP_GRANT_MINUTE_LIMIT = '3'; process.env.MOBOS_MCP_TENANT_MINUTE_LIMIT = '100'
+  const parallelGrant = await Promise.allSettled(Array.from({ length: 20 }, () => consumeMcpQuota(db, 'quota-grant-concurrent', 'quota-tenant-grant')))
+  ok(parallelGrant.filter(result => result.status === 'fulfilled').length === 3, 'parallel quota admits exactly grant budget')
+  ok(parallelGrant.filter(result => result.status === 'rejected').every(result => result.reason.status === 429), 'parallel grant excess returns safe429')
+  process.env.MOBOS_MCP_GRANT_MINUTE_LIMIT = '100'; process.env.MOBOS_MCP_TENANT_MINUTE_LIMIT = '5'
+  const parallelTenant = await Promise.allSettled(Array.from({ length: 20 }, (_, i) => consumeMcpQuota(db, `quota-grant-${i}`, 'quota-tenant-concurrent')))
+  ok(parallelTenant.filter(result => result.status === 'fulfilled').length === 5, 'parallel quota across grants admits exactly tenant budget')
+  const attemptsBefore = await db.authAttempt.count({ where: { scope: 'mcp:grant' } })
+  let quotaRolledBack = false; try { await consumeMcpQuota(db, 'quota-grant-rollback', 'quota-tenant-concurrent') } catch (error) { quotaRolledBack = error.status === 429 }
+  ok(quotaRolledBack && await db.authAttempt.count({ where: { scope: 'mcp:grant' } }) === attemptsBefore, 'tenant quota failure rolls back grant debit')
+  await db.authAttempt.deleteMany({ where: { scope: { in: ['mcp:grant', 'mcp:tenant'] } } })
+  process.env.MOBOS_MCP_GRANT_MINUTE_LIMIT = '1'; process.env.MOBOS_MCP_TENANT_MINUTE_LIMIT = '100'
+  const quotaRequest = () => new Request(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1001, method: 'ping' }) })
+  ok((await POST(quotaRequest())).status === 200, 'first authenticated HTTP request within quota')
+  const quotaResponse = await POST(quotaRequest())
+  ok(quotaResponse.status === 429 && Number(quotaResponse.headers.get('retry-after')) > 0, 'HTTP excess returns429 and bounded retry-after')
+  const previewsBeforeQuota = await db.mcpChangePreview.count()
+  const changesPost = require('../app/api/mcp/changes/route.ts').POST
+  const directBlocked = await changesPost(new Request(`${resource}/api/mcp/changes`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ mode: 'preview', action: 'products.write', idempotencyKey: 'direct-rate-denial', payload: { name: 'blocked', sku: 'blocked' } }) }))
+  ok(directBlocked.status === 429 && await db.mcpChangePreview.count() === previewsBeforeQuota, 'direct changes endpoint cannot bypass quota or create preview')
+  await db.authAttempt.deleteMany({ where: { scope: { in: ['mcp:grant', 'mcp:tenant'] } } })
+  process.env.MOBOS_MCP_GRANT_MINUTE_LIMIT = '10000'; process.env.MOBOS_MCP_TENANT_MINUTE_LIMIT = '100000'
   const openSchedule = { timezone: 'America/Asuncion', windows: [{ days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }] }
   await db.user.update({ where: { id: user.id }, data: { accessSchedule: openSchedule } })
   const scheduleTokens = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource: mcpResource(), scopes: ['products:read'] })

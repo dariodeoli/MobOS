@@ -116,3 +116,19 @@ Cada solicitud, consentimiento, rechazo, mutación y revocación deja metadatos 
 5. Revisar auditoría y revocar el grant.
 
 Hasta completar el paso 4 no se debe presentar la integración como conectada a ChatGPT/Claude ni desplegarla en una tienda o entorno productivo.
+
+## Límites del servidor (#647)
+
+Cada validación exitosa de un bearer consume dos presupuestos atómicos: por conexión
+OAuth (`MOBOS_MCP_GRANT_MINUTE_LIMIT`, predeterminado120) y por empresa
+(`MOBOS_MCP_TENANT_MINUTE_LIMIT`, predeterminado600), ambos por60segundos.
+Las variables deben ser enteros positivos finitos. No hay fallback en memoria ni
+modo ilimitado: configuración inválida, fallo de PostgreSQL, lock o reloj devuelve
+503 saneado; exceso devuelve429 y `Retry-After` en segundos.
+
+La guarda está en el acceso canónico y cubre tanto `/streamable` como `/changes`.
+Una escritura reenviada internamente valida acceso en ambos límites de API y puede
+consumir dos unidades; ningún header enviado por un cliente evita la segunda guarda.
+Las cuentas se serializan con locks transaccionales en orden estable, reloj de la DB
+posterior al lock y rollback conjunto. Los identificadores se guardan hasheados y no
+se persisten tokens ni argumentos en el contador.

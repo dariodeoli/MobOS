@@ -1,3 +1,4 @@
+import { consumeMcpQuota, McpAccessError } from './rate-limit'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
@@ -137,6 +138,10 @@ export function assertScopeActions(scopes: readonly string[]) {
 
 /** Validates an MCP bearer against the current MobOS session and membership. */
 export async function requireMcpAccessToken(request: Request, now?: Date) {
+  try { return await resolveMcpAccessToken(request, now) }
+  catch (error) { if (error instanceof McpAccessError) throw error; throw new McpAccessError('mcp_unavailable', 503) }
+}
+async function resolveMcpAccessToken(request: Request, now?: Date) {
   const header = request.headers.get('authorization')
   const match = header?.match(/^Bearer\s+([^\s]+)$/i)
   if (!match || !isMcpSecret(match[1])) return null
@@ -150,6 +155,7 @@ export async function requireMcpAccessToken(request: Request, now?: Date) {
     return null
   }
   if (row.accountId && !(await prisma.tenantMembership.findFirst({ where: { accountId: row.accountId, tenantId: row.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }))) return null
+  await consumeMcpQuota(prisma, row.grantId, row.tenantId)
   await prisma.mcpAccessToken.update({ where: { id: row.id }, data: { lastUsedAt: now } })
   return { tokenId: row.id, grantId: row.grantId, tenantId: row.tenantId, accountId: row.accountId, sessionId: row.sessionId, scopes: row.scopes as McpScope[], user: { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, pinLength: user.pinLength, permissions: effectivePermissions(user.role, user.permissions) }, clientId: row.clientId }
 }

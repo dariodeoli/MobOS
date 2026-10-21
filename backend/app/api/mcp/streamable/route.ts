@@ -1,3 +1,4 @@
+import { mcpAccessFailure } from '../../../../lib/mcp/rate-limit'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
 import { moduleStoreFrom } from '../../../../lib/module-store'
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
   if (!originAllowed(request)) return NextResponse.json({ error: 'origin_not_allowed' }, { status: 403 })
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
   if (!contentType.startsWith('application/json')) return NextResponse.json({ error: 'unsupported_media_type' }, { status: 415 })
-  const auth = await requireMcpAccessToken(request)
+  let auth: Awaited<ReturnType<typeof requireMcpAccessToken>>
+  try { auth = await requireMcpAccessToken(request) } catch (error) { return mcpAccessFailure(error) }
   if (!auth) { let metadata = '/.well-known/oauth-protected-resource'; try { metadata = new URL('/.well-known/oauth-protected-resource', `${mcpResource()}/`).href } catch {} return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: { 'WWW-Authenticate': `Bearer resource_metadata="${metadata}"` } }) }
   let body: any
   try { const raw = await readBoundedBody(request, MAX_JSON_BYTES); if (raw === null) return NextResponse.json({ error: 'request_too_large' }, { status: 413 }); body = JSON.parse(raw) } catch { return error(null, -32700, 'JSON inválido.') }
