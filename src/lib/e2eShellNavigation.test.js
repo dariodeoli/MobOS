@@ -109,11 +109,11 @@ test('segmented destinations are reached by clicking the tab, then the segment',
 
 test('mobile journey reaches sections outside the bottom bar through the Más sheet', async () => {
   const { page, calls } = fakePage({ desktop: false, sectionsInBar: ['Stock'] })
-  await openShellDestination(page, 'Compras del Centro')
+  await openShellDestination(page, 'Promociones')
   assert.deepEqual(calls, [
     ['mas', 'Más'],
-    ['sheet', 'Compras'],
-    ['tab', 'compras-centro'],
+    ['sheet', 'Clientes'],
+    ['tab', 'promociones'],
   ])
 })
 

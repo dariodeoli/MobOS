@@ -43,10 +43,10 @@ test('un rol sin administración solo ve lo personal', () => {
 
 test('arma el camino y el destino', () => {
   const impresoras = INDICE_CONFIG.find(e => e.id === 'impresoras')
-  assert.deepEqual(migasAjuste(impresoras), ['Configuración', 'Impresoras'])
+  assert.deepEqual(migasAjuste(impresoras), ['Configuración', 'Impresión y documentos'])
   assert.deepEqual(destinoAjuste(impresoras, { esOwner: true }), {
     vista: 'equipo',
-    opciones: { subtab: 'dispositivos', ajuste: 'impresoras' },
+    opciones: { subtab: 'impresion', ajuste: 'impresoras' },
   })
   const sesiones = INDICE_CONFIG.find(e => e.id === 'sesiones')
   assert.equal(destinoAjuste(sesiones, { esOwner: false }).vista, 'mi-cuenta')

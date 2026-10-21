@@ -9,6 +9,8 @@ import {
   shellSegments,
 } from './shellNavigation.js'
 import { DESTINO_LEGADO, rutaDeVista } from './rutas.js'
+import { MODULE_CATALOG, vistaActiva } from './modulos.js'
+import { nuevoModuleStore } from '../../backend/lib/modulos-catalogo.mjs'
 
 const panel = leerFuente(new URL('../pages/PanelVendedor.jsx', import.meta.url), 'utf8')
 const catalog = name => {
@@ -22,7 +24,7 @@ const catalog = name => {
   ]
 }
 
-test('owner gets ten primary destinations and every existing destination remains reachable', () => {
+test('owner gets eight primary destinations (seven core + Taller) and every existing destination remains reachable', () => {
   const owner = catalog('OWNER_NAV')
   const sections = shellNavigation(owner)
   assert.deepEqual(
@@ -30,13 +32,11 @@ test('owner gets ten primary destinations and every existing destination remains
     [
       'Inicio',
       'Vender',
-      'Ventas',
+      'Pedidos',
       'Clientes',
       'Taller',
       'Stock',
-      'Compras',
       'Finanzas',
-      'Análisis',
       'Configuración',
     ],
   )
@@ -68,13 +68,14 @@ test('owner gets ten primary destinations and every existing destination remains
       )
     }
   assert.equal(DESTINO_LEGADO.ventas, '/pos')
-  assert.equal(sections.find(section => section.id === 'ventas').items[0][0], 'pedidos')
-  // D1/D3: Compras, Clientes and Taller are primary destinations of their own.
-  assert.equal(activeShellSection(sections, 'compras').id, 'compras')
-  assert.equal(activeShellSection(sections, 'abastecimiento').id, 'compras')
+  assert.equal(sections.find(section => section.id === 'pedidos').items[0][0], 'pedidos')
+  // Compras es un grupo de Stock; Análisis es Inicio › Reportes; Trade-In vive en Vender.
+  assert.equal(activeShellSection(sections, 'compras').id, 'stock')
+  assert.equal(activeShellSection(sections, 'abastecimiento').id, 'stock')
   assert.equal(activeShellSection(sections, 'clientes').id, 'clientes')
-  assert.equal(activeShellSection(sections, 'tradein-admin').id, 'taller')
-  assert.equal(activeShellSection(sections, 'analisis').id, 'analisis')
+  assert.equal(activeShellSection(sections, 'tradein-admin').id, 'vender')
+  assert.equal(activeShellSection(sections, 'analisis').id, 'inicio')
+  assert.equal(activeShellSection(sections, 'repartos').id, 'pedidos')
   // Configuración closes the owner menu (gear), after Análisis.
   const config = sections.at(-1)
   assert.equal(config.id, 'configuracion')
@@ -82,16 +83,16 @@ test('owner gets ten primary destinations and every existing destination remains
   assert.equal(activeShellSection(sections, 'equipo'), config)
 })
 
-test('owner mobile bottom bar is Inicio, Vender, Ventas, Stock and a Más sheet (D2)', () => {
+test('owner mobile bottom bar is Inicio, Vender, Pedidos, Stock and a Más sheet (D2)', () => {
   const sections = shellNavigation(catalog('OWNER_NAV'))
   const { bottom, more } = shellBottomNav(sections)
   assert.deepEqual(
     bottom.map(section => section.label),
-    ['Inicio', 'Vender', 'Ventas', 'Stock'],
+    ['Inicio', 'Vender', 'Pedidos', 'Stock'],
   )
   assert.deepEqual(
     more.map(section => section.label),
-    ['Clientes', 'Taller', 'Compras', 'Finanzas', 'Análisis', 'Configuración'],
+    ['Clientes', 'Taller', 'Finanzas', 'Configuración'],
   )
   assert.equal(bottom.length + more.length, sections.length)
 })
@@ -100,7 +101,7 @@ test('seller, manager and cashier presentation never grants owner destinations',
   const sections = shellNavigation(catalog('SELLER_NAV'))
   assert.deepEqual(
     sections.map(section => section.label),
-    ['Vender', 'Ventas', 'Clientes', 'Stock'],
+    ['Vender', 'Pedidos', 'Clientes', 'Stock'],
   )
   assert.equal(sections[0].items[0][0], 'cargar')
   assert.ok(
@@ -117,7 +118,7 @@ test('seller, manager and cashier presentation never grants owner destinations',
   // Four sections: all of them stay on the bottom bar, no "Más".
   assert.equal(shellBottomNav(sections).more.length, 0)
   assert.deepEqual(
-    shellContextGroups(sections.find(section => section.id === 'ventas')).map(group => group.label),
+    shellContextGroups(sections.find(section => section.id === 'pedidos')).map(group => group.label),
     ['Mis pedidos', 'Cotizaciones', 'Entregas'],
   )
 })
@@ -225,21 +226,77 @@ test('approved presentation groups keep tabs per area and segments only where a 
     assert.deepEqual(
       stock.map(group => group.label),
       name === 'OWNER_NAV'
-        ? ['Unidades', 'Productos', 'Traslados', 'Control', 'Precios']
+        ? ['Unidades', 'Productos', 'Compras', 'Traslados', 'Control', 'Precios', 'Abastecimiento']
         : ['Productos', 'Precios'],
     )
-    // Only Precios (owner) groups several destinations; the rest are plain tabs.
+    // Precios y Abastecimiento (owner) agrupan varios destinos; el resto son pestañas simples.
     const segmented = groups.filter(group => shellSegments(group).length)
     assert.deepEqual(
       segmented.map(group => group.id),
-      name === 'OWNER_NAV' ? ['precios'] : [],
+      name === 'OWNER_NAV' ? ['precios', 'abastecimiento'] : [],
     )
     if (name === 'OWNER_NAV') {
       assert.deepEqual(
         shellSegments(segmented[0]).map(segment => segment.id),
         ['precios', 'celulares', 'comparador', 'centro-control'],
       )
-      assert.equal(activeShellSection(sections, 'analisis').id, 'analisis')
+      assert.equal(activeShellSection(sections, 'analisis').id, 'inicio')
     } else assert.equal(activeShellSection(sections, 'analisis'), null)
   }
+})
+
+// ---- Módulos: el núcleo son siete secciones; los módulos suman grupos solo si están activos ----
+const ETIQUETAS = sections => sections.map(section => section.label)
+const gruposDe = (sections, id) => shellContextGroups(sections.find(section => section.id === id)).map(group => group.id)
+const conModulos = (...activos) => {
+  const fuente = { moduleStore: nuevoModuleStore('2026-10-21T00:00:00.000Z') }
+  for (const id of activos) fuente.moduleStore.modules[id] = { enabled: true }
+  return id => vistaActiva(fuente, id)
+}
+
+test('núcleo: una empresa nueva ve siete secciones y ningún grupo de módulo', () => {
+  const sections = shellNavigation(catalog('OWNER_NAV'), { modulos: conModulos() })
+  assert.deepEqual(ETIQUETAS(sections), ['Inicio', 'Vender', 'Pedidos', 'Clientes', 'Stock', 'Finanzas', 'Configuración'])
+  assert.deepEqual(gruposDe(sections, 'inicio'), ['resumen', 'analisis'])
+  assert.deepEqual(gruposDe(sections, 'vender'), ['cargar'])
+  assert.deepEqual(gruposDe(sections, 'pedidos'), ['pedidos', 'cotizaciones', 'autorizaciones'])
+  assert.deepEqual(gruposDe(sections, 'clientes'), ['clientes', 'plantillas'])
+  assert.deepEqual(gruposDe(sections, 'stock'), ['unidades', 'productos', 'compras', 'control'])
+  const ids = sections.flatMap(section => section.items.map(([id]) => id))
+  for (const apagado of ['cotizador', 'tradein-admin', 'repartos', 'campanas', 'promociones', 'servicio', 'garantias', 'traslados', 'precios', 'celulares', 'comparador', 'abastecimiento', 'recepcion', 'ops'])
+    assert.ok(!ids.includes(apagado), `${apagado} no aparece con su módulo apagado`)
+})
+
+test('cada módulo activo suma su grupo en la sección que corresponde', () => {
+  const owner = catalog('OWNER_NAV')
+  const caso = (modulo, seccion, grupo, etiquetas) => {
+    const sections = shellNavigation(owner, { modulos: conModulos(modulo) })
+    assert.ok(gruposDe(sections, seccion).includes(grupo), `${modulo} suma ${grupo} en ${seccion}`)
+    if (etiquetas) assert.deepEqual(ETIQUETAS(sections), etiquetas)
+  }
+  caso('tradein', 'vender', 'cotizador')
+  caso('delivery', 'pedidos', 'repartos')
+  caso('campanas-recompra', 'clientes', 'campanas')
+  caso('promociones', 'clientes', 'promociones')
+  caso('multisucursal', 'stock', 'traslados')
+  caso('listas-precios', 'stock', 'precios')
+  caso('comparador', 'stock', 'precios')
+  caso('abastecimiento', 'stock', 'abastecimiento')
+  caso('ops', 'inicio', 'ops')
+  // Taller aparece como sección solo con `servicios`.
+  caso('servicios', 'taller', 'servicio', ['Inicio', 'Vender', 'Pedidos', 'Clientes', 'Taller', 'Stock', 'Finanzas', 'Configuración'])
+})
+
+test('los módulos solo restan: un rol sin Finanzas no la gana por tener módulos activos', () => {
+  const sections = shellNavigation(catalog('SELLER_NAV'), { modulos: () => true })
+  assert.deepEqual(ETIQUETAS(sections), ['Vender', 'Pedidos', 'Clientes', 'Stock'])
+  const todo = shellNavigation(catalog('OWNER_NAV'), { modulos: () => true })
+  assert.deepEqual(ETIQUETAS(todo), ETIQUETAS(shellNavigation(catalog('OWNER_NAV'))))
+})
+
+test('toda vista de módulo del menú pertenece a una sección y su módulo existe en el catálogo', () => {
+  const ids = new Set(MODULE_CATALOG.flatMap(modulo => modulo.navIds))
+  const sections = shellNavigation(catalog('OWNER_NAV'))
+  for (const [id] of sections.flatMap(section => section.items))
+    if (ids.has(id)) assert.ok(MODULE_CATALOG.some(modulo => modulo.navIds.includes(id)), id)
 })

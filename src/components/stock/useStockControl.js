@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { contextoActual, getProductos, modoDatosActual, refrescar, refrescarCatalogo, updateProducto } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
+import { moduloDeVista } from '@/lib/modulos'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { vistaUnidadesValida } from '@/lib/planilla'
 import { useToast } from '@/components/ui'
@@ -53,6 +55,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // #213: en demo el inventario usa los mismos recursos (store session-only).
   const inventarioOperativo = apiMode || esDemo
   const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
+  // Pestañas de módulos apagados (Taller, Conteos, Traslados…) no se ofrecen.
+  const modulos = useModulos()
   const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageVisibility = Boolean(sesion?.esPropietario)
   // Costo y proveedor: la API los devuelve null a quien no los ve (VENDEDOR/CAJERA).
@@ -968,8 +972,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // #305: grupo activo derivado de la pestaña (los enlaces directos siguen
   // funcionando) y sus vistas visibles.
   const grupos = useMemo(
-    () => GRUPOS_INVENTARIO.map((grupo) => ({ ...grupo, tabs: grupo.tabs.filter((id) => (id !== 'alertas' && id !== 'autorizaciones') || canViewAlerts) })),
-    [canViewAlerts],
+    () => GRUPOS_INVENTARIO.map((grupo) => ({ ...grupo, tabs: grupo.tabs.filter((id) => ((id !== 'alertas' && id !== 'autorizaciones') || canViewAlerts) && (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)) })),
+    [canViewAlerts, modulos],
   )
   function requestReason(kind, unitOrUnits) {
     const units = Array.isArray(unitOrUnits) ? unitOrUnits : [unitOrUnits]

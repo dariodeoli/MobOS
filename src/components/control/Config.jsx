@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -29,10 +29,9 @@ import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/Guardado
 import { pestanasConIconos } from '@/components/control/config/pestanasConIconos'
 import General from '@/components/control/config/General'
 import PortalClientes from '@/components/control/config/PortalClientes'
-import Notificaciones from '@/components/control/config/Notificaciones'
 import PlanFacturacion from '@/components/control/config/PlanFacturacion'
 import { prefijoEfectivo, vistaPreviaNumeros } from '@/components/control/config/formatoPedido'
-import TiendaModulos from '@/components/control/TiendaModulos'
+import { useModulos } from '@/lib/useModulos'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -68,17 +67,15 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
 
 // #299 · Organización en secciones por tarea: cada una se abre con su tarea
 // clara y no se mezcla con el resto. El orden es el del uso cotidiano.
-const ORG_ICONOS = { datos: 'store', modulos: 'grid', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', notificaciones: 'bell', peligro: 'alert' }
+const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', peligro: 'alert' }
 const ORG_SECCIONES = [
   ['datos', 'Datos generales'],
-  ['modulos', 'Tienda de módulos'],
   ['identidad', 'Identidad visual'],
   ['sucursales', 'Sucursales y depósitos'],
   ['fiscales', 'Datos fiscales'],
   ['numeracion', 'Numeración'],
   ['politicas', 'Políticas'],
   ['portal', 'Portal de clientes'],
-  ['notificaciones', 'Notificaciones'],
   ['peligro', 'Zona de peligro'],
 ]
 
@@ -117,14 +114,20 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
   // #299: sección activa de Organización (cada tarea abre sola, sin apilar
   // todo en una columna).
-  const [org, setOrg] = useState(() => new URLSearchParams(window.location.search).get('org') === 'modulos' ? 'modulos' : 'datos')
-  // La Tienda de módulos tiene un acceso propio desde la navegación de
-  // Configuración. Mantenerlo en la URL permite deep links y que el estado
-  // activo sobreviva a un refresco sin duplicar la pantalla de módulos.
+  // `?org=portal` abre esa sección (el «Configurar ›» de un módulo la usa).
+  const orgDeUrl = () => {
+    const pedido = new URLSearchParams(window.location.search).get('org')
+    return ORG_SECCIONES.some(([id]) => id === pedido) ? pedido : 'datos'
+  }
+  const [org, setOrg] = useState(orgDeUrl)
   useEffect(() => {
-    const modulo = new URLSearchParams(location.search).get('org') === 'modulos'
-    setOrg(modulo ? 'modulos' : current => current === 'modulos' ? 'datos' : current)
+    const pedido = new URLSearchParams(location.search).get('org')
+    if (ORG_SECCIONES.some(([id]) => id === pedido)) setOrg(pedido)
   }, [location.search])
+  // Portal de clientes se configura solo con su módulo activo.
+  const modulos = useModulos()
+  const seccionesOrg = useMemo(() => ORG_SECCIONES.filter(([id]) => id !== 'portal' || modulos.activo('portal-clientes')), [modulos])
+  useEffect(() => { if (org === 'portal' && !modulos.activo('portal-clientes') && modulos.resuelto) setOrg('datos') }, [org, modulos])
 
   // El formulario se hidrata solo al cargar (y al recargar) la cuenta: los
   // guardados parciales actualizan `account` sin pisar lo que el usuario está
@@ -285,14 +288,12 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
       {seccion === 'organizacion' && (
         <div className="space-y-3" data-testid="organizacion-pantalla">
           <div data-testid="organizacion-secciones">
-            <Subtabs value={org} onChange={(next) => { setOrg(next); if (new URLSearchParams(location.search).has('org')) navigate(location.pathname, { replace: true }) }} items={pestanasConIconos(ORG_SECCIONES, ORG_ICONOS, { peligro: 'peligro' })} ariaLabel="Secciones de Organización" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
+            <Subtabs value={org} onChange={(next) => { setOrg(next); if (new URLSearchParams(location.search).has('org')) navigate(location.pathname, { replace: true }) }} items={pestanasConIconos(seccionesOrg, ORG_ICONOS, { peligro: 'peligro' })} ariaLabel="Secciones de Negocio" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
           </div>
           {org === 'datos' && (
             <General tenant={account?.tenant} onIrANumeracion={() => setOrg('numeracion')} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onTenantChange={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
           )}
-          {org === 'modulos' && <TiendaModulos />}
           {org === 'portal' && <PortalClientes />}
-          {org === 'notificaciones' && <Notificaciones />}
           {org === 'plan' && <PlanFacturacion />}
           {org === 'identidad' && esDueno && <Card data-config-anchor="logo" className="space-y-3">
           <div>

@@ -7,11 +7,11 @@ export const SHELL_DESTINATIONS = {
   Inicio: ['Inicio', 'resumen', 'resumen'],
   POS: ['Vender', 'cargar', 'cargar'],
   'Nueva venta': ['Vender', 'cargar', 'cargar'],
-  Pedidos: ['Ventas', 'pedidos', 'pedidos'],
-  'Mis pedidos': ['Ventas', 'pedidos', 'pedidos'],
-  Cotizaciones: ['Ventas', 'cotizaciones', 'cotizaciones'],
-  Delivery: ['Ventas', 'repartos', 'repartos'],
-  Autorizaciones: ['Ventas', 'autorizaciones', 'autorizaciones'],
+  Pedidos: ['Pedidos', 'pedidos', 'pedidos'],
+  'Mis pedidos': ['Pedidos', 'pedidos', 'pedidos'],
+  Cotizaciones: ['Pedidos', 'cotizaciones', 'cotizaciones'],
+  Delivery: ['Pedidos', 'repartos', 'repartos'],
+  Autorizaciones: ['Pedidos', 'autorizaciones', 'autorizaciones'],
   Clientes: ['Clientes', 'clientes', 'clientes'],
   Promociones: ['Clientes', 'promociones', 'promociones'],
   Plantillas: ['Clientes', 'plantillas', 'plantillas'],
@@ -27,15 +27,17 @@ export const SHELL_DESTINATIONS = {
   'Lista por modelo': ['Stock', 'precios', 'celulares'],
   Comparador: ['Stock', 'precios', 'comparador'],
   'Centro de Control': ['Stock', 'precios', 'centro-control'],
-  Compras: ['Compras', 'compras', 'compras'],
-  'Por comprar': ['Compras', 'abastecimiento', 'abastecimiento'],
-  'Compras del Centro': ['Compras', 'compras-centro', 'compras-centro'],
-  'Preparar compra': ['Compras', 'preparacion', 'preparacion'],
-  'Preparar lote': ['Compras', 'lotes', 'lotes'],
-  Recepción: ['Compras', 'recepcion', 'recepcion'],
-  'Métricas de abastecimiento': ['Compras', 'metricas', 'metricas'],
+  // Compras es un grupo de Stock; Abastecimiento (módulo) es su grupo segmentado.
+  Compras: ['Stock', 'compras', 'compras'],
+  'Por comprar': ['Stock', 'abastecimiento', 'abastecimiento'],
+  'Compras del Centro': ['Stock', 'abastecimiento', 'compras-centro'],
+  'Preparar compra': ['Stock', 'abastecimiento', 'preparacion'],
+  'Preparar lote': ['Stock', 'abastecimiento', 'lotes'],
+  Recepción: ['Stock', 'abastecimiento', 'recepcion'],
+  'Métricas de abastecimiento': ['Stock', 'abastecimiento', 'metricas'],
   Finanzas: ['Finanzas', 'finanzas', 'finanzas'],
-  Análisis: ['Análisis', 'analisis', 'analisis'],
+  // Análisis es Inicio › Reportes (la URL /analisis no cambia).
+  Análisis: ['Inicio', 'analisis', 'analisis'],
   // Último destino principal del dueño; sus secciones son el riel de la página.
   Configuración: ['Configuración', 'equipo', 'equipo'],
   'Tablero de operaciones': ['Inicio', 'ops', 'ops'],
@@ -174,7 +176,7 @@ export async function openShellDestination(page, label) {
   let target = SHELL_DESTINATIONS[label]
   if (label === 'Trade-In')
     target = (await primary.getByRole('button', { name: 'Inicio', exact: true }).count())
-      ? ['Taller', 'tradein-admin', 'tradein-admin']
+      ? ['Vender', 'cotizador', 'tradein-admin']
       : ['Vender', 'cotizador', 'cotizador']
   if (!target) throw new Error(`Unknown shell journey: ${label}`)
   const [section, group, destination] = target
@@ -224,7 +226,6 @@ const SINGLE_SECTION_LABEL = {
   Inicio: 'Inicio',
   Vender: 'Nueva venta',
   Finanzas: 'Finanzas',
-  Análisis: 'Análisis',
   Configuración: 'Configuración',
   Taller: 'Taller y garantías',
 }
