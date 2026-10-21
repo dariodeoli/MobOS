@@ -57,10 +57,16 @@ un plazo de eliminación física. Ningún test de esta unidad usa base productiv
 
 ## Dependencia de seguridad #654
 
-El guard del bearer se reutiliza dentro de la transacción de imagen después de
+El guard del bearer se reutiliza dentro de las siete transacciones de mutación después de
 esperar el lock: token actual, vencimiento/revocación, scope/grant/sesión,
 pertenencia, usuario activo, horario, módulo, permiso y sucursal se revisan de
 nuevo sin consumir otra cuota ni extender TTL. La extracción compartida no
 cambia los criterios de autorización del ingreso. Las pruebas PG revocan o
-dejar vencer un token mientras el commit espera y exigen rollback de foto,
+dejan vencer un token mientras cada dominio espera y exigen rollback de datos,
 preview y auditoría.
+
+El contexto efectivo usado por el servicio (rol, sucursal y permisos) debe
+coincidir con el contexto vigente antes del claim. Un cambio durante la espera
+hace fallar el commit y exige una nueva propuesta; no se cambia silenciosamente
+el alcance. Una regresión PG mueve un gerente de sucursal A a B mientras espera
+el lock del producto y exige rollback del precio, preview y auditoría.

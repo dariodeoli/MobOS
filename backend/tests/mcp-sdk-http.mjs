@@ -297,7 +297,7 @@ try {
   let badMime = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, contentType: 'image/jpeg', idempotencyKey: 'sdk-http-image-mime' } }) } catch { badMime = true }; ok(badMime, 'image magic MIME mismatch rejected')
   let tooLarge = false; try { await client.callTool({ name: 'product_images.write', arguments: { ...imageArgs, dataBase64: Buffer.concat([Buffer.from(png, 'base64'), Buffer.alloc(5 * 1024 * 1024)]).toString('base64'), idempotencyKey: 'sdk-http-image-large' } }) } catch { tooLarge = true }; ok(tooLarge, 'image max size rejected')
   const raw = async (headers, body = '{}') => fetch(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${issued.accessToken}`, origin: resource, ...headers }, body })
-  const guardedSnapshot = async () => JSON.stringify(await Promise.all([db.product.count(), db.customer.count(), db.priceList.count(), db.productImage.count(), db.tenant.findUnique({ where: { id: tenant.id }, select: { address: true } }), db.product.findUnique({ where: { id: product.id }, select: { pricePyg: true } })]), (_, value) => typeof value === 'bigint' ? String(value) : value)
+  const guardedSnapshot = async () => JSON.stringify(await Promise.all([db.product.count(), db.customer.count(), db.priceList.count(), db.productImage.count(), db.tenant.findUnique({ where: { id: tenant.id }, select: { address: true } }), db.product.findUnique({ where: { id: product.id }, select: { pricePyg: true } }), db.order.findUnique({ where: { id: reportOrder.id }, select: { notes: true } })]), (_, value) => typeof value === 'bigint' ? String(value) : value)
   const ttlDomains = [
     ['products.write', { ...productArgs, sku: 'TTL-PRODUCT' }],
     ['prices.write', { mode: 'preview', productId: product.id, pricePyg: 2200, expectedPricePyg: Number((await db.product.findUnique({ where: { id: product.id } })).pricePyg) }],
@@ -523,11 +523,12 @@ try {
   ok(await expireCommit && await db.productImage.count() === canonicalBeforeExpiry, 'commit expiring during cleanup/lock cannot persist canonical image')
   await pruneMcpImagePreviews(db, { tenantId: tenant.id })
   ok(!Object.hasOwn((await db.mcpChangePreview.findUnique({ where: { id: expiryImageId } })).payload, 'dataBase64'), 'expired failed commit bytes cleared by subsequent bounded run')
-  for (const loss of ['revoked', 'expired']) {
-    const pendingArgs = { ...imageArgs, idempotencyKey: `retention-token-${loss}` }
-    const pending = await client.callTool({ name: 'product_images.write', arguments: pendingArgs })
+  const tokenDomains = [...ttlDomains, ['sales.write', { ...noteArgs }]]
+  for (const [tokenDomain, tokenArgs] of tokenDomains) for (const loss of ['revoked', 'expired']) {
+    const pendingArgs = { ...tokenArgs, ...(tokenDomain === 'products.write' ? { sku: `TOKEN-${loss}` } : {}), ...(tokenDomain === 'customers.write' ? { document: `TOKEN-${loss}` } : {}), idempotencyKey: `retention-token-${tokenDomain}-${loss}` }
+    const pending = await client.callTool({ name: tokenDomain, arguments: pendingArgs })
     const pendingId = pending.structuredContent.previewId
-    const shortToken = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource, scopes: ['product_images:write'] })
+    const shortToken = await issueMcpTokens(db, { grantId: grant.id, accountId: account.id, tenantId: tenant.id, sessionId: session.id, userId: user.id, clientId: 'sdk-http', resource, scopes: [require('../lib/mcp/catalog.ts').scopeForAction(tokenDomain)] })
     const shortTokenId = (await db.mcpAccessToken.findUnique({ where: { tokenHash: oauth.hashMcpSecret(shortToken.accessToken) }, select: { id: true } })).id
     if (loss === 'expired') await db.mcpAccessToken.update({ where: { id: shortTokenId }, data: { expiresAt: new Date(Date.now() + 1500) } })
     let locked, release
@@ -535,9 +536,9 @@ try {
     const released = new Promise(resolve => { release = resolve })
     const holder = makeDb().$transaction(async tx => { await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${pendingId} FOR UPDATE`; locked(); await released })
     await ready
-    const photosBeforeTokenLoss = await db.productImage.count()
+    const snapshotBeforeTokenLoss = await guardedSnapshot()
     const auditsBeforeTokenLoss = await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } })
-    const pendingResponse = POST(new Request(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${shortToken.accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 654, method: 'tools/call', params: { name: 'product_images.write', arguments: { ...pendingArgs, mode: 'commit', previewId: pendingId } } }) }))
+    const pendingResponse = POST(new Request(`${resource}/api/mcp/streamable`, { method: 'POST', headers: { authorization: `Bearer ${shortToken.accessToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 654, method: 'tools/call', params: { name: tokenDomain, arguments: { ...pendingArgs, mode: 'commit', previewId: pendingId } } }) }))
     let waiter = false
     for (let attempt = 0; attempt < 100; attempt++) {
       const rows = await db.$queryRaw`SELECT count(*)::int AS count FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%McpChangePreview%'`
@@ -550,8 +551,30 @@ try {
     release(); await holder
     const pendingResult = await (await pendingResponse).json()
     const pendingRow = await db.mcpChangePreview.findUnique({ where: { id: pendingId } })
-    ok(Boolean(pendingResult.error) && await db.productImage.count() === photosBeforeTokenLoss && await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } }) === auditsBeforeTokenLoss && pendingRow.status === 'PREVIEW' && Object.hasOwn(pendingRow.payload, 'dataBase64'), `access token ${loss} while blocked rolls back photo/preview/audit`)
+    ok(Boolean(pendingResult.error) && await guardedSnapshot() === snapshotBeforeTokenLoss && await db.auditLog.count({ where: { action: 'MCP_CHANGE_COMMITTED' } }) === auditsBeforeTokenLoss && pendingRow.status === 'PREVIEW' && (tokenDomain !== 'product_images.write' || Object.hasOwn(pendingRow.payload, 'dataBase64')), `${tokenDomain} access token ${loss} while blocked rolls back mutation/preview/audit`)
   }
+  await db.user.update({ where: { id: user.id }, data: { role: 'GERENTE', branchId: branch.id, permissions: ['products:manage'] } })
+  const branchRacePrice = Number((await db.product.findUnique({ where: { id: product.id } })).pricePyg)
+  const branchRaceArgs = { mode: 'preview', productId: product.id, pricePyg: branchRacePrice + 17, expectedPricePyg: branchRacePrice, idempotencyKey: 'retention-price-context-race' }
+  const branchRace = await client.callTool({ name: 'prices.write', arguments: branchRaceArgs })
+  let branchProductLocked, branchProductRelease
+  const branchProductReady = new Promise(resolve => { branchProductLocked = resolve })
+  const branchProductReleased = new Promise(resolve => { branchProductRelease = resolve })
+  const branchProductHolder = makeDb().$transaction(async tx => { await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${product.id} FOR UPDATE`; branchProductLocked(); await branchProductReleased })
+  await branchProductReady
+  const branchAuditBefore = await db.auditLog.count({ where: { entityId: product.id } })
+  const branchResult = client.callTool({ name: 'prices.write', arguments: { ...branchRaceArgs, mode: 'commit', previewId: branchRace.structuredContent.previewId } }).then(() => false).catch(() => true)
+  let branchWaiter = false
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const rows = await db.$queryRaw`SELECT count(*)::int AS count FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%Product%'`
+    if (rows[0].count > 0) { branchWaiter = true; break }
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  ok(branchWaiter, 'price context regression waits on Product with original manager context')
+  await db.user.update({ where: { id: user.id }, data: { branchId: noteOtherBranch.id } })
+  branchProductRelease(); await branchProductHolder
+  ok(await branchResult && Number((await db.product.findUnique({ where: { id: product.id } })).pricePyg) === branchRacePrice && (await db.mcpChangePreview.findUnique({ where: { id: branchRace.structuredContent.previewId } })).status === 'PREVIEW' && await db.auditLog.count({ where: { entityId: product.id } }) === branchAuditBefore, 'manager branch A to B during Product wait rolls back price/preview/audit')
+  await db.user.update({ where: { id: user.id }, data: { role: 'ADMIN', branchId: branch.id, permissions: [] } })
   const { POST: maintenancePost } = require('../app/api/internal/mcp-previews/route.ts')
   const maintenanceRequest = (token, body = '{}') => new Request(`${resource}/api/internal/mcp-previews`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {}, body })
   delete process.env.MOBOS_MAINTENANCE_TOKEN

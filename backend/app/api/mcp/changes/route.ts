@@ -1,3 +1,4 @@
+import { scopeForAction } from '../../../../lib/mcp/catalog'
 import { withoutMcpImageBytes } from '../../../../lib/mcp/preview-retention'
 import { invalidToolArguments } from '../../../../lib/mcp/tool-contracts'
 import { mcpOriginAllowed, mcpJsonRequest } from '../../../../lib/mcp/transport'
@@ -22,6 +23,16 @@ export const dynamic = 'force-dynamic'
 const TTL_MS = 10 * 60 * 1000
 function json(error: string, status = 400, extra: Record<string, unknown> = {}) { return NextResponse.json({ error, ...extra }, { status, headers: { 'Cache-Control': 'no-store' } }) }
 function safe(value: unknown) { return JSON.parse(JSON.stringify(value, (_, v) => typeof v === 'bigint' ? Number(v) : v)) }
+
+class McpCommitAccessError extends Error {}
+async function revalidateCommitAccess(tx: Prisma.TransactionClient, auth: NonNullable<Awaited<ReturnType<typeof requireMcpAccessToken>>>, action: string, branchId: string | null, operation?: unknown) {
+  const scope = scopeForAction(action)
+  const current = scope && await revalidateMcpAccessToken(tx, auth.tokenId, scope)
+  const sameContext = current && current.user.role === auth.user.role && (current.user.branchId ?? null) === (auth.user.branchId ?? null) && [...current.user.permissions].sort().join('\0') === [...auth.user.permissions].sort().join('\0')
+  const tenant = current && await tx.tenant.findUnique({ where: { id: current.tenantId }, select: { settings: true } })
+  const allowed = current && tenant && authorizeMcpAction(action, { tenantId: current.tenantId, user: current.user, enabledModules: moduleStoreFrom(tenant.settings).modules, grantedScopes: current.scopes, requestedBranchId: branchId })
+  if (!sameContext || !allowed?.allowed || (action === 'price_lists.write' && operation === 'update' && !['ADMIN', 'GERENTE'].includes(current!.user.role))) throw new McpCommitAccessError('mcp_access_changed')
+}
 
 export async function POST(request: Request) {
   if (!mcpOriginAllowed(request)) return json('origin_not_allowed', 403)
@@ -179,6 +190,7 @@ export async function POST(request: Request) {
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
         const order = await updateOrderComment(tx, { id: auth.user.id, tenantId: auth.tenantId }, String(checked.payload.orderId), { notes: checked.payload.notes }, { expectedUpdatedAt: (preview.before as any)?.updatedAt, binding: auth })
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation)
         const committedAt = await dbNow(tx)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Order', resultId: order.id } })
         if (claimed.count !== 1) throw new OrderCommentError('conflict', 'La vista previa ya no está disponible.')
@@ -187,6 +199,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json({ committed: true, entity: 'Order', entityId: result.id, previewId: preview.id, order: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof OrderCommentError) return json(`venta_${error.code}`, error.status)
       return json('venta_no_actualizada', 503)
     }
@@ -198,18 +211,18 @@ export async function POST(request: Request) {
     try {
       const created = await persistProductImage({ db: prisma as any, tenantId: auth.tenantId, userId: auth.user.id, productId: String(checked.payload.productId), branchId: decision.branchId, canManage: decision.allowed, image: generated.image, thumb: generated.thumb, variantKey: typeof checked.payload.variantKey === 'string' ? checked.payload.variantKey : null, provenance: 'mcp', onPersisted: async (tx, row) => {
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        try { await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation) }
+        catch (cause) { if (cause instanceof McpCommitAccessError) throw new ProductImageError(403, 'mcp_access_changed'); throw cause }
         const committedAt = await dbNow(tx)
         const current = await tx.mcpChangePreview.findUnique({ where: { id: preview.id }, select: { payload: true } })
-        const liveAuth = await revalidateMcpAccessToken(tx, auth.tokenId, 'product_images:write')
-        const liveTenant = await tx.tenant.findUnique({ where: { id: auth.tenantId }, select: { settings: true } })
-        const liveDecision = liveAuth && liveTenant && authorizeMcpAction('product_images.write', { tenantId: liveAuth.tenantId, user: liveAuth.user, enabledModules: moduleStoreFrom(liveTenant.settings).modules, grantedScopes: liveAuth.scopes, requestedBranchId: decision.branchId })
-        if (!current?.payload || typeof current.payload !== 'object' || !Object.hasOwn(current.payload, 'dataBase64') || !liveDecision?.allowed) throw new ProductImageError(409, 'preview_invalido')
+        if (!current?.payload || typeof current.payload !== 'object' || !Object.hasOwn(current.payload, 'dataBase64')) throw new ProductImageError(409, 'preview_invalido')
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, payload: withoutMcpImageBytes(checked.payload), resultEntity: 'ProductImage', resultId: row.id } })
         if (claimed.count !== 1) throw new ProductImageError(409, 'preview_invalido')
         await tx.auditLog.create({ data: { tenantId: auth.tenantId, userId: auth.user.id, action: 'MCP_CHANGE_COMMITTED', entity: 'ProductImage', entityId: row.id, metadata: { action: checked.action, previewId: preview.id, payloadHash: hash, idempotencyKey: preview.idempotencyKey } } })
       } })
       return NextResponse.json({ committed: true, entity: 'ProductImage', entityId: created.id, previewId: preview.id }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof ProductImageError) return json(error.message === 'preview_invalido' ? 'preview_invalido' : 'imagen_no_guardada', error.status, { detail: error.message })
       return json('imagen_no_guardada', 500)
     }
@@ -222,6 +235,7 @@ export async function POST(request: Request) {
           ? await updateCustomer(tx, actor, String(checked.payload.customerId), checked.payload as any)
           : await createCustomer(tx, actor, checked.payload as any)
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation)
         const committedAt = await dbNow(tx)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Customer', resultId: customer.id } })
         if (claimed.count !== 1) throw new CustomerServiceError('conflict', 'preview_invalido')
@@ -230,6 +244,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json({ committed: true, entity: 'Customer', entityId: result.id, previewId: preview.id, customer: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof CustomerServiceError) return json(error.message === 'preview_invalido' ? 'preview_invalido' : `cliente_${error.code}`, error.code === 'forbidden' ? 403 : error.code === 'not_found' ? 404 : error.code === 'conflict' ? 409 : 400)
       return json('cliente_no_guardado', 500)
     }
@@ -240,6 +255,7 @@ export async function POST(request: Request) {
         const actor = { id: auth.user.id, tenantId: auth.tenantId, role: auth.user.role, permissions: auth.user.permissions }
         const value = checked.payload.operation === 'update' ? await updatePriceList(tx, actor, String(checked.payload.priceListId), { ...checked.payload, _expectedUpdatedAt: (preview.before as any)?.updatedAt }) : await createPriceList(tx, actor, checked.payload)
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation)
         const committedAt = await dbNow(tx)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'PriceList', resultId: value.id } })
         if (claimed.count !== 1) throw new PriceListServiceError('conflict', 'preview_invalido')
@@ -248,6 +264,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json({ committed: true, entity: 'PriceList', entityId: result.id, previewId: preview.id, priceList: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof PriceListServiceError) return json(error.message === 'preview_invalido' ? 'preview_invalido' : `lista_${error.code}`, error.code === 'forbidden' ? 403 : error.code === 'not_found' ? 404 : error.code === 'conflict' ? 409 : 400)
       return json('lista_no_guardada', 500)
     }
@@ -258,6 +275,7 @@ export async function POST(request: Request) {
         const fields = Object.fromEntries(Object.entries(checked.payload).filter(([key]) => (TENANT_COMPANY_PROFILE_FIELDS as readonly string[]).includes(key)))
         const company = await updateTenantCompanyProfile({ db: tx, tenantId: auth.tenantId, actorUserId: auth.user.id, sessionId: auth.sessionId, fields })
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation)
         const committedAt = await dbNow(tx)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Tenant', resultId: auth.tenantId } })
         if (claimed.count !== 1) throw new Error('preview_invalido')
@@ -266,6 +284,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json({ committed: true, entity: 'Tenant', entityId: auth.tenantId, previewId: preview.id, company: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof CompanyReauthenticationRequiredError) return json('reauth_required', 403)
       if (error instanceof Error && error.message === 'preview_invalido') return json('preview_invalido', 409)
       return json('empresa_no_actualizada', 400)
@@ -279,6 +298,7 @@ export async function POST(request: Request) {
           ? await updateProduct(tx, actor, String(checked.payload.productId), checked.payload as any)
           : await createProduct(tx, actor, checked.payload as any)
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation)
         const committedAt = await dbNow(tx)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Product', resultId: product.id } })
         if (claimed.count !== 1) throw new Error('preview_invalido')
@@ -286,6 +306,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json({ committed: true, entity: 'Product', entityId: result.id, previewId: preview.id, product: safe(result) }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof ProductServiceError) return json(`producto_${error.code}`, error.code === 'forbidden' ? 403 : error.code === 'not_found' ? 404 : error.code === 'conflict' ? 409 : 400)
       if (error instanceof Error && error.message === 'preview_invalido') return json('preview_invalido', 409)
       return json('producto_no_guardado', 400)
@@ -296,6 +317,7 @@ export async function POST(request: Request) {
       const changed = await prisma.$transaction(async tx => {
         const result = await updateProductPrice({ tenantId: auth.tenantId, user: auth.user, productId: String(checked.payload.productId), pricePyg: Number(checked.payload.pricePyg), expectedPricePyg: Number(checked.payload.expectedPricePyg), includeAudit: true }, tx)
         await tx.$queryRaw`SELECT id FROM "McpChangePreview" WHERE id = ${preview.id} FOR UPDATE`
+        await revalidateCommitAccess(tx, auth, checked.action, decision.branchId, checked.payload.operation)
         const committedAt = await dbNow(tx)
         const claimed = await tx.mcpChangePreview.updateMany({ where: { id: preview.id, grantId: auth.grantId, clientId: auth.clientId, sessionId: auth.sessionId, status: 'PREVIEW', expiresAt: { gt: committedAt }, payloadHash: hash }, data: { status: 'COMMITTED', committedAt, resultEntity: 'Product', resultId: result.productId } })
         if (claimed.count !== 1) throw new ProductPriceError('preview_invalido')
@@ -304,6 +326,7 @@ export async function POST(request: Request) {
       })
       return NextResponse.json({ committed: true, entity: 'Product', entityId: changed.productId, previewId: preview.id, price: safe(changed) }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
+      if (error instanceof McpCommitAccessError) return json('access_changed', 403)
       if (error instanceof ProductPriceError) {
         const status = error.code === 'permission_denied' || error.code === 'branch_denied' || error.code === 'tenant_denied' ? 403 : error.code === 'product_not_found' ? 404 : error.code === 'stale_price' ? 409 : error.code === 'preview_invalido' ? 409 : 400
         return json(error.code === 'stale_price' ? 'precio_desactualizado' : error.code, status)

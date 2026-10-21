@@ -145,3 +145,13 @@ Las expiraciones MCP usan el epoch numérico de `clock_timestamp()` de PostgreSQ
 Una reautorización revoca en una sola transacción los access/refresh tokens vigentes y marca como usados los códigos pendientes del grant antes de crear el nuevo código. Esto evita que una autorización anterior vuelva a emitir credenciales después de que el usuario reautoriza o cambia sus scopes.
 
 Cada credencial conserva `accountId`, `tenantId`, `userId`, `sessionId`, `clientId` y `resource`. El bearer sólo es válido si la sesión actual conserva el mismo usuario, empresa, cuenta, membresía y resource.
+
+Antes del claim de cualquiera de las siete mutaciones MCP se reutiliza el guard
+canónico del access token dentro de la transacción, después de los locks del
+dominio y del preview. Se revisan expiración/revocación, grant/sesión, membresía,
+usuario/horario y permisos/módulo/sucursal vigentes, sin extender TTL ni debitar
+cuota otra vez. Si rol, sucursal o permisos efectivos cambiaron desde la entrada,
+el commit falla cerrado y revierte; requiere nueva propuesta con contexto actual.
+Los bytes de imagen temporales se retiran del preview tras commit y mediante
+mantenimiento acotado para propuestas vencidas/revocadas; hash y resultado se
+conservan para idempotencia (política y límites: MCP-652-PREVIEW-RETENTION.md).
