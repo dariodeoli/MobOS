@@ -30,7 +30,7 @@ function guardarStore(apagados) {
 
 // [método, ruta, módulo]: el cuerpo vacío llega antes que cualquier validación.
 const escrituras = [
-  ['POST', '/api/trade-ins', 'tradein'], ['PATCH', '/api/trade-ins', 'tradein'], ['POST', '/api/device-valuations', 'tradein'],
+  ['PATCH', '/api/trade-ins', 'tradein'], ['POST', '/api/device-valuations', 'tradein'],
   ['POST', '/api/service-orders', 'servicios'], ['PATCH', '/api/service-orders', 'servicios'], ['POST', '/api/warranties', 'servicios'], ['POST', '/api/workshop/parts', 'servicios'],
   ['POST', '/api/delivery/trips', 'delivery'], ['POST', '/api/delivery/tariffs', 'delivery'],
   ['POST', '/api/marketing/campaigns', 'campanas-recompra'],
