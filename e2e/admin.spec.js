@@ -834,7 +834,8 @@ test.describe('mini CRM de clientes', () => {
 
     await ficha.getByRole('tab', { name: /^Estadísticas/ }).click()
     await expect(ficha.getByText('Frecuencia')).toBeVisible()
-    await expect(ficha.getByText('Antigüedad')).toBeVisible()
+    // La columna lateral (siempre visible) también dice «Antigüedad:»: acá es la señal de Estadísticas.
+    await expect(ficha.getByText('Antigüedad', { exact: true })).toBeVisible()
     await expect(ficha.getByText('Gasto por mes')).toBeVisible()
 
     await ficha.getByRole('tab', { name: /^Datos/ }).click()

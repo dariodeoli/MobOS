@@ -1,0 +1,191 @@
+/* Página de cliente (patrón Shopify): encabezado + KPI en una línea, columna
+   principal y columna lateral derecha. Solo presentación; usa los tokens
+   globales (claro/oscuro) sin redefinirlos. En celular, una sola columna. */
+
+.cp-cabecera-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.cp-avatar {
+  flex: none;
+}
+.cp-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.cp-boton {
+  min-height: 44px;
+  min-width: 44px;
+  padding-inline: 12px;
+  font-size: 12px;
+}
+.cp-flechas {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid rgb(var(--c-ink-500));
+  border-radius: 10px;
+}
+.cp-flecha {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: rgb(var(--c-mute));
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.cp-flecha + .cp-flecha {
+  border-left: 1px solid rgb(var(--c-ink-500));
+}
+.cp-flecha:hover:not(:disabled) {
+  background: rgb(var(--c-ink-700));
+  color: rgb(var(--c-fore));
+}
+.cp-flecha:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+@media (min-width: 1024px) {
+  .cp-boton,
+  .cp-flecha {
+    min-height: 36px;
+    height: 36px;
+  }
+  .cp-flecha {
+    width: 36px;
+  }
+}
+
+/* Secciones: subrayado en vez de pastillas, con desplazamiento horizontal
+   interno en celular (nunca de la página). */
+.cp-secciones {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cp-secciones::-webkit-scrollbar {
+  display: none;
+}
+.cp-seccion {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--c-mute));
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.cp-seccion:hover {
+  color: rgb(var(--c-fore));
+}
+.cp-seccion[aria-selected='true'] {
+  color: rgb(var(--c-fore));
+  border-bottom-color: rgb(var(--c-fono));
+}
+@media (min-width: 1024px) {
+  .cp-seccion {
+    min-height: 40px;
+  }
+}
+
+.cp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-width: 0;
+}
+.cp-principal,
+.cp-lateral {
+  min-width: 0;
+}
+.cp-lateral {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .cp-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+  }
+  .cp-lateral {
+    position: sticky;
+    top: 120px;
+  }
+}
+
+.cp-tarjeta {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 12px;
+  background: rgb(var(--c-ink-800));
+}
+.cp-tarjeta-titulo {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--c-mute));
+}
+.cp-lista,
+.cp-datos {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  min-width: 0;
+}
+.cp-datos p {
+  overflow-wrap: anywhere;
+}
+
+/* Animaciones sutiles: entrada de la página y de cada sección. */
+@media (prefers-reduced-motion: no-preference) {
+  .cp-principal > *,
+  .cp-lateral > * {
+    animation: cp-entrada 0.22s ease-out both;
+  }
+  .cp-lateral > *:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  @keyframes cp-entrada {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-seccion,
+  .cp-flecha {
+    transition: none;
+  }
+}
+
+/* Listado de clientes: misma línea visual que la página (fila densa con
+   resalte suave al pasar o enfocar). Sin cambiar estructura ni lógica. */
+.clientes-f3 [data-testid='cliente-fila'] {
+  transition: background-color 0.15s ease;
+}
+.clientes-f3 [data-testid='cliente-fila']:hover,
+.clientes-f3 [data-testid='cliente-fila']:focus-within {
+  background: rgb(var(--c-ink-700) / 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  .clientes-f3 [data-testid='cliente-fila'] {
+    transition: none;
+  }
+}

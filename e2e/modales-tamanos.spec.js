@@ -84,11 +84,11 @@ test('Crear cliente (amplio)', async ({ page }) => {
   await capturar(page, page.getByRole('dialog', { name: 'Crear cliente' }), 'crear-cliente', 'amplio')
 })
 
-test('Ficha del cliente (amplio)', async ({ page }) => {
+test('Ficha del cliente (completo: página con columna lateral)', async ({ page }) => {
   await page.goto('/clientes')
   // La tabla nueva (#236) abre la ficha al hacer clic en la fila.
   const fila = page.getByTestId('cliente-fila').first()
   await expect(fila).toBeVisible()
   await fila.click()
-  await capturar(page, page.getByRole('dialog', { name: /^Cliente: / }), 'ficha-cliente', 'amplio')
+  await capturar(page, page.getByRole('dialog', { name: /^Cliente: / }), 'ficha-cliente', 'completo')
 })
