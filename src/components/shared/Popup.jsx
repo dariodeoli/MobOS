@@ -51,7 +51,6 @@ export default function Popup({
   const { rol, ancho } = resolverPopup({ tipo, tamano })
   const [visible, setVisible] = useState(open)
   const [saliendo, setSaliendo] = useState(false)
-  const [descartando, setDescartando] = useState(false)
 
   // Salida animada: se mantiene montado hasta que termina (sin espera si el
   // usuario pidió reducir movimiento).
