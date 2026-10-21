@@ -16,6 +16,7 @@ import '@/components/control/config/configTouch.css'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import AjustesIPhone from '@/components/cuenta/AjustesIPhone'
 import EliminarCuenta from '@/components/cuenta/EliminarCuenta'
+import McpConexiones from '@/components/control/config/McpConexiones'
 
 // Mi cuenta (#253): la superficie PERSONAL de cualquier rol. Perfil (nombre,
 // correo y foto), preferencias del dispositivo (bloqueo por inactividad y
@@ -258,6 +259,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
           {sesiones.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}
         </Card>
 
+        <McpConexiones />
         <AjustesIPhone puedeAjustarEquipo={usuario?.role === 'ADMIN' || Boolean(sesion?.esPropietario)} esDemo={esDemo} />
         <EliminarCuenta esDemo={esDemo} />
       </PanelDerecho>

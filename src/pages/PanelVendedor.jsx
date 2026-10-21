@@ -52,6 +52,7 @@ const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarant
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
+const McpConexiones = lazy(() => import('@/components/control/config/McpConexiones'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
 const CentroControl = lazy(() => import('@/components/control/CentroControl'))
@@ -1079,7 +1080,7 @@ export default function PanelVendedor() {
               {vista === 'dispositivos' && <Impresoras />}
               {/* #324: Sistema muestra los chequeos y la cola ficticios en
                   demo; fuera de demo lee los servicios reales como siempre. */}
-              {vista === 'sistema' && <EstadoSistema />}
+              {vista === 'sistema' && <><EstadoSistema />{sesion?.esPropietario && <McpConexiones />}</>}
             </NavegacionConfig>
           )}
           {subpadre === 'ayuda' && (
