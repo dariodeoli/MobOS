@@ -3,7 +3,7 @@ import { qrDataUrl } from '@/lib/qr'
 import { api as apiReal, API_URL } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { apiComisionesDemo } from '@/lib/demo/comisiones'
-import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Skeleton, Stat, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, IconAction, Input, Skeleton, Stat, useToast } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
 import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import StatGrid from '@/components/shared/StatGrid'
@@ -326,15 +326,15 @@ export default function Comisiones() {
   )
 
   return (
-    <div className="finanzas-tactil space-y-3">
+    <div className="gp ventas-f3 finanzas-tactil space-y-3" data-testid="comisiones-pagina">
       <StatGrid testId="comisiones-resumen">
         <Stat compact testId="comisiones-reglas" label="Reglas activas" valor={reglas?.length ?? '—'} />
         <Stat compact testId="comisiones-liquidaciones" label="Liquidaciones" valor={liquidaciones?.length ?? '—'} />
         <Stat compact testId="comisiones-liquidado" label="Total liquidado" valor={gs(totalLiquidado)} />
         <Stat compact testId="comisiones-por-pagar" label="Por pagar" valor={gs(porPagar)} valorClassName={porPagar > 0 ? 'text-warn' : 'text-mute'} />
       </StatGrid>
-      <Card>
-        <h2 className="font-bold mb-1">Comisiones</h2>
+      <section className="gp-tarjeta p-4" aria-label="Reglas de comisión">
+        <h2 className="mb-1 text-base font-bold">Comisiones</h2>
         <p className="text-sm text-mute mb-4">
           Reglas de comisión sobre el <strong>margen</strong> de cada venta. La regla por usuario prevalece sobre la de rol.
         </p>
@@ -353,7 +353,7 @@ export default function Comisiones() {
         {reglas === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : reglas.length === 0 ? (
-          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." />
+          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." action={<Button type="button" variant="outline" onClick={() => document.getElementById('comision-vendedor')?.focus()}>Agregar la primera regla</Button>} />
         ) : (
           <ListaDensa
             lista={listaReglas}
@@ -384,10 +384,10 @@ export default function Comisiones() {
             )}
           />
         )}
-      </Card>
+      </section>
 
-      <Card>
-        <h2 className="font-bold mb-1">Liquidaciones</h2>
+      <section className="gp-tarjeta p-4" aria-label="Liquidaciones">
+        <h3 className="mb-1 text-base font-bold">Liquidaciones</h3>
         <p className="text-sm text-mute mb-4">
           Cerrá el período de un vendedor: la comisión se congela con el detalle de cada venta y el comprobante se verifica por QR.
         </p>
@@ -417,7 +417,7 @@ export default function Comisiones() {
         {liquidaciones === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : liquidaciones.length === 0 ? (
-          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." />
+          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." action={<Button type="button" variant="outline" onClick={() => document.getElementById('liquidacion-vendedor')?.focus()}>Elegir vendedor</Button>} />
         ) : (
           <ListaDensa
             lista={listaLiquidaciones}
@@ -452,7 +452,7 @@ export default function Comisiones() {
             )}
           />
         )}
-      </Card>
+      </section>
 
       <Popup open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} tamano="md">
         {comprobante && (

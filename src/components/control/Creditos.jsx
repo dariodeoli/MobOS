@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { creditosDemo } from '@/lib/demo/cobranza'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, BarraProgreso, Badge, Button, Card, EmptyState, Money, Skeleton, Stat } from '@/components/ui'
+import { Aviso, BarraProgreso, Badge, Button, EmptyState, Money, Skeleton, Stat } from '@/components/ui'
 import StatGrid from '@/components/shared/StatGrid'
+import BarraGestion from '@/components/shared/BarraGestion'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
@@ -69,37 +70,52 @@ export default function Creditos() {
   useEffect(() => { load() }, [esDemo, sucursal?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows = useMemo(() => data?.credits || [], [data])
-  const lista = usePaginaLista(rows, { tamano: { compacto: 5, amplio: 20 } })
+  const [busqueda, setBusqueda] = useState('')
+  const [tab, setTab] = useState('todos')
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    return rows.filter((row) => {
+      if (tab === 'mora' && !(row.overduePyg > 0)) return false
+      if (tab === 'cupo' && !(row.limitUsagePct !== null && row.limitUsagePct >= 80)) return false
+      if (tab === 'aldia' && (row.overduePyg > 0)) return false
+      return !q || String(row.name || '').toLowerCase().includes(q)
+    })
+  }, [rows, busqueda, tab])
+  const lista = usePaginaLista(visibles, { tamano: { compacto: 5, amplio: 20 } })
   const totals = data?.totals || { outstandingPyg: 0, overduePyg: 0, customersWithDebt: 0, overdueCustomers: 0 }
 
   return (
-    <div className="finanzas-tactil space-y-3">
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-bold">Créditos y días de mora</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {data?.truncado && <Badge color="orange">Primeros 200 clientes</Badge>}
-            <Button type="button" variant="outline" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</Button>
-          </div>
+    <div className="gp ventas-f3 finanzas-tactil space-y-3">
+      <div className="gp-cabecera">
+        <div className="min-w-0">
+          <h2>Créditos y días de mora</h2>
+          {data?.truncado && <p className="mt-1 text-xs"><Badge color="orange">Mostrando los primeros 200 clientes con deuda</Badge> Los totales incluyen a todos.</p>}
         </div>
-        {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
-        {data?.truncado && (
-          <p className="mt-3 text-xs text-mute">
-            <Badge color="orange">Mostrando los primeros 200 clientes con deuda</Badge> Los totales de arriba incluyen a todos.
-          </p>
-        )}
-        <StatGrid testId="creditos-resumen" className="mt-3">
-          <Stat compact testId="creditos-por-cobrar" label="Total por cobrar" valor={<Money value={totals.outstandingPyg} />} />
-          <Stat compact testId="creditos-en-mora" label="En mora" valor={<Money value={totals.overduePyg} />} valorClassName="text-bad" />
-          <Stat compact testId="creditos-clientes" label="Clientes con deuda" valor={totals.customersWithDebt} />
-          <Stat compact testId="creditos-clientes-mora" label="Clientes en mora" valor={totals.overdueCustomers} valorClassName="text-bad" />
-        </StatGrid>
-      </Card>
-      <Card>
+      </div>
+      <BarraGestion
+        etiqueta="Acciones de Créditos"
+        testId="barra-creditos"
+        buscar={busqueda}
+        onBuscar={setBusqueda}
+        placeholder="Buscar cliente"
+        ariaBuscar="Buscar clientes con crédito"
+        tabs={[['todos', 'Todos'], ['mora', 'En mora'], ['cupo', 'Cupo alto'], ['aldia', 'Al día']]}
+        tab={tab}
+        onTab={setTab}
+        etiquetaTabs="Estado del crédito"
+        primary={<Button type="button" variant="outline" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</Button>}
+      />
+      {error && <Aviso tono="error">{error}</Aviso>}
+      <StatGrid testId="creditos-resumen">
+        <Stat compact testId="creditos-por-cobrar" label="Total por cobrar" valor={<Money value={totals.outstandingPyg} />} />
+        <Stat compact testId="creditos-en-mora" label="En mora" valor={<Money value={totals.overduePyg} />} valorClassName="text-bad" />
+        <Stat compact testId="creditos-clientes" label="Clientes con deuda" valor={totals.customersWithDebt} />
+        <Stat compact testId="creditos-clientes-mora" label="Clientes en mora" valor={totals.overdueCustomers} valorClassName="text-bad" />
+      </StatGrid>
+      <div>
         {busy && !data && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
-        {!busy && rows.length === 0 && <EmptyState compact icon="wallet" title="Sin créditos pendientes" description="Las ventas a crédito aparecerán acá con su vencimiento y días de atraso." />}
+        {!busy && rows.length === 0 && <EmptyState compact icon="wallet" title="Sin créditos pendientes" description="Las ventas a crédito aparecerán acá con su vencimiento y días de atraso." action={<Button type="button" variant="outline" onClick={load}>Actualizar</Button>} />}
+        {rows.length > 0 && visibles.length === 0 && <EmptyState compact icon="wallet" title="Ningún cliente coincide" description="Probá otra búsqueda o cambiá el estado." action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setTab('todos') }}>Ver todos</Button>} />}
         <ListaDensa
           lista={lista}
           testId="creditos-tabla"
@@ -141,7 +157,7 @@ export default function Creditos() {
             </div>
           )}
         />
-      </Card>
+      </div>
     </div>
   )
 }
