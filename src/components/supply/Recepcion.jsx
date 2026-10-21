@@ -1,9 +1,13 @@
 import './compras.css'
+import Toolbar from '@/components/shared/Toolbar'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { useNavigate } from 'react-router-dom'
 import { api, resources } from '@/lib/api'
-import { Badge, Button, Card, EmptyState, FormField, Input, Select, Skeleton, Textarea, useResultado, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, FormField, Input, Select, Skeleton, Stat, Textarea, useResultado, useToast } from '@/components/ui'
 import { SaveActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import PopupConfirmar from '@/components/shared/PopupConfirmar'
@@ -376,7 +380,7 @@ export default function Recepcion() {
     // el resumen y el stock dicen lo mismo (#461).
     const creadas = confirmada.unidadesCreadas ?? 0
     return (
-      <div className="compras-flujo space-y-4" data-testid="recepcion-confirmada">
+      <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="recepcion-confirmada">
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h2 className="font-semibold">Recepción confirmada · {confirmada.recepcion?.shipment?.code || ''}</h2>
@@ -413,7 +417,7 @@ export default function Recepcion() {
     const sobrantes = (recepcion.items || []).filter((item) => !item.shipmentItemId)
     const estados = resumen || {}
     return (
-      <div className="compras-flujo space-y-4" data-testid="recepcion-activa">
+      <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="recepcion-activa">
         <Card className="p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -434,16 +438,18 @@ export default function Recepcion() {
               </Button>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
-            <Badge color="green">{estados.RECIBIDO || 0} recibidas</Badge>
-            <Badge color="slate">{pendientes.length} sin escanear</Badge>
-            {(estados.FALTANTE || 0) > 0 && <Badge color="red">{estados.FALTANTE} faltantes</Badge>}
-            {(estados.DANADO || 0) > 0 && <Badge color="red">{estados.DANADO} dañadas</Badge>}
-            {(estados.INCORRECTO || 0) > 0 && <Badge color="orange">{estados.INCORRECTO} incorrectas</Badge>}
-            {(estados.SOBRANTE || 0) > 0 && <Badge color="blue">{estados.SOBRANTE} sobrantes</Badge>}
-          </div>
+          <StatGrid testId="recepcion-resumen" className="mt-3" etiqueta="Resumen de la recepción">
+            <Stat compact label="Recibidas" valor={estados.RECIBIDO || 0} valorClassName="text-ok" />
+            <Stat compact label="Sin escanear" valor={pendientes.length} />
+            {(estados.FALTANTE || 0) > 0 && <Stat compact label="Faltantes" valor={estados.FALTANTE} valorClassName="text-bad" />}
+            {(estados.DANADO || 0) > 0 && <Stat compact label="Dañadas" valor={estados.DANADO} valorClassName="text-bad" />}
+            {(estados.INCORRECTO || 0) > 0 && <Stat compact label="Incorrectas" valor={estados.INCORRECTO} valorClassName="text-warn" />}
+            {(estados.SOBRANTE || 0) > 0 && <Stat compact label="Sobrantes" valor={estados.SOBRANTE} />}
+          </StatGrid>
         </Card>
 
+        <div className="gp-dos">
+        <div className="gp-principal">
         <Card className="space-y-3 p-4 md:p-5">
           <div>
             <h3 className="text-sm font-semibold">Escanear contra el manifiesto</h3>
@@ -496,23 +502,6 @@ export default function Recepcion() {
                   </Button>
                 </>
               )}
-            </p>
-          )}
-        </Card>
-
-        <Card className="space-y-3 p-4 md:p-5">
-          <h3 className="text-sm font-semibold">Depósito destino</h3>
-          <Select aria-label="Depósito destino" value={depositoId} onChange={(evento) => setDepositoId(evento.target.value)} className="w-full sm:max-w-sm">
-            <option value="">Elegí el depósito…</option>
-            {depositos.map((deposito) => <option key={deposito.id} value={deposito.id}>{deposito.name}{deposito.code ? ` (${deposito.code})` : ''}</option>)}
-          </Select>
-          <p className="text-xs text-mute">Se sugiere el último depósito usado en la sucursal; podés cambiarlo (queda auditado).</p>
-          {sinSerial.length > 0 && (
-            <p className="text-xs text-warn">
-              {sinSerial.length} unidad(es) con IMEI por completar: para recibir todo el lote primero cargá los IMEI.{' '}
-              {/* #450: el enlace lleva a la compra y al lote de ESTA recepción, no a la lista general. */}
-              <button type="button" className="min-h-11 underline" data-testid="recepcion-ir-preparar" onClick={() => navigate(compraCodigo ? `/preparacion?compra=${encodeURIComponent(compraCodigo)}` : '/preparacion')}>Ir a Preparar compra</button>
-              {loteCodigo && <>{' · '}<button type="button" className="min-h-11 underline" data-testid="recepcion-ir-lote" onClick={() => navigate(`/preparar-lote?lote=${encodeURIComponent(loteCodigo)}`)}>Ir a Preparar lote</button></>}
             </p>
           )}
         </Card>
@@ -573,6 +562,27 @@ export default function Recepcion() {
           busy={busy}
         />
 
+        </div>
+        <aside className="gp-lateral" aria-label="Depósito de la recepción">
+        <Card className="space-y-3 p-4 md:p-5">
+          <h3 className="text-sm font-semibold">Depósito destino</h3>
+          <Select aria-label="Depósito destino" value={depositoId} onChange={(evento) => setDepositoId(evento.target.value)} className="w-full sm:max-w-sm">
+            <option value="">Elegí el depósito…</option>
+            {depositos.map((deposito) => <option key={deposito.id} value={deposito.id}>{deposito.name}{deposito.code ? ` (${deposito.code})` : ''}</option>)}
+          </Select>
+          <p className="text-xs text-mute">Se sugiere el último depósito usado en la sucursal; podés cambiarlo (queda auditado).</p>
+          {sinSerial.length > 0 && (
+            <p className="text-xs text-warn">
+              {sinSerial.length} unidad(es) con IMEI por completar: para recibir todo el lote primero cargá los IMEI.{' '}
+              {/* #450: el enlace lleva a la compra y al lote de ESTA recepción, no a la lista general. */}
+              <button type="button" className="min-h-11 underline" data-testid="recepcion-ir-preparar" onClick={() => navigate(compraCodigo ? `/preparacion?compra=${encodeURIComponent(compraCodigo)}` : '/preparacion')}>Ir a Preparar compra</button>
+              {loteCodigo && <>{' · '}<button type="button" className="min-h-11 underline" data-testid="recepcion-ir-lote" onClick={() => navigate(`/preparar-lote?lote=${encodeURIComponent(loteCodigo)}`)}>Ir a Preparar lote</button></>}
+            </p>
+          )}
+        </Card>
+
+        </aside>
+        </div>
         <Popup open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`} dirty={Boolean(incidencia) && nota.trim() !== String(incidencia?.nota || '').trim()}>
           <form onSubmit={(evento) => { evento.preventDefault(); guardarIncidencia() }} className="space-y-4">
             <p className="text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción. Podés adjuntar fotos (cámara o archivo).</p>
@@ -596,33 +606,35 @@ export default function Recepcion() {
 
   // ── Llegadas pendientes ─────────────────────────────────────────────────
   return (
-    <div className="compras-flujo space-y-4" data-testid="recepcion">
-      <Card className="p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <EncabezadoFlujo className="min-w-0 w-full sm:flex-1" paso="recepcion" onIr={(paso) => navigate(paso.ruta)} />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={() => setNuevaLlegada(true)} data-testid="recepcion-nueva-llegada">
-              <Icon name="plus" className="h-3.5 w-3.5" />Nueva llegada
-            </Button>
+    <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="recepcion">
+      <EncabezadoFlujo className="min-w-0 w-full" paso="recepcion" onIr={(paso) => navigate(paso.ruta)} />
+      <Toolbar
+        plano
+        lista
+        label="Acciones de Recepción"
+        testId="barra-recepcion"
+        className="ventas-f3-toolbar"
+        search={<Input value={codigo} onChange={(evento) => setCodigo(evento.target.value)} placeholder="Código o QR del manifiesto (ENV-…)" aria-label="Código del lote" />}
+        more={(
+          <>
+            <Button type="button" onClick={abrirPorCodigo} disabled={busy || !codigo.trim()}>Abrir lote</Button>
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
               <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
             </Button>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <label className="min-w-0 flex-1 space-y-1 text-sm">
-            <span className="font-semibold">Código o QR del manifiesto</span>
-            <Input value={codigo} onChange={(evento) => setCodigo(evento.target.value)} placeholder="ENV-… o el enlace del QR" aria-label="Código del lote" />
-          </label>
-          <Button type="button" onClick={abrirPorCodigo} disabled={busy || !codigo.trim()}>Abrir lote</Button>
-        </div>
-      </Card>
+          </>
+        )}
+        primary={(
+          <Button type="button" onClick={() => setNuevaLlegada(true)} data-testid="recepcion-nueva-llegada">
+            <Icon name="plus" className="h-3.5 w-3.5" />Nueva llegada
+          </Button>
+        )}
+      />
 
       {error && <Card className="text-sm text-bad">{error}</Card>}
       {cargando && !llegadas.length ? (
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
       ) : !llegadas.length ? (
-        <EmptyState icon="truck" title="No hay llegadas pendientes." description="Cuando despachás una compra, el lote aparece acá para recibirlo." />
+        <EmptyState icon="truck" title="No hay llegadas pendientes." description="Cuando despachás una compra, el lote aparece acá para recibirlo." action={<Button type="button" onClick={() => setNuevaLlegada(true)}>Nueva llegada</Button>} />
       ) : (
         <div className="space-y-2.5">
           {llegadas.map((llegada) => (
