@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma } from './prisma'
 import { pinValido } from './pin'
-import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin } from './google-oauth'
+import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin, sameOriginForMcp, isMcpIssuerRequest } from './google-oauth'
 import { accountForTenantPassword, hasActiveMembership } from './membership'
 
 export const MAX_FAILED_ATTEMPTS = 5
@@ -465,11 +465,11 @@ function sessionUser(user: { id: string; tenantId: string; name: string; role: s
   return { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, pinLength: user.pinLength ?? null, permissions: effectivePermissions(user.role, user.permissions) }
 }
 
-export async function requireSession(request: Request): Promise<SessionContext | null> {
+export async function requireSession(request: Request, options: { allowMcpOrigin?: boolean; allowMcpGetNoOrigin?: boolean } = {}): Promise<SessionContext | null> {
   const authorization = request.headers.get('authorization')
   const match = authorization?.match(/^Bearer\s+(.+)$/i)
   const cookie = readCookie(request, COOKIE_SELLER)
-  if (!match && (!cookie || !sameOrigin(request))) return null
+  if (!match && (!cookie || (!sameOrigin(request) && !(options.allowMcpOrigin && sameOriginForMcp(request)) && !(options.allowMcpGetNoOrigin && isMcpIssuerRequest(request))))) return null
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match ? match[1] : cookie) }, include: { user: true } })
   const now = new Date()
   if (!session || session.level !== 'SELLER' || !session.userId || !session.user || !isSessionUsable({ ...session, user: session.user }, now)) return null

@@ -26,10 +26,11 @@ try {
   run('initdb', ['-D', pgdata, '--username=postgres', '--auth=trust', '--no-locale', '--encoding=UTF8'])
   run('pg_ctl', ['-D', pgdata, '-l', join(root, 'pg.log'), '-o', `-h 127.0.0.1 -p ${port} -k ${root}`, '-w', 'start']); started = true
   run('createdb', ['-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', 'draft_test'])
-  for (const e of readdirSync(join(backend, 'prisma/migrations'), { withFileTypes: true }).filter(e => e.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
-    run('psql', ['-X', '-v', 'ON_ERROR_STOP=1', dbUrl], readFileSync(join(backend, 'prisma/migrations', e.name, 'migration.sql')))
-  }
+  // Use Prisma's tracked migrator rather than executing SQL files lexicographically.
+  // Some migrations depend on the baseline's recorded order; raw concatenation can
+  // run an ALTER/trigger before its referenced table and leave a partial schema.
   Object.assign(process.env, { DATABASE_URL: dbUrl, NODE_ENV: 'test', MOBOS_APP_URL: 'https://app.example.test', MOBOS_AUTH_SECRET: 'cd'.repeat(32) })
+  execFileSync(join(backend, 'node_modules/.bin/prisma'), ['migrate', 'deploy', '--schema', join(backend, 'prisma/schema.prisma')], { env: process.env, cwd: backend, stdio: ['ignore', 'pipe', 'pipe'] })
   require.extensions['.ts'] = (m, p) => m._compile(ts.transpileModule(readFileSync(p, 'utf8'), { compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, p)
   ;({ prisma } = require('../lib/prisma.ts'))
   const { hashToken } = require('../lib/auth.ts')

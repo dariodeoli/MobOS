@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import sharp from 'sharp'
+import { deleteAttachment, saveAttachment } from './attachment-storage'
 
 // #404: validación de fotos de producto. Mismos tipos y tope que los adjuntos
 // (JPG/PNG/WebP, 5 MiB, magic bytes); además se leen las dimensiones del propio
@@ -12,8 +13,8 @@ export const MAX_IMAGE_SIDE = 8000
 const EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
 export class ProductImageError extends Error {
-  public readonly status: 400 | 413 | 415 | 429
-  constructor(status: 400 | 413 | 415 | 429, message: string) {
+  public readonly status: 400 | 403 | 404 | 409 | 413 | 415 | 429 | 500
+  constructor(status: 400 | 403 | 404 | 409 | 413 | 415 | 429 | 500, message: string) {
     super(message)
     this.status = status
   }
@@ -83,6 +84,20 @@ export async function readProductImage(value: FormDataEntryValue | null, { maxBy
   const size = imageDimensions(bytes, mimeType)
   if (!size || size.width < 1 || size.height < 1 || size.width > MAX_IMAGE_SIDE || size.height > MAX_IMAGE_SIDE) throw new ProductImageError(400, 'No se pudo leer el tamaño de la imagen o es demasiado grande.')
   return { data: bytes, mimeType, sizeBytes: bytes.byteLength, width: size.width, height: size.height, sha256: createHash('sha256').update(bytes).digest('hex'), extension: EXTENSION[mimeType] }
+}
+
+/**
+ * Decodifica una foto recibida por una integración (por ejemplo MCP) y la
+ * somete exactamente a la misma validación que el multipart web. El MIME,
+ * las dimensiones y el tamaño se obtienen del contenido; nunca se confía en
+ * metadatos enviados por el cliente.
+ */
+export async function readProductImageBase64(dataBase64: unknown, mimeType: unknown, options: { maxBytes?: number; label?: string } = {}): Promise<ValidatedImage> {
+  if (typeof dataBase64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64) || dataBase64.length % 4 !== 0) throw new ProductImageError(400, `${options.label || 'La foto'} tiene datos Base64 inválidos.`)
+  const bytes = Buffer.from(dataBase64, 'base64')
+  if (!bytes.length || bytes.toString('base64') !== dataBase64) throw new ProductImageError(400, `${options.label || 'La foto'} tiene datos Base64 inválidos.`)
+  const declaredMime = typeof mimeType === 'string' ? mimeType : ''
+  return readProductImage(new File([bytes], 'mcp-image', { type: declaredMime }), options)
 }
 
 /** Cota real del multipart aun sin Content-Length o con cabecera falsa. */
@@ -162,6 +177,12 @@ export async function generateProductImages(value: FormDataEntryValue | null): P
   }
 }
 
+/** Genera los derivados canónicos para una integración sin abrir otro camino de validación. */
+export async function generateProductImagesBase64(dataBase64: unknown, mimeType: unknown): Promise<{ image: ValidatedImage; thumb: ValidatedImage }> {
+  const input = await readProductImageBase64(dataBase64, mimeType)
+  return generateProductImages(new File([input.data], 'mcp-image', { type: input.mimeType }))
+}
+
 /** URLs relativas de la API; el cliente las baja con sesión y las cachea. */
 export function productImageUrls(productId: string, imageId: string) {
   const base = `/api/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(imageId)}`
@@ -169,6 +190,68 @@ export function productImageUrls(productId: string, imageId: string) {
 }
 
 type ImageRow = { id: string; position: number; isPrimary: boolean; variantKey?: string | null; width: number; height: number; contentType: string; sizeBytes: number; createdAt: Date }
+
+export const PRODUCT_IMAGE_SELECT = { id: true, position: true, isPrimary: true, variantKey: true, width: true, height: true, contentType: true, sizeBytes: true, createdAt: true } as const
+export const PRODUCT_IMAGE_ORDER = [{ isPrimary: 'desc' as const }, { position: 'asc' as const }, { createdAt: 'asc' as const }]
+
+type ProductImageDatabase = {
+  product: { findFirst(args: unknown): Promise<{ id: string; branchId: string | null } | null> }
+  productImage: { count(args: unknown): Promise<number>; findFirst(args: unknown): Promise<{ position: number } | null> }
+  $transaction<T>(callback: (tx: any) => Promise<T>): Promise<T>
+}
+
+type PersistedImageCallback = (tx: any, row: ImageRow) => Promise<void>
+
+/**
+ * Persiste una foto validada manteniendo las mismas políticas que la carga
+ * web. El llamador debe resolver la identidad y el permiso de la sesión; el
+ * servicio vuelve a comprobar tenant, sucursal y capacidad dentro de la
+ * operación para que MCP no pueda crear un camino de CRUD alternativo.
+ */
+export async function persistProductImage({
+  db, tenantId, userId, productId, branchId = null, canManage, image, thumb = null,
+  variantKey = null, provenance = 'web',
+  onPersisted,
+}: {
+  db: ProductImageDatabase; tenantId: string; userId: string; productId: string; branchId?: string | null;
+  canManage: boolean; image: ValidatedImage; thumb?: ValidatedImage | null; variantKey?: string | null; provenance?: 'web' | 'mcp';
+  onPersisted?: PersistedImageCallback;
+}) {
+  if (!canManage) throw new ProductImageError(403, 'No autorizado.')
+  const product = await db.product.findFirst({ where: { id: productId, tenantId }, select: { id: true, branchId: true } })
+  if (!product) throw new ProductImageError(404, 'Producto no encontrado.')
+  if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new ProductImageError(403, 'No autorizado para esa sucursal.')
+  const active = await db.productImage.count({ where: { tenantId, productId, deletedAt: null } })
+  if (active >= MAX_PRODUCT_IMAGES) throw new ProductImageError(409, `Un producto admite hasta ${MAX_PRODUCT_IMAGES} fotos.`)
+
+  let stored: { storageKey: string | null } = { storageKey: null }
+  let storedThumb: { storageKey: string | null } = { storageKey: null }
+  try {
+    stored = await saveAttachment({ tenantId, area: 'product-images', fileName: `foto.${image.extension}`, mimeType: image.mimeType, sha256: image.sha256, data: image.data })
+    storedThumb = thumb ? await saveAttachment({ tenantId, area: 'product-images', fileName: `mini.${thumb.extension}`, mimeType: thumb.mimeType, sha256: thumb.sha256, data: thumb.data }) : { storageKey: null }
+    const created = await db.$transaction(async tx => {
+      const last = await tx.productImage.findFirst({ where: { tenantId, productId, deletedAt: null }, orderBy: { position: 'desc' }, select: { position: true } })
+      const hasPrimary = (await tx.productImage.count({ where: { tenantId, productId, deletedAt: null, isPrimary: true } })) > 0
+      const row = await tx.productImage.create({
+        data: {
+          tenantId, productId, variantKey: variantKey || null, position: last ? last.position + 1 : 0,
+          isPrimary: !hasPrimary, storagePath: stored.storageKey, thumbPath: storedThumb.storageKey,
+          data: stored.storageKey ? null : image.data, thumbData: thumb && !storedThumb.storageKey ? thumb.data : null,
+          width: image.width, height: image.height, contentType: image.mimeType, sizeBytes: image.sizeBytes, createdById: userId,
+        }, select: PRODUCT_IMAGE_SELECT,
+      })
+      await tx.auditLog.create({ data: { tenantId, userId, action: 'PRODUCT_IMAGE_ADDED', entity: 'Product', entityId: productId, metadata: { imageId: row.id, contentType: image.mimeType, sizeBytes: image.sizeBytes, sha256: image.sha256, provenance } } })
+      if (onPersisted) await onPersisted(tx, row)
+      return row
+    })
+    return serializeProductImage(productId, created)
+  } catch (cause) {
+    await deleteAttachment({ storageKey: stored.storageKey })
+    await deleteAttachment({ storageKey: storedThumb.storageKey })
+    if (cause instanceof ProductImageError) throw cause
+    throw new ProductImageError(500, 'No se pudo guardar la foto.')
+  }
+}
 
 export function serializeProductImage(productId: string, row: ImageRow) {
   return { id: row.id, position: row.position, isPrimary: row.isPrimary, variantKey: row.variantKey ?? null, width: row.width, height: row.height, contentType: row.contentType, sizeBytes: row.sizeBytes, createdAt: row.createdAt, ...productImageUrls(productId, row.id) }

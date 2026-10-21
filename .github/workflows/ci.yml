@@ -108,7 +108,9 @@ jobs:
       - name: Install root dependencies (app code que usa el arnés)
         # `backend/tests/print-bridge-http.mjs` importa el builder de tickets de
         # la app, que depende de la biblioteca `owncoding-ui` del raíz.
-        run: npm ci --omit=dev
+        run: npm ci
+      - name: Install Chromium for MCP OAuth browser harness
+        run: npx playwright install --with-deps chromium
       - name: Generate Prisma client
         working-directory: backend
         env:
@@ -135,6 +137,20 @@ jobs:
         env:
           PG_BIN: /opt/homebrew/bin
         run: env -u DATABASE_URL -u DIRECT_URL node tests/product-thumbs404-pg.mjs
+      - name: MCP SDK Streamable HTTP contract
+        working-directory: backend
+        env:
+          PG_BIN: /opt/homebrew/bin
+        run: node tests/mcp-sdk-http.mjs
+      - name: MCP OAuth PostgreSQL contract
+        working-directory: backend
+        env:
+          PG_BIN: /opt/homebrew/bin
+        run: node tests/mcp-oauth-pg.mjs
+      - name: MCP OAuth browser and PostgreSQL contract
+        env:
+          PG_BIN: /opt/homebrew/bin
+        run: node scripts/test-mcp-oauth-browser-pg.mjs
 
   e2e:
     # Shards en paralelo (#CI/#333): la suite completa tarda ~48 min en un
@@ -275,6 +291,12 @@ jobs:
         env:
           MOBOS_QA_PORT: "5399"
         run: npx playwright test --config e2e/auth516.frontend.config.js
+      - name: MCP connections and OAuth bridge UI
+        if: matrix.shard == 4
+        env:
+          MOBOS_QA_PORT: "5398"
+          MOBOS_QA_OUT: /tmp/mobos-mcp-608-ui-ci
+        run: npx playwright test --config e2e/nav-v2.frontend.config.js e2e/frontend/mcp-conexiones.frontend.spec.js e2e/frontend/mcp-oauth-bridge.frontend.spec.js e2e/frontend/multiempresa.frontend.spec.js
       - name: Shared mobile shell, checkout, customers and account layout
         if: matrix.shard == 4
         run: npx playwright test --config e2e/paridad-shell516.frontend.config.js

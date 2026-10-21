@@ -9,6 +9,7 @@
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "test:reports": "node tests/run-reporting.cjs",
+    "test:mcp:sdk-http": "node tests/mcp-sdk-http.mjs",
     "test:unit": "node tests/run-unit.cjs",
     "stock:check": "node tests/stock-consistency.mjs",
     "consistency:check": "node tests/consistency-check.mjs",
@@ -27,6 +28,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",

@@ -1,3 +1,4 @@
+import { updateOrderComment } from '../../../../lib/order-comment-service'
 import { prisma } from '../../../../lib/prisma'
 import { netPaid } from '../../../../lib/payment-net-pure'
 import { attachSerialsToOrderItem } from '../../../../lib/order-serials'
@@ -144,14 +145,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
 
     // ── Factura a otro titular y comentario ──
     if (body.billingName !== undefined || body.billingDocument !== undefined || body.notes !== undefined) {
-      const billingName = body.billingName === undefined ? undefined : textInput(body.billingName, 'Titular de factura', 200)
-      const billingDocument = body.billingDocument === undefined ? undefined : textInput(body.billingDocument, 'RUC de factura', 100)
-      const notes = body.notes === undefined ? undefined : textInput(body.notes, 'Comentario', 2000)
-      if (billingName === undefined && billingDocument === undefined && notes === undefined) throw new InputError('Datos de factura inválidos.')
       const order = await prisma.$transaction(async tx => {
-        const updated = await tx.order.update({ where: { id: existing.id }, data: { ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(notes === undefined ? {} : { notes }) }, include: orderInclude })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_BILLING_UPDATED', entity: 'Order', entityId: existing.id, metadata: { billingName: updated.billingName, hasDocument: Boolean(updated.billingDocument) } } })
-        return updated
+        await updateOrderComment(tx, { id: session.user.id, tenantId: tenant }, existing.id, body)
+        return tx.order.findUniqueOrThrow({ where: { id: existing.id }, include: orderInclude })
       })
       return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
     }
