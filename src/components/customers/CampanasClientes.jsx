@@ -28,7 +28,7 @@ function motivoNoElegible(row) {
   return ''
 }
 
-export default function CampanasClientes({ templates = [], empresa, sucursal, vendedor }) {
+export default function CampanasClientes({ templates = [], empresa, sucursal, vendedor, cargarSegmento, marcarContactado: marcarContactadoExterno }) {
   const [segmento, setSegmento] = useState(SEGMENTOS[0].clave)
   const [data, setData] = useState(null)
   const [cargando, setCargando] = useState(true)
@@ -40,12 +40,12 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
   const cargar = useCallback(async () => {
     setCargando(true); setError(''); setSeleccion(new Set())
     try {
-      setData(await api.get(`/api/customers/segments?segment=${segmento}`))
+      setData(cargarSegmento ? await cargarSegmento(segmento) : await api.get(`/api/customers/segments?segment=${segmento}`))
     } catch (cause) {
       setData(null)
       setError(cause?.status === 403 ? 'Solo administración y gerencia pueden usar campañas.' : 'No se pudieron cargar los segmentos. Intentá de nuevo.')
     } finally { setCargando(false) }
-  }, [segmento])
+  }, [segmento, cargarSegmento])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -84,7 +84,8 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
     setData((actual) => actual ? { ...actual, customers: actual.customers.map((item) => item.id === row.id ? { ...item, marketingContactedAt: new Date().toISOString() } : item) } : actual)
     setSeleccion((actual) => { const siguiente = new Set(actual); siguiente.delete(row.id); return siguiente })
     try {
-      await api.post('/api/customers/segments', { customerIds: [row.id], segment: segmento })
+      if (marcarContactadoExterno) await marcarContactadoExterno([row.id])
+      else await api.post('/api/customers/segments', { customerIds: [row.id], segment: segmento })
     } catch {
       avisar.fallo('guardar', `Se abrió WhatsApp con ${row.name}, pero no se pudo guardar la marca de contacto.`)
     }

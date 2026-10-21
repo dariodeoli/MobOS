@@ -39,13 +39,15 @@ test('#307 · compras del demo con proveedores coherentes y acciones con preview
   // 1) Las compras y el catálogo de proveedores hablan de los mismos proveedores.
   const filas = page.getByTestId('compra-fila')
   await expect(filas.first()).toBeVisible()
-  await expect(filas.filter({ hasText: PROVEEDORES[0] })).toHaveCount(1)
-  await expect(filas.filter({ hasText: PROVEEDORES[1] })).toHaveCount(1)
+  // La demo completa trae compras a crédito y parciales: Importadora y Distribuidora tienen dos cada una.
+  await expect(filas.filter({ hasText: PROVEEDORES[0] })).toHaveCount(2)
+  await expect(filas.filter({ hasText: PROVEEDORES[1] })).toHaveCount(2)
+  await expect(filas.filter({ hasText: PROVEEDORES[2] })).toHaveCount(1)
   await expect(filas.filter({ hasText: 'Proveedor Sur' })).toHaveCount(0)
   await expect(filas.filter({ hasText: 'Proveedor Norte' })).toHaveCount(0)
   // Recepción (parcial/completa) y devolución siguen como patrón.
-  await expect(filas.filter({ hasText: PROVEEDORES[1] }).getByRole('button', { name: 'Recibir mercadería' })).toBeVisible()
-  await expect(filas.filter({ hasText: PROVEEDORES[0] }).getByRole('button', { name: 'Devolver al proveedor' })).toBeVisible()
+  await expect(filas.filter({ hasText: PROVEEDORES[1] }).getByRole('button', { name: 'Recibir mercadería' }).first()).toBeVisible()
+  await expect(filas.filter({ hasText: PROVEEDORES[0] }).getByRole('button', { name: 'Devolver al proveedor' }).first()).toBeVisible()
 
   await page.getByRole('button', { name: 'Proveedores' }).click()
   const proveedores = page.getByRole('dialog', { name: 'Proveedores' })

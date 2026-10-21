@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { codigoPedido } from '@/utils/pedido'
 import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
+import { cuotasDemo, marcarAvisoDemo } from '@/lib/demo/cobranza'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { telefonoVisible } from '@/utils/telefono'
 import { fechaDia as fecha } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, EmptyState, Modal, Stat, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Stat, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
@@ -23,6 +26,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 export default function Cobranzas() {
   const toast = useToast()
+  const { esDemo } = useSesion()
   const v2 = temaV2Activo()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
@@ -33,8 +37,9 @@ export default function Cobranzas() {
 
   const cargar = useCallback(async () => {
     setError('')
+    if (esDemo) { setData(cuotasDemo()); return }
     try { setData(await api.get('/api/collections/reminders')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las cuotas.'); setData({ rows: [] }) }
-  }, [])
+  }, [esDemo])
   useEffect(() => { cargar() }, [cargar])
 
   const rows = data?.rows || []
@@ -58,7 +63,7 @@ export default function Cobranzas() {
     if (row.whatsappUrl) window.open(row.whatsappUrl, '_blank', 'noopener,noreferrer')
     setEnviando(row.id)
     try {
-      const resultado = await api.post('/api/collections/reminders', { paymentId: row.id, ...(row.avisadoEn ? { force: true } : {}) })
+      const resultado = esDemo ? marcarAvisoDemo(row.id) : await api.post('/api/collections/reminders', { paymentId: row.id, ...(row.avisadoEn ? { force: true } : {}) })
       setAviso(`Recordatorio de ${row.customerName || 'el cliente'} registrado y auditado.`)
       await cargar()
       if (resultado?.whatsappUrl && !row.whatsappUrl) window.open(resultado.whatsappUrl, '_blank', 'noopener,noreferrer')
@@ -119,14 +124,14 @@ export default function Cobranzas() {
       {vencidas.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-bad">Vencidas ({vencidas.length})</h3><div className="mt-2 space-y-2">{vencidas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {proximas.length > 0 && <section><h3 className={ROTULO_SECCION}>Próximas ({proximas.length})</h3><div className="mt-2 space-y-2">{proximas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {detalle && (
-        <Modal open onClose={() => setDetalle(null)} title={`Mensaje para ${detalle.customerName || 'el cliente'}`} size="formulario">
+        <Popup open onClose={() => setDetalle(null)} title={`Mensaje para ${detalle.customerName || 'el cliente'}`} tamano="md">
           <div className="space-y-3">
             <p className="whitespace-pre-wrap rounded-xl border border-ink-600 bg-ink-800/50 p-3 text-sm">{detalle.message}</p>
             <p className="break-all text-xs text-mute">{detalle.whatsappUrl || 'El cliente no tiene teléfono cargado: no hay enlace.'}</p>
             {detalle.whatsappUrl && <button type="button" className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(detalle.whatsappUrl)) toast.success('Enlace copiado.'); else toast.error('No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>}
             <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setDetalle(null)}>Cerrar</Button><Button type="button" disabled={!detalle.whatsappUrl || Boolean(enviando)} onClick={() => { const row = detalle; setDetalle(null); recordar(row) }}>Abrir WhatsApp</Button></div>
           </div>
-        </Modal>
+        </Popup>
       )}
       {pedido && <PagosPedido venta={pedido} onClose={() => setPedido(null)} />}
     </div>

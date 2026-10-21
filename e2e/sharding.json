@@ -55,6 +55,8 @@
     {
       "archivos": [
         "auditoria.spec.js",
+        "cliente-flechas.spec.js",
+        "demo-completa.spec.js",
         "demo-crm.spec.js",
         "demo-fixtures.spec.js",
         "demo-imei-conciliacion.spec.js",
@@ -69,7 +71,6 @@
         "perf-247.spec.js",
         "pos-148-s11-sin-stock.spec.js",
         "pos-checkout.spec.js",
-        "qa-344-fiscal-pos.spec.js",
         "pos-resumen-fijo.spec.js",
         "precios-listas.spec.js",
         "public-quote-transfer.spec.js",
@@ -85,7 +86,6 @@
         "qa-253-equipo-acceso.spec.js",
         "qa-261-cotizacion-envio.spec.js",
         "qa-268-unificar-clientes.spec.js",
-        "cliente-flechas.spec.js",
         "qa-278-cierre.spec.js",
         "qa-279-push.spec.js",
         "qa-284-avatar-cache.spec.js",
@@ -99,14 +99,16 @@
         "qa-320-sistema-visual.spec.js",
         "qa-321-ayuda.spec.js",
         "qa-323-plt-modales.spec.js",
+        "qa-344-fiscal-pos.spec.js",
         "qa-564-imei-demo.spec.js",
+        "pos-cliente-ruc.spec.js",
         "ruc-demo.spec.js",
         "seguridad-cuenta.spec.js",
         "selector-sucursal.spec.js",
         "traslados-etiquetas-lote.spec.js"
       ],
-      "tests": 146,
-      "ms": 1190350
+      "tests": 161,
+      "ms": 1270350
     },
     {
       "archivos": [
@@ -116,6 +118,7 @@
         "demo-anonimo.spec.js",
         "demo-finanzas-anonimo.spec.js",
         "demo-finanzas.spec.js",
+        "demo-ver-como.spec.js",
         "documentos-no-fiscales.spec.js",
         "dsn-241-dominios.spec.js",
         "finanzas-caja.spec.js",

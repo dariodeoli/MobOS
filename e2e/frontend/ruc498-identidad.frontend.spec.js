@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mockRucPublic } from '../helpers/ruc-public.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 async function enter(page, width, dark, mockOptions) {
   await page.setViewportSize({ width, height: 844 })
@@ -41,6 +42,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     const row = profile.getByTestId('perfil-facturacion-fila')
     await expect(row).toHaveCount(1)
     await expect(row).toContainText(document)
+    await esperarAnimaciones(page)
     const editBox = await row.getByRole('button', { name: 'Editar', exact: true }).boundingBox()
     expect(editBox.width).toBeGreaterThanOrEqual(44)
     expect(editBox.height).toBeGreaterThanOrEqual(44)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, FormActions, Modal } from '@/components/ui'
+import { Button } from '@/components/ui'
+import { FormActions, Modal } from '@/components/shared/popupKit'
 import { LADO_FOTO, escalaAjuste, recorteCuadrado, recortarArchivo } from '@/utils/recorte'
 
 // Recorte de foto antes de subir: al abrir la foto entra ENTERA (contain), sin

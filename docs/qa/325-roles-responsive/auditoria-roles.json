@@ -5,33 +5,24 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 7,
+    "totalChicos": 3,
     "chicos": [
       {
         "que": "button",
-        "texto": "Gift cards",
-        "ancho": 230,
-        "alto": 36,
-        "dibujo": "230x36",
-        "clase": "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2",
-        "veces": 3
+        "texto": "Nueva venta",
+        "ancho": 131,
+        "alto": 40,
+        "dibujo": "131x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 2
       },
       {
         "que": "button",
-        "texto": "+ Dirección",
-        "ancho": 110,
+        "texto": "Ayuda",
+        "ancho": 207,
         "alto": 36,
-        "dibujo": "110x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 3
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       }
     ]
@@ -60,33 +51,42 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 9,
+    "totalChicos": 7,
     "chicos": [
       {
         "que": "button",
-        "texto": "Activos",
-        "ancho": 63,
-        "alto": 28,
-        "dibujo": "63x28",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
-        "veces": 7
+        "texto": "Mis pedidos",
+        "ancho": 129,
+        "alto": 40,
+        "dibujo": "129x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 3
       },
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Vista rápida de E2E-DELIVERY-001",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Actualizar",
-        "ancho": 84,
-        "alto": 34,
-        "dibujo": "84x34",
-        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "texto": "Nueva venta",
+        "ancho": 115,
+        "alto": 36,
+        "dibujo": "115x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 1
       }
     ]
@@ -119,20 +119,20 @@
     "chicos": [
       {
         "que": "button",
-        "texto": "+ Crear cliente",
-        "ancho": 130,
-        "alto": 36,
-        "dibujo": "130x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "texto": "Clientes",
+        "ancho": 102,
+        "alto": 40,
+        "dibujo": "102x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
         "veces": 3
       },
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       }
     ]
@@ -161,8 +161,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 4,
+    "totalChicos": 6,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Productos",
+        "ancho": 118,
+        "alto": 40,
+        "dibujo": "118x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 2
+      },
       {
         "que": "button",
         "texto": "Actualizar",
@@ -174,11 +183,11 @@
       },
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
@@ -216,24 +225,33 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 10,
+    "totalChicos": 12,
     "chicos": [
       {
         "que": "button",
-        "texto": "Todas",
-        "ancho": 54,
-        "alto": 28,
-        "dibujo": "54x28",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "texto": "Abiertas",
+        "ancho": 79,
+        "alto": 38,
+        "dibujo": "79x38",
+        "clase": "",
         "veces": 7
       },
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Mis pedidos",
+        "ancho": 129,
+        "alto": 40,
+        "dibujo": "129x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
@@ -243,15 +261,6 @@
         "alto": 36,
         "dibujo": "160x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 1
-      },
-      {
-        "que": "button",
-        "texto": "Actualizar",
-        "ancho": 84,
-        "alto": 34,
-        "dibujo": "84x34",
-        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
         "veces": 1
       }
     ]
@@ -280,42 +289,24 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 8,
+    "totalChicos": 3,
     "chicos": [
       {
         "que": "button",
-        "texto": "Gift cards",
-        "ancho": 230,
+        "texto": "Nueva venta",
+        "ancho": 131,
+        "alto": 40,
+        "dibujo": "131x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Ayuda",
+        "ancho": 207,
         "alto": 36,
-        "dibujo": "230x36",
-        "clase": "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2",
-        "veces": 3
-      },
-      {
-        "que": "button",
-        "texto": "+ Dirección",
-        "ancho": 110,
-        "alto": 36,
-        "dibujo": "110x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 3
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
-        "veces": 1
-      },
-      {
-        "que": "button",
-        "texto": "Nuevo producto",
-        "ancho": 135,
-        "alto": 30,
-        "dibujo": "135x30",
-        "clase": "inline-flex min-h-11 items-center gap-1.5 rounded-lg border ",
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       }
     ]
@@ -344,15 +335,24 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 2,
+    "totalChicos": 4,
     "chicos": [
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Productos",
+        "ancho": 118,
+        "alto": 40,
+        "dibujo": "118x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
@@ -390,33 +390,42 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 9,
+    "totalChicos": 7,
     "chicos": [
       {
         "que": "button",
-        "texto": "Activos",
-        "ancho": 63,
-        "alto": 28,
-        "dibujo": "63x28",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
-        "veces": 7
+        "texto": "Mis pedidos",
+        "ancho": 129,
+        "alto": 40,
+        "dibujo": "129x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 3
       },
       {
         "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "texto": "Vista rápida de E2E-DELIVERY-001",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Ayuda",
+        "ancho": 207,
+        "alto": 36,
+        "dibujo": "207x36",
+        "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
         "veces": 1
       },
       {
         "que": "button",
-        "texto": "Actualizar",
-        "ancho": 84,
-        "alto": 34,
-        "dibujo": "84x34",
-        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "texto": "Nueva venta",
+        "ancho": 115,
+        "alto": 36,
+        "dibujo": "115x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 1
       }
     ]
@@ -445,36 +454,8 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 15,
-    "chicos": [
-      {
-        "que": "button",
-        "texto": "Activos (0)",
-        "ancho": 83,
-        "alto": 36,
-        "dibujo": "83x36",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
-        "veces": 10
-      },
-      {
-        "que": "button",
-        "texto": "Actualizar",
-        "ancho": 102,
-        "alto": 36,
-        "dibujo": "102x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 4
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
-        "veces": 1
-      }
-    ]
+    "totalChicos": 0,
+    "chicos": []
   },
   {
     "superficie": "rol-tecnico-entrada",
@@ -500,36 +481,8 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 15,
-    "chicos": [
-      {
-        "que": "button",
-        "texto": "Activos (0)",
-        "ancho": 83,
-        "alto": 36,
-        "dibujo": "83x36",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
-        "veces": 10
-      },
-      {
-        "que": "button",
-        "texto": "Actualizar",
-        "ancho": 102,
-        "alto": 36,
-        "dibujo": "102x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 4
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar menú",
-        "ancho": 28,
-        "alto": 28,
-        "dibujo": "28x28",
-        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
-        "veces": 1
-      }
-    ]
+    "totalChicos": 0,
+    "chicos": []
   },
   {
     "superficie": "rol-tecnico-servicio",
@@ -555,33 +508,24 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 6,
+    "totalChicos": 3,
     "chicos": [
       {
         "que": "button",
-        "texto": "En camino",
-        "ancho": 127,
-        "alto": 36,
-        "dibujo": "127x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 3
-      },
-      {
-        "que": "button",
-        "texto": "A entregar",
-        "ancho": 81,
-        "alto": 28,
-        "dibujo": "81x28",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "texto": "Mis repartos",
+        "ancho": 133,
+        "alto": 40,
+        "dibujo": "133x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
         "veces": 2
       },
       {
         "que": "button",
-        "texto": "Actualizar",
-        "ancho": 84,
+        "texto": "Rendir",
+        "ancho": 92,
         "alto": 34,
-        "dibujo": "84x34",
-        "clase": "ml-auto min-h-11 rounded-lg border border-ink-500 px-3 py-2 ",
+        "dibujo": "92x34",
+        "clase": "hidden h-[34px] shrink-0 items-center justify-center gap-2 r",
         "veces": 1
       }
     ]
@@ -610,33 +554,24 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 6,
+    "totalChicos": 3,
     "chicos": [
       {
         "que": "button",
-        "texto": "En camino",
-        "ancho": 127,
-        "alto": 36,
-        "dibujo": "127x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 3
-      },
-      {
-        "que": "button",
-        "texto": "A entregar",
-        "ancho": 81,
-        "alto": 28,
-        "dibujo": "81x28",
-        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "texto": "Mis repartos",
+        "ancho": 133,
+        "alto": 40,
+        "dibujo": "133x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
         "veces": 2
       },
       {
         "que": "button",
-        "texto": "Actualizar",
-        "ancho": 84,
+        "texto": "Rendir",
+        "ancho": 92,
         "alto": 34,
-        "dibujo": "84x34",
-        "clase": "ml-auto min-h-11 rounded-lg border border-ink-500 px-3 py-2 ",
+        "dibujo": "92x34",
+        "clase": "hidden h-[34px] shrink-0 items-center justify-center gap-2 r",
         "veces": 1
       }
     ]
@@ -665,16 +600,16 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 1,
+    "totalChicos": 2,
     "chicos": [
       {
         "que": "button",
-        "texto": "Rendir",
-        "ancho": 100,
-        "alto": 36,
-        "dibujo": "100x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 1
+        "texto": "Mis repartos",
+        "ancho": 133,
+        "alto": 40,
+        "dibujo": "133x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 2
       }
     ]
   },

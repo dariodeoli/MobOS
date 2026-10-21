@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination } from '../helpers/shell-navigation.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // #400 (unidad I): la ficha de unidad se arma como una página de detalle tipo
 // Shopify: encabezado compacto (chips + IMEI con copiar), columna principal con
@@ -27,6 +28,7 @@ async function abrirFicha(page, { role, width, height = 900 }) {
   await filas.first().click()
   const ficha = page.getByTestId('unidad-ficha')
   await expect(ficha).toBeVisible()
+  await esperarAnimaciones(page) // el Popup entra con animación: medir al terminar
   return { dialog: page.getByRole('dialog').first(), ficha }
 }
 

@@ -63,7 +63,7 @@ for (const code of ['INVALID_PIN', 'SELLER_SESSION_REQUIRED']) test(`PIN639: ${c
     await expect(lock.getByRole('alert')).toHaveText(message)
     await expect(lock).toBeVisible()
     await lock.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
-    const confirm = page.getByRole('dialog', { name: '¿Cerrar sesión?' })
+    const confirm = page.getByRole('alertdialog', { name: '¿Cerrar sesión?' })
     await expect(confirm).toContainText('Las ventas sin confirmar no se pierden')
     await confirm.getByRole('button', { name: 'Salir', exact: true }).click()
     await expect(page).toHaveURL(/\/login$/)

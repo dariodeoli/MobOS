@@ -57,7 +57,8 @@ for (const width of [1440, 375]) {
     await tema(page, false)
     await page.goto('/demo', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Elegí un perfil y entrá' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Entrar como/ })).toHaveCount(6)
+    await expect(page.getByRole('button', { name: /Entrar como/ })).toHaveCount(2)
+    await page.getByTestId('demo-pin-toggle').click()
     if (width < 768) { for (const d of '9999') await page.getByRole('button', { name: `Dígito ${d}`, exact: true }).click() }
     else await page.getByLabel('Ingresar otro PIN').fill('9999')
     await expect(page.locator('#demo-pin-status')).toContainText('PIN incorrecto')

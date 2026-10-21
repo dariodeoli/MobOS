@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Skeleton } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
@@ -22,6 +23,11 @@ function scopesText(scopes) {
   }).filter(Boolean).join(' · ') || 'Sin capacidades registradas'
 }
 
+// Demo: conexión de ejemplo (nada se autoriza ni se envía).
+const conexionesDemo = [
+  { id: 'demo-mcp-1', clientId: 'claude', scopes: ['company:read', 'products:read'], lastUsedAt: new Date(Date.now() - 3 * 3600000).toISOString(), revokedAt: null },
+]
+
 function providerName(clientId) {
   const known = PROVIDERS.find(item => item.id === String(clientId || '').toLowerCase())
   return known?.name || clientId || 'Cliente MCP'
@@ -43,7 +49,8 @@ export default function McpConexiones() {
     setLoading(true)
     setError('')
     if (esDemo) {
-      setConnections([])
+      // Ejemplo ilustrativo: una conexión ya autorizada, relativa a hoy.
+      setConnections(conexionesDemo)
       setOauthReady(false)
       setEndpoint('')
       setCapabilities([])
@@ -77,7 +84,7 @@ export default function McpConexiones() {
     setBusy(true)
     setError('')
     try {
-      await api.delete('/api/mcp/connections', { body: { id: connection.id } })
+      if (!esDemo) await api.delete('/api/mcp/connections', { body: { id: connection.id } })
       setConnections(current => current.filter(item => item.id !== connection.id))
     } catch (cause) {
       setError(cause?.message || 'No se pudo revocar la conexión.')

@@ -66,7 +66,7 @@ test.describe('modal estándar en FIN (#323)', () => {
 
     // Cerrar con cambios pide confirmación (dirty).
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Seguir editando' }).click()
     await expect(dialogo).toBeVisible()
@@ -91,7 +91,7 @@ test.describe('modal estándar en FIN (#323)', () => {
     // Con motivo, cerrar con cambios pide confirmación y no rechaza nada.
     await modal.getByLabel('Motivo del rechazo').fill('Fuera de política de la tienda.')
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
     await expect(modal).toHaveCount(0)
@@ -117,7 +117,7 @@ test.describe('modal estándar en FIN (#323)', () => {
     // Cerrar con cambios pide confirmación (dirty).
     await modal.getByLabel('Nombre').fill('Plantilla QA 323')
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Seguir editando' }).click()
     await expect(modal).toBeVisible()
@@ -146,7 +146,7 @@ test.describe('modal estándar en FIN (#323)', () => {
         await expect(dialogo.getByText('Elegí el producto de cada ítem o quitalo.')).toBeVisible()
         await page.screenshot({ path: `${salida}/precios-lista-${tema}-${vista}.png` })
         await page.keyboard.press('Escape')
-        await page.getByRole('dialog', { name: '¿Descartar los cambios?' }).getByRole('button', { name: 'Descartar y cerrar' }).click()
+        await page.getByRole('alertdialog', { name: '¿Descartar los cambios?' }).getByRole('button', { name: 'Descartar y cerrar' }).click()
         await expect(dialogo).toHaveCount(0)
 
         // Autorizaciones: rechazo con el motivo validado junto al campo.

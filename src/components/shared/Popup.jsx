@@ -1,10 +1,22 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { createContext, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CircleAlert, CircleCheck, CircleX, Info } from 'lucide-react'
 import { useDialogFocusTrap } from 'owncoding-ui'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useTemaV2 } from '@/lib/temaV2'
 import { DURACION_SALIDA_POPUP, ordenarAcciones, resolverPopup } from './popupReglas'
 import './popup.css'
+
+// Contexto del Popup: permite que `SaveActions`/`FormActions`/`useDialog*` de
+// `popupKit` (mismos nombres que el Modal de la biblioteca) cierren el popup,
+// bloqueen el cierre mientras se guarda y se rendericen en el pie fijo.
+export const ContextoPopup = createContext(null)
+
+function crearRegistro() {
+  const activos = new Set()
+  return { activos, registrar(id, on) { if (on) activos.add(id); else activos.delete(id); return activos.size > 0 } }
+}
 
 // Popup ÚNICO de MobOS: mismo marco para confirmar, formularios, detalles y
 // avisos. Encabezado con título y X roja de 44 px, cuerpo libre (`children`) y
@@ -19,7 +31,9 @@ import './popup.css'
 //     …cuerpo…
 //   </Popup>
 //
-// `acciones.*` = `{ label, onClick, disabled?, cargando?, type?, form? }`.
+// `acciones.*` = `{ label, onClick, disabled?, cargando?, type?, form?, cierra? }`;
+// `cierra: true` cierra por el mismo camino que Esc o la × (con `dirty`,
+// pide confirmar antes de descartar).
 // `footer` (nodo) reemplaza al pie estándar cuando hace falta algo propio.
 // `busy` bloquea Esc, X y fondo mientras se guarda.
 const ICONOS_AVISO = { info: Info, ok: CircleCheck, warn: CircleAlert, bad: CircleX }
@@ -37,9 +51,24 @@ export default function Popup({
   footer = null,
   children,
   busy = false,
+  dirty = false,
+  portal = true,
+  descarte,
+  accion = null,
   className,
   testId,
 }) {
+  const temaV2 = useTemaV2()
+  const [descartando, setDescartando] = useState(false)
+  const [pie, setPie] = useState(null)
+  const pendientes = useRef(crearRegistro()).current
+  const cambios = useRef(crearRegistro()).current
+  const [hayPendientes, setHayPendientes] = useState(false)
+  const [hayCambiosReg, setHayCambiosReg] = useState(false)
+  const [arrastre, setArrastre] = useState(0)
+  const inicioArrastre = useRef(null)
+  const bloqueado = Boolean(busy || hayPendientes)
+  const sucio = Boolean(dirty || hayCambiosReg)
   const panel = useRef(null)
   const titleId = useId()
   const descId = useId()
@@ -59,26 +88,55 @@ export default function Popup({
     return () => clearTimeout(t)
   }, [open, visible])
 
-  const cerrar = useCallback(() => { if (!busy) onClose?.() }, [busy, onClose])
-  const { esSuperior, requestClose } = useDialogFocusTrap(open, cerrar, panel, { busy })
+  // Con `dirty` el cierre interactivo (Esc, fondo, ×) pide confirmación en
+  // vez de perder los cambios en silencio (mismo texto que el Modal histórico).
+  const cerrar = useCallback(() => {
+    if (bloqueado) return
+    if (sucio) { setDescartando(true); return }
+    onClose?.()
+  }, [bloqueado, sucio, onClose])
+  useEffect(() => { if (!open || !sucio) setDescartando(false) }, [open, sucio])
+  const { esSuperior, requestClose } = useDialogFocusTrap(open, cerrar, panel, { busy: bloqueado })
+  const registrar = useCallback((id, on) => setHayPendientes(pendientes.registrar(id, on)), [pendientes])
+  const registrarCambios = useCallback((id, on) => setHayCambiosReg(cambios.registrar(id, on)), [cambios])
+  const contexto = useMemo(() => ({ requestClose, registrar, registrarCambios, pie }), [requestClose, registrar, registrarCambios, pie])
 
-  if (!visible) return null
+  // Hoja móvil: arrastrar el asa hacia abajo cierra (igual que la BottomSheet previa).
+  const alBajar = e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    inicioArrastre.current = e.clientY
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+  const alMover = e => { if (inicioArrastre.current != null) setArrastre(Math.max(0, e.clientY - inicioArrastre.current)) }
+  const alSoltar = e => {
+    if (inicioArrastre.current == null) return
+    const delta = e.clientY - inicioArrastre.current
+    inicioArrastre.current = null
+    setArrastre(0)
+    if (delta > 96) requestClose()
+  }
+
+  // Montado en la misma pasada en que `open` pasa a true: así la trampa de foco
+  // encuentra el panel (con `visible` solo, el panel aparecía un render tarde).
+  if (!visible && !open) return null
   const lista = footer ? [] : ordenarAcciones(acciones)
   const Icono = tipo === 'aviso' ? ICONOS_AVISO[tono] || Info : null
-  return (
+  const nodo = (
     <div
-      className="popup-fondo fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4"
+      className={cn('popup-fondo fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4', temaV2 && 'tema-v2')}
       data-saliendo={saliendo || undefined}
+      aria-hidden={saliendo || undefined}
       onMouseDown={e => e.target === e.currentTarget && requestClose()}
     >
       <div
         ref={panel}
         tabIndex={-1}
         role={rol}
-        aria-modal={esSuperior ? 'true' : undefined}
+        aria-modal={open && esSuperior ? 'true' : undefined}
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
-        aria-busy={busy || undefined}
+        aria-busy={bloqueado || undefined}
+        style={arrastre ? { translate: `0 ${arrastre}px`, transition: 'none' } : undefined}
         data-testid={testId}
         data-tipo={tipo}
         data-saliendo={saliendo || undefined}
@@ -88,7 +146,18 @@ export default function Popup({
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-4 md:px-5">
+        <div
+          data-testid="bottom-sheet-asa"
+          className="touch-none select-none md:hidden"
+          onPointerDown={alBajar}
+          onPointerMove={alMover}
+          onPointerUp={alSoltar}
+          onPointerCancel={alSoltar}
+        >
+          <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-ink-500" aria-hidden="true" />
+          <div className="h-2" aria-hidden="true" />
+        </div>
+        <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-2 md:px-5 md:pt-4">
           <div className="flex min-w-0 items-center gap-3">
             {Icono && <Icono aria-hidden="true" className={cn('h-6 w-6 shrink-0', TONO_ICONO[tono])} />}
             <div className="min-w-0">
@@ -96,31 +165,57 @@ export default function Popup({
               {description && <p id={descId} className="mt-0.5 text-sm text-mute">{description}</p>}
             </div>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+          {accion}
           <button
             type="button"
             onClick={requestClose}
-            disabled={busy}
+            disabled={bloqueado}
             aria-label="Cerrar"
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bad text-2xl font-bold leading-none text-on-bad transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bad disabled:opacity-40"
           >
             ×
           </button>
+          </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
+        <ContextoPopup.Provider value={contexto}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
+        </ContextoPopup.Provider>
         {(footer || lista.length > 0) ? (
           <div className="border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 md:px-5 md:pb-4">
             {footer || (
               <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end" data-testid="popup-acciones">
-                {lista.map(({ clave, label, variante, ...resto }) => (
-                  <Button key={clave} variant={variante} className="min-h-11 w-full md:h-11 md:w-auto md:min-w-28" data-accion={clave} {...resto}>{label}</Button>
+                {lista.map(({ clave, label, variante, cierra, ...resto }) => (
+                  <Button key={clave} variant={variante} className="min-h-11 w-full md:h-11 md:w-auto md:min-w-28" data-accion={clave} onClick={cierra ? requestClose : undefined} {...resto}>{label}</Button>
                 ))}
               </div>
             )}
           </div>
         ) : (
-          <div className="shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
+          <>
+            {/* Pie fijo para `FormActions`/`SaveActions` (se oculta si nadie escribe en él). */}
+            <div ref={setPie} className="popup-pie border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 empty:hidden md:px-5 md:pb-4" />
+            <div className="popup-pie-espacio shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
+          </>
         )}
       </div>
+      {descartando && (
+        <Popup
+          tipo="confirmar"
+          title={descarte?.titulo || '¿Descartar los cambios?'}
+          description={descarte?.descripcion || 'Tenés cambios sin guardar en este formulario. Si cerrás ahora, se pierden.'}
+          onClose={() => setDescartando(false)}
+          acciones={{
+            secundaria: { label: descarte?.seguir || 'Seguir editando', onClick: () => setDescartando(false) },
+            peligro: { label: descarte?.confirmar || 'Descartar y cerrar', onClick: () => { setDescartando(false); onClose?.() } },
+          }}
+        />
+      )}
     </div>
   )
+  // En `document.body`: un popup abierto desde dentro de otro (confirmaciones,
+  // recortes) o de una vista con animaciones no queda atrapado en un `transform`
+  // ni en el `overflow` de su padre. `portal={false}` lo deja en línea (el cobertor
+  // opaco de la pantalla bloqueada necesita contener al diálogo).
+  return portal && typeof document !== 'undefined' ? createPortal(nodo, document.body) : nodo
 }

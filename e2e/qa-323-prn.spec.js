@@ -5,6 +5,7 @@
 // confirmación cuando hay cambios sin guardar. Capturas claro/oscuro/móvil.
 
 import { test, expect } from '@playwright/test'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { mkdirSync } from 'node:fs'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 
@@ -75,7 +76,7 @@ test.describe('#323 modal estándar en impresión', () => {
 
     // Cierre con cambios: confirmación canónica; «Seguir editando» no descarta.
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Seguir editando' }).click()
     await expect(modal).toBeVisible()
@@ -90,6 +91,7 @@ test.describe('#323 modal estándar en impresión', () => {
     await entrarDemo(page)
     const modal = await abrirFormulario(page)
 
+    await esperarAnimaciones(page) // la hoja móvil termina de subir antes de medir
     // El pie está fijo: la acción primaria se ve aunque el cuerpo scrollee.
     const primaria = modal.getByRole('button', { name: 'Guardar impresora' })
     await expect(primaria).toBeVisible()
@@ -117,7 +119,7 @@ test.describe('#323 modal estándar en impresión', () => {
     await reabierto.getByRole('button', { name: 'Una copia más' }).click()
     await expect(reabierto.getByRole('group', { name: 'Copias' })).toContainText('2')
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
     await expect(reabierto).toHaveCount(0)
@@ -140,7 +142,7 @@ test.describe('#323 modal estándar en impresión', () => {
         await formulario.getByLabel('Nombre visible').fill('Térmica del mostrador')
         await page.screenshot({ path: `${salida}/formulario-${tema}-${vista}.png` })
         await page.keyboard.press('Escape')
-        const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+        const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
         await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
         await expect(formulario).toHaveCount(0)
 

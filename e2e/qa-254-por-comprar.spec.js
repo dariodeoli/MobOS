@@ -144,6 +144,8 @@ test('Por comprar: asignar con centro de compra y cancelar con motivo', async ({
   await dialogo.locator('#centro-compra').fill('CDE')
   await dialogo.getByRole('button', { name: 'Asignar', exact: true }).click()
   await expect(page.getByText('Compra asignada')).toBeVisible()
+  // El popup que sale sigue montado unos ms (con su campo «Centro de compra»): esperar a que se vaya.
+  await expect(page.locator('.popup-fondo')).toHaveCount(0)
 
   // El centro entra en la consolidación: la tarjeta lo muestra y los filtros lo respetan.
   await page.getByRole('tab', { name: /^Asignadas/ }).click()

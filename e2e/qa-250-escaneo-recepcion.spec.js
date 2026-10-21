@@ -214,9 +214,9 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   // El adjunto queda subido al instante y el Modal estándar pide confirmación
   // al cerrar con cambios (#323): se descarta sin perder la incidencia ni la foto.
   await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()
-  const descarte = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+  const descarte = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
   await expect(descarte).toBeVisible()
-  await descarte.getByRole('button', { name: 'Descartar y cerrar' }).click()
+  await descarte.getByRole('button', { name: 'Descartar' }).click()
   await expect(descarte).toBeHidden()
 
   // Depósito destino (sugerido o elegido) y confirmación: B queda faltante.
@@ -277,7 +277,7 @@ test('F5 · recibir todo el lote con depósito alternativo (y freno si falta IME
   await expect(page.getByTestId('recepcion-activa')).toBeVisible()
   await expect(page.getByText(/IMEI por completar/).first()).toBeVisible()
   await page.getByRole('button', { name: 'Recibir todo el lote' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Recibir todo' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Recibir todo' }).click()
   await expect(page.getByText(/preparalos antes de recibir todo/)).toBeVisible()
   await page.getByRole('button', { name: 'Cancelar recepción' }).click()
   await expect(page.getByTestId('recepcion')).toBeVisible()
@@ -296,7 +296,7 @@ test('F5 · recibir todo el lote con depósito alternativo (y freno si falta IME
 
   await page.getByLabel('Depósito destino').selectOption({ label: `Depósito B ${marca} (B${marca.slice(-4)})` })
   await page.getByRole('button', { name: 'Recibir todo el lote' }).click()
-  const dialogo = page.getByRole('dialog')
+  const dialogo = page.getByRole('alertdialog')
   await expect(dialogo.getByText(/Se marcan 2 unidad\(es\)/)).toBeVisible()
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.screenshot({ path: join(DIR, 'recibir-todo-dialogo-claro-desktop.png') })

@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Aviso, Button, ConfirmDialog, EmptyState, IconAction, Input, Modal, MoneyInput, SaveActions, Select, Textarea, useResultado } from '@/components/ui'
+import { Aviso, Button, EmptyState, IconAction, Input, MoneyInput, Select, Textarea, useResultado } from '@/components/ui'
+import { ConfirmDialog, Modal, SaveActions } from '@/components/shared/popupKit'
 import CountrySelect from '@/components/shared/CountrySelect'
 import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -538,14 +539,34 @@ export default function SellerCustomers() {
 
 // Campañas de recompra: pestaña propia de la fila única de Clientes (solo
 // administración/gerencia y solo con datos reales; la ruta es /campanas).
+// Demo: los segmentos se calculan acá, sobre la cartera ficticia de la pestaña
+// (mismas reglas que el servidor); la marca de contacto vive en memoria.
+const contactadosDemo = new Map()
+function segmentoDemo(segmento) {
+  const ahora = Date.now()
+  const dias = (fecha) => (fecha ? (ahora - new Date(fecha).getTime()) / 86400000 : Infinity)
+  const filas = readDemoCustomers().map((row) => {
+    const stats = row.stats || {}
+    return { id: row.id, name: row.name, phone: row.phone || row.phones?.[0] || '', countryCode: row.countryCode || '+595', acceptsWhatsappMarketing: row.acceptsWhatsappMarketing !== false, marketingContactedAt: contactadosDemo.get(row.id) || null, lastOrderAt: stats.lastOrderAt || null, pendingPyg: Number(stats.pendingPyg || 0), totalSpentPyg: Number(stats.totalSpentPyg || 0), wholesale: row.wholesale === true || row.pricingTier === 'WHOLESALE' }
+  })
+  const elegidos = filas.filter((row) => {
+    if (segmento === 'inactivos6m') return dias(row.lastOrderAt) > 180
+    if (segmento === 'mayoristasDormidos') return row.wholesale && dias(row.lastOrderAt) > 90
+    return row.pendingPyg > 0
+  })
+  return { total: elegidos.length, customers: elegidos }
+}
+const cargarSegmentoDemo = async (segmento) => segmentoDemo(segmento)
+const marcarContactadoDemo = async (ids) => { for (const id of ids) contactadosDemo.set(id, new Date().toISOString()) }
+
 export function CampanasVista() {
   const { esDemo, usuario, empresa, sucursal, sesion } = useSesion()
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
-  if (esDemo || !['ADMIN', 'GERENTE'].includes(usuario?.role)) return null
+  if (!['ADMIN', 'GERENTE'].includes(usuario?.role)) return null
   const plantillas = templateData.rows.filter((item) => !item.category || item.category === 'CUSTOMERS')
   return <SellerSection title="Campañas">
     <div className="clientes-f3">
-      <CampanasClientes templates={plantillas} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} />
+      <CampanasClientes templates={plantillas} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} {...(esDemo ? { cargarSegmento: cargarSegmentoDemo, marcarContactado: marcarContactadoDemo } : {})} />
     </div>
   </SellerSection>
 }

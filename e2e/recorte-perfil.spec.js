@@ -2,6 +2,7 @@
 // decide el usuario (hasta 3×), sin recorte automático de las fotos verticales.
 import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 
 test('el recortador abre con la foto entera y el zoom lo maneja el usuario', async ({ page }) => {
   // Foto vertical 600×1200 generada en el navegador (sin fixtures en disco).
@@ -30,6 +31,7 @@ test('el recortador abre con la foto entera y el zoom lo maneja el usuario', asy
   await expect(imagen).toBeVisible()
 
   // Contain: la foto entra entera en el cuadrado de 240 (vertical → 120×240).
+  await esperarAnimaciones(page)
   const alAbrir = await imagen.boundingBox()
   expect(alAbrir, 'la imagen se mide').toBeTruthy()
   expect(Math.round(alAbrir.height)).toBe(240)

@@ -8,7 +8,8 @@ import Avatar from '@/components/shared/Avatar'
 import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import FieldRow from '@/components/shared/FieldRow'
-import { Aviso, Button, Card, ConfirmDialog, Input, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Button, Card, Input, Skeleton, useToast } from '@/components/ui'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
 import { etiquetaRol } from '@/lib/roles'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
@@ -264,7 +265,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
         <EliminarCuenta esDemo={esDemo} />
       </PanelDerecho>
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(aRevocar)}
         onCancel={() => setARevocar(null)}
         onConfirm={() => revocar(aRevocar)}
@@ -274,7 +275,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
         variant="danger"
         busy={revocando}
       />
-      <ConfirmDialog
+      <PopupConfirmar
         open={aRevocarDemas}
         onCancel={() => setARevocarDemas(false)}
         onConfirm={revocarDemas}

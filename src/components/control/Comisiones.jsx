@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
-import { api, API_URL } from '@/lib/api/client'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, Stat, useToast } from '@/components/ui'
+import { api as apiReal, API_URL } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { apiComisionesDemo } from '@/lib/demo/comisiones'
+import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Skeleton, Stat, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
@@ -24,6 +28,9 @@ import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import './finanzasTactil.css'
 
+// En la demo las reglas y liquidaciones viven en memoria de la pestaña.
+const api = isDemoRuntime ? apiComisionesDemo : apiReal
+
 // Una fila por regla y por liquidación: tabla desde lg/xl, tarjeta debajo
 // (`ListaDensa`), con botones de 44px bajo lg.
 const BOTON_FILA = 'min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2'
@@ -39,8 +46,9 @@ const diaLocal = (fecha) => `${fecha.getFullYear()}-${String(fecha.getMonth() + 
 const hoy = () => diaLocal(new Date())
 const inicioDeMes = () => { const fecha = new Date(); return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-01` }
 
-// El QR abre la verificación pública del comprobante (sin sesión).
-const enlaceVerificacion = (token) => token && API_URL ? `${API_URL}/api/public/commission-settlements/${encodeURIComponent(token)}` : ''
+// El QR abre la verificación pública del comprobante (sin sesión). En demo el
+// token es ficticio: no se arma un enlace a la API real.
+const enlaceVerificacion = (token) => token && API_URL && !isDemoRuntime ? `${API_URL}/api/public/commission-settlements/${encodeURIComponent(token)}` : ''
 
 // Respaldo A4 del comprobante cuando la térmica no está disponible: mismo
 // contenido que el ticket, con el QR para verificar la liquidación. El enlace
@@ -446,7 +454,7 @@ export default function Comisiones() {
         )}
       </Card>
 
-      <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} size="formulario">
+      <Popup open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} tamano="md">
         {comprobante && (
           <div className="space-y-4">
             <div className="rounded-xl border border-ink-600 p-3 text-sm">
@@ -488,9 +496,9 @@ export default function Comisiones() {
             <p className="text-xs text-mute">Al escanear el QR se verifica el comprobante sin sesión: vendedor, período, total, estado y fecha de emisión. No expone ventas ni clientes. Emitir un enlace nuevo invalida el QR anterior.</p>
           </div>
         )}
-      </Modal>
+      </Popup>
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(eliminando)}
         onCancel={() => setEliminando(null)}
         onConfirm={confirmarEliminar}
@@ -500,7 +508,7 @@ export default function Comisiones() {
         confirmLabel="Eliminar regla"
         variant="danger"
       />
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(anulando)}
         onCancel={() => setAnulando(null)}
         onConfirm={() => anulando && cambiarEstado(anulando, 'cancel')}

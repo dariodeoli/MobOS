@@ -55,7 +55,8 @@ test('#324 · cada venta canónica es un pedido completo (sin Gs 0 ni artículos
     assert.equal(venta.totalPyg, venta.precio + venta.montoDelivery, `${venta.id}: total con delivery`)
     for (const pago of venta.pagos) assert.equal(pago.amountPyg, pago.monto, `${venta.id}: amountPyg espeja monto`)
     assert.equal(venta.totalPagado, venta.pagos.reduce((suma, pago) => suma + pago.monto, 0), `${venta.id}: pagos suman lo cobrado`)
-    assert.equal(venta.totalPendiente, Math.max(0, venta.totalPyg - venta.totalPagado), `${venta.id}: pendiente coherente`)
+    // Un pedido anulado no queda debiendo nada; el resto: total − cobrado.
+    assert.equal(venta.totalPendiente, venta.status === 'CANCELLED' ? 0 : Math.max(0, venta.totalPyg - venta.totalPagado), `${venta.id}: pendiente coherente`)
     assert.match(venta.orderNumber, /^AUR-\d{4}$/, `${venta.id}: número visible`)
     assert.equal(venta.tenant?.name, 'Aurora Móviles S.A.', `${venta.id}: comprobante con la empresa ficticia`)
     assert.ok(venta.customer?.name, `${venta.id}: comprobante con cliente`)

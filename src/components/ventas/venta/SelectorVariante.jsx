@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Modal } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import PrecioStockProducto from './PrecioStockProducto'

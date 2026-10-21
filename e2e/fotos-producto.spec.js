@@ -2,6 +2,7 @@
 // Imágenes sintéticas; ningún mock de uploads ni lectura de fotos reales.
 import { test, expect, request as pwRequest } from '@playwright/test'
 import { openShellDestination } from './helpers/shell-navigation.js'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { createRequire } from 'node:module'
 const requireBackend = createRequire(new URL('../backend/package.json', import.meta.url))
 // --list tambien corre en el job frontend, que no instala dependencias backend.
@@ -24,6 +25,7 @@ async function seleccionarRecorte(page, archivo, izquierda = true) {
   await page.getByTestId('galeria-archivo').setInputFiles(archivo)
   const crop = page.getByRole('dialog', { name: 'Recortar foto', exact: true })
   await expect(crop.getByRole('img', { name: 'Foto a recortar' })).toBeVisible()
+  await esperarAnimaciones(page) // el Popup sube como hoja: medir recién cuando termina
   const box = await crop.getByTestId('recorte-encuadre').boundingBox()
   await page.mouse.move(box.x + 120, box.y + 120); await page.mouse.down()
   await page.mouse.move(box.x + (izquierda ? 240 : 0), box.y + 120); await page.mouse.up()

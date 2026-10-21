@@ -10,7 +10,8 @@ import { sessionApi } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Input, Modal, PasswordInput, PinInput, Subtabs, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Input, PasswordInput, PinInput, Subtabs, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import UsoEquipo from '@/components/control/UsoEquipo'
@@ -194,7 +195,10 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
   async function reauthenticate() {
     if (!password || busy) return
     setBusy(true); setFailure(''); setNotice('')
-    try { const result = await api.post('/api/account', { password }); setPassword(''); setAccount(current => current ? { ...current, reauthValidUntil: result.validUntil } : current); setNotice('Contraseña verificada durante 10 minutos para acciones sensibles.') } catch (error) { setFailure(error.message || 'No se pudo reautenticar.') } finally { setBusy(false) }
+    // Si la cuenta aún no cargó (una contraseña errónea invalida las consultas en vuelo),
+    // se vuelve a pedir: sin cuenta no hay dónde anotar la ventana de 10 minutos.
+    const sinCuenta = !account
+    try { const result = await api.post('/api/account', { password }); setPassword(''); setAccount(current => current ? { ...current, reauthValidUntil: result.validUntil } : current); if (sinCuenta) await load(); setNotice('Contraseña verificada durante 10 minutos para acciones sensibles.') } catch (error) { setFailure(error.message || 'No se pudo reautenticar.') } finally { setBusy(false) }
   }
   async function revoke(sessionId) {
     if (busy) return

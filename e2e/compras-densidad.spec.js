@@ -4,6 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 
 const API = SEED.api
 
@@ -116,11 +117,13 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
         // el proveedor y permite usar el control real del tema, sin inyectar DOM.
         if (await toggle.count()) {
           await page.getByRole('dialog', { name: 'Nueva compra', exact: true }).getByRole('button', { name: 'Cerrar', exact: true }).click()
+          await expect(page.locator('.popup-fondo')).toHaveCount(0)
           await toggle.click()
           await page.getByRole('button', { name: 'Nueva compra' }).click()
           await expect(seleccionado).toBeVisible()
         }
         await expect(campo).toHaveCount(0)
+        await esperarAnimaciones(page)
         const medidas = await seleccionado.evaluate(node => ({ width: node.getBoundingClientRect().width, scroll: node.scrollWidth, client: node.clientWidth, right: node.getBoundingClientRect().right }))
         expect(medidas.scroll).toBeLessThanOrEqual(medidas.client + 1)
         expect(medidas.right).toBeLessThanOrEqual(width)

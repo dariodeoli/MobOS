@@ -5,6 +5,7 @@ import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import { BLOQUEOS_MINUTOS } from '@/lib/preferencias'
 import { activarWebPush, desactivarWebPush, estadoWebPush, webPushSoportado } from '@/lib/webPush'
 import { api } from '@/lib/api'
+import { isDemoRuntime } from '@/lib/demoMode'
 
 const ETIQUETA_MINUTOS = {
   1: '1 minuto',
@@ -68,7 +69,7 @@ function AvisosDelNavegador() {
     let vigente = true
     ;(async () => {
       try {
-        const clave = await api.get('/api/push/clave')
+        const clave = isDemoRuntime ? { configurado: false } : await api.get('/api/push/clave')
         const actual = await estadoWebPush()
         if (vigente) setEstado({ ...actual, configurado: Boolean(clave?.configurado), cargando: false })
       } catch {

@@ -5,7 +5,15 @@ import { guardarDemo, leerDemo } from './demoStorage.js'
 import { clasificarEscaneo, ESTADOS_ESPERADOS, resumirVerificacion } from './verificacionStock.js'
 
 const KEY = 'mobos:demo-verificaciones:v1'
-const leer = () => { try { return JSON.parse(leerDemo(KEY)) || [] } catch { return [] } }
+// Verificaciones de ejemplo (historial), relativas a hoy: dos terminadas y una cancelada.
+const haceDias = (dias, hora = 17) => { const fecha = new Date(); fecha.setDate(fecha.getDate() - dias); fecha.setHours(hora, 10, 0, 0); return fecha.toISOString() }
+const quien = (id, name) => ({ id, name })
+const SEMILLA = () => [
+  { id: 'demo-verif-seed-1', status: 'FINISHED', branchId: 'mobos-demo-central', locationId: 'demo-ubic-deposito-1', note: 'Conteo de cierre de semana', startedAt: haceDias(7, 16), startedBy: quien('demo-user-cajera', 'María Benítez'), finishedAt: haceDias(7, 17), finishedBy: quien('demo-user-cajera', 'María Benítez'), scans: [], missingSerials: [], summary: { expected: 12, verified: 12, missing: 0, unexpected: 0, percent: 100 } },
+  { id: 'demo-verif-seed-2', status: 'FINISHED', branchId: 'mobos-demo-central', locationId: 'demo-ubic-piso', note: 'Piso de venta antes del fin de semana', startedAt: haceDias(2, 9), startedBy: quien('demo-user', 'Hernán Acosta'), finishedAt: haceDias(2, 10), finishedBy: quien('demo-user', 'Hernán Acosta'), scans: [], missingSerials: [], summary: { expected: 9, verified: 8, missing: 1, unexpected: 1, percent: 89 } },
+  { id: 'demo-verif-seed-3', status: 'CANCELLED', branchId: 'mobos-demo-villa-morra', locationId: null, note: null, startedAt: haceDias(4, 11), startedBy: quien('demo-user-gerente', 'Ana Giménez'), finishedAt: haceDias(4, 11), finishedBy: quien('demo-user-gerente', 'Ana Giménez'), scans: [], missingSerials: [], summary: { expected: 0, verified: 0, missing: 0, unexpected: 0, percent: 0 } },
+]
+const leer = () => { try { const crudo = leerDemo(KEY); return crudo ? (JSON.parse(crudo) || []) : SEMILLA() } catch { return SEMILLA() } }
 const guardar = (lista) => guardarDemo(KEY, JSON.stringify(lista))
 const persona = (usuario) => ({ id: usuario?.id || 'demo-user', name: usuario?.name || usuario?.nombre || 'Dueño demo' })
 

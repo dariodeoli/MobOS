@@ -18,6 +18,7 @@ import { buildProformaHtml } from '@/components/shared/OrderReceipt'
 import { BotonWhatsApp, CabeceraTienda, EnlacePoliticas, ResumenTotales } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import '@/components/publico/publicoRediseno.css'
 
 
 // Cotización pública: el cliente abre el QR o el enlace, revisa el detalle y
@@ -87,7 +88,7 @@ export default function CotizacionPublica() {
   const logoUrl = `${API_URL}/api/quotes/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`
 
   return (
-    <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
+    <main data-publico="1" className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
 

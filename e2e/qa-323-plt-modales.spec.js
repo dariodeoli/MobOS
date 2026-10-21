@@ -22,7 +22,7 @@ async function capturar(page, nombre) {
 }
 
 async function descartarCambios(page) {
-  const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+  const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
   await expect(confirmacion).toBeVisible()
   await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
 }
@@ -71,7 +71,7 @@ test('#323 · sucursales: error por campo y confirmación al descartar', async (
   // Cambio sin guardar: cancelar la edición pide confirmación.
   await nombre.fill(`${original} QA`)
   await panel.getByRole('button', { name: 'Cancelar edición' }).click()
-  const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios de la sucursal?' })
+  const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios de la sucursal?' })
   await expect(confirmacion).toBeVisible()
   await capturar(page, '02-sucursal-descartar')
   await confirmacion.getByRole('button', { name: 'Descartar cambios' }).click()

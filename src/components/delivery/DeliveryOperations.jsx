@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { api } from '@/lib/api/client'
+import { api as apiReal } from '@/lib/api/client'
+import { apiViajesDemo } from '@/lib/demo/viajes'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Badge, Button, ConfirmDialog, FormField, Input, Modal, Money, MoneyInput, Select, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, FormField, Input, Money, MoneyInput, Select, Textarea, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
 import { codigoPedido } from '@/utils/pedido'
 import { ChipsReparto } from './ChipsReparto'
@@ -19,6 +22,8 @@ const formClass = 'space-y-4'
 export default function DeliveryOperations() {
   const { esDemo, empresa, usuario, sucursales = [], sucursal } = useSesion()
   const toast = useToast()
+  // Demo: viajes, tarifas y cierres viven en memoria de la pestaña.
+  const api = esDemo ? apiViajesDemo : apiReal
   const [tab, setTab] = useState('viajes'), [rows, setRows] = useState([]), [tariffs, setTariffs] = useState([]), [team, setTeam] = useState([]), [orders, setOrders] = useState([])
   const [owner, setOwner] = useState(false), [loading, setLoading] = useState(false), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [trip, setTrip] = useState(null), [tariff, setTariff] = useState(null), [resolution, setResolution] = useState(null), [deactivate, setDeactivate] = useState(null), [adjustment, setAdjustment] = useState(null), [confirmClose, setConfirmClose] = useState(false)
@@ -45,7 +50,7 @@ export default function DeliveryOperations() {
     }
   }, [scopeKey, sucursal?.id])
   const load = useCallback(async () => {
-    if (esDemo || !scope.current.mounted || scope.current.key !== scopeKey) return
+    if (!scope.current.mounted || scope.current.key !== scopeKey) return
     loadRequest.current?.abort()
     const controller = new AbortController(), { signal } = controller
     loadRequest.current = controller
@@ -63,7 +68,7 @@ export default function DeliveryOperations() {
       if (!signal.aborted) console.error('[delivery-operations]', cause)
       if (current()) setError(cause.message || 'No se pudieron cargar los viajes.')
     } finally { if (current()) setLoading(false) }
-  }, [esDemo, unresolved, scopeKey])
+  }, [api, unresolved, scopeKey])
   useEffect(() => { load() }, [load])
 
   async function run(action, message, finish) {
@@ -111,8 +116,7 @@ export default function DeliveryOperations() {
   const activeTariff = trip && tariffs.find(rate => rate.isActive && dateText(rate.validFrom) <= trip.performedOn && dateText(rate.validUntil) >= trip.performedOn)
   const tier = activeTariff?.tiers.find(row => Number(trip.distanceKm) > 0 && Number(trip.distanceKm) <= row.upToKm)
 
-  if (esDemo) return <Aviso>Los viajes, honorarios y cierres semanales se configuran en una empresa real. La demo no activa tarifas ni registra ventas.</Aviso>
-  return <section className="space-y-4" aria-label="Viajes y cierres semanales">
+  return <section className="op-rd space-y-4" aria-label="Viajes y cierres semanales">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <ChipsReparto flat value={tab} onChange={value => { setTab(value); setError('') }} items={owner ? [['viajes', 'Viajes'], ['tarifas', 'Tarifas'], ['cierres', 'Cierre semanal']] : [['viajes', 'Viajes']]} />
       <div className="flex flex-wrap gap-2">
@@ -176,8 +180,8 @@ export default function DeliveryOperations() {
       </>}
     </div>}
 
-    <Modal open={Boolean(trip)} onClose={() => !busy && setTrip(null)} title="Registrar viajes realizados" size="formulario" busy={busy} dirty={Boolean(trip && (trip.route || trip.driverId || trip.orderId || trip.distanceKm || Number(trip.tripsCount) !== 1 || trip.performedOn !== today() || trip.branchId !== initialBranch))}>
-      {trip && <form className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.post('/api/delivery/trips', { ...trip, distanceKm: Number(trip.distanceKm), tripsCount: Number(trip.tripsCount) }), 'Viajes registrados', () => setTrip(null)) }}>
+    <Popup open={Boolean(trip)} onClose={() => !busy && setTrip(null)} title="Registrar viajes realizados" acciones={{ secundaria: { label: 'Cancelar', disabled: busy, cierra: true }, primaria: { label: 'Guardar viajes', type: 'submit', form: 'form-delivery-trip', disabled: busy || !tier } }} busy={busy} dirty={Boolean(trip && (trip.route || trip.driverId || trip.orderId || trip.distanceKm || Number(trip.tripsCount) !== 1 || trip.performedOn !== today() || trip.branchId !== initialBranch))}>
+      {trip && <form id="form-delivery-trip" className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.post('/api/delivery/trips', { ...trip, distanceKm: Number(trip.distanceKm), tripsCount: Number(trip.tripsCount) }), 'Viajes registrados', () => setTrip(null)) }}>
         <GrillaCampos>
           <Campo ancho="documento" rotulo="Sucursal" htmlFor="trip-branch"><Select id="trip-branch" required value={trip.branchId} onChange={e => setTrip({ ...trip, branchId: e.target.value, driverId: '', orderId: '' })}><option value="">Elegí sucursal</option>{branchOptions}</Select></Campo>
           <Campo ancho="documento" rotulo="Repartidor" htmlFor="trip-driver"><Select id="trip-driver" required value={trip.driverId} onChange={e => setTrip({ ...trip, driverId: e.target.value })}><option value="">Elegí repartidor</option>{driversFor(trip.branchId).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</Select></Campo>
@@ -191,11 +195,11 @@ export default function DeliveryOperations() {
         <FormField label="Pedido asociado" htmlFor="trip-order"><Select id="trip-order" value={trip.orderId} onChange={e => setTrip({ ...trip, orderId: e.target.value })}><option value="">Sin venta · requiere resolución del dueño</option>{orderOptions(trip.branchId)}</Select></FormField>
         {tier ? <p className="text-sm">{activeTariff.name}: <Money value={tier.feePyg} /> por viaje. Total estimado <strong><Money value={tier.feePyg * Number(trip.tripsCount || 0)} /></strong></p> : <Aviso>No hay tarifa para esta fecha y distancia. El dueño debe configurarla antes de guardar.</Aviso>}
         <p className="text-xs text-mute">Registrar viajes no crea pedidos, pagos ni ventas. El cobro del cliente se registra y se rinde por el circuito habitual.</p>
-        {error && <Aviso tono="error">{error}</Aviso>}<Button type="submit" disabled={busy || !tier}>Guardar viajes</Button>
+        {error && <Aviso tono="error">{error}</Aviso>}
       </form>}
-    </Modal>
-    <Modal open={Boolean(tariff)} onClose={() => !busy && setTariff(null)} title="Nueva tarifa del repartidor" size="formulario" busy={busy} dirty={Boolean(tariff && (tariff.name || tariff.validUntil || tariff.validFrom !== today() || tariff.tiers.length !== 1 || tariff.tiers[0].upToKm !== 28 || tariff.tiers[0].feePyg !== ''))}>
-      {tariff && <form className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.post('/api/delivery/tariffs', tariff), 'Tarifa guardada', () => setTariff(null)) }}>
+    </Popup>
+    <Popup open={Boolean(tariff)} onClose={() => !busy && setTariff(null)} title="Nueva tarifa del repartidor" acciones={{ secundaria: { label: 'Cancelar', disabled: busy, cierra: true }, primaria: { label: 'Guardar tarifa', type: 'submit', form: 'form-delivery-tariff', disabled: busy } }} busy={busy} dirty={Boolean(tariff && (tariff.name || tariff.validUntil || tariff.validFrom !== today() || tariff.tiers.length !== 1 || tariff.tiers[0].upToKm !== 28 || tariff.tiers[0].feePyg !== ''))}>
+      {tariff && <form id="form-delivery-tariff" className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.post('/api/delivery/tariffs', tariff), 'Tarifa guardada', () => setTariff(null)) }}>
         <FormField label="Nombre" htmlFor="tariff-name"><Input id="tariff-name" required maxLength={100} placeholder="Ej.: Octubre 2026" value={tariff.name} onChange={e => setTariff({ ...tariff, name: e.target.value })} /></FormField>
         <GrillaCampos><Campo ancho="documento" rotulo="Vigente desde" htmlFor="tariff-from"><Input id="tariff-from" required type="date" className="[color-scheme:light] dark:[color-scheme:dark]" value={tariff.validFrom} onChange={e => setTariff({ ...tariff, validFrom: e.target.value })} /></Campo><Campo ancho="documento" rotulo="Hasta inclusive" htmlFor="tariff-until"><Input id="tariff-until" required type="date" className="[color-scheme:light] dark:[color-scheme:dark]" min={tariff.validFrom} value={tariff.validUntil} onChange={e => setTariff({ ...tariff, validUntil: e.target.value })} /></Campo></GrillaCampos>
         <p className="text-sm text-mute">Tramos en orden ascendente. El primero parte de 0 km y el último debe cubrir 28 km. Ingresá cada precio acordado; cero solo si el viaje es gratuito.</p>
@@ -204,29 +208,29 @@ export default function DeliveryOperations() {
           <Campo ancho="documento" rotulo="Honorario por viaje" htmlFor={`tier-fee-${index}`}><MoneyInput id={`tier-fee-${index}`} required value={row.feePyg} onValueChange={value => setTariff({ ...tariff, tiers: tariff.tiers.map((tier, i) => i === index ? { ...tier, feePyg: value } : tier) })} /></Campo>
           {tariff.tiers.length > 1 && <Button className="md:mt-5" variant="outline" onClick={() => setTariff({ ...tariff, tiers: tariff.tiers.filter((_, i) => i !== index) })} aria-label={`Quitar tramo ${index + 1}`}>Quitar</Button>}
         </GrillaCampos>)}
-        <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={tariff.tiers.length >= 28} onClick={() => setTariff({ ...tariff, tiers: [...tariff.tiers, { upToKm: '', feePyg: '' }] })}>Agregar tramo</Button><Button type="submit" disabled={busy}>Guardar tarifa</Button></div>
+        <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={tariff.tiers.length >= 28} onClick={() => setTariff({ ...tariff, tiers: [...tariff.tiers, { upToKm: '', feePyg: '' }] })}>Agregar tramo</Button></div>
         {error && <Aviso tono="error">{error}</Aviso>}
       </form>}
-    </Modal>
-    <Modal open={Boolean(resolution || deactivate)} onClose={() => { if (!busy) { setResolution(null); setDeactivate(null) } }} title={resolution ? 'Resolver viaje sin venta' : 'Desactivar tarifa'} size="corto" busy={busy} dirty={Boolean(resolution?.reason || resolution?.orderId || (resolution && resolution.action !== 'link') || deactivate?.reason)}>
-      {resolution && <form className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.patch(`/api/delivery/trips/${resolution.row.id}`, { action: resolution.action, orderId: resolution.orderId, reason: resolution.reason }), 'Viaje resuelto', () => setResolution(null)) }}>
+    </Popup>
+    <Popup open={Boolean(resolution || deactivate)} onClose={() => { if (!busy) { setResolution(null); setDeactivate(null) } }} title={resolution ? 'Resolver viaje sin venta' : 'Desactivar tarifa'} acciones={{ secundaria: { label: 'Cancelar', disabled: busy, cierra: true }, primaria: { label: resolution ? 'Guardar resolución' : 'Desactivar tarifa', type: 'submit', form: resolution ? 'form-delivery-resolution' : 'form-delivery-deactivate', disabled: busy } }} busy={busy} dirty={Boolean(resolution?.reason || resolution?.orderId || (resolution && resolution.action !== 'link') || deactivate?.reason)}>
+      {resolution && <form id="form-delivery-resolution" className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.patch(`/api/delivery/trips/${resolution.row.id}`, { action: resolution.action, orderId: resolution.orderId, reason: resolution.reason }), 'Viaje resuelto', () => setResolution(null)) }}>
         <FormField label="Acción" htmlFor="trip-resolution"><Select id="trip-resolution" value={resolution.action} onChange={e => setResolution({ ...resolution, action: e.target.value })}><option value="link">Vincular a un pedido existente</option><option value="discard">Descartar del cierre</option></Select></FormField>
         {resolution.action === 'link' ? <FormField label="Pedido" htmlFor="resolution-order"><Select id="resolution-order" required value={resolution.orderId} onChange={e => setResolution({ ...resolution, orderId: e.target.value })}><option value="">Elegí pedido</option>{orderOptions(resolution.row.branchId)}</Select></FormField> : <Aviso>El viaje quedará descartado con motivo y no sumará honorarios en el cierre. No se borra el registro.</Aviso>}
         <FormField label="Motivo" htmlFor="resolution-reason"><Textarea id="resolution-reason" required minLength={3} maxLength={500} value={resolution.reason} onChange={e => setResolution({ ...resolution, reason: e.target.value })} /></FormField>
-        {error && <Aviso tono="error">{error}</Aviso>}<Button type="submit" disabled={busy}>Guardar resolución</Button>
+        {error && <Aviso tono="error">{error}</Aviso>}
       </form>}
-      {deactivate && <form className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.patch(`/api/delivery/tariffs/${deactivate.row.id}`, { reason: deactivate.reason }), 'Tarifa desactivada', () => setDeactivate(null)) }}>
-        <p className="text-sm text-mute">No cambia los honorarios de viajes ya registrados.</p><FormField label="Motivo" htmlFor="tariff-reason"><Textarea id="tariff-reason" required minLength={3} maxLength={500} value={deactivate.reason} onChange={e => setDeactivate({ ...deactivate, reason: e.target.value })} /></FormField>{error && <Aviso tono="error">{error}</Aviso>}<Button type="submit" disabled={busy}>Desactivar tarifa</Button>
+      {deactivate && <form id="form-delivery-deactivate" className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.patch(`/api/delivery/tariffs/${deactivate.row.id}`, { reason: deactivate.reason }), 'Tarifa desactivada', () => setDeactivate(null)) }}>
+        <p className="text-sm text-mute">No cambia los honorarios de viajes ya registrados.</p><FormField label="Motivo" htmlFor="tariff-reason"><Textarea id="tariff-reason" required minLength={3} maxLength={500} value={deactivate.reason} onChange={e => setDeactivate({ ...deactivate, reason: e.target.value })} /></FormField>{error && <Aviso tono="error">{error}</Aviso>}
       </form>}
-    </Modal>
-    <ConfirmDialog open={confirmClose} onCancel={() => setConfirmClose(false)} title="¿Cerrar esta semana?" description="Se guarda una foto auditable de viajes y cobros. No se podrán agregar viajes en esta semana. Las rendiciones posteriores actualizarán solo el saldo actual." confirmLabel="Cerrar semana" busy={busy} onConfirm={() => run(() => api.post('/api/delivery/weekly', query), 'Semana cerrada', () => { setConfirmClose(false); loadWeek() })} />
-    <Modal open={Boolean(adjustment)} onClose={() => !busy && setAdjustment(null)} title="Ajustar saldo del repartidor" size="corto" busy={busy} dirty={Boolean(adjustment && (adjustment.reason || adjustment.amount !== '' || adjustment.direction !== '1'))}>
-      {adjustment && <form className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.post(`/api/delivery/weekly/${close.id}/adjustments`, { deltaPyg: Number(adjustment.direction) * Number(adjustment.amount), reason: adjustment.reason, idempotencyKey: adjustment.idempotencyKey }), 'Ajuste registrado', () => { setAdjustment(null); loadWeek() }) }}>
+    </Popup>
+    <PopupConfirmar open={confirmClose} onCancel={() => setConfirmClose(false)} title="¿Cerrar esta semana?" description="Se guarda una foto auditable de viajes y cobros. No se podrán agregar viajes en esta semana. Las rendiciones posteriores actualizarán solo el saldo actual." confirmLabel="Cerrar semana" busy={busy} onConfirm={() => run(() => api.post('/api/delivery/weekly', query), 'Semana cerrada', () => { setConfirmClose(false); loadWeek() })} />
+    <Popup open={Boolean(adjustment)} onClose={() => !busy && setAdjustment(null)} title="Ajustar saldo del repartidor" acciones={{ secundaria: { label: 'Cancelar', disabled: busy, cierra: true }, primaria: { label: 'Registrar ajuste', type: 'submit', form: 'form-delivery-adjustment', disabled: busy || !adjustment?.amount } }} busy={busy} dirty={Boolean(adjustment && (adjustment.reason || adjustment.amount !== '' || adjustment.direction !== '1'))}>
+      {adjustment && <form id="form-delivery-adjustment" className={formClass} onSubmit={e => { e.preventDefault(); run(() => api.post(`/api/delivery/weekly/${close.id}/adjustments`, { deltaPyg: Number(adjustment.direction) * Number(adjustment.amount), reason: adjustment.reason, idempotencyKey: adjustment.idempotencyKey }), 'Ajuste registrado', () => { setAdjustment(null); loadWeek() }) }}>
         <FormField label="Sentido del ajuste" htmlFor="adjust-direction"><Select id="adjust-direction" value={adjustment.direction} onChange={e => setAdjustment({ ...adjustment, direction: e.target.value })}><option value="1">Aumentar saldo a favor del repartidor</option><option value="-1">Disminuir saldo a favor del repartidor</option></Select></FormField>
         <FormField label="Importe del ajuste" htmlFor="adjust-amount"><MoneyInput id="adjust-amount" required value={adjustment.amount} onValueChange={value => setAdjustment({ ...adjustment, amount: value })} /></FormField>
         <FormField label="Motivo" htmlFor="adjust-reason"><Textarea id="adjust-reason" required minLength={3} maxLength={500} value={adjustment.reason} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} /></FormField>
-        {error && <Aviso tono="error">{error}</Aviso>}<Button type="submit" disabled={busy || !adjustment.amount}>Registrar ajuste</Button>
+        {error && <Aviso tono="error">{error}</Aviso>}
       </form>}
-    </Modal>
+    </Popup>
   </section>
 }

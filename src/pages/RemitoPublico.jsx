@@ -10,6 +10,7 @@ import { CabeceraTienda, LineaTiempo } from '@/components/publico/KitPublico'
 import { useLogoDocumento } from '@/components/publico/useLogoDocumento'
 import ProductFooter from '@/components/app/ProductFooter'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import '@/components/publico/publicoRediseno.css'
 
 
 // Remito público de traslado: el destino abre el QR impreso, controla los
@@ -82,7 +83,7 @@ export default function RemitoPublico() {
   const urlFoto = (id) => `${API_URL}/api/transfers/public/${encodeURIComponent(token || '')}/attachments?id=${encodeURIComponent(id)}`
 
   return (
-    <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
+    <main data-publico="1" className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
         <CabeceraTienda key={logo || token} logo={logo} logoClaro={logoClaro} empresa={remito?.company?.name || remito?.sourceBranch?.name} detalle={remito?.company?.name ? remito.sourceBranch?.name : remito ? "Sucursal de origen" : undefined}>
           <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Remito de traslado</p>

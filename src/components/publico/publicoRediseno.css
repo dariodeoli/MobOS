@@ -1,0 +1,103 @@
+/* Rediseño de las páginas públicas del cliente (pedido, portal, cotización,
+   garantía, informe, remito). Mismo lenguaje que el comprobante premium:
+   encabezado de marca con filete, Total grande, tarjetas de radio 16 con
+   sombra suave y entrada escalonada. Solo capa visual, acotada por
+   [data-publico]; no cambia datos, enlaces ni tokens. */
+
+[data-publico] {
+  --pub-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* ---- Entrada: bloques escalonados --------------------------------------- */
+[data-publico] header,
+[data-publico] section {
+  animation: pub-entra 0.32s var(--pub-ease) both;
+}
+[data-publico] section:nth-of-type(2) { animation-delay: 40ms; }
+[data-publico] section:nth-of-type(3) { animation-delay: 80ms; }
+[data-publico] section:nth-of-type(n + 4) { animation-delay: 110ms; }
+
+/* ---- Tarjetas y encabezado de marca -------------------------------------- */
+[data-publico] section.rounded-2xl,
+[data-publico] header.rounded-2xl {
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 20px -12px rgb(0 0 0 / 0.18);
+}
+[data-publico] header.rounded-2xl {
+  position: relative;
+  overflow: hidden;
+}
+[data-publico] header.rounded-2xl::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: rgb(var(--c-fono));
+}
+
+/* ---- Total grande --------------------------------------------------------- */
+[data-publico] h2 { letter-spacing: 0.01em; }
+[data-publico] [data-testid='resumen-totales'] .text-2xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 800;
+}
+[data-publico] .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ---- Estado del pedido: píldora con punto -------------------------------- */
+[data-publico] [data-testid='estado-pedido'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+}
+[data-publico] [data-testid='estado-pedido']::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---- QR: caja limpia ------------------------------------------------------ */
+[data-publico] img[alt*='QR'] {
+  border: 1px solid rgb(var(--c-ink-600));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+/* ---- Acciones: 44 px y respuesta táctil ----------------------------------- */
+[data-publico] a.inline-flex,
+[data-publico] button { min-height: 44px; }
+[data-publico] button,
+[data-publico] a.inline-flex { transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; }
+[data-publico] button:not(:disabled):active,
+[data-publico] a.inline-flex:active { transform: scale(0.98); }
+[data-publico] a:focus-visible,
+[data-publico] button:focus-visible { outline: 2px solid rgb(var(--c-fono)); outline-offset: 2px; }
+
+/* ---- Celular: sin desborde horizontal ------------------------------------- */
+[data-publico] table { max-width: 100%; }
+[data-publico] img { max-width: 100%; }
+
+@keyframes pub-entra {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media print {
+  [data-publico] *,
+  [data-publico] *::before { animation: none !important; transition: none !important; box-shadow: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-publico],
+  [data-publico] *,
+  [data-publico] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  [data-publico] button:active,
+  [data-publico] a:active { transform: none !important; }
+}

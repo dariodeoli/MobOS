@@ -15,6 +15,7 @@ import { temaV2Activo } from '@/lib/temaV2'
 import ProductFooter from '@/components/app/ProductFooter'
 import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, EnlacePoliticas, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
+import '@/components/publico/publicoRediseno.css'
 
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
@@ -65,7 +66,7 @@ export default function PedidoPublico() {
   const ultimoMovimiento = movimientos[0]?.at ? fechaHora(movimientos[0].at) : ''
 
   return (
-    <main className={cn('min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10', temaV2Activo() && 'tema-v2')}>
+    <main data-publico="1" className={cn('min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10', temaV2Activo() && 'tema-v2')}>
       <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}section>div[hidden]{display:block!important}button[aria-expanded] svg{display:none!important}}`}</style>
       <div className="mx-auto max-w-xl space-y-3">
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}

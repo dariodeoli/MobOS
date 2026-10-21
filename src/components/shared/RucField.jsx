@@ -7,7 +7,24 @@ import { cn } from '@/lib/utils'
 import { ANCHO_CAMPO } from './anchoCampos'
 import { admitRucResponse, createRucRequestGuard, formatRucInput, parseRucInput } from './rucLookup.js'
 
-const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+// Consulta para el buscador de cliente del POS (sin el campo en pantalla): mismo
+// transporte y misma admisión que el extractor del campo, sin cuota nueva.
+export async function consultarRucAdmitido(identity, { demo = false, signal } = {}) {
+  const respuesta = demo
+    ? await consultarRucDemoReal(identity.query, { apiUrl: API_URL, signal })
+    : await api.get(`/api/ruc?ruc=${encodeURIComponent(identity.query)}`, { signal, cacheMs: 0, cache: 'no-store' })
+  const admitido = admitRucResponse(respuesta, identity, demo && Boolean(respuesta?.demoFixture))
+  if (!admitido) throw new Error('No se recibieron datos verificables para ese RUC.')
+  return admitido
+}
+
+// Cuentas sin acceso a la consulta (fuera del piloto o sin configurar): el
+// buscador solo prellena el documento, sin avisos.
+export function sinAccesoConsultaRuc(error) {
+  return [401, 403, 404, 503].includes(error?.status)
+}
+
+const useClientLayoutEffect =typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 // El componente compartido dibuja la variante compacta; MobOS conserva la
 // admisión fiscal y el contexto privado de cada consulta. Ninguna respuesta

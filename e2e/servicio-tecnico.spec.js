@@ -85,7 +85,7 @@ test('el checklist se configura por tipo de dispositivo', async ({ page }) => {
   // Cerrar la configuración deja el formulario abierto con el punto nuevo.
   // #315: la inspección es un solo control por punto (botón con su etiqueta);
   // el número del dibujo es decorativo.
-  await config.getByRole('button', { name: 'Cerrar' }).click()
+  await config.locator('[data-accion="secundaria"]').click()
   await expect(config).toHaveCount(0)
   await expect(modal.getByRole('button', { name: punto, exact: true })).toBeVisible({ timeout: 15_000 })
 })

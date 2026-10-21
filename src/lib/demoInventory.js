@@ -90,6 +90,8 @@ function unidad(producto, indice) {
     notes: NOTAS_DEMO[indice] || '',
     createdAt: hace(indice <= ESTADOS.length ? 30 - indice : 30 + indice - ESTADOS.length),
     lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
+    // Inspección del taller: los verificados con grado B quedan «Verificado» en el rack; con grado A y costo, «Listo para vender».
+    ...(indice % 4 === 0 ? { inspection: indice % 8 === 4 ? { puntaje: 82, grado: 'B', bateriaSalud: condicion === 'NEW' ? 100 : 80 + (indice % 16) } : { puntaje: 96, grado: 'A', bateriaSalud: condicion === 'NEW' ? 100 : 80 + (indice % 16) } } : {}),
     // #219: la demo espeja la forma real (`lastVerifiedAt` es lo que leen la
     // fila y la ficha); `verifiedAt` queda por compatibilidad.
     lastVerifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
@@ -125,15 +127,35 @@ function seed() {
     catalogMode: 'apple',
     stock: 0,
   }))
+  const units = Array.from({ length: 62 }, (_, i) => unidad(productos[i % productos.length], i + 1))
+  // Dos equipos dados de baja (recuperables, fuera de los 60 activos) para que «Eliminados» no quede vacío.
+  Object.assign(units[60], { removedAt: hace(4, 12), removedReason: 'Pantalla dañada sin reparación económica' })
+  Object.assign(units[61], { removedAt: hace(9, 16), removedReason: 'Cargado dos veces por error' })
+  const lineasDe = (lista) => [...lista.reduce((mapa, unit) => {
+    const linea = mapa.get(unit.productId) || { id: `demo-linea-${unit.id}`, productId: unit.productId, productName: unit.product?.nombre, quantity: 0, serials: [] }
+    linea.quantity += 1; linea.serials.push(unit.serial)
+    return mapa.set(unit.productId, linea)
+  }, new Map()).values()]
+  const enTransito = units.filter(unit => unit.status === 'IN_TRANSIT')
+  const recibidas = units.filter(unit => unit.branchId === DEMO_BRANCH_2 && unit.status === 'AVAILABLE').slice(0, 2)
+  const traslado = (id, extra, lineas) => ({
+    id, sourceBranchId: DEMO_BRANCH, destinationBranchId: DEMO_BRANCH_2, destinationLocationId: null, notes: '', aexGuide: '',
+    dispatchedById: 'demo-user', dispatchedBy: { id: 'demo-user', name: 'Hernán Acosta' }, receivedById: null, receivedBy: null,
+    publicToken: `demo-remito-${id}`, lines: lineas, ...extra,
+  })
+  const transfers = [
+    ...(enTransito.length ? [traslado('demo-transfer-seed-1', { createdAt: hace(3, 15), eta: hace(-2, 12), notes: 'Reposición de vidriera Villa Morra', aexGuide: 'AEX-004711', receivedAt: null }, lineasDe(enTransito))] : []),
+    ...(recibidas.length ? [traslado('demo-transfer-seed-2', { createdAt: hace(14, 10), eta: hace(12, 12), receivedAt: hace(12, 14), receivedById: 'demo-user-cajera', receivedBy: { id: 'demo-user-cajera', name: 'María Benítez' }, notes: 'Lote semanal para sucursal' }, lineasDe(recibidas))] : []),
+  ]
   return {
     version: 1,
     products: productos,
-    units: Array.from({ length: 60 }, (_, i) => unidad(productos[i % productos.length], i + 1)),
+    units,
     locations: UBICACIONES.map(item => ({ ...item })),
     branches: SUCURSALES.map(item => ({ ...item })),
     suppliers: PROVEEDORES.map(item => ({ ...item })),
     reservations: [],
-    transfers: [],
+    transfers,
   }
 }
 

@@ -92,7 +92,7 @@ test('demo reset discards a created card and restores seeds without real writes'
   await editor.getByTestId('confirmar-cliente').click()
   await expect(page.getByTestId('cliente-elegido')).toContainText('Cliente Reset Demo350')
   await page.getByRole('button', { name: 'Salir de la demo', exact: true }).click()
-  await page.getByRole('dialog', { name: '¿Cerrar sesión?' }).getByRole('button', { name: 'Salir', exact: true }).click()
+  await page.getByRole('alertdialog', { name: '¿Cerrar sesión?' }).getByRole('button', { name: 'Salir', exact: true }).click()
   await expect(page).toHaveURL(/\/login/)
   await page.goto('/demo')
   await page.getByRole('button', { name: 'Entrar como Dueño', exact: true }).click()

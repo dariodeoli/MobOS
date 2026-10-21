@@ -1,5 +1,6 @@
 import Icon from '@/components/shared/Icon'
-import { Aviso, Button, EmptyState, Modal, Skeleton } from '@/components/ui'
+import { Aviso, Button, EmptyState, Skeleton } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 

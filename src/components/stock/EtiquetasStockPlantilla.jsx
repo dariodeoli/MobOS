@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Button, Modal } from '@/components/ui'
+import { Button } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import EtiquetasPlantillaUnidad from '@/components/control/impresion/EtiquetasPlantillaUnidad'
 import EtiquetasPlantillaProducto from '@/components/control/impresion/EtiquetasPlantillaProducto'
 import { itemsEtiquetasStock } from '@/lib/printing/etiquetasStock'

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Aviso, BarraProgreso, Button, ConfirmDialog, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
+import { Aviso, BarraProgreso, Button, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
+import { ConfirmDialog } from '@/components/shared/popupKit'
 import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
 import { formatearCodigo, limpiarCodigo } from '@/lib/codigoSegmentado'
 import Icon from '@/components/shared/Icon'

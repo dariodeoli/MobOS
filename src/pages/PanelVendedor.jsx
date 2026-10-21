@@ -15,7 +15,8 @@ import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import VistaErrorBoundary from '@/components/app/VistaErrorBoundary'
-import { ConfirmDialog, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Select, Skeleton, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
@@ -25,7 +26,7 @@ import { isNativeIOS, moduloDisponible } from '@/lib/plataforma'
 import ProximamenteIOS from '@/components/nativo/ProximamenteIOS'
 import { alPasarASegundoPlano, marcarPinVigente, pinVigente } from '@/lib/nativo/bloqueo'
 import { faceIdAlAbrir, tipoBiometria, verificarBiometria } from '@/lib/nativo/biometria'
-import DemoNoDisponible from '@/components/app/DemoNoDisponible'
+import SeguridadDemo from '@/components/control/config/SeguridadDemo'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import ComandosAtajos from '@/components/control/ComandosAtajos'
 import { usePrefetchSecciones } from '@/hooks/usePrefetchSecciones'
@@ -37,6 +38,11 @@ import ResaltarAjuste from '@/components/control/config/ResaltarAjuste'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { destinoAjuste } from '@/lib/configIndice'
 import { grupoShellDeTab } from '@/components/stock/stockHelpers'
+import '@/components/shared/gestionRediseno.css'
+import '@/components/supply/comprasRediseno.css'
+
+const VISTAS_COMPRAS = new Set(['compras', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion'])
+const VISTAS_GESTION = new Set(['resumen', 'metricas', 'mi-cuenta', 'cotizaciones', 'plantillas', 'promociones', 'precios', 'campanas', 'tradein-admin', 'cotizador', 'celulares', 'comparador', 'centro-control', 'compras', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion'])
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -47,6 +53,7 @@ const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const MiCuenta = lazy(() => import('@/components/cuenta/MiCuenta'))
 const Equipo = lazy(() => import('@/components/control/Equipo'))
+const Ops = lazy(() => import('@/pages/Ops'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
@@ -131,8 +138,8 @@ const SELLER_NAV = [
   },
 ]
 
-// El tablero real (/ops) vive fuera del panel: se ofrece como entrada solo
-// cuando el rollout está activo (`VITE_OPS_V2`, ver lib/flags.js).
+// El tablero real (/ops) se muestra dentro del panel (mismo shell): se ofrece
+// como entrada solo cuando el rollout está activo (`VITE_OPS_V2`, ver lib/flags.js).
 const { opsV2 } = flagsV2({ dev: import.meta.env.DEV, env: import.meta.env })
 
 const OWNER_NAV = [
@@ -285,13 +292,10 @@ const MIGA_SUBPAGINA = {
   configuracion: 'Configuración',
   ayuda: 'Ayuda',
 }
-// Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
-function tabsDeSubpagina(slug, esDemo) {
-  const tabs = SUBPAGINAS[slug]?.tabs || []
-  // Finanzas oculta créditos/cuotas/comisiones en demo (necesitan el API real);
-  // Estado del sistema se muestra con su aviso de "no disponible" (#201).
-  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas' || id === 'comisiones') ? !esDemo : true))
-  return tabs
+// Pestañas de cada subpágina. La demo muestra todas (créditos, cuotas y comisiones
+// salen de los datos ficticios de la pestaña).
+function tabsDeSubpagina(slug) {
+  return SUBPAGINAS[slug]?.tabs || []
 }
 
 // Configuración en siete secciones (#IA): los slugs viejos siguen funcionando
@@ -451,6 +455,8 @@ export default function PanelVendedor() {
   // El slug plano de la URL define la vista (/pos, /pedidos, /trade-in…).
   const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
+  // Rediseño de gestión: estas vistas comparten el lenguaje visual de gestionRediseno.css.
+  const esVistaGestion = subpadre === 'finanzas' || subpadre === 'analisis' || (!subpadre && VISTAS_GESTION.has(vista))
   const tabsConfig = tabsRuta
   // En las subpáginas el título es la pestaña activa (la sección va en la miga).
   // Stock: la pestaña del shell (Unidades · Traslados · Control) es el título.
@@ -503,7 +509,7 @@ export default function PanelVendedor() {
   // Ids visibles en el menú según el rol: deciden qué ítem resalta cuando la
   // vista es una pestaña de sección a la que se entra desde el menú (#251).
   // Campañas de recompra: solo administración/gerencia y solo con datos reales.
-  const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
+  const puedeCampanas = ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const navActual = useMemo(() => {
     const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
     // App de iPhone v1: solo Vender, Pedidos, Clientes y Configuración.
@@ -624,9 +630,6 @@ export default function PanelVendedor() {
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
   function ir(id, opciones = {}) {
-    // El tablero real (/ops) vive fuera del panel, con su propio shell: se
-    // entra con una navegación completa, igual que abriendo la URL directa.
-    if (id === 'ops') { window.location.assign('/ops'); return }
     // Mi cuenta (#253): el dueño la ve como pestaña de Configuración (su lugar
     // en la IA de siete grupos); el resto del equipo entra a la vista personal
     // /mi-cuenta, que no pide permisos de administración.
@@ -960,7 +963,7 @@ export default function PanelVendedor() {
           </div>
         )}
 
-        <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
+        <main data-gestion={esVistaGestion ? '1' : undefined} data-compras={!subpadre && VISTAS_COMPRAS.has(vista) ? '1' : undefined} className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
           <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
           {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (<>
@@ -1024,6 +1027,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}
           {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
+          {esOwner && opsV2 && vista === 'ops' && <Ops embebido />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (
             <div>
@@ -1068,7 +1072,7 @@ export default function PanelVendedor() {
               )}
               {vista === 'seguridad' && (esDemo ? (
                 <div className="space-y-3">
-                  <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
+                  <SeguridadDemo />
                   <Historial />
                 </div>
               ) : (
@@ -1102,7 +1106,7 @@ export default function PanelVendedor() {
       <Modal
         open={cambiarAbierto}
         onClose={() => { if (!cambiando) { setCambiarAbierto(false); setPin(''); setCambioPinInvalido(false) } }}
-        title="Cambiar vendedor" size="corto">
+        title="Cambiar vendedor" size="corto" portal={!locked}>
         <p className="mt-2 text-sm text-mute">
           Elegí quién registra la próxima venta y confirmá su PIN.
         </p>
@@ -1189,6 +1193,7 @@ export default function PanelVendedor() {
 
       <div className={locked && salirAbierto ? 'fixed inset-0 z-[70] bg-paper' : undefined} data-testid={locked && salirAbierto ? 'bloqueo-fondo-opaco' : undefined}>
       <ConfirmDialog
+        portal={!locked}
         open={salirAbierto}
         onCancel={() => setSalirAbierto(false)}
         onConfirm={confirmarSalir}

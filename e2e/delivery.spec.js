@@ -92,7 +92,7 @@ test.describe('delivery', () => {
     await expect(pendiente).toContainText(SEED.repartidor.name)
     await expect(pendiente).toContainText('Gs 1.000')
     await pendiente.getByTestId('rendicion-verificar').click()
-    await tienda.locator('[role="dialog"]').getByRole('button', { name: 'Verificar', exact: true }).click()
+    await tienda.getByRole('alertdialog').getByRole('button', { name: 'Verificar', exact: true }).click()
     await expect(tienda.getByText('Rendición verificada')).toBeVisible()
 
     // El repartidor ve el cobro confirmado y el pedido saldado.

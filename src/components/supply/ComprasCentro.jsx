@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { Badge, Button, Card, EmptyState, Input, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import SearchField from '@/components/shared/SearchField'
 import AttachmentList from '@/components/shared/AttachmentList'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -217,7 +218,7 @@ export default function ComprasCentro() {
         </div>
       )}
 
-      <Modal open={Boolean(agregar)} onClose={() => !busy && setAgregar(null)} title={`Agregar líneas · ${agregar?.code || ''}`} size="amplio">
+      <Popup open={Boolean(agregar)} onClose={() => !busy && setAgregar(null)} title={`Agregar líneas · ${agregar?.code || ''}`} tamano="lg">
         <form onSubmit={guardarLineas} className="space-y-3">
           <p className="text-sm text-mute">
             Reposición libre sobre una compra <b>activa</b>: no crea otra compra y el stock sigue entrando en la recepción.
@@ -251,16 +252,16 @@ export default function ComprasCentro() {
             <Button type="submit" disabled={busy || !linea.productId || Number(linea.quantity) < 1}>{busy ? 'Agregando…' : 'Agregar líneas'}</Button>
           </div>
         </form>
-      </Modal>
+      </Popup>
 
       <ListaCompraModal compra={listaDe} open={Boolean(listaDe)} onClose={() => setListaDe(null)} />
 
-      <Modal open={Boolean(adjuntosDe)} onClose={() => setAdjuntosDe(null)} title={`Adjuntos · ${adjuntosDe?.code || ''}`} size="amplio">
+      <Popup open={Boolean(adjuntosDe)} onClose={() => setAdjuntosDe(null)} title={`Adjuntos · ${adjuntosDe?.code || ''}`} tamano="lg">
         <p className="text-sm text-mute">La factura o los comprobantes de la compra quedan auditados con el documento.</p>
         {adjuntosDe && <AttachmentList entity="SUPPLY_PURCHASE" entityId={adjuntosDe.id} puedeSubir titulo="Factura de la compra" />}
-      </Modal>
+      </Popup>
 
-      <Modal open={Boolean(cancelar)} onClose={() => !busy && setCancelar(null)} title="Cancelar compra" size="corto">
+      <Popup open={Boolean(cancelar)} onClose={() => !busy && setCancelar(null)} title="Cancelar compra" tamano="sm">
         <form onSubmit={cancelarCompra} className="space-y-3">
           <p className="text-sm text-mute">
             {cancelar?.code} · {cancelar?.supplierName}. Las necesidades que cubría vuelven a «Por comprar». Queda auditado quién y por qué.
@@ -274,7 +275,7 @@ export default function ComprasCentro() {
             <Button type="submit" variant="danger" disabled={motivo.trim().length < 3 || busy}>{busy ? 'Cancelando…' : 'Cancelar compra'}</Button>
           </div>
         </form>
-      </Modal>
+      </Popup>
     </div>
   )
 }

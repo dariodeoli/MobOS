@@ -1,10 +1,13 @@
 import './entregasF3.css'
+import '@/components/shared/operacionRediseno.css'
 import DeliveryOperations from './DeliveryOperations'
 import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import Toolbar from '@/components/shared/Toolbar'
 import { api } from '@/lib/api/client'
-import { Aviso, Badge, Button, ConfirmDialog, FormField, Input, Modal, Money, SaveActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { Aviso, Badge, Button, FormField, Input, Money, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import { obligatorio, largoMinimo } from 'owncoding-ui/utils'
 import Icon from '@/components/shared/Icon'
 import ListaDensa from '@/components/shared/ListaDensa'
@@ -73,7 +76,7 @@ function Asignaciones() {
   }
 
   return (
-    <div className="entregas-f3-assignments" role="region" aria-label="Asignación de repartos">
+    <div className="op-rd entregas-f3-assignments" role="region" aria-label="Asignación de repartos">
       <div className="entregas-f3-filters">
         <Tabs
           flat
@@ -281,7 +284,7 @@ function Rendiciones() {
   }
 
   return (
-    <div className="entregas-f3-assignments" role="region" aria-label="Rendiciones de repartidores">
+    <div className="op-rd entregas-f3-assignments" role="region" aria-label="Rendiciones de repartidores">
       <div className="entregas-f3-filters">
         <Tabs flat value={estado} onChange={setEstado} items={[['PENDING', 'Pendientes'], ['VERIFIED', 'Verificadas'], ['REJECTED', 'Rechazadas'], ['', 'Todas']]} />
         <button type="button" onClick={data.refresh} disabled={data.loading} className="entregas-f3-refresh">Actualizar</button>
@@ -325,7 +328,7 @@ function Rendiciones() {
         )}
       />
 
-      <ConfirmDialog
+      <PopupConfirmar
         open={Boolean(confirmar)}
         onCancel={() => setConfirmar(null)}
         onConfirm={() => verificar(confirmar, 'VERIFIED')}
@@ -335,15 +338,22 @@ function Rendiciones() {
         busy={ocupado}
       />
 
-      <Modal open={Boolean(rechazar)} onClose={() => !ocupado && setRechazar(null)} dirty={Boolean(rechazar) && motivo.trim() !== ''} busy={ocupado} title="Rechazar la rendición" size="corto">
+      <Popup
+        open={Boolean(rechazar)}
+        onClose={() => !ocupado && setRechazar(null)}
+        dirty={Boolean(rechazar) && motivo.trim() !== ''}
+        busy={ocupado}
+        title="Rechazar la rendición"
+        acciones={{
+          secundaria: { label: 'Cancelar', disabled: ocupado, cierra: true },
+          primaria: { label: 'Rechazar', disabled: ocupado, onClick: () => { if (validar({ motivo }).valido) verificar(rechazar, 'REJECTED', motivo) }, 'data-testid': 'rendicion-rechazar' },
+        }}
+      >
         <p className="text-sm text-mute">Los cobros quedan sin efecto y el repartidor puede volver a registrarlos.</p>
         <FormField label="Motivo" htmlFor="rendicion-motivo" error={errorDe('motivo')} className="mt-4">
           <Textarea id="rendicion-motivo" rows={3} maxLength={500} value={motivo} onChange={event => { limpiar('motivo'); setMotivo(event.target.value) }} placeholder="Ej.: el efectivo entregado no coincide con lo rendido" />
         </FormField>
-        <SaveActions pendiente={ocupado} className="mt-4">
-          <Button type="button" disabled={ocupado} onClick={() => { if (validar({ motivo }).valido) verificar(rechazar, 'REJECTED', motivo) }} data-testid="rendicion-rechazar">Rechazar</Button>
-        </SaveActions>
-      </Modal>
+      </Popup>
     </div>
   )
 }
@@ -351,7 +361,7 @@ function Rendiciones() {
 export default function StoreDelivery() {
   const [tab, setTab] = useState('repartos')
   return (
-    <section className="space-y-5">
+    <section className="op-rd space-y-5">
       <Toolbar
         plano
         label="Acciones de Entregas"

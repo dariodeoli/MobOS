@@ -8,7 +8,8 @@
 // «Vendidos» y «Eliminados» son opciones de Estado: cambian de vista (pestaña)
 // en vez de filtrar, y el chip las muestra como activas.
 import { useEffect, useId, useRef, useState } from 'react'
-import { Input, Modal, Select } from '@/components/ui'
+import { Input, Select } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { ROTULO_DATO } from '@/components/shared/tabla'

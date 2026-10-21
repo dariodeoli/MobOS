@@ -17,9 +17,9 @@ const demo = await import('./demoInventory.js')
 
 test('el seed demo tiene 60 unidades con seriales ficticios y estados variados', () => {
   const state = demo.demoInventorySeed()
-  assert.equal(state.units.length, 60)
+  assert.equal(state.units.length, 62, '60 activos + 2 bajas de ejemplo')
   assert.ok(state.units.every(unit => /^35\d{13}$/.test(unit.serial)), 'IMEI de aspecto real: 15 dígitos con prefijo 35')
-  assert.equal(new Set(state.units.map(unit => unit.serial)).size, 60, 'IMEI únicos')
+  assert.equal(new Set(state.units.map(unit => unit.serial)).size, 62, 'IMEI únicos')
   const estados = new Set(state.units.map(unit => unit.status))
   for (const esperado of ['AVAILABLE', 'RESERVED', 'SOLD', 'DEFECTIVE', 'IN_TRANSIT']) assert.ok(estados.has(esperado), esperado)
   assert.equal(state.locations.filter(location => location.branchId === demo.DEMO_BRANCH).length, 3)
@@ -28,11 +28,11 @@ test('el seed demo tiene 60 unidades con seriales ficticios y estados variados',
   assert.ok(state.units.some(unit => unit.costCurrency === 'PYG' && unit.costPyg > 0), 'y costos en Gs')
 })
 
-test('listar filtra por búsqueda y la vista de eliminados arranca vacía', () => {
+test('listar filtra por búsqueda y la vista de eliminados arranca con dos bajas de ejemplo', () => {
   assert.equal(demo.listDemoUnits().length, 60)
   const encontradas = demo.listDemoUnits(demo.demoInventorySeed().units[1].serial)
   assert.equal(encontradas.length, 1)
-  assert.equal(demo.listDemoUnits('', 'removed').length, 0)
+  assert.equal(demo.listDemoUnits('', 'removed').length, 2)
 })
 
 test('crear, mover y dar de baja una unidad demo', () => {
@@ -42,7 +42,7 @@ test('crear, mover y dar de baja una unidad demo', () => {
   const movida = demo.updateDemoUnit({ id: creada.id, action: 'move', locationId: 'demo-ubic-deposito-2' })
   assert.equal(movida.locationId, 'demo-ubic-deposito-2')
   demo.updateDemoUnit({ id: creada.id, action: 'remove', reason: 'QA' })
-  assert.equal(demo.listDemoUnits('', 'removed').length, 1)
+  assert.equal(demo.listDemoUnits('', 'removed').length, 3)
   assert.equal(demo.listDemoUnits('AUR9999TEST').length, 0)
 })
 
@@ -111,13 +111,13 @@ test('#350 conserva las identidades y valores de las 24 unidades originales', ()
 test('#350 agrega 36 teléfonos deterministas, disponibles y sin afectar ventas/reservas', () => {
   store.clear()
   const state = demo.demoInventorySeed()
-  const nuevas = state.units.slice(24)
+  const nuevas = state.units.slice(24, 60)
   assert.equal(nuevas.length, 36)
-  assert.equal(new Set(state.units.map(unit => unit.id)).size, 60)
+  assert.equal(new Set(state.units.map(unit => unit.id)).size, 62)
   store.clear()
   assert.deepEqual(state.units.map(identidad), demo.demoInventorySeed().units.map(identidad))
   const conteos = Object.fromEntries(['AVAILABLE', 'RESERVED', 'SOLD', 'DEFECTIVE', 'IN_TRANSIT'].map(status => [status, state.units.filter(unit => unit.status === status).length]))
-  assert.deepEqual(conteos, { AVAILABLE: 51, RESERVED: 3, SOLD: 3, DEFECTIVE: 2, IN_TRANSIT: 1 })
+  assert.deepEqual(conteos, { AVAILABLE: 53, RESERVED: 3, SOLD: 3, DEFECTIVE: 2, IN_TRANSIT: 1 })
   for (const unit of nuevas) {
     assert.equal(unit.status, 'AVAILABLE')
     assert.equal(unit.sale, null)

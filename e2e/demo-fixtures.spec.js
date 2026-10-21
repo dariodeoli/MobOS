@@ -27,7 +27,13 @@ async function entrarComo(page, perfil) {
     } catch { /* sin sessionStorage */ }
   })
   await page.goto('/demo')
-  await page.getByRole('button', { name: new RegExp(`Entrar como ${perfil}`) }).click()
+  // La entrada ofrece Dueño y Vendedor; los demás roles se eligen adentro con «Ver como».
+  const directo = perfil === 'Dueño' || perfil === 'Vendedor'
+  await page.getByRole('button', { name: new RegExp(`Entrar como ${directo ? perfil : 'Dueño'}`) }).click()
+  await cerrarGuiaDemo(page, { timeout: 2500 })
+  if (directo) return
+  await page.getByTestId('demo-perspectivas-toggle').click()
+  await page.getByTestId('demo-ver-como-menu').getByRole('menuitemradio', { name: new RegExp(`^${perfil}`) }).click()
   await cerrarGuiaDemo(page, { timeout: 2500 })
 }
 

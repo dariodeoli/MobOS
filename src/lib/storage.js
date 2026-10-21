@@ -17,6 +17,7 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
+import { adsDemo, gastosDemo, PREFIJO_AD_DEMO, PREFIJO_GASTO_DEMO } from './demo/finanzas.js'
 import { tomarNumeroPedidoDemo, registrarNumerosUsadosDemo } from './demoTenant.js'
 import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo, limpiarMemoriaDemo } from './demoStorage.js'
@@ -899,6 +900,10 @@ export function prepararDatosDemo() {
     const idsVentas = new Set(cache.ventas.map(actual => actual.id))
     cache.ventas = [...ventasDemo.filter(item => !idsVentas.has(item.id)), ...cache.ventas]
   }
+  // Gastos y publicidad con historia de varios meses, siempre relativa a hoy:
+  // se regeneran en cada arranque y no pisan lo que la persona cargue a mano.
+  cache.gastos = [...gastosDemo(), ...cache.gastos.filter(item => !String(item.id || '').startsWith(PREFIJO_GASTO_DEMO))]
+  cache.ads = [...adsDemo(), ...cache.ads.filter(item => !String(item.id || '').startsWith(PREFIJO_AD_DEMO))]
   // #404: fotos de muestra y categorías de accesorio (idempotente, no depende de la versión).
   cache.productos = conFotosDemo(cache.productos, (id, nombre, categoria, precioVenta, precioCosto, stock) => ({ ...producto(id, nombre, categoria, precioVenta, precioCosto, stock, {}), branchId: 'mobos-demo-central', precioMayorista: Math.round(precioVenta * 0.93) }))
   cache.config = {
@@ -1084,6 +1089,13 @@ export function moverStock(productoId, delta) {
 // ── GASTOS ──────────────────────────────────────────────────────────
 export function listGastos() {
   return cache.gastos
+}
+export function updateGasto(id, cambios) {
+  const actual = cache.gastos.find(item => item.id === id)
+  if (!actual) return null
+  const siguiente = { ...actual, ...cambios }
+  entUpsert('gastos', siguiente)
+  return siguiente
 }
 export function addGasto(gasto) {
   const nuevo = {

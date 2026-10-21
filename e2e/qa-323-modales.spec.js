@@ -5,6 +5,7 @@
 //   MOBOS_CAPTURAS=docs/QA-323-modales npx playwright test e2e/qa-323-modales.spec.js -g capturas
 import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
+import { esperarAnimaciones } from './helpers/animaciones.js'
 import { SEED } from './helpers/seed-data.js'
 
 async function abrirEtiquetas(page) {
@@ -24,8 +25,9 @@ test.describe('modal estándar (#323)', () => {
     await page.setViewportSize({ width: 390, height: 700 })
     const modal = await abrirEtiquetas(page)
 
+    await esperarAnimaciones(page) // la hoja móvil termina de subir antes de medir
     // El panel es una columna: header, cuerpo con scroll propio y pie.
-    const cuerpo = modal.locator(':scope > div').nth(1)
+    const cuerpo = modal.locator(':scope > div').nth(2) // asa móvil, encabezado y cuerpo del Popup
     expect(await cuerpo.evaluate((el) => getComputedStyle(el).overflowY)).toBe('auto')
 
     // La acción primaria del pie se ve sin scrollear (no se va con el cuerpo).
@@ -76,7 +78,7 @@ test.describe('modal estándar (#323)', () => {
     })
     await expect(modal.getByText(/Zoom · 2\.5×/)).toBeVisible()
     await modal.getByRole('button', { name: 'Cerrar' }).click()
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Seguir editando' }).click()
     await expect(confirmacion).toHaveCount(0)

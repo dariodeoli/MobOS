@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Select, Modal, ConfirmDialog } from '@/components/ui'
+import { Button, Card, Select } from '@/components/ui'
+import { Modal, ConfirmDialog } from '@/components/shared/popupKit'
 import usePlantillasEmpresa from './impresion/usePlantillasEmpresa'
 import EditorPlantilla from './impresion/EditorPlantilla'
 import VistaPlantilla from './impresion/VistaPlantilla'

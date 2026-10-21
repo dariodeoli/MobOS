@@ -532,7 +532,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     for (const [action, title] of [['Cambiar de usuario', 'Cambiar vendedor'], ['Cerrar sesión', '¿Cerrar sesión?']]) {
       await pin.getByRole('button', { name: action, exact: true }).click()
       const cover = page.getByTestId('bloqueo-fondo-opaco')
-      const dialog = cover.getByRole('dialog', { name: title, exact: true })
+      const dialog = cover.getByRole(title === 'Cambiar vendedor' ? 'dialog' : 'alertdialog', { name: title, exact: true })
       await expect(dialog).toBeVisible()
       await expect(pin).toHaveCount(0)
       const protection = await cover.evaluate(el => {
@@ -547,7 +547,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
       await expect(cover).toHaveCount(0)
     }
     await pin.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
-    await page.getByRole('dialog', { name: '¿Cerrar sesión?', exact: true }).getByRole('button', { name: 'Salir', exact: true }).click()
+    await page.getByRole('alertdialog', { name: '¿Cerrar sesión?', exact: true }).getByRole('button', { name: 'Salir', exact: true }).click()
     await expect(page.getByTestId('shell')).toHaveCount(0)
   })
 }

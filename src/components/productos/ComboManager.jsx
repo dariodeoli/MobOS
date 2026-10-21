@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Aviso, Badge, Button, Input, Modal, MoneyInput, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Input, MoneyInput, useToast } from '@/components/ui'
+import { Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import { resources } from '@/lib/api'

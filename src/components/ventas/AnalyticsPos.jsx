@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Aviso, BarraProgreso, Button, Modal, Skeleton } from '@/components/ui'
+import { Aviso, BarraProgreso, Button, Skeleton } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
@@ -47,7 +48,7 @@ function Lista({ titulo, filas, valorDe, etiquetaDe }) {
       <h3 className={ROTULO_SECCION}>{titulo}</h3>
       <div className="mt-2 space-y-1.5">
         {filas.map((fila) => (
-          <div key={fila.clave}>
+          <div key={fila.clave ?? fila.id}>
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="min-w-0 truncate text-fore">{etiquetaDe(fila)}</span>
               <span className="shrink-0 tabular-nums text-mute">{gs(valorDe(fila))}</span>
@@ -202,5 +203,5 @@ export default function AnalyticsPos({ open = true, onClose, inline = false }) {
   )
   return inline
     ? <section aria-label="Ventas del día" data-testid="ventas-del-dia">{contenido}</section>
-    : <Modal open={open} onClose={onClose} title="Ventas del día" size="amplio">{contenido}</Modal>
+    : <Popup open={open} onClose={onClose} title="Ventas del día" tamano="lg">{contenido}</Popup>
 }

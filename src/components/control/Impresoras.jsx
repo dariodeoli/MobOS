@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, MenuDesplegable, Modal, Nota, SaveActions, Select, Skeleton, useResultado, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, FormField, Input, MenuDesplegable, Nota, Select, Skeleton, useResultado, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal, SaveActions } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'

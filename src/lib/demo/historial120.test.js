@@ -53,7 +53,8 @@ test('#451 · ritmo semanal y de quincena: viernes/sábado venden más que lunes
 test('#451 · total = líneas + delivery y cobrado + saldo = total (sin sobrepagos)', () => {
   for (const venta of ventasDemoLegacy()) {
     assert.equal(venta.totalPyg, venta.precio + venta.montoDelivery, `${venta.id}: total`)
-    assert.equal(venta.totalPagado + venta.totalPendiente, venta.totalPyg, `${venta.id}: pagos + saldo = total`)
+    // Un pedido anulado no queda debiendo nada (saldo 0 aunque no se haya cobrado).
+    if (venta.status !== 'CANCELLED') assert.equal(venta.totalPagado + venta.totalPendiente, venta.totalPyg, `${venta.id}: pagos + saldo = total`)
     assert.ok(venta.totalPagado <= venta.totalPyg, `${venta.id}: sin sobrepago`)
     assert.ok(venta.totalPendiente >= 0)
     for (const item of venta.items) assert.equal(item.totalPyg, item.quantity * item.unitPricePyg, `${venta.id}: cantidad × precio`)

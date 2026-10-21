@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Aviso, Badge, Button, Modal, Money, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Money, Textarea, useToast } from '@/components/ui'
+import Popup from '@/components/shared/Popup'
+import '@/components/shared/operacionRediseno.css'
 import Icon from '@/components/shared/Icon'
 import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
@@ -76,7 +78,7 @@ export default function DriverSettlements() {
   }
 
   return (
-    <div className="entregas-f3-assignments">
+    <div className="op-rd entregas-f3-assignments">
       <section className="entregas-f3-order entregas-f3-summary" aria-label="Para rendir en la tienda">
         <p className="entregas-f3-meta">Para rendir en la tienda</p>
         <p className="entregas-f3-total" data-testid="rendicion-total"><Money value={totalPorRendir} /></p>
@@ -100,7 +102,16 @@ export default function DriverSettlements() {
         />
       </div>
 
-      <Modal open={abierto} onClose={() => !enviando && setAbierto(false)} title="Rendir lo cobrado" size="formulario">
+      <Popup
+        open={abierto}
+        onClose={() => !enviando && setAbierto(false)}
+        busy={enviando}
+        title="Rendir lo cobrado"
+        acciones={{
+          secundaria: { label: 'Cancelar', disabled: enviando, onClick: () => setAbierto(false) },
+          primaria: { label: enviando ? 'Registrando…' : 'Rendir', disabled: enviando, onClick: rendir, 'data-testid': 'rendir-confirmar' },
+        }}
+      >
         <div className="space-y-3">
           <p className="text-sm text-mute">Entregás en la tienda estos cobros de la calle. La tienda los verifica y recién ahí quedan confirmados.</p>
           <ul className="max-h-64 space-y-2 overflow-auto rounded-xl border border-fore/10 bg-ink-700/30 p-3">
@@ -118,12 +129,8 @@ export default function DriverSettlements() {
             <Textarea id="rendicion-nota" className="mt-2" rows={2} maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Ej.: dos transferencias quedaron acreditadas al mediodía" />
           </div>
           {error && <Aviso tono="error">{error}</Aviso>}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" disabled={enviando} onClick={() => setAbierto(false)}>Cancelar</Button>
-            <Button type="button" disabled={enviando} onClick={rendir} data-testid="rendir-confirmar">{enviando ? 'Registrando…' : 'Rendir'}</Button>
-          </div>
         </div>
-      </Modal>
+      </Popup>
     </div>
   )
 }

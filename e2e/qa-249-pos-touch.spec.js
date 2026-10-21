@@ -73,7 +73,7 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   // #429: un equipo sin IMEI frena el cobro del celular («Elegir unidad»): se quita la línea
   // y el formulario completo de pagos se abre desde «Otros medios y entrega».
   await filaIphone.getByRole('button', { name: `Eliminar ${SEED.products.iphone.name}` }).click()
-  const quitar = page.getByRole('dialog', { name: '¿Eliminar la línea?' })
+  const quitar = page.getByRole('alertdialog', { name: '¿Eliminar la línea?' })
   if (await quitar.isVisible().catch(() => false)) await quitar.getByRole('button', { name: 'Eliminar línea' }).click()
   await page.getByTestId('carrito-cobrar').click()
   await page.getByTestId('medio-otros').click()

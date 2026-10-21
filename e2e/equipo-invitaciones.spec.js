@@ -95,7 +95,7 @@ test.describe('invitaciones en Configuración → Equipo', () => {
     await panel.getByRole('button', { name: 'Enviar invitación' }).click()
     await expect(panel.getByText(`Ya existe una invitación activa para ${conflicto}.`)).toBeVisible()
     await panel.getByRole('button', { name: 'Revocar invitación' }).click()
-    await page.getByRole('dialog', { name: '¿Revocar invitación?' }).getByRole('button', { name: 'Revocar invitación' }).click()
+    await page.getByRole('alertdialog', { name: '¿Revocar invitación?' }).getByRole('button', { name: 'Revocar invitación' }).click()
     await expect(page.getByText('Invitación revocada.')).toBeVisible()
     await expect(fila(page, conflicto).getByText('Revocada', { exact: true })).toBeVisible()
   })

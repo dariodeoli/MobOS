@@ -18,6 +18,7 @@ import useValidacionFormulario from '@/hooks/useValidacionFormulario'
 import { ETIQUETAS_TRANSFERENCIA, conteoAplicable, reglasTransferencia, valoresTransferencia } from '@/lib/validacionGlobal'
 import { api, apiFetch } from '@/lib/api/client'
 import { demoAutorizacionesStock } from '@/lib/autorizacionesStock'
+import { demoStockAlerts } from '@/lib/demoInventory'
 import { resources } from '@/lib/api'
 import { cotizacionReferencia } from '@/lib/fx'
 import { suppliersApi } from '@/lib/api/suppliers'
@@ -231,10 +232,10 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (sucursal?.id) params.set('branchId', sucursal.id)
     const query = params.toString() ? `?${params}` : ''
     try {
-      const payload = await api.get(`/api/stock-alerts${query}`)
+      const payload = esDemo ? demoStockAlerts(getProductos()) : await api.get(`/api/stock-alerts${query}`)
       setStockAlerts(payload || { alerts: [], outOfStock: [] })
     } catch (cause) { setAlertsError(cause?.message || 'No se pudieron cargar las alertas.') } finally { setAlertsLoading(false) }
-  }, [inventarioOperativo, canViewAlerts, sucursal?.id])
+  }, [inventarioOperativo, canViewAlerts, sucursal?.id, esDemo])
   // #331: bandeja de autorizaciones de stock. Solo la carga quien puede
   // resolverlas (dueño/gerencia); el contador de Control y de la pestaña sale
   // de estas filas. La resolución no cambia la semántica: la aprobada se

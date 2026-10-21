@@ -50,7 +50,7 @@ test.describe('Seguridad de la cuenta', () => {
     await page.getByLabel('Motivo de archivado').fill('Prueba e2e de la pantalla de seguridad')
     await expect(archivar).toBeEnabled()
     await archivar.click()
-    const dialogoArchivar = page.getByRole('dialog', { name: '¿Archivar esta empresa?' })
+    const dialogoArchivar = page.getByRole('alertdialog', { name: '¿Archivar esta empresa?' })
     await expect(dialogoArchivar).toContainText('30 días')
     await expect(dialogoArchivar).toContainText('se conservan')
     await dialogoArchivar.getByRole('button', { name: 'Cancelar' }).click()
@@ -69,7 +69,7 @@ test.describe('Seguridad de la cuenta', () => {
     await dialogoEliminar.getByRole('button', { name: 'Cancelar' }).click()
     // #323: con la palabra y la clave escritas, el cierre pide confirmar el
     // descarte antes de cerrar.
-    const descartarEliminar = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const descartarEliminar = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     if (await descartarEliminar.count()) await descartarEliminar.getByRole('button', { name: 'Descartar y cerrar' }).click()
     await expect(dialogoEliminar).toBeHidden()
   })

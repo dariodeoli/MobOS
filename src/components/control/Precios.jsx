@@ -4,7 +4,9 @@ import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { num } from '@/utils/calculos'
 import { obligatorio } from 'owncoding-ui/utils'
-import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, Modal, MoneyInput, SaveActions, Select, useResultado, useToast, useValidacionCampos } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, MoneyInput, Select, useResultado, useToast, useValidacionCampos } from '@/components/ui'
+import { FormActions } from '@/components/shared/popupKit'
+import Popup from '@/components/shared/Popup'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -298,13 +300,13 @@ export default function Precios() {
     </Card>
     </div>
 
-    <Modal
+    <Popup
       open={editor !== null}
       onClose={() => setEditor(null)}
       dirty={editorDirty}
       busy={busy}
       title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'}
-      size="amplio"
+      tamano="lg"
     >
       {editor && <form onSubmit={guardarLista} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
@@ -341,15 +343,16 @@ export default function Precios() {
           <Button type="button" variant="outline" onClick={() => { limpiar(); setEditor(current => ({ ...current, items: [...current.items, itemVacio()] })) }}>+ Ítem</Button>
         </div>
         {errorLista && <Aviso tono="error">{errorLista}</Aviso>}
-        <SaveActions pendiente={busy}>
+        <FormActions>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Cancelar</Button>
           <Button type="submit" disabled={busy || !editor.name.trim()}>{busy ? 'Guardando…' : 'Guardar lista'}</Button>
-        </SaveActions>
+        </FormActions>
       </form>}
-    </Modal>
+    </Popup>
 
-    <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} size="corto">
+    <Popup open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} tamano="sm">
       <p className="text-sm text-mute">Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría.</p>
       <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setABorrar(null)} disabled={busy}>Cancelar</Button><Button type="button" className="border-bad/50 bg-bad/10 text-bad" onClick={borrarLista} disabled={busy}>{busy ? 'Eliminando…' : 'Eliminar lista'}</Button></div>
-    </Modal>
+    </Popup>
   </div>
 }

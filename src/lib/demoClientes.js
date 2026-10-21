@@ -271,6 +271,7 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
   // Un mayorista con RUC no está exento: el flag se pasa explícito (el seed de
   // Carlos es el caso exento). Antes se marcaba exento a todo mayorista.
   taxExempt: opciones.exento === true,
+  acceptsWhatsappMarketing: opciones.consentimiento !== false,
   tags: opciones.tags || [],
   pricingTier: opciones.tier || 'RETAIL',
   creditLimitPyg: opciones.credito || 0,
@@ -316,6 +317,20 @@ SEED_DEMO_CLIENTES.push(
   clienteExtra('demo-cliente-derlis', 'Derlis Giménez', '3.665.432', '0972300888', 'Itauguá', { tags: ['ocasional'], credito: 500000, dias: 7 }),
   clienteExtra('demo-cliente-mirta', 'Mirta Samaniego', '2.456.789', '0987300999', 'Villa Elisa', { tags: ['nuevo'] }),
   clienteExtra('demo-cliente-lorena', 'Lorena Servín', '5.112.667', '0974300123', 'Ñemby', { tags: ['frecuente'] }),
+  // Cartera dormida: alimenta las Campañas de recompra (inactivos y mayoristas
+  // dormidos). Las fechas son relativas a «hoy» y no envejecen.
+  clienteExtra('demo-cliente-rosana', 'Rosana Viveros', '3.445.120', '0981400111', 'Asunción', { tags: ['recompra'], pedidos: [
+    pedido({ id: 'demo-rosana-p-1', numero: 'MOB-0211', total: 2750000, dias: 232, entrega: 'RETIRO', pagos: [{ amountPyg: 2750000, method: 'CASH' }], items: [{ id: 'demo-rosana-i-1', description: 'iPhone 12 · 256 GB', quantity: 1, model: 'iPhone 12', category: 'Celulares', serials: [AUR_SERIALES[2]] }] }),
+  ] }),
+  clienteExtra('demo-cliente-cristian', 'Cristian Ayala', '4.001.778', '0972400222', 'Luque', { tags: ['recompra'], pedidos: [
+    pedido({ id: 'demo-cristian-p-1', numero: 'MOB-0160', total: 1850000, dias: 318, entrega: 'RETIRO', pagos: [{ amountPyg: 1850000, method: 'TRANSFER' }], items: [{ id: 'demo-cristian-i-1', description: 'AirPods Pro 2 USB-C', quantity: 1, model: 'AirPods Pro 2', category: 'Audio', serials: [] }] }),
+  ] }),
+  clienteExtra('demo-cliente-celulares-este', 'Celulares del Este S.R.L.', '80055512-3', '0983400333', 'Ciudad del Este', { tags: ['volumen'], tier: 'WHOLESALE', credito: 6000000, dias: 30, facturaA: 'Celulares del Este S.R.L.', facturaDoc: '80055512-3', pedidos: [
+    pedido({ id: 'demo-este-p-1', numero: 'MOB-0240', total: 18400000, dias: 128, entrega: 'DELIVERY', pagos: [{ amountPyg: 10000000, method: 'TRANSFER' }, { amountPyg: 8400000, method: 'CASH' }], items: [{ id: 'demo-este-i-1', description: 'iPhone 13 · 128 GB', quantity: 6, model: 'iPhone 13', category: 'Celulares', serials: [] }] }),
+  ] }),
+  clienteExtra('demo-cliente-import-tech', 'Import Tech Paraguay S.A.', '80061234-5', '0984400444', 'San Lorenzo', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 12000000, dias: 30, facturaA: 'Import Tech Paraguay S.A.', facturaDoc: '80061234-5', pedidos: [
+    pedido({ id: 'demo-import-p-1', numero: 'MOB-0233', total: 24500000, dias: 166, entrega: 'DELIVERY', pagos: [{ amountPyg: 24500000, method: 'TRANSFER' }], items: [{ id: 'demo-import-i-1', description: 'iPhone 14 · 128 GB', quantity: 7, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
+  ] }),
 )
 
 
@@ -723,12 +738,15 @@ export function demoVitrinaPayload(token) {
     nivel,
     tienda: { nombre: 'Aurora Móviles', tieneLogo: false },
     cliente: { nombre: cliente.name, ...(cliente.publicNote ? { notaPublica: cliente.publicNote } : {}) },
-    saldoFavorPyg: 0,
-    puntosPyg: 0,
+    saldoFavorPyg: Number(cliente.saldoFavorPyg || 0),
+    puntosPyg: Number(cliente.puntosPyg || 0),
     // Seguimiento de la entrega (#240 → portal): los pasos del método, igual
     // que la cuenta completa.
     pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: order.fulfillmentStatus || 'DELIVERED', tracking: trackingDemo(order), totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
-    garantias: [],
+    // Garantías activas solo en el nivel completo (como el portal real).
+    garantias: nivel === 'completo'
+      ? (cliente.demoProfile?.warranties || []).map((garantia) => ({ producto: garantia.description, estado: garantia.status, serial: garantia.serial, venceAt: garantia.expiresAt || null }))
+      : [],
   }
 }
 

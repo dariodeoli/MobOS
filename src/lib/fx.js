@@ -3,6 +3,10 @@
 // caché corto por pestaña y SIEMPRE queda editable a mano: si el servicio no
 // responde, devuelve null y la persona la carga ella.
 import { api } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
+
+// Demo: cotización ficticia fija (sin servicio externo).
+const FX_DEMO = { rate: 7300, source: 'demo', sourceLabel: 'Cotización de ejemplo (demo)', side: 'venta', updatedAt: null, fetchedAt: null, stale: false }
 
 const TTL_MS = 5 * 60 * 1000
 const cache = new Map()
@@ -28,6 +32,7 @@ function normalizar(data) {
  * `forzar` se salta el caché de la pestaña (botón «actualizar»).
  */
 export async function cotizacionFx({ purpose = 'sales', currency = 'USD', forzar = false } = {}) {
+  if (isDemoRuntime) return currency === 'USD' || currency === 'BRL' ? { ...FX_DEMO, rate: currency === 'BRL' ? 1400 : FX_DEMO.rate } : null
   const clave = `${purpose}:${currency}`
   const hit = cache.get(clave)
   if (!forzar && hit && Date.now() - hit.at < TTL_MS) return hit.info

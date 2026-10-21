@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { KeyRound, ShieldCheck } from 'lucide-react'
+import { ChevronDown, KeyRound, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
 import PinPad from '@/components/shared/PinPad'
 import { PERFILES_DEMO, perfilDemoPorPin } from '@/lib/demo/equipo.js'
 import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 
-// #324: la entrada cubre los seis roles ficticios; cada cápsula muestra la
-// persona del equipo demo que va a quedar en la sesión (misma fuente que Equipo).
-const demoProfiles = PERFILES_DEMO
+// La entrada ofrece Dueño y Vendedor; el resto de roles (PERFILES_DEMO) se
+// cambia dentro con «Ver como». Cada tarjeta muestra la persona del equipo demo.
+const demoProfiles = PERFILES_DEMO.filter((p) => p.rol === 'ADMIN' || p.rol === 'VENDEDOR')
 
 export default function DemoAccess() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pinAbierto, setPinAbierto] = useState(false)
   const checking = useRef(false)
   const { entrarDemo, estado } = useSesion()
   const navigate = useNavigate()
@@ -75,10 +76,10 @@ export default function DemoAccess() {
         <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Elegí un perfil y entrá</h1>
         <p className="mb-3 text-xs leading-5 text-mute sm:mb-4 sm:text-sm">Todo queda guardado solo en este navegador.</p>
 
-        {/* #328: cápsulas compactas en grilla (2 en móvil, 3 en escritorio) para
-            que la pantalla entre sin scroll en 390×844; el botón completo es el
-            target (≥44px) y el nombre accesible sigue siendo «Entrar como <Rol>». */}
-        <div className="-mx-1 flex w-full min-w-0 snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0" data-testid="demo-perfiles">
+        {/* Modo demo: la entrada ofrece SOLO Dueño y Vendedor, grandes y de un
+            toque. Los demás roles se eligen adentro con «Ver como» (sin volver
+            acá) o con el teclado de PIN, plegado debajo. */}
+        <div className="grid w-full min-w-0 gap-2.5 sm:grid-cols-2" data-testid="demo-perfiles">
           {demoProfiles.map((profile) => (
             <button
               type="button"
@@ -87,34 +88,42 @@ export default function DemoAccess() {
               onClick={() => abrirPerfil(profile)}
               aria-label={`Entrar como ${profile.nombre}`}
               title={`${profile.description} ${profile.permissions}`}
-              className="min-h-11 shrink-0 snap-start rounded-xl border bg-paper/70 p-2.5 text-left sm:shrink transition hover:border-fono-dark/60 hover:bg-fono-dark/5 [border-color:var(--landing-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
+              className="min-h-[88px] min-w-0 rounded-2xl border bg-paper/70 p-4 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 [border-color:var(--landing-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
             >
-              <span className="flex items-center justify-between gap-1">
-                <span className="truncate text-sm font-bold leading-5 text-fore">{profile.nombre}</span>
-                <span className="shrink-0 rounded-md bg-fono-dark/10 px-1.5 py-px font-mono text-xs font-bold tracking-widest text-fore">{profile.pin}</span>
-              </span>
-              <span className="mt-0.5 hidden text-xs font-medium leading-4 text-mute sm:block">{profile.description}</span>
-              <span className="hidden truncate text-xs leading-4 text-mute sm:block">{profile.persona}</span>
+              <span className="block text-lg font-bold leading-6 text-fore">{profile.nombre}</span>
+              <span className="mt-0.5 block text-sm font-medium leading-5 text-mute">{profile.description}</span>
+              <span className="block truncate text-xs leading-4 text-mute">{profile.persona}</span>
             </button>
           ))}
         </div>
 
-        {/* Ingresar otro PIN: siempre visible, sin colapsar (#235). */}
-        <div className="mt-3 rounded-xl border bg-paper/50 px-3 py-2 [border-color:var(--landing-line)]">
-          <label htmlFor="demo-pin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-mute">
-            <KeyRound size={13} className="text-fono-dark" /> Ingresar otro PIN
-          </label>
-          <PinPad
-            id="demo-pin"
-            discreto
-            disabled={busy}
-            value={pin}
-            onChange={(next) => { setError(''); setPin(next) }}
-            className="mt-2" invalido={Boolean(error)}
-            ariaLabel="Ingresar otro PIN"
-          />
-          <p id="demo-pin-status" role="status" className={`mt-1.5 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
-            {busy ? <><span aria-hidden="true" className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px] motion-reduce:animate-none" />Abriendo tu tienda demo…</> : error || 'Elegí una cápsula o ingresá el PIN de 4 dígitos.'}
+        {/* Ingresar otro PIN: plegado; el teclado grande aparece al tocarlo. */}
+        <div className="mt-3 rounded-xl border bg-paper/50 px-3 [border-color:var(--landing-line)]">
+          <button
+            type="button"
+            data-testid="demo-pin-toggle"
+            aria-expanded={pinAbierto}
+            aria-controls="demo-pin-panel"
+            onClick={() => setPinAbierto((v) => !v)}
+            className="flex min-h-11 w-full items-center justify-between gap-2 text-sm font-semibold text-fore focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark"
+          >
+            <span className="inline-flex items-center gap-1.5"><KeyRound size={15} className="text-fono-dark" /> Ingresar otro PIN</span>
+            <ChevronDown size={16} aria-hidden="true" className={pinAbierto ? 'rotate-180 transition' : 'transition'} />
+          </button>
+          <div id="demo-pin-panel" hidden={!pinAbierto} className="pb-2">
+            <label htmlFor="demo-pin" className="sr-only">Ingresar otro PIN</label>
+            <PinPad
+              id="demo-pin"
+              discreto
+              disabled={busy}
+              value={pin}
+              onChange={(next) => { setError(''); setPin(next) }}
+              className="mt-1" invalido={Boolean(error)}
+              ariaLabel="Ingresar otro PIN"
+            />
+          </div>
+          <p id="demo-pin-status" role="status" className={`min-h-4 pb-2 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
+            {busy ? <><span aria-hidden="true" className="mr-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px] motion-reduce:animate-none" />Abriendo tu tienda demo…</> : error || 'Los demás roles se eligen adentro con «Ver como».'}
           </p>
         </div>
 

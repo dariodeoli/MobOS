@@ -37,7 +37,7 @@ async function crearSolicitud(page, nombreCliente) {
 
 async function cerrarConDescarte(page, dialogo) {
   await page.keyboard.press('Escape')
-  const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+  const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
   await expect(confirmacion).toBeVisible()
   await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
   await expect(dialogo).toHaveCount(0)
@@ -64,7 +64,7 @@ test.describe('modal estándar en CRM (#323)', () => {
 
     // Cerrar con datos cargados pide confirmación en vez de descartarlos.
     await page.keyboard.press('Escape')
-    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    const confirmacion = page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })
     await expect(confirmacion).toBeVisible()
     await confirmacion.getByRole('button', { name: 'Seguir editando' }).click()
     await expect(modal).toBeVisible()
