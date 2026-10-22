@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { openShellDestination } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Unit 2C (Ventas e Inicio): QA-A on Inicio, /ops, Pedidos, Cotizaciones,
 // Clientes, Entregas and Taller at 375/768/1280/1440, light and dark. Demo
@@ -27,7 +28,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 

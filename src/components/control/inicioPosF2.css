@@ -231,15 +231,20 @@
 
 /* Mismo patrón de encabezado en tarjetas de Inicio, Análisis y Finanzas. */
 .shell-nav-v2 .graf-card > header,
-.shell-nav-v2 .inicio-f2 .rounded-xl.border > div:first-child:has(h2) {
+.shell-nav-v2 .inicio-f2 .rounded-xl.border:not(.p-0) > div:first-child:has(h2) {
   margin: -16px -16px 0;
   padding: 10px 16px;
   background: rgb(var(--c-ink-700));
   border-bottom: 1px solid rgb(var(--c-ink-600));
   border-radius: 9px 9px 0 0;
 }
-.shell-nav-v2 .inicio-f2 .rounded-xl.border > div:first-child:has(h2) {
+.shell-nav-v2 .inicio-f2 .rounded-xl.border:not(.p-0) > div:first-child:has(h2) {
   margin-bottom: 12px;
+}
+/* Tarjeta sin padding (p-0, como «Detalle de ventas»): el encabezado ya está al
+   borde; el margen negativo lo sacaba de la tarjeta y overflow-hidden lo cortaba. */
+.shell-nav-v2 .inicio-f2 .rounded-xl.border.p-0 > div:first-child:has(h2) {
+  background: rgb(var(--c-ink-700));
 }
 .shell-nav-v2 .inicio-kpi-stripe {
   border-top: 3px solid rgb(var(--c-fono));

@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { clickShellTab, openShellDestination } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Shell redesign (unit 1A): QA-A measured on the demo (frontend-only, no
 // backend) for owner, seller, technician and delivery in light and dark.
@@ -33,7 +35,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
@@ -51,6 +53,9 @@ async function setTheme(page, dark) {
 
 async function settle(page) {
   await expect(page.locator('main[aria-busy="true"]')).toHaveCount(0)
+  // La hoja «Más» se cierra con una animación de salida: medir cuando ya no está.
+  await expect(page.getByTestId('shell-mas-hoja')).toHaveCount(0)
+  await esperarAnimaciones(page)
   await expect(page.locator('main').first()).toContainText(/\S/)
   await page.waitForTimeout(150)
 }
@@ -296,6 +301,7 @@ for (const dark of [false, true]) {
         await page.getByTestId('shell-mas').click()
         await expect(page.getByTestId('shell-mas-hoja').getByText('Notificaciones')).toHaveCount(0)
         await page.keyboard.press('Escape')
+        await expect(page.getByTestId('shell-mas-hoja')).toHaveCount(0)
       } else {
         const side = page.getByTestId('shell-lateral')
         await expect(side.getByText('Notificaciones')).toHaveCount(0)
@@ -351,6 +357,7 @@ for (const dark of [false, true]) {
       await page.keyboard.press('Escape')
       await expect(bell).toHaveAttribute('aria-expanded', 'false')
       await expect(page.getByTestId('notificaciones-panel')).toHaveCount(0)
+      await esperarAnimaciones(page)
       const m = await expectLayoutContract(page, `header ${width} ${dark ? 'dark' : 'light'}`)
       for (const kind of ['small', 'lowContrast'])
         for (const item of m[kind].filter(entry => entry.shell))
@@ -395,7 +402,8 @@ for (const dark of [false, true]) {
         expect(b.width, `${nombre} ancho`).toBeGreaterThanOrEqual(44)
         expect(b.height, `${nombre} alto`).toBeGreaterThanOrEqual(44)
         expect(b.x + b.width, `${nombre} dentro de la columna`).toBeLessThanOrEqual(box.x + box.width + 0.5)
-        expect(await boton.innerText(), `${nombre} sin texto visible`).toBe('')
+        // Sin rótulo: solo puede quedar la insignia numérica (Pedidos pendientes).
+        expect((await boton.innerText()).trim(), `${nombre} sin texto visible`).toMatch(/^\d*$/)
       }
       const sinTitle = await side.locator('[data-testid^="shell-pie-"], nav button').evaluateAll(els => els.filter(el => !el.getAttribute('title')).length)
       expect(sinTitle, 'tooltips en secciones y pie').toBe(0)

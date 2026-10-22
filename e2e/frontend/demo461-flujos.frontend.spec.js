@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { openShellDestination, selectFinanceSection, selectAnalysisSection } from '../helpers/shell-navigation.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 const gs = n => new Intl.NumberFormat('es-PY').format(n)
 async function enter(page, role = 'Dueño') {
   const api = []
@@ -14,7 +15,7 @@ async function enter(page, role = 'Dueño') {
   })
   await page.addInitScript(() => { sessionStorage.setItem('mobos:demo-guia-vista', '1'); localStorage.setItem('mobos:aviso-metricas', '1') })
   await page.goto('/demo')
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
   await openShellDestination(page, 'Inicio')
   await expect.poll(() => page.evaluate(async () => (await import('/src/lib/storage.js')).listVentas().length)).toBeGreaterThan(15)

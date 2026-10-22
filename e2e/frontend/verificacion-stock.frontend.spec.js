@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination } from '../helpers/shell-navigation.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Verificación de stock («¿está físicamente?») · Stock › Control › Verificación.
 // Demo frontend-only: el inventario y las sesiones salen del store demo.
@@ -15,7 +16,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 

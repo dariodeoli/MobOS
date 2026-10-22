@@ -9,6 +9,7 @@ import {
 } from '../helpers/shell-navigation.js'
 import { ensureCobro } from '../helpers/ensure-cobro.js'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 const output = '/tmp/mobos-nav-v2-qa'
 const widths = [320, 360, 390, 430, 1440]
@@ -27,7 +28,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
