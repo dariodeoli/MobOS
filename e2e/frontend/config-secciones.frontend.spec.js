@@ -36,9 +36,9 @@ test('Datos generales: filas, ventana de contacto y formato del ID de pedido con
   // Valores predeterminados de Paraguay.
   await expect(general).toContainText('PYG ₲')
   await expect(general).toContainText('America/Asuncion')
-  // Columna de lectura de ~960 px, con las tarjetas dentro.
+  // Columna acotada a 1280 px (Configuración usa el ancho disponible, sin cortarse), con las tarjetas dentro.
   const caja = await page.getByTestId('config-pagina').boundingBox()
-  expect(caja.width).toBeLessThanOrEqual(961)
+  expect(caja.width).toBeLessThanOrEqual(1281)
   await page.screenshot({ path: `${out}/datos-generales-1440.png` })
 
   // «Contacto» abre el formulario existente de la tienda en una ventana.

@@ -36,7 +36,9 @@ test('volver conserva ruta interna, query y hash', async ({ page, baseURL }) => 
   await expect(page).toHaveURL(`${baseURL}/pedidos?filtro=pendientes#lista`)
 })
 
-for (const [valor, destino] of [['/\\example.invalid', '/pos'], ['/clientes?x=1#lista', '/clientes?x=1#lista']]) {
+for (const [valor, destino] of [['/\\example.invalid', '/pos'],
+  // El Vendedor no tiene Clientes en su menú (lo redirige al inicio): se usa Pedidos, que sí ve.
+  ['/pedidos?x=1#lista', '/pedidos?x=1#lista']]) {
   test(`next seguro al recuperar sesión tardía: ${JSON.stringify(valor)}`, async ({ page, baseURL }) => {
     const control = await sesion(page, { loginTardio: true })
     await page.goto(`/login?next=${encodeURIComponent(valor)}`)

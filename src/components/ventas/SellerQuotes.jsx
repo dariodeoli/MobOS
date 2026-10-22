@@ -569,7 +569,7 @@ export default function SellerQuotes() {
                       {gs(row.totalPyg)}
                     </span>
                     <div
-                      className="ventas-f3-quote-actions"
+                      className={cn('ventas-f3-quote-actions', !row.order && !actions.send && !actions.convert && !actions.link && 'ventas-f3-quote-actions--solo')}
                       onClickCapture={event => {
                         // Capture a persistent return target before the menu item unmounts.
                         // The menu's deferred focus cannot establish the modal's opener.

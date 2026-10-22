@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination, selectConfigSection } from '../helpers/shell-navigation.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // #389: ancho de campo según el contenido (docs/CAMPOS.md §2.1). En >=768px los
 // datos cortos (teléfono, CI/RUC, correo, ciudad, país) no pasan de su máximo y
@@ -136,9 +137,20 @@ test('390: buscador y select de Configuración ocupan el ancho disponible', asyn
 
 async function abrirFichaPos(page) {
   await openShellDestination(page, 'POS')
-  const bloque = page.getByTestId('pos-bloque-cliente')
+  // La ficha del cliente abre en un Popup «Datos del cliente»: en escritorio desde el
+  // bloque Cliente; en celular desde la acción «Agregar cliente» de la hoja de acciones.
+  if (page.viewportSize().width < 1024) {
+    await page.getByRole('button', { name: /Agregar cliente/ }).first().click()
+    const resumen = page.getByText('Datos de contacto, RUC/CI y direcciones')
+    if (await resumen.count()) await resumen.first().click()
+  } else {
+    const cliente = page.getByTestId('pos-bloque-cliente')
+    await expect(cliente).toBeVisible()
+    await cliente.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  }
+  const bloque = page.getByRole('dialog', { name: 'Datos del cliente' })
   await expect(bloque).toBeVisible()
-  await bloque.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await esperarAnimaciones(page)
   await bloque.getByLabel(/Facturar a otro titular/).check()
   await bloque.getByRole('button', { name: 'Nueva dirección', exact: true }).click()
   await bloque.getByLabel('País', { exact: true }).scrollIntoViewIfNeeded()
@@ -151,8 +163,8 @@ test('POS 1440: identidad, contacto, facturación y direcciones en ese orden, co
   const bloque = await abrirFichaPos(page)
   const y = async texto => (await caja(bloque.getByText(texto, { exact: true }))).y
   const yFactura = (await caja(bloque.getByLabel(/Facturar a otro titular/))).y
-  expect(await y('Identidad')).toBeLessThan(await y('Contacto'))
-  expect(await y('Contacto')).toBeLessThan(yFactura)
+  // Identidad y contacto es una sola sección (CI/RUC, teléfono y correo juntos).
+  expect(await y('Identidad y contacto')).toBeLessThan(yFactura)
   expect(yFactura).toBeLessThan(await y('Direcciones'))
 
   const tel = await caja(bloque.getByLabel('Teléfono del cliente'))
@@ -237,7 +249,9 @@ test('Proveedor compartido confirma texto una vez, busca por sigla y respeta res
   await page.getByRole('button', { name: 'Limpiar eventos' }).click()
   await campo.fill('agil')
   await page.getByRole('option', { name: /Proveedor Ágil/ }).click()
-  await expect(campo).toHaveValue('Proveedor Ágil')
+  // Un resultado elegido reemplaza el buscador por una tarjeta compacta (un control por estado).
+  await expect(page.getByTestId('proveedor-seleccionado')).toContainText('Proveedor Ágil')
+  await expect(campo).toHaveCount(0)
   await expect(page.getByTestId('eventos-proveedor')).toHaveText('[["select","a"],["usado","a"]]')
   await page.getByRole('button', { name: 'Reset proveedor' }).click()
   await page.getByRole('button', { name: 'Limpiar eventos' }).click()

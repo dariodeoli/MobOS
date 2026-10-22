@@ -555,14 +555,16 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     <div className="mt-3 space-y-4">
         {(colapsarFicha || typeof value.nameOfficial === 'string') && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" maxLength={200} value={value.displayName ?? (value.name || '')} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{typeof value.nameOfficial === 'string' && <p className="text-xs text-mute">Nombre visible para el mostrador. La identidad fiscal se conserva aparte.</p>}{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
         {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
-        <div className="flex items-center justify-end gap-3">
-          {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('min-w-0 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
-          <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
-            Confirmar cliente
-          </button>
-        </div>
         <section aria-label="Identidad" className="space-y-2">
-          <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
+            <div className="flex items-center justify-end gap-3">
+              {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('min-w-0 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
+              <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
+                Confirmar cliente
+              </button>
+            </div>
+          </div>
           <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={(datos) => { const antes = value; aplicarDocumento(datos); return () => onChange(antes) }} esDemo={esDemo} /></Campo>
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>

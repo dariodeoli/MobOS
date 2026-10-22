@@ -1,5 +1,4 @@
 import './compras.css'
-import Toolbar from '@/components/shared/Toolbar'
 import StatGrid from '@/components/shared/StatGrid'
 import '@/components/ventas/ventasF3.css'
 import '@/components/shared/gestionProfundo.css'
@@ -141,15 +140,12 @@ export default function PrepararCompra() {
 
   return (
     <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="preparar-compra">
-      <EncabezadoFlujo className="min-w-0 w-full" paso="preparacion" onIr={(paso) => navigate(paso.ruta)} />
-      <Toolbar
-        plano
-        lista
-        label="Acciones de Preparar compra"
-        testId="barra-preparar-compra"
-        className="ventas-f3-toolbar"
-        more={(
-          <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
+      <EncabezadoFlujo
+        className="min-w-0 w-full"
+        paso="preparacion"
+        onIr={(paso) => navigate(paso.ruta)}
+        accion={(
+          <Button type="button" variant="outline" data-testid="flujo-actualizar" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
           </Button>
         )}

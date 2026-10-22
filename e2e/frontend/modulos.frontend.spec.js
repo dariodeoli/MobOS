@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { MODULE_CATALOG } from '../../backend/lib/modulos-catalogo.mjs'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { openShellDestination, shellPrimary } from '../helpers/shell-navigation.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Módulos: un módulo apagado desaparece del menú y su URL vuelve a la vista padre
 // con aviso; la pantalla «Módulos» (lista tipo tienda de apps) se maneja con
@@ -59,7 +60,7 @@ async function entrarDemo(page, rol = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${rol}`, exact: true }).click()
+  await entrarDemoComo(page, rol)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 

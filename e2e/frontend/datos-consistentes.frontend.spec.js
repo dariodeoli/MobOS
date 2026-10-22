@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { openShellDestination } from '../helpers/shell-navigation.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // #461 · datos y plata consistentes (demo frontend-only, sin backend):
 //  · «Cobrar saldo» se ve siempre en el detalle del pedido y también cobra en la demo;
@@ -15,7 +16,7 @@ async function entrar(page, rol = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${rol}`, exact: true }).click()
+  await entrarDemoComo(page, rol)
   await expect(page.getByTestId('shell')).toBeVisible()
   // La demo siembra sus ventas al entrar a una pantalla: se espera a que estén antes de leerlas.
   await openShellDestination(page, 'Inicio')

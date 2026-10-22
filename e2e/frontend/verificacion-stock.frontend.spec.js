@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination } from '../helpers/shell-navigation.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Verificación de stock («¿está físicamente?») · Stock › Control › Verificación.
 // Demo frontend-only: el inventario y las sesiones salen del store demo.
@@ -15,7 +16,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
@@ -36,7 +37,8 @@ for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
     await page.setViewportSize({ width: ancho, height: alto })
     await enterDemo(page)
     await abrirVerificacion(page)
-    await expect(page.getByTestId('verif-historial-fila')).toHaveCount(0)
+    // La demo trae verificaciones previas en el historial: la nueva suma una más.
+    const previas = await page.getByTestId('verif-historial-fila').count()
     await page.getByTestId('verif-iniciar').click()
     await expect(page.getByTestId('verif-sesion')).toBeVisible()
     const contador = page.getByTestId('verif-contador')
@@ -77,6 +79,7 @@ for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
     // 4) Terminar guarda el resumen en el historial.
     await page.getByTestId('verif-terminar').click()
     await page.getByRole('button', { name: 'Terminar y guardar' }).click()
+    await expect(page.getByTestId('verif-historial-fila')).toHaveCount(previas + 1)
     const fila = page.getByTestId('verif-historial-fila').first()
     await expect(fila).toContainText('Terminada')
     await expect(fila).toContainText(`2/${total} verificadas`)

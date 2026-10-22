@@ -166,10 +166,11 @@
         "qa-328-demo-acceso.spec.js",
         "ruc-extraccion.spec.js",
         "servicio-tecnico.spec.js",
-        "sesion-bloqueo.spec.js"
+        "sesion-bloqueo.spec.js",
+        "sin-recortes.spec.js"
       ],
-      "tests": 222,
-      "ms": 1250438
+      "tests": 227,
+      "ms": 1271158
     },
     {
       "archivos": [

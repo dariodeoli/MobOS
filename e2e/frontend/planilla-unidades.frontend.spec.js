@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // #400 · Planilla de Unidades (unidad H). Demo frontend-only (sin backend): las
 // unidades, ubicaciones y proveedores salen del inventario demo de la app.
@@ -17,7 +18,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 

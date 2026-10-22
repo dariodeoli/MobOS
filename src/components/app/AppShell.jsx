@@ -505,7 +505,8 @@ export default function AppShell({
         <PageHeader
           title={title}
           subtitle={subtitle}
-          actions={<>{headerActions}{esDemo && <DemoVerComo entrarDemo={entrarDemo} />}</>}
+          // En celular con Stock compacto «Ver como» queda en el menú de perfil: solo, ocuparía una fila entera.
+          actions={headerActions || (esDemo && !(stockCompacto && angosta)) ? <>{headerActions}{esDemo && !(stockCompacto && angosta) && <DemoVerComo entrarDemo={entrarDemo} />}</> : null}
           aviso={esDemo && !enConfigMenu && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}

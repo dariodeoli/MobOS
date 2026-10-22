@@ -646,18 +646,18 @@ export default function Recepcion() {
                     {llegada.origen || '—'} → {llegada.destino || '—'} · {llegada.empresa || (llegada.metodo ? metodoEnvioTexto(llegada.metodo) : '—')} · llegada {fecha(llegada.eta)}
                   </p>
                 </div>
-                <Badge color={llegada.porRecibir > 0 ? 'orange' : 'blue'}>{llegada.porRecibir < llegada.unidades ? `${llegada.porRecibir} de ${llegada.unidades} por recibir` : `${llegada.unidades} unidad${llegada.unidades === 1 ? '' : 'es'}`}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge color={llegada.porRecibir > 0 ? 'orange' : 'blue'}>{llegada.porRecibir < llegada.unidades ? `${llegada.porRecibir} de ${llegada.unidades} por recibir` : `${llegada.unidades} unidad${llegada.unidades === 1 ? '' : 'es'}`}</Badge>
+                  <Button type="button" onClick={() => abrir(llegada)} disabled={busy}>
+                    {llegada.recepcionAbiertaId ? 'Retomar recepción' : 'Recibir'}
+                  </Button>
+                </div>
               </div>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-mute">
                 {llegada.conImei > 0 && <span>{llegada.conImei} con IMEI</span>}
                 {Number(llegada.unidades) > Number(llegada.conImei || 0) && <span>{Math.max(0, Number(llegada.unidades) - Number(llegada.conImei || 0))} con IMEI por completar</span>}
                 {llegada.ubicacionSugerida?.name && <span>· depósito sugerido: <b className="text-fore">{llegada.ubicacionSugerida.name}</b></span>}
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" onClick={() => abrir(llegada)} disabled={busy}>
-                  {llegada.recepcionAbiertaId ? 'Retomar recepción' : 'Recibir'}
-                </Button>
-              </div>
             </Card>
           ))}
         </div>

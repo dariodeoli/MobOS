@@ -448,7 +448,10 @@ test('Caja: tira de KPI de una línea (≤ 64px, con scroll propio en celular) y
     // #388: una sola línea de KPI (etiqueta + cifra), ≤ 64px; en celular la
     // tira se desplaza dentro de su caja, nunca apila 2×2 ni ensancha la página.
     expect(new Set(m.tiles.map(t => t.y)).size, `@${width}: KPI en una sola fila`).toBe(1)
-    for (const t of m.tiles) expect(t.h, `@${width}: tile ≤ 64px`).toBeLessThanOrEqual(64)
+    // Regla «sin recortes» (22-10-2026): en celular el detalle largo de una cifra parte
+    // línea y la celda crece (≤ 120 px) en vez de cortarse; desde 768 sigue en una línea.
+    const tope = width < 768 ? 120 : 64
+    for (const t of m.tiles) expect(t.h, `@${width}: tile ≤ ${tope}px`).toBeLessThanOrEqual(tope)
     await expect(page.locator('main')).not.toContainText('Apertura física en Gs., saldos, pendientes')
     await expect(page.getByTestId('caja-diferencia')).toBeVisible()
     expect(await cutBoxes(page.locator('main'))).toEqual([])

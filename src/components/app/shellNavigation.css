@@ -75,9 +75,16 @@
 }
 /* Shared alignment contract for every authenticated page: the page title,
    page actions and shell selectors sit on the same 44px control rhythm. */
-.shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']:not(.sr-only)),
-.shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions) {
+.shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']:not(.sr-only, .max-lg\:sr-only)),
+.shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions:not([data-solo-escritorio])) {
   min-height: 44px;
+}
+/* Acciones solo de escritorio (utilidades): en celular no dejan una fila vacía de 44 px. */
+@media (min-width: 1024px) {
+  .shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']),
+  .shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions[data-solo-escritorio]) {
+    min-height: 44px;
+  }
 }
 .shell-nav-v2 .shell-page-header-actions {
   min-height: 44px;

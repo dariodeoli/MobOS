@@ -312,6 +312,17 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     ...variablesDeProducto(order.items, order.createdAt),
   }
   const eventoAviso = plantillaDeEntrega(order.fulfillmentStatus)
+  // Si «Avisar por correo» sería el único control de la fila de Entrega, va en el título de la sección.
+  const accionesEntrega = [
+    !esDemo && !anulado,
+    !esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus),
+    Boolean(order.customer?.phone),
+    Boolean(order.notifiedAt),
+  ].filter(Boolean).length
+  const correoEnTitulo = accionesEntrega === 0
+  const correoAviso = (
+    <AvisarPorCorreo email={order.customer?.email || order.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} demoCorreo={demoCorreoDePedido(order)} />
+  )
 
   async function avisarPorWhatsApp() {
     if (avisando || esDemo) return
@@ -760,7 +771,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
             {/* Entrega y dirección */}
             <section className="ventas-f3-detail-section p-3" data-testid="pedido-entrega">
-              <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="truck" className="h-3.5 w-3.5" /> Entrega</h3>
+              <h3 className="ventas-f3-card-title flex items-center justify-between gap-2 !px-0 !pt-0"><span className="inline-flex items-center gap-1.5"><Icon name="truck" className="h-3.5 w-3.5" /> Entrega</span>{correoEnTitulo && correoAviso}</h3>
               <p className="text-xs text-mute">{metodoEntrega(order.deliveryType) === 'DELIVERY' ? 'Delivery' : 'Retiro en tienda'}</p>
               {(order.customer?.addresses || []).map(address => <p key={address.id || address.address} className="mt-1 break-words text-xs text-mute">{address.label}: {address.address}{address.city ? ` · ${address.city}` : ''}</p>)}
               {!order.customer?.addresses?.length && metodoEntrega(order.deliveryType) === 'DELIVERY' && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
@@ -794,7 +805,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : motivoBloqueoPago || undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value} disabled={Boolean(motivoBloqueoPago) && ESTADOS_QUE_ENTREGAN.includes(value)}>{FULFILLMENT[value] || value}</option>)}</Select>}
                 {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
                 {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" preferKey={eventoAviso} contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
-                <AvisarPorCorreo email={order.customer?.email || order.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} demoCorreo={demoCorreoDePedido(order)} />
+                {!correoEnTitulo && correoAviso}
                 {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               </div>
               {!anulado && <AvisoEntregaBloqueada motivo={motivoBloqueoPago} />}

@@ -173,7 +173,7 @@ export default function Comparador() {
       {/* #278 · composición compacta (#256): la identidad y el switch de
           condición viven en una sola barra, sin encabezado suelto. */}
       <BarraModulo titulo="Comparador" testId="barra-comparador" segmentos={<SegmentosToolbar />}>
-        <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Condición de los modelos">
+        <div className="inline-flex gap-0.5 rounded-xl bg-ink-800 outline outline-1 -outline-offset-1 outline-ink-600" role="group" aria-label="Condición de los modelos">
           {CONDICIONES.map(([key, label]) => (
             <button
               key={key}
@@ -181,7 +181,7 @@ export default function Comparador() {
               onClick={() => setCondicion(key)}
               aria-pressed={condicion === key}
               className={cn(
-                'min-h-11 min-w-11 rounded-lg px-4 py-1.5 text-sm font-bold transition',
+                'min-h-11 min-w-11 rounded-xl px-4 py-1.5 text-sm font-bold transition',
                 condicion === key ? 'bg-fono text-onbrand shadow-sm' : 'text-mute hover:text-fono',
               )}
             >

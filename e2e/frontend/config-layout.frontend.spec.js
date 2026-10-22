@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination, selectConfigSection } from '../helpers/shell-navigation.js'
 import { expectLayoutContract } from './helpers/layoutContract.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Configuración (unit 3A): QA-A on every section, the navigation contract
 // (visible owner destination, every section reachable by click, old slugs
@@ -72,7 +73,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 

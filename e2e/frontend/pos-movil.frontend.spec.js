@@ -58,7 +58,9 @@ for (const width of [360, 390]) {
   test(`celular ${width}: inicio con acciones en 2 columnas y sin scroll horizontal`, async ({ page }) => {
     await enterPos(page, width)
     const tiles = page.getByTestId('pos-acciones-movil').locator('button')
-    expect(await tiles.count()).toBeGreaterThanOrEqual(8)
+    // Cliente, envío y nota en mosaico; el resto vive bajo «Más acciones» (menú único).
+    expect(await tiles.count()).toBeGreaterThanOrEqual(4)
+    await expect(page.getByTestId('pos-acciones-movil').getByRole('button', { name: /Más acciones/ })).toBeVisible()
     const a = await tiles.nth(0).boundingBox()
     const b = await tiles.nth(1).boundingBox()
     const c = await tiles.nth(2).boundingBox()
