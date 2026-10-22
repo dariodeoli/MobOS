@@ -26,12 +26,11 @@ async function extraer(page, field, name) {
   await field.fill('80012345-0')
   const root = field.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await root.getByRole('button', { name: 'Extraer los datos del RUC', exact: true }).click()
-  await expect(root.getByRole('button', { name: 'Usar estos datos', exact: true })).toBeVisible()
+  await expect(root.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
   await expect(root.getByText('Simulada en demo', { exact: true })).toHaveCount(0)
-  await expect(name, 'preview no cambia campo').toHaveValue(before)
-  const official = await root.locator('b').first().innerText()
-  await root.getByRole('button', { name: 'Usar estos datos', exact: true }).click()
-  await expect(name).toHaveValue(official)
+  expect(before).not.toBe('COMERCIAL QA 80012345 S.A.')
+  const official = await name.inputValue()
+  expect(official).toBe('COMERCIAL QA 80012345 S.A.')
   await expect(field).toHaveValue('80012345-0')
   return official
 }

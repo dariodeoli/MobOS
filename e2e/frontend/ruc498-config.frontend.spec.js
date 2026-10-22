@@ -14,7 +14,7 @@ async function enter(page, width, dark, vista = 'config') {
 async function extract(scope, selector) {
   await scope.locator(selector).fill('1234567')
   await scope.getByRole('button', { name: /Extraer/ }).click()
-  await expect(scope.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+  await expect(scope.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
 }
 for (const [width, dark] of [[390, false], [1440, true]]) {
   test(`498 configuración de cuenta aplica guarda y reabre demo ${width}`, async ({ page }) => {
@@ -23,8 +23,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     await account.getByRole('button', { name: 'Editar', exact: true }).click()
     const oldName = await account.getByLabel('Nombre de la tienda', { exact: true }).inputValue()
     await extract(account, '#edit-ruc')
-    await expect(account.getByLabel('Nombre de la tienda', { exact: true })).toHaveValue(oldName)
-    await account.getByRole('button', { name: 'Usar estos datos' }).click()
+    await expect(account.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
     const accepted = await account.getByLabel('Nombre de la tienda', { exact: true }).inputValue()
     expect(accepted).not.toBe(oldName)
     const ruc = await account.locator('#edit-ruc').inputValue()
@@ -47,8 +46,7 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
     await form.getByRole('button', { name: 'Guardar titular', exact: true }).click()
     await page.getByRole('button', { name: 'Editar ANTERIOR VIEJO TERCERO APELLIDO SEGUNDO', exact: true }).click()
     await extract(form, '#priv-doc')
-    await expect(form.locator('#priv-middle')).toHaveValue('VIEJO')
-    await form.getByRole('button', { name: 'Usar estos datos' }).click()
+    await expect(form.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
     const raw = await form.getByTestId('titular-nombre-fiscal').textContent()
     expect(raw.length).toBeGreaterThan(0)
     for (const id of ['priv-first', 'priv-middle', 'priv-other', 'priv-last', 'priv-second-last']) await expect(form.locator(`#${id}`)).toHaveValue('')
@@ -121,7 +119,7 @@ test('498 edición manual del nombre elimina identidad fiscal anterior al guarda
   const account = page.getByTestId('cuenta-form')
   await account.getByRole('button', { name: 'Editar', exact: true }).click()
   await extract(account, '#edit-ruc')
-  await account.getByRole('button', { name: 'Usar estos datos' }).click()
+  await expect(account.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
   await account.getByLabel('Correo de la empresa', { exact: true }).fill('qa@example.invalid')
   await account.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
   const read = () => page.evaluate(async () => (await import('/src/lib/demoAccountIdentity.js')).leerIdentidadCuentaDemo('mobos-demo'))

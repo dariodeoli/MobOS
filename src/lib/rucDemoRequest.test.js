@@ -27,22 +27,27 @@ test('demo real rechaza input o configuración inválidos antes de consultar', a
   await assert.rejects(consultarRucDemoReal('80012345', { fetchImpl }), { code: 'API_NOT_CONFIGURED' })
 })
 
-test('demo usa fixture local para 5215244 y no consulta OwnData', async () => {
+test('demo consulta OwnData real también para 5215244 (el ejemplo no intercepta)', async () => {
   let calls = 0
-  const result = await consultarRucDemoReal('5215244', {
-    apiUrl,
-    fetchImpl: async () => { calls++; throw new Error('no debe consultar') },
-  })
-  assert.deepEqual(result, {
-    demoFixture: true,
-    name: 'DISTRIBUIDORA AURORA S.A.',
-    fullRuc: '5215244-8',
-    simulado: true,
-  })
-  assert.equal(calls, 0)
-  const conDv = await consultarRucDemoReal('5215244-8', { apiUrl, fetchImpl: async () => { calls++; throw new Error('no debe consultar') } })
-  assert.equal(conDv.fullRuc, '5215244-8')
-  assert.equal(calls, 0)
+  const expected = { result: { nameOfficial: 'RAZÓN REAL' } }
+  for (const q of ['5215244', '5215244-8']) {
+    const result = await consultarRucDemoReal(q, { apiUrl, fetchImpl: async (url) => { calls++; assert.match(url, /ruc=5215244/); return Response.json(expected) } })
+    assert.deepEqual(result, expected)
+  }
+  assert.equal(calls, 2)
+})
+
+test('el ejemplo ficticio 5215244 solo aparece si OwnData no está disponible, marcado simulado', async () => {
+  for (const fetchImpl of [async () => { throw new Error('red') }, async () => Response.json({ message: 'caído' }, { status: 503 })]) {
+    const result = await consultarRucDemoReal('5215244-8', { apiUrl, fetchImpl })
+    assert.deepEqual(result, { demoFixture: true, name: 'DISTRIBUIDORA AURORA S.A.', fullRuc: '5215244-8', simulado: true })
+  }
+  const sinApi = await consultarRucDemoReal('5215244', {})
+  assert.equal(sinApi.demoFixture, true)
+  // Un 404/429 es respuesta honesta de OwnData: no se disfraza.
+  await assert.rejects(consultarRucDemoReal('5215244', { apiUrl, fetchImpl: async () => Response.json({ message: 'no' }, { status: 404 }) }), { status: 404 })
+  // Cualquier otro RUC nunca cae al ejemplo.
+  await assert.rejects(consultarRucDemoReal('80000005', { apiUrl, fetchImpl: async () => { throw new Error('red') } }), { code: 'RUC_UNAVAILABLE' })
 })
 
 test('demo real conserva error y espera de cuota sin fabricar un resultado', async () => {

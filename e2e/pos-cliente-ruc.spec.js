@@ -17,25 +17,41 @@ async function entrarAlPos(page) {
   return page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
 }
 
-test('POS demo: CI sin ficha + Enter consulta una vez y abre el alta con «Nombres Apellidos»', async ({ page }) => {
+test('POS demo: CI sin ficha + Enter consulta una vez, crea el cliente y abre «Completar cliente»', async ({ page }) => {
   const api = await mockRucPublic(page, {
     respond: ({ query }) => ({ status: 200, json: rucPublicPayload(query, 'PEREZ GOMEZ, JUAN CARLOS') }),
   })
   const buscador = await entrarAlPos(page)
   await buscador.fill('4123456')
   await buscador.press('Enter')
-  const editor = page.getByRole('dialog', { name: 'Datos del cliente', exact: true })
-  await expect(editor).toBeVisible()
-  await expect(editor.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveValue('Juan Carlos Perez Gomez')
-  const ruc = editor.getByLabel('CI o RUC del cliente', { exact: true })
-  await expect(ruc).toHaveValue(/^4123456-\d$/)
+  const popup = page.getByRole('dialog', { name: 'Completar cliente', exact: true })
+  await expect(popup).toBeVisible()
+  await expect(popup.getByTestId('completar-cliente-resumen')).toContainText('Juan Carlos Perez Gomez')
+  await expect(popup.getByTestId('completar-cliente-resumen')).toContainText(/4123456-\d/)
+  // Solo los campos que faltan: teléfono, correo y dirección opcional.
+  await expect(popup.getByLabel('Teléfono del cliente')).toBeVisible()
+  await expect(popup.getByLabel('Correo del cliente')).toBeVisible()
+  await expect(popup.getByRole('button', { name: '+ Agregar dirección' })).toBeVisible()
+  await expect(popup.getByLabel('CI o RUC del cliente')).toHaveCount(0)
   expect(api.calls).toEqual(['4123456'])
-  // Se completa el teléfono y se confirma: queda ligado a la venta.
-  await editor.getByLabel('Teléfono del cliente').fill('981123456')
-  await editor.getByTestId('confirmar-cliente').click()
-  await expect(editor).toBeHidden()
+  await popup.getByLabel('Teléfono del cliente').fill('981123456')
+  await popup.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(popup).toBeHidden()
   await expect(page.getByTestId('cliente-elegido-nombre')).toHaveText('Juan Carlos Perez Gomez')
+  await expect(page.getByTestId('cliente-elegido')).toContainText('981123456')
   api.assertClean()
+})
+
+test('POS demo: cerrar «Completar cliente» con la X deja el cliente ya creado y ligado', async ({ page }) => {
+  await mockRucPublic(page)
+  const buscador = await entrarAlPos(page)
+  await buscador.fill('80012345-0')
+  await buscador.press('Enter')
+  const popup = page.getByRole('dialog', { name: 'Completar cliente', exact: true })
+  await expect(popup).toBeVisible()
+  await popup.getByRole('button', { name: /Cerrar/ }).first().click()
+  await expect(popup).toBeHidden()
+  await expect(page.getByTestId('cliente-elegido-nombre')).toHaveText('COMERCIAL QA 80012345 S.A.')
 })
 
 test('POS demo: razón social tal cual, y el automático consulta al terminar de escribir sin repetir', async ({ page }) => {

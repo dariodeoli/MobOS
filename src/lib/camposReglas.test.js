@@ -173,28 +173,25 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
   }
 })
 
-test('RucField adapta la variante compacta conservando admisión fiscal y aceptación expresa', () => {
+test('RucField aplica directo la consulta admitida con aviso y Deshacer, sin tarjeta de confirmación', () => {
   const source = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
-  assert.match(source, /import \{ RucField as CampoRuc \} from 'owncoding-ui'/)
-  assert.match(source, /<CampoRuc\b/)
-  assert.doesNotMatch(source, /<input\b|<Input\b/)
-  assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
+  assert.match(source, /import \{ BotonDentroCampo, Input \} from 'owncoding-ui'/)
+  assert.doesNotMatch(source, /CampoRuc|Usar estos datos|Descartar|<input\b/)
   assert.match(source, /consultarRucDemoReal\(identity\.query, \{ apiUrl: API_URL, signal: request\.signal \}\)/)
   assert.match(source, /await api\.get\(`\/api\/ruc\?ruc=/)
   assert.match(source, /admitRucResponse\(payload, identity, demo && Boolean\(payload\?\.demoFixture\)\)/)
   assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
   assert.match(source, /if \(!request\.isCurrent\(scope\.current\)\) return/)
   const extractStart = source.indexOf('const consultar = useCallback')
-  const applyStart = source.indexOf('function aplicar(')
+  const applyStart = source.indexOf('async function extraer(')
   assert.ok(extractStart >= 0 && applyStart > extractStart)
   assert.doesNotMatch(source.slice(extractStart, applyStart), /onAplicar|onDatos|aceptar\?\./)
-  const acceptance = source.slice(applyStart, source.indexOf('return <', applyStart))
-  assert.match(acceptance, /resultado\?\.request\.isCurrent\(scope\.current\)/)
+  const acceptance = source.slice(applyStart, source.indexOf('function deshacer'))
+  assert.match(acceptance, /resultado\.request\.isCurrent\(scope\.current\)/)
   assert.match(acceptance, /const aceptar = onAplicar \|\| onDatos/)
-  assert.match(acceptance, /aceptar\?\.\(resultado\.datos\)/)
-  assert.match(source, /name: result\.nameOfficial/)
-  assert.match(source, /onAplicar=\{aplicar\}/)
-  assert.match(source, /onDescartar=\{\(\) => guard\.current\.cancel\(\)\}/)
+  assert.match(source, /event\.key === 'Enter'/)
+  assert.match(source, /Datos del RUC cargados/)
+  assert.match(source, /Deshacer/)
 })
 
 test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {

@@ -74,6 +74,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const [guardandoFicha, setGuardandoFicha] = useState(false)
   const [guardandoDireccion, setGuardandoDireccion] = useState(null)
   const [feedbackFicha, setFeedbackFicha] = useState('')
+  // Popup único «Completar cliente»: se abre al crear por CI/RUC (Enter) sin coincidencias.
+  const [completar, setCompletar] = useState(false)
   const [feedbackFichaTipo, setFeedbackFichaTipo] = useState('status')
   // Registro completo del cliente elegido (con sus estadísticas): se guarda
   // aparte del valor del formulario para no viajar en el payload de la venta.
@@ -199,6 +201,37 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       }
       if (!vigente()) return true
       const base = clearCheckoutIdentity(valueRef.current)
+      if (datos && !auto && (esDemo || empresaId)) {
+        const visible = nombreVisibleDesdeRuc(datos.nameOfficial)
+        const siguiente = { ...applyCheckoutIdentity(base, datos), name: visible, displayName: visible }
+        try {
+          let guardado
+          if (esDemo) guardado = guardarFichaClienteDemo(siguiente)
+          else {
+            const respuesta = await api.post('/api/customers', {
+              name: checkoutVisibleName(siguiente, visible),
+              ...customerIdentityPayload(siguiente),
+              document: String(siguiente.document || '').trim() || undefined,
+              countryCode: siguiente.countryCode || '+595',
+            })
+            guardado = respuesta?.customer || respuesta
+            if (!guardado?.id) throw new Error('El servidor no devolvió la ficha del cliente.')
+            guardado = { ...siguiente, ...guardado, id: guardado.id, document: guardado.document || siguiente.document }
+          }
+          if (!vigente()) return true
+          setSearchQuery(''); setMatches([]); setBorradores([])
+          setRegistro(guardado)
+          onChange(customerValue(guardado))
+          onSelected?.(guardado)
+          setFeedbackFicha('')
+          setCompletar(true)
+          return true
+        } catch (cause) {
+          setFeedbackFichaTipo('error')
+          setFeedbackFicha(cause?.message || 'No se pudo crear el cliente. Completá los datos manualmente.')
+        }
+      }
+      if (!vigente()) return true
       if (datos) {
         const visible = nombreVisibleDesdeRuc(datos.nameOfficial)
         onChange({ ...applyCheckoutIdentity(base, datos), name: visible, displayName: visible })
@@ -353,10 +386,12 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       if (esDemo) onSelected?.(guardado)
       setAbierto(false)
       setEditar(false)
+      return true
     } catch (cause) {
       setFeedbackFichaTipo('error')
       setFeedbackFicha(cause?.message || 'No se pudo guardar el cliente. Revisá los datos e intentá de nuevo.')
-      setAbierto(true)
+      if (!completar) setAbierto(true)
+      return false
     } finally {
       setGuardandoFicha(false)
     }
@@ -405,6 +440,32 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     else removeAddress(index)
   }
   const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
+
+  const popupCompletar = completar && value.id ? (
+    <Modal open title="Completar cliente" size="formulario" testId="completar-cliente" onClose={() => setCompletar(false)}>
+      <div className="space-y-4">
+        <p data-testid="completar-cliente-resumen" className="text-sm text-mute"><b className="text-fore">{value.name}</b>{value.document ? ` · ${value.document}` : ''}</p>
+        <GrillaCampos>
+          <Campo como="div" rotulo="Teléfono"><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
+          <Campo ancho="correo" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
+        </GrillaCampos>
+        {(value.addresses || []).map((address, index) => (
+          <div key={index} data-testid="direccion-tarjeta" className="space-y-3 rounded-xl border border-ink-600 p-3">
+            <GrillaCampos>
+              <Campo como="div" ancho="ciudad" rotulo="Ciudad"><CityAutocomplete esDemo={esDemo} value={address.city || ''} onSelect={(city, department) => onChange({ ...value, addresses: value.addresses.map((item, position) => position === index ? { ...item, city, department } : item) })} placeholder="Asunción" /></Campo>
+              <Campo ancho="flexible" rotulo="Dirección"><Input autoCapitalize="sentences" value={address.address || ''} onChange={event => setAddress(index, 'address', capitalizarPrimera(event.target.value))} placeholder="Calle, número y referencia" /></Campo>
+            </GrillaCampos>
+            <div className="flex justify-end"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => pedirQuitarDireccion(index)} /></div>
+          </div>
+        ))}
+        <div><Button type="button" variant="outline" onClick={addAddress}>+ Agregar dirección</Button></div>
+        <div className="flex items-center justify-end gap-3">
+          {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} className={cn('min-w-0 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : 'text-fono-light')}>{feedbackFicha}</span>}
+          <Button type="button" disabled={guardandoFicha} onClick={async () => { if (await confirmarFicha()) setCompletar(false) }}>Guardar</Button>
+        </div>
+      </div>
+    </Modal>
+  ) : null
 
   // Tarjeta del cliente elegido (#309/#390): reemplaza al buscador y da el
   // contexto para cobrar de un vistazo. Escritorio: una fila; celular: dos
@@ -473,6 +534,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           </p>
         ) : null}
         {feedbackFicha && <p role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('mt-1 font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</p>}
+        {popupCompletar}
         <ClienteResumenPopup
           row={registro || { ...value, wholesale: value.pricingTier === 'WHOLESALE', stats }}
           open={fichaAbierta}
@@ -488,16 +550,16 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     <div className="mt-3 space-y-4">
         {(colapsarFicha || typeof value.nameOfficial === 'string') && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" maxLength={200} value={value.displayName ?? (value.name || '')} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{typeof value.nameOfficial === 'string' && <p className="text-xs text-mute">Nombre visible para el mostrador. La identidad fiscal se conserva aparte.</p>}{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
         {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('min-w-0 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
           <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
             Confirmar cliente
           </button>
-          {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
         </div>
         <section aria-label="Identidad" className="space-y-2">
           <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
           <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
-            <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></Campo>
+            <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={(datos) => { const antes = value; aplicarDocumento(datos); return () => onChange(antes) }} esDemo={esDemo} /></Campo>
             <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
             <Campo ancho="correo" className="md:col-span-2 md:min-w-0 md:max-w-none" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
           </GrillaCampos>
@@ -520,7 +582,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
               <>
                 <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
                 <GrillaCampos className="mt-3 md:!grid md:grid-cols-[minmax(0,30%)_minmax(0,70%)] md:flex-none">
-                  <Campo como="div" ancho="documento" className="md:min-w-0 md:max-w-none" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => onBillingChange(applyCheckoutIdentity(billingTo || {}, datos))} esDemo={esDemo} /></Campo>
+                  <Campo como="div" ancho="documento" className="md:min-w-0 md:max-w-none" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => { const antes = billingTo || { name: '', document: '' }; onBillingChange(applyCheckoutIdentity(billingTo || {}, datos)); return () => onBillingChange(antes) }} esDemo={esDemo} /></Campo>
                   <Campo ancho="flexible" className="md:min-w-0 md:max-w-none" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
                 </GrillaCampos>
               </>
@@ -580,6 +642,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       </details>
     )}
     {!value.id && feedbackFicha && !abierto && <p role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('mt-1 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</p>}
+    {popupCompletar}
     <ConfirmDialog
       open={quitarDireccion !== null}
       title="¿Quitar esta dirección?"
