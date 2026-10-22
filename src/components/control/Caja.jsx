@@ -22,6 +22,7 @@ import {
 } from '@/lib/cajaConteo'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Cronologia from '@/components/shared/Cronologia'
+import { historialCajaDeSesion } from '@/lib/demoHistoria'
 import Icon from '@/components/shared/Icon'
 import ReportePreview from '@/components/shared/ReportePreview'
 import { buildCierreCajaHtml } from '@/components/shared/OrderReceipt'
@@ -1041,6 +1042,13 @@ export default function Caja() {
           </div>
         </Card>
       )}
+      {esDemo && cash?.id && (
+        <Card className="space-y-3">
+          <Button type="button" variant="outline" className="w-full" data-testid="caja-cronologia-demo" onClick={() => setCronologia(true)}>
+            Cronología de la sesión
+          </Button>
+        </Card>
+      )}
       {!esDemo && cash?.id && (
         <Card className="space-y-3">
           <AttachmentList
@@ -1326,6 +1334,7 @@ export default function Caja() {
         {cash?.id && (
           <Cronologia
             endpoint={`/api/cash/sessions/${cash.id}/history`}
+            eventos={esDemo ? historialCajaDeSesion(cash.id, { esHoy: cash.status === 'OPEN' }) : null}
             active={cronologia}
             vacio="Sin actividad"
             descripcionVacio="La apertura, los movimientos, el cierre y el arqueo de esta sesión aparecerán acá."

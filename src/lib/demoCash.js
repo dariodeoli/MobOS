@@ -78,7 +78,9 @@ export function getDemoCash() {
 // sesión abierta sale de la caja local (apertura + movimientos + cobros en
 // efectivo del día); las cerradas se derivan de los días anteriores para que el
 // panel muestre el histórico con su diferencia. Mismo contrato que el endpoint.
-export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}) {
+// `historial` (opcional): turnos cerrados de días anteriores del libro de caja (`demo/historiaCuentas.js`),
+// más reciente primero; con él, solo el turno de hoy se arma acá y el resto sale del libro.
+export function construirDemoCajas({ cash = read(), ventas = [], dias = 3, historial = null } = {}) {
   const claveDeDia = (valor) => {
     const texto = String(valor || '')
     // Las ventas demo guardan la fecha como clave local `YYYY-MM-DD`: se
@@ -109,7 +111,7 @@ export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}
   const movimientosPyg = (cash?.movements || []).reduce((suma, movimiento) => suma + (movimiento.kind === 'INGRESO' ? 1 : -1) * (Number(movimiento.amountPyg) || 0), 0)
   const diferencias = [-15000, 8000, 0]
   const sesiones = []
-  for (let i = 0; i < dias; i += 1) {
+  for (let i = 0; i < (historial ? 1 : dias); i += 1) {
     const fecha = new Date()
     fecha.setDate(fecha.getDate() - i)
     fecha.setHours(i === 0 ? 8 : 9, 30, 0, 0)
@@ -138,6 +140,7 @@ export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}
       notes: abierta ? String(cash?.notes || '') : '',
     })
   }
+  if (historial) sesiones.push(...historial.slice(0, Math.max(0, dias - 1)))
   return sesiones
 }
 // Efectivo del turno POR MONEDA (#455), espejo de cashExpectedByCurrency() del servidor: un cobro

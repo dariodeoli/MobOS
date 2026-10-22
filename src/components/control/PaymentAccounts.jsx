@@ -28,6 +28,7 @@ import { CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
+import MovimientosCuentaDemo from '@/components/control/MovimientosCuentaDemo'
 // Listado: una fila por cuenta (tabla desde xl, tarjeta debajo), con comisión,
 // acreditación y descuento. El banco o la procesadora se muestra UNA vez: logo
 // + nombre en la primera celda (nunca otra vez en «Datos»).
@@ -128,6 +129,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
+  const [movimientosDe, setMovimientosDe] = useState(null)
   const [form, setForm] = useState(null)
   const [flags, setFlags] = useState(flagsFrom(EMPTY))
   const [editingId, setEditingId] = useState(null)
@@ -302,6 +304,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
 
   return (
     <div className="gp ventas-f3 finanzas-tactil space-y-4">
+      {movimientosDe && <MovimientosCuentaDemo cuenta={movimientosDe} onClose={() => setMovimientosDe(null)} />}
       {/* #388: una barra (plantillas rápidas · demo · Añadir cuenta) y tira de KPI de una línea. */}
       <Toolbar
         plano
@@ -419,6 +422,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
         }
         const acciones = (account) => (
           <span className="flex flex-wrap items-center justify-end gap-1.5">
+            {esDemo && <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" aria-label={`Movimientos de ${account.name}`} data-testid="cuenta-movimientos-abrir" onClick={() => setMovimientosDe(account)}>Movimientos</Button>}
             <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
             <Button type="button" variant="ghost" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
           </span>

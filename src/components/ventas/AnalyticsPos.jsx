@@ -8,6 +8,7 @@ import { cargarPedidosParaAnalisis } from '@/lib/posAnalyticsPedidos'
 import { listVentas } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { construirDemoCajas, getDemoCash } from '@/lib/demoCash'
+import { librosDemo } from '@/lib/demoHistoria'
 import { metodoDeMedio } from '@/lib/demoConciliacion'
 import { fechaClave } from '@/utils/calculos'
 import { fechaCorta } from '@/utils/fecha'
@@ -126,7 +127,7 @@ export default function AnalyticsPos({ open = true, onClose, inline = false }) {
     const hasta = fechaClave()
     if (isDemoRuntime) {
       const enRango = (valor) => { const dia = String(valor || '').slice(0, 10); return dia >= desde && dia <= hasta }
-      setSesiones(construirDemoCajas({ cash: getDemoCash(), ventas: listVentas() }).filter((sesion) => enRango(sesion.openedAt)))
+      setSesiones(construirDemoCajas({ cash: getDemoCash(), ventas: listVentas(), dias: 120, historial: librosDemo().sesiones }).filter((sesion) => enRango(sesion.openedAt)))
       return () => { vivo = false }
     }
     api.get(`/api/cash?sesiones=1&from=${desde}&to=${hasta}`)
