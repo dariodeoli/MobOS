@@ -4,6 +4,9 @@ import { Aviso, BarraProgreso, Button } from '@/components/ui'
 import BottomSheet from '@/components/shared/BottomSheet'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import Icon from '@/components/shared/Icon'
+import ComprobantePago from '../ComprobantePago'
+import { filaPideComprobante } from '@/lib/comprobantePos'
+import { usePoliticaVerificacion } from '@/lib/politicaVerificacion'
 import { KIND_LABELS } from '@/lib/paymentAccounts'
 import { gs } from '@/utils/calculos'
 import { detalleCredito, puedeOfrecerCredito } from '@/utils/cobroPos'
@@ -150,6 +153,8 @@ export default function CobroMovil({
   masContenido = null,
 }) {
   const sinTotal = totalGeneral <= 0 || cantTotal === 0
+  // Medios «a verificar» (PIX, USDT, transferencia): el comprobante se adjunta acá, en la confirmación.
+  const politica = usePoliticaVerificacion()
   // Con el cobro ya completo (pagos cargados) se abre en la confirmación.
   const inicial = () => (pagos.some(pagoReal) && pendiente === 0) || pagaAlRecibir || venderACredito ? 'confirmar' : 'medios'
   const [paso, setPaso] = useState(inicial)
@@ -533,12 +538,23 @@ export default function CobroMovil({
               {pagaAlRecibir && <p className="text-mute">Paga al recibir: el pedido queda pendiente y se cobra desde Pedidos.</p>}
               {venderACredito && !pagaAlRecibir && <p className="text-mute">Venta a crédito del cliente.</p>}
               {pagos.map((p, i) => (pagoReal(p) ? (
-                <div key={i} className="flex items-baseline justify-between gap-2 border-t border-ink-600 pt-2" data-testid={`confirmar-pago-${i}`}>
-                  <span className="min-w-0 truncate text-mute">
-                    {p.giftCardCode !== undefined ? 'Gift card' : p.cuenta || p.medioPago || `Pago ${i + 1}`}
-                    {p.noPagado ? ' · no pagado' : ''}
-                  </span>
-                  <b className={cn('whitespace-nowrap tabular-nums', p.noPagado && 'text-warn')}>{gs(montoDeFila(p))}</b>
+                <div key={i} className="space-y-2 border-t border-ink-600 pt-2" data-testid={`confirmar-pago-${i}`}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="min-w-0 truncate text-mute">
+                      {p.giftCardCode !== undefined ? 'Gift card' : p.cuenta || p.medioPago || `Pago ${i + 1}`}
+                      {p.noPagado ? ' · no pagado' : ''}
+                    </span>
+                    <b className={cn('whitespace-nowrap tabular-nums', p.noPagado && 'text-warn')}>{gs(montoDeFila(p))}</b>
+                  </div>
+                  {filaPideComprobante(politica, p, cuentas) && (
+                    <ComprobantePago
+                      comprobante={p.comprobante}
+                      obligatorio={Boolean(politica?.requireProof)}
+                      indice={i}
+                      disabled={guardando}
+                      onChange={comprobante => setPagos(lista => lista.map((fila, j) => (j === i ? { ...fila, comprobante } : fila)))}
+                    />
+                  )}
                 </div>
               ) : null))}
               <div className="flex items-baseline justify-between gap-2 border-t border-ink-600 pt-2">

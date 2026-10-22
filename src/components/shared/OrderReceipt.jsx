@@ -522,8 +522,9 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   ]
   const cuando = when ? new Date(when).toLocaleString('es-PY') : ''
   const metodoPago = [...new Set(desglose.confirmados.map(payment => ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'))].join(' · ')
-  const pagosRows = modelo.pagos && pagosConfirmados.length
-    ? `<div class="card"><div class="label">Pago</div><table class="pagos">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${pagoEnMonedaOriginal(payment) ? `<br><span class="muted">${escapeHtml(pagoEnMonedaOriginal(payment))}</span>` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
+  const filasEnVerificacion = desglose.enVerificacion.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')} · <b>En verificación</b></td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')
+  const pagosRows = modelo.pagos && (pagosConfirmados.length || filasEnVerificacion)
+    ? `<div class="card"><div class="label">Pago</div><table class="pagos">${filasEnVerificacion}${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${pagoEnMonedaOriginal(payment) ? `<br><span class="muted">${escapeHtml(pagoEnMonedaOriginal(payment))}</span>` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
     : ''
   const credito = modelo.credito && Number(order.creditDays || 0) > 0
     ? `<p><span class="tag">A crédito · ${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></p>`
@@ -551,6 +552,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${desglose.mostrarEfectivo ? fila('Efectivo recibido', escapeHtml(gs(desglose.efectivoRecibido))) : ''}
       ${desglose.mostrarEfectivo && desglose.vuelto > 0 ? fila('Vuelto', escapeHtml(gs(desglose.vuelto))) : ''}
       ${desglose.mostrarPagado ? fila('Pagado', escapeHtml(gs(paid))) : ''}
+      ${!modelo.pagos && desglose.enVerificacion.length ? fila('En verificación', escapeHtml(gs(desglose.enVerificacionPyg))) : ''}
       ${pendiente > 0 ? fila('Saldo pendiente', escapeHtml(gs(pendiente)), 'saldo') : ''}
       ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago), 'metodo') : ''}
     </table>

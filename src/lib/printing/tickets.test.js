@@ -667,3 +667,12 @@ test('en 58 mm el checklist del informe no se corta (#240)', () => {
     assert.ok(texto.includes(marca), `no se corta «${marca}»`)
   }
 })
+
+test('el ticket del comprobante marca «En verificación» un cobro por transferencia pendiente', () => {
+  const pedido = { orderNumber: 'P-9', totalPyg: 500000, items: [], payments: [{ status: 'PENDING', pendingReason: 'VERIFICACION', method: 'TRANSFER', amountPyg: 500000 }] }
+  const completo = ticketComprobante(pedido, { nivel: 'completo', ancho: 80 }).lineas().join('')
+  assert.match(completo, /Transferencia · En verificación/)
+  assert.doesNotMatch(completo, /Pagado/)
+  const rapido = ticketComprobante(pedido, { nivel: 'rapido', ancho: 80 }).lineas().join('')
+  assert.match(rapido, /En verificación/)
+})

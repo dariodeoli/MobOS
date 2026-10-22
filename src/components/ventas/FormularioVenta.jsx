@@ -58,6 +58,8 @@ import Popup from '@/components/shared/Popup'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
+import { archivosPorFila, comprobantesFaltantes, emparejarComprobantes, mensajeSinConexion, puedeEncolarVenta, sinComprobantes, subirComprobantes, textoComprobantesFallidos, textoFaltaComprobante } from '@/lib/comprobantePos'
+import { usePoliticaVerificacion } from '@/lib/politicaVerificacion'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment, cambiarCuentaPago, pagosSinVuelto, updateAccountPayment, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
@@ -356,6 +358,17 @@ function useDivisorPos(layoutRef, clave) {
   return { izq, props }
 }
 
+// Demo: el comprobante queda en el pedido como miniatura local (nada sale del navegador).
+async function comprobanteDemo(archivo) {
+  const demoUrl = archivo.demoUrl || await new Promise((resolve, reject) => {
+    const lector = new FileReader()
+    lector.onload = () => resolve(lector.result)
+    lector.onerror = () => reject(new Error('No se pudo leer el comprobante.'))
+    lector.readAsDataURL(archivo)
+  })
+  return { id: crypto.randomUUID(), fileName: archivo.name, mimeType: archivo.type, sizeBytes: archivo.size, createdAt: new Date().toISOString(), demoUrl }
+}
+
 export default function FormularioVenta({
   onGuardado,
   onCarrito,
@@ -507,6 +520,8 @@ export default function FormularioVenta({
   const [errorSuspendidas, setErrorSuspendidas] = useState('')
   // #309: menú «Más» del encabezado (cierra al elegir una herramienta).
   const toast = useToast()
+  // Medios que la empresa marca «verificar»: piden el comprobante en el mismo cobro.
+  const politicaVerificacion = usePoliticaVerificacion()
   // Delivery propio (#461): repartidores asignables; solo se piden con «Delivery» elegido.
   const repartidores = useRepartidores({ activo: f.entrega === 'Delivery', esDemo })
   // #308: familia con más de una variante esperando elección explícita.
@@ -632,7 +647,8 @@ export default function FormularioVenta({
       items,
       customer,
       descuento,
-      pagos,
+      // El archivo del comprobante vive solo en memoria: nunca se guarda en el borrador.
+      pagos: sinComprobantes(pagos),
       entrega: f.entrega,
       montoDelivery: f.montoDelivery,
       observacion: f.observacion,
@@ -967,14 +983,17 @@ export default function FormularioVenta({
   // #263: se puede vender sin cliente → «Cliente ocasional»; el botón nunca se
   // deshabilita en silencio: los motivos se listan debajo.
   const clienteEfectivo = String(f.cliente ?? '').trim() || 'Cliente ocasional'
+  // Medios «a verificar» sin comprobante (si la empresa lo exige): el cobro no se confirma.
+  const faltaComprobante = usaCuentas ? comprobantesFaltantes(politicaVerificacion, pagos, cuentas) : []
   const motivosBloqueo = [
     !sesion?.vendedorId && 'Ingresá con tu PIN para vender.',
     accesoStockInvalidado && 'Verificá el acceso al stock antes de continuar.',
     cantTotal === 0 && 'Agregá al menos un producto.',
     excedePagos && 'Los pagos superan el total de la venta.',
     gsNum(descuento) > subtotal && 'El descuento supera el subtotal.',
+    faltaComprobante.length > 0 && textoFaltaComprobante(faltaComprobante),
   ].filter(Boolean)
-  const valido = !accesoStockInvalidado && sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal
+  const valido = !accesoStockInvalidado && sesion?.vendedorId && cantTotal > 0 && !excedePagos && gsNum(descuento) <= subtotal && faltaComprobante.length === 0
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
   // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
@@ -1163,6 +1182,8 @@ export default function FormularioVenta({
     const sinRed = typeof navigator !== 'undefined' && navigator.onLine === false
     let lineas
     let payments
+    // Un archivo (o null) por pago, solo de los medios «a verificar»: se sube después de crear la venta.
+    let archivosComprobante = []
     try {
       // #148 §9: los importes viven en columnas de 32 bits. Los campos ya acotan
       // el tope real y lo marcan (MoneyInput), pero el guardado seguía de largo
@@ -1303,6 +1324,14 @@ export default function FormularioVenta({
                 ? { reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · ') }
                 : {}),
             }))
+      // Comprobante en el mismo cobro: sin él (si la empresa lo exige) no se confirma, y sin
+      // conexión no se encola (el archivo se perdería): se pide la conexión y el carrito queda.
+      if (usaCuentas) {
+        const faltan = comprobantesFaltantes(politicaVerificacion, pagosParaServidor, cuentas)
+        if (faltan.length) throw new Error(textoFaltaComprobante(faltan))
+        archivosComprobante = archivosPorFila(politicaVerificacion, pagosParaServidor, cuentas)
+        if (sinRed && archivosComprobante.some(Boolean)) throw new Error(mensajeSinConexion(archivosComprobante))
+      }
       if (esDemo)
         payments = payments.map(p => {
           const account = cuentas.find(a => a.id === p.accountId)
@@ -1319,6 +1348,14 @@ export default function FormularioVenta({
               : {}),
           }
         })
+      // Demo: el cobro por transferencia/PIX/USDT con comprobante queda «Pendiente de
+      // verificación» y el pedido muestra la miniatura (todo en el navegador).
+      if (esDemo && archivosComprobante.some(Boolean))
+        payments = await Promise.all(payments.map(async (pago, indice) => (
+          archivosComprobante[indice]
+            ? { ...pago, status: 'PENDING', pendingReason: 'VERIFICACION', proofs: [await comprobanteDemo(archivosComprobante[indice])] }
+            : pago
+        )))
       // Solo se exige stock a las líneas que no van marcadas «sobre pedido» y a
       // las no serializadas (#148 §11): las marcadas se crean como pedido sin
       // descontar existencia y las serializadas las gobierna el selector de
@@ -1459,6 +1496,21 @@ export default function FormularioVenta({
           throw new Error(order?.error || 'No se recibió confirmación de la orden.')
         ventaPersistida = true
         completedOrder = order
+        // Comprobantes del cobro: uno por pago, al endpoint privado del pedido. Si algo falla la
+        // venta ya está guardada: se avisa y se sube desde el pedido (el reintento no duplica).
+        if (archivosComprobante.some(Boolean)) {
+          const pares = emparejarComprobantes(payments, archivosComprobante, order.payments)
+          const { fallidos } = await subirComprobantes({
+            pares,
+            subir: (paymentId, archivo) => {
+              const cuerpo = new FormData()
+              cuerpo.append('file', archivo)
+              return api.post(`/api/payments/${encodeURIComponent(paymentId)}/proofs`, cuerpo)
+            },
+            esperar: (intento) => new Promise(resolve => setTimeout(resolve, 600 * (intento + 1))),
+          })
+          if (fallidos.length) toast.error('Venta guardada, comprobante pendiente', textoComprobantesFallidos(fallidos))
+        }
         if (f.entrega === 'Encomienda') recordarEmpresa(f.encEmpresa)
         // Repartidor elegido en el POS: queda asignado al pedido. Si falla no se pierde la
         // venta: se avisa y se asigna después desde Entregas.
@@ -1646,7 +1698,7 @@ export default function FormularioVenta({
       // Sin conexión (o se cortó justo al enviar): la venta no se pierde. Queda
       // en la cola local con la misma Idempotency-Key y se reintenta al
       // reconectar; el backend la recibe con `offline` y la marca para revisión.
-      if (!esDemo && payloadParaCola && esErrorDeRed(error)) {
+      if (!esDemo && payloadParaCola && esErrorDeRed(error) && puedeEncolarVenta(archivosComprobante)) {
         try {
           const item = await encolarVenta({
             // El PIN de un gerente y el «Autorizo yo» nunca se guardan en la cola local: la venta a crédito sobre el límite se sincroniza retenida, pendiente de autorización.
@@ -1680,10 +1732,14 @@ export default function FormularioVenta({
         }
       }
       if (ventaPersistida) setGuardadoIncompleto(true)
+      // Se cortó la conexión con comprobantes adjuntos: no se encola (el archivo se perdería); se reintenta con la misma clave.
+      const cortadaConComprobantes = !esDemo && !ventaPersistida && esErrorDeRed(error) && !puedeEncolarVenta(archivosComprobante)
       setErrorVenta(
         ventaPersistida
           ? `La venta se guardó, pero quedó un paso incompleto: ${error?.message || 'error al finalizar'}. Revisá el registro antes de volver a vender; se bloqueó el reintento para evitar duplicados.`
-          : error?.message || 'No se pudo guardar la venta. Tu carrito sigue disponible.',
+          : cortadaConComprobantes
+            ? mensajeSinConexion(archivosComprobante)
+            : error?.message || 'No se pudo guardar la venta. Tu carrito sigue disponible.',
       )
     } finally {
       setGuardando(false)
@@ -1904,7 +1960,7 @@ export default function FormularioVenta({
             items,
             customer,
             descuento,
-            pagos,
+            pagos: sinComprobantes(pagos),
             entrega: f.entrega,
             montoDelivery: f.montoDelivery,
             observacion: f.observacion,
@@ -1930,7 +1986,7 @@ export default function FormularioVenta({
           items,
           customer,
           descuento,
-          pagos,
+          pagos: sinComprobantes(pagos),
           entrega: f.entrega,
           montoDelivery: f.montoDelivery,
           observacion: f.observacion,

@@ -124,7 +124,7 @@ test('iOS: la UI empaquetada no tiene server.url ni landing en la config de Capa
 
 test('iOS: Info.plist con textos en español, cifrado exento y Face ID como protección extra', () => {
   const plist = readFileSync(new URL('../../../ios/App/App/Info.plist', import.meta.url), 'utf8')
-  assert.match(plist, /NSCameraUsageDescription<\/key>\s*<string>Usamos la cámara para escanear IMEI y códigos de barras de tus productos\./)
+  assert.match(plist, /NSCameraUsageDescription<\/key>\s*<string>Usamos la cámara para escanear IMEI y códigos de barras de tus productos y para fotografiar los comprobantes de pago de tus cobros\./)
   assert.match(plist, /NSFaceIDUsageDescription<\/key>\s*<string>Usamos Face ID como protección extra para abrir MobOS en este iPhone\./)
   assert.match(plist, /com\.googleusercontent\.apps\.500595134387-36gmh5fu4tucjt0u2c9c380i4662pvdh/)
   assert.match(plist, /UIApplicationSceneManifest/)
