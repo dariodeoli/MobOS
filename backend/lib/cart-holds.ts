@@ -105,7 +105,7 @@ export async function holdUnits(tx: Tx, input: { tenant: string; branchId: strin
       AND ("status" = 'AVAILABLE'
         OR ("status" = 'RESERVED' AND "reservationKind" = 'CART_HOLD' AND "reservedUntil" <= ${NOW_UTC})
         OR ("status" = 'RESERVED' AND "reservationKind" = 'CART_HOLD' AND "holdCartId" = ${cartId} AND "reservedById" = ${userId}))
-    RETURNING "id", "serial", "reservedUntil", "holdStartedAt"`
+    RETURNING "id", "serial", ("reservedUntil" AT TIME ZONE 'UTC') AS "reservedUntil", ("holdStartedAt" AT TIME ZONE 'UTC') AS "holdStartedAt"`
   if (held.length !== serials.length) {
     const ok = new Set(held.map(unit => unit.serial))
     const conflicts = await conflictsFor(tx, tenant, branchId, userId, serials.filter(serial => !ok.has(serial)))
@@ -118,6 +118,8 @@ export async function holdUnits(tx: Tx, input: { tenant: string; branchId: strin
   return held
 }
 
+/** Las columnas son timestamp sin zona en UTC: al devolverlas se marcan como UTC para que el cliente reciba el instante correcto. */
+
 /** Latido: extiende las retenciones vivas del carrito sin superar el tope absoluto desde `holdStartedAt`. */
 export async function renewHolds(tx: Tx, input: { tenant: string; userId: string; cartId: string; serials?: string[] }) {
   const { tenant, userId, cartId, serials } = input
@@ -128,7 +130,7 @@ export async function renewHolds(tx: Tx, input: { tenant: string; userId: string
       "updatedAt" = ${NOW_UTC}
     WHERE "tenantId" = ${tenant} AND "holdCartId" = ${cartId} AND "reservedById" = ${userId} AND "status" = 'RESERVED' AND "reservationKind" = 'CART_HOLD'
       AND "reservedUntil" > ${NOW_UTC} AND "holdStartedAt" IS NOT NULL ${filtro}
-    RETURNING "id", "serial", "reservedUntil", "holdStartedAt", ("holdStartedAt" + make_interval(mins => ${HOLD_MAX_MINS}) <= "reservedUntil") AS "capped"`
+    RETURNING "id", "serial", ("reservedUntil" AT TIME ZONE 'UTC') AS "reservedUntil", ("holdStartedAt" AT TIME ZONE 'UTC') AS "holdStartedAt", ("holdStartedAt" + make_interval(mins => ${HOLD_MAX_MINS}) <= "reservedUntil") AS "capped"`
 }
 
 const LIBRE = Prisma.raw(`"status" = 'AVAILABLE', "reservationKind" = NULL, "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservationCustomerId" = NULL, "reservedById" = NULL, "holdCartId" = NULL, "holdDeviceId" = NULL, "holdStartedAt" = NULL, "updatedAt" = (now() AT TIME ZONE 'UTC')`)

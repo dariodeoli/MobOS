@@ -930,6 +930,9 @@ node "$BACKEND_ROOT/tests/cash-sessions.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Caja: vuelto registrado y esperado por moneda (#455)..."
 node "$BACKEND_ROOT/tests/cash-vuelto.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Carrito del POS: retención de IMEI con latido, carrera y reloj de Postgres..."
+node "$BACKEND_ROOT/tests/cart-holds.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$CHECKOUT_SELLER_B" "$DATABASE_URL" "it-maintenance-token"
+
 echo "Día operativo de la auditoría de caja en UTC-3 (#148 §17)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/cash-audit-dia.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 

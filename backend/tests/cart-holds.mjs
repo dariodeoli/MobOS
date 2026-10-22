@@ -34,7 +34,7 @@ const hold = (token, cartId, serials, extra = {}) => request('/api/inventory-res
 const holdsPatch = (token, body) => request('/api/inventory-reservations/holds', { method: 'PATCH', token, body })
 async function vender(token, productId, serials, extra = {}) {
   secuencia += 1
-  return request('/api/orders', { method: 'POST', token, headers: { 'Idempotency-Key': `ch-${tag}-${secuencia}`.padEnd(16, '0').toLowerCase() }, body: { items: [{ productId, description: 'Equipo retenido', quantity: serials.length, unitPricePyg: 1000000, serials }], ...extra } })
+  return request('/api/orders', { method: 'POST', token, headers: { 'Idempotency-Key': `ch-${tag}-${secuencia}`.padEnd(16, '0').toLowerCase() }, body: { items: [{ productId, description: 'Equipo retenido', quantity: serials.length, unitPricePyg: 1000000, inventoryUnitSerials: serials }], ...extra } })
 }
 
 try {
@@ -54,7 +54,7 @@ try {
   result = await request('/api/inventory-units', { method: 'POST', body: { productId: producto.id, branchId: BRANCH, serials } })
   assert.equal(result.status, 201, JSON.stringify(result.payload))
   const [s1, s2, s3, s4, s5, s6, s7, s8, s9] = serials
-  const A = 'user-a-it'; const A2 = 'user-a-2-it'
+  const A = 'user-a-it'; const A2 = 'user-cajera-it'
 
   // ── 1. Elegir un IMEI sin cliente lo retiene 5 min; idempotente ──────────────────────────────────────────────
   result = await hold(sellerA, cart('a'), [s1])
@@ -75,7 +75,7 @@ try {
   ok(/^Retenida por Seller A · \d+:\d{2}$/.test(result.payload.message), result.payload.message)
   eq(result.payload.conflicts[0].holderName, 'Seller A', 'detalle del titular')
   result = await vender(sellerA2, producto.id, [s1])
-  eq(result.status, 409, 'otro vendedor no la vende')
+  eq(result.status, 409, `otro vendedor no la vende: ${JSON.stringify(result.payload)}`)
   ok(/Retenida por Seller A · \d+:\d{2}/.test(result.payload.message), result.payload.message)
   eq((await unidad(s1)).status, 'RESERVED', 'sigue retenida')
 
@@ -98,7 +98,7 @@ try {
   const filaS3 = result.payload.find(unit => unit.serial === s3)
   eq([filaS3.status, filaS3.reservationKind], ['AVAILABLE', null], 'leer la lista suelta la retención vencida')
   const filaS1 = result.payload.find(unit => unit.serial === s1)
-  eq([filaS1.status, filaS1.reservationKind, filaS1.reservedBy.name], ['RESERVED', 'CART_HOLD', 'Seller A Two'], 'la lista informa quién la retiene')
+  eq([filaS1.status, filaS1.reservationKind, filaS1.reservedBy.name], ['RESERVED', 'CART_HOLD', 'Caja A'], 'la lista informa quién la retiene')
   ok(filaS1.serverNow && filaS1.reservedUntil, 'serverNow y reservedUntil en la lista')
   eq(await auditoria('INVENTORY_RESERVATION_EXPIRED', s3), 0, 'la retención de carrito no deja evento de reserva vencida de cliente')
 
@@ -156,11 +156,9 @@ try {
   await holdsPatch(sellerA, { action: 'release', cartId: cart('h') })
 
   // ── 9. Tope de 10 retenciones por vendedor: 422 ──────────────────────────────────────────────────────────────
-  await holdsPatch(sellerA, { action: 'release', serials }) // limpia lo que quedara de A
-  result = await hold(sellerA, cart('t'), serials.slice(0, 10).filter(serial => !['SOLD'].includes((serial))))
-  // s4 y s5 se vendieron: se usan otras diez libres
+  // Limpieza de lo que quedara retenido por los dos vendedores en los pasos anteriores.
+  await q(`UPDATE "InventoryUnit" SET status = 'AVAILABLE', "reservationKind" = NULL, "reservedUntil" = NULL, "reservedById" = NULL, "holdCartId" = NULL, "holdDeviceId" = NULL, "holdStartedAt" = NULL WHERE "tenantId" = 'tenant-a-it' AND "reservationKind" = 'CART_HOLD'`)
   const libres = (await q(`SELECT serial FROM "InventoryUnit" WHERE "tenantId" = 'tenant-a-it' AND "productId" = $1 AND status = 'AVAILABLE' ORDER BY serial`, [producto.id])).map(row => row.serial)
-  await holdsPatch(sellerA, { action: 'release', cartId: cart('t') })
   ok(libres.length >= 11, `hay unidades libres suficientes (${libres.length})`)
   result = await hold(sellerA, cart('t'), libres.slice(0, 10))
   eq(result.status, 201, 'diez retenciones entran')

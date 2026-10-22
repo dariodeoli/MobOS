@@ -26,7 +26,7 @@ export const INVENTORY_REPAIR_APPLIED = 'INVENTORY_REPAIR_APPLIED'
 export async function liberarReservasVencidas(tx: Prisma.TransactionClient, tenantId: string, opciones: { productId?: string } = {}) {
   const { productId } = opciones
   const vencidas = await tx.$queryRaw<Array<{ id: string; serial: string; reservationCustomer: string | null; reservedUntil: Date | null; reservationKind: string | null }>>`
-    SELECT "id", "serial", "reservationCustomer", "reservedUntil", "reservationKind"::text AS "reservationKind" FROM "InventoryUnit"
+    SELECT "id", "serial", "reservationCustomer", ("reservedUntil" AT TIME ZONE 'UTC') AS "reservedUntil", "reservationKind"::text AS "reservationKind" FROM "InventoryUnit"
     WHERE "tenantId" = ${tenantId} AND "status" = 'RESERVED' AND "reservedUntil" <= (now() AT TIME ZONE 'UTC')
       ${productId ? Prisma.sql`AND "productId" = ${productId}` : Prisma.empty}
     LIMIT 200`
