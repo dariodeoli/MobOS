@@ -8,6 +8,7 @@
         "analisis.spec.js",
         "auth.spec.js",
         "campanas-recompra.spec.js",
+        "clientes-permisos-credito.spec.js",
         "cobro-cuotas.spec.js",
         "delivery.spec.js",
         "demo-autorizaciones.spec.js",

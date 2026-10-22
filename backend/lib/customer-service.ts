@@ -164,6 +164,11 @@ export async function createCustomer(db: Db, actor: CustomerServiceActor, input:
   const existing = await duplicate(db, actor.tenantId, fields)
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
   if (existing && !options.allowExisting) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
+  // Dar de alta una ficha nueva con crédito/tipo es un atajo del mostrador, pero reescribir el crédito o el tipo
+  // de una ficha YA existente (misma identidad) es cambiar la ficha: solo administración o gerencia.
+  if (existing && !privileged(actor) && ['pricingTier', 'creditLimitPyg', 'creditDays'].some(key => Object.hasOwn(fields, key))) {
+    throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
+  }
   const customer = existing
     ? await db.customer.update({ where: { id: existing.id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: customerInclude })
     : await db.customer.create({ data: ({ tenantId: actor.tenantId, createdById: actor.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) } as any), include: customerInclude })
