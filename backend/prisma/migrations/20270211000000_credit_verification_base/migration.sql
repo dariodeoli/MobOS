@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS "PaymentVerificationDiscrepancy" (
     CONSTRAINT "PaymentVerificationDiscrepancy_pkey" PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "PaymentVerificationDiscrepancy_tenantId_requestId_key" ON "PaymentVerificationDiscrepancy"("tenantId", "requestId");
-CREATE INDEX IF NOT EXISTS "PaymentVerificationDiscrepancy_tenantId_branchId_businessDay_idx" ON "PaymentVerificationDiscrepancy"("tenantId", "branchId", "businessDay");
+CREATE INDEX IF NOT EXISTS "PaymentVerificationDiscrepancy_tenantId_branchId_businessDa_idx" ON "PaymentVerificationDiscrepancy"("tenantId", "branchId", "businessDay");
 DO $$ BEGIN
   ALTER TABLE "PaymentVerificationDiscrepancy" ADD CONSTRAINT "PaymentVerificationDiscrepancy_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;

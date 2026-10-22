@@ -965,4 +965,7 @@ PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/public-pages403-pg.mjs"
 echo "Pedidos: identidad fiscal exacta en cliente inline (#344)..."
 node "$BACKEND_ROOT/tests/orders-inline-fiscal-identity.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Verificación de pagos: el servidor decide el estado, nadie aprueba lo propio, entrega bloqueada y verificación diaria..."
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-verification.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
+
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito, gift cards y logout."
