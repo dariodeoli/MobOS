@@ -9,6 +9,8 @@ import { api } from '@/lib/api/client'
 import { quoteDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { serialEnmascarado } from '@/utils/serial'
+import { avisoQuedan } from '@/lib/posRetencion'
+import ChipApartado from './ChipApartado'
 import { LIMITE_MONTO_VENTAS, montoUsd } from '@/utils/moneda'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { TONOS } from '@/lib/estadoEquipo'
@@ -170,6 +172,10 @@ export default function FilaVenta({
               </span>
             </button>
             )}
+            {/* Apartado del IMEI en el carrito (contador, vencimiento, sin conexión). */}
+            {tieneImei && <ChipApartado serial={item.serials[0]} />}
+            {/* Sin serial no se retiene cantidad: solo un aviso cuando queda poco. */}
+            {!tieneImei && !item.requiereSerie && !item.sobrePedido && !agotado && avisoQuedan(stock) && <span data-testid="aviso-quedan"><Badge color="orange">{avisoQuedan(stock)}</Badge></span>}
             {item.couponCode && (
               <span data-testid="linea-cupon" className={cn('inline-flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-semibold', TONOS.chip.ok)} title={`Cupón ${item.couponCode}`}>
                 <Icon name="tag" className="h-3 w-3" aria-hidden="true" />

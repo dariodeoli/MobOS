@@ -500,7 +500,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   // Hay una unidad disponible: "sin IMEI" queda bloqueado y se explica.
   await expect(dialogo.getByRole('checkbox')).toBeDisabled()
   await expect(dialogo.getByText(/Con stock no se vende sin IMEI/)).toBeVisible()
-  await dialogo.getByRole('button', { name: 'Reservar este' }).first().click()
+  await dialogo.getByRole('button', { name: 'Elegir' }).first().click()
   await dialogo.getByRole('button', { name: 'Listo' }).click()
   await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()
 
