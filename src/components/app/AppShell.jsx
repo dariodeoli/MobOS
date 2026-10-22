@@ -38,6 +38,7 @@ import {
   segmentosEnToolbar,
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
+import '@/styles/visual-v3.css'
 
 function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
   if (sinEmpresa > 0) return `${sinEmpresa} venta${sinEmpresa === 1 ? '' : 's'} sin empresa por confirmar`

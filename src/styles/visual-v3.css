@@ -1,0 +1,339 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Lenguaje visual v3 (docs/visual-v3/DIRECCION.md)
+   ────────────────────────────────────────────────────────────────────────
+   Capa de PRESENTACIÓN sobre el shell autenticado (`.shell-nav-v2`) y sus
+   ventanas. No cambia lógica, datos, permisos, data-testid ni geometría de
+   los controles (alto/ancho de 44 px intactos): solo superficies, sombras,
+   radios, líneas, tipografía y movimiento.
+
+   Principios: el lienzo con tinte cálido y las tarjetas BLANCAS elevadas con
+   sombra en capas reemplazan a los bordes; las líneas internas pasan a
+   «hairline» casi invisible; una tarjeta dentro de otra se aplana (sin caja
+   en caja); los títulos y cifras ganan contraste de tamaño y peso; los estados
+   son chips tonales sin borde. En oscuro las superficies elevadas son MÁS
+   claras que el lienzo (no es un claro invertido).
+
+   La paleta del shell vive en shellNavigation.css (scope `.shell-nav-v2`);
+   acá solo hay tokens propios --v3-*. Accesibilidad: el texto no cambia de
+   tono (AA medido por dsn-241-a11y); los controles con borde como única
+   affordance (outline, inputs) lo conservan con `--c-interactivo` (≥3:1).
+   ════════════════════════════════════════════════════════════════════════ */
+
+.shell-nav-v2,
+.v3-portal {
+  --v3-radius-card: 16px;
+  --v3-radius-control: 10px;
+  --v3-radius-field: 12px;
+  --v3-hairline: rgb(var(--c-ink-600) / .7);
+  --v3-ease: cubic-bezier(.2, .8, .2, 1);
+  --v3-fast: 160ms;
+  /* Elevación en capas: borde de luz + contacto + ambiente. */
+  --v3-elev-1: 0 0 0 1px rgb(24 32 28 / .045), 0 1px 2px rgb(24 32 28 / .05), 0 2px 8px -2px rgb(24 32 28 / .06);
+  --v3-elev-2: 0 0 0 1px rgb(24 32 28 / .05), 0 2px 4px rgb(24 32 28 / .05), 0 12px 28px -12px rgb(24 32 28 / .16);
+  --v3-elev-3: 0 0 0 1px rgb(24 32 28 / .06), 0 8px 16px -6px rgb(24 32 28 / .12), 0 28px 60px -20px rgb(24 32 28 / .28);
+  --v3-glass: rgb(var(--c-ink) / .78);
+  --v3-brand-grad: linear-gradient(135deg, rgb(var(--c-fono-dark)) 0%, rgb(var(--c-fono)) 100%);
+  --v3-bevel: inset 0 1px 0 rgb(255 255 255 / .16), inset 0 -1px 0 rgb(0 0 0 / .28), 0 1px 2px rgb(0 0 0 / .18);
+}
+.dark .shell-nav-v2,
+.dark .v3-portal,
+html.dark .v3-portal {
+  --v3-hairline: rgb(var(--c-ink-600) / .75);
+  --v3-elev-1: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 0 1px rgb(255 255 255 / .055), 0 2px 6px -2px rgb(0 0 0 / .6);
+  --v3-elev-2: inset 0 1px 0 rgb(255 255 255 / .05), 0 0 0 1px rgb(255 255 255 / .07), 0 14px 32px -12px rgb(0 0 0 / .7);
+  --v3-elev-3: inset 0 1px 0 rgb(255 255 255 / .06), 0 0 0 1px rgb(255 255 255 / .08), 0 30px 64px -20px rgb(0 0 0 / .8);
+  --v3-glass: rgb(var(--c-ink) / .72);
+  --v3-bevel: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 -1px 0 rgb(0 0 0 / .12), 0 1px 2px rgb(0 0 0 / .4);
+}
+
+/* ── Tipografía ─────────────────────────────────────────────────────────
+   Título de página con peso y tamaño reales; números tabulares en todo el
+   shell; menos MAYÚSCULAS (los rótulos de tabla pasan a oración). */
+.shell-nav-v2.shell-nav-v2 { font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01'; }
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-page-title'] {
+  font-size: 1.625rem;
+  line-height: 2rem;
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+@media (max-width: 767px) {
+  .shell-nav-v2 [data-testid='shell-page-title'] { font-size: 1.375rem; line-height: 1.75rem; }
+}
+.shell-nav-v2.shell-nav-v2 :is(td, [data-money], .tabular-nums, .ventas-f3-money) { font-variant-numeric: tabular-nums; }
+
+/* ── Lienzo y navegación ───────────────────────────────────────────────
+   Sidebar del color del lienzo (sin línea): el contenido flota sobre él.
+   El ítem activo es una píldora blanca elevada. Topbar y barra inferior en
+   móvil son de vidrio esmerilado. */
+.shell-nav-v2.shell-nav-v2 aside[data-testid='shell-lateral'],
+.shell-nav-v2.shell-nav-v2 aside[data-testid='shell-config-menu'] {
+  background: rgb(var(--c-paper));
+  border-right-color: transparent;
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] :is([data-testid='shell-config-pie']),
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] > div.border-t {
+  border-top-color: var(--v3-hairline);
+}
+.shell-nav-v2.tema-v2 [data-testid='shell-lateral'] nav [aria-current='page'],
+.shell-nav-v2.tema-v2 .shell-section-tabs[data-vertical] [aria-current='page'] {
+  background: rgb(var(--c-ink));
+  box-shadow: var(--v3-elev-1);
+  border-radius: 10px;
+  font-weight: 600;
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] nav button,
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] nav a {
+  border-radius: 10px;
+  transition: background-color var(--v3-fast) var(--v3-ease), box-shadow var(--v3-fast) var(--v3-ease);
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-mobile-header'],
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-bottom-nav'] {
+  background: var(--v3-glass);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+  border-color: var(--v3-hairline);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .shell-nav-v2 [data-testid='shell-mobile-header'],
+  .shell-nav-v2 [data-testid='shell-bottom-nav'] { background: rgb(var(--c-ink)); }
+}
+
+/* Pestañas de sección: subrayado de marca grueso y redondeado. */
+.shell-nav-v2.shell-nav-v2 .shell-section-tabs:not([data-segmented]):not([data-vertical]) { border-bottom-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .shell-section-tabs[data-segmented] > div,
+.shell-nav-v2.shell-nav-v2 .shell-section-tabs .rounded-lg.border.bg-ink-700 {
+  border-color: transparent;
+  background: rgb(var(--c-ink-700));
+  border-radius: 12px;
+}
+.shell-nav-v2.tema-v2 .shell-section-tabs[data-segmented] [aria-current='page'] {
+  border-radius: 9px;
+  box-shadow: var(--v3-elev-1);
+}
+
+/* ── Tarjetas: sombra en capas en vez de borde ─────────────────────────
+   Contenedores (no controles) con superficie de tarjeta y borde. El borde
+   conserva su ancho (sin saltos de layout) pero se vuelve transparente y la
+   elevación lo reemplaza. */
+.shell-nav-v2.shell-nav-v2 :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl, .rounded-\[10px\], .rounded-\[12px\]):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab'], [role='switch']),
+.shell-nav-v2.shell-nav-v2 [data-ui='card'],
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-list,
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-detail-section,
+.shell-nav-v2.shell-nav-v2 .cp-tarjeta,
+.shell-nav-v2.shell-nav-v2 .gp-tarjeta,
+.shell-nav-v2.shell-nav-v2 .entregas-f3-order,
+.shell-nav-v2.shell-nav-v2 .pos-f2 :is([data-testid='pos-bloque-productos'], [data-testid='pos-bloque-cliente'], [data-testid='pos-bloque-carrito'], [data-testid='pos-cobro'], [data-testid='resumen-compra']),
+.shell-nav-v2.shell-nav-v2 .gp-lista,
+.shell-nav-v2.shell-nav-v2 .inicio-kpi-stripe {
+  border-color: transparent;
+  border-radius: var(--v3-radius-card);
+  background-color: rgb(var(--c-ink));
+  box-shadow: var(--v3-elev-1);
+}
+/* Caja dentro de caja: la interior se aplana a un relleno tonal. */
+.shell-nav-v2.shell-nav-v2 :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl) :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab'], [role='switch']),
+.shell-nav-v2.shell-nav-v2 [data-ui='card'] [data-ui='card'] {
+  box-shadow: none;
+  background-color: rgb(var(--c-ink-800));
+  border-color: transparent;
+  border-radius: 12px;
+}
+/* Paneles secundarios (bg-ink-800 con borde): tonales, sin línea. */
+.shell-nav-v2.shell-nav-v2 .bg-ink-800.border:is(.rounded-xl, .rounded-2xl):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab']) {
+  border-color: transparent;
+  border-radius: 14px;
+}
+/* Tarjetas que se tocan (enlaces y botones con forma de tarjeta): elevación
+   al pasar el mouse y presión al tocar. */
+.shell-nav-v2.shell-nav-v2 :is(a, button, [role='button']):is(.rounded-xl, .rounded-2xl).border:not([role='tab']) {
+  transition: box-shadow var(--v3-fast) var(--v3-ease), transform var(--v3-fast) var(--v3-ease), background-color var(--v3-fast) var(--v3-ease), border-color var(--v3-fast) var(--v3-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .shell-nav-v2 :is(a, button, [role='button']):is(.rounded-xl, .rounded-2xl).border:not([role='tab']):not(:disabled):hover {
+    box-shadow: var(--v3-elev-2);
+  }
+}
+
+/* ── Listas y tablas «sin tabla» ───────────────────────────────────────
+   Sin líneas verticales; separadores hairline; cabecera sutil en oración;
+   hover tonal. Las filas conservan su alto (contrato de densidad #448). */
+.shell-nav-v2.shell-nav-v2 table { border-collapse: separate; border-spacing: 0; }
+.shell-nav-v2.shell-nav-v2 thead,
+.shell-nav-v2.shell-nav-v2 thead th { background: transparent; }
+.shell-nav-v2.shell-nav-v2 thead :is(tr, th) {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.shell-nav-v2.shell-nav-v2 thead th { font-weight: 500; color: rgb(var(--c-mute)); }
+.shell-nav-v2.shell-nav-v2 thead tr { border-bottom-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 :is(th, td) { border-left-color: transparent; border-right-color: transparent; }
+.shell-nav-v2.shell-nav-v2 tbody tr { border-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 tbody tr:hover { background-color: rgb(var(--c-fono) / .045); }
+.shell-nav-v2.shell-nav-v2 .ventas-f3 :is(.ventas-f3-order-row, .ventas-f3-quote-row),
+.shell-nav-v2.shell-nav-v2 .gp-fila { border-top-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-list-header { color: rgb(var(--c-mute)); font-weight: 500; }
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-order-row,
+.shell-nav-v2.shell-nav-v2 .gp-fila {
+  transition: background-color var(--v3-fast) var(--v3-ease), box-shadow var(--v3-fast) var(--v3-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .shell-nav-v2 .ventas-f3 .ventas-f3-order-row:hover,
+  .shell-nav-v2 .gp-fila:hover {
+    background-color: rgb(var(--c-ink-800));
+    box-shadow: inset 0 0 0 1px var(--v3-hairline);
+  }
+}
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-list > :last-child { border-bottom-left-radius: var(--v3-radius-card); border-bottom-right-radius: var(--v3-radius-card); }
+.shell-nav-v2.shell-nav-v2 .ventas-f3-order-total,
+.shell-nav-v2.shell-nav-v2 .gp-fila-monto { font-weight: 700; letter-spacing: -.01em; }
+.shell-nav-v2.shell-nav-v2 .ventas-f3-quick { border-color: transparent; background: rgb(var(--c-ink-700)); border-radius: 10px; }
+.shell-nav-v2.shell-nav-v2 .ventas-f3-quick:hover { background: rgb(var(--c-ink-600)); }
+
+/* ── KPI ────────────────────────────────────────────────────────────────
+   Tira de KPI de Inicio: una tarjeta, separadores hairline y cifra grande. */
+.shell-nav-v2.shell-nav-v2 .inicio-kpi:nth-child(even) { border-left-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .inicio-kpi:nth-child(n + 3) { border-top-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .inicio-kpi-value { font-weight: 700; letter-spacing: -.025em; }
+.shell-nav-v2.shell-nav-v2 [data-testid^='kpi'] .border-r,
+.shell-nav-v2.shell-nav-v2 .border-r.border-ink-600 { border-right-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 :is(.border-b, .border-t).border-ink-600:not(input, select, textarea, button) { border-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .v2-numero { letter-spacing: -.025em; }
+/* Tarjeta destacada (Stat/tile héroe): gradiente de marca con brillo. */
+.shell-nav-v2.shell-nav-v2 .bg-gradient-to-br.from-fono-dark {
+  box-shadow: 0 10px 28px -12px rgb(var(--c-fono) / .55), inset 0 1px 0 rgb(255 255 255 / .22);
+  border-color: transparent;
+}
+
+/* ── Inicio: atajos elevados, héroe con gradiente, actividad sin grilla ── */
+.shell-nav-v2.shell-nav-v2 .inicio-atajo {
+  border-color: transparent;
+  border-radius: var(--v3-radius-card);
+  box-shadow: var(--v3-elev-1);
+  transition: transform var(--v3-fast) var(--v3-ease), box-shadow var(--v3-fast) var(--v3-ease);
+}
+.shell-nav-v2.shell-nav-v2 .inicio-atajo:hover { border-color: transparent; box-shadow: var(--v3-elev-2); }
+.shell-nav-v2.shell-nav-v2 .inicio-atajo:active { transform: scale(.985); }
+.shell-nav-v2.shell-nav-v2 .inicio-atajo__icono { border-radius: 12px; background: linear-gradient(140deg, rgb(var(--c-fono) / .2), rgb(var(--c-fono) / .08)); }
+.shell-nav-v2.shell-nav-v2 .inicio-atajo[data-principal='true'] {
+  background-image: radial-gradient(120% 140% at 100% 0%, rgb(255 255 255 / .22), transparent 55%), var(--v3-brand-grad);
+  box-shadow: 0 14px 30px -14px rgb(var(--c-fono) / .7), inset 0 1px 0 rgb(255 255 255 / .25);
+}
+.shell-nav-v2.shell-nav-v2 .inicio-atajo[data-principal='true'] .inicio-atajo__icono { background: rgb(255 255 255 / .22); }
+.shell-nav-v2.shell-nav-v2 .inicio-kpi-stripe { border-top-color: transparent; }
+.shell-nav-v2.shell-nav-v2 .inicio-kpi { padding-block: 12px; }
+.shell-nav-v2.shell-nav-v2 .inicio-f2 .inicio-kpi + .inicio-kpi { border-left-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .inicio-actividad {
+  border-color: transparent;
+  border-radius: var(--v3-radius-card);
+  box-shadow: var(--v3-elev-1);
+  padding-inline: 18px;
+}
+.shell-nav-v2.shell-nav-v2 .inicio-actividad__fila { border-top-color: var(--v3-hairline); }
+.shell-nav-v2.shell-nav-v2 .inicio-actividad__cab h3 { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.shell-nav-v2.shell-nav-v2 .inicio-actividad__monto { letter-spacing: -.01em; }
+.shell-nav-v2.shell-nav-v2 .inicio-saludo__titulo { font-size: 26px; line-height: 32px; letter-spacing: -.03em; }
+
+/* ── Botones ────────────────────────────────────────────────────────────
+   Primario: relleno sólido con bisel (estilo Polaris), el color lo sigue
+   poniendo el tema (backgroundColor intacto para los contratos de color).
+   Outline: superficie blanca elevada; el borde interactivo (≥3:1) se queda. */
+.shell-nav-v2.shell-nav-v2 button.bg-fono:not([role='switch']),
+.v3-portal button.bg-fono:not([role='switch']) {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / .10), rgb(255 255 255 / 0) 60%);
+  box-shadow: var(--v3-bevel);
+  border-radius: var(--v3-radius-control);
+}
+.shell-nav-v2.shell-nav-v2 button.bg-fono:not([role='switch']):active:not(:disabled) { box-shadow: inset 0 1px 2px rgb(0 0 0 / .35); }
+.shell-nav-v2.shell-nav-v2 button.border-interactivo.bg-transparent,
+.v3-portal button.border-interactivo.bg-transparent {
+  background-color: rgb(var(--c-ink));
+  box-shadow: 0 1px 2px rgb(24 32 28 / .06);
+  border-radius: var(--v3-radius-control);
+}
+.shell-nav-v2.shell-nav-v2 button.rounded-lg:not([role='tab']),
+.v3-portal button.rounded-lg:not([role='tab']) { border-radius: var(--v3-radius-control); }
+.shell-nav-v2.shell-nav-v2 button,
+.v3-portal button { transition-property: color, background-color, border-color, box-shadow, transform, opacity; transition-duration: var(--v3-fast); transition-timing-function: var(--v3-ease); }
+
+/* ── Chips y badges: tonales, píldora, sin borde ───────────────────────── */
+.shell-nav-v2.tema-v2 .v2-chip,
+.shell-nav-v2.shell-nav-v2 .gp .gp-estado,
+.v3-portal .v2-chip {
+  border-color: transparent;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-payment > span.rounded-full,
+.shell-nav-v2.shell-nav-v2 .ventas-f3 .ventas-f3-state > span.rounded-full { border-color: transparent; }
+
+/* ── Campos ─────────────────────────────────────────────────────────────
+   Radio 12, relleno blanco, borde interactivo, halo de marca al enfocar. */
+.shell-nav-v2.shell-nav-v2 :is(input, select, textarea)[data-oc-control],
+.v3-portal :is(input, select, textarea)[data-oc-control] {
+  border-radius: var(--v3-radius-field);
+  transition: border-color var(--v3-fast) var(--v3-ease), box-shadow var(--v3-fast) var(--v3-ease);
+}
+.shell-nav-v2.shell-nav-v2 :is(input, select, textarea):focus-visible,
+.v3-portal :is(input, select, textarea):focus-visible {
+  box-shadow: 0 0 0 4px rgb(var(--c-fono) / .16);
+}
+
+/* ── Estados vacíos: ícono en contenedor tonal de marca ───────────────── */
+.shell-nav-v2.shell-nav-v2 .grid.h-12.w-12.place-items-center.rounded-2xl.border-ink-500.bg-ink-700,
+.v3-portal .grid.h-12.w-12.place-items-center.rounded-2xl.border-ink-500.bg-ink-700 {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-color: transparent;
+  border-radius: 18px;
+  background: radial-gradient(120% 120% at 30% 20%, rgb(var(--c-fono) / .22), rgb(var(--c-fono) / .08));
+  color: rgb(var(--c-fono-text));
+  box-shadow: 0 0 0 6px rgb(var(--c-fono) / .06);
+}
+
+/* ── Esqueletos con brillo (no spinners) ───────────────────────────────── */
+@keyframes v3-brillo { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
+.shell-nav-v2.shell-nav-v2 .animate-pulse.rounded-lg,
+.v3-portal .animate-pulse.rounded-lg {
+  border-radius: 10px;
+  background-image: linear-gradient(90deg, rgb(var(--c-fore) / 0) 0%, rgb(var(--c-fore) / .06) 50%, rgb(var(--c-fore) / 0) 100%);
+  background-size: 200% 100%;
+  animation: v3-brillo 1.4s ease-in-out infinite;
+}
+
+/* ── Ventanas (Popup / Modal) ──────────────────────────────────────────
+   Fondo con desenfoque leve, panel sin borde con la elevación más alta y
+   pie separado por hairline. */
+.v3-portal.popup-fondo {
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
+}
+.v3-portal .popup-panel {
+  border-color: transparent;
+  box-shadow: var(--v3-elev-3);
+}
+@media (min-width: 768px) { .v3-portal .popup-panel { border-radius: 22px; } }
+.v3-portal .popup-panel > .border-t,
+.v3-portal .popup-pie { border-top-color: var(--v3-hairline); }
+.v3-portal :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab']) {
+  border-color: transparent;
+  background-color: rgb(var(--c-ink-800));
+}
+.shell-nav-v2.shell-nav-v2 [role='dialog'] { box-shadow: var(--v3-elev-3); }
+
+/* ── Transición de página: aparición suave (solo opacidad: la geometría no
+   se mueve y los contratos de layout miden lo mismo). ─────────────────── */
+@keyframes v3-aparece { from { opacity: 0; } to { opacity: 1; } }
+.shell-nav-v2.shell-nav-v2 .shell-body > main,
+.shell-nav-v2.shell-nav-v2 .shell-body > div > main { animation: v3-aparece .22s var(--v3-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-nav-v2 *,
+  .v3-portal * { transition-duration: .01ms !important; }
+  .shell-nav-v2 .shell-body > main,
+  .shell-nav-v2 .shell-body > div > main,
+  .shell-nav-v2 .animate-pulse,
+  .v3-portal .animate-pulse { animation: none !important; }
+}
+@media (forced-colors: active) {
+  .shell-nav-v2 :is(.bg-ink, .bg-ink-900).border { border-color: CanvasText; }
+}
