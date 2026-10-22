@@ -6,12 +6,14 @@ Capacitor y habla con `https://api.moboss.online`. Solo iPhone, bundle
 
 ## Qué incluye la v1
 
-- **Módulos:** Vender (POS), Pedidos (lista y página del pedido), Clientes y
-  Configuración (Mi cuenta, Eliminar mi cuenta, soporte, privacidad). Stock, Compras,
-  Taller, Finanzas, Análisis e Inicio quedan ocultos detrás de la bandera
-  `MODULOS_IOS` (`src/lib/plataforma.js`). Para habilitarlos todos en un build:
-  `VITE_IOS_TODOS_LOS_MODULOS=1`. Un enlace a un módulo oculto muestra «Disponible
-  pronto en la app» (con enlace a la web solo si no es de precios/pagos).
+- **Paridad con la web:** la app muestra las mismas secciones, barras («Secciones de
+  Vender», pestañas) y vistas que la web, y se rigen por los **módulos v2 de la empresa**
+  (`useModulos`), no por una lista fija de iOS (se eliminó `MODULOS_IOS` y la pantalla
+  «Disponible pronto»). Las únicas diferencias que quedan son nativas (zonas seguras,
+  teclado, hápticos, push, Keychain/PIN) y las que exige Apple: sin landing, sin alta de
+  tienda, sin planes ni cobro del plan de MobOS (3.1.1). Plan y facturación es solo
+  informativo, sin enlaces de pago. Las ventas del comercio (POS, cobros, enlaces de
+  pago) son bienes físicos y se permiten.
 - **Solo tiendas existentes:** sin landing, sin «Crear mi tienda», sin alta, sin
   planes ni precios. «Continuar con Apple», «Continuar con Google» (nativo), correo y
   contraseña, y «Probar la demo» (datos ficticios, para el revisor).

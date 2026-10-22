@@ -377,23 +377,8 @@ html.app-ios textarea {
   font-size: max(16px, 1em);
 }
 
-/* Ingreso en UNA pantalla (iPhone SE 375x667 hasta Pro Max): logo chico, campos
-   y botones de 44-48 px, etiquetas solo para lectores (el placeholder dice qué
-   va), sin pie ni encabezado largo. El contenedor igual puede desplazarse para
-   que el teclado nunca tape el campo enfocado. */
-html.app-ios .auth-ios .auth-shell-grid { align-items: start; padding-top: 0.5rem; padding-bottom: 0.5rem; }
-html.app-ios .auth-ios .login-panel { padding: 1rem; border-radius: 1.5rem; box-shadow: none; }
-html.app-ios .auth-ios .auth-form > * + * { margin-top: 0.5rem; }
-html.app-ios .auth-ios .auth-form button[class*='h-14'],
-html.app-ios .auth-ios .auth-form > .h-14 { height: 3rem; border-radius: 0.875rem; }
-html.app-ios .auth-ios .auth-form #mail,
-html.app-ios .auth-ios .auth-form #pass { height: 2.75rem; }
-html.app-ios .auth-ios .auth-form label[for='mail'],
-html.app-ios .auth-ios .auth-form label[for='pass'] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-html.app-ios .auth-ios .auth-form > .py-1 { padding-block: 0; }
-/* El PIN valida automáticamente. El login por correo conserva el botón y
-   su progreso mientras espera, igual que la web. */
-html.app-ios .auth-ios .auth-form[data-etapa='vendedor'] > button[type='submit'] { display: none; }
+/* El ingreso usa las mismas medidas que la web (paridad con la web): solo cambian
+   las zonas seguras de arriba. */
 
 /* ── PIN segmentado (celdas iguales, un punto por dígito) ─────────────── */
 @keyframes pin-seg-pop { 0% { transform: scale(.55); opacity: 0; } 65% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }

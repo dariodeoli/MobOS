@@ -73,7 +73,7 @@ export default function AuthLayout({
     }
   }, [compacto])
   return (
-    <main ref={main} className={cn('auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore', isNativeIOS() && 'auth-ios', compacto && 'auth-login', pin && 'auth-login-pin')}>
+    <main ref={main} className={cn('auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore', compacto && 'auth-login', pin && 'auth-login-pin')}>
       <div className="absolute right-4 top-4 z-20">
         <ThemeToggle />
       </div>

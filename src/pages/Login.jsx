@@ -332,10 +332,10 @@ export default function Login() {
         )}
         <AuthPanelHeader compacto />
 
-        <h1 className={cn('mb-1 text-2xl font-semibold sm:text-[1.7rem]', ios && 'mb-3 text-xl sm:text-xl')}>
+        <h1 className="mb-1 text-2xl font-semibold sm:text-[1.7rem]">
           {crear ? 'Creá la cuenta de tu tienda' : <><span className={['vendedor', 'setup'].includes(etapa) ? 'login-pin-titulo-base' : undefined}>Entrá a tu tienda</span>{['vendedor', 'setup'].includes(etapa) && <span className="login-pin-tienda">{nombreEmpresa || 'Tu tienda'}</span>}</>}
         </h1>
-        {!crear && etapa !== 'tienda' && !ios && <p className="login-intro mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
+        {!crear && etapa !== 'tienda' && <p className="login-intro mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
         {crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Empezá con Google o creá tu acceso con correo.</p>}
 
         <form data-etapa={etapa} onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
@@ -386,7 +386,7 @@ export default function Login() {
               id="mail"
               value={f.correo}
               onChange={(value) => setF((x) => ({ ...x, correo: value }))}
-              placeholder={ios ? 'Correo de tu tienda' : 'vos@tutienda.com'}
+              placeholder="vos@tutienda.com"
               autoCapitalize="none"
               autoCorrect="off"
               autoComplete="email"
@@ -400,12 +400,12 @@ export default function Login() {
               id="pass"
               value={f.clave}
               onChange={set('clave')}
-              placeholder={crear ? 'Mínimo 8 caracteres' : ios ? 'Contraseña' : '••••••••'}
+              placeholder={crear ? 'Mínimo 8 caracteres' : '••••••••'}
               autoComplete={crear ? 'new-password' : 'current-password'}
             />
           </div>
           {/* Llevamos el correo ya escrito para no volver a tipearlo en recuperación. */}
-          <div className="login-recuperar -mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link>{!ios && <Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link>}</div>
+          <div className="login-recuperar -mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link><Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link></div>
           </>}
 
           {error && (
