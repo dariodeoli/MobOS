@@ -7,7 +7,7 @@ export type SaldoAbierto = { moduleId: string; cantidad: number; totalPyg: numbe
 const gs = (n: number) => `Gs ${n.toLocaleString('es-PY')}`
 const num = (v: bigint | number | null | undefined) => Number(v ?? 0)
 
-type Db = Pick<Prisma.TransactionClient, 'payment' | 'storeCredit' | 'giftCard' | 'deliverySettlement' | 'commissionSettlement' | 'tradeInDevice'>
+type Db = Pick<Prisma.TransactionClient, 'payment' | 'storeCredit' | 'giftCard' | 'deliverySettlement' | 'commissionSettlement' | 'tradeInDevice' | 'inventoryUnit'>
 
 const REVISORES: Record<string, (db: Db, tenantId: string, ahora: Date) => Promise<SaldoAbierto | null>> = {
   async cuotas(db, tenantId) {
@@ -34,6 +34,13 @@ const REVISORES: Record<string, (db: Db, tenantId: string, ahora: Date) => Promi
     const r = await db.commissionSettlement.aggregate({ where: { tenantId, status: 'DRAFT' }, _count: { _all: true }, _sum: { totalPyg: true } })
     if (!r._count._all) return null
     return { moduleId: 'comisiones', cantidad: r._count._all, totalPyg: num(r._sum.totalPyg), detalle: `${r._count._all} liquidación(es) de comisiones sin pagar por ${gs(num(r._sum.totalPyg))}` }
+  },
+  // El POS pide el IMEI exacto de los equipos con unidades: mientras haya equipos
+  // en stock, reservados, en revisión o en tránsito, la vista de unidades no se apaga.
+  async 'inventario-unidades'(db, tenantId) {
+    const cantidad = await db.inventoryUnit.count({ where: { tenantId, removedAt: null, status: { in: ['AVAILABLE', 'RESERVED', 'DEFECTIVE', 'IN_TRANSIT'] } } })
+    if (!cantidad) return null
+    return { moduleId: 'inventario-unidades', cantidad, totalPyg: 0, detalle: `${cantidad} equipo(s) con IMEI/serie en stock, reservados, en revisión o en tránsito (vendelos o dalos de baja primero)` }
   },
   async tradein(db, tenantId) {
     const r = await db.tradeInDevice.aggregate({ where: { tenantId, status: { in: ['RECEIVED', 'REVIEW', 'REPAIR', 'READY'] } }, _count: { _all: true }, _sum: { valuePyg: true } })

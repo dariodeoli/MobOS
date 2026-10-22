@@ -36,11 +36,14 @@ const LECTURAS = new Set(['GET', 'HEAD', 'OPTIONS'])
  * sesión no decide (devuelve null y el handler responde 401 como siempre).
  * Uso: `const apagado = await moduloGuard(request, 'tradein'); if (apagado) return apagado`
  */
-export async function moduloGuard(request: Request, id: string, tenantId?: string): Promise<Response | null> {
+export async function moduloGuard(request: Request, id: string | readonly string[], tenantId?: string): Promise<Response | null> {
   if (LECTURAS.has(request.method.toUpperCase())) return null
   const tenant = tenantId ?? (await requireSession(request))?.user.tenantId
   if (!tenant) return null
-  return await moduloHabilitado(tenant, id) ? null : error(moduloApagadoMensaje(id), 403)
+  // Con varios ids alcanza que uno esté activo (p. ej. reservas: stock avanzado o inventario por unidades).
+  const ids = typeof id === 'string' ? [id] : id
+  for (const candidato of ids) if (await moduloHabilitado(tenant, candidato)) return null
+  return error(moduloApagadoMensaje(ids[0]), 403)
 }
 
 /**

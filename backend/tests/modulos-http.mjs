@@ -21,7 +21,7 @@ async function pedir(path, method = 'GET', body) {
 }
 
 const original = psql(`SELECT COALESCE(settings,'{}'::jsonb)::text FROM "Tenant" WHERE "id"='${tenantId}'`)
-const ids = ['tradein', 'servicios', 'delivery', 'campanas-recompra', 'publicidad', 'comisiones', 'cuotas', 'conciliacion', 'gift-cards', 'promociones', 'listas-precios', 'abastecimiento', 'multisucursal', 'stock-avanzado', 'ia-conectores', 'verificacion-imei']
+const ids = ['tradein', 'servicios', 'delivery', 'campanas-recompra', 'publicidad', 'comisiones', 'cuotas', 'conciliacion', 'gift-cards', 'promociones', 'listas-precios', 'abastecimiento', 'multisucursal', 'stock-avanzado', 'ia-conectores', 'verificacion-imei', 'inventario-unidades', 'venta-sin-stock']
 function guardarStore(apagados) {
   const modules = Object.fromEntries(apagados.map((id) => [id, { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() }]))
   const store = JSON.stringify({ version: 1, preset: 'comercio', modules })
@@ -44,6 +44,7 @@ const escrituras = [
   ['POST', '/api/transfers', 'multisucursal'], ['POST', '/api/shared-stock', 'multisucursal'],
   ['POST', '/api/inventory-counts', 'stock-avanzado'], ['POST', '/api/stock-verifications', 'stock-avanzado'], ['POST', '/api/inventory-reservations', 'stock-avanzado'],
   ['POST', '/api/imei', 'verificacion-imei'],
+  ['POST', '/api/inventory-units', 'inventario-unidades'], ['PATCH', '/api/inventory-units', 'inventario-unidades'],
 ]
 const lecturas = ['/api/gift-cards', '/api/promotions', '/api/price-lists', '/api/commission-rules', '/api/service-orders', '/api/transfers', '/api/inventory-counts', '/api/store-credits', '/api/device-valuations', '/api/combos', '/api/imei']
 
@@ -72,6 +73,7 @@ try {
   for (const [nombre, cuerpo] of [
     ['gift card', venta({ payment: { method: 'GIFT_CARD', amountPyg: 100000, status: 'CONFIRMED', giftCardCode: 'GC-AAAA-BBBB-CCCC' } })],
     ['cupón', venta({ item: { couponCode: 'NOEXISTE' } })],
+    ['venta sin stock (backorder)', venta({ item: { backorder: true } })],
     ['combo', venta({ item: { comboId: 'combo-inexistente' } })],
     ['trade-in', venta({ payment: { method: 'TRADE_IN', amountPyg: 100000, status: 'CONFIRMED', tradeIn: { serial: 'MODSERIAL1', model: 'Equipo', conditionNotes: 'ok' } } })],
   ]) {
@@ -87,6 +89,11 @@ try {
   guardarStore([])
   const activo = await pedir('/api/orders', 'POST', venta({ payment: { method: 'GIFT_CARD', amountPyg: 100000, status: 'CONFIRMED', giftCardCode: 'GC-AAAA-BBBB-CCCC' } }))
   assert.notEqual(activo.status, 403, `con gift-cards activo no se rechaza por módulo: ${JSON.stringify(activo.data)}`)
+  checks += 1
+
+  // Venta sin stock activa: backorder:true ya no se rechaza por módulo.
+  const conBackorder = await pedir('/api/orders', 'POST', venta({ item: { backorder: true } }))
+  assert.notEqual(conBackorder.status, 403, `con venta-sin-stock activo no se rechaza por módulo: ${JSON.stringify(conBackorder.data)}`)
   checks += 1
 
   // Solo el dueño real cambia módulos: un ADMIN sin membresía OWNER recibe 403.

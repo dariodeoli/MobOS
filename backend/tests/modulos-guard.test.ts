@@ -146,3 +146,14 @@ test('inventario por unidades: las escrituras de unidades dan 403 apagado y las 
   settings = apagar()
   assert.equal(await moduloGuard(pedido('/api/inventory-units', 'POST'), 'inventario-unidades'), null)
 })
+
+test('reservas: alcanza con stock avanzado o con inventario por unidades', async () => {
+  const ids = ['stock-avanzado', 'inventario-unidades']
+  settings = apagar('stock-avanzado')
+  assert.equal(await moduloGuard(pedido('/api/inventory-reservations', 'POST'), ids), null)
+  settings = apagar('stock-avanzado', 'inventario-unidades')
+  assert.equal((await moduloGuard(pedido('/api/inventory-reservations', 'POST'), ids))?.status, 403)
+  assert.equal(await moduloGuard(pedido('/api/inventory-reservations', 'GET'), ids), null)
+  const fuente = readFileSync(path.resolve(__dirname, '../app/api/inventory-reservations/route.ts'), 'utf8')
+  assert.ok(fuente.includes("['stock-avanzado', 'inventario-unidades']"))
+})
