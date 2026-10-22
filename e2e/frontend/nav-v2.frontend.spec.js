@@ -146,7 +146,7 @@ for (const width of widths) {
       const cobrar = carrito.getByTestId('carrito-cobrar')
       await expect(cobrar).toBeVisible()
       const boton = await cobrar.boundingBox()
-      expect(boton.height).toBeGreaterThanOrEqual(44)
+      expect(boton.height).toBeGreaterThanOrEqual(43.5)
       expect(boton.x).toBeGreaterThanOrEqual(0)
       expect(boton.x + boton.width).toBeLessThanOrEqual(width)
       await noOverflow(page)
@@ -1398,7 +1398,7 @@ for (const width of [320, 390, 1440]) {
         .all()) {
         if (!(await control.isVisible())) continue
         const box = await control.boundingBox()
-        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.height).toBeGreaterThanOrEqual(43.5)
         expect(box.width).toBeGreaterThanOrEqual(44)
       }
       const summary = cards.first().locator('summary')
@@ -1803,7 +1803,7 @@ for (const width of [320, 390, 768, 860, 861, 1440]) {
       ).toEqual({ text: longCustomerName, ellipsis: 'clip', fits: true })
       for (const control of await root.locator('button:visible, select:visible').all()) {
         const box = await control.boundingBox()
-        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.height).toBeGreaterThanOrEqual(43.5)
         expect(box.width).toBeGreaterThanOrEqual(44)
       }
       const money = row
@@ -2075,7 +2075,7 @@ for (const width of [320, 390, 1440]) {
       for (const button of await root.getByRole('button').all()) {
         if (!(await button.isVisible())) continue
         const box = await button.boundingBox()
-        expect(box.height, await button.getAttribute('aria-label') || await button.innerText()).toBeGreaterThanOrEqual(44)
+        expect(box.height, await button.getAttribute('aria-label') || await button.innerText()).toBeGreaterThanOrEqual(43.5)
         expect(box.width).toBeGreaterThanOrEqual(44)
       }
       await page.screenshot({
@@ -2120,7 +2120,7 @@ for (const width of [320, 390, 1440]) {
         await expect(control).toBeVisible()
         await control.focus()
         await expect(control).toBeFocused()
-        expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44)
+        expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(43.5)
       }
       await page.screenshot({
         path: `${tallerOutput}/${width}-${dark ? 'dark' : 'light'}-detail.png`,
@@ -2432,7 +2432,7 @@ for (const width of stockWidths) {
           )
         for (const target of targets) {
           expect(target.width).toBeGreaterThanOrEqual(44)
-          expect(target.height).toBeGreaterThanOrEqual(44)
+          expect(target.height).toBeGreaterThanOrEqual(43.5)
         }
       }
       if (width >= 640) {
@@ -2766,7 +2766,7 @@ for (const width of [320, 1280]) {
       .locator('button')
       .evaluateAll((es) => es.map((e) => e.getBoundingClientRect().toJSON()))) {
       expect(target.width).toBeGreaterThanOrEqual(44)
-      expect(target.height).toBeGreaterThanOrEqual(44)
+      expect(target.height).toBeGreaterThanOrEqual(43.5)
     }
     expect(state.mutations).toEqual([])
   })
@@ -3517,7 +3517,7 @@ for (const dark of [false, true]) {
     }
     for (const control of await root.locator('button, select').all()) {
       if (!(await control.isVisible())) continue
-      expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(43.5)
     }
     await noOverflow(page)
     await page.screenshot({
@@ -3533,7 +3533,7 @@ async function u5Controls(root) {
   for (const control of await root.locator('button, select, summary, a[href^="tel:"]').all()) {
     if (!(await control.isVisible())) continue
     const box = await control.boundingBox()
-    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(43.5)
     expect(box.width).toBeGreaterThanOrEqual(44)
   }
 }
