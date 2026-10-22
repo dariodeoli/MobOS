@@ -16,7 +16,7 @@ const sufijo = `C${Date.now().toString(36).toUpperCase()}`
 let original
 let cuenta
 let producto
-const botonConfirmar = (page) => page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ })
+const botonConfirmar = (page) => page.getByRole('button', { name: /^(Confirmar venta|Crear pedido|Guardar pedido)/ })
 
 test.afterAll(() => restaurarVerificacion(original))
 
