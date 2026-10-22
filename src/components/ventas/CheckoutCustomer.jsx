@@ -19,6 +19,7 @@ import { customerIdentityPayload } from '@/lib/customerIdentity'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
 import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import { cn } from '@/lib/utils'
 import { fechaLegible } from '@/utils/pedido'
 import { avisoClienteBloqueado } from '@/utils/cobroPos'
@@ -50,6 +51,7 @@ const customerValue = (customer) => ({
 
 export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false, errorNombre = '', onStats, onSelected }) {
   const { empresa } = useSesion()
+  const mayoristas = useModulos().activo('mayoristas')
   const empresaId = empresa?.id || null
   // Only the outer search writes this query; editing the card never selects
   // a different customer merely because its visible name matches.
@@ -434,7 +436,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           </span>
         </div>
         <div data-testid="cliente-chips" className="mt-1 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-0.5 md:flex-wrap md:overflow-visible">
-          <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">{value.pricingTier === 'WHOLESALE' ? 'Mayorista' : 'Cliente final'}</span>
+          {mayoristas && <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">{value.pricingTier === 'WHOLESALE' ? 'Mayorista' : 'Cliente final'}</span>}
           {nombreLista ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span> : null}
           {limite > 0 ? (
             <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">

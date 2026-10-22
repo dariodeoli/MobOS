@@ -9,6 +9,7 @@ import SelectorVariante from './SelectorVariante'
 import PrecioStockProducto from './PrecioStockProducto'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import EncabezadoBloque from './EncabezadoBloque'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
@@ -83,6 +84,8 @@ export default function PasoProductos({
   onAgregarOtro = null,
   onCobrar = null,
 }) {
+  const { activo: moduloOn } = useModulos()
+  const mayoristas = moduloOn('mayoristas')
   const grillaRef = useRef(null)
   const columnas = useColumnasGrilla(grillaRef)
   // Con stock primero (lo vendible a mano); el resto conserva el orden del
@@ -214,17 +217,19 @@ export default function PasoProductos({
                   placeholder="0"
                 />
               </label>
-              <label className="block text-xs text-mute">
-                Precio mayorista (Gs)
-                <MoneyInput
-                  className="mt-1"
-                  value={nuevoDetalles.mayorista}
-                  onValueChange={v =>
-                    setNuevoDetalles(d => ({ ...d, mayorista: v === '' ? '' : String(v) }))
-                  }
-                  placeholder="Opcional"
-                />
-              </label>
+              {mayoristas && (
+                <label className="block text-xs text-mute">
+                  Precio mayorista (Gs)
+                  <MoneyInput
+                    className="mt-1"
+                    value={nuevoDetalles.mayorista}
+                    onValueChange={v =>
+                      setNuevoDetalles(d => ({ ...d, mayorista: v === '' ? '' : String(v) }))
+                    }
+                    placeholder="Opcional"
+                  />
+                </label>
+              )}
               <label className="block text-xs text-mute">
                 Costo (Gs)
                 <MoneyInput

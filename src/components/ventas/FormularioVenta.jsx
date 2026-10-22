@@ -366,6 +366,8 @@ export default function FormularioVenta({
   // Módulo «Venta sin stock»: apagado, el POS no ofrece vender sin stock ni sin IMEI (sobre pedido).
   const { activo: moduloOn } = useModulos()
   const ventaSinStock = moduloOn('venta-sin-stock')
+  // Mayoristas apagado: el POS no aplica ni muestra precio mayorista (el servidor tampoco).
+  const mayoristas = moduloOn('mayoristas')
   const navigate = useNavigate()
   const layoutRef = useRef(null)
   useAlturaPos(layoutRef)
@@ -768,7 +770,7 @@ export default function FormularioVenta({
     if (!producto) return undefined
     const info = preciosCache.current.get(`${customer?.id || ''}:${id}:${quantity}`)
     if (info) return Number(info.unitPricePygFallback ?? info.unitPricePyg) || 0
-    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
+    if (mayoristas && customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
     return Number(producto.precioVenta) || 0
   }
   // Venta bajo lista: diferencia acumulada entre el precio de lista y el precio
@@ -827,7 +829,7 @@ export default function FormularioVenta({
   // Precio con el que entra un producto a la venta: mayorista si el cliente lo es.
   function precioDe(producto) {
     if (!producto) return 0
-    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) {
+    if (mayoristas && customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) {
       return Number(producto.wholesalePricePyg)
     }
     return Number(producto.precioVenta) || 0

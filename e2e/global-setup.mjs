@@ -395,11 +395,11 @@ function reponerCreditosImei() {
 }
 
 // El tenant seed arranca siempre con los módulos por defecto del preset
-// Comercio (versión 1: todo activo; «Inventario por unidades» y «Venta sin stock»
+// Comercio (versión 1: todo activo; «Inventario por unidades», «Venta sin stock» y «Mayoristas»
 // quedan explícitos en activo porque en empresas nuevas nacen apagados). Algunos E2E prueban activación/desactivación; al persistir la base
 // entre corridas o shards, una prueba anterior no debe cambiar el menú de otra.
 function resetModuleStore() {
-  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true}}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
+  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true},"mayoristas":{"enabled":true}}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
 }
 
 export default async function globalSetup() {

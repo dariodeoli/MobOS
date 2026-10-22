@@ -5,6 +5,7 @@ import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { whatsappUrl } from '@/utils/telefono'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import { formatGs } from '@/utils/moneda'
 import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { telefonoVisible } from '@/utils/telefono'
@@ -179,6 +180,7 @@ function CronologiaCliente({ desde, creadoPor, pedidos, total, onHistorial }) {
 export default function CustomerProfile({ customer, open, onClose, tabInicial = 'resumen', anterior = null, siguiente = null, onNavegar }) {
   const toast = useToast()
   const { usuario, esDemo, empresa } = useSesion()
+  const mayoristasActivo = useModulos().activo('mayoristas')
   // Modo demo (#189): nada de la ficha se guarda contra el API real. Los
   // acciones sin simulación quedan bloqueadas; las identidades fiscales usan
   // su almacenamiento demo local y nunca envían una petición.
@@ -839,7 +841,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const warranties = profile?.warranties || []
   const notes = profile?.notes || []
   const followUps = profile?.followUps || []
-  const mayorista = (profile?.customer?.pricingTier || customer?.pricingTier) === 'WHOLESALE'
+  // Mayoristas apagado: la ficha no muestra ni ofrece el tipo mayorista (el dato se conserva).
+  const mayorista = mayoristasActivo && (profile?.customer?.pricingTier || customer?.pricingTier) === 'WHOLESALE'
   const puedeAsignarLista = ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
   const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
@@ -1414,7 +1417,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 </p>
               </div>
               <span className="flex flex-wrap gap-2">
-                {!mayorista && !hayPendiente('WHOLESALE') && (
+                {mayoristasActivo && !mayorista && !hayPendiente('WHOLESALE') && (
                   <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => setSolicitud('WHOLESALE')}>
                     <Icon name="tag" className="h-4 w-4" />
                     Solicitar mayorista
@@ -2449,12 +2452,14 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
         onClose={() => { if (!guardandoComercial) setComercialAbierto(false) }}
         title="Configuración comercial" size="formulario">
         <form onSubmit={guardarComercial} className="space-y-4">
-          <FormField label="Tipo de cliente" htmlFor="comercial-tipo">
-            <Select id="comercial-tipo" disabled={guardandoComercial} value={comercialForm.pricingTier} onChange={(event) => setComercialForm((form) => ({ ...form, pricingTier: event.target.value }))}>
-              <option value="RETAIL">Cliente final</option>
-              <option value="WHOLESALE">Mayorista</option>
-            </Select>
-          </FormField>
+          {mayoristasActivo && (
+            <FormField label="Tipo de cliente" htmlFor="comercial-tipo">
+              <Select id="comercial-tipo" disabled={guardandoComercial} value={comercialForm.pricingTier} onChange={(event) => setComercialForm((form) => ({ ...form, pricingTier: event.target.value }))}>
+                <option value="RETAIL">Cliente final</option>
+                <option value="WHOLESALE">Mayorista</option>
+              </Select>
+            </FormField>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" disabled={guardandoComercial} checked={comercialForm.creditHabilitado} onChange={(event) => setComercialForm((form) => ({ ...form, creditHabilitado: event.target.checked }))} />
             Habilitar venta a crédito

@@ -59,7 +59,8 @@ const esCompraRecibida = (action) => /recibida/i.test(String(action || ''))
 // gerencia.
 export default function ProductoDetalle({ product, canManage, esDemo, onClose, onChanged, onSell, onAnterior, onSiguiente, posicion }) {
   // El enlace a Inventario existe solo con el módulo «Inventario por unidades».
-  const { vistaVisible } = useModulos()
+  const { vistaVisible, activo: moduloOn } = useModulos()
+  const mayoristasOn = moduloOn('mayoristas')
   const toast = useToast()
   const [current, setCurrent] = useState(product)
   const { sucursal } = useSesion()
@@ -285,7 +286,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <p className="mt-1 text-xs text-mute">{current?.branch?.name || ''}{current?.branchId && !current?.branch?.name ? 'Sucursal asignada' : ''}</p>
             <div className="mt-4 flex flex-wrap items-end gap-4">
               <div><p className="text-xs text-mute">Precio de venta</p><p className="text-2xl font-bold tabular-nums text-fono-light">{precio(current) > 0 ? <Money value={precio(current)} /> : '—'}</p></div>
-              {mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums"><Money value={mayorista(current)} /></p></div>}
+              {mayoristasOn && mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums"><Money value={mayorista(current)} /></p></div>}
               {current?.priceUsd != null && Number(current.priceUsd) > 0 && <div><p className="text-xs text-mute">En dólares</p><p className="text-lg font-semibold tabular-nums"><Money value={current.priceUsd} currency="USD" /></p></div>}
               <div className="ml-auto text-right"><p className="text-xs text-mute">Stock</p><p className="text-2xl font-bold tabular-nums" data-testid="producto-stock">{stockMostrado}</p></div>
             </div>
@@ -392,7 +393,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Precio de venta</p><p className="mt-1 font-semibold">{precio(current) > 0 ? <Money value={precio(current)} /> : '—'}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Mayorista</p><p className="mt-1 font-semibold">{mayorista(current) > 0 ? <Money value={mayorista(current)} /> : '—'}</p></div>
+            {mayoristasOn && <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Mayorista</p><p className="mt-1 font-semibold">{mayorista(current) > 0 ? <Money value={mayorista(current)} /> : '—'}</p></div>}
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">En dólares</p><p className="mt-1 font-semibold">{current?.priceUsd != null && Number(current.priceUsd) > 0 ? <Money value={current.priceUsd} currency="USD" /> : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{costoUnitario > 0 ? <Money value={costoUnitario} /> : <span className="text-warn">pendiente</span>}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Margen</p><p className="mt-1 font-semibold">{costoUnitario > 0 && precio(current) > 0 ? <><Money value={margen} /> <span className="text-xs font-normal text-mute">{formatPercent(margenPct)}%</span></> : '—'}</p></div>
@@ -411,7 +412,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <div><Label htmlFor="color">Color</Label><Input id="color" value={form.color} onChange={event => setForm(current => ({ ...current, color: event.target.value }))} placeholder="Ej. Titanio Negro" /></div>
               <div><Label htmlFor="capacidad">Capacidad</Label><Input id="capacidad" value={form.capacidad} onChange={event => setForm(current => ({ ...current, capacidad: event.target.value }))} placeholder="Ej. 256GB" /></div>
               <div><Label htmlFor="precio-de-venta-gs">Precio de venta (Gs)</Label><MoneyInput id="precio-de-venta-gs" value={form.precio} onValueChange={value => setForm(current => ({ ...current, precio: value === '' ? '' : String(value) }))} /></div>
-              <div><Label htmlFor="precio-mayorista-gs">Precio mayorista (Gs)</Label><MoneyInput id="precio-mayorista-gs" value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>
+              {mayoristasOn && <div><Label htmlFor="precio-mayorista-gs">Precio mayorista (Gs)</Label><MoneyInput id="precio-mayorista-gs" value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>}
               <div><Label htmlFor="costo-gs">Costo (Gs)</Label><MoneyInput id="costo-gs" value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>
               <div><Label htmlFor="seguro">Seguro (%)</Label><PercentField id="seguro" value={form.seguro} onChange={value => setForm(current => ({ ...current, seguro: value }))} placeholder="Ej. 2" /></div>
               <div><Label htmlFor="umbral-de-reposicion">Umbral de reposición</Label><Input id="umbral-de-reposicion" inputMode="numeric" value={form.umbral} onChange={event => setForm(current => ({ ...current, umbral: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 3" /></div>

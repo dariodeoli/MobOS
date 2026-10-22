@@ -21,9 +21,11 @@ async function pedir(path, method = 'GET', body) {
 }
 
 const original = psql(`SELECT COALESCE(settings,'{}'::jsonb)::text FROM "Tenant" WHERE "id"='${tenantId}'`)
-const ids = ['tradein', 'servicios', 'delivery', 'campanas-recompra', 'publicidad', 'comisiones', 'cuotas', 'conciliacion', 'gift-cards', 'promociones', 'listas-precios', 'abastecimiento', 'multisucursal', 'stock-avanzado', 'ia-conectores', 'verificacion-imei', 'inventario-unidades', 'venta-sin-stock']
+const ids = ['tradein', 'servicios', 'delivery', 'campanas-recompra', 'publicidad', 'comisiones', 'cuotas', 'conciliacion', 'gift-cards', 'promociones', 'listas-precios', 'abastecimiento', 'multisucursal', 'stock-avanzado', 'ia-conectores', 'verificacion-imei', 'inventario-unidades', 'venta-sin-stock', 'mayoristas']
 function guardarStore(apagados) {
-  const modules = Object.fromEntries(apagados.map((id) => [id, { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() }]))
+  // Los módulos que se deciden por datos (porDatos) se dejan explícitos: sin valor guardado los decide el historial de la empresa.
+  const porDatos = ['inventario-unidades', 'venta-sin-stock', 'mayoristas']
+  const modules = Object.fromEntries([...porDatos.filter((id) => !apagados.includes(id)), ...apagados].map((id) => [id, { enabled: !apagados.includes(id), manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() }]))
   const store = JSON.stringify({ version: 1, preset: 'comercio', modules })
   psql(`UPDATE "Tenant" SET "settings" = COALESCE("settings",'{}'::jsonb) || jsonb_build_object('moduleStore', $j$${store}$j$::jsonb) WHERE "id"='${tenantId}'`)
 }
@@ -95,6 +97,33 @@ try {
   const conBackorder = await pedir('/api/orders', 'POST', venta({ item: { backorder: true } }))
   assert.notEqual(conBackorder.status, 403, `con venta-sin-stock activo no se rechaza por módulo: ${JSON.stringify(conBackorder.data)}`)
   checks += 1
+
+  // Mayoristas: con el módulo apagado el servidor no aplica el precio mayorista aunque el cliente figure
+  // como mayorista; con el módulo activo sí. Los datos (tipo de cliente y precio) no se tocan.
+  psql(`UPDATE "Product" SET "wholesalePricePyg" = 80000 WHERE "id"='prod-a-order-it'`)
+  psql(`INSERT INTO "Customer" ("id","tenantId","name","pricingTier","updatedAt") VALUES ('cust-may-it','${tenantId}','Mayorista IT','WHOLESALE',CURRENT_TIMESTAMP) ON CONFLICT ("id") DO UPDATE SET "pricingTier"='WHOLESALE'`)
+  try {
+    guardarStore(['mayoristas'])
+    const apagadoPrecio = await pedir('/api/pricing?productId=prod-a-order-it&customerId=cust-may-it&quantity=1')
+    assert.equal(apagadoPrecio.status, 200, JSON.stringify(apagadoPrecio.data))
+    assert.equal(apagadoPrecio.data.origin, 'RETAIL', 'mayoristas apagado: /api/pricing no aplica precio mayorista')
+    assert.equal(apagadoPrecio.data.unitPricePyg, 100000)
+    checks += 1
+    const pedidoMay = await pedir('/api/orders', 'POST', { ...venta({}), customerId: 'cust-may-it' })
+    assert.equal(pedidoMay.status, 201, JSON.stringify(pedidoMay.data))
+    const lineaApagado = psql(`SELECT "listPricePyg"::text || '|' || "priceSource" FROM "OrderItem" WHERE "orderId"='${pedidoMay.data.id}' LIMIT 1`)
+    assert.equal(lineaApagado, '100000|RETAIL', 'mayoristas apagado: POST /api/orders congela precio minorista')
+    checks += 1
+    guardarStore([])
+    const activoPrecio = await pedir('/api/pricing?productId=prod-a-order-it&customerId=cust-may-it&quantity=1')
+    assert.equal(activoPrecio.data.origin, 'WHOLESALE', 'mayoristas activo: aplica el precio mayorista')
+    assert.equal(activoPrecio.data.unitPricePyg, 80000)
+    checks += 1
+    assert.equal(psql(`SELECT "pricingTier"::text FROM "Customer" WHERE "id"='cust-may-it'`), 'WHOLESALE', 'el tipo de cliente se conserva')
+    checks += 1
+  } finally {
+    psql(`UPDATE "Product" SET "wholesalePricePyg" = NULL WHERE "id"='prod-a-order-it'`)
+  }
 
   // Solo el dueño real cambia módulos: un ADMIN sin membresía OWNER recibe 403.
   const estado = await pedir('/api/tenant/modules')

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { num } from '@/utils/calculos'
@@ -26,10 +27,14 @@ import Icon from '@/components/shared/Icon'
 // escalón por cantidad > lista del cliente > mayorista > minorista > USD.
 const itemVacio = () => ({ scope: 'PRODUCT', productId: '', category: '', valuePct: '' })
 const tierVacio = () => ({ minQuantity: '', unitPricePyg: '' })
-const AYUDA_PRECIOS = 'Listas por cliente y precios por cantidad. El POS resuelve el mejor precio; la lista asignada gana sobre mayorista y minorista.'
+const AYUDA_PRECIOS_BASE = 'Listas por cliente y precios por cantidad. El POS resuelve el mejor precio; la lista asignada gana sobre el precio '
+const ayudaPrecios = mayoristas => `${AYUDA_PRECIOS_BASE}${mayoristas ? 'mayorista y minorista.' : 'de venta.'}`
 
 export default function Precios() {
   const { sesion, esDemo } = useSesion()
+  // Mayoristas apagado: los textos no hablan de precio mayorista (las listas se conservan).
+  const mayoristas = useModulos().activo('mayoristas')
+  const AYUDA_PRECIOS = ayudaPrecios(mayoristas)
   const toast = useToast()
   const avisar = useResultado()
   const [listas, setListas] = useState([])
@@ -314,7 +319,7 @@ export default function Precios() {
       {editor && <form onSubmit={guardarLista} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
           <FormField label="Nombre" htmlFor="lista-nombre" error={errorDe('nombre')}>
-            <Input id="lista-nombre" value={editor.name} onChange={event => { limpiar('nombre'); setEditor(current => ({ ...current, name: event.target.value })) }} placeholder="Mayorista VIP, Empresas…" />
+            <Input id="lista-nombre" value={editor.name} onChange={event => { limpiar('nombre'); setEditor(current => ({ ...current, name: event.target.value })) }} placeholder={mayoristas ? 'Mayorista VIP, Empresas…' : 'Empresas, Clientes VIP…'} />
           </FormField>
           <label className="flex items-center gap-2 self-end text-sm text-mute"><Switch checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
         </div>
@@ -359,7 +364,7 @@ export default function Precios() {
       onConfirm={borrarLista}
       busy={busy}
       title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`}
-      description="Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría."
+      description={`Los clientes con esta lista asignada vuelven a su precio ${mayoristas ? 'minorista o mayorista' : 'de venta'}. La acción queda en la auditoría.`}
       confirmLabel="Eliminar lista"
       variant="danger"
     />

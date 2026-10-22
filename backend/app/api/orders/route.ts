@@ -8,7 +8,7 @@ import { loadTenantPreferences, PREPARED_FULFILLMENT } from '../../../lib/tenant
 import { InputError, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { moduloActivo } from '../../../lib/modulos-catalogo.mjs'
-import { assertModulo, moduloApagadoMensaje } from '../../../lib/modulos-guard'
+import { assertModulo, moduloApagadoMensaje, moduloHabilitado } from '../../../lib/modulos-guard'
 import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
@@ -307,6 +307,8 @@ export async function POST(request: Request) {
   const exigirModulo = (id: string) => { if (!moduloOn(id)) throw new InputError(moduloApagadoMensaje(id), 403) }
   // Venta sin stock (sobre pedido): con el módulo apagado el servidor rechaza `backorder: true` aunque el front lo mande.
   if (items.some((item: any) => item && typeof item === 'object' && item.backorder === true)) await assertModulo(tenant, 'venta-sin-stock')
+  // Mayoristas: con el módulo apagado el precio mayorista no se aplica aunque el cliente figure como mayorista (los datos se conservan).
+  const mayoristasOn = await moduloHabilitado(tenant, 'mayoristas')
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
   const insurancePct = Math.min(100, Math.max(0, Number(limitesEmpresa?.insurancePct ?? 0)))
   // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
@@ -534,7 +536,7 @@ export async function POST(request: Request) {
           // /api/pricing. Un precio en USD no cotiza en guaraníes: la línea
           // conserva el precio retail como referencia (mismo helper que el
           // endpoint, issue #79).
-          const resolvedPrice = resolveUnitPrice({ product, quantity, customer: { pricingTier }, priceList })
+          const resolvedPrice = resolveUnitPrice({ product, quantity, customer: { pricingTier: mayoristasOn ? pricingTier : 'RETAIL' }, priceList })
           listPricePyg = unitPricePygFallback(resolvedPrice, product.pricePyg)
           priceSource = resolvedPrice.origin
           // El precio de cupón ya viene cotizado por el servidor: no cuenta

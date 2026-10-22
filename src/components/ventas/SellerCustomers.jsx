@@ -2,6 +2,7 @@ import { acceptedCustomerIdentity, customerIdentityPayload, customerDisplayName 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
 import { Aviso, Button, EmptyState, IconAction, Input, MoneyInput, Select, Textarea, useResultado } from '@/components/ui'
@@ -105,6 +106,9 @@ export function readDemoCustomers() {
 
 export default function SellerCustomers() {
   const { esDemo } = useSesion()
+  // Mayoristas apagado: sin filtro, KPI ni tipo de cliente mayorista (los datos se conservan).
+  const { activo: moduloOn } = useModulos()
+  const mayoristas = moduloOn('mayoristas')
   // La búsqueda global abre la sección con ?q= y, si eligió un cliente puntual,
   // con ?cliente=<id> para abrir su ficha directo.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -159,6 +163,7 @@ export default function SellerCustomers() {
   const [resumenRevision, setResumenRevision] = useState(0)
   const [resumenCargando, setResumenCargando] = useState(true)
   const [filtro, setFiltro] = useUltimoUsado('clientes:filtro', 'todos')
+  useEffect(() => { if (!mayoristas && filtro === 'mayoristas') setFiltro('todos') }, [mayoristas, filtro, setFiltro])
   const [exportando, setExportando] = useState(false)
   const [exportError, setExportError] = useState('')
   const nombreRef = useRef(null)
@@ -366,7 +371,7 @@ export default function SellerCustomers() {
           onChange={setFiltro}
           className="clientes-f3-chips"
           ariaLabel="Filtrar clientes"
-          options={FILTROS_CLIENTES.map(([key, label]) => [key, label])}
+          options={FILTROS_CLIENTES.filter(([key]) => mayoristas || key !== 'mayoristas').map(([key, label]) => [key, label])}
         />
       }
       sort={
@@ -418,7 +423,7 @@ export default function SellerCustomers() {
         pista={!esDemo && (data.hayMas || hayFiltro || Number(resumenMostrar?.total) > rows.length) ? 'Deuda: clientes en pantalla' : undefined}
         items={[
           { titulo: 'Clientes', valor: resumenMostrar?.total ?? '—' },
-          { titulo: 'Mayoristas', valor: resumenMostrar?.wholesalers ?? '—' },
+          ...(mayoristas ? [{ titulo: 'Mayoristas', valor: resumenMostrar?.wholesalers ?? '—' }] : []),
           { titulo: 'Con deuda', valor: resumenV2.conDeuda },
           { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar) },
         ].map((item) => ({ ...item, tono: 'clientes-f3-value' }))}
@@ -517,7 +522,7 @@ export default function SellerCustomers() {
           </Aviso>
         )}
         <div className="grid gap-3 sm:grid-cols-4">
-          <label className="block space-y-2"><span>Precio</span><Select value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Minorista</option><option value="WHOLESALE">Mayorista</option></Select></label>
+          {mayoristas && <label className="block space-y-2"><span>Precio</span><Select value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Minorista</option><option value="WHOLESALE">Mayorista</option></Select></label>}
           <label className="block space-y-2"><span>Lista de precios <small className="text-mute">(opcional)</small></span><Select disabled={saving} value={form.priceListId} onChange={(event) => setForm({ ...form, priceListId: event.target.value })}><option value="">Sin lista</option>{listas.map(lista => <option key={lista.id} value={lista.id}>{lista.name}</option>)}</Select></label>
           <label className="block space-y-2"><span>Límite de crédito (Gs)</span><MoneyInput disabled={saving} value={form.creditLimitPyg} onValueChange={(value) => setForm({ ...form, creditLimitPyg: value })} placeholder="0 = sin crédito" /></label>
           <label className="block space-y-2"><span>Plazo de crédito (días)</span><Input inputMode="numeric" disabled={saving} value={form.creditDays} onChange={(event) => setForm({ ...form, creditDays: event.target.value.replace(/\D/g, '') })} placeholder="Ej. 30" /></label>
@@ -526,7 +531,7 @@ export default function SellerCustomers() {
         <fieldset className="space-y-3"><legend className={ROTULO_SECCION}>Direcciones</legend>{form.addresses.map((address, index) => <div className="space-y-3 rounded-xl border border-fore/10 p-3" key={`address-${index}`}><GrillaCampos><Campo ancho="etiqueta" rotulo="Etiqueta"><Input maxLength={80} disabled={saving} value={address.label} placeholder="Casa, oficina…" onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} /></Campo><Campo como="div" ancho="pais" rotulo="País"><CountrySelect disabled={saving} value={address.country ?? 'Paraguay'} onChange={(country) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, country: country } : item) })} /></Campo><Campo como="div" ancho="ciudad" rotulo="Ciudad"><CityAutocomplete esDemo={esDemo} disabled={saving} value={address.city || ''} onSelect={(city, department) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, city, department } : item) })} />{address.department && address.department.trim().toLowerCase() !== String(address.city || '').trim().toLowerCase() && <p className="px-1 pt-1 text-xs text-fono-light">Departamento: {address.department}</p>}</Campo></GrillaCampos><div className="flex flex-col gap-2 md:flex-row md:items-end"><GrillaCampos className="min-w-0 flex-1"><Campo ancho="flexible" rotulo="Dirección"><Input maxLength={400} disabled={saving} autoCapitalize="sentences" value={address.address} placeholder={esDemo ? 'Dirección de prueba' : 'Dirección completa'} onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, address: capitalizarPrimera(event.target.value) } : item) })} /></Campo></GrillaCampos>{form.addresses.length > 1 && <div className="self-end"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => (address.address || address.city || address.notes ? setQuitarDireccion(index) : setForm({ ...form, addresses: form.addresses.filter((_, itemIndex) => itemIndex !== index) }))} /></div>}</div></div>)}{form.addresses.length < 10 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, addresses: [...form.addresses, { label: '', address: '', city: '', department: '', country: 'Paraguay' }] })}>+ Añadir dirección</button>}<ConfirmDialog open={quitarDireccion !== null} title="¿Quitar esta dirección?" description="Se elimina de la ficha cuando guardes el cliente." confirmLabel="Quitar dirección" variant="danger" onCancel={() => setQuitarDireccion(null)} onConfirm={() => { setForm({ ...form, addresses: form.addresses.filter((_, itemIndex) => itemIndex !== quitarDireccion) }); setQuitarDireccion(null) }} /></fieldset>
         <div className="grid gap-3 rounded-xl border border-fore/10 p-3 sm:grid-cols-2">
           <fieldset className="space-y-1.5"><legend className={ROTULO_SECCION}>Marketing (solo si acepta)</legend>{[['acceptsWhatsappMarketing', 'WhatsApp'], ['acceptsSmsMarketing', 'SMS'], ['acceptsEmailMarketing', 'Email']].map(([key, label]) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.checked })} />{label}</label>)}</fieldset>
-          <div className="space-y-3"><label className="block space-y-2"><span>Tipo de cliente</span><Select disabled={saving} value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Cliente final</option><option value="WHOLESALE">Mayorista (precio mayorista en el POS)</option></Select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.taxExempt} onChange={(event) => setForm({ ...form, taxExempt: event.target.checked })} />Exento de impuestos</label><label className="block space-y-2"><span>Etiquetas <small className="text-mute">(separadas por coma)</small></span><Input maxLength={200} disabled={saving} value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="Ej: mayorista, prioridad" /></label></div>
+          <div className="space-y-3">{mayoristas && <label className="block space-y-2"><span>Tipo de cliente</span><Select disabled={saving} value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Cliente final</option><option value="WHOLESALE">Mayorista (precio mayorista en el POS)</option></Select></label>}<label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.taxExempt} onChange={(event) => setForm({ ...form, taxExempt: event.target.checked })} />Exento de impuestos</label><label className="block space-y-2"><span>Etiquetas <small className="text-mute">(separadas por coma)</small></span><Input maxLength={200} disabled={saving} value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="Ej: mayorista, prioridad" /></label></div>
         </div>
         <SaveActions pendiente={saving}><Button disabled={saving || (!form.firstName.trim() && !form.nameOfficial) || (form.identityKind === 'PERSON' && !form.personConfirmed)}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></SaveActions>
         {saveError && <p role="alert" className="text-bad">{saveError}</p>}

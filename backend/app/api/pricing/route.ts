@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
+import { moduloHabilitado } from '../../../lib/modulos-guard'
 import { PricingError, resolveUnitPrice, unitPricePygFallback, type PriceListItemInput } from '../../../lib/pricing'
 
 // Precio efectivo autoritativo de un producto para un cliente y una cantidad.
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
   if (customerId) {
     const found = await prisma.customer.findFirst({ where: { id: customerId, tenantId }, select: { id: true, pricingTier: true, priceListId: true } })
     if (!found) return error('Cliente no encontrado.', 404)
-    customer = { id: found.id, pricingTier: found.pricingTier }
+    // Con el módulo «Mayoristas» apagado el cliente cotiza como minorista (el dato se conserva).
+    customer = { id: found.id, pricingTier: await moduloHabilitado(tenantId, 'mayoristas') ? found.pricingTier : 'RETAIL' }
     if (found.priceListId) {
       const priceList = await prisma.priceList.findFirst({ where: { id: found.priceListId, tenantId, isActive: true }, include: priceListInclude })
       if (priceList) lista = { id: priceList.id, name: priceList.name, items: priceList.items }

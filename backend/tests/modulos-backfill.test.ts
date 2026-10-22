@@ -5,7 +5,7 @@ import { moduleStoreFrom } from '../lib/module-store'
 import { moduloActivo } from '../lib/modulos-catalogo.mjs'
 
 type Fila = { id: string; settings: Record<string, unknown> | null }
-function baseEnMemoria(filas: Fila[], datos: { unidades: string[]; sobrePedido: string[] } = { unidades: [], sobrePedido: [] }) {
+function baseEnMemoria(filas: Fila[], datos: { unidades: string[]; sobrePedido: string[]; mayoristas?: string[]; listasMayoristas?: string[] } = { unidades: [], sobrePedido: [] }) {
   const auditoria: Array<{ tenantId: string; action: string; metadata: Record<string, unknown> }> = []
   let escrituras = 0
   const tx = {
@@ -17,6 +17,8 @@ function baseEnMemoria(filas: Fila[], datos: { unidades: string[]; sobrePedido: 
     auditLog: { create: async ({ data }: { data: { tenantId: string; action: string; metadata: Record<string, unknown> } }) => { auditoria.push(data) } },
     inventoryUnit: { findFirst: async ({ where }: { where: { tenantId: string } }) => (datos.unidades.includes(where.tenantId) ? { id: 'u' } : null) },
     orderItem: { findFirst: async ({ where }: { where: { order: { tenantId: string } } }) => (datos.sobrePedido.includes(where.order.tenantId) ? { id: 'i' } : null) },
+    customer: { findFirst: async ({ where }: { where: { tenantId: string } }) => ((datos.mayoristas ?? []).includes(where.tenantId) ? { id: 'c' } : null) },
+    priceList: { findFirst: async ({ where }: { where: { tenantId: string } }) => ((datos.listasMayoristas ?? []).includes(where.tenantId) ? { id: 'l' } : null) },
   }
   const db = {
     tenant: {
@@ -92,4 +94,11 @@ test('backfill v2: inventario por unidades y venta sin stock se deciden por los 
   const estados = filas.map(f => ({ unidades: moduloActivo(f.settings, 'inventario-unidades'), sinStock: moduloActivo(f.settings, 'venta-sin-stock') }))
   assert.deepEqual(estados, [{ unidades: true, sinStock: false }, { unidades: false, sinStock: true }, { unidades: false, sinStock: false }])
   assert.equal(moduloActivo(filas[1].settings, 'delivery'), false, 'lo apagado a mano se respeta')
+})
+
+test('backfill v2: mayoristas queda activo solo con clientes mayoristas o lista mayorista', async () => {
+  const filas: Fila[] = [{ id: 'con-clientes', settings: {} }, { id: 'con-lista', settings: null }, { id: 'sin-datos', settings: {} }]
+  const { db } = baseEnMemoria(filas, { unidades: [], sobrePedido: [], mayoristas: ['con-clientes'], listasMayoristas: ['con-lista'] })
+  await backfillModulosV2(db as never)
+  assert.deepEqual(filas.map(f => moduloActivo(f.settings, 'mayoristas')), [true, true, false])
 })
