@@ -7,6 +7,7 @@
 import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo'
+import { COTIZACIONES_DEMO } from '../src/lib/demo/cotizaciones.js'
 
 const salidaCapturas = process.env.MOBOS_324_CAPTURAS || ''
 
@@ -93,7 +94,7 @@ test('#324 · dueño: kardex, cotizaciones y reportes con cifras', async ({ page
   await page.goto('/cotizaciones')
   await expect(page.getByTestId('cotizacion-fila').first()).toBeVisible({ timeout: 25_000 })
   await expect(page.getByText('COT-#0018')).toBeVisible()
-  await expect(page.getByTestId('cotizacion-fila')).toHaveCount(6)
+  await expect(page.getByTestId('cotizacion-fila')).toHaveCount(COTIZACIONES_DEMO.length)
   await capturar(page, '05-dueno-cotizaciones')
 
   await page.goto('/productos')
