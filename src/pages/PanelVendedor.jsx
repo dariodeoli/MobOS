@@ -610,8 +610,16 @@ export default function PanelVendedor() {
     if (!subpadre || seccionRuta || REDIRECCIONES_CONFIG[routeSeccion]) return
     // Celular: /configuracion es la lista de secciones, no entra a la primera.
     if (subpadre === 'configuracion' && angosta && !routeSeccion) return
+    // Stock decide su primera pestaña recién cuando se sabe si «Inventario por
+    // unidades» está activo (hasta entonces la lista solo trae las del núcleo).
+    if (subpadre === 'stock' && !modulos.resuelto && !esTecnico) return
+    // Stock sin «Inventario por unidades»: se maneja por cantidad y abre en Productos.
+    if (subpadre === 'stock' && modulos.resuelto && !esTecnico && !modulos.vistaVisible('unidades')) {
+      navigate('/productos', { replace: true })
+      return
+    }
     navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
-  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate, angosta])
+  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate, angosta, modulos, esTecnico])
   // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
   // no es su lugar y el backend tampoco lo autoriza a vender.
   useEffect(() => {
@@ -663,6 +671,8 @@ export default function PanelVendedor() {
       navigate(opciones.ajuste ? `/mi-cuenta?ajuste=${encodeURIComponent(opciones.ajuste)}` : '/mi-cuenta')
       return
     }
+    // Stock por cantidad: sin «Inventario por unidades», Stock abre en Productos.
+    if (id === 'inventario' && !opciones.subtab && modulos.resuelto && !esTecnico && !modulos.vistaVisible('unidades')) return ir('productos', opciones)
     // «Control» (Stock) es una pestaña del shell que abre su primera vista.
     if (id === 'control') return ir('inventario', { ...opciones, subtab: modulos.vistaVisible('conteos') ? 'conteos' : 'alertas' })
     // Un ítem del menú puede ser una pestaña de una sección (p. ej. «Unidades»

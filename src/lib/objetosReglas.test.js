@@ -749,7 +749,7 @@ test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle d
   assert.match(picker, /unidadesElegibles\(/, 'el selector usa la elegibilidad compartida (utils/inventario)')
   assert.match(picker, /data-testid="picker-sin-sucursal"/, 'sin sucursal explica qué falta y cómo seguir')
   assert.match(picker, /picker-error/, 'los fallos de carga muestran un aviso del selector')
-  assert.match(picker, /setError\(mensajeDeCarga\(cause\)\)/, 'los fallos pasan por el mensaje accionable (sin texto crudo del API)')
+  assert.match(picker, /setError\(mensajeDeCarga\(cause/, 'los fallos pasan por el mensaje accionable (sin texto crudo del API)')
   const detalle = leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8')
   assert.doesNotMatch(detalle, /catch\s*\{\s*setUnits\(\[\]\)\s*\}/, 'el detalle no silencia el fallo de unidades')
   assert.match(detalle, /productId: current\.id/, 'el detalle pide las unidades por producto (no por texto)')

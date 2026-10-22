@@ -4,6 +4,10 @@ import { moduloDef, moduloDeVista } from './modulos.js'
 
 // Vista (o pestaña) del módulo → ruta padre a la que se vuelve.
 const PADRE_POR_VISTA = {
+  // Inventario por unidades apagado: Stock se maneja por cantidad, en Productos.
+  unidades: '/productos',
+  vendidos: '/productos',
+  eliminados: '/productos',
   cotizador: '/pos',
   'tradein-admin': '/pos',
   servicio: '/resumen',

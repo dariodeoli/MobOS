@@ -23,7 +23,7 @@ test('Activos muestra solo lo prendido; los grupos filtran por área', () => {
   assert.ok(activos.includes('delivery') && activos.includes('cuotas') && activos.includes('portal-clientes'))
   assert.ok(!activos.includes('servicios'))
   assert.deepEqual(filtrarModulos(fuente, 'finanzas').map(def => def.id).sort(), ['comisiones', 'conciliacion', 'cuotas'])
-  assert.ok(filtrarModulos(fuente, 'stock').every(def => ['listas-precios', 'comparador', 'abastecimiento', 'multisucursal', 'stock-avanzado'].includes(def.id)))
+  assert.ok(filtrarModulos(fuente, 'stock').every(def => ['inventario-unidades', 'listas-precios', 'comparador', 'abastecimiento', 'multisucursal', 'stock-avanzado'].includes(def.id)))
 })
 
 test('dependencias: informa qué falta para activar y qué depende de un módulo activo', () => {

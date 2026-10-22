@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useModulos } from '@/lib/useModulos'
 import { Link } from 'react-router-dom'
 import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
@@ -57,6 +58,8 @@ const esCompraRecibida = (action) => /recibida/i.test(String(action || ''))
 // (IMEI), kardex, precios, compras, historial y edición para administración o
 // gerencia.
 export default function ProductoDetalle({ product, canManage, esDemo, onClose, onChanged, onSell, onAnterior, onSiguiente, posicion }) {
+  // El enlace a Inventario existe solo con el módulo «Inventario por unidades».
+  const { vistaVisible } = useModulos()
   const toast = useToast()
   const [current, setCurrent] = useState(product)
   const { sucursal } = useSesion()
@@ -329,7 +332,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               pasa a la vista de Unidades acotada a este producto. */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
-            {units.length > 0 && (
+            {units.length > 0 && vistaVisible('unidades') && (
               <Link
                 to={`/stock/unidades?producto=${encodeURIComponent(current.id)}${current.sku ? `&q=${encodeURIComponent(current.sku)}` : ''}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1 text-[11px] font-semibold text-fono-light transition hover:border-fono/40"

@@ -110,8 +110,9 @@ export function shellNavigation(nav = [], opciones = {}) {
   if (ids.has('servicio') && !ids.has('cargar'))
     return [{ id: 'taller', label: 'Taller', icon: 'wrench', items: destinations }]
   // `control` (Stock) agrupa vistas del inventario que no son destinos del
-  // catálogo (conteos, alertas, taller…): existe solo donde existe Unidades.
-  const projected = ids.has('unidades') ? [...destinations, ['control', 'Control', 'check']] : destinations
+  // catálogo (conteos, alertas, taller…): existe donde existe Unidades o, con el
+  // módulo «Inventario por unidades» apagado, donde el dueño ve Compras (alertas).
+  const projected = ids.has('unidades') || ids.has('compras') ? [...destinations, ['control', 'Control', 'check']] : destinations
   const sections = PRIMARY_SECTIONS.map(section => ({
     ...section,
     label: section.label,

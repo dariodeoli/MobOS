@@ -9,7 +9,8 @@ import {
   shellSegments,
 } from './shellNavigation.js'
 import { DESTINO_LEGADO, rutaDeVista } from './rutas.js'
-import { MODULE_CATALOG, vistaActiva } from './modulos.js'
+import { MODULE_CATALOG, moduloActivo, moduloDeVista, vistaActiva } from './modulos.js'
+import { rutaPadreDeVista } from './modulosAviso.js'
 import { nuevoModuleStore } from '../../backend/lib/modulos-catalogo.mjs'
 
 const panel = leerFuente(new URL('../pages/PanelVendedor.jsx', import.meta.url), 'utf8')
@@ -248,9 +249,13 @@ test('approved presentation groups keep tabs per area and segments only where a 
 // ---- Módulos: el núcleo son siete secciones; los módulos suman grupos solo si están activos ----
 const ETIQUETAS = sections => sections.map(section => section.label)
 const gruposDe = (sections, id) => shellContextGroups(sections.find(section => section.id === id)).map(group => group.id)
-const conModulos = (...activos) => {
+const conModulosFuente = (...activos) => {
   const fuente = { moduleStore: nuevoModuleStore('2026-10-21T00:00:00.000Z') }
   for (const id of activos) fuente.moduleStore.modules[id] = { enabled: true }
+  return fuente
+}
+const conModulos = (...activos) => {
+  const fuente = conModulosFuente(...activos)
   return id => vistaActiva(fuente, id)
 }
 
@@ -261,7 +266,8 @@ test('núcleo: una empresa nueva ve siete secciones y ningún grupo de módulo',
   assert.deepEqual(gruposDe(sections, 'vender'), ['cargar'])
   assert.deepEqual(gruposDe(sections, 'pedidos'), ['pedidos', 'cotizaciones', 'autorizaciones'])
   assert.deepEqual(gruposDe(sections, 'clientes'), ['clientes', 'plantillas'])
-  assert.deepEqual(gruposDe(sections, 'stock'), ['unidades', 'productos', 'compras', 'control'])
+  // Inventario por unidades apagado: Stock abre en Productos (control por cantidad).
+  assert.deepEqual(gruposDe(sections, 'stock'), ['productos', 'compras', 'control'])
   const ids = sections.flatMap(section => section.items.map(([id]) => id))
   for (const apagado of ['cotizador', 'tradein-admin', 'repartos', 'campanas', 'promociones', 'servicio', 'garantias', 'traslados', 'precios', 'celulares', 'comparador', 'abastecimiento', 'recepcion', 'ops'])
     assert.ok(!ids.includes(apagado), `${apagado} no aparece con su módulo apagado`)
@@ -299,4 +305,52 @@ test('toda vista de módulo del menú pertenece a una sección y su módulo exis
   const sections = shellNavigation(catalog('OWNER_NAV'))
   for (const [id] of sections.flatMap(section => section.items))
     if (ids.has(id)) assert.ok(MODULE_CATALOG.some(modulo => modulo.navIds.includes(id)), id)
+})
+
+// ---- Módulos «Inventario por unidades» y «Venta sin stock» ----
+const destinoDeStock = modulos => {
+  const stock = shellNavigation(catalog('OWNER_NAV'), { modulos }).find(section => section.id === 'stock')
+  return { primero: stock.items[0][0], ids: stock.items.map(([id]) => id) }
+}
+
+test('ruteo de Stock: apagado abre en Productos; activo abre primero en Inventario (unidades)', () => {
+  const apagado = destinoDeStock(conModulos())
+  assert.equal(apagado.primero, 'productos')
+  assert.ok(!apagado.ids.includes('unidades'))
+  assert.ok(apagado.ids.includes('control'), 'las alertas de reposición siguen alcanzables')
+  const activo = destinoDeStock(conModulos('inventario-unidades'))
+  assert.equal(activo.primero, 'unidades')
+  assert.deepEqual(activo.ids.slice(0, 2), ['unidades', 'productos'])
+})
+
+test('inventario por unidades: las vistas de unidades pertenecen al módulo y vuelven a Productos al apagarse', () => {
+  for (const id of ['unidades', 'vendidos', 'eliminados']) {
+    assert.equal(moduloDeVista(id), 'inventario-unidades', id)
+    assert.equal(rutaPadreDeVista(id), '/productos', id)
+  }
+  assert.equal(moduloDeVista('alertas'), null, 'las alertas de reposición son del núcleo')
+  assert.equal(moduloDeVista('productos'), null)
+  assert.equal(vistaActiva(conModulosFuente(), 'vendidos'), false)
+  assert.equal(vistaActiva(conModulosFuente('inventario-unidades'), 'vendidos'), true)
+})
+
+test('venta sin stock: «Por comprar» queda visible si está activo este módulo o Abastecimiento', () => {
+  assert.equal(vistaActiva(conModulosFuente(), 'abastecimiento'), false)
+  assert.equal(vistaActiva(conModulosFuente('venta-sin-stock'), 'abastecimiento'), true)
+  assert.equal(vistaActiva(conModulosFuente('abastecimiento'), 'abastecimiento'), true)
+  assert.equal(moduloActivo(conModulosFuente('venta-sin-stock'), 'venta-sin-stock'), true)
+  assert.equal(moduloActivo(conModulosFuente(), 'venta-sin-stock'), false)
+  assert.equal(moduloActivo(conModulosFuente(), 'venta-sin-stock', { demo: true }), true, 'la demo ve ambos módulos activos')
+  assert.equal(moduloActivo(conModulosFuente(), 'inventario-unidades', { demo: true }), true)
+})
+
+test('Stock en el panel: sin el módulo se redirige a Productos y el POS gobierna «sobre pedido» con el módulo', () => {
+  assert.match(panel, /subpadre === 'stock' && modulos\.resuelto && !esTecnico && !modulos\.vistaVisible\('unidades'\)/)
+  assert.match(panel, /navigate\('\/productos', \{ replace: true \}\)/)
+  const cobro = leerFuente(new URL('../components/ventas/venta/PasoCobro.jsx', import.meta.url), 'utf8')
+  assert.match(cobro, /ventaSinStock \?/)
+  const venta = leerFuente(new URL('../components/ventas/FormularioVenta.jsx', import.meta.url), 'utf8')
+  assert.match(venta, /moduloOn\('venta-sin-stock'\)/)
+  assert.match(venta, /const puedeVenderSinStock = ventaSinStock/)
+  assert.match(venta, /ventaSinStock=\{ventaSinStock\}/)
 })
