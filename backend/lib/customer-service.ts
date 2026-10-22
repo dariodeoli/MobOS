@@ -81,7 +81,7 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
   if (Object.keys(fields).some(key => ['notes', 'publicNote', 'tags'].includes(key)) && !hasPermission(actor, 'customers:manage')) {
     throw new CustomerServiceError('forbidden', 'El usuario no puede gestionar clientes.')
   }
-  if (input.pricingTier !== undefined || input.creditLimitPyg !== undefined || input.creditDays !== undefined) {
+  if (input.pricingTier !== undefined || input.creditLimitPyg !== undefined || input.creditDays !== undefined || input.creditTolerancePct !== undefined || input.creditTermMode !== undefined || input.creditDayOfMonth !== undefined || input.creditInstallments !== undefined) {
     if (!privileged(actor) && !options.allowUnprivilegedCommercial) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
     if (input.pricingTier !== undefined) fields.pricingTier = input.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
     if (input.creditLimitPyg !== undefined) {
@@ -93,6 +93,28 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
       const value = input.creditDays === null || input.creditDays === '' ? null : Number(input.creditDays)
       if (value !== null && (!Number.isSafeInteger(value) || value < 0 || value > 365)) throw new CustomerServiceError('invalid', 'Plazo de crédito inválido.')
       fields.creditDays = value
+    }
+    // Plazo y tolerancia propios de la ficha; vacío = vale el del módulo «Venta a crédito».
+    const empty = (value: unknown) => value === null || value === '' ? null : value
+    if (input.creditTolerancePct !== undefined) {
+      const value = empty(input.creditTolerancePct) === null ? null : Number(input.creditTolerancePct)
+      if (value !== null && ![0, 10, 20, 30].includes(value)) throw new CustomerServiceError('invalid', 'La tolerancia debe ser 0, 10, 20 o 30 por ciento.')
+      fields.creditTolerancePct = value
+    }
+    if (input.creditTermMode !== undefined) {
+      const value = empty(input.creditTermMode)
+      if (value !== null && !['DIAS', 'DIA_MES', 'CUOTAS'].includes(String(value))) throw new CustomerServiceError('invalid', 'La modalidad de plazo debe ser días, día del mes o cuotas.')
+      fields.creditTermMode = value === null ? null : String(value)
+    }
+    if (input.creditDayOfMonth !== undefined) {
+      const value = empty(input.creditDayOfMonth) === null ? null : Number(input.creditDayOfMonth)
+      if (value !== null && (!Number.isSafeInteger(value) || value < 1 || value > 31)) throw new CustomerServiceError('invalid', 'El día del mes debe estar entre 1 y 31.')
+      fields.creditDayOfMonth = value
+    }
+    if (input.creditInstallments !== undefined) {
+      const value = empty(input.creditInstallments) === null ? null : Number(input.creditInstallments)
+      if (value !== null && (!Number.isSafeInteger(value) || value < 2 || value > 24)) throw new CustomerServiceError('invalid', 'La cantidad de cuotas debe estar entre 2 y 24.')
+      fields.creditInstallments = value
     }
   }
   if (input.insuranceEnabled !== undefined || input.insuranceRatePct !== undefined) {

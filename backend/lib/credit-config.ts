@@ -149,5 +149,14 @@ export function resolveCreditTerm(input: {
     dueAt = new Date(now.getTime() + days * DAY_MS)
   }
   const creditDays = Math.max(0, Math.ceil((dueAt.getTime() - now.getTime()) / DAY_MS))
-  return { mode, creditDays, dueAt, installments, maxDays, exceedsMaxDays: creditDays > maxDays }
+  // Solo lo que elige el vendedor se controla contra el máximo: el plazo de la ficha o del módulo ya lo fijó administración.
+  const chosenBySeller = input.requestedDays != null || Boolean(input.requestedDueAt)
+  return { mode, creditDays, dueAt, installments, maxDays, exceedsMaxDays: chosenBySeller && creditDays > maxDays }
+}
+
+/** ¿El cliente tiene un plazo de crédito definido (por su ficha o por el módulo)? Sin plazo, entregar con saldo no es venta a crédito. */
+export function creditTermEnabled(customer: CustomerCreditTerms | null | undefined, config: CreditModuleConfig): boolean {
+  const mode = isCreditTermMode(customer?.creditTermMode) ? customer!.creditTermMode : config.plazo.mode
+  if (mode === 'CUOTAS' || mode === 'DIA_MES') return true
+  return Number(customer?.creditDays ?? config.plazo.days) > 0
 }

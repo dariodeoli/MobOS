@@ -46,6 +46,9 @@ assert.equal(largo.exceedsMaxDays, true, 'más allá de maxDays pide CREDIT_DAYS
 assert.equal(resolveCreditTerm({ config: dias, requestedDays: 60, unpaidPyg: 1000, now: ahora }).exceedsMaxDays, false)
 assert.equal(resolveCreditTerm({ config: dias, requestedDueAt: new Date(ahora.getTime() + 90 * 86400000), unpaidPyg: 1000, now: ahora }).exceedsMaxDays, true)
 
+// El plazo de la ficha o del módulo ya lo fijó administración: no se controla contra el máximo.
+assert.equal(resolveCreditTerm({ config: dias, customer: { creditLimitPyg: 1, creditDays: 90 }, unpaidPyg: 1000, now: ahora }).exceedsMaxDays, false)
+
 // Día del mes: el próximo, acotado al fin de mes.
 assert.equal(nextDayOfMonth(new Date('2026-10-22T15:00:00.000Z'), 5).toISOString().slice(0, 10), '2026-11-05')
 assert.equal(nextDayOfMonth(new Date('2026-10-22T15:00:00.000Z'), 28).toISOString().slice(0, 10), '2026-10-28')
