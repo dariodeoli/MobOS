@@ -233,9 +233,17 @@ const SINGLE_SECTION_LABEL = {
   Taller: 'Taller y garantías',
 }
 // Read every permitted context through UI navigation, not direct routes.
+// Texto visible del botón sin el contador de pendientes (badge), que es un
+// dato aparte del nombre de la sección.
+const textosSinBadge = locator => locator.evaluateAll(els => els.map(el => {
+  const copia = el.cloneNode(true)
+  copia.querySelectorAll('[data-testid^="menu-badge"]').forEach(b => b.remove())
+  return copia.textContent || ''
+}))
+
 export async function shellCatalog(page) {
   const primary = await shellPrimary(page)
-  const sections = (await primary.getByRole('button').allTextContents())
+  const sections = (await textosSinBadge(primary.getByRole('button')))
     .map(s => s.trim())
     .filter(s => s && s !== 'Más')
   const more = page.getByTestId('shell-mas')
@@ -243,7 +251,7 @@ export async function shellCatalog(page) {
   if (await more.count() && await more.isVisible()) {
     await more.click()
     const sheet = page.getByTestId('shell-mas-hoja')
-    const extra = (await sheet.getByRole('button').allTextContents()).map(s => s.trim())
+    const extra = (await textosSinBadge(sheet.getByRole('button'))).map(s => s.trim())
     await page.keyboard.press('Escape')
     sections.push(...extra.filter(s => s !== 'Ayuda'))
   }

@@ -462,17 +462,8 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 13,
+    "totalChicos": 8,
     "chicos": [
-      {
-        "que": "button",
-        "texto": "Vista rápida de MOB-0005",
-        "ancho": 32,
-        "alto": 32,
-        "dibujo": "32x32",
-        "clase": "ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg",
-        "veces": 7
-      },
       {
         "que": "button",
         "texto": "Mis pedidos",
@@ -481,6 +472,15 @@
         "dibujo": "129x40",
         "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
         "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Vista rápida de E2E-DELIVERY-001",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg",
+        "veces": 2
       },
       {
         "que": "button",
