@@ -104,7 +104,7 @@ test('owner Stock: tabs end at y<=110 at 1440 and header chrome stays compact at
   ]) {
     await openShellDestination(page, screen)
     await settle(page)
-    const nav = page.getByTestId(name === 'finanzas' || name === 'analisis' ? 'shell-pestanas' : 'shell-contexto')
+    const nav = page.getByTestId(name === 'finanzas' ? 'shell-pestanas' : 'shell-contexto')
     const b = await nav.boundingBox()
     expect(b.y + b.height, `${screen} tabs end`).toBeLessThanOrEqual(110)
   }
@@ -140,9 +140,9 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
 }) => {
   await page.setViewportSize({ width: 1024, height: 800 })
   await enterDemo(page)
-  // Larger text makes the seven Compras tabs wider than the row.
+  // Larger text makes the seven Stock tabs wider than the row.
   await page.addStyleTag({ content: 'html { font-size: 20px; }' })
-  await openShellDestination(page, 'Compras')
+  await openShellDestination(page, 'Unidades')
   await settle(page)
   const tabs = page.getByTestId('shell-contexto')
   const more = tabs.locator('[data-tab-more]')
@@ -159,7 +159,7 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
   // A hidden destination is reachable by clicking and then becomes the visible active tab.
   await openShellDestination(page, 'Métricas de abastecimiento')
   await expect(page).toHaveURL(/\/metricas$/)
-  await expect(tabs.locator('[data-tab-id="metricas"]')).toHaveAttribute('aria-current', 'page')
+  await expect(tabs.locator('[data-tab-id="abastecimiento"]')).toHaveAttribute('aria-current', 'page')
 })
 
 test('mobile owner bottom bar is Inicio, Vender, Pedidos, Stock and Más; the sheet reaches the rest and Esc closes it', async ({
@@ -200,7 +200,7 @@ test('Configuración: second column with the sections on desktop, icon list on m
   await openShellDestination(page, 'Configuración')
   await settle(page)
   const rail = page.getByTestId('config-grupos')
-  await expect(rail.locator('[data-tab-id]')).toHaveCount(7)
+  await expect(rail.locator('[data-tab-id]')).toHaveCount(9)
   const xs = await rail
     .locator('[data-tab-id]')
     .evaluateAll(nodes => nodes.map(n => Math.round(n.getBoundingClientRect().x)))
@@ -213,7 +213,7 @@ test('Configuración: second column with the sections on desktop, icon list on m
   const lista = await rail.locator('[data-tab-id]').evaluateAll(nodes =>
     nodes.map(n => Math.round(n.getBoundingClientRect().y)),
   )
-  expect(new Set(lista).size, 'one row each').toBe(7)
+  expect(new Set(lista).size, 'one row each').toBe(9)
   await expect(rail.getByRole('combobox')).toHaveCount(0)
 })
 

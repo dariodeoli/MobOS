@@ -349,8 +349,10 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
         const route = routes[id] || rutaDeVista(id)
         await expect(page).toHaveURL(new RegExp(`${route}$`))
         // aria-current marks the active tab on both levels.
+        // Inicio › Reportes: sus pestañas propias ocupan el lugar del grupo en la misma fila.
+        const actual = group === 'analisis' ? 'reportes' : group
         await expect(
-          page.getByTestId('shell-contexto').locator(`[data-tab-id="${group}"]`),
+          page.getByTestId('shell-contexto').locator(`[data-tab-id="${actual}"]`),
         ).toHaveAttribute('aria-current', 'page')
         if (ids.length > 1)
           await expect(

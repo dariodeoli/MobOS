@@ -125,8 +125,11 @@ async function clickTab(container, id) {
     }
     await item.click()
   }
+  // Inicio › Reportes: dentro de Análisis, sus pestañas propias ocupan el lugar del
+  // grupo en la misma fila y la activa es «reportes» (la primera de Análisis).
+  const activa = id === 'analisis' ? 'reportes' : id
   await expect
-    .poll(() => container.locator(`[data-tab-id="${id}"][aria-current="page"]`).count())
+    .poll(() => container.locator(`[data-tab-id="${activa}"][aria-current="page"]`).count())
     .toBe(1)
   return true
 }
