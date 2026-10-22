@@ -225,7 +225,7 @@ export default function Garantias() {
         })}
       </div>
     </div>}
-    {!visible.length && <Card><EmptyState compact icon={q || estadoFiltro !== 'todos' ? 'search' : 'shield'} title={q || estadoFiltro !== 'todos' ? 'No hay casos que coincidan con la búsqueda o el filtro.' : 'Sin casos registrados'} description={q || estadoFiltro !== 'todos' ? undefined : 'Registrá el primer caso para seguir su garantía y compartir el enlace con el cliente.'} action={!q && estadoFiltro === 'todos' ? <Button type="button" onClick={() => { setForm(blank); setError(''); setRepuesto({}); setCrearAbierto(true) }}><Icon name="plus" className="h-4 w-4" />Nuevo caso</Button> : undefined} /></Card>}
+    {!visible.length && <Card><EmptyState compact icon={q || estadoFiltro !== 'todos' ? 'search' : 'shield'} title={q || estadoFiltro !== 'todos' ? 'No hay casos que coincidan con la búsqueda o el filtro.' : 'Sin casos registrados'} description={q || estadoFiltro !== 'todos' ? undefined : 'Registrá el primer caso para seguir su garantía y compartir el enlace con el cliente.'} /></Card>}
     <Popup open={fotosDe !== null} onClose={() => setFotosDe(null)} title={`Fotos · ${fotosDe?.serial || ''}`} acciones={{ secundaria: { label: 'Cerrar', onClick: () => setFotosDe(null) } }}>
       <div className="space-y-4">
         <div>

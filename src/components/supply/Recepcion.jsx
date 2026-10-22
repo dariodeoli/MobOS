@@ -634,7 +634,7 @@ export default function Recepcion() {
       {cargando && !llegadas.length ? (
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
       ) : !llegadas.length ? (
-        <EmptyState icon="truck" title="No hay llegadas pendientes." description="Cuando despachás una compra, el lote aparece acá para recibirlo." action={<Button type="button" onClick={() => setNuevaLlegada(true)}>Nueva llegada</Button>} />
+        <EmptyState icon="truck" title="No hay llegadas pendientes." description="Cuando despachás una compra, el lote aparece acá para recibirlo." />
       ) : (
         <div className="space-y-2.5">
           {llegadas.map((llegada) => (

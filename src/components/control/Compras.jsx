@@ -668,7 +668,7 @@ export default function Compras() {
         />
       )}
       {busy && purchases.length === 0 && <div className="space-y-2" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>}
-      {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." action={<Button type="button" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}>Nueva compra</Button>} />}
+      {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." />}
       {!busy && purchases.length > 0 && filtradas.length === 0 && <EmptyState compact icon="search" title="Ninguna compra coincide." description="Probá otra búsqueda o cambiá el estado." action={tabEstado !== 'todas' ? <Button type="button" variant="outline" onClick={() => setTabEstado('todas')}>Ver todas</Button> : undefined} />}
       {filtradas.length > 0 && <div className="overflow-x-auto" data-testid="compras-tabla">
         <div className={cn(GRID_COMPRAS, 'px-3.5 pb-2 pt-1')}>

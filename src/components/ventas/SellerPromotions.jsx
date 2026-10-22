@@ -91,7 +91,7 @@ export default function SellerPromotions() {
         <Stat compact label="Unidades con cupón" valor={usosTotales} />
       </StatGrid>}
       <SellerFeedback {...data} empty={false} />
-      {!data.loading && !data.error && data.rows.length === 0 && <EmptyState compact icon="tag" title="Todavía no hay cupones" description="Un cupón da un descuento por código sobre un producto o toda la tienda." action={admin ? <Button type="button" variant="outline" onClick={() => setAlta(true)}>Crear el primer cupón</Button> : undefined} />}
+      {!data.loading && !data.error && data.rows.length === 0 && <EmptyState compact icon="tag" title="Todavía no hay cupones" description="Un cupón da un descuento por código sobre un producto o toda la tienda." />}
       {data.rows.length > 0 && visibles.length === 0 && <EmptyState compact icon="box" title="Ningún cupón coincide" description="Probá con otro estado o borrá la búsqueda." action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setTab('todas') }}>Ver todos</Button>} />}
       {visibles.length > 0 && <div className="gp-lista" data-testid="promociones-tabla">
         {visibles.map((p, i) => {

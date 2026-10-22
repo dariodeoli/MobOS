@@ -267,7 +267,7 @@ export default function Precios() {
         <p className="mt-1 text-xs text-mute">Descuento o recargo por producto o categoría, sobre el precio del cliente; se asigna en su ficha.</p>
       </div>
       {error && <Aviso tono="error">{error}</Aviso>}
-      {cargando ? <p className="text-sm text-mute">Cargando listas…</p> : !listas.length ? <EmptyState compact icon="store" title="Todavía no hay listas de precios." description="Creá una lista para dar descuento o recargo a clientes puntuales." action={<Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>} /> : <div className="gp-lista">
+      {cargando ? <p className="text-sm text-mute">Cargando listas…</p> : !listas.length ? <EmptyState compact icon="store" title="Todavía no hay listas de precios." description="Creá una lista para dar descuento o recargo a clientes puntuales." /> : <div className="gp-lista">
         {listas.map((lista, indice) => <div key={lista.id} data-testid="lista-precio-fila" style={{ '--i': Math.min(indice, 12) }} className="gp-fila justify-between">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2 text-sm font-semibold"><span className="truncate">{lista.name}</span><Badge color={lista.isActive ? 'green' : 'slate'}>{lista.isActive ? 'Activa' : 'Inactiva'}</Badge></p>

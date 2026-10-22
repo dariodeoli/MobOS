@@ -332,7 +332,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
       {loading && <p role="status" className="text-sm text-mute">Cargando cuentas…</p>}
       {loadError && <div role="alert" className="space-y-2 text-sm text-bad"><p>{loadError}</p><Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>Reintentar</Button></div>}
       {message && <Aviso tono={message.ok ? 'ok' : 'error'}>{message.text}</Aviso>}
-      {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." action={<Button type="button" onClick={() => openForm()}>Añadir cuenta</Button>} />}
+      {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." />}
       {!loading && !loadError && accounts.length > 0 && cuentasVisibles.length === 0 && <EmptyState compact icon="wallet" title="Ninguna cuenta coincide" description="Probá otra búsqueda o cambiá el estado." action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setEstadoCuentas('todas') }}>Ver todas</Button>} />}
       {form && (
         <Popup

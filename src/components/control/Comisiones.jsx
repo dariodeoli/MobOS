@@ -356,7 +356,7 @@ export default function Comisiones() {
         {reglas === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : reglas.length === 0 ? (
-          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." action={<Button type="button" variant="outline" onClick={() => setAltaRegla(true)}>Agregar la primera regla</Button>} />
+          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." />
         ) : (
           <ListaDensa
             lista={listaReglas}
@@ -397,7 +397,7 @@ export default function Comisiones() {
         {liquidaciones === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : liquidaciones.length === 0 ? (
-          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." action={<Button type="button" variant="outline" onClick={() => setAltaLiquidacion(true)}>Elegir vendedor</Button>} />
+          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." />
         ) : (
           <ListaDensa
             lista={listaLiquidaciones}

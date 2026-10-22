@@ -150,7 +150,7 @@ export default function Ads() {
       <div className="gp-dos">
         <section className="gp-principal" aria-label="Historial de inversión">
           {ads.length === 0 ? (
-            <EmptyState compact icon="box" title="Sin inversiones registradas." description="Cargá la primera inversión para ver el reporte mensual." action={<Button type="button" onClick={() => setAbierto(true)}>Nueva inversión</Button>} />
+            <EmptyState compact icon="box" title="Sin inversiones registradas." description="Cargá la primera inversión para ver el reporte mensual." />
           ) : visibles.length === 0 ? (
             <EmptyState compact icon="box" title="Ninguna inversión coincide" action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setTab('todas') }}>Ver todas</Button>} />
           ) : (
