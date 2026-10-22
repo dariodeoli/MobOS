@@ -5,6 +5,7 @@ import { flagsV2, rutaV2 } from '@/lib/flags'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { publicUrls, rutaInterna } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
+import { puedeVerificarPagos } from '@/lib/verificacionPagos'
 import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
@@ -147,6 +148,18 @@ function SoloPropietario({ children }) {
   if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   if (!sesion?.esPropietario) return <Navigate to="/" replace />
+  return children
+}
+
+// Finanzas: el dueño la ve completa; gerente y caja entran solo a «Verificación»
+// (el panel les deja esa pestaña). El resto de los roles vuelve al inicio.
+function SoloFinanzas({ children }) {
+  const { estado, sesion } = useSesion()
+  const ubicacion = useLocation()
+  if (estado === 'cargando') return <Cargando />
+  if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
+  if (estado === 'sinEmpresa') return <SinEmpresa />
+  if (!sesion?.esPropietario && !puedeVerificarPagos(sesion?.rol)) return <Navigate to="/" replace />
   return children
 }
 
@@ -431,7 +444,7 @@ export default function App() {
               pestaña de Configuración (su lugar en la IA de 7 grupos). */}
           <Route path="/mi-cuenta" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/finanzas/:seccion?" element={<SoloFinanzas><PanelVendedor /></SoloFinanzas>} />
           <Route path="/stock/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/inventario/:seccion?" element={<AreaProtegida owner><InventarioRedirect /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />

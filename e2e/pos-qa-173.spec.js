@@ -334,14 +334,17 @@ test('retiro en tienda no cobra el envío aunque haya un monto cargado (#187)', 
     // Delivery con costo: el resumen lo muestra.
     await page.locator('#entrega').selectOption('Delivery')
     await page.locator('#monto-entrega').fill('30000')
-    const carrito = page.getByTestId('resumen-compra')
-    await expect(carrito).toContainText('Entrega + Gs 30.000')
+    // El carrito (siempre visible en el cobro) muestra el envío y el total con él.
+    const carrito = page.getByTestId('pos-bloque-carrito')
+    await expect(carrito).toContainText('Envío')
+    await expect(carrito).toContainText('Gs 30.000')
+    await expect(page.getByTestId('carrito-total')).toContainText('Gs 130.000')
 
     // Retiro: el monto se limpia y la venta vuelve al subtotal.
     await page.locator('#entrega').selectOption('Retiro en tienda')
     const monto = page.locator('#monto-entrega')
     await expect(monto).toHaveCount(0) // #391: el monto solo aparece con Delivery/encomienda
-    await expect(carrito).not.toContainText('Entrega +')
+    await expect(carrito).not.toContainText('Envío')
     await expect(page.getByTestId('carrito-total')).toContainText('Gs 100.000')
   } finally {
     await page.evaluate(async ({ api, productId }) => {

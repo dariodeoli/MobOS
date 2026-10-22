@@ -218,7 +218,7 @@ test.describe('Configuración IA', () => {
   })
 })
 
-test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas', async ({ browser }) => {
+test('el estado de Campañas (Mensajes es núcleo) se carga para vendedor y gerente y protege sus rutas', async ({ browser }) => {
   test.setTimeout(90_000)
   const require = createRequire(new URL('../backend/package.json', import.meta.url))
   const { PrismaClient } = require('@prisma/client')
@@ -234,7 +234,7 @@ test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas
     const slug = `module-store-${randomUUID()}`
     const tenant = await db.tenant.create({ data: {
       name: 'Tienda E2E guardas de módulos', email: `${slug}@test.local`, slug, passwordHash: seeded.passwordHash,
-      settings: { moduleStore: { version: 1, preset: 'comercio', modules: { mensajes: { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() } } } },
+      settings: { moduleStore: { version: 1, preset: 'comercio', modules: { 'campanas-recompra': { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() } } } },
     } })
     tenantId = tenant.id
     const branch = await db.branch.create({ data: { tenantId, name: 'Sucursal guardas' } })
@@ -267,13 +267,13 @@ test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas
       const estado = await estadoResponse.json()
       expect(estadoResponse.status(), persona.role).toBe(200)
       expect(estado.canManage, persona.role).toBe(false)
-      expect(estado.state.modules.mensajes.enabled, persona.role).toBe(false)
-      await expect(rolePage.getByText('Plantillas', { exact: true })).toHaveCount(0)
+      // Mensajes y plantillas es núcleo (siempre activo); Campañas es el módulo opcional apagado.
+      expect(estado.state.modules.mensajes.enabled, persona.role).toBe(true)
+      expect(estado.state.modules['campanas-recompra'].enabled, persona.role).toBe(false)
       await expect(rolePage.getByText('Campañas', { exact: true })).toHaveCount(0)
-      const plantillasApi = await context.request.get(`${API}/api/message-templates`, { headers: { origin } })
-      expect(plantillasApi.status(), `${persona.role} API`).toBe(403)
-      await rolePage.goto('/plantillas')
-      await expect(rolePage).not.toHaveURL(/\/plantillas$/)
+      const campanasApi = await context.request.post(`${API}/api/marketing/campaigns`, { headers: { origin }, data: {} })
+      expect(campanasApi.status(), `${persona.role} API`).toBe(403)
+      expect(String((await campanasApi.json()).message || ''), `${persona.role} API`).toMatch(/desactivado/i)
       await rolePage.goto('/campanas')
       await expect(rolePage).not.toHaveURL(/\/campanas$/)
     }

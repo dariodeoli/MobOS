@@ -5,8 +5,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 3,
+    "totalChicos": 11,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Ventas suspendidas",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "veces": 4
+      },
       {
         "que": "button",
         "texto": "Nueva venta",
@@ -18,11 +27,38 @@
       },
       {
         "que": "button",
+        "texto": "Cuadrícula",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "inline-flex h-11 w-11 items-center justify-center rounded-md",
+        "veces": 2
+      },
+      {
+        "que": "button",
         "texto": "Ayuda",
         "ancho": 207,
         "alto": 36,
         "dibujo": "207x36",
         "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Confirmar cliente",
+        "ancho": 141,
+        "alto": 36,
+        "dibujo": "141x36",
+        "clase": "min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "🇵🇾+595",
+        "ancho": 96,
+        "alto": 36,
+        "dibujo": "96x36",
+        "clase": "flex w-full items-center justify-center gap-1.5 rounded-lg p",
         "veces": 1
       }
     ]
@@ -225,17 +261,8 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 12,
+    "totalChicos": 5,
     "chicos": [
-      {
-        "que": "button",
-        "texto": "Abiertas",
-        "ancho": 79,
-        "alto": 38,
-        "dibujo": "79x38",
-        "clase": "",
-        "veces": 7
-      },
       {
         "que": "button",
         "texto": "Mis pedidos",
@@ -289,8 +316,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 3,
+    "totalChicos": 12,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Ventas suspendidas",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "veces": 4
+      },
       {
         "que": "button",
         "texto": "Nueva venta",
@@ -302,11 +338,47 @@
       },
       {
         "que": "button",
+        "texto": "Cuadrícula",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "inline-flex h-11 w-11 items-center justify-center rounded-md",
+        "veces": 2
+      },
+      {
+        "que": "button",
         "texto": "Ayuda",
         "ancho": 207,
         "alto": 36,
         "dibujo": "207x36",
         "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 36,
+        "dibujo": "135x36",
+        "clase": "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-l",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Confirmar cliente",
+        "ancho": 141,
+        "alto": 36,
+        "dibujo": "141x36",
+        "clase": "min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "🇵🇾+595",
+        "ancho": 96,
+        "alto": 36,
+        "dibujo": "96x36",
+        "clase": "flex w-full items-center justify-center gap-1.5 rounded-lg p",
         "veces": 1
       }
     ]
@@ -390,8 +462,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 7,
+    "totalChicos": 13,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Vista rápida de MOB-0005",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg",
+        "veces": 7
+      },
       {
         "que": "button",
         "texto": "Mis pedidos",
@@ -399,16 +480,7 @@
         "alto": 40,
         "dibujo": "129x40",
         "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
-        "veces": 3
-      },
-      {
-        "que": "button",
-        "texto": "Vista rápida de E2E-DELIVERY-001",
-        "ancho": 32,
-        "alto": 32,
-        "dibujo": "32x32",
-        "clase": "ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg",
-        "veces": 2
+        "veces": 4
       },
       {
         "que": "button",

@@ -9,7 +9,7 @@
     "chicos": [
       {
         "que": "button",
-        "texto": "Cobrar saldo · Gs 45.000",
+        "texto": "Cobrar saldo · Gs 60.000",
         "ancho": 196,
         "alto": 36,
         "dibujo": "196x36",
@@ -87,16 +87,16 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 18,
+    "totalChicos": 10,
     "chicos": [
       {
         "que": "button",
-        "texto": "Abiertas",
-        "ancho": 79,
-        "alto": 38,
-        "dibujo": "79x38",
-        "clase": "",
-        "veces": 7
+        "texto": "Pedidos",
+        "ancho": 102,
+        "alto": 40,
+        "dibujo": "102x40",
+        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
+        "veces": 4
       },
       {
         "que": "button",
@@ -105,15 +105,6 @@
         "alto": 36,
         "dibujo": "160x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 5
-      },
-      {
-        "que": "button",
-        "texto": "Pedidos",
-        "ancho": 102,
-        "alto": 40,
-        "dibujo": "102x40",
-        "clase": "relative flex shrink-0 items-center whitespace-nowrap border",
         "veces": 4
       },
       {
