@@ -136,8 +136,10 @@ export async function GET(request: Request, props: RouteContext) {
   })
 }
 
-// Edición de la ficha: datos de contacto, tipo comercial y crédito. El tipo y
-// el crédito quedan reservados a administración/gerencia.
+// Edición de la ficha: datos de contacto, tipo comercial y crédito. El tipo
+// (mayorista), el límite, el plazo y la tolerancia son de administración o
+// gerencia (el dueño es ADMIN): el vendedor edita contacto y pide lo demás como
+// autorización. El servicio responde 403 (`forbidden`) si no corresponde.
 export async function PATCH(request: Request, props: RouteContext) {
   const params = await props.params
   const session = await requireSession(request)
@@ -146,7 +148,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   if (!id) return error('Cliente obligatorio.')
   try {
     const body = await request.json() as Record<string, unknown>
-    const result = await updateCustomer(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body, { allowIdentityCollision: true, allowUnprivilegedCommercial: true })
+    const result = await updateCustomer(prisma, { id: session.user.id, tenantId: session.user.tenantId, role: session.user.role, permissions: session.user.permissions }, id, body, { allowIdentityCollision: true })
     return json(result)
   } catch (cause) {
     const code = (cause as { code?: string }).code

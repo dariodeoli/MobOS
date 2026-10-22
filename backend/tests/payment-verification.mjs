@@ -285,6 +285,52 @@ try {
   // El vendedor y la caja de otra empresa no ven nada: tenant aislado.
   is(Number(psql(`SELECT COUNT(*) FROM "PaymentVerificationDiscrepancy" WHERE "tenantId" <> 'tenant-a-it'`)), 0)
 
+  // ── 9) Cuota cobrada por un medio «a verificar» y RECHAZADA: vuelve a quedar pendiente ──
+  // Regresión: la cuota desaparecía (REJECTED) y la deuda quedaba abierta sin cuota.
+  const clienteCuotas = await nuevoCliente('Cliente cuotas PV')
+  r = await venta(120000, [], { customerId: clienteCuotas.id })
+  is(r.status, 201, JSON.stringify(r.payload))
+  const pedidoCuotas = r.payload
+  const vence = new Date(Date.now() + 5 * 86400000).toISOString()
+  r = await call(`/api/orders/${pedidoCuotas.id}/installments`, { method: 'POST', body: { count: 3, firstDueAt: vence } })
+  is(r.status, 201, JSON.stringify(r.payload))
+  const cuotasPlan = r.payload.payments
+  const cuota1 = cuotasPlan[0]
+  const dueOriginal = psql(`SELECT "dueAt"::text FROM "Payment" WHERE "id" = '${cuota1.id}'`)
+  r = await call('/api/payments', { method: 'POST', token: sellerToken, body: { orderId: pedidoCuotas.id, method: 'PIX', amountPyg: cuota1.amountPyg, installmentId: cuota1.id, reference: `PIX-CUOTA-${stamp}` } })
+  is(r.status, 201, JSON.stringify(r.payload))
+  is(r.payload.status, 'PENDING', 'la cuota cobrada por PIX espera verificación')
+  is(r.payload.pendingReason, 'VERIFICACION')
+  r = await resolver(cuota1.id, 'REJECTED', 'No ingresó el PIX')
+  is(r.status, 200, JSON.stringify(r.payload))
+  is(dbStatus(cuota1.id), 'REJECTED', 'el intento queda rechazado')
+  is(psql(`SELECT ("dueAt" IS NULL)::text FROM "Payment" WHERE "id" = '${cuota1.id}'`), 'true', 'el intento rechazado ya no es una cuota')
+  // La cuota vuelve: PENDING/CREDIT/CUOTA, mismo monto y vencimiento original; sin duplicar ni perder montos.
+  const restauradas = psql(`SELECT "id" || '|' || "status"::text || '|' || "method"::text || '|' || "pendingReason" || '|' || "amountPyg" || '|' || "dueAt"::text FROM "Payment" WHERE "orderId" = '${pedidoCuotas.id}' AND "status" = 'PENDING' AND "method" = 'CREDIT' AND "id" <> ALL (ARRAY['${cuotasPlan[1].id}', '${cuotasPlan[2].id}']) `).split('\n').filter(Boolean)
+  is(restauradas.length, 1, 'exactamente una cuota nueva en lugar de la rechazada')
+  const [nuevaId, , , razon, monto, vencimiento] = restauradas[0].split('|')
+  is(razon, 'CUOTA')
+  is(Number(monto), cuota1.amountPyg, 'mismo monto')
+  is(vencimiento, dueOriginal, 'vencimiento original')
+  is(Number(psql(`SELECT COALESCE(SUM("amountPyg"), 0) FROM "Payment" WHERE "orderId" = '${pedidoCuotas.id}' AND "dueAt" IS NOT NULL AND "status" = 'PENDING'`)), 120000, 'las cuotas pendientes siguen sumando el saldo completo')
+  is(Number(psql(`SELECT COALESCE(SUM("amountPyg"), 0) FROM "Payment" WHERE "orderId" = '${pedidoCuotas.id}' AND "status" = 'CONFIRMED'`)), 0, 'el rechazado no cuenta como cobrado')
+  is(audits('CREDIT_INSTALLMENT_RESTORED', cuota1.id), 1, 'queda auditado')
+  // Rechazar de nuevo es un no-op: no crea otra cuota.
+  r = await resolver(cuota1.id, 'REJECTED', 'No ingresó el PIX')
+  is(r.status, 200)
+  is(Number(psql(`SELECT COUNT(*) FROM "Payment" WHERE "orderId" = '${pedidoCuotas.id}' AND "status" = 'PENDING' AND "method" = 'CREDIT'`)), 3, 'sigue habiendo 3 cuotas pendientes')
+  // El aviso al vendedor dice que la cuota quedó pendiente.
+  r = await call('/api/notifications', { token: sellerToken })
+  is(r.status, 200, JSON.stringify(r.payload))
+  const aviso = (r.payload.items || r.payload.notifications || []).find(item => item.id === `pago-resuelto-${cuota1.id}`)
+  ok(aviso, 'el vendedor recibe el aviso del rechazo')
+  ok(/la cuota volvió a quedar pendiente/.test(aviso.detail), `el aviso indica la cuota: ${aviso?.detail}`)
+  // La cuota restaurada se puede cobrar de nuevo (efectivo) y cierra bien.
+  r = await call('/api/payments', { method: 'POST', token: sellerToken, body: { orderId: pedidoCuotas.id, method: 'CASH', amountPyg: cuota1.amountPyg, installmentId: nuevaId } })
+  is(r.status, 201, JSON.stringify(r.payload))
+  is(r.payload.status, 'CONFIRMED')
+  is(r.payload.id, nuevaId)
+
   console.log(`payment-verification: ${checks} comprobaciones OK`)
 } finally {
   psql(`UPDATE "Tenant" SET "settings" = '${originalSettings.replace(/'/g, "''")}'::jsonb WHERE "id" = 'tenant-a-it'`)

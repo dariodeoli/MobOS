@@ -31,6 +31,7 @@ const ACCIONES = {
   ORDER_DISCOUNT_APPROVED: ['Descuento aprobado', 'orange'],
   PAYMENT_RECORDED: ['Cobro registrado', 'green'],
   CREDIT_INSTALLMENT_PAID: ['Cuota cobrada', 'green'],
+  CREDIT_INSTALLMENT_RESTORED: ['Cuota vuelta a pendiente', 'orange'],
   STORE_CREDIT_ISSUED: ['Saldo a favor emitido', 'blue'],
   STORE_CREDIT_USED: ['Saldo a favor usado', 'green'],
   GIFT_CARD_ISSUED: ['Gift card emitida', 'blue'],
