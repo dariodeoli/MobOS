@@ -271,7 +271,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       await page.setViewportSize(DESKTOP)
       await expect(await shellPrimary(page)).toBeVisible({ timeout: 20_000 })
       const catalog = await shellCatalog(page)
-      expect(catalog.primary).toEqual(rol.id === 'tecnico' ? ['Taller'] : rol.id === 'delivery' ? ['Entregas'] : ['Vender', 'Ventas', 'Clientes', 'Stock'])
+      expect(catalog.primary).toEqual(rol.id === 'tecnico' ? ['Taller'] : rol.id === 'delivery' ? ['Entregas'] : ['Vender', 'Pedidos', 'Clientes', 'Stock'])
       for (const item of rol.menu) {
         expect(catalog.destinations, `${rol.id}: menú ${item}`).toContain(item === 'POS' ? 'Nueva venta' : item)
       }
@@ -577,7 +577,7 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
   // Impresoras: puentes, cola y prueba local.
   filas.push(...await evidencia(page, {
     nombre: 'impresion-dispositivos',
-    ruta: '/configuracion/dispositivos',
+    ruta: '/configuracion/impresion',
     listo: (p) => p.getByText('Configurá y probá tus impresoras térmicas').first(),
   }))
 

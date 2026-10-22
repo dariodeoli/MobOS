@@ -1,6 +1,6 @@
 // #298 · Configuración: una sola navegación con texto y edición bajo demanda.
 //
-// - El riel de los 7 grupos ya no se colapsa a solo iconos: siempre muestra el
+// - El riel de los 9 grupos ya no se colapsa a solo iconos: siempre muestra el
 //   rótulo (escritorio y mobile), con el deep link intacto.
 // - «Datos de la tienda» es una única tarjeta: en lectura muestra los datos y
 //   «Editar»; la edición reemplaza la misma tarjeta (2 columnas, dirección a
@@ -17,7 +17,7 @@ import { selectConfigSection } from './helpers/shell-navigation.js'
 const SALIDA = process.env.MOBOS_298_CAPTURAS || ''
 const NAV = '[data-testid="config-grupos"]'
 const TOGGLE = '[data-testid="config-grupos-toggle"]'
-const ETIQUETAS = ['Organización', 'Equipo y acceso', 'Impresoras', 'Comercial', 'Seguridad', 'Sistema', 'Mi cuenta']
+const ETIQUETAS = ['Negocio', 'Módulos', 'Equipo y acceso', 'Ventas y cobros', 'Impresión y documentos', 'Mensajes y avisos', 'Seguridad', 'Integraciones y sistema', 'Mi cuenta']
 
 async function capturar(page, nombre) {
   if (!SALIDA) return
@@ -27,7 +27,7 @@ async function capturar(page, nombre) {
 
 // #422: Datos de la tienda son filas; «Dirección» abre el formulario en una ventana.
 async function abrirEdicion(page) {
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await page.getByTestId('fila-direccion').click()
   await expect(page.getByTestId('datos-tienda-form')).toBeVisible()
   await expect(page.locator('#edit-direccion')).toBeVisible()
@@ -45,11 +45,11 @@ async function confirmarPasswordSiPide(page) {
 
 test('#298 · una sola navegación de Configuración, siempre con texto', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   const nav = page.locator(NAV)
   await expect(nav).toBeVisible({ timeout: 20_000 })
 
-  // Sin toggle de colapso y con los siete rótulos como pestañas de la
+  // Sin toggle de colapso y con los nueve rótulos como pestañas de la
   // navegación de secciones (SectionTabs: siempre con texto).
   await expect(page.locator(TOGGLE)).toHaveCount(0)
   const tabs = nav.locator('[data-tab-id]')
@@ -59,25 +59,25 @@ test('#298 · una sola navegación de Configuración, siempre con texto', async 
   // Deep link intacto y navegación entre secciones.
   await page.goto('/configuracion/seguridad')
   await expect(page.locator(NAV).locator('[data-tab-id="seguridad"]')).toHaveAttribute('aria-current', 'page')
-  await selectConfigSection(page, 'Organización')
-  await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
+  await selectConfigSection(page, 'Negocio')
+  await expect(page).toHaveURL(/\/configuracion\/negocio$/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '01-navegacion-escritorio')
 
   // Mobile: la misma navegación como tira de pestañas, con el rótulo actual y sin desborde.
-  // #410: en celular /configuracion es la lista de las siete secciones con rótulo.
+  // #410: en celular /configuracion es la lista de las nueve secciones con rótulo.
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/configuracion')
   await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible()
   await expect(page.locator(NAV).locator('[data-tab-id]')).toHaveCount(ETIQUETAS.length)
-  await expect(page.locator(NAV).locator('[data-tab-id="organizacion"]')).toHaveAttribute('aria-label', 'Organización')
+  await expect(page.locator(NAV).locator('[data-tab-id="negocio"]')).toHaveAttribute('aria-label', 'Negocio')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '02-navegacion-mobile')
 })
 
 test('#298 · Datos de la tienda: filas que abren su formulario y sin resumen duplicado', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toHaveCount(1)
   for (const fila of ['fila-comercial', 'fila-contacto', 'fila-direccion']) await expect(page.getByTestId(fila)).toBeVisible()
   await expect(page.locator('#edit-nombre')).toHaveCount(0)

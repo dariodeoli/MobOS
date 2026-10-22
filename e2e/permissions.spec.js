@@ -14,7 +14,7 @@ test.describe('seller permissions', () => {
 
     const catalog = await shellCatalog(page)
     // Menú del vendedor (IA #251): cuatro grupos y solo sus módulos.
-    expect(catalog.primary).toEqual(['Vender', 'Ventas', 'Clientes', 'Stock'])
+    expect(catalog.primary).toEqual(['Vender', 'Pedidos', 'Clientes', 'Stock'])
     for (const label of ['POS', 'Mis pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Productos', 'Precios', 'Delivery', 'Trade-In']) {
       expect(catalog.destinations).toContain(label === 'POS' ? 'Nueva venta' : label)
     }

@@ -72,11 +72,11 @@ test('Datos generales: «Registro de cambios» y «Atajos de teclado» abren su 
   await expect(page.getByTestId('registro-cambios').locator('section')).toHaveCount(3)
 })
 
-test('Portal, Notificaciones y Plan y facturación: solo lo que existe y sin desborde a 375', async ({ page }) => {
+test('Portal, Mensajes y avisos y Plan y facturación: solo lo que existe y sin desborde a 375', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
   await openShellDestination(page, 'Configuración')
-  const secciones = page.getByRole('tablist', { name: 'Secciones de Organización' })
+  const secciones = page.getByRole('tablist', { name: 'Secciones de Negocio' })
 
   await secciones.getByRole('tab', { name: 'Portal de clientes', exact: true }).click()
   const portal = page.getByTestId('portal-pantalla')
@@ -85,10 +85,13 @@ test('Portal, Notificaciones y Plan y facturación: solo lo que existe y sin des
   // No hay interruptores de funciones que el sistema todavía no tiene.
   await expect(portal.getByRole('switch')).toHaveCount(1)
 
-  await secciones.getByRole('tab', { name: 'Notificaciones', exact: true }).click()
+  // Notificaciones vive en «Mensajes y avisos» (grupo propio de Configuración).
+  await expect(secciones.getByRole('tab', { name: 'Notificaciones', exact: true })).toHaveCount(0)
+  await page.getByTestId('config-grupos').locator('[data-tab-id="mensajes"]').click()
   const notificaciones = page.getByTestId('notificaciones-pantalla')
   for (const id of ['fila-remitente', 'fila-notif-clientes', 'fila-notif-equipo', 'fila-notif-webhooks']) await expect(notificaciones.getByTestId(id), id).toBeVisible()
 
+  await page.getByTestId('config-grupos').locator('[data-tab-id="negocio"]').click()
   await secciones.getByRole('tab', { name: 'Plan y facturación', exact: true }).click()
   const plan = page.getByTestId('plan-pantalla')
   await expect(plan).toContainText('La facturación del servicio todavía no está activa')

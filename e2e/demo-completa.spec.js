@@ -14,7 +14,7 @@ const PORTAL_CLIENTE = '/portal/demo-demo-cliente-lucia-completo'
 const ANALISIS = ['reportes', 'ventas-dia', 'ganancias', 'ganadores', 'asistente'].map((t) => `/analisis/${t}`)
 const FINANZAS = ['caja', 'gastos', 'bancos', 'conciliacion', 'creditos', 'cuotas', 'comisiones', 'publicidad'].map((t) => `/finanzas/${t}`)
 const STOCK = ['unidades', 'taller', 'conteos', 'verificacion', 'alertas', 'reservas', 'traslados', 'transito', 'vendidos', 'ubicaciones', 'compartido', 'eliminados'].map((t) => `/stock/${t}`)
-const CONFIG = ['organizacion', 'equipo', 'dispositivos', 'comercial', 'seguridad', 'sistema', 'mi-cuenta'].map((t) => `/configuracion/${t}`)
+const CONFIG = ['negocio', 'modulos', 'equipo', 'ventas-cobros', 'impresion', 'mensajes', 'seguridad', 'sistema', 'mi-cuenta'].map((t) => `/configuracion/${t}`)
 
 // Vistas del menú de cada rol (las que su navegación ofrece y su permiso abre).
 const VISTAS = {
@@ -132,7 +132,7 @@ test('demo completa · portal del cliente (Ver como → Cliente) muestra pedidos
 
 test('demo completa · en 375px ninguna vista del Dueño ni del resto de roles desborda horizontalmente', async ({ page }) => {
   test.setTimeout(240000)
-  const rutasMovil = ['/resumen', '/pos', '/pedidos', '/clientes', '/campanas', '/stock/unidades', '/stock/traslados', '/compras', '/servicio', '/finanzas/caja', '/finanzas/gastos', '/finanzas/creditos', '/finanzas/cuotas', '/finanzas/comisiones', '/analisis/reportes', '/configuracion/organizacion', '/ops']
+  const rutasMovil = ['/resumen', '/pos', '/pedidos', '/clientes', '/campanas', '/stock/unidades', '/stock/traslados', '/compras', '/servicio', '/finanzas/caja', '/finanzas/gastos', '/finanzas/creditos', '/finanzas/cuotas', '/finanzas/comisiones', '/analisis/reportes', '/configuracion/negocio', '/ops']
   await entrarComo(page, 'dueno')
   await page.setViewportSize({ width: 375, height: 812 })
   const desbordes = []

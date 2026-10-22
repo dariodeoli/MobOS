@@ -16,7 +16,7 @@ async function entrarDemo(page) {
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
   await cerrarGuiaDemo(page)
-  await page.goto('/configuracion/dispositivos')
+  await page.goto('/configuracion/impresion')
   await page.getByTestId('panel-impresoras').waitFor()
 }
 

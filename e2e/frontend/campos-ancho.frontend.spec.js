@@ -116,7 +116,7 @@ test('1440: buscadores y selects de Configuración con ancho por contenido (#389
   const nombre = await caja(page.locator('#direct-name'))
   expect(nombre.width, 'Equipo: Nombre').toBeLessThanOrEqual(MAX.nombre + TOL)
 
-  await selectConfigSection(page, 'Comercial')
+  await selectConfigSection(page, 'Ventas y cobros')
   const producto = await caja(page.getByPlaceholder('Elegí el producto…'))
   expect(producto.width, 'Comercial: buscador de producto').toBeLessThanOrEqual(MAX.busqueda + TOL)
 

@@ -145,7 +145,7 @@ const PROYECTORES = {
 // compras, proveedores y unidades filtran en el servidor; productos y pedidos
 // se traen completos y se filtran acá para conservar el comportamiento previo.
 // El atajo lo maneja el shell (PanelVendedor), por eso `conAtajo={false}`.
-export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwner = false }) {
+export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwner = false, modulos = null }) {
   // La paleta (v0.62.0) muestra `mensajeError`, no el mensaje del throw: el
   // estado del último fallo se refleja en ese prop para distinguir servicio de
   // conexión. Cambiar el prop reejecuta la consulta una vez y deja el mensaje
@@ -198,7 +198,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas, esOwne
         datos: { vista: acceso.vista },
       }))
 
-    const ajustes = buscarAjustes(q, { esOwner, limite: MAX_POR_GRUPO }).map(entrada => {
+    const ajustes = buscarAjustes(q, { esOwner, limite: MAX_POR_GRUPO, modulos }).map(entrada => {
       const destino = destinoAjuste(entrada, { esOwner })
       return {
         id: `configuracion:${entrada.id}`,

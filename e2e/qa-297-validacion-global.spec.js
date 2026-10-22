@@ -95,7 +95,7 @@ test('#297 · compra incompleta: crear pedido bloqueado y la línea señala qué
 
 test('#297 · impresora sin configuración: guardar bloqueado hasta completar nombre y destino', async ({ page }) => {
   await entrarDemo(page)
-  await page.goto('/configuracion/dispositivos')
+  await page.goto('/configuracion/impresion')
   await page.getByRole('button', { name: 'Agregar impresora' }).click()
   const panel = page.getByRole('dialog', { name: 'Agregar impresora' })
   const guardar = panel.getByRole('button', { name: 'Guardar impresora' })

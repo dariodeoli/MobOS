@@ -15,6 +15,7 @@
         "equipo-integrantes.spec.js",
         "finanzas-conciliacion.spec.js",
         "fotos-producto.spec.js",
+        "frontend/modulos.frontend.spec.js",
         "frontend/venta-rapida.frontend.spec.js",
         "impresion-plantilla.spec.js",
         "informe-publico-checklist.spec.js",
@@ -38,7 +39,6 @@
         "qa-271-avatar-superficies.spec.js",
         "qa-280-gift-cards.spec.js",
         "qa-285-unidades.spec.js",
-        "qa-593-apple-variant.spec.js",
         "qa-299-organizacion-equipo.spec.js",
         "qa-302-demo-inv.spec.js",
         "qa-305-inventario-escritorio.spec.js",
@@ -46,6 +46,7 @@
         "qa-319-dispositivos.spec.js",
         "qa-323-modales.spec.js",
         "qa-332-inventario-vistas.spec.js",
+        "qa-593-apple-variant.spec.js",
         "qa-fin-compacto.spec.js",
         "recorte-perfil.spec.js",
         "responsive.spec.js"

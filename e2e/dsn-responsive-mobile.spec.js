@@ -311,22 +311,24 @@ function auditarSuperficies(registro) {
   })
 }
 
-// #253: la Configuración reorganizada en 7 grupos entra al barrido, con la
+// #253: la Configuración reorganizada en 9 grupos entra al barrido, con la
 // navegación interna como control clave (44 px en todos los anchos).
 const GRUPOS_CONFIG_AUDIT = [
   ['mi-cuenta', 'Mi cuenta', (page) => page.getByText('Tu perfil, tus preferencias').first()],
-  ['organizacion', 'Organización', (page) => page.getByText('Datos de la tienda').first()],
+  ['negocio', 'Negocio', (page) => page.getByText('Datos de la tienda').first()],
+  ['modulos', 'Módulos', (page) => page.getByTestId('modulos-lista')],
   // Equipo carga la lista de integrantes: esperarla deja la medición igual en
   // todos los anchos (si no, el contenido async entra después de la foto).
   ['equipo', 'Equipo y acceso', (page) => page.getByTestId('integrante-fila').first()],
-  ['comercial', 'Comercial', (page) => page.getByText('Seguro de ventas').first()],
+  ['ventas-cobros', 'Ventas y cobros', (page) => page.getByText('Seguro de ventas').first()],
   ['seguridad', 'Seguridad', (page) => page.getByTestId('auditoria-actualizar')],
-  ['dispositivos', 'Impresoras', (page) => page.getByTestId('paneles-impresion')],
-  ['sistema', 'Sistema', (page) => page.getByText('Sincronización').first()],
+  ['impresion', 'Impresión y documentos', (page) => page.getByTestId('paneles-impresion')],
+  ['mensajes', 'Mensajes y avisos', (page) => page.getByTestId('notificaciones-pantalla')],
+  ['sistema', 'Integraciones y sistema', (page) => page.getByText('Sincronización').first()],
 ]
 
 function auditarConfiguracion(registro) {
-  test('configuración: los 7 grupos a 360/390/414/768', async ({ page }) => {
+  test('configuración: los 9 grupos a 360/390/414/768', async ({ page }) => {
     test.slow()
     mkdirSync(SHOTS, { recursive: true })
     const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] [data-tab-id]' }]

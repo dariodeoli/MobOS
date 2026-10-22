@@ -327,8 +327,25 @@ export default function AppShell({
       children: !collapsed && section.label,
     })
 
-  const groupTabs = pageTabs ? null : contextGroups.length > 1 ? contextGroups : null
-  const tabsNode = pageTabs ? (
+  // Pestañas de contexto (nivel 1) y las de la propia página (Inicio › Reportes
+  // trae las suyas): cuando hay las dos van en UNA fila, con las de la página en
+  // el lugar de su grupo (Resumen · Reportes · Ventas del día … · Operaciones).
+  const groupTabs = contextGroups.length > 1 ? contextGroups : null
+  const itemsContexto = groupTabs
+    ? groupTabs.map(group => ({ ...group, badge: badgesPestanas[claveBadge(currentSection.id, group.id)], badgeLabel: 'pendientes' }))
+    : null
+  const fusionadas = groupTabs && pageTabs
+    ? itemsContexto.flatMap(group => (group.items.some(([id]) => id === active) ? pageTabs.items.map(([id, label]) => ({ id, label })) : [group]))
+    : null
+  const tabsNode = fusionadas ? (
+    <SectionTabs
+      testId="shell-contexto"
+      label={pageTabs.label}
+      items={fusionadas}
+      value={pageTabs.value}
+      onChange={id => (pageTabs.items.some(([tabId]) => tabId === id) ? pageTabs.onChange(id) : navegar(contextGroups.find(group => group.id === id).items[0][0]))}
+    />
+  ) : pageTabs ? (
     <SectionTabs
       testId="shell-pestanas"
       label={pageTabs.label}
@@ -340,7 +357,7 @@ export default function AppShell({
     <SectionTabs
       testId="shell-contexto"
       label={`Secciones de ${currentSection.label}`}
-      items={groupTabs.map(group => ({ ...group, badge: badgesPestanas[claveBadge(currentSection.id, group.id)], badgeLabel: 'pendientes' }))}
+      items={itemsContexto}
       value={currentGroup?.id}
       onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
     />

@@ -19,12 +19,14 @@ const WIDTHS = [
 
 // New order (by frequency of use) -> [label, slug].
 const SECCIONES = [
-  ['Organización', 'organizacion'],
+  ['Negocio', 'negocio'],
+  ['Módulos', 'modulos'],
   ['Equipo y acceso', 'equipo'],
-  ['Impresoras', 'dispositivos'],
-  ['Comercial', 'comercial'],
+  ['Ventas y cobros', 'ventas-cobros'],
+  ['Impresión y documentos', 'impresion'],
+  ['Mensajes y avisos', 'mensajes'],
   ['Seguridad', 'seguridad'],
-  ['Sistema', 'sistema'],
+  ['Integraciones y sistema', 'sistema'],
   ['Mi cuenta', 'mi-cuenta'],
 ]
 
@@ -32,26 +34,29 @@ const SECCIONES = [
 // value is a landmark that proves the content is reachable in the demo.
 const DONDE_VIVE = [
   ['Mi cuenta (perfil, preferencias, sesiones)', 'mi-cuenta', /Tu perfil|Mi cuenta/],
-  ['Datos de la tienda, sucursales, logo, numeración', 'organizacion', /Datos de la tienda/],
+  ['Datos de la tienda, sucursales, logo, numeración', 'negocio', /Datos de la tienda/],
+  ['Módulos activos y desactivados', 'modulos', /Activar|Desactivar/],
   ['Equipo, invitaciones, roles, horarios', 'equipo', /Integrantes|Equipo/],
-  ['Comercial (seguro de ventas, límites)', 'comercial', /Seguro de ventas/],
+  ['Ventas y cobros (seguro de ventas, límites)', 'ventas-cobros', /Seguro de ventas/],
   ['Seguridad, sesiones y auditoría', 'seguridad', /Auditor|Historial|Seguridad/],
-  ['Impresoras, puentes, etiquetas, tickets', 'dispositivos', /impresoras/i],
+  ['Impresoras, puentes, etiquetas, tickets', 'impresion', /impresoras/i],
+  ['Notificaciones, remitente y plantillas', 'mensajes', /Notificaciones/],
   ['Estado del sistema, correo, AEX, webhooks', 'sistema', /Sincronización/],
 ]
 
 // Old slugs keep working (marcadores y enlaces enviados).
 const REDIRECCIONES = [
-  ['/configuracion', /\/configuracion\/organizacion$/],
+  ['/configuracion', /\/configuracion\/negocio$/],
   ['/configuracion/identidad', /\/configuracion\/mi-cuenta$/],
   ['/configuracion/preferencias', /\/configuracion\/mi-cuenta$/],
-  ['/configuracion/negocio', /\/configuracion\/organizacion$/],
-  ['/configuracion/sucursales', /\/configuracion\/organizacion$/],
+  ['/configuracion/organizacion', /\/configuracion\/negocio$/],
+  ['/configuracion/sucursales', /\/configuracion\/negocio$/],
   ['/configuracion/roles', /\/configuracion\/equipo$/],
-  ['/configuracion/precios', /\/configuracion\/comercial$/],
+  ['/configuracion/precios', /\/configuracion\/ventas-cobros$/],
+  ['/configuracion/comercial', /\/configuracion\/ventas-cobros$/],
   ['/configuracion/historial', /\/configuracion\/seguridad$/],
-  ['/configuracion/impresoras', /\/configuracion\/dispositivos$/],
-  ['/configuracion/impresion', /\/configuracion\/dispositivos$/],
+  ['/configuracion/impresoras', /\/configuracion\/impresion$/],
+  ['/configuracion/dispositivos', /\/configuracion\/impresion$/],
 ]
 
 async function enterDemo(page, role = 'Dueño') {
@@ -139,9 +144,9 @@ test('Configuración is the last owner destination: visible, reachable by click,
     .getByRole('navigation', { name: 'Navegación principal', exact: true })
   const labels = await primary.getByRole('button').allTextContents()
   expect(labels.at(-1)?.trim()).toBe('Configuración')
-  expect(labels.at(-2)?.trim()).toBe('Análisis')
+  expect(labels.at(-2)?.trim()).toBe('Finanzas')
   await primary.getByRole('button', { name: 'Configuración', exact: true }).click()
-  await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
+  await expect(page).toHaveURL(/\/configuracion\/negocio$/)
   await expect(
     primary.getByRole('button', { name: 'Configuración', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
@@ -187,7 +192,7 @@ test('seller roles never get Configuración (no permission widened)', async ({ p
     .getByRole('navigation', { name: 'Navegación principal', exact: true })
   await expect(primary.getByRole('button', { name: 'Configuración', exact: true })).toHaveCount(0)
   await expect(page.getByTestId('shell-pie-equipo')).toHaveCount(0)
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page).not.toHaveURL(/\/configuracion\//)
 })
 
@@ -196,11 +201,11 @@ test('#542: dominios con cabecera común y sincronización de impresión dentro 
   await enterDemo(page)
   for (const [width, height] of [[390, 844], [1280, 900]]) {
     await page.setViewportSize({ width, height })
-    await page.goto('/configuracion/dispositivos')
-    await expect(page.locator('h1')).toHaveText('Impresoras')
-    await expect(page.getByTestId('config-grupo-cabecera')).toContainText('Impresoras')
+    await page.goto('/configuracion/impresion')
+    await expect(page.locator('h1')).toHaveText('Impresión y documentos')
+    await expect(page.getByTestId('config-grupo-cabecera')).toContainText('Impresión y documentos')
     await page.getByTestId('panel-sincronizacion').click()
-    await expect(page).toHaveURL(/\/configuracion\/dispositivos\?panel=sincronizacion/)
+    await expect(page).toHaveURL(/\/configuracion\/impresion\?panel=sincronizacion/)
     await expect(page.getByTestId('impresoras-sincronizacion')).toBeVisible()
     for (const id of ['puentes', 'impresoras', 'trabajos']) {
       await expect(page.getByTestId(`impresoras-sync-${id}`)).toBeVisible()
@@ -210,7 +215,7 @@ test('#542: dominios con cabecera común y sincronización de impresión dentro 
   }
 
   await page.goto('/configuracion/sistema')
-  await expect(page.getByTestId('config-grupo-cabecera')).toContainText('Sistema')
+  await expect(page.getByTestId('config-grupo-cabecera')).toContainText('Integraciones y sistema')
   await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Impresoras')
   await expect(page.getByTestId('impresoras-sincronizacion')).toHaveCount(0)
 })
@@ -235,8 +240,8 @@ for (const [width, height] of WIDTHS) {
           const band = await emptyBand(page)
           expect.soft(band, `${name}: empty band ${(band * 100).toFixed(0)}%`).toBeLessThanOrEqual(0.15)
         }
-        if (!dark && ((width === 1440 && slug === 'dispositivos') || (width === 375 && slug === 'seguridad')))
-          await page.screenshot({ path: `${out}/config-${slug === 'dispositivos' ? 'impresion' : slug}-${width}.png` })
+        if (!dark && ((width === 1440 && slug === 'impresion') || (width === 375 && slug === 'seguridad')))
+          await page.screenshot({ path: `${out}/config-${slug}-${width}.png` })
       }
     })
   }
@@ -269,7 +274,7 @@ test('#30 Seguridad: activity feed shows the whole amount on its own line at 375
 test('#31 Sistema: alert and device names are not truncated at 375', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
-  await openConfig(page, 'Sistema')
+  await openConfig(page, 'Integraciones y sistema')
   const cut = await page.locator('main').evaluate(root =>
     [...root.querySelectorAll('*')]
       .filter(el => el.children.length === 0 && (el.textContent || '').trim())
@@ -282,7 +287,7 @@ test('#31 Sistema: alert and device names are not truncated at 375', async ({ pa
 test('#608 Sistema: MCP queda pendiente hasta registrar OAuth', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await enterDemo(page)
-  await openConfig(page, 'Sistema')
+  await openConfig(page, 'Integraciones y sistema')
   const conexiones = page.getByTestId('mcp-conexiones')
   await expect(conexiones).toBeVisible()
   await expect(conexiones.getByTestId('mcp-oauth-pendiente')).toHaveCount(0)
@@ -291,10 +296,10 @@ test('#608 Sistema: MCP queda pendiente hasta registrar OAuth', async ({ page })
   await expect(conexiones.getByTestId('mcp-proveedor-claude')).toContainText('Pendiente')
 })
 
-test('#32 Dispositivos and Comercial: 44px targets at 375', async ({ page }) => {
+test('#32 Impresión y Ventas y cobros: 44px targets at 375', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
-  for (const label of ['Impresoras', 'Comercial']) {
+  for (const label of ['Impresión y documentos', 'Ventas y cobros']) {
     await openConfig(page, label)
     await expectLayoutContract(page, label, { scope: 'all' })
     await expectInlineLinksUsable(page, label)

@@ -1,4 +1,4 @@
-// #253 · Estructura visual de los 7 grupos de Configuración (DSN): navegación
+// #253 · Estructura visual de los 9 grupos de Configuración (DSN): navegación
 // interna (riel en escritorio, tira con iconos en mobile), layout y capturas
 // antes/después. El contenido de cada grupo es de su slot; acá se mide y
 // captura la estructura, se exige AA en la navegación y se cuidan los enlaces
@@ -8,20 +8,22 @@ import { mkdirSync } from 'node:fs'
 import { auditarContraste, informar } from './helpers/contraste.js'
 
 const GRUPOS = [
-  ['organizacion', 'Organización'],
+  ['negocio', 'Negocio'],
+  ['modulos', 'Módulos'],
   ['equipo', 'Equipo y acceso'],
-  ['dispositivos', 'Impresoras'],
-  ['comercial', 'Comercial'],
+  ['ventas-cobros', 'Ventas y cobros'],
+  ['impresion', 'Impresión y documentos'],
+  ['mensajes', 'Mensajes y avisos'],
   ['seguridad', 'Seguridad'],
-  ['sistema', 'Sistema'],
+  ['sistema', 'Integraciones y sistema'],
   ['mi-cuenta', 'Mi cuenta'],
 ]
 
 const NAV = '[data-testid="config-grupos"]'
 const DESCRIPCION = '[data-testid="config-grupo-descripcion"]'
 
-test.describe('Configuración · estructura de los 7 grupos', () => {
-  test('la navegación interna muestra los 7 grupos y respeta el enlace directo', async ({ page }) => {
+test.describe('Configuración · estructura de los 9 grupos', () => {
+  test('la navegación interna muestra los 9 grupos y respeta el enlace directo', async ({ page }) => {
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
     await expect(nav).toBeVisible({ timeout: 20_000 })
@@ -96,7 +98,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
     await expect(nav.locator('[data-tab-id]').first()).toBeVisible({ timeout: 20_000 })
-    await expect(nav.getByRole('button', { name: 'Organización', exact: true })).toBeAttached()
+    await expect(nav.getByRole('button', { name: 'Negocio', exact: true })).toBeAttached()
     // #298: se retiró el colapso a solo iconos; el riel conserva su ancho.
     await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
     const caja = await nav.boundingBox()
@@ -114,7 +116,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible({ timeout: 20_000 })
       await page.evaluate(() => { try { localStorage.removeItem('mobos:config-menu') } catch { /* sin storage */ } })
       await page.reload()
-      await expect(page.locator(NAV).getByRole('button', { name: 'Organización', exact: true })).toBeAttached()
+      await expect(page.locator(NAV).getByRole('button', { name: 'Negocio', exact: true })).toBeAttached()
       await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
       await page.screenshot({ path: `${salida}/nav-texto-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
 

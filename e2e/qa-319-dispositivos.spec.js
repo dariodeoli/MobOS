@@ -24,7 +24,7 @@ async function entrarDemo(page) {
 }
 
 async function abrirDispositivos(page) {
-  await page.goto('/configuracion/dispositivos')
+  await page.goto('/configuracion/impresion')
   await page.getByTestId('panel-impresoras').waitFor()
 }
 
