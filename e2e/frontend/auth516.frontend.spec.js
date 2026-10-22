@@ -32,13 +32,12 @@ for (const [width,height] of [[360,640],[390,844],[1440,900]]) for (const dark o
     })
     console.log('AUTH516',width,dark,plataforma,JSON.stringify(medidas[plataforma]))
   }
-  if (width < 768) {
-    expect(medidas.ios.mail).toEqual(medidas.web.mail)
-    expect(medidas.ios.pass).toEqual(medidas.web.pass)
-  } else {
-    // iOS conserva campo16px/44px compacto;1440 no representa un iPhone físico.
-    for (const campo of ['mail','pass']) for (const atributo of ['radio','color','fondo']) expect(medidas.ios[campo][atributo]).toBe(medidas.web[campo][atributo])
-  }
+  // Paridad: los campos y el título miden igual en web e iOS (sin compactado propio de iOS).
+  // Única diferencia nativa: campos a 16 px para que iOS no haga zoom (ya son 16 px en móvil).
+  const sinFuente = ({ fuente, ...resto }) => resto
+  expect(width < 768 ? medidas.ios.mail : sinFuente(medidas.ios.mail)).toEqual(width < 768 ? medidas.web.mail : sinFuente(medidas.web.mail))
+  expect(width < 768 ? medidas.ios.pass : sinFuente(medidas.ios.pass)).toEqual(width < 768 ? medidas.web.pass : sinFuente(medidas.web.pass))
+  expect(medidas.ios.titulo).toEqual(medidas.web.titulo)
   for (const plataforma of ['web','ios']) {
     expect(medidas[plataforma].horizontal).toBe(false)
     expect(medidas[plataforma].formularioVisible).toBe(true)
