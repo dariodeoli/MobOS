@@ -22,6 +22,9 @@ import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import Toolbar from '@/components/shared/Toolbar'
+import ChipsFiltro from '@/components/ventas/ChipsFiltro'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import './conciliacionF5.css'
 import './finanzasTactil.css'
@@ -341,7 +344,7 @@ export default function Conciliacion() {
   const rendered = usePaginaLista(filtrados, { tamano: { compacto: 2, amplio: 20 } })
 
   return (
-    <div className="conciliacion-f5 finanzas-tactil space-y-3">
+    <div className="conciliacion-f5 gp ventas-f3 finanzas-tactil space-y-3">
       <Card className="conciliacion-f5-panel space-y-3">
         <Toolbar
           plano
@@ -379,9 +382,7 @@ export default function Conciliacion() {
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        {[['cuenta', 'Por cuenta'], ['medio', 'Por medio'], ['procesadora', 'Por procesadora']].map(([id, label]) => (
-          <button key={id} type="button" aria-pressed={vista === id} onClick={() => setVista(id)} className={cn('rounded-lg border px-3 py-1.5 text-xs font-semibold transition', vista === id ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore')}>{label}</button>
-        ))}
+        <ChipsFiltro etiqueta="Agrupar por" opciones={[['cuenta', 'Por cuenta'], ['medio', 'Por medio'], ['procesadora', 'Por procesadora']]} valor={vista} onChange={setVista} />
         {recordados && hayRecorte && <span className="text-[11px] text-mute">Filtros de tu última visita</span>}
         {hayFiltros && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button>}
         {data?.truncado && <Badge color="orange">Mostrando los primeros 1.000 pagos</Badge>}

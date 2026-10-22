@@ -3,6 +3,7 @@ import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { error, json, tenantId } from '../../../../lib/http'
 import { InputError, objectInput } from '../../../../lib/payment-input'
 import { numero } from '../../../../lib/montos'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 const PERMISOS = ['pos:use', 'payments:manage', 'orders:manage', 'orders:own', 'orders:branch']
 
@@ -36,6 +37,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 // Anulación de gerencia: el saldo que quedaba no se puede canjear y el
 // movimiento deja el rastro para auditoría.
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'gift-cards'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['orders:manage'])) return error('Solo administración o gerencia anulan gift cards.', 403)

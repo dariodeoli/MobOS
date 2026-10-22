@@ -4,14 +4,11 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { Aviso, Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select } from '@/components/ui'
+import { Aviso, Button, EmptyState, Input, Stat, Label, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
-import { cn } from '@/lib/utils'
-import { temaV2Activo } from '@/lib/temaV2'
-import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
-// Tablas compactas: una fila por mes y por inversión.
-const GRID_ADS = 'grid min-w-[40rem] grid-cols-[minmax(10rem,1.4fr)_6rem_8rem_8rem_4rem] items-center gap-x-2'
+import Popup from '@/components/shared/Popup'
+import StatGrid from '@/components/shared/StatGrid'
+import BarraGestion from '@/components/shared/BarraGestion'
 
 const PLATAFORMAS = ['Meta Ads', 'Instagram', 'Facebook', 'Google Ads', 'TikTok', 'Otro']
 
@@ -42,7 +39,6 @@ const PREFIJO = 'Publicidad:'
 export default function Ads() {
   const demo = isDemoRuntime
   const { sucursal } = useSesion()
-  const v2 = temaV2Activo()
   const [ads, setAds] = useState(demo ? listAds() : [])
   const [cargando, setCargando] = useState(!demo)
   const [error, setError] = useState('')
@@ -93,31 +89,47 @@ export default function Ads() {
   const totalMesActual = porMes[mesActual]?.total || 0
   const promedioMensual = meses.length ? Math.round(total / meses.length) : 0
 
+  const [tab, setTab] = useState('todas')
+  const [busqueda, setBusqueda] = useState('')
+  const [abierto, setAbierto] = useState(false)
+  const plataformasUsadas = [...new Set(ads.map((a) => a.plataforma))]
+  const visibles = ads.filter((a) => (tab === 'todas' || a.plataforma === tab) && (!busqueda.trim() || `${a.plataforma} ${a.nota || ''} ${a.fecha}`.toLowerCase().includes(busqueda.trim().toLowerCase())))
+  const guardarYCerrar = (e) => { guardar(e); if (num(f.monto) > 0) setAbierto(false) }
+
   return (
-    <div className="space-y-3">
-      <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="ads-resumen">
-        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-total"><p className="text-xs leading-4 text-mute">Total invertido</p><strong className={cn('block font-semibold leading-7 tabular-nums text-warn', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(total)}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-mes"><p className="text-xs leading-4 text-mute">{mesLabel(mesActual)}</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(totalMesActual)}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-promedio"><p className="text-xs leading-4 text-mute">Promedio por mes</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(promedioMensual)}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="ads-inversiones"><p className="text-xs leading-4 text-mute">Inversiones cargadas</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{ads.length}</strong></div>
+    <div className="gp ventas-f3 space-y-3" data-testid="ads-pagina">
+      <div className="gp-cabecera">
+        <div className="min-w-0">
+          <h2>Gasto en publicidad</h2>
+          <p>Cargá cuánto invertís en ads: se descuenta en el tablero de ganancias para saber tu resultado real.{!demo && ' Se registra como gasto en Finanzas.'}</p>
+        </div>
       </div>
-      <Card>
-        <h2 className="font-bold mb-1">Gasto en publicidad (Meta Ads)</h2>
-        <p className="text-sm text-mute mb-3">
-          Cargá manualmente cuánto invertís en ads. Se descuenta en el tablero de ganancias para
-          saber tu resultado real.
-        </p>
-        {error && <Aviso tono="error" className="p-3 mb-3">{error}</Aviso>}
-        {!demo && cargando && <p className="mb-3 text-sm text-mute">Cargando inversiones…</p>}
-        {!demo && <p className="mb-3 text-xs text-mute">Las inversiones se registran como gastos en Finanzas y se descuentan de la ganancia.</p>}
-        <form onSubmit={guardar} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <BarraGestion
+        etiqueta="Acciones de Publicidad"
+        testId="barra-ads"
+        buscar={busqueda}
+        onBuscar={setBusqueda}
+        placeholder="Plataforma, fecha o nota"
+        ariaBuscar="Buscar inversiones"
+        tabs={[['todas', 'Todas'], ...plataformasUsadas.map((p) => [p, p])]}
+        tab={tab}
+        onTab={setTab}
+        etiquetaTabs="Plataforma"
+        primary={<Button type="button" onClick={() => setAbierto(true)}>Nueva inversión</Button>}
+      />
+      <StatGrid testId="ads-resumen" etiqueta="Resumen de publicidad">
+        <Stat compact testId="ads-total" label="Total invertido" valor={gs(total)} valorClassName="text-warn" />
+        <Stat compact testId="ads-mes" label={mesLabel(mesActual)} valor={gs(totalMesActual)} />
+        <Stat compact testId="ads-promedio" label="Promedio por mes" valor={gs(promedioMensual)} />
+        <Stat compact testId="ads-inversiones" label="Inversiones cargadas" valor={ads.length} />
+      </StatGrid>
+      {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
+      {!demo && cargando && <p className="text-sm text-mute">Cargando inversiones…</p>}
+      <Popup open={abierto} onClose={() => setAbierto(false)} title="Nueva inversión en publicidad" tamano="md">
+        <form onSubmit={guardarYCerrar} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <Label htmlFor="monto">Monto</Label>
-            <MoneyInput id="monto"
-              value={f.monto}
-              onValueChange={(monto) => setF((s) => ({ ...s, monto }))}
-              placeholder="Ej: 150000"
-            />
+            <MoneyInput id="monto" value={f.monto} onValueChange={(monto) => setF((s) => ({ ...s, monto }))} placeholder="Ej: 150000" />
           </div>
           <div>
             <Label htmlFor="fecha">Fecha</Label>
@@ -126,81 +138,54 @@ export default function Ads() {
           <div>
             <Label htmlFor="plataforma">Plataforma</Label>
             <Select id="plataforma" value={f.plataforma} onChange={set('plataforma')}>
-              {PLATAFORMAS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
+              {PLATAFORMAS.map((p) => <option key={p} value={p}>{p}</option>)}
             </Select>
           </div>
-          <div className="flex items-end">
-            <Button type="submit" className="w-full">
-              Guardar inversión
-            </Button>
+          <div className="flex justify-end gap-2 sm:col-span-3">
+            <Button type="button" variant="ghost" onClick={() => setAbierto(false)}>Cancelar</Button>
+            <Button type="submit">Guardar inversión</Button>
           </div>
         </form>
-      </Card>
-
-      {/* Reporte mensual */}
-      {meses.length > 0 && (
-        <Card className="p-0 overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-ink-600">
-            <h3 className="font-bold">Reporte mensual</h3>
-            <Badge color="orange">Total general: {gs(total)}</Badge>
-          </div>
-          <div className="overflow-x-auto p-4" data-testid="ads-meses-tabla">
-            <div className={cn(GRID_ADS, 'px-3.5 pb-2 pt-1')}>
-              <span className={CELDA_ENCABEZADO}>Mes</span>
-              <span className={CELDA_ENCABEZADO}>Inversiones</span>
-              <span className={CELDA_ENCABEZADO}>Promedio</span>
-              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Total</span>
-              <span />
-            </div>
-            <div className="space-y-1">
-              {meses.map(([clave, { total: t, cant }]) => (
-                <div key={clave} data-testid="ads-mes-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')}>
-                  <span className={cn('capitalize', CELDA_IDENTIDAD)} title={mesLabel(clave)}>{mesLabel(clave)}</span>
-                  <span className="truncate text-xs tabular-nums text-mute">{cant}</span>
-                  <span className="truncate text-xs tabular-nums text-mute">{gs(Math.round(t / Math.max(1, cant)))}</span>
-                  <span className="truncate text-right text-[13px] font-bold tabular-nums text-warn">{gs(t)}</span>
-                  <span />
+      </Popup>
+      <div className="gp-dos">
+        <section className="gp-principal" aria-label="Historial de inversión">
+          {ads.length === 0 ? (
+            <EmptyState compact icon="box" title="Sin inversiones registradas." description="Cargá la primera inversión para ver el reporte mensual." />
+          ) : visibles.length === 0 ? (
+            <EmptyState compact icon="box" title="Ninguna inversión coincide" action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setTab('todas') }}>Ver todas</Button>} />
+          ) : (
+            <div className="gp-lista" data-testid="ads-tabla">
+              {visibles.map((a, indice) => (
+                <div key={a.id} data-testid="ad-fila" style={{ '--i': Math.min(indice, 12) }} className="gp-fila">
+                  <span className="gp-fila-main"><b className="gp-fila-titulo">{a.plataforma}</b><span className="gp-fila-sub">{a.fecha}{a.fecha ? ` · ${mesLabel(String(a.fecha).slice(0, 7))}` : ''}{a.nota ? ` · ${a.nota}` : ''}</span></span>
+                  <span className="gp-fila-lado">
+                    <b className="gp-fila-monto text-warn">{gs(a.monto)}</b>
+                    {demo && <button onClick={() => borrar(a.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-mute transition hover:text-bad" title="Eliminar" aria-label={`Eliminar inversión de ${a.plataforma}`}><Icon name="trash" className="h-4 w-4" /></button>}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
-        </Card>
-      )}
-
-      <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-ink-600">
-          <h3 className="font-bold">Historial de inversión</h3>
-          <Badge color="orange">Total: {gs(total)}</Badge>
-        </div>
-        {ads.length === 0 ? (
-          <EmptyState compact icon="box" title="Sin inversiones registradas." />
-        ) : (
-          <div className="overflow-x-auto p-4" data-testid="ads-tabla">
-            <div className={cn(GRID_ADS, 'px-3.5 pb-2 pt-1')}>
-              <span className={CELDA_ENCABEZADO}>Plataforma</span>
-              <span className={CELDA_ENCABEZADO}>Fecha</span>
-              <span className={CELDA_ENCABEZADO}>Monto</span>
-              <span className={CELDA_ENCABEZADO}>Mes</span>
-              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
+          )}
+        </section>
+        {meses.length > 0 && (
+          <aside className="gp-lateral" aria-label="Reporte mensual">
+            <div className="gp-tarjeta" data-testid="ads-meses-tabla">
+              <h3 className="gp-tarjeta-titulo">Reporte mensual</h3>
+              <div className="gp-tarjeta-cuerpo">
+                <dl className="gp-datos">
+                  {meses.map(([clave, { total: t, cant }]) => (
+                    <div key={clave} data-testid="ads-mes-fila">
+                      <dt className="capitalize">{mesLabel(clave)} · {cant} {cant === 1 ? 'inversión' : 'inversiones'}<span className="block text-xs">Promedio {gs(Math.round(t / Math.max(1, cant)))}</span></dt>
+                      <dd className="text-warn">{gs(t)}</dd>
+                    </div>
+                  ))}
+                  <div className="border-t border-ink-600 pt-2"><dt>Total general</dt><dd>{gs(total)}</dd></div>
+                </dl>
+              </div>
             </div>
-            <div className="space-y-1">
-              {ads.map((a) => (
-                <div key={a.id} data-testid="ad-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')}>
-                  <span className={CELDA_IDENTIDAD}>{a.plataforma}</span>
-                  <span className={CELDA_DATO}>{a.fecha}</span>
-                  <span className="truncate text-xs font-bold tabular-nums text-warn">{gs(a.monto)}</span>
-                  <span className={cn('capitalize', CELDA_DATO)}>{a.fecha ? mesLabel(String(a.fecha).slice(0, 7)) : '—'}</span>
-                  <span className="flex items-center justify-end">{demo && <button onClick={() => borrar(a.id)} className="p-1 text-mute transition hover:text-bad" title="Eliminar" aria-label={`Eliminar inversión de ${a.plataforma}`}><Icon name="trash" className="h-4 w-4" /></button>}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          </aside>
         )}
-      </Card>
+      </div>
     </div>
   )
 }

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Select } from '@/components/ui'
 import usePlantillasEmpresa from './usePlantillasEmpresa'
+import useImpresionPro from './useImpresionPro'
 import VistaPlantilla from './VistaPlantilla'
 import { renderPlantilla, pdfPlantilla } from '@/lib/printing/renderPlantilla'
 import { avisoSalidaPlantilla } from '@/lib/printing/perfiles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder, dataError = '' }) {
   const store = usePlantillasEmpresa(kind),
+    pro = useImpresionPro(),
     [selected, setSelected] = useState(null),
     [render, setRender] = useState(null),
     [error, setError] = useState(''),
@@ -18,8 +20,12 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
   const epoch = useRef(0),
     identity = useRef(store.signature)
   identity.current = store.signature
-  const mode =
-    store.loading || selected === null
+  // Impresión Pro apagada: los predeterminados se ignoran y se imprime el premium
+  // normal (las plantillas guardadas se conservan, solo no se usan).
+  const apagado = pro.listo && !pro.activo
+  const mode = apagado
+    ? 'legacy'
+    : !pro.listo || store.loading || selected === null
       ? 'loading'
       : store.error
         ? 'error'
@@ -38,7 +44,7 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
     if (!store.loading && !store.error && selected === null)
       setSelected(store.effective[kind]?.templateId || '')
   }, [store.loading, store.error, store.effective, selected, kind])
-  const template = store.templates.find(t => t.id === selected)
+  const template = apagado ? undefined : store.templates.find(t => t.id === selected)
   useEffect(() => {
     const counter = epoch
     const request = ++counter.current
@@ -92,6 +98,7 @@ export default function DocumentoPlantilla({ kind, data, onMode, premiumBuilder,
       }
     }
   }
+  if (apagado) return null
   return (
     <section
       className="space-y-3 rounded-xl border border-ink-600 p-3 min-w-0"

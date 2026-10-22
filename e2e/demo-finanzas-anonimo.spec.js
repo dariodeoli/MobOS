@@ -22,7 +22,9 @@ async function entrarDemo(page) {
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'))
   await cerrarGuiaDemo(page)
-  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
+  // El aviso es un chip «Demo»: el texto largo solo cabe en ≥1440 px, el título siempre lo dice.
+  await expect(page.getByTestId('demo-aviso')).toBeVisible()
+  await expect(page.getByTestId('demo-aviso')).toHaveAttribute('title', /datos ficticios/)
 }
 
 async function crearCuenta(page, { kind, campos = {}, nombre }) {
@@ -104,7 +106,7 @@ test.describe('demo anónimo · Finanzas', () => {
     expect.soft(auditoriaEfectivo, 'auditoría de efectivo en demo (#194): falta deployar').toBe(1)
 
     // ── Seguro (#188/#194): nunca "Falta sesión"; en demo se simula.
-    await page.goto(url('/configuracion/comercial'))
+    await page.goto(url('/configuracion/ventas-cobros'))
     await page.locator('#seguro-toggle').waitFor({ state: 'attached', timeout: 15000 })
     await expect(page.getByText('Falta sesión')).toHaveCount(0)
     const guardarSeguro = page.getByRole('button', { name: 'Guardar seguro' })

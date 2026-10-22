@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { ensureCobro } from '../helpers/ensure-cobro.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Crédito sobre el límite y entrega (demo frontend-only, sin backend):
 //  · una venta a crédito que supera el crédito del cliente (o de un cliente sin
@@ -18,7 +19,7 @@ async function entrar(page, rol) {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${rol}`, exact: true }).click()
+  await entrarDemoComo(page, rol)
   await expect(page.getByTestId('shell')).toBeVisible()
   await page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true }).getByRole('button', { name: 'Vender', exact: true }).click()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()

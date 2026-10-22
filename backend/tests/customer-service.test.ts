@@ -40,5 +40,33 @@ function fakeDb(initial = row()) {
 
   await assert.rejects(() => createCustomer(fakeDb().db, { ...actor, permissions: [] }, { name: 'Sin permiso' }), (error: unknown) => error instanceof CustomerServiceError && error.code === 'forbidden')
   await assert.rejects(() => updateCustomer(fakeDb().db, actor, 'otro-tenant-id', { email: 'x@example.invalid' }), (error: unknown) => error instanceof CustomerServiceError && error.code === 'not_found')
+  // [PERM] Crédito y tipo comercial: el vendedor edita contacto, no el límite, el plazo, la tolerancia ni el mayorista.
+  for (const cambio of [{ creditLimitPyg: 5000000 }, { creditDays: 30 }, { pricingTier: 'WHOLESALE' }, { creditTolerancePct: 30 }]) {
+    const vendedor = fakeDb()
+    await assert.rejects(() => updateCustomer(vendedor.db, actor, 'customer-a', cambio), (error: unknown) => error instanceof CustomerServiceError && error.code === 'forbidden', `vendedor no puede ${Object.keys(cambio)[0]}`)
+    assert.equal(vendedor.calls.update, undefined, 'un 403 no escribe nada')
+    // Alta por POST: el vendedor guarda el contacto y los campos comerciales se IGNORAN (ni 403 ni se escriben),
+    // tanto en la ficha nueva como sobre una existente (no se reescribe su crédito).
+    const nueva = fakeDb()
+    await createCustomer(nueva.db, actor, { name: 'Ana Pérez', document: '777', priceListId: 'lista-1', creditLimitPyg: 5000000, creditDays: 30, pricingTier: 'WHOLESALE', creditTolerancePct: 30, creditTermMode: 'CUOTAS', creditInstallments: 6, ...cambio }, { allowExisting: true, ignoreUnprivilegedCommercial: true })
+    for (const key of ['pricingTier', 'creditLimitPyg', 'creditDays', 'creditTolerancePct', 'creditTermMode', 'creditInstallments', 'priceListId']) assert.equal(key in nueva.calls.create, false, `el alta de un vendedor ignora ${key}`)
+    assert.equal(nueva.calls.create.document, '777')
+    const existente = fakeDb(row({ document: '555' }))
+    await createCustomer(existente.db, actor, { name: 'Ana Pérez', document: '555', ...cambio }, { allowExisting: true, ignoreUnprivilegedCommercial: true })
+    for (const key of Object.keys(cambio)) assert.equal(key in existente.calls.update, false, `no reescribe ${key} de una ficha existente`)
+  }
+  const gerenteAlta = fakeDb()
+  await createCustomer(gerenteAlta.db, { ...actor, role: 'GERENTE' }, { name: 'Mayorista', document: '888', pricingTier: 'WHOLESALE', creditLimitPyg: 1000000 }, { allowExisting: true, ignoreUnprivilegedCommercial: true })
+  assert.equal(gerenteAlta.calls.create.pricingTier, 'WHOLESALE', 'gerencia sí fija el tipo en el alta')
+  assert.equal(gerenteAlta.calls.create.creditLimitPyg, 1000000)
+  const contacto = fakeDb()
+  await updateCustomer(contacto.db, actor, 'customer-a', { phone: '0981123456', email: 'ok@example.invalid' })
+  assert.equal(contacto.calls.update.phone, '0981123456', 'el vendedor sí edita contacto')
+  for (const rol of ['GERENTE', 'ADMIN']) {
+    const privilegiado = fakeDb()
+    await updateCustomer(privilegiado.db, { ...actor, role: rol }, 'customer-a', { creditLimitPyg: 5000000, creditDays: 30, pricingTier: 'WHOLESALE', creditTolerancePct: 10 })
+    assert.equal(privilegiado.calls.update.creditLimitPyg, 5000000, `${rol} cambia el límite`)
+    assert.equal(privilegiado.calls.update.pricingTier, 'WHOLESALE', `${rol} cambia el tipo comercial`)
+  }
   console.log('customer-service: normalización, tenant/RBAC y preservación de campos OK')
 })().catch(error => { console.error(error); process.exitCode = 1 })

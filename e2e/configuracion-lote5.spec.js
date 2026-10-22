@@ -12,12 +12,14 @@ import { SEED } from './helpers/seed-data.js'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 const SUBPAGINAS = [
-  ['organizacion', 'Organización'],
+  ['negocio', 'Negocio'],
+  ['modulos', 'Módulos'],
   ['equipo', 'Equipo y acceso'],
-  ['dispositivos', 'Impresoras'],
-  ['comercial', 'Comercial'],
+  ['ventas-cobros', 'Ventas y cobros'],
+  ['impresion', 'Impresión y documentos'],
+  ['mensajes', 'Mensajes y avisos'],
   ['seguridad', 'Seguridad'],
-  ['sistema', 'Sistema'],
+  ['sistema', 'Integraciones y sistema'],
   ['mi-cuenta', 'Mi cuenta'],
 ]
 
@@ -64,7 +66,7 @@ test.describe('Configuración Lote 5', () => {
     expect(cajaEquipo.x).toBeGreaterThan(1440 * 0.5)
 
     // Sucursales (dentro de Organización): el formulario queda a la derecha de la lista.
-    await page.goto('/configuracion/organizacion')
+    await page.goto('/configuracion/negocio')
     await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
     const panelSucursal = page.locator('#sucursal-form')
     await expect(panelSucursal).toBeVisible()
@@ -87,32 +89,26 @@ test.describe('Configuración Lote 5', () => {
     await expect(boton).toBeHidden()
   })
 
-  test('la tienda enlaza editores existentes, presenta próximos módulos y es responsive', async ({ page }) => {
-    const abrirTienda = async () => {
-      await page.goto('/configuracion/organizacion')
-      await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Tienda de módulos', exact: true }).click()
-      await expect(page.getByTestId('tienda-modulos')).toBeVisible()
+  test('la pantalla Módulos enlaza editores existentes, presenta próximos módulos y es responsive', async ({ page }) => {
+    await page.goto('/configuracion/modulos')
+    await expect(page.getByTestId('modulos-pantalla')).toBeVisible()
+    const imeiFila = page.getByTestId('modulo-fila-verificacion-imei')
+    const portalFila = page.getByTestId('modulo-fila-portal-clientes')
+    const publicidadFila = page.getByTestId('modulo-fila-publicidad')
+    const asistentesFila = page.getByTestId('modulo-fila-asistentes')
+    const facturacionFila = page.getByTestId('modulo-fila-facturacion')
+    await expect(portalFila.getByRole('link', { name: /Configurar/ })).toHaveAttribute('href', '/configuracion/negocio?org=portal')
+    await expect(imeiFila.getByRole('link', { name: /Configurar/ })).toHaveAttribute('href', '/stock/unidades')
+    await expect(publicidadFila).toHaveAttribute('data-estado', 'activo')
+    for (const fila of [asistentesFila, facturacionFila]) {
+      await expect(fila).toHaveAttribute('data-estado', 'proximamente')
+      await expect(fila).toContainText('Próximamente')
+      await expect(fila.getByRole('button', { name: /^(Activar|Desactivar) / })).toHaveCount(0)
     }
-    await abrirTienda()
-    const printCard = page.getByTestId('modulo-card-impresion')
-    const messageCard = page.getByTestId('modulo-card-mensajes')
-    const imeiCard = page.getByTestId('modulo-card-verificacion-imei')
-    const portalCard = page.getByTestId('modulo-card-portal-clientes')
-    const advertisingCard = page.getByTestId('modulo-card-publicidad')
-    const assistantsCard = page.getByTestId('modulo-card-asistentes')
-    const billingCard = page.getByTestId('modulo-card-facturacion')
-    await expect(printCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/configuracion/dispositivos')
-    await expect(messageCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/plantillas')
-    await expect(imeiCard).toContainText('IMEIcheck.net · actual')
-    await expect(imeiCard).toContainText('IMEI.info · próximamente / no configurado')
-    await expect(portalCard).toBeVisible()
-    await expect(portalCard.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/configuracion/organizacion')
-    await expect(advertisingCard).toContainText('Próximamente')
-    await expect(advertisingCard.getByRole('button', { name: 'Próximamente', exact: true })).toBeDisabled()
-    await expect(assistantsCard).toContainText('Solo catálogo')
-    await expect(billingCard).toContainText('KudeExpress y futuros adaptadores')
-    await expect(billingCard.getByRole('button', { name: 'Próximamente', exact: true })).toBeDisabled()
-    await expect(page.getByTestId('modulo-card-inventario')).toContainText('Apple/iPhone: modelo, capacidad, color, IMEI, condición y garantía')
+    await expect(page.getByTestId('modulos-pantalla')).not.toContainText('Solo catálogo')
+    await imeiFila.getByRole('button', { name: 'Verificación de IMEI: ver detalle', exact: true }).click()
+    await expect(page.getByTestId('modulo-detalle')).toContainText('Consulta de IMEI con créditos')
+    await page.keyboard.press('Escape')
     const imeiApi = await page.context().request.get(`http://localhost:${process.env.MOBOS_E2E_API_PORT}/api/imei`, { headers: { origin: process.env.MOBOS_APP_URL } })
     expect(imeiApi.status()).toBe(200)
     const proveedores = (await imeiApi.json()).proveedores
@@ -121,13 +117,9 @@ test.describe('Configuración Lote 5', () => {
       expect.objectContaining({ id: 'imei.info', estado: 'coming_soon', seleccionado: false }),
     ]))
     expect(proveedores).toHaveLength(2)
-    await expect(messageCard).toContainText('Activo')
-    await expect(imeiCard).toContainText('Activo')
+    await expect(imeiFila).toContainText('Activo')
     await page.setViewportSize({ width: 360, height: 780 })
-    await expect(page.getByTestId('modulo-card-impresion')).toBeVisible()
-    for (const card of await page.locator('[data-testid^="modulo-card-"]').all()) {
-      await expect(card.locator('[data-testid^="modulo-preview-"]')).toBeVisible()
-    }
+    await expect(page.getByTestId('modulos-lista')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
 })
@@ -135,22 +127,22 @@ test.describe('Configuración Lote 5', () => {
 // IA de Configuración (#251): siete secciones sin duplicar, con Documentación
 // fuera de Configuración (entrada «Ayuda» del shell).
 test.describe('Configuración IA', () => {
-  test('las siete secciones no duplican Dispositivos, Sistema ni Preferencias', async ({ page }) => {
-    await page.goto('/configuracion/dispositivos')
-    await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(7)
+  test('los nueve grupos no duplican Impresión, Sistema ni Preferencias', async ({ page }) => {
+    await page.goto('/configuracion/impresion')
+    await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(9)
 
     // Impresoras: configuración, puentes, estado global y colas de impresión.
-    await expect(page.getByTestId('config-grupos').locator('[data-tab-id="dispositivos"]')).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByTestId('config-grupos').locator('[data-tab-id="impresion"]')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByTestId('paneles-impresion')).toBeVisible()
     await page.getByTestId('panel-sincronizacion').click()
     await expect(page.getByTestId('impresoras-sincronizacion')).toBeVisible()
     await expect(page.getByTestId('impresoras-sync-puentes')).toContainText('en línea')
     await page.getByTestId('panel-diagnostico').click()
     await expect(page.getByRole('heading', { name: 'Diagnóstico de impresión (esta computadora)' })).toBeVisible()
-    await expect(page.getByTestId('config-grupos').getByRole('button', { name: 'Sistema', exact: true })).toBeAttached()
+    await expect(page.getByTestId('config-grupos').getByRole('button', { name: 'Integraciones y sistema', exact: true })).toBeAttached()
 
     // Sistema: solo el monitoreo global (Estado del sistema).
-    await selectConfigSection(page, 'Sistema')
+    await selectConfigSection(page, 'Integraciones y sistema')
     await expect(page).toHaveURL(/\/configuracion\/sistema$/)
     await expect(page.getByRole('heading', { name: 'Sincronización' })).toBeVisible()
 
@@ -162,7 +154,7 @@ test.describe('Configuración IA', () => {
   // #542 · Impresoras: estado, puentes y colas se encuentran bajo el dominio
   // de impresión; el slug histórico de dispositivos sigue siendo estable.
   test('Impresoras agrupa estado global, configuración, puentes y colas', async ({ page }) => {
-    await page.goto('/configuracion/dispositivos')
+    await page.goto('/configuracion/impresion')
     const paneles = page.getByTestId('paneles-impresion')
     for (const label of ['Estado y sincronización', 'Impresoras', 'Puentes', 'Ruteo de documentos', 'Diagnóstico local', 'Cola e historial']) {
       await expect(paneles.getByRole('button', { name: label, exact: true })).toBeVisible()
@@ -215,7 +207,7 @@ test.describe('Configuración IA', () => {
         await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
         await page.setViewportSize({ width: ancho, height: alto })
         // #410: en celular /configuracion es la lista de secciones; la sección abierta no la repite.
-        await page.goto(vista === 'desktop' ? '/configuracion/dispositivos' : '/configuracion')
+        await page.goto(vista === 'desktop' ? '/configuracion/impresion' : '/configuracion')
         await expect(page.getByTestId('config-grupos')).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/config-secciones-${tema}-${vista}.png` })
         await page.goto('/ayuda/ayuda')
@@ -226,7 +218,7 @@ test.describe('Configuración IA', () => {
   })
 })
 
-test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas', async ({ browser }) => {
+test('el estado de Campañas (Mensajes es núcleo) se carga para vendedor y gerente y protege sus rutas', async ({ browser }) => {
   test.setTimeout(90_000)
   const require = createRequire(new URL('../backend/package.json', import.meta.url))
   const { PrismaClient } = require('@prisma/client')
@@ -242,7 +234,7 @@ test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas
     const slug = `module-store-${randomUUID()}`
     const tenant = await db.tenant.create({ data: {
       name: 'Tienda E2E guardas de módulos', email: `${slug}@test.local`, slug, passwordHash: seeded.passwordHash,
-      settings: { moduleStore: { version: 1, preset: 'comercio', modules: { mensajes: { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() } } } },
+      settings: { moduleStore: { version: 1, preset: 'comercio', modules: { 'campanas-recompra': { enabled: false, manuallySelected: true, source: 'manual', updatedAt: new Date().toISOString() } } } },
     } })
     tenantId = tenant.id
     const branch = await db.branch.create({ data: { tenantId, name: 'Sucursal guardas' } })
@@ -275,13 +267,13 @@ test('el estado de Mensajes se carga para vendedor y gerente y protege sus rutas
       const estado = await estadoResponse.json()
       expect(estadoResponse.status(), persona.role).toBe(200)
       expect(estado.canManage, persona.role).toBe(false)
-      expect(estado.state.modules.mensajes.enabled, persona.role).toBe(false)
-      await expect(rolePage.getByText('Plantillas', { exact: true })).toHaveCount(0)
+      // Mensajes y plantillas es núcleo (siempre activo); Campañas es el módulo opcional apagado.
+      expect(estado.state.modules.mensajes.enabled, persona.role).toBe(true)
+      expect(estado.state.modules['campanas-recompra'].enabled, persona.role).toBe(false)
       await expect(rolePage.getByText('Campañas', { exact: true })).toHaveCount(0)
-      const plantillasApi = await context.request.get(`${API}/api/message-templates`, { headers: { origin } })
-      expect(plantillasApi.status(), `${persona.role} API`).toBe(403)
-      await rolePage.goto('/plantillas')
-      await expect(rolePage).not.toHaveURL(/\/plantillas$/)
+      const campanasApi = await context.request.post(`${API}/api/marketing/campaigns`, { headers: { origin }, data: {} })
+      expect(campanasApi.status(), `${persona.role} API`).toBe(403)
+      expect(String((await campanasApi.json()).message || ''), `${persona.role} API`).toMatch(/desactivado/i)
       await rolePage.goto('/campanas')
       await expect(rolePage).not.toHaveURL(/\/campanas$/)
     }

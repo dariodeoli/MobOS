@@ -52,30 +52,73 @@ function Importe({ etiqueta, valor, chico = false, testId }) {
   )
 }
 
-function BotonMedio({ icono, titulo, detalle, onClick, disabled, testId }) {
+function BotonMedio({ icono, titulo, detalle, onClick, disabled, testId, tarjeta = false }) {
   return (
     <button
       type="button"
       data-testid={testId}
       onClick={onClick}
       disabled={disabled}
-      className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-ink-600 bg-ink-800 px-4 text-left transition active:scale-[.99] enabled:hover:border-fono disabled:opacity-40"
+      className={cn(
+        'flex w-full items-center gap-3 rounded-2xl border border-ink-600 bg-ink-800 text-left transition active:scale-[.99] enabled:hover:border-fono disabled:opacity-40',
+        tarjeta ? 'min-h-16 px-3 py-2' : 'min-h-14 px-4',
+      )}
     >
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
         <Icon name={icono} className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-base font-bold">{titulo}</span>
+        <span className={cn('block text-base font-bold', tarjeta ? 'line-clamp-2 break-words text-sm leading-tight' : 'truncate')}>{titulo}</span>
         {detalle && <span className="block truncate text-xs text-mute">{detalle}</span>}
       </span>
-      <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
+      {!tarjeta && <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />}
     </button>
+  )
+}
+
+// Un pago cargado = hasta dos renglones: cuenta y monto con la «x» para borrarlo;
+// debajo, «Medio · Moneda» y, en efectivo, lo recibido.
+function FilaPago({ pago, indice, cuenta, onBorrar, deshabilitado }) {
+  const monto = montoDeFila(pago)
+  const medio = cuenta ? (KIND_LABELS[cuenta.kind] || cuenta.kind) : ''
+  const moneda = cuenta ? (cuenta.currencyLabel || (cuenta.currency === 'PYG' ? 'Gs' : cuenta.currency === 'USD' ? 'US$' : cuenta.currency)) : ''
+  const vueltoFila = vueltoDePagos([pago])
+  const detalle = [medio && moneda ? `${medio} · ${moneda}` : medio || moneda, pago.noPagado ? 'Pendiente' : '', pago.giftCardCode !== undefined ? 'Gift card' : '']
+    .filter(Boolean).join(' · ')
+  return (
+    <li data-testid={`cobro-pago-${indice}`} className="flex items-center gap-2 rounded-xl border border-ink-600 bg-ink-800 py-1.5 pl-3 pr-1">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
+        <Icon name={ICONO_MEDIO[cuenta?.kind] || 'wallet'} className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-2">
+          <b className="min-w-0 truncate text-sm">{pago.giftCardCode !== undefined ? 'Gift card' : cuenta?.name || pago.cuenta || pago.medioPago || `Pago ${indice + 1}`}</b>
+          <b className={cn('whitespace-nowrap text-sm tabular-nums', pago.noPagado && 'text-warn')}>{gs(monto)}</b>
+        </span>
+        <span className="block truncate text-[11px] text-mute">
+          {detalle}
+          {vueltoFila > 0 ? ` · recibido ${gs(pago.recibido)}` : ''}
+        </span>
+      </span>
+      <button
+        type="button"
+        data-testid={`cobro-pago-borrar-${indice}`}
+        aria-label={`Eliminar pago ${indice + 1}`}
+        disabled={deshabilitado}
+        onClick={onBorrar}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-40"
+      >
+        <Icon name="trash" className="h-4 w-4" />
+      </button>
+    </li>
   )
 }
 
 export default function CobroMovil({
   open,
   onClose,
+  onNuevaVenta = null,
+  lineas = null,
   cuentas,
   usaCuentas,
   errorCuentas,
@@ -234,6 +277,28 @@ export default function CobroMovil({
           </Aviso>
         )}
 
+        {(paso === 'medios' || paso === 'confirmar') && (
+          <div className="flex items-center justify-between gap-2" data-testid="cobro-movil-cabecera">
+            <Button type="button" variant="outline" data-testid="cobro-volver" className="min-h-11" disabled={guardando} onClick={onClose}>
+              <Icon name="arrowLeft" className="mr-1.5 h-4 w-4" />
+              Volver a productos
+            </Button>
+            {onNuevaVenta && (
+              <Button type="button" variant="outline" data-testid="cobro-nueva-venta" className="min-h-11" disabled={guardando} onClick={onNuevaVenta}>
+                <Icon name="plus" className="mr-1.5 h-4 w-4" />
+                Nueva venta
+              </Button>
+            )}
+          </div>
+        )}
+
+        {(paso === 'medios' || paso === 'confirmar') && lineas && (
+          <section data-testid="cobro-movil-lineas" className="overflow-clip rounded-2xl border border-ok/35 bg-ok/[.04]">
+            <h3 className="border-b border-ok/20 bg-ok/[.06] px-3 py-2 text-sm font-bold text-ok">Productos de esta venta</h3>
+            {lineas}
+          </section>
+        )}
+
         {paso === 'medios' && (
           <>
             <div className="space-y-2 rounded-2xl border border-ink-600 bg-ink-800 px-4 py-5">
@@ -262,6 +327,21 @@ export default function CobroMovil({
               </button>
             </div>
 
+            {reales.length > 0 && (
+              <ul data-testid="cobro-pagos-lista" aria-label="Pagos cargados" className="space-y-1.5">
+                {pagos.map((p, i) => (pagoReal(p) ? (
+                  <FilaPago
+                    key={i}
+                    pago={p}
+                    indice={i}
+                    cuenta={(cuentas || []).find(c => c.id === p.accountId)}
+                    deshabilitado={guardando}
+                    onBorrar={() => setPagos(lista => lista.filter((_, j) => j !== i))}
+                  />
+                ) : null))}
+              </ul>
+            )}
+
             {sinTotal && (
               <p role="status" className="text-center text-sm text-mute">
                 Agregá productos con precio para cobrar.
@@ -277,17 +357,20 @@ export default function CobroMovil({
 
             {cuentas && (
               <div className="pos-medios space-y-2" data-testid="cobro-medios">
-                {rapidas.map(m => (
-                  <BotonMedio
-                    key={m.id}
-                    testId={`medio-${m.id}`}
-                    icono={ICONO_MEDIO[m.kind] || 'card'}
-                    titulo={m.name}
-                    detalle={KIND_LABELS[m.kind] && KIND_LABELS[m.kind] !== m.name ? KIND_LABELS[m.kind] : ''}
-                    disabled={sinTotal || saldo <= 0 || guardando || guardadoIncompleto}
-                    onClick={() => elegirMedio(m)}
-                  />
-                ))}
+                <div className="grid grid-cols-2 gap-2">
+                  {rapidas.map(m => (
+                    <BotonMedio
+                      key={m.id}
+                      tarjeta
+                      testId={`medio-${m.id}`}
+                      icono={ICONO_MEDIO[m.kind] || 'card'}
+                      titulo={m.name}
+                      detalle={KIND_LABELS[m.kind] && KIND_LABELS[m.kind] !== m.name ? KIND_LABELS[m.kind] : ''}
+                      disabled={sinTotal || saldo <= 0 || guardando || guardadoIncompleto}
+                      onClick={() => elegirMedio(m)}
+                    />
+                  ))}
+                </div>
                 {reales.length === 0 && puedeOfrecerCredito(customer) && (
                   <BotonMedio
                     testId="medio-credito"

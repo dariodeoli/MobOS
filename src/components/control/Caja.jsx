@@ -22,6 +22,7 @@ import {
 } from '@/lib/cajaConteo'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Cronologia from '@/components/shared/Cronologia'
+import { historialCajaDeSesion } from '@/lib/demoHistoria'
 import Icon from '@/components/shared/Icon'
 import ReportePreview from '@/components/shared/ReportePreview'
 import { buildCierreCajaHtml } from '@/components/shared/OrderReceipt'
@@ -35,6 +36,8 @@ import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
 import StatGrid from '@/components/shared/StatGrid'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
@@ -759,7 +762,7 @@ export default function Caja() {
     </span>
   )
   return (
-    <div className="finanzas-tactil space-y-3">
+    <div className="gp ventas-f3 finanzas-tactil space-y-3" data-testid="caja-pagina">
       {error && (
         <Aviso tono="error" className="p-3">
           {error}
@@ -823,6 +826,97 @@ export default function Caja() {
           </>
         )}
       </StatGrid>
+      <div className="gp-dos">
+      <div className="gp-principal">
+      {!abierta ? (
+        <Card>
+          <h3 className="font-bold">Abrir caja</h3>
+          <p className="mt-1 text-sm text-mute">
+            Registrá el fondo inicial de tu turno en esta sucursal. Cada persona maneja su propia
+            caja.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="opening">Fondo inicial (Gs)</Label>
+              <MoneyInput
+                id="opening"
+                value={opening}
+                onValueChange={setOpening}
+                placeholder="500.000"
+              />
+            </div>
+            <div>
+              <Label htmlFor="opening-notes">Nota</Label>
+              <Input
+                id="opening-notes"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Turno mañana"
+              />
+            </div>
+          </div>
+          <Button className="mt-5" onClick={abrir} disabled={saving}>
+            Abrir caja
+          </Button>
+        </Card>
+      ) : (
+        <Card className="space-y-4" data-testid="cierre-caja-tarjeta">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h3 className="min-w-0 font-bold">Cerrar caja</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {esDemo && cash?.id && (
+                <Button type="button" variant="outline" data-testid="caja-cronologia-demo" onClick={() => setCronologia(true)}>
+                  Cronología de la sesión
+                </Button>
+              )}
+              <Button type="button" onClick={() => { setError(''); setConteoOpen(true) }}>
+                Contar y cerrar
+              </Button>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-mute">
+              El cierre es guiado: contá el efectivo —total rápido o por denominación—, compará
+              con el esperado y confirmá. Los dólares se cuentan aparte; no incluyas transferencias ni tarjetas.
+            </p>
+            <p className="mt-2 text-xs text-mute">
+              Abierto {fechaHora(turno?.openedAt)} · esperado{' '}
+              <b className="text-fore">
+                <Money value={expected} />
+              </b>
+            </p>
+          </div>
+        </Card>
+      )}
+      {otrosTurnos.length > 0 && (
+        <Card>
+          <h3 className="font-bold">Turnos abiertos en la sucursal</h3>
+          <p className="mt-1 text-sm text-mute">
+            Cada persona maneja su propio turno. Solo administración o gerencia pueden cerrar el
+            turno de otra persona.
+          </p>
+          <div className="mt-4 space-y-2">
+            {otrosTurnos.map(shift => (
+              <article
+                key={shift.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{shift.openedByName || 'Otra persona'}</p>
+                  <p className="mt-0.5 text-xs text-mute">
+                    Abierto {fechaHora(shift.openedAt)} · Fondo <Money value={shift.openingPyg} />
+                  </p>
+                </div>
+                {puedeCerrarAjenos && (
+                  <Button variant="outline" onClick={() => abrirCierreAjeno(shift)}>
+                    Cerrar turno
+                  </Button>
+                )}
+              </article>
+            ))}
+          </div>
+        </Card>
+      )}
       {proveedores && (
         <Card className="space-y-3" data-testid="proveedores-repuestos">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -931,59 +1025,8 @@ export default function Caja() {
           )}
         </Card>
       )}
-      {!abierta ? (
-        <Card>
-          <h3 className="font-bold">Abrir caja</h3>
-          <p className="mt-1 text-sm text-mute">
-            Registrá el fondo inicial de tu turno en esta sucursal. Cada persona maneja su propia
-            caja.
-          </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="opening">Fondo inicial (Gs)</Label>
-              <MoneyInput
-                id="opening"
-                value={opening}
-                onValueChange={setOpening}
-                placeholder="500.000"
-              />
-            </div>
-            <div>
-              <Label htmlFor="opening-notes">Nota</Label>
-              <Input
-                id="opening-notes"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Turno mañana"
-              />
-            </div>
-          </div>
-          <Button className="mt-5" onClick={abrir} disabled={saving}>
-            Abrir caja
-          </Button>
-        </Card>
-      ) : (
-        <Card className="space-y-4" data-testid="cierre-caja-tarjeta">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="font-bold">Cerrar caja</h3>
-              <p className="mt-1 text-sm text-mute">
-                El cierre es guiado: contá el efectivo —total rápido o por denominación—, compará
-                con el esperado y confirmá. Los dólares se cuentan aparte; no incluyas transferencias ni tarjetas.
-              </p>
-              <p className="mt-2 text-xs text-mute">
-                Abierto {fechaHora(turno?.openedAt)} · esperado{' '}
-                <b className="text-fore">
-                  <Money value={expected} />
-                </b>
-              </p>
-            </div>
-            <Button type="button" onClick={() => { setError(''); setConteoOpen(true) }}>
-              Contar y cerrar
-            </Button>
-          </div>
-        </Card>
-      )}
+      </div>
+      <aside className="gp-lateral" aria-label="Conciliación y respaldo del turno">
       {puedeConciliar && (
         <Card className="space-y-3" data-testid="conciliacion-bancaria">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1006,6 +1049,47 @@ export default function Caja() {
           </div>
         </Card>
       )}
+      {!esDemo && cash?.id && (
+        <Card className="space-y-3">
+          <AttachmentList
+            entity="CASH_SESSION"
+            entityId={cash.id}
+            puedeSubir={turno?.status === 'CLOSED'}
+            titulo="Foto del arqueo"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full px-3 text-xs md:h-11 lg:h-9 lg:min-h-0"
+            disabled={exportando}
+            onClick={exportarMovimientos}
+          >
+            <Icon name="download" className="h-4 w-4" />
+            Exportar CSV
+          </Button>
+          {turno?.status === 'CLOSED' && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={abrirCierre}
+            >
+              <Icon name="printer" className="h-4 w-4" />
+              Imprimir cierre
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setCronologia(true)}
+          >
+            Cronología de la sesión
+          </Button>
+        </Card>
+      )}
+      </aside>
+      </div>
       <Popup open={bancoOpen} onClose={() => setBancoOpen(false)} title="Conciliación bancaria" tamano="lg">
         <div className="space-y-4">
               <div>
@@ -1137,74 +1221,6 @@ export default function Caja() {
               )}
             </div>
       </Popup>
-      {otrosTurnos.length > 0 && (
-        <Card>
-          <h3 className="font-bold">Turnos abiertos en la sucursal</h3>
-          <p className="mt-1 text-sm text-mute">
-            Cada persona maneja su propio turno. Solo administración o gerencia pueden cerrar el
-            turno de otra persona.
-          </p>
-          <div className="mt-4 space-y-2">
-            {otrosTurnos.map(shift => (
-              <article
-                key={shift.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">{shift.openedByName || 'Otra persona'}</p>
-                  <p className="mt-0.5 text-xs text-mute">
-                    Abierto {fechaHora(shift.openedAt)} · Fondo <Money value={shift.openingPyg} />
-                  </p>
-                </div>
-                {puedeCerrarAjenos && (
-                  <Button variant="outline" onClick={() => abrirCierreAjeno(shift)}>
-                    Cerrar turno
-                  </Button>
-                )}
-              </article>
-            ))}
-          </div>
-        </Card>
-      )}
-      {!esDemo && cash?.id && (
-        <Card className="space-y-3">
-          <AttachmentList
-            entity="CASH_SESSION"
-            entityId={cash.id}
-            puedeSubir={turno?.status === 'CLOSED'}
-            titulo="Foto del arqueo"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11 w-full px-3 text-xs md:h-11 lg:h-9 lg:min-h-0"
-            disabled={exportando}
-            onClick={exportarMovimientos}
-          >
-            <Icon name="download" className="h-4 w-4" />
-            Exportar CSV
-          </Button>
-          {turno?.status === 'CLOSED' && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={abrirCierre}
-            >
-              <Icon name="printer" className="h-4 w-4" />
-              Imprimir cierre
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => setCronologia(true)}
-          >
-            Cronología de la sesión
-          </Button>
-        </Card>
-      )}
       <Popup
         open={conteoOpen}
         onClose={() => !saving && setConteoOpen(false)}
@@ -1318,6 +1334,7 @@ export default function Caja() {
         {cash?.id && (
           <Cronologia
             endpoint={`/api/cash/sessions/${cash.id}/history`}
+            eventos={esDemo ? historialCajaDeSesion(cash.id, { esHoy: cash.status === 'OPEN' }) : null}
             active={cronologia}
             vacio="Sin actividad"
             descripcionVacio="La apertura, los movimientos, el cierre y el arqueo de esta sesión aparecerán acá."

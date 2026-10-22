@@ -4,6 +4,7 @@ import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { LIMITE_MONTO_GENERAL, numero } from '../../../lib/montos'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const transitions: Record<TradeInStatus, TradeInStatus[]> = {
   RECEIVED: ['REVIEW'], REVIEW: ['REPAIR', 'READY', 'SOLD_EXTERNAL'], REPAIR: ['READY'],
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'tradein'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canManage(session.user.role)) return error('No autorizado.', 403)

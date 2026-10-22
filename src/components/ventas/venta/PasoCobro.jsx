@@ -16,6 +16,8 @@ import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
+import { cuentaDirecta, gruposDeCuentas, montosRapidos, recientesGuardados } from '@/utils/cobroMedios'
+import { montoMaximoEnMoneda } from '@/utils/conversionPyg'
 import { cuentaEfectivoPyg, FOREIGN, residuoSubCentavo, updateAccountPayment } from '@/utils/pagoCuenta'
 import CreditoAutorizacion from './CreditoAutorizacion'
 import { useMediaQuery } from '@/components/shared/useMediaQuery'
@@ -48,6 +50,7 @@ export default function PasoCobro({
   pagos,
   setPagos,
   onAgregarPago,
+  onAgregarMedio,
   onAgregarGiftCard,
   onConsultarGiftCard,
   guardando,
@@ -68,10 +71,13 @@ export default function PasoCobro({
   cantTotal,
   ok,
   pendientes = [],
+  ventaSinStock = true,
   onElegirUnidad,
   onSobrePedido,
   onTransito,
   onIrAlCarrito,
+  onVolver = null,
+  onNuevaVenta = null,
   modoMovil = false,
 }) {
   // The desktop payment footer must not exist in the DOM on touch/tablet
@@ -119,6 +125,42 @@ export default function PasoCobro({
   // Un solo aviso por problema: «sin productos» ya lo dice el bloque de pagos y
   // las líneas pendientes las guía su propia nota.
   const motivosVisibles = motivos.filter(m => !(sinProductos && !pagaAlRecibir && /producto/i.test(m)))
+  // Tarjetas de medio (Efectivo, Transferencia…): un toque agrega un pago por lo
+  // que falta cobrar. Solo presentación: el pago nace con las mismas reglas de
+  // `cambiarCuentaPago` que el selector de cuenta.
+  const todosLosGrupos = usaCuentas && cuentas ? gruposDeCuentas(cuentas, recientesGuardados()) : []
+  // En «Otros medios» del celular los medios rápidos ya están en la hoja: acá solo
+  // los que piden más datos (dólares, canje, cripto…).
+  const grupos = modoMovil ? todosLosGrupos.filter(g => g.cuentas.some(c => c.currency !== 'PYG' || c.kind === 'TRADE_IN')) : todosLosGrupos
+  const medioListo = Boolean(cuentas) && !guardando && !guardadoIncompleto && !sinProductos && !sinTotal && !pagoIncompleto && pendiente > 0
+  const tocarMedio = (grupo) => {
+    const directa = cuentaDirecta(grupo)
+    onAgregarMedio?.(directa ? { cuenta: directa, medio: grupo.id } : { medio: grupo.id })
+  }
+  const creditoDisponible = puedeOfrecerCredito(customer)
+  const creditoActivo = Boolean(venderACredito) && !customer?.blocked
+  // Montos rápidos del pago vigente (el último): saldo, mitad y, en efectivo en
+  // guaraníes, lo recibido (exacto y redondeos).
+  const cuentaVigente = usaCuentas && ultimoPago && ultimoPago.giftCardCode === undefined && !ultimoPago.noPagado ? cuentaUltimo : null
+  const montoVigente = cuentaVigente ? (Number(String(ultimoPago.monto || '').replace(/\D/g, '')) || 0) : 0
+  const recibidoVigente = cuentaVigente && Number(ultimoPago.montoRecibido) === montoVigente ? Number(ultimoPago.recibido) || 0 : 0
+  const chipsRapidos = cuentaVigente && montoVigente > 0
+    ? montosRapidos({ efectivoGs: cuentaVigente.kind === 'CASH' && cuentaVigente.currency === 'PYG', disponible: pendiente + montoVigente, monto: montoVigente })
+        .filter(chip => (chip.tipo === 'monto' ? chip.valor !== montoVigente : chip.valor !== recibidoVigente))
+    : []
+  const aplicarChip = (chip) => {
+    const indice = pagos.length - 1
+    if (indice < 0 || !cuentaVigente) return
+    if (chip.tipo === 'recibido') {
+      setPagos(a => a.map((x, j) => (j === indice ? { ...x, recibido: chip.valor, montoRecibido: montoVigente } : x)))
+      return
+    }
+    const original = cuentaVigente.currency === 'PYG'
+      ? String(chip.valor)
+      : (Number(ultimoPago.exchangeRatePyg) > 0 ? montoMaximoEnMoneda(chip.valor, ultimoPago.exchangeRatePyg) : '')
+    if (original === '') return
+    setPagos(a => a.map((x, j) => (j === indice ? updateAccountPayment(x, { originalAmount: original }, cuentas) : x)))
+  }
   const etiquetaBoton = guardando
     ? 'Guardando venta…'
     : !valido
@@ -160,15 +202,21 @@ export default function PasoCobro({
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <header data-testid="pos-cobro-header" className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600/70 px-1 pb-2">
-        <div className="min-w-0">
+      <header data-testid="pos-cobro-header" className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink-600/70 px-1 pb-2">
+        {(onVolver || onIrAlCarrito) && (
+          <Button type="button" variant="outline" data-testid="cobro-volver" className="min-h-11 shrink-0 md:min-h-10" onClick={onVolver || onIrAlCarrito}>
+            <Icon name="arrowLeft" className="mr-1.5 h-4 w-4" />
+            Volver a productos
+          </Button>
+        )}
+        <div className="min-w-0 flex-1 basis-40">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fono-light">Paso 2 · Cobrar</p>
           <h3 className="truncate text-base font-bold text-ink-100">Entrega, pagos y confirmación</h3>
         </div>
-        {onIrAlCarrito && (
-          <Button type="button" variant="secondary" className="min-h-10 shrink-0" onClick={onIrAlCarrito}>
-            <Icon name="cart" className="mr-1.5 h-4 w-4" />
-            Editar ticket
+        {onNuevaVenta && (
+          <Button type="button" variant="outline" data-testid="cobro-nueva-venta" className="ml-auto min-h-11 shrink-0 md:min-h-10" disabled={guardando} onClick={onNuevaVenta}>
+            <Icon name="plus" className="mr-1.5 h-4 w-4" />
+            Nueva venta
           </Button>
         )}
       </header>
@@ -186,6 +234,12 @@ export default function PasoCobro({
           <strong className="pos-falta-numero pos-money-value v2-numero tabular-nums">{gs(Math.max(0, pendiente))}</strong>
           <span className="pos-falta-detalle">de {gs(totalGeneral)} · pagado {gs(totalPagado)}</span>
           <BarraProgreso valor={Math.min(100, Math.max(0, Math.round((totalPagado / totalGeneral) * 100)))} tono="fono" etiqueta="Progreso del cobro" className="pos-falta-barra mt-2.5 w-full bg-ink-600" />
+          {vuelto > 0 && (
+            <div role="status" data-testid="cobro-vuelto" className="pos-vuelto-hero">
+              <span>Vuelto</span>
+              <strong className="pos-money-value v2-numero tabular-nums">{gs(vuelto)}</strong>
+            </div>
+          )}
         </div>
       )}
       {/* Entrega, crédito, nota y «paga al recibir» en un bloque compacto: la
@@ -220,57 +274,6 @@ export default function PasoCobro({
               placeholder="0"
               className="h-9 w-32"
             />
-          </div>
-        )}
-        {/* Venta a crédito / fiado: interruptor compacto con cualquier cliente de la ficha;
-            el límite y la autorización del dueño los resuelve el servidor. */}
-        {puedeOfrecerCredito(customer) && (
-          <div data-testid="pos-credito" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-fono/25 bg-fono/5 px-2.5 py-1">
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm md:min-h-8">
-              <input
-                type="checkbox"
-                role="switch"
-                className="h-4 w-4 shrink-0 accent-fono"
-                checked={venderACredito && !customer.blocked}
-                disabled={Boolean(customer.blocked)}
-                onChange={e => setVenderACredito(e.target.checked)}
-              />
-              <span className="font-semibold">Vender a crédito / fiado</span>
-              <span className="text-xs text-mute">{detalleCredito(customer, n => gs(n))}</span>
-              {customer.blocked ? <span className="text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
-            </label>
-            {venderACredito && (
-              <span className="flex flex-wrap items-center gap-2">
-                <Label htmlFor="plazo-en-dias" className="mb-0">Plazo en días</Label>
-                <Input
-                  id="plazo-en-dias"
-                  aria-label="Días de crédito"
-                  inputMode="numeric"
-                  className="h-8 w-20"
-                  value={creditoDias}
-                  onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))}
-                  placeholder={String(customer.creditDays ?? 30)}
-                />
-                <span className="text-xs text-mute">
-                  Vence{' '}
-                  {new Date(
-                    Date.now() +
-                      (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000,
-                  ).toLocaleDateString('es-PY')}
-                </span>
-              </span>
-            )}
-            {venderACredito && (
-              <CreditoAutorizacion
-                evaluacion={evaluacionCredito}
-                pin={creditoPin}
-                setPin={setCreditoPin}
-                autorizoYo={creditoAutorizoYo}
-                setAutorizoYo={setCreditoAutorizoYo}
-                puedeAutorizar={puedeAutorizarCredito}
-                deshabilitado={guardando}
-              />
-            )}
           </div>
         )}
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold md:min-h-8" data-testid="pos-nota-casillero">
@@ -442,29 +445,130 @@ export default function PasoCobro({
               </Aviso>
             )
           )}
-          {/* Pasos: el siguiente pago se habilita cuando el actual tiene cuenta
-              y monto; la fila nueva propone lo que falta cobrar. */}
+          {/* Otra cuenta: agrega una fila vacía para buscarla entre todas. */}
           <Button
             type="button"
             variant="outline"
             className="h-11 shrink-0 whitespace-nowrap md:h-9"
             onClick={() => onAgregarPago()}
             disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal || pagoIncompleto}
-            title={sinProductos || sinTotal ? motivoPago : pagoIncompleto ? 'Completá la cuenta y el monto del pago actual para agregar otro.' : undefined}
+            title={sinProductos || sinTotal ? motivoPago : pagoIncompleto ? 'Completá la cuenta y el monto del pago actual para agregar otro.' : 'Buscar la cuenta entre todas las cuentas de cobro'}
           >
             {pagos.length === 0 ? '+ Agregar pago' : '+ Agregar otro pago'}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 shrink-0 whitespace-nowrap md:h-9"
-            onClick={() => onAgregarGiftCard?.()}
-            disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear || pagoIncompleto}
-            title={!puedeCanjear ? motivoGiftCard : undefined}
-          >
-            + Canjear gift card
-          </Button>
         </div>
+        {/* Medios: tocar uno agrega un pago por el saldo que falta (monto editable). */}
+        {!pagaAlRecibir && cuentas && (
+          <div data-testid="cobro-medios" role="group" aria-label="Medios de pago" className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2">
+            {grupos.map(grupo => (
+              <button
+                key={grupo.id}
+                type="button"
+                data-testid={`medio-${grupo.id.toLowerCase()}`}
+                disabled={!medioListo}
+                onClick={() => tocarMedio(grupo)}
+                title={!medioListo && pendiente <= 0 && totalGeneral > 0 ? 'El cobro ya está completo' : undefined}
+                className="flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl border border-ink-600 bg-ink-800 px-2 py-2 text-sm font-semibold text-fore transition enabled:hover:border-fono enabled:active:scale-[.98] disabled:opacity-45"
+              >
+                <Icon name={grupo.icono} className="h-5 w-5 text-fono-light" />
+                <span className="max-w-full truncate">{grupo.label}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              data-testid="medio-gift"
+              disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear || pagoIncompleto}
+              onClick={() => onAgregarGiftCard?.()}
+              title={!puedeCanjear ? motivoGiftCard : undefined}
+              className="flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl border border-ink-600 bg-ink-800 px-2 py-2 text-sm font-semibold text-fore transition enabled:hover:border-fono enabled:active:scale-[.98] disabled:opacity-45"
+            >
+              <Icon name="tag" className="h-5 w-5 text-fono-light" />
+              <span>Gift card</span>
+            </button>
+            {creditoDisponible && (
+              <label
+                data-testid="pos-credito"
+                className={cn(
+                  'relative flex min-h-[4.25rem] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-sm font-semibold transition focus-within:ring-2 focus-within:ring-fono',
+                  creditoActivo ? 'border-fono bg-fono/10 text-fore' : 'border-ink-600 bg-ink-800 text-fore hover:border-fono',
+                  (customer?.blocked || guardando) && 'cursor-not-allowed opacity-45',
+                )}
+                title={customer?.blocked ? 'No disponible: cliente bloqueado' : detalleCredito(customer, n => gs(n))}
+              >
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Vender a crédito / fiado"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                  checked={creditoActivo}
+                  disabled={Boolean(customer?.blocked) || guardando}
+                  onChange={e => setVenderACredito(e.target.checked)}
+                />
+                <Icon name="clock" className="h-5 w-5 text-fono-light" />
+                <span>Crédito</span>
+              </label>
+            )}
+          </div>
+        )}
+        {!pagaAlRecibir && creditoDisponible && (customer?.blocked || creditoActivo) && (
+          <div data-testid="pos-credito-detalle" className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-fono/25 bg-fono/5 px-2.5 py-1.5">
+            <span className="text-xs text-mute">{detalleCredito(customer, n => gs(n))}</span>
+            {customer.blocked ? <span className="text-xs font-semibold text-bad-text">No disponible: cliente bloqueado</span> : null}
+            {creditoActivo && (
+              <>
+                <span className="flex flex-wrap items-center gap-2">
+                  <Label htmlFor="plazo-en-dias" className="mb-0">Plazo en días</Label>
+                  <Input
+                    id="plazo-en-dias"
+                    aria-label="Días de crédito"
+                    inputMode="numeric"
+                    className="h-8 w-20"
+                    value={creditoDias}
+                    onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))}
+                    placeholder={String(customer.creditDays ?? 30)}
+                  />
+                  <span className="text-xs text-mute">
+                    Vence{' '}
+                    {new Date(
+                      Date.now() +
+                        (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000,
+                    ).toLocaleDateString('es-PY')}
+                  </span>
+                </span>
+                <CreditoAutorizacion
+                  evaluacion={evaluacionCredito}
+                  pin={creditoPin}
+                  setPin={setCreditoPin}
+                  autorizoYo={creditoAutorizoYo}
+                  setAutorizoYo={setCreditoAutorizoYo}
+                  puedeAutorizar={puedeAutorizarCredito}
+                  deshabilitado={guardando}
+                />
+              </>
+            )}
+          </div>
+        )}
+        {/* Montos rápidos del pago vigente (el último): ajustan ese pago. */}
+        {!pagaAlRecibir && chipsRapidos.length > 0 && (
+          <div data-testid="pago-montos-rapidos" role="group" aria-label={`Ajustar el pago ${pagos.length}`} className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-mute">Pago {pagos.length}</span>
+            {chipsRapidos.map(chip => (
+              <button
+                key={chip.clave}
+                type="button"
+                data-testid={`monto-rapido-${chip.clave}`}
+                disabled={guardando}
+                onClick={() => aplicarChip(chip)}
+                title={chip.tipo === 'recibido' ? `Recibido ${gs(chip.valor)}` : `Monto ${gs(chip.valor)}`}
+                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-ink-500 px-3 text-xs font-semibold text-fore transition hover:border-fono disabled:opacity-50 md:min-h-8"
+              >
+                {chip.tipo === 'recibido' && chip.clave !== 'exacto' ? <span className="text-mute">Recibido</span> : null}
+                {chip.etiqueta}
+                {chip.tipo === 'monto' && <span className="font-normal tabular-nums text-mute">{chip.valor.toLocaleString('es-PY')}</span>}
+              </button>
+            ))}
+          </div>
+        )}
         {sinProductos && !pagaAlRecibir && (
           <p role="status" data-testid="cobro-sin-productos" className="text-xs text-mute">
             Agregá productos a la venta para cargar pagos o canjear gift cards.
@@ -587,7 +691,10 @@ export default function PasoCobro({
                 payment={p}
                 accounts={cuentas}
                 pendientePyg={pendiente}
-                acciones={controles}
+                indice={i}
+                guardando={guardando}
+                onEliminar={() => setPagos(a => a.filter((_, j) => j !== i))}
+                onAlternarPagado={() => setPagos(a => a.map((x, j) => (j === i ? { ...x, noPagado: !x.noPagado } : x)))}
                 onDividir={() => onAgregarPago({ monto: pendiente })}
                 onChange={change =>
                   setPagos(a =>
@@ -653,7 +760,9 @@ export default function PasoCobro({
           <p className="font-semibold text-warn">
             {pendientes.some(p => p.motivo === 'imei')
               ? 'Seleccioná el IMEI/serial exacto de cada equipo antes de vender.'
-              : 'Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual.'}
+              : ventaSinStock
+                ? 'Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual.'
+                : 'Hay líneas sin stock: bajá la cantidad o quitalas del carrito para vender.'}
           </p>
           <ul className="mt-2 space-y-1.5">
             {pendientes.map(pendiente => (
@@ -665,7 +774,7 @@ export default function PasoCobro({
                   <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onElegirUnidad?.(pendiente.key)}>
                     Elegir unidad{pendiente.unidades > 1 ? ` (${pendiente.unidades})` : ''}
                   </Button>
-                ) : (
+                ) : ventaSinStock ? (
                   <>
                     <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
                       {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
@@ -681,13 +790,15 @@ export default function PasoCobro({
                       Llega en tránsito
                     </button>
                   </>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[11px]">
-            «Crear pedido» la registra sin unidad y se completa al entregar.
-          </p>
+          {ventaSinStock && (
+            <p className="mt-2 text-[11px]">
+              «Crear pedido» la registra sin unidad y se completa al entregar.
+            </p>
+          )}
         </Nota>
       )}
 
@@ -708,12 +819,6 @@ export default function PasoCobro({
               {gs(totalPagado)}
             </strong>
           </span>
-          {vuelto > 0 && (
-            <span data-testid="cobro-vuelto" className="flex items-baseline gap-2 rounded-lg border border-fono/35 bg-fono/[.08] px-2.5 py-1 text-fono-light">
-              <span>Vuelto</span>
-              <strong className="pos-money-value v2-numero whitespace-nowrap text-sm tabular-nums">{gs(vuelto)}</strong>
-            </span>
-          )}
           <span
             data-testid="cobro-pendiente"
             className={cn(

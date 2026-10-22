@@ -16,7 +16,7 @@
 
 import { chromium, request as pwRequest } from '@playwright/test'
 import { mkdir, writeFile, readFile, access, rm } from 'node:fs/promises'
-import { existsSync, readdirSync, writeFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
@@ -107,8 +107,19 @@ async function snapshotValido() {
   try {
     const meta = JSON.parse(await readFile(SNAPSHOT_META(), 'utf8'))
     await access(SNAPSHOT())
-    return meta.migraciones === firmaMigraciones()
+    // Un snapshot sin los archivos de siembra (anterior a este arreglo) no sirve: restaurarlo dejaría
+    // e2e/.auth/.seeded sin escribir y los specs que lo leen (contextoVendedorApi) fallarían con ENOENT.
+    return meta.migraciones === firmaMigraciones() && typeof meta.marcador === 'string'
   } catch { return false }
+}
+
+// Al restaurar la base también se reescriben los archivos de siembra que los specs leen
+// (e2e/.auth/.seeded y seed-order.json): sin ellos, contextoVendedorApi falla con ENOENT.
+async function restaurarArchivosDeSiembra() {
+  const meta = JSON.parse(await readFile(SNAPSHOT_META(), 'utf8'))
+  await mkdir(AUTH_DIR, { recursive: true })
+  await writeFile(MARKER, meta.marcador)
+  if (typeof meta.pedidoSemilla === 'string') await writeFile(SEED_ORDER_FILE, meta.pedidoSemilla)
 }
 
 function restaurarSnapshot() {
@@ -121,7 +132,10 @@ function restaurarSnapshot() {
 function guardarSnapshot() {
   try {
     execFileSync(`${PG_BIN}/pg_dump`, ['-h', '127.0.0.1', '-p', PG_PORT(), '-U', 'postgres', '-d', PG_DB(), '-Fc', '-f', SNAPSHOT()], { stdio: 'ignore' })
-    writeFileSync(SNAPSHOT_META(), JSON.stringify({ migraciones: firmaMigraciones(), tomadoEn: new Date().toISOString() }, null, 2))
+    const leer = (archivo) => { try { return readFileSync(archivo, 'utf8') } catch { return null } }
+    const marcador = leer(MARKER)
+    if (marcador === null) throw new Error('falta e2e/.auth/.seeded: el snapshot no se puede restaurar sin él')
+    writeFileSync(SNAPSHOT_META(), JSON.stringify({ migraciones: firmaMigraciones(), tomadoEn: new Date().toISOString(), marcador, pedidoSemilla: leer(SEED_ORDER_FILE) }, null, 2))
   } catch (error) {
     console.warn('[e2e] no se pudo tomar el snapshot:', error?.message || error)
   }
@@ -395,10 +409,15 @@ function reponerCreditosImei() {
 }
 
 // El tenant seed arranca siempre con los módulos por defecto del preset
-// Comercio. Algunos E2E prueban activación/desactivación; al persistir la base
+// Comercio (versión 1: todo activo; «Inventario por unidades», «Venta sin stock» y «Mayoristas»
+// quedan explícitos en activo porque en empresas nuevas nacen apagados). Algunos E2E prueban activación/desactivación; al persistir la base
 // entre corridas o shards, una prueba anterior no debe cambiar el menú de otra.
 function resetModuleStore() {
-  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
+  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true},"mayoristas":{"enabled":true}}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
+  // Las empresas nuevas arrancan con PIX, USDT y transferencia en «verificar» (el cobro queda pendiente
+  // hasta que alguien lo aprueba). Los E2E de POS y pedidos asumen cobro inmediato: el seed lo deja en
+  // automático, y los E2E de verificación de pagos activan la política que necesiten.
+  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{paymentVerification}', '{"methods":{"CASH":"auto","CARD":"auto","PIX":"auto","CRYPTO":"auto","TRANSFER":"auto"},"accounts":{},"requireProof":true,"blockDelivery":true,"selfApproveRoles":[]}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
 }
 
 export default async function globalSetup() {
@@ -453,6 +472,7 @@ export default async function globalSetup() {
       console.log('[e2e] Restaurando snapshot post-seed (sin re-sembrar)…')
       restaurarSnapshot()
       try {
+        await restaurarArchivosDeSiembra()
         await refreshStorageStates(ctx)
         resetModuleStore()
         return
@@ -496,6 +516,9 @@ async function refreshStorageStates(ctx) {
 async function seedFresh(ctx) {
   const company = await registerOrLogin(ctx)
   const companyToken = company.token
+  // Una empresa registrada nace con «Inventario por unidades» y «Venta sin stock» apagados:
+  // el seed necesita crear unidades, así que arranca con el store legacy (todo activo).
+  resetModuleStore()
 
   // Onboarding sets the admin PIN (idempotent: 409 means already done).
   const onboarding = await ctx.post('/api/auth/onboarding', { headers: bearer(companyToken), data: { pin: SEED.admin.pin } })

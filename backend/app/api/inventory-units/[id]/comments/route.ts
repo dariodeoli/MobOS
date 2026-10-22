@@ -1,4 +1,5 @@
 import { prisma } from '../../../../../lib/prisma'
+import { moduloGuard } from '../../../../../lib/modulos-guard'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { saveAttachment } from '../../../../../lib/attachment-storage'
@@ -36,6 +37,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const limited = enforceRateLimit(request, 'unit-comments', 30, 60_000)

@@ -95,6 +95,32 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
       fields.creditDays = value
     }
   }
+  // Plazo y tolerancia propios de la ficha (vacío = vale el del módulo «Venta a crédito»): SOLO administración o
+  // gerencia, aun donde el crédito se edita sin privilegio. Una tolerancia mayor se traduce en plata sin autorizar.
+  if (input.creditTolerancePct !== undefined || input.creditTermMode !== undefined || input.creditDayOfMonth !== undefined || input.creditInstallments !== undefined) {
+    if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar la tolerancia y el plazo de crédito.')
+    const empty = (value: unknown) => value === null || value === '' ? null : value
+    if (input.creditTolerancePct !== undefined) {
+      const value = empty(input.creditTolerancePct) === null ? null : Number(input.creditTolerancePct)
+      if (value !== null && ![0, 10, 20, 30].includes(value)) throw new CustomerServiceError('invalid', 'La tolerancia debe ser 0, 10, 20 o 30 por ciento.')
+      fields.creditTolerancePct = value
+    }
+    if (input.creditTermMode !== undefined) {
+      const value = empty(input.creditTermMode)
+      if (value !== null && !['DIAS', 'DIA_MES', 'CUOTAS'].includes(String(value))) throw new CustomerServiceError('invalid', 'La modalidad de plazo debe ser días, día del mes o cuotas.')
+      fields.creditTermMode = value === null ? null : String(value)
+    }
+    if (input.creditDayOfMonth !== undefined) {
+      const value = empty(input.creditDayOfMonth) === null ? null : Number(input.creditDayOfMonth)
+      if (value !== null && (!Number.isSafeInteger(value) || value < 1 || value > 31)) throw new CustomerServiceError('invalid', 'El día del mes debe estar entre 1 y 31.')
+      fields.creditDayOfMonth = value
+    }
+    if (input.creditInstallments !== undefined) {
+      const value = empty(input.creditInstallments) === null ? null : Number(input.creditInstallments)
+      if (value !== null && (!Number.isSafeInteger(value) || value < 2 || value > 24)) throw new CustomerServiceError('invalid', 'La cantidad de cuotas debe estar entre 2 y 24.')
+      fields.creditInstallments = value
+    }
+  }
   if (input.insuranceEnabled !== undefined || input.insuranceRatePct !== undefined) {
     if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden configurar el seguro.')
     if (input.insuranceEnabled !== undefined && typeof input.insuranceEnabled !== 'boolean') throw new CustomerServiceError('invalid', 'El seguro debe estar activo o inactivo.')
@@ -127,17 +153,30 @@ async function duplicate(db: Db, tenantId: string, fields: ReturnType<typeof ide
   })
 }
 
-export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput, options: { allowExisting?: boolean; allowUnprivilegedCommercial?: boolean } = {}) {
+// Campos comerciales (crédito, plazo, tolerancia, tipo mayorista y lista de precios): los fija solo administración
+// o gerencia. En el alta por POST un vendedor puede guardar el contacto, pero estos campos se IGNORAN (no se rechaza
+// el alta: el mostrador no se rompe) y la ficha queda minorista y sin crédito hasta que la autorice gerencia.
+const CAMPOS_COMERCIALES = ['pricingTier', 'creditLimitPyg', 'creditDays', 'creditTolerancePct', 'creditTermMode', 'creditDayOfMonth', 'creditInstallments', 'priceListId'] as const
+
+export async function createCustomer(db: Db, actor: CustomerServiceActor, rawInput: CustomerServiceInput, options: { allowExisting?: boolean; ignoreUnprivilegedCommercial?: boolean } = {}) {
   assertActor(actor)
+  const input: CustomerServiceInput = options.ignoreUnprivilegedCommercial && !privileged(actor)
+    ? Object.fromEntries(Object.entries(rawInput).filter(([key]) => !(CAMPOS_COMERCIALES as readonly string[]).includes(key))) as CustomerServiceInput
+    : rawInput
   if (input.priceListId !== undefined && input.priceListId !== null && input.priceListId !== '') {
     const listId = text(input.priceListId, 128)
     const list = await db.priceList.findFirst({ where: { id: listId, tenantId: actor.tenantId, isActive: true }, select: { id: true } })
     if (!list) throw new CustomerServiceError('not_found', 'Lista de precios no encontrada.')
   }
-  const fields = { ...identityFields(input), ...optionalFields(input, actor, options) }
+  const fields = { ...identityFields(input), ...optionalFields(input, actor) }
   const existing = await duplicate(db, actor.tenantId, fields)
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
   if (existing && !options.allowExisting) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
+  // Sin ignoreUnprivilegedCommercial, reescribir el crédito o el tipo de una ficha YA existente (misma identidad)
+  // es cambiar la ficha: solo administración o gerencia.
+  if (existing && !privileged(actor) && ['pricingTier', 'creditLimitPyg', 'creditDays'].some(key => Object.hasOwn(fields, key))) {
+    throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
+  }
   const customer = existing
     ? await db.customer.update({ where: { id: existing.id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: customerInclude })
     : await db.customer.create({ data: ({ tenantId: actor.tenantId, createdById: actor.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) } as any), include: customerInclude })

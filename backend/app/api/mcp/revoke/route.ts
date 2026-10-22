@@ -1,3 +1,4 @@
+// modulo-guard-exento: revocar un conector reduce acceso: nunca se bloquea
 import { NextResponse } from 'next/server'
 import { createHash } from 'node:crypto'
 import { prisma } from '../../../../lib/prisma'

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Aviso, Badge, Button, Card, EmptyState, FormField, Input, Label, MenuDesplegable, MoneyInput, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
+import Cronologia from '@/components/shared/Cronologia'
+import { eventosTallerDemo } from '@/lib/demo/historiaTaller'
 import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import Toolbar from '@/components/shared/Toolbar'
@@ -13,6 +15,8 @@ import Icon from '@/components/shared/Icon'
 import MenuSecundario from '@/components/shared/MenuSecundario'
 import ChipsFiltro from '@/components/ventas/ChipsFiltro'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
+import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { plantillaDeTaller } from '@/lib/avisos'
 import SerialField from '@/components/shared/SerialField'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { fechaHora } from '@/utils/fecha'
@@ -887,6 +891,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 contexto={contextoWhatsApp(detalle)}
               />
             )}
+            <AvisarPorCorreo email={detalle.customerEmail} category="SERVICE" evento={plantillaDeTaller(detalle.status)} contexto={contextoWhatsApp(detalle)} title={detalle.customerName} />
             <Button type="button" variant="outline" title="Imprimir recepción (2 copias)" onClick={() => imprimir(detalle, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" />Recepción</Button>
             <Button type="button" variant="outline" title="Imprimir recepción 80 mm" onClick={() => imprimir(detalle, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" />80 mm</Button>
             <Button type="button" variant="outline" title="Reporte técnico" onClick={() => imprimir(detalle, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" />Reporte</Button>
@@ -930,6 +935,13 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                   })}
                 </ol>
               </section>
+
+              {esDemo && (
+                <section aria-label="Historial por etapa" data-testid="taller-historial">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-mute">Historial por etapa</p>
+                  <div className="mt-2"><Cronologia eventos={eventosTallerDemo(detalle)} vacio="Sin movimientos" descripcionVacio="Cada etapa de la reparación aparecerá acá." /></div>
+                </section>
+              )}
 
               <section aria-label="Inspección de recepción">
                 <p className="text-xs font-semibold uppercase tracking-wider text-mute">Inspección de recepción ({tipo})</p>

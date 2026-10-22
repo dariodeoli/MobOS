@@ -56,9 +56,12 @@ for (const viewport of [
       for (const route of ['/pedidos', '/delivery/repartos']) {
         await page.goto(route)
         const row = page.getByTestId('shell-page-header-row')
-        await expect(row).toBeVisible()
+        // En celular/tablet, con pestañas y sin acciones, la fila del título se
+        // colapsa a propósito (#356): el H1 queda sr-only y no ocupa alto.
+        if (viewport.width >= 1024) await expect(row).toBeVisible()
+        else await expect(row).toBeAttached()
         const actionGroup = page.getByTestId('shell-page-header-actions')
-        if (await actionGroup.count()) {
+        if (await row.isVisible() && await actionGroup.count() && await actionGroup.isVisible()) {
           const [rowBox, actionBox] = await Promise.all([row.boundingBox(), actionGroup.boundingBox()])
           expect(actionBox.height, `${route}: acciones con altura de control común`).toBeGreaterThanOrEqual(44)
           expect(Math.abs((rowBox.y + rowBox.height / 2) - (actionBox.y + actionBox.height / 2)), `${route}: acciones centradas en la fila del encabezado`).toBeLessThanOrEqual(8)

@@ -7,13 +7,18 @@
       "archivos": [
         "analisis.spec.js",
         "auth.spec.js",
+        "autorizaciones-pagos.spec.js",
         "campanas-recompra.spec.js",
+        "clientes-permisos-credito.spec.js",
         "cobro-cuotas.spec.js",
         "delivery.spec.js",
         "demo-autorizaciones.spec.js",
+        "demo-correo.spec.js",
+        "demo-seguimiento-qr.spec.js",
         "equipo-integrantes.spec.js",
         "finanzas-conciliacion.spec.js",
         "fotos-producto.spec.js",
+        "frontend/modulos.frontend.spec.js",
         "frontend/venta-rapida.frontend.spec.js",
         "impresion-plantilla.spec.js",
         "informe-publico-checklist.spec.js",
@@ -37,7 +42,6 @@
         "qa-271-avatar-superficies.spec.js",
         "qa-280-gift-cards.spec.js",
         "qa-285-unidades.spec.js",
-        "qa-593-apple-variant.spec.js",
         "qa-299-organizacion-equipo.spec.js",
         "qa-302-demo-inv.spec.js",
         "qa-305-inventario-escritorio.spec.js",
@@ -45,12 +49,14 @@
         "qa-319-dispositivos.spec.js",
         "qa-323-modales.spec.js",
         "qa-332-inventario-vistas.spec.js",
+        "qa-593-apple-variant.spec.js",
         "qa-fin-compacto.spec.js",
         "recorte-perfil.spec.js",
-        "responsive.spec.js"
+        "responsive.spec.js",
+        "verificacion-diaria.spec.js"
       ],
-      "tests": 144,
-      "ms": 1190412
+      "tests": 154,
+      "ms": 1292412
     },
     {
       "archivos": [
@@ -125,6 +131,8 @@
         "ia-configuracion.spec.js",
         "inventario-pos-sync.spec.js",
         "inventario-unidades.spec.js",
+        "modulos-mayoristas.spec.js",
+        "modulos-stock.spec.js",
         "ocultos-plataforma.spec.js",
         "ops.spec.js",
         "pos-309-orden.spec.js",
@@ -158,10 +166,11 @@
         "qa-328-demo-acceso.spec.js",
         "ruc-extraccion.spec.js",
         "servicio-tecnico.spec.js",
-        "sesion-bloqueo.spec.js"
+        "sesion-bloqueo.spec.js",
+        "sin-recortes.spec.js"
       ],
-      "tests": 219,
-      "ms": 1190438
+      "tests": 227,
+      "ms": 1271158
     },
     {
       "archivos": [
@@ -175,6 +184,7 @@
         "finanzas-comisiones.spec.js",
         "frontend/aviso-privacidad.frontend.spec.js",
         "imei-mock.spec.js",
+        "impresion-pro.spec.js",
         "impresion-remota.spec.js",
         "informe-dispositivo.spec.js",
         "inventario-importacion.spec.js",
@@ -182,6 +192,8 @@
         "menu-ia.spec.js",
         "modales-tamanos.spec.js",
         "permissions.spec.js",
+        "plantillas-api.spec.js",
+        "plantillas-mensajes.spec.js",
         "pos-148-cobro-ux.spec.js",
         "pos-308-venta-segura.spec.js",
         "pos-cliente-portal.spec.js",
@@ -212,8 +224,8 @@
         "shell-roles.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 229,
-      "ms": 1191544
+      "tests": 236,
+      "ms": 1401544
     }
   ],
   "generado": "2026-10-20T04:30:15.238Z"

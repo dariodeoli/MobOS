@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { shellPrimary } from '../helpers/shell-navigation.js'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Densidad (#448 / #461): listas de 40–48 px por fila, tarjetas de «Por comprar»
 // de hasta 96 px, colores por condición y depósito (con contraste ≥ 4.5), orden
@@ -22,7 +23,7 @@ async function enterDemo(page, role = 'Dueño') {
     localStorage.setItem('mobos:aviso-metricas', '1')
   })
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
@@ -171,7 +172,8 @@ test.describe('entrada a una sección', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
     const primary = await shellPrimary(page)
-    await primary.getByRole('button', { name: 'Compras', exact: true }).click()
+    // Compras es un grupo de Stock: se llega por su pestaña y se vuelve a la primera.
+    await page.getByTestId('shell-contexto').locator('[data-tab-id="compras"]').click()
     await expect(page).toHaveURL(/\/compras$/)
     await primary.getByRole('button', { name: 'Stock', exact: true }).click()
     await expect(page).toHaveURL(/\/stock\/unidades/)

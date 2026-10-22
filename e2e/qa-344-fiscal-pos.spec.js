@@ -84,7 +84,7 @@ test('long fiscal text remains exact through accepted RUC, manual visible name, 
   await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
   await page.getByLabel('CI o RUC del cliente', { exact: true }).fill('80012345')
   await page.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
-  await page.getByRole('button', { name: 'Usar estos datos' }).click()
+  await expect(page.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
   await expect(page.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveCount(1)
   await expect(page.getByLabel('Nombre del cliente en ficha', { exact: true })).toHaveAttribute('maxlength', '200')

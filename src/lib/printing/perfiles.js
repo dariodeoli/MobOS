@@ -1,3 +1,7 @@
+// Documentos de flujo: los arma el comprobante premium (encabezado y pie
+// estándar); el diseño solo cambia papel, márgenes, tamaños y alineación.
+export const DOCUMENTOS_FLUJO = ['comprobante', 'ticket', 'cotizacion', 'remito']
+export const esDocumentoFlujo = kind => DOCUMENTOS_FLUJO.includes(kind)
 export const PERFILES_IMPRESION = [
   {
     id: 'generic',
@@ -102,7 +106,7 @@ export function aplicarPerfilPlantilla(definition, id, kind) {
   const model = PERFILES_IMPRESION.find(p => p.id === id)
   if (!model) return definition
   const width = model.widthMm,
-    height = kind === 'comprobante' ? model.heightMm : model.heightMm || 90
+    height = esDocumentoFlujo(kind) ? model.heightMm : model.heightMm || 90
   const page = {
     widthMm: width,
     heightMm: height,
@@ -117,7 +121,7 @@ export function aplicarPerfilPlantilla(definition, id, kind) {
     offsetXmm: model.offsetXmm,
     offsetYmm: 0,
   }
-  if (kind === 'comprobante') return { ...definition, page, profile }
+  if (esDocumentoFlujo(kind)) return { ...definition, page, profile }
   const inner = Math.min(width - 4, model.printableWidthMm),
     visible = definition.elements.filter(e => e.visible)
   const small = id === 'brother-ql800'

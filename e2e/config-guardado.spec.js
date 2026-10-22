@@ -32,7 +32,7 @@ async function entrarComoDueno(page) {
 async function abrirNegocio(page) {
   await entrarComoDueno(page)
   // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   // #422: Datos generales son filas; cada una abre su formulario en una ventana.
   await expect(page.getByTestId('general-pantalla')).toBeVisible()
 }
@@ -189,7 +189,7 @@ test('Seguridad: descargar los datos pide la contraseña y reintenta la descarga
 test('Sucursales: editar y guardar avisa Guardado', async ({ page }) => {
   await entrarComoDueno(page)
   // #IA: las sucursales viven en Organización (la ruta vieja /configuracion/sucursales redirige).
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   // #299: Sucursales y depósitos es una sección propia.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   const fila = page.locator('article').filter({ hasText: SEED.branchName }).first()

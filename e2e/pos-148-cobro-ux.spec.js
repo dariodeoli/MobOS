@@ -8,6 +8,7 @@ import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { ensureCobro } from './helpers/ensure-cobro.js'
 import { SEED } from './helpers/seed-data.js'
+import { botonMenuPago, eliminarPago, verDatosCliente } from './helpers/menu-pago.js'
 
 const cliente = () => `Cliente cobro UX ${Date.now().toString(36).toUpperCase()}`
 
@@ -81,12 +82,12 @@ test('el pago arranca sin cuenta, al elegirla queda la cápsula y la lista no ta
   await expect(fila.getByLabel('Cuenta de cobro')).toHaveCount(0)
   const capsula = fila.getByTestId('cuenta-capsula')
   await expect(capsula.getByTestId('cuenta-capsula-nombre')).toHaveText('Transferencia E2E')
-  await expect(fila.getByTestId('cuenta-cambiar')).toBeVisible() // #391: cambiar de cuenta en el lugar
+  await expect(botonMenuPago(fila)).toBeVisible() // #391: cambiar de cuenta en el lugar (⋯)
   await expect(fila.getByLabel('Monto original')).toBeEnabled()
   await expect(fila.getByLabel('Monto original')).toHaveValue('45.000')
 
   // Datos ordenados y rotulados: número, titular y banco (#283, ajuste de Dario).
-  await capsula.getByText('Ver datos para el cliente').click() // #391
+  await verDatosCliente(page, capsula) // #391: desde el ⋯ de la fila
   const datos = capsula.getByTestId('cuenta-capsula-datos')
   await expect(datos.locator('dt')).toHaveText(['Nro de cuenta', 'Titular', 'Banco'])
   await expect(datos).toContainText('E2E-0001')
@@ -111,7 +112,7 @@ test('la cuenta elegida muestra cápsula con banco, titular, número, moneda y s
   await expect(capsula).toContainText('Transferencia')
   // Banco, titular y número, rotulados y en orden (#283): lo que hace falta
   // para operar sin salir del cobro.
-  await capsula.getByText('Ver datos para el cliente').click() // #391
+  await verDatosCliente(page, capsula) // #391: desde el ⋯ de la fila
   const datos = capsula.getByTestId('cuenta-capsula-datos')
   await expect(datos.locator('dt')).toHaveText(['Nro de cuenta', 'Titular', 'Banco'])
   await expect(datos.locator('dd')).toHaveText(['E2E-0001', 'Tienda E2E', 'Banco E2E'])
@@ -196,7 +197,7 @@ test('el botón principal crece, ordena etiqueta/importe y mantiene un color neu
   expect(await colorBoton(confirmar)).toBe(neutro)
 
   // Sin pago: sigue el mismo neutro (la etiqueta avisa que queda pendiente).
-  await fila.getByRole('button', { name: 'Eliminar pago 1' }).click()
+  await eliminarPago(page, fila, 1)
   const sinPago = page.getByRole('button', { name: /^Crear pedido sin pago/ })
   await expect(sinPago).toBeVisible()
   expect(await colorBoton(sinPago)).toBe(neutro)
@@ -242,7 +243,7 @@ test('mobile: Otros medios conserva cuentas distintas y acceso al canje sin dupl
   const mas = page.getByTestId('cobro-mas')
   await expect(mas.locator('button[type="submit"]').filter({ visible: true })).toHaveCount(1)
   await expect(mas.getByTestId('pos-barra-accion')).toBeHidden()
-  await mas.getByRole('button', { name: '+ Canjear gift card' }).click()
+  await mas.getByRole('button', { name: 'Gift card', exact: true }).click()
   await expect(mas.getByRole('button', { name: 'Consultar saldo' })).toBeVisible()
   await expect(mas.getByTestId('codigo-celda-0')).toBeVisible()
   mkdirSync('/tmp/mobos236-mobile-regression', { recursive: true })

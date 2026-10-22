@@ -4,6 +4,7 @@
 
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { botonMenuPago } from './helpers/menu-pago.js'
 
 async function caja(locator) {
   const rect = await locator.first().evaluate((node) => {
@@ -88,10 +89,10 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await page.getByRole('option', { name: /Caja E2E/ }).first().click()
   await expect(pagos.getByTestId('cuenta-capsula').first()).toBeVisible()
   // #391: cambiar de cuenta es en el lugar y «Paga al recibir» es un interruptor.
-  await toque(pagos.getByTestId('cuenta-cambiar').first(), 'cambiar cuenta')
+  await toque(botonMenuPago(pagos.getByTestId('cuenta-capsula').first()), 'menú ⋯ del pago')
   await toque(page.getByTestId('pos-paga-al-recibir'), 'paga al recibir')
   await toque(pagos.getByLabel('Monto original').first(), 'monto original')
-  await toque(pagos.getByRole('button', { name: 'Eliminar pago 1' }), 'eliminar pago')
+  await toque(pagos.getByTestId('pago-estado').first(), 'estado del pago')
   await toque(page.getByRole('button', { name: /^\+ Agregar (otro )?pago$/ }), 'agregar pago')
   await toque(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido|Guardar pedido)/ }), 'botón principal')
 

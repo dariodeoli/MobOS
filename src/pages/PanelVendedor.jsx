@@ -1,5 +1,6 @@
 import { crearControlIntentosPin } from '@/lib/nativo/intentosPin'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { TABS_FINANZAS_VERIFICADOR, puedeVerificarPagos } from '@/lib/verificacionPagos'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
@@ -8,7 +9,6 @@ import { useReloj } from '@/hooks/useReloj'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { hidratarFinanzas, refrescarCatalogo } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
-import { api } from '@/lib/api/client'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones'
 import { ROLE_LABELS } from '@/lib/roles'
 import { gs } from '@/utils/calculos'
@@ -38,6 +38,9 @@ import ResaltarAjuste from '@/components/control/config/ResaltarAjuste'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { destinoAjuste } from '@/lib/configIndice'
 import { grupoShellDeTab } from '@/components/stock/stockHelpers'
+import { useModulos } from '@/lib/useModulos'
+import { moduloDeVista } from '@/lib/modulos'
+import { rutaPadreDeVista, textoModuloDesactivado } from '@/lib/modulosAviso'
 import '@/components/shared/gestionRediseno.css'
 import '@/components/supply/comprasRediseno.css'
 
@@ -89,12 +92,15 @@ const Auditoria = lazy(() => import('@/components/control/Auditoria'))
 const Caja = lazy(() => import('@/components/control/Caja'))
 const PaymentAccounts = lazy(() => import('@/components/control/PaymentAccounts'))
 const Conciliacion = lazy(() => import('@/components/control/Conciliacion'))
+const VerificacionDiaria = lazy(() => import('@/components/control/VerificacionDiaria'))
 const Creditos = lazy(() => import('@/components/control/Creditos'))
 const Cobranzas = lazy(() => import('@/components/control/Cobranzas'))
 const Comisiones = lazy(() => import('@/components/control/Comisiones'))
 const Celulares = lazy(() => import('@/pages/Celulares'))
 const Comparador = lazy(() => import('@/pages/Comparador'))
 const Documentacion = lazy(() => import('@/components/control/Documentacion'))
+const Modulos = lazy(() => import('@/components/control/config/Modulos'))
+const Notificaciones = lazy(() => import('@/components/control/config/Notificaciones'))
 // #247: la búsqueda global baja recién al abrirla (no pesa en el chunk del
 // panel ni en el arranque del POS).
 const GlobalSearch = lazy(() => import('@/components/app/GlobalSearch'))
@@ -134,6 +140,19 @@ const SELLER_NAV = [
       ['repartos', 'Delivery', 'truck'],
       ['cotizador', 'Trade-In', 'refresh'],
       ['ayuda', 'Ayuda', 'info'],
+    ],
+  },
+]
+
+// Verificadores de pagos (gerente y caja): además de lo del vendedor ven solo
+// Autorizaciones › Pagos y Finanzas › Verificación (el servidor decide quién
+// aprueba; esto no amplía el resto de Finanzas ni de Autorizaciones).
+const VERIFICADOR_NAV = [
+  {
+    titulo: 'Verificación',
+    items: [
+      ['autorizaciones', 'Autorizaciones', 'check'],
+      ['finanzas', 'Finanzas', 'receipt'],
     ],
   },
 ]
@@ -234,6 +253,7 @@ const TABS_FINANZAS = [
   ['gastos', 'Gastos'],
   ['bancos', 'Bancos y cuentas'],
   ['conciliacion', 'Conciliación'],
+  ['verificacion-dia', 'Verificación'],
   ['creditos', 'Créditos'],
   ['cuotas', 'Cuotas'],
   ['comisiones', 'Comisiones'],
@@ -259,16 +279,19 @@ const SUBPAGINAS = {
     // la pestaña por defecto es la primera del listado (organizacion).
     vista: 'equipo',
     tabs: [
-      // IA (#251): siete secciones, sin duplicar, ordenadas por frecuencia de
-      // uso (negocio y equipo primero, la cuenta personal al final: se abre
-      // también desde el perfil). Los slugs viejos redirigen a su sección
-      // nueva (REDIRECCIONES_CONFIG).
-      ['organizacion', 'Organización'],
+      // IA de nueve grupos (módulos): Negocio · Módulos · Equipo y acceso ·
+      // Ventas y cobros · Impresión y documentos · Mensajes y avisos ·
+      // Seguridad · Integraciones y sistema · Mi cuenta (la cuenta personal al
+      // final: se abre también desde el perfil). Los slugs viejos redirigen a
+      // su grupo nuevo (REDIRECCIONES_CONFIG).
+      ['negocio', 'Negocio'],
+      ['modulos', 'Módulos'],
       ['equipo', 'Equipo y acceso'],
-      ['dispositivos', 'Impresoras'],
-      ['comercial', 'Comercial'],
+      ['ventas-cobros', 'Ventas y cobros'],
+      ['impresion', 'Impresión y documentos'],
+      ['mensajes', 'Mensajes y avisos'],
       ['seguridad', 'Seguridad'],
-      ['sistema', 'Sistema'],
+      ['sistema', 'Integraciones y sistema'],
       ['mi-cuenta', 'Mi cuenta'],
     ],
   },
@@ -298,19 +321,20 @@ function tabsDeSubpagina(slug) {
   return SUBPAGINAS[slug]?.tabs || []
 }
 
-// Configuración en siete secciones (#IA): los slugs viejos siguen funcionando
-// y redirigen a la sección nueva; Documentación sale del panel y vive en Ayuda.
+// Configuración en nueve grupos: los slugs viejos siguen funcionando y
+// redirigen al grupo nuevo; Documentación sale del panel y vive en Ayuda.
 const REDIRECCIONES_CONFIG = {
   // La ruta vieja de identidad cae en Mi cuenta, la superficie personal (#253).
   identidad: '/configuracion/mi-cuenta',
   preferencias: '/configuracion/mi-cuenta',
-  negocio: '/configuracion/organizacion',
-  sucursales: '/configuracion/organizacion',
+  organizacion: '/configuracion/negocio',
+  sucursales: '/configuracion/negocio',
   roles: '/configuracion/equipo',
-  precios: '/configuracion/comercial',
+  precios: '/configuracion/ventas-cobros',
+  comercial: '/configuracion/ventas-cobros',
   historial: '/configuracion/seguridad',
-  impresion: '/configuracion/dispositivos',
-  impresoras: '/configuracion/dispositivos',
+  dispositivos: '/configuracion/impresion',
+  impresoras: '/configuracion/impresion',
   documentacion: '/ayuda/ayuda',
 }
 
@@ -421,7 +445,7 @@ export default function PanelVendedor() {
     sucursal,
   } = useSesion()
   const navigate = useNavigate()
-  const { pathname, search: busquedaUrl } = useLocation()
+  const { pathname, search: busquedaUrl, state: estadoUrl, key: claveUrl } = useLocation()
   const angosta = usePantallaAngosta()
   // Dónde estaba el usuario antes de entrar a Configuración, para «‹ Configuración».
   const rutaPrevia = useRef('')
@@ -430,31 +454,29 @@ export default function PanelVendedor() {
   // URL es el padre y el slug hijo define la pestaña activa.
   const slugRuta = pathname.split('/')[1] || ''
   const subpadre = SUBPAGINAS[slugRuta] ? slugRuta : null
-  const tabsRuta = useMemo(() => (subpadre ? tabsDeSubpagina(subpadre, esDemo) : []), [subpadre, esDemo])
-  const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
+  // Pestañas de la subpágina: `tabsRutaTodas` valida la URL (un módulo apagado
+  // no la vuelve inválida: se avisa y se redirige); `tabsRuta` es lo que se muestra.
+  const modulos = useModulos()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
-  const [moduleStore, setModuleStore] = useState(null)
-  const [moduleStoreResolved, setModuleStoreResolved] = useState(false)
-  useEffect(() => {
-    if (esDemo || !sesion) { setModuleStore(null); setModuleStoreResolved(true); return }
-    let active = true
-    setModuleStoreResolved(false)
-    api.get('/api/tenant/modules').then(result => {
-      if (active) { setModuleStore(result); setModuleStoreResolved(true) }
-    }).catch(() => {
-      if (active) { setModuleStore(null); setModuleStoreResolved(true) }
-    })
-    const actualizar = event => setModuleStore(current => current ? { ...current, state: event.detail } : current)
-    window.addEventListener('mobos:module-store-updated', actualizar)
-    return () => { active = false; window.removeEventListener('mobos:module-store-updated', actualizar) }
-  }, [esDemo, sesion, empresa?.id])
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
+  const esVerificador = !esOwner && !esTecnico && puedeVerificarPagos(usuario?.role)
+  // Pestañas que el rol puede abrir: gerente y caja ven de Finanzas solo la verificación.
+  const tabsDe = useCallback(slug => {
+    const tabs = tabsDeSubpagina(slug)
+    return esVerificador && slug === 'finanzas' ? tabs.filter(([id]) => TABS_FINANZAS_VERIFICADOR.includes(id)) : tabs
+  }, [esVerificador])
+  const tabsRutaTodas = useMemo(() => (subpadre ? tabsDe(subpadre) : []), [subpadre, tabsDe])
+  const tabsRuta = useMemo(
+    () => tabsRutaTodas.filter(([id]) => (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)),
+    [tabsRutaTodas, modulos],
+  )
+  const seccionRuta = subpadre && tabsRutaTodas.some(([id]) => id === routeSeccion) ? routeSeccion : null
   // #247: adelanta los chunks de las secciones más usadas cuando el equipo está
   // ocioso (una sola vez por carga y solo si la conexión lo permite).
   usePrefetchSecciones(esOwner ? 'dueno' : esTecnico ? 'tecnico' : 'vendedor')
   // El slug plano de la URL define la vista (/pos, /pedidos, /trade-in…).
   const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
-  const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
+  const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRutaTodas[0][0] : 'cargar'))
   // Rediseño de gestión: estas vistas comparten el lenguaje visual de gestionRediseno.css.
   const esVistaGestion = subpadre === 'finanzas' || subpadre === 'analisis' || (!subpadre && VISTAS_GESTION.has(vista))
   const tabsConfig = tabsRuta
@@ -510,55 +532,75 @@ export default function PanelVendedor() {
   // vista es una pestaña de sección a la que se entra desde el menú (#251).
   // Campañas de recompra: solo administración/gerencia y solo con datos reales.
   const puedeCampanas = ['ADMIN', 'GERENTE'].includes(usuario?.role)
-  const navActual = useMemo(() => {
-    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
-    // App de iPhone v1: solo Vender, Pedidos, Clientes y Configuración.
-    const modulesByNavId = new Map()
-    for (const module of moduleStore?.catalog || []) for (const id of module.navIds) modulesByNavId.set(id, [...(modulesByNavId.get(id) || []), module.id])
-    const moduleEnabled = (id) => {
-      // Mensajes también se resuelve antes de que el catálogo termine de cargar:
-      // para usuarios autenticados, el estado desconocido no habilita estas rutas.
-      if (id === 'plantillas' || id === 'campanas') {
-        if (esDemo) return true
-        return moduleStore?.state?.modules?.mensajes?.enabled === true
-      }
-      const moduleIds = modulesByNavId.get(id) || []
-      return moduleIds.every(moduleId => moduleStore?.state?.modules?.[moduleId]?.enabled !== false)
-    }
+  // Catálogo del rol sin el filtro de módulos (decide qué rutas son válidas
+  // mientras el estado de módulos todavía carga).
+  const navDelRol = useMemo(() => {
+    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : esVerificador ? [...SELLER_NAV, ...VERIFICADOR_NAV] : SELLER_NAV
     return base
-      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id) && moduleEnabled(id)) }))
+      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id)) }))
       .filter(group => group.items.length)
-  }, [esOwner, esTecnico, puedeCampanas, moduleStore, esDemo])
+  }, [esOwner, esTecnico, esVerificador, puedeCampanas])
+  // Los módulos solo RESTAN a lo que el rol ya ve: nunca amplían permisos. El
+  // técnico conserva su Taller (es todo su rol). Hasta que carga el estado, los
+  // ítems de módulos no se muestran (evita que aparezcan y desaparezcan).
+  const itemVisible = useCallback(id => esTecnico || ((modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)), [esTecnico, modulos])
+  const navActual = useMemo(() => navDelRol
+    .map(group => ({ ...group, items: group.items.filter(([id]) => itemVisible(id)) }))
+    .filter(group => group.items.length), [navDelRol, itemVisible])
   const vistaRequerida = subpadre ? SUBPAGINAS[subpadre].vista : vista
   const proximamenteIOS = !moduloDisponible(vistaRequerida)
   const idsDelMenu = useMemo(() => new Set(navActual.flatMap(group => group.items.map(([id]) => id))), [navActual])
   const accesibles = useMemo(() => {
     const base = navActual.flatMap(group => group.items).map(([id]) => id)
+    // Mientras carga el estado de módulos, las rutas de módulos del rol no se
+    // redirigen: se espera y recién ahí un módulo apagado avisa y vuelve atrás.
+    const pendientes = modulos.resuelto ? [] : navDelRol.flatMap(group => group.items).map(([id]) => id).filter(id => moduloDeVista(id) && !base.includes(id))
     // Tres vistas no son ítems del menú pero su ruta tiene que ser válida:
     // 'inventario' (la sección; sus ítems de menú son sus pestañas y las
     // pantallas de catálogo) y 'garantias' (pestaña de «Taller» desde #224:
-    // los enlaces viejos siguen abriendo la sección). 'mi-cuenta' (#253) es
-    // personal: cualquier rol entra a su perfil desde el avatar.
-    const modules = moduleStore?.state?.modules || {}
-    // Una ruta de Mensajes abierta directamente no debe redirigirse durante
-    // la carga del estado. La navegación visual sigue oculta y, al resolver,
-    // el estado desactivado o no disponible bloquea la ruta como siempre.
-    const pendingMessagesRoutes = !esDemo && !moduleStoreResolved ? ['plantillas', 'campanas'] : []
-    const accesosPropietario = ['inventario', 'garantias', 'mi-cuenta'].filter(id => {
-      const moduleId = id === 'inventario' ? 'inventario' : id === 'garantias' ? 'servicios' : null
-      return !moduleId || modules[moduleId]?.enabled !== false
-    })
-    return esOwner ? [...base, ...accesosPropietario, ...pendingMessagesRoutes] : [...base, 'mi-cuenta', ...pendingMessagesRoutes]
-  }, [esOwner, navActual, moduleStore, moduleStoreResolved, esDemo])
+    // los enlaces viejos siguen abriendo la sección, con el módulo Taller).
+    // 'mi-cuenta' (#253) es personal: cualquier rol entra a su perfil desde el avatar.
+    const accesosPropietario = ['inventario', 'garantias', 'mi-cuenta'].filter(id => !modulos.resuelto || itemVisible(id))
+    return esOwner ? [...base, ...accesosPropietario, ...pendientes] : [...base, 'mi-cuenta', ...pendientes]
+  }, [esOwner, navActual, navDelRol, itemVisible, modulos.resuelto])
+  // Módulo apagado que controla la ruta actual (null si es del núcleo o está activo).
+  const idEnUrl = subpadre ? routeSeccion : routeVista
+  const moduloApagado = idEnUrl && modulos.resuelto && !esTecnico && !modulos.vistaVisible(idEnUrl) ? moduloDeVista(idEnUrl) : null
+  // Ruta de un módulo que todavía no sabemos si está activo: no se pinta.
+  const moduloPendiente = Boolean(idEnUrl) && !modulos.resuelto && Boolean(moduloDeVista(idEnUrl))
+  function volverPorModuloApagado(id) {
+    const moduloId = moduloDeVista(id)
+    const ruta = rutaPadreDeVista(id)
+    const [, slug, tab] = ruta.split('/')
+    const sub = SUBPAGINAS[slug]
+    const vistaPadre = sub ? (tab || sub.tabs[0][0]) : vistaDeRuta(slug, { esOwner })
+    const idAcceso = sub ? sub.vista : vistaPadre
+    // La vista se sincroniza acá: si no, el efecto de «fuera de alcance» ve la
+    // vista vieja y manda al primer destino del rol, perdiendo el aviso.
+    if (idAcceso && accesibles.includes(idAcceso)) {
+      setVista(vistaPadre)
+      navigate(ruta, { replace: true, state: { moduloApagado: moduloId } })
+      return
+    }
+    const primera = accesibles[0] || 'cargar'
+    setVista(primera)
+    navigate(rutaDeVista(primera) || '/pos', { replace: true, state: { moduloApagado: moduloId } })
+  }
+  useEffect(() => {
+    if (moduloApagado) volverPorModuloApagado(idEnUrl)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduloApagado, idEnUrl])
+  const [avisoCerrado, setAvisoCerrado] = useState(null)
+  const avisoModulo = estadoUrl?.moduloApagado && avisoCerrado !== claveUrl ? estadoUrl.moduloApagado : null
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
   useEffect(() => {
     if (subpadre) return
     const destino = SUBPAGINA_DE_VISTA[routeVista] || SUBPAGINA_DE_TAB[routeVista]
     if (!destino || !accesibles.includes(SUBPAGINAS[destino].vista)) return
-    const primera = tabsDeSubpagina(destino, esDemo)[0][0]
+    const primera = tabsDe(destino)[0][0]
     navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}${busquedaUrl}`, { replace: true })
-  }, [subpadre, routeVista, accesibles, esDemo, navigate, busquedaUrl])
+  }, [subpadre, routeVista, accesibles, tabsDe, navigate, busquedaUrl])
   // #247: las finanzas se hidratan al entrar a su pantalla, a análisis o al
   // resumen (usan los mismos gastos/publicidad) y quedan en los refrescos.
   useEffect(() => {
@@ -580,8 +622,8 @@ export default function PanelVendedor() {
   useEffect(() => {
     if (subpadre !== 'configuracion' || !routeSeccion) return
     const destino = REDIRECCIONES_CONFIG[routeSeccion]
-    if (destino) navigate(destino, { replace: true })
-  }, [subpadre, routeSeccion, navigate])
+    if (destino) navigate(`${destino}${busquedaUrl}`, { replace: true })
+  }, [subpadre, routeSeccion, navigate, busquedaUrl])
   // Apartado sin hijo (o con uno desconocido) entra por su primera pestaña.
   // Los slugs viejos con redirección propia no pasan por acá: su destino puede
   // salir del apartado (p. ej. /configuracion/documentacion → /ayuda/ayuda) y
@@ -590,8 +632,16 @@ export default function PanelVendedor() {
     if (!subpadre || seccionRuta || REDIRECCIONES_CONFIG[routeSeccion]) return
     // Celular: /configuracion es la lista de secciones, no entra a la primera.
     if (subpadre === 'configuracion' && angosta && !routeSeccion) return
+    // Stock decide su primera pestaña recién cuando se sabe si «Inventario por
+    // unidades» está activo (hasta entonces la lista solo trae las del núcleo).
+    if (subpadre === 'stock' && !modulos.resuelto && !esTecnico) return
+    // Stock sin «Inventario por unidades»: se maneja por cantidad y abre en Productos.
+    if (subpadre === 'stock' && modulos.resuelto && !esTecnico && !modulos.vistaVisible('unidades')) {
+      navigate('/productos', { replace: true })
+      return
+    }
     navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
-  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate, angosta])
+  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate, angosta, modulos, esTecnico])
   // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
   // no es su lugar y el backend tampoco lo autoriza a vender.
   useEffect(() => {
@@ -603,12 +653,14 @@ export default function PanelVendedor() {
   // bucle: uno fuerza la vista y el otro vuelve a leer la URL.
   useEffect(() => {
     const requerido = subpadre ? SUBPAGINAS[subpadre].vista : vista
+    // Un módulo apagado avisa y vuelve a la vista padre (efecto aparte).
+    if (moduloApagado) return
     if (!accesibles.includes(requerido)) {
       const primera = accesibles[0] || 'cargar'
       setVista(primera)
       navigate(rutaDeVista(primera) || '/pos', { replace: true })
     }
-  }, [subpadre, accesibles, vista, navigate])
+  }, [subpadre, accesibles, vista, navigate, moduloApagado])
   // App de iPhone: el inicio no existe; la app abre directo en Vender.
   useEffect(() => {
     if (!subpadre && vista === 'resumen' && !moduloDisponible('resumen')) navigate('/pos', { replace: true })
@@ -620,16 +672,19 @@ export default function PanelVendedor() {
       return
     }
     if (routeVista && SUBPAGINA_DE_VISTA[routeVista]) {
-      const primera = tabsDeSubpagina(SUBPAGINA_DE_VISTA[routeVista], esDemo)[0][0]
+      const primera = tabsDe(SUBPAGINA_DE_VISTA[routeVista])[0][0]
       if (vista !== primera) setVista(primera)
       return
     }
     if (routeVista && routeVista !== vista && accesibles.includes(routeVista)) setVista(routeVista)
-  }, [subpadre, seccionRuta, routeVista, vista, accesibles, esDemo])
+  }, [subpadre, seccionRuta, routeVista, vista, accesibles, tabsDe])
 
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
   function ir(id, opciones = {}) {
+    // Un módulo apagado no se abre ni por búsqueda ni por atajo: avisa y vuelve al padre.
+    const destinoModulo = opciones.subtab || id
+    if (modulos.resuelto && !esTecnico && !modulos.vistaVisible(destinoModulo)) return volverPorModuloApagado(destinoModulo)
     // Mi cuenta (#253): el dueño la ve como pestaña de Configuración (su lugar
     // en la IA de siete grupos); el resto del equipo entra a la vista personal
     // /mi-cuenta, que no pide permisos de administración.
@@ -638,8 +693,10 @@ export default function PanelVendedor() {
       navigate(opciones.ajuste ? `/mi-cuenta?ajuste=${encodeURIComponent(opciones.ajuste)}` : '/mi-cuenta')
       return
     }
+    // Stock por cantidad: sin «Inventario por unidades», Stock abre en Productos.
+    if (id === 'inventario' && !opciones.subtab && modulos.resuelto && !esTecnico && !modulos.vistaVisible('unidades')) return ir('productos', opciones)
     // «Control» (Stock) es una pestaña del shell que abre su primera vista.
-    if (id === 'control') return ir('inventario', { ...opciones, subtab: 'conteos' })
+    if (id === 'control') return ir('inventario', { ...opciones, subtab: modulos.vistaVisible('conteos') ? 'conteos' : 'alertas' })
     // Un ítem del menú puede ser una pestaña de una sección (p. ej. «Unidades»
     // dentro de Inventario, #251): se abre la sección en esa pestaña. Ojo: las
     // vistas de sección (inventario, equipo, finanzas, análisis) también son
@@ -661,7 +718,7 @@ export default function PanelVendedor() {
     const sufijo = consulta.length ? `?${consulta.join('&')}` : ''
     const destino = SUBPAGINA_DE_VISTA[id]
     if (destino) {
-      const tabs = tabsDeSubpagina(destino, esDemo)
+      const tabs = tabsDe(destino)
       const primera = opciones.subtab && tabs.some(([key]) => key === opciones.subtab) ? opciones.subtab : tabs[0][0]
       setVista(primera)
       // Celular (#410): entrar a Configuración abre la lista de secciones.
@@ -683,20 +740,9 @@ export default function PanelVendedor() {
 
   // Pestaña de un subpadre: la pestaña activa vive en la URL hija.
   function irASubtab(id) {
-    // La Tienda de módulos es una entrada prioritaria del encabezado, pero su
-    // contenido sigue perteneciendo a Organización para conservar permisos y
-    // no duplicar la pantalla existente. El query permite deep links y estado
-    // activo sin agregar una octava sección al catálogo histórico.
-    if (id === 'modulos' && subpadre === 'configuracion') {
-      setVista('organizacion')
-      navigate('/configuracion/organizacion?org=modulos')
-      return
-    }
     setVista(id)
     if (subpadre) navigate(`/${subpadre}/${id}`)
   }
-
-  const modulosActivos = subpadre === 'configuracion' && vista === 'organizacion' && new URLSearchParams(busquedaUrl).get('org') === 'modulos'
 
   function toggleSidebar() {
     recordarSidebar(current => !current)
@@ -802,10 +848,12 @@ export default function PanelVendedor() {
 
   const irRef = useRef(ir)
   irRef.current = ir
+  const idsMenuRef = useRef(idsDelMenu)
+  idsMenuRef.current = idsDelMenu
   const abrirBusquedaRef = useRef(() => {})
   abrirBusquedaRef.current = () => setBusquedaAbierta(true)
   const atajosCtx = useRef({})
-  atajosCtx.current = { locked, cambiarAbierto, ayudaAbierto, salirAbierto, esOwner, vista, busquedaAbierta }
+  atajosCtx.current = { locked, cambiarAbierto, ayudaAbierto, salirAbierto, vista, busquedaAbierta }
   useEffect(() => {
     function onKey(event) {
       const {
@@ -813,7 +861,6 @@ export default function PanelVendedor() {
         cambiarAbierto: cambio,
         ayudaAbierto: ayuda,
         salirAbierto: saliendo2,
-        esOwner: owner,
         vista: vistaActual,
         busquedaAbierta: buscando,
       } = atajosCtx.current
@@ -849,9 +896,8 @@ export default function PanelVendedor() {
         window.dispatchEvent(new CustomEvent('mobos:new-customer'))
       } else if (event.key === 'F4') {
         event.preventDefault()
-        const navActual = owner ? OWNER_NAV : SELLER_NAV
-        const accesibles = navActual.flatMap(group => group.items).map(([id]) => id)
-        if (accesibles.includes('cotizador')) irRef.current('cotizador')
+        // Respeta el rol y los módulos: sin el módulo Trade-In no hay atajo.
+        if (idsMenuRef.current.has('cotizador')) irRef.current('cotizador')
         else toast.info('Atajo F4', 'La vista de Trade-In no está disponible en esta sesión.')
       }
     }
@@ -913,8 +959,6 @@ export default function PanelVendedor() {
               items={tabsConfig}
               value={vista}
               onChange={irASubtab}
-              onModules={irASubtab}
-              modulesActive={modulosActivos}
               onBack={salirDeConfiguracion}
               onElegirAjuste={entrada => {
                 const { vista: destinoVista, opciones } = destinoAjuste(entrada, { esOwner })
@@ -963,10 +1007,34 @@ export default function PanelVendedor() {
           </div>
         )}
 
+        {avisoModulo && (
+          <div
+            role="status"
+            data-testid="aviso-modulo-apagado"
+            className="mx-4 mt-3 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm md:mx-6"
+          >
+            <Icon name="info" className="h-4 w-4 shrink-0 text-warn" />
+            <span className="min-w-0 flex-1 text-fore">{textoModuloDesactivado(avisoModulo)}</span>
+            {sesion?.esPropietario && (
+              <Link to="/configuracion/modulos" className="inline-flex min-h-11 items-center font-semibold text-fono-light underline-offset-2 hover:underline">
+                Ir a Módulos
+              </Link>
+            )}
+            <button
+              type="button"
+              aria-label="Cerrar aviso"
+              onClick={() => setAvisoCerrado(claveUrl)}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
+            >
+              <Icon name="close" className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         <main data-gestion={esVistaGestion ? '1' : undefined} data-compras={!subpadre && VISTAS_COMPRAS.has(vista) ? '1' : undefined} className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
           <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
-          {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (<>
+          {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (moduloPendiente || moduloApagado) ? <VistaCargando /> : (<>
           {posMontado && (
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
             {tradeIn?.identidad === identidad && (
@@ -1026,7 +1094,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}
-          {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
+          {(esOwner || esVerificador) && vista === 'autorizaciones' && <Autorizaciones soloPagos={!esOwner} />}
           {esOwner && opsV2 && vista === 'ops' && <Ops embebido />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (
@@ -1038,12 +1106,13 @@ export default function PanelVendedor() {
               {vista === 'asistente' && <Asistente />}
             </div>
           )}
-          {esOwner && subpadre === 'finanzas' && (
+          {(esOwner || esVerificador) && subpadre === 'finanzas' && (
             <div>
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}
               {vista === 'conciliacion' && <Conciliacion />}
+              {vista === 'verificacion-dia' && <VerificacionDiaria />}
               {vista === 'creditos' && <Creditos />}
               {vista === 'cuotas' && <Cobranzas />}
               {vista === 'comisiones' && <Comisiones />}
@@ -1059,11 +1128,13 @@ export default function PanelVendedor() {
           {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
           {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
-            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} onModules={irASubtab} modulesActive={modulosActivos} seccionAbierta={!angosta || Boolean(seccionRuta)}>
+            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
-              {vista === 'organizacion' && <Config seccion="organizacion" />}
+              {vista === 'negocio' && <Config seccion="organizacion" />}
+              {vista === 'modulos' && <Modulos />}
               {vista === 'equipo' && <Equipo />}
-              {vista === 'comercial' && (
+              {vista === 'mensajes' && <Notificaciones />}
+              {vista === 'ventas-cobros' && (
                 <div className="space-y-3">
                   {/* #253: las listas de precios viven en Inventario → Precios
                       (única entrada visible); Comercial no las duplica. */}
@@ -1081,7 +1152,7 @@ export default function PanelVendedor() {
                   <Auditoria />
                 </div>
               ))}
-              {vista === 'dispositivos' && <Impresoras />}
+              {vista === 'impresion' && <Impresoras />}
               {/* #324: Sistema muestra los chequeos y la cola ficticios en
                   demo; fuera de demo lee los servicios reales como siempre. */}
               {vista === 'sistema' && <><EstadoSistema />{sesion?.esPropietario && <McpConexiones />}</>}
@@ -1214,6 +1285,7 @@ export default function PanelVendedor() {
             onNavigate={ir}
             vistas={accesibles}
             esOwner={esOwner}
+            modulos={modulos.activo}
           />
         </Suspense>
       )}

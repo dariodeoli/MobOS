@@ -159,7 +159,10 @@ INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", 
 UPDATE "Product" SET "costPyg" = 70000 WHERE "id" = 'prod-a-order-it';
 -- Los chequeos de redacción parten con el permiso de costos de vendedores apagado
 -- (el default productivo es encendido; se prueba aparte más abajo).
-UPDATE "Tenant" SET "settings" = '{"permissions":{"sellerSeesCosts":false}}'::jsonb WHERE "id" IN ('tenant-a-it', 'tenant-b-it');
+-- Igual que e2e/global-setup.mjs: los módulos que se deciden por datos nacen apagados en empresas nuevas, así que el
+-- seed los activa de forma explícita (inventario-unidades, venta-sin-stock, mayoristas) y deja la política de cobro en
+-- «auto» (sin verificación) para que los chequeos de pedidos/pagos asuman cobro inmediato.
+UPDATE "Tenant" SET "settings" = '{"permissions":{"sellerSeesCosts":false},"moduleStore":{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true},"mayoristas":{"enabled":true}}},"paymentVerification":{"methods":{"CASH":"auto","CARD":"auto","PIX":"auto","CRYPTO":"auto","TRANSFER":"auto"},"accounts":{},"requireProof":true,"blockDelivery":true,"selfApproveRoles":[]}}'::jsonb WHERE "id" IN ('tenant-a-it', 'tenant-b-it');
 SQL
 
 (
@@ -600,6 +603,7 @@ node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "
 # porque vive en AuthAttempt de la base, no en memoria del proceso.
 node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" branch-a-it "$RUC_PILOT_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/modulos-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 node "$BACKEND_ROOT/tests/inventory-apple-variant.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Lib de traslado y de seriales en pedidos dentro de una transacción (#408)..."
@@ -667,7 +671,7 @@ node "$BACKEND_ROOT/tests/account-delete.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_B
 MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" node "$BACKEND_ROOT/tests/email-events.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/quote-email.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/collections-marketing.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
-MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-installments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-installments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$GERENTE_TOKEN"
 echo "Raster513: payload, aislamiento, idempotencia y cuota atómica..."
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/print513-pg.cjs"
 echo "Conciliación por cuenta/procesadora: lote recibido vs esperado, diferencia y trazabilidad..."
@@ -875,6 +879,12 @@ node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKE
 
 echo "Crédito sobre el límite: pendiente de autorización, aprobación del admin/gerente, auditoría y concurrencia..."
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credito-autorizacion.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
+
+echo "Venta a crédito: límite y tolerancia del módulo, plazo, cuotas y días de crédito..."
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credito-tolerancia.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
+
+echo "Verificación de pagos: el servidor decide el estado, nadie aprueba lo propio, entrega bloqueada y verificación diaria..."
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-verification.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"

@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { listVentas } from '@/lib/storage'
 import { construirDemoCajas, getDemoCash } from '@/lib/demoCash'
+import { librosDemo } from '@/lib/demoHistoria'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import { gs } from '@/utils/calculos'
@@ -55,7 +56,8 @@ export default function VentasPorCaja() {
     setError('')
     try {
       if (esDemo) {
-        setSesiones(construirDemoCajas({ cash: getDemoCash(), ventas: listVentas() }))
+        const dia = (valor) => String(valor || '').slice(0, 10)
+        setSesiones(construirDemoCajas({ cash: getDemoCash(), ventas: listVentas(), dias: 120, historial: librosDemo().sesiones }).filter((sesion) => dia(sesion.openedAt) >= rango.desde && dia(sesion.openedAt) <= rango.hasta))
         return
       }
       const params = new URLSearchParams({ sesiones: '1', from: rango.desde, to: rango.hasta })

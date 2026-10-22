@@ -29,7 +29,7 @@ function makeRoute() {
     auditLog: { create: async (q: any) => { audits.push(q.data) } },
     $transaction: async (callback: any) => callback(db),
   }
-  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
+  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/modulos-guard': { moduloGuard: async () => null }, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
   return { route, count, db, audits, stock: () => productStock, setStock: (value: number) => { productStock = value } }
 }
 
@@ -92,7 +92,7 @@ test('creating a location-scoped count validates tenant and branch ownership bef
     auditLog: { create: async () => {} },
     $transaction: async (callback: any) => callback(db),
   }
-  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
+  const route = loadRoute({ '../../../lib/prisma': { prisma: db }, '../../../lib/auth': { requireSession: async () => session, canAccessAny: () => true }, '../../../lib/http': http, '../../../lib/modulos-guard': { moduloGuard: async () => null }, '../../../lib/payment-input': { InputError, objectInput, textInput }, '../../../lib/stock': { recomputeStock: async () => {} }, '../../../lib/store-branch': { ensureStoreBranch: async () => 'branch1' } })
   const response = await route.POST(postRequest({ branchId: 'branch1', locationId: 'other-branch-location', scope: 'PARTIAL' }))
   assert.equal(response.status, 404)
   assert.equal(saved, false)

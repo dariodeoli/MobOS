@@ -1,5 +1,6 @@
 import { error, json } from '../../../../lib/http'
 import { arrivalActor, arrivalErrorResponse, createArrival, listArrivals } from '../../../../lib/arrival-service'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // #408 unidad E · Llegada de mercadería (stock:manage, por empresa y sucursal).
 //
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const actor = await arrivalActor(request)
   if (actor instanceof Response) return actor
   let body: Record<string, unknown>

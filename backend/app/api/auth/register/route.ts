@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { newCompanySettings } from '../../../../lib/module-store'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../../../lib/prisma'
 import { authenticateCompany, AuthRateLimitError, authRequestMetadata, enforceAuthRateLimit } from '../../../../lib/auth'
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     const tenantId = await prisma.$transaction(async (tx) => {
       const existing = await tx.tenant.findUnique({ where: { email }, select: { id: true } })
       if (existing) throw new Error('EMAIL_EXISTS')
-      const tenant = await tx.tenant.create({ data: { name: companyName, email, passwordHash, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
+      const tenant = await tx.tenant.create({ data: { name: companyName, email, passwordHash, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: newCompanySettings({ onboarding: { adminPinPending: true } }) } })
       const admin = await tx.user.create({ data: { tenantId: tenant.id, name: 'Administrador', email, pinHash, role: 'ADMIN' } })
       // Multi-empresa (#377): cuenta + pertenencia OWNER en la misma transacción.
       await accountForTenantPassword(tx, { id: tenant.id, email })

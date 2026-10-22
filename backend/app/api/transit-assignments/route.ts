@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { serialKey } from '../../../lib/validation'
 import { TRANSIT_ESTADOS, vincularAsignacionAlRecibir } from '../../../lib/transit'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 // #279 (A4) · Vender en tránsito: asignaciones futuras de unidades que todavía
 // viajan. Cualquier vendedor/encargado puede apartar una unidad **en tránsito**
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
@@ -115,6 +117,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }

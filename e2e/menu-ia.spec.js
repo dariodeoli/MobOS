@@ -14,10 +14,10 @@ async function entrarComoDueno(page) {
   await expect(page.locator('h1')).toHaveText('Inicio')
 }
 
-test('el dueño ve diez secciones y conserva todas sus herramientas (#251)', async ({ page }) => {
+test('el dueño ve siete secciones del núcleo más Taller y conserva todas sus herramientas', async ({ page }) => {
   await entrarComoDueno(page)
   const catalog = await shellCatalog(page)
-  expect(catalog.primary).toEqual(['Inicio', 'Vender', 'Ventas', 'Clientes', 'Taller', 'Stock', 'Compras', 'Finanzas', 'Análisis', 'Configuración'])
+  expect(catalog.primary).toEqual(['Inicio', 'Vender', 'Pedidos', 'Clientes', 'Taller', 'Stock', 'Finanzas', 'Configuración'])
   for (const label of ['Nueva venta', 'Pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Clientes', 'Productos (stock)', 'Unidades (IMEI)', 'Compras', 'Traslados y tránsito', 'Precios', 'Lista por modelo', 'Comparador', 'Delivery', 'Taller y garantías', 'Trade-In', 'Autorizaciones', 'Tablero de operaciones']) {
     expect(catalog.destinations).toContain(label)
   }
@@ -69,7 +69,7 @@ test('las rutas heredadas siguen abriendo su pantalla sin figurar en el menú (#
   const heredadas = [
     ['/promociones', 'Promociones'],
     ['/precios', 'Precios'],
-    ['/configuracion/precios', 'Comercial'],
+    ['/configuracion/precios', 'Ventas y cobros'],
     ['/plantillas', 'Plantillas de WhatsApp'],
     ['/autorizaciones', 'Autorizaciones'],
     ['/celulares', 'Lista por modelo'],

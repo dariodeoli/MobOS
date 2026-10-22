@@ -1,5 +1,3 @@
-import { isNativeIOS } from './plataforma.js'
-
 // Presentation only: the caller's existing destination catalog remains the
 // authority for route access. Unknown catalogs keep their own destinations.
 //
@@ -14,6 +12,8 @@ export const PRIMARY_SECTIONS = [
     icon: 'chart',
     groups: [
       ['resumen', 'Resumen', ['resumen']],
+      // Análisis pasa a Inicio › Reportes (la URL /analisis no cambia).
+      ['analisis', 'Reportes', ['analisis']],
       ['ops', 'Operaciones', ['ops']],
     ],
   },
@@ -23,12 +23,13 @@ export const PRIMARY_SECTIONS = [
     icon: 'plus',
     groups: [
       ['cargar', 'Nueva venta', ['cargar']],
-      ['cotizador', 'Trade-In', ['cotizador']],
+      // Módulo Trade-In: el vendedor cotiza, el dueño ve la pipeline.
+      ['cotizador', 'Trade-In', ['cotizador', 'tradein-admin']],
     ],
   },
   {
-    id: 'ventas',
-    label: 'Ventas',
+    id: 'pedidos',
+    label: 'Pedidos',
     icon: 'receipt',
     groups: [
       ['pedidos', null, ['pedidos']],
@@ -48,6 +49,7 @@ export const PRIMARY_SECTIONS = [
       ['plantillas', null, ['plantillas']],
     ],
   },
+  // Taller es una sección solo con el módulo `servicios` activo.
   {
     id: 'taller',
     label: 'Taller',
@@ -55,7 +57,6 @@ export const PRIMARY_SECTIONS = [
     groups: [
       ['servicio', 'Servicio', ['servicio']],
       ['garantias', 'Garantías', ['garantias']],
-      ['tradein-admin', 'Trade-In', ['tradein-admin']],
     ],
   },
   {
@@ -65,32 +66,15 @@ export const PRIMARY_SECTIONS = [
     groups: [
       ['unidades', 'Unidades', ['unidades', 'inventario']],
       ['productos', 'Productos', ['productos']],
+      // Compras es un grupo de Stock; Abastecimiento suma los suyos con su módulo.
+      ['compras', null, ['compras']],
       ['traslados', 'Traslados', ['traslados']],
       ['control', 'Control', ['control']],
       ['precios', 'Precios', ['precios', 'celulares', 'comparador', 'centro-control']],
-    ],
-  },
-  {
-    id: 'compras',
-    label: 'Compras',
-    icon: 'cart',
-    groups: [
-      ['compras', null, ['compras']],
-      ['abastecimiento', null, ['abastecimiento']],
-      ['compras-centro', 'Centro', ['compras-centro']],
-      ['preparacion', null, ['preparacion']],
-      ['lotes', null, ['lotes']],
-      ['recepcion', null, ['recepcion']],
-      ['metricas', 'Métricas', ['metricas']],
+      ['abastecimiento', 'Abastecimiento', ['abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion', 'metricas']],
     ],
   },
   { id: 'finanzas', label: 'Finanzas', icon: 'wallet', groups: [['finanzas', null, ['finanzas']]] },
-  {
-    id: 'analisis',
-    label: 'Análisis',
-    icon: 'trending',
-    groups: [['analisis', null, ['analisis']]],
-  },
   // Configuración cierra el menú del dueño. El catálogo la llama `equipo` (el id
   // que habilita el acceso); sus secciones viven en la propia página (riel
   // vertical en escritorio, tira de pestañas en móvil), por eso es un solo grupo.
@@ -110,11 +94,15 @@ const SEGMENT_LABELS = {
 }
 
 // Owner mobile bottom bar (D2): the rest of the sections live in the "Más" sheet.
-const BOTTOM_PRIORITY = ['inicio', 'vender', 'ventas', 'stock']
+const BOTTOM_PRIORITY = ['inicio', 'vender', 'pedidos', 'stock']
 const BOTTOM_MAX = 5
 
-export function shellNavigation(nav = []) {
-  const destinations = nav.flatMap(group => group.items)
+// `opciones.modulos` (opcional): función `(idDeVista) => boolean` que dice si la
+// vista pertenece a un módulo activo. Solo resta: nunca agrega destinos que el
+// catálogo del rol no trae.
+export function shellNavigation(nav = [], opciones = {}) {
+  const visible = typeof opciones.modulos === 'function' ? opciones.modulos : () => true
+  const destinations = nav.flatMap(group => group.items).filter(([id]) => visible(id))
   const ids = new Set(destinations.map(([id]) => id))
   // Single-domain roles must never open the first owner/seller destination.
   if (ids.has('rendiciones'))
@@ -122,12 +110,12 @@ export function shellNavigation(nav = []) {
   if (ids.has('servicio') && !ids.has('cargar'))
     return [{ id: 'taller', label: 'Taller', icon: 'wrench', items: destinations }]
   // `control` (Stock) agrupa vistas del inventario que no son destinos del
-  // catálogo (conteos, alertas, taller…): existe solo donde existe Unidades.
-  const projected = ids.has('unidades') ? [...destinations, ['control', 'Control', 'check']] : destinations
+  // catálogo (conteos, alertas, taller…): existe donde existe Unidades o, con el
+  // módulo «Inventario por unidades» apagado, donde el dueño ve Compras (alertas).
+  const projected = ids.has('unidades') || ids.has('compras') ? [...destinations, ['control', 'Control', 'check']] : destinations
   const sections = PRIMARY_SECTIONS.map(section => ({
     ...section,
-    // App de iPhone: la sección «Ventas» solo trae Pedidos y así se llama.
-    label: section.id === 'ventas' && isNativeIOS() ? 'Pedidos' : section.label,
+    label: section.label,
     items: section.destinations.flatMap(id => projected.filter(([key]) => key === id)),
   })).filter(section => section.items.length)
   const mapped = new Set(sections.flatMap(section => section.items.map(([id]) => id)))

@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { clickShellTab, openShellDestination } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Shell redesign (unit 1A): QA-A measured on the demo (frontend-only, no
 // backend) for owner, seller, technician and delivery in light and dark.
@@ -33,7 +35,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
@@ -51,6 +53,9 @@ async function setTheme(page, dark) {
 
 async function settle(page) {
   await expect(page.locator('main[aria-busy="true"]')).toHaveCount(0)
+  // La hoja «Más» se cierra con una animación de salida: medir cuando ya no está.
+  await expect(page.getByTestId('shell-mas-hoja')).toHaveCount(0)
+  await esperarAnimaciones(page)
   await expect(page.locator('main').first()).toContainText(/\S/)
   await page.waitForTimeout(150)
 }
@@ -104,7 +109,7 @@ test('owner Stock: tabs end at y<=110 at 1440 and header chrome stays compact at
   ]) {
     await openShellDestination(page, screen)
     await settle(page)
-    const nav = page.getByTestId(name === 'finanzas' || name === 'analisis' ? 'shell-pestanas' : 'shell-contexto')
+    const nav = page.getByTestId(name === 'finanzas' ? 'shell-pestanas' : 'shell-contexto')
     const b = await nav.boundingBox()
     expect(b.y + b.height, `${screen} tabs end`).toBeLessThanOrEqual(110)
   }
@@ -140,9 +145,9 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
 }) => {
   await page.setViewportSize({ width: 1024, height: 800 })
   await enterDemo(page)
-  // Larger text makes the seven Compras tabs wider than the row.
+  // Larger text makes the seven Stock tabs wider than the row.
   await page.addStyleTag({ content: 'html { font-size: 20px; }' })
-  await openShellDestination(page, 'Compras')
+  await openShellDestination(page, 'Unidades')
   await settle(page)
   const tabs = page.getByTestId('shell-contexto')
   const more = tabs.locator('[data-tab-more]')
@@ -159,30 +164,30 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
   // A hidden destination is reachable by clicking and then becomes the visible active tab.
   await openShellDestination(page, 'Métricas de abastecimiento')
   await expect(page).toHaveURL(/\/metricas$/)
-  await expect(tabs.locator('[data-tab-id="metricas"]')).toHaveAttribute('aria-current', 'page')
+  await expect(tabs.locator('[data-tab-id="abastecimiento"]')).toHaveAttribute('aria-current', 'page')
 })
 
-test('mobile owner bottom bar is Inicio, Vender, Ventas, Stock and Más; the sheet reaches the rest and Esc closes it', async ({
+test('mobile owner bottom bar is Inicio, Vender, Pedidos, Stock and Más; the sheet reaches the rest and Esc closes it', async ({
   page,
 }) => {
   await mkdir(out, { recursive: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)
   const bar = page.getByTestId('shell-bottom-nav')
-  await expect(bar.getByRole('button')).toHaveText(['Inicio', 'Vender', 'Ventas', 'Stock', 'Más'])
+  await expect(bar.getByRole('button')).toHaveText(['Inicio', 'Vender', 'Pedidos', 'Stock', 'Más'])
   const barBox = await bar.boundingBox()
   expect(barBox.height).toBeLessThanOrEqual(64)
   await page.getByTestId('shell-mas').click()
   const sheet = page.getByTestId('shell-mas-hoja')
   await expect(
     sheet.getByRole('button'),
-  ).toHaveText(['Clientes', 'Taller', 'Compras', 'Finanzas', 'Análisis', 'Configuración', 'Ayuda'])
+  ).toHaveText(['Clientes', 'Taller', 'Finanzas', 'Configuración', 'Ayuda'])
   await page.screenshot({ path: `${out}/390-owner-mas.png` })
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
   await page.getByTestId('shell-mas').click()
-  await sheet.getByRole('button', { name: 'Compras', exact: true }).click()
-  await expect(page).toHaveURL(/\/compras$/)
+  await sheet.getByRole('button', { name: 'Clientes', exact: true }).click()
+  await expect(page).toHaveURL(/\/clientes$/)
   await expect(page.getByTestId('shell-mas')).toHaveAttribute('aria-current', 'page')
   // The tab strip scrolls (no native select) and every tab is a 44px target.
   const strip = page.getByTestId('shell-contexto')
@@ -200,7 +205,7 @@ test('Configuración: second column with the sections on desktop, icon list on m
   await openShellDestination(page, 'Configuración')
   await settle(page)
   const rail = page.getByTestId('config-grupos')
-  await expect(rail.locator('[data-tab-id]')).toHaveCount(7)
+  await expect(rail.locator('[data-tab-id]')).toHaveCount(9)
   const xs = await rail
     .locator('[data-tab-id]')
     .evaluateAll(nodes => nodes.map(n => Math.round(n.getBoundingClientRect().x)))
@@ -213,7 +218,7 @@ test('Configuración: second column with the sections on desktop, icon list on m
   const lista = await rail.locator('[data-tab-id]').evaluateAll(nodes =>
     nodes.map(n => Math.round(n.getBoundingClientRect().y)),
   )
-  expect(new Set(lista).size, 'one row each').toBe(7)
+  expect(new Set(lista).size, 'one row each').toBe(9)
   await expect(rail.getByRole('combobox')).toHaveCount(0)
 })
 
@@ -296,6 +301,7 @@ for (const dark of [false, true]) {
         await page.getByTestId('shell-mas').click()
         await expect(page.getByTestId('shell-mas-hoja').getByText('Notificaciones')).toHaveCount(0)
         await page.keyboard.press('Escape')
+        await expect(page.getByTestId('shell-mas-hoja')).toHaveCount(0)
       } else {
         const side = page.getByTestId('shell-lateral')
         await expect(side.getByText('Notificaciones')).toHaveCount(0)
@@ -351,6 +357,9 @@ for (const dark of [false, true]) {
       await page.keyboard.press('Escape')
       await expect(bell).toHaveAttribute('aria-expanded', 'false')
       await expect(page.getByTestId('notificaciones-panel')).toHaveCount(0)
+      // La hoja de notificaciones sale con animación: medir cuando ya no queda ninguna fila suya.
+      await expect(page.locator('[data-testid^="notificaciones-panel"]')).toHaveCount(0)
+      await esperarAnimaciones(page)
       const m = await expectLayoutContract(page, `header ${width} ${dark ? 'dark' : 'light'}`)
       for (const kind of ['small', 'lowContrast'])
         for (const item of m[kind].filter(entry => entry.shell))
@@ -395,7 +404,8 @@ for (const dark of [false, true]) {
         expect(b.width, `${nombre} ancho`).toBeGreaterThanOrEqual(44)
         expect(b.height, `${nombre} alto`).toBeGreaterThanOrEqual(44)
         expect(b.x + b.width, `${nombre} dentro de la columna`).toBeLessThanOrEqual(box.x + box.width + 0.5)
-        expect(await boton.innerText(), `${nombre} sin texto visible`).toBe('')
+        // Sin rótulo: solo puede quedar la insignia numérica (Pedidos pendientes).
+        expect((await boton.innerText()).trim(), `${nombre} sin texto visible`).toMatch(/^\d*$/)
       }
       const sinTitle = await side.locator('[data-testid^="shell-pie-"], nav button').evaluateAll(els => els.filter(el => !el.getAttribute('title')).length)
       expect(sinTitle, 'tooltips en secciones y pie').toBe(0)

@@ -29,6 +29,19 @@ async function enterDemo(page) {
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
 }
 
+// Enter elige la primera coincidencia de la lista abierta. El combobox cierra su lista
+// 120 ms después de perder el foco, así que bajo carga ese cierre puede caer entre el
+// `fill` y el Enter: se reintenta el par completo hasta que el producto entra.
+async function agregarConEnter(page, buscador, texto, esperado) {
+  await expect(async () => {
+    await buscador.fill('')
+    await buscador.fill(texto)
+    await expect(page.getByRole('option', { name: new RegExp(texto) }).first()).toBeVisible({ timeout: 2_000 })
+    await buscador.press('Enter')
+    await expect(page.getByTestId('pos-bloque-carrito')).toContainText(esperado, { timeout: 2_000 })
+  }).toPass({ timeout: 20_000 })
+}
+
 async function agregarLineasDistintas(page, cantidad) {
   let candidatos = page.locator('.pos-product-card')
   for (let intento = 0; intento < 3; intento += 1) {
@@ -71,15 +84,11 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
   await expect(productos).toBeFocused()
   const [searchBox, catalogBox] = await Promise.all([productos.boundingBox(), page.getByTestId('pos-bloque-productos').boundingBox()])
   expect(searchBox.width).toBeGreaterThan(catalogBox.width * 0.85)
-  await productos.fill('Funda MagSafe')
-  await productos.press('Enter')
-  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('1 producto')
+  await agregarConEnter(page, productos, 'Funda MagSafe', '1 producto')
 
   await page.getByRole('button', { name: 'Agregar otro', exact: true }).click()
   await expect(productos).toBeFocused()
-  await productos.fill('Cable USB-C')
-  await productos.press('Enter')
-  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('2 productos')
+  await agregarConEnter(page, productos, 'Cable USB-C', '2 productos')
 
   await page.keyboard.press('F2')
   await expect(page.getByTestId('pos-cobro')).toBeVisible()
@@ -156,7 +165,7 @@ test('cobro: título y acciones de pagos mantienen separación en desktop', asyn
   await expect(cobro).toBeVisible()
   const titulo = cobro.getByText('Pagos de esta venta', { exact: true })
   const agregar = cobro.getByRole('button', { name: '+ Agregar pago', exact: true })
-  const gift = cobro.getByRole('button', { name: '+ Canjear gift card', exact: true })
+  const gift = cobro.getByRole('button', { name: 'Gift card', exact: true })
   const [t, a, g] = await Promise.all([titulo.boundingBox(), agregar.boundingBox(), gift.boundingBox()])
   const overlap = (one, two) => one.x < two.x + two.width && two.x < one.x + one.width && one.y < two.y + two.height && two.y < one.y + one.height
   expect(overlap(t, a)).toBe(false)

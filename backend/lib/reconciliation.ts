@@ -195,14 +195,48 @@ export type LockedPaymentRow = {
   method: string
   deliveryUserId: string | null
   deliverySettlementId: string | null
+  pendingReason: string | null
+  createdById: string | null
+  userId: string | null
+  dueAt: Date | null
 }
 
 /** Bloquea el pago para conciliarlo sin carreras con otro cobro/rendición. */
 export async function lockPaymentRow(tx: Prisma.TransactionClient, tenantId: string, paymentId: string): Promise<LockedPaymentRow | null> {
   const rows = await tx.$queryRaw<LockedPaymentRow[]>`
-    SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "deliveryUserId", "deliverySettlementId" FROM "Payment"
+    SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "deliveryUserId", "deliverySettlementId", "pendingReason", "createdById", "userId", "dueAt" FROM "Payment"
     WHERE "id" = ${paymentId} AND "tenantId" = ${tenantId} FOR UPDATE`
   return rows[0] ?? null
+}
+
+/**
+ * La cuota rechazada queda como intento fallido (REJECTED, sin vencimiento: ya no es una cuota) y se
+ * crea una cuota nueva idéntica en PENDING/CREDIT con el vencimiento y el monto originales. Así el
+ * intento rechazado conserva su comprobante y su conciliación, la cuota se puede volver a cobrar y la
+ * suma de cuotas + cobros confirmados sigue siendo el total de la venta (nada se duplica ni se pierde).
+ * Devuelve los datos de la cuota restaurada (para auditoría y aviso) o null si no corresponde.
+ */
+async function restoreRejectedInstallment(tx: Prisma.TransactionClient, { tenantId, userId, row }: { tenantId: string; userId: string; row: LockedPaymentRow }) {
+  if (!row.dueAt) return null
+  const order = await tx.order.findFirst({ where: { id: row.orderId, tenantId }, select: { status: true } })
+  if (!order || order.status === 'CANCELLED') return null
+  const original = await tx.payment.findUnique({ where: { id: row.id }, select: { createdById: true, userId: true, remindedAt: true, overdueRemindedAt: true, whatsappRemindedAt: true, whatsappOverdueRemindedAt: true } })
+  const plan = await tx.payment.findMany({ where: { orderId: row.orderId, tenantId, dueAt: { not: null } }, orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }], select: { id: true } })
+  const posicion = Math.max(1, plan.findIndex(item => item.id === row.id) + 1)
+  const nueva = await tx.payment.create({
+    data: {
+      tenantId, orderId: row.orderId, method: 'CREDIT', status: 'PENDING', pendingReason: 'CUOTA', amountPyg: row.amountPyg,
+      reference: `Cuota ${posicion}/${Math.max(plan.length, posicion)}`, dueAt: row.dueAt,
+      createdById: original?.createdById ?? userId, userId: original?.userId ?? userId,
+      remindedAt: original?.remindedAt ?? null, overdueRemindedAt: original?.overdueRemindedAt ?? null,
+      whatsappRemindedAt: original?.whatsappRemindedAt ?? null, whatsappOverdueRemindedAt: original?.whatsappOverdueRemindedAt ?? null,
+    },
+    select: { id: true },
+  })
+  await tx.payment.update({ where: { id: row.id }, data: { dueAt: null } })
+  const cuota = { installmentId: nueva.id, dueAt: row.dueAt.toISOString(), amountPyg: Number(row.amountPyg) }
+  await tx.auditLog.create({ data: { tenantId, userId, action: 'CREDIT_INSTALLMENT_RESTORED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, ...cuota } } })
+  return cuota
 }
 
 /**
@@ -212,11 +246,23 @@ export async function lockPaymentRow(tx: Prisma.TransactionClient, tenantId: str
  */
 export async function confirmReconciledPayment(
   tx: Prisma.TransactionClient,
-  { tenantId, userId, row, state, note }: { tenantId: string; userId: string; row: LockedPaymentRow; state: 'VERIFIED' | 'REJECTED'; note: string | null },
+  { tenantId, userId, row, state, note, via }: { tenantId: string; userId: string; row: LockedPaymentRow; state: 'VERIFIED' | 'REJECTED'; note: string | null; via?: string },
 ) {
   if (row.status !== 'PENDING' || row.deliveryUserId || row.deliverySettlementId) return false
   const nextStatus = state === 'VERIFIED' ? 'CONFIRMED' : 'REJECTED'
-  await tx.payment.update({ where: { id: row.id }, data: { status: nextStatus, ...(nextStatus === 'CONFIRMED' ? { paidAt: new Date() } : {}) } })
+  // El cobro cuenta desde que se aprueba: paidAt = fecha de aprobación (decisión de Dario).
+  const approvedAt = new Date()
+  let settlesAt: Date | undefined
+  if (nextStatus === 'CONFIRMED') {
+    // La acreditación estimada (tarjeta, PIX) corre desde la aprobación, no desde el cobro.
+    const snapshot = (await tx.payment.findUnique({ where: { id: row.id }, select: { accountSnapshot: true } }))?.accountSnapshot
+    const days = Number(snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) ? (snapshot as Record<string, unknown>).settlementDays : 0)
+    if (Number.isSafeInteger(days) && days > 0) settlesAt = new Date(approvedAt.getTime() + days * 86400000)
+  }
+  await tx.payment.update({ where: { id: row.id }, data: { status: nextStatus, ...(nextStatus === 'CONFIRMED' ? { paidAt: approvedAt, ...(settlesAt ? { settlesAt } : {}) } : {}) } })
+  // Una cuota del plan de crédito cobrada por un medio «a verificar» y rechazada no puede desaparecer:
+  // la deuda sigue abierta y tiene que seguir teniendo su cuota con el vencimiento original.
+  const cuotaRestaurada = nextStatus === 'REJECTED' && row.dueAt ? await restoreRejectedInstallment(tx, { tenantId, userId, row }) : null
   if (nextStatus === 'CONFIRMED') {
     const pedidos = await tx.$queryRaw<Array<{ id: string; status: string; totalPyg: number }>>`
       SELECT "id", "status"::text AS "status", "totalPyg" FROM "Order"
@@ -227,10 +273,9 @@ export async function confirmReconciledPayment(
       if ((paid._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
     }
   }
-  await tx.auditLog.create({ data: { tenantId, userId, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, amountPyg: row.amountPyg, method: row.method, note } } })
+  await tx.auditLog.create({ data: { tenantId, userId, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, amountPyg: row.amountPyg, method: row.method, note, pendingReason: row.pendingReason, ...(via ? { via } : {}), ...(cuotaRestaurada ? { cuotaRestaurada } : {}) } } })
   return true
 }
-
 
 export type DailyDeclaration = { method: string; accountId: string | null; currency: string; receivedPyg: number }
 export type DailyPayment = { id: string; method: string; accountId: string | null; currency: string | null; amountPyg: number | bigint; status: string; label?: string }

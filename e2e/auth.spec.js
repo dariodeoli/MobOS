@@ -254,11 +254,13 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
 
   // La garantía pendiente pasa al taller: la orden queda vinculada al caso.
   const pendiente = page.locator('[data-testid="servicio-garantia-fila"][data-tipo="GARANTIA"]').filter({ hasText: 'DEMO-W-0002' })
+  const desdeGarantiaAntes = await page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'Desde garantía' }).count()
   await pendiente.getByRole('button', { name: 'Pasar a servicio' }).click()
   await page.getByRole('alertdialog', { name: 'Pasar la garantía a servicio' }).getByRole('button', { name: 'Pasar a servicio' }).click()
   await expect(page.getByText(/quedó vinculada y el historial se conserva en este navegador/)).toBeVisible()
   await expect(pendiente.getByText('En servicio')).toBeVisible()
-  await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'OS-#0013' })).toContainText('Desde garantía')
+  // La orden nueva toma el siguiente número del historial demo (no uno fijo).
+  await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'Desde garantía' })).toHaveCount(desdeGarantiaAntes + 1)
   await page.screenshot({ path: '/tmp/qa224-demo-conversion.png' })
 
   expect(apiReal, `la demo no debe llamar al API real: ${apiReal.join(', ')}`).toEqual([])

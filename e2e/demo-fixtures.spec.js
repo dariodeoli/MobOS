@@ -7,6 +7,7 @@
 import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo'
+import { COTIZACIONES_DEMO } from '../src/lib/demo/cotizaciones.js'
 
 const salidaCapturas = process.env.MOBOS_324_CAPTURAS || ''
 
@@ -65,7 +66,7 @@ test('#324 · dueño: proveedores unificados y cola de impresión honesta', asyn
   await expect(page.getByText('Sin proveedores registrados.')).toHaveCount(0)
   await capturar(page, '02-dueno-proveedores')
 
-  await page.goto('/configuracion/dispositivos')
+  await page.goto('/configuracion/impresion')
   await page.getByRole('button', { name: 'Cola e historial' }).click()
   await expect(page.getByText('2 pendientes').first()).toBeVisible({ timeout: 25_000 })
   await capturar(page, '03-dueno-cola-impresion')
@@ -93,7 +94,7 @@ test('#324 · dueño: kardex, cotizaciones y reportes con cifras', async ({ page
   await page.goto('/cotizaciones')
   await expect(page.getByTestId('cotizacion-fila').first()).toBeVisible({ timeout: 25_000 })
   await expect(page.getByText('COT-#0018')).toBeVisible()
-  await expect(page.getByTestId('cotizacion-fila')).toHaveCount(6)
+  await expect(page.getByTestId('cotizacion-fila')).toHaveCount(COTIZACIONES_DEMO.length)
   await capturar(page, '05-dueno-cotizaciones')
 
   await page.goto('/productos')
@@ -137,7 +138,7 @@ test('#324 · dueño: abastecimiento completo, seguridad y sistema con datos', a
   await expect(page.getByText('Base de datos').first()).toBeVisible({ timeout: 25_000 })
   await capturar(page, '10-dueno-sistema')
 
-  await page.goto('/configuracion/dispositivos?panel=sincronizacion')
+  await page.goto('/configuracion/impresion?panel=sincronizacion')
   await expect(page.getByTestId('impresoras-sync-trabajos')).toContainText('2 pendientes')
   await capturar(page, '11-dueno-impresoras')
 })

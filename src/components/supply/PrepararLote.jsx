@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import { estadoEnvioTexto, metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resources } from '@/lib/api'
-import { Badge, Button, Card, EmptyState, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Skeleton, Stat, useToast } from '@/components/ui'
 import EncabezadoFlujo from '@/components/supply/AyudaFlujo'
 import PanelEscaneoSeriales from '@/components/supply/PanelEscaneoSeriales'
 import { getProductos } from '@/lib/storage'
@@ -109,21 +112,23 @@ export default function PrepararLote() {
   const totalPendientes = totalPendienteLotes(envios)
 
   return (
-    <div className="space-y-4" data-testid="preparar-lote">
-      <Card className="p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <EncabezadoFlujo className="min-w-0 flex-1" paso="lotes" onIr={(paso) => navigate(paso.ruta)} />
-          <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
+    <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="preparar-lote">
+      <EncabezadoFlujo
+        className="min-w-0 w-full"
+        paso="lotes"
+        onIr={(paso) => navigate(paso.ruta)}
+        accion={(
+          <Button type="button" variant="outline" data-testid="flujo-actualizar" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
           </Button>
-        </div>
-        {envios.length > 0 && (
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
-            <Badge color="blue">{envios.length} lote{envios.length === 1 ? '' : 's'}</Badge>
-            <Badge color="orange">{totalPendientes} IMEI pendiente{totalPendientes === 1 ? '' : 's'}</Badge>
-          </p>
         )}
-      </Card>
+      />
+      {envios.length > 0 && (
+        <StatGrid testId="preparar-lote-resumen" etiqueta="Resumen de lotes">
+          <Stat compact label="Lotes" valor={`${envios.length} lote${envios.length === 1 ? '' : 's'}`} />
+          <Stat compact label="Pendientes" valor={`${totalPendientes} IMEI pendiente${totalPendientes === 1 ? '' : 's'}`} valorClassName={totalPendientes > 0 ? 'text-warn' : ''} />
+        </StatGrid>
+      )}
 
       {filtroLote && (
         <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="preparar-lote-filtro">

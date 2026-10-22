@@ -3,7 +3,11 @@
 // convertida, vencida) con clientes y artículos del catálogo demo.
 // Las dos que ya viven en la ficha del cliente (Lucía y Carlos) se repiten acá
 // con el mismo número y total para no contradecir la ficha ni el portal.
+import { instanteDemo } from './reloj.js'
+
 const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString()
+// Hace N minutos pero nunca antes del inicio de hoy: «Hoy» no se vacía a la madrugada.
+const haceMinutos = (minutos) => new Date(Math.max(new Date(instanteDemo(0, 0, 0)).getTime(), Date.now() - minutos * 60000)).toISOString()
 const vence = (dias) => new Date(Date.now() + dias * 86400000).toISOString()
 
 const item = (description, quantity, unitPricePyg) => ({
@@ -13,7 +17,7 @@ const item = (description, quantity, unitPricePyg) => ({
   totalPyg: quantity * unitPricePyg,
 })
 
-const cotizacion = ({ id, number, status, customerId, customerName, sellerId, sellerName, dias, validaDias, descuentoPyg = 0, items = [], order = null }) => {
+const cotizacion = ({ id, number, status, customerId, customerName, sellerId, sellerName, dias, minutos = null, validaDias, descuentoPyg = 0, items = [], order = null }) => {
   const subtotalPyg = items.reduce((suma, linea) => suma + linea.totalPyg, 0)
   return {
     id,
@@ -33,8 +37,8 @@ const cotizacion = ({ id, number, status, customerId, customerName, sellerId, se
     // Lucía y Carlos (`demo-cot-lucia`/`demo-cot-carlos`), así el enlace del
     // pipeline y el del portal no se contradicen.
     publicToken: `demo-${id}`,
-    createdAt: hace(dias),
-    updatedAt: hace(Math.max(0, dias - 1)),
+    createdAt: minutos != null ? haceMinutos(minutos) : hace(dias),
+    updatedAt: minutos != null ? haceMinutos(Math.max(1, minutos - 5)) : hace(Math.max(0, dias - 1)),
     order,
   }
 }
@@ -69,6 +73,22 @@ export const COTIZACIONES_DEMO = [
   cotizacion({
     id: 'cot-ana', number: 'COT-#0009', status: 'EXPIRED', customerId: 'demo-cliente-ana', customerName: 'Ana Villalba',
     sellerId: 'demo-user-vendedora', sellerName: 'Sofía Cáceres', dias: 40, validaDias: -25,
+    items: [item('AirPods Pro 2 USB-C', 1, 1850000)],
+  }),
+  // Recién y de hoy: el pipeline siempre tiene movimiento del día.
+  cotizacion({
+    id: 'cot-natalia', number: 'COT-#0021', status: 'SENT', customerId: 'demo-cliente-natalia', customerName: 'Natalia Britez',
+    sellerId: 'demo-user-vendedora', sellerName: 'Sofía Cáceres', minutos: 9, validaDias: 7,
+    items: [item('iPhone 15 Pro 256GB Titanio', 1, 6850000), item('Funda MagSafe Transparente', 1, 180000)],
+  }),
+  cotizacion({
+    id: 'cot-bruno', number: 'COT-#0022', status: 'ACCEPTED', customerId: 'demo-cliente-bruno', customerName: 'Bruno Insfrán',
+    sellerId: 'demo-user-vendedor', sellerName: 'Diego López', minutos: 190, validaDias: 5, descuentoPyg: 100000,
+    items: [item('iPhone 14 256GB Azul', 1, 3950000)],
+  }),
+  cotizacion({
+    id: 'cot-camila', number: 'COT-#0023', status: 'DRAFT', customerId: 'demo-cliente-camila', customerName: 'Camila Arévalo',
+    sellerId: 'demo-user-gerente', sellerName: 'Ana Giménez', dias: 8, validaDias: 6,
     items: [item('AirPods Pro 2 USB-C', 1, 1850000)],
   }),
 ]

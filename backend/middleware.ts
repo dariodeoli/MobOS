@@ -5,6 +5,8 @@ import { INTERNAL_CLIENT_IP_HEADER, INTERNAL_COOKIE_HEADER, INTERNAL_PASS_HEADER
 import { MOBOS_ALLOWED_APP_ORIGINS, MOBOS_IDENTITY, MOBOS_IDENTITY_HEADERS, MOBOS_LEGACY_API_HOSTS } from './lib/identity'
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/
+// Rutas públicas de la demo: sin credenciales ni cookies y con CORS sin credenciales.
+const PUBLIC_DEMO_PATHS = new Set(['/api/public/ruc', '/api/public/demo-email'])
 // Cabeceras hop-by-hop: no se copian sobre la respuesta proxeada.
 const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'])
 
@@ -79,7 +81,7 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   const path = new URL(request.url).pathname
   const forwardHeaders = new Headers(requestHeaders)
   forwardHeaders.delete('host')
-  if (path === '/api/public/ruc') {
+  if (PUBLIC_DEMO_PATHS.has(path)) {
     forwardHeaders.delete('authorization')
     forwardHeaders.delete('cookie')
   }
@@ -124,7 +126,7 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   // #404: los bytes de una foto de producto tienen id inmutable y la ruta los declara
   // privados con caché larga; es la única excepción al no-store del API.
   const cacheFoto = method === 'GET' && status < 400 && /^\/api\/products\/[^/]+\/images\/[^/]+$/.test(path) && /^private, max-age=\d+(, immutable)?$/.test(upstream.headers.get('cache-control') || '') ? upstream.headers.get('cache-control') || undefined : undefined
-  const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId, cacheFoto, path === '/api/public/ruc')
+  const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId, cacheFoto, PUBLIC_DEMO_PATHS.has(path))
   const ms = Date.now() - startedAt
   if (status >= 500) logError('request_error', { requestId, method, path, status, ms })
   // Diagnóstico temporal de accesos con cookie: un 401 inesperado en flujos
@@ -155,7 +157,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const origin = request.headers.get('origin') || ''
-  const publicRuc = new URL(request.url).pathname === '/api/public/ruc'
+  const publicRuc = PUBLIC_DEMO_PATHS.has(new URL(request.url).pathname)
   const requestId = resolveRequestId(request)
   const startedAt = Date.now()
   const requestHeaders = new Headers(request.headers)

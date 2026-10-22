@@ -3,12 +3,14 @@ import { Aviso, Button, Input, MoneyInput, Select } from '@/components/ui'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import { textoMostrando } from '@/components/shared/paginacion'
 import Icon from '@/components/shared/Icon'
+import Popup from '@/components/shared/Popup'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
 import SelectorVariante from './SelectorVariante'
 import PrecioStockProducto from './PrecioStockProducto'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import EncabezadoBloque from './EncabezadoBloque'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
@@ -18,10 +20,20 @@ import { categoriaMeta } from '@/lib/categoriasProducto'
 import { cn } from '@/lib/utils'
 
 const FILAS_INICIALES = 4
+// En la lista cada producto es una fila compacta: entran más por pantalla.
+const FILAS_LISTA = 14
+const CLAVE_VISTA = 'mobos:pos-catalogo-vista'
+
+function leerVista() {
+  try { return localStorage.getItem(CLAVE_VISTA) === 'lista' ? 'lista' : 'cuadricula' } catch { return 'cuadricula' }
+}
+function guardarVista(vista) {
+  try { localStorage.setItem(CLAVE_VISTA, vista) } catch { /* sin almacenamiento: la preferencia dura la sesión */ }
+}
 
 // Columnas reales de la grilla (auto-fill/breakpoints): la primera página
 // llena FILAS_INICIALES filas completas en cualquier ancho.
-function useColumnasGrilla(ref) {
+function useColumnasGrilla(ref, vista) {
   const [columnas, setColumnas] = useState(2)
   useEffect(() => {
     const el = ref.current
@@ -36,7 +48,7 @@ function useColumnasGrilla(ref) {
     const obs = new ResizeObserver(medir)
     obs.observe(el)
     return () => obs.disconnect()
-  }, [ref])
+  }, [ref, vista])
   return columnas
 }
 
@@ -49,13 +61,13 @@ export default function PasoProductos({
   productos,
   nuevoProd,
   setNuevoProd,
-  nombreProd,
+  nombreProd = '',
   setNombreProd,
   nuevoDetalles,
   setNuevoDetalles,
   colorInput,
   setColorInput,
-  coloresNuevos,
+  coloresNuevos = [],
   setColoresNuevos,
   agregarColor,
   puedeCrearProducto,
@@ -83,8 +95,14 @@ export default function PasoProductos({
   onAgregarOtro = null,
   onCobrar = null,
 }) {
+  const { activo: moduloOn } = useModulos()
+  const mayoristas = moduloOn('mayoristas')
   const grillaRef = useRef(null)
-  const columnas = useColumnasGrilla(grillaRef)
+  const [vista, setVista] = useState(leerVista)
+  const columnasGrilla = useColumnasGrilla(grillaRef, vista)
+  const enLista = vista === 'lista'
+  const columnas = enLista ? FILAS_LISTA / FILAS_INICIALES : columnasGrilla
+  function elegirVista(nueva) { setVista(nueva); guardarVista(nueva) }
   // Con stock primero (lo vendible a mano); el resto conserva el orden del
   // catálogo. La búsqueda ya filtra el catálogo completo: solo se pagina lo
   // que se dibuja.
@@ -131,21 +149,39 @@ export default function PasoProductos({
           extra={
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2">
               <span className="shrink-0 text-xs font-medium text-fono-light">{catalogoServidor ? catalogoServidor.total : productos.length} disponibles</span>
+              {puedeCrearProducto && (
+                <button
+                  type="button"
+                  data-testid="pos-nuevo-producto"
+                  onClick={() => setNuevoProd(true)}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-9"
+                >
+                  <Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto
+                </button>
+              )}
               {acciones}
             </div>
           }
         />
-        {nuevoProd ? (
-          <div className="space-y-3 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.07] to-transparent p-4">
-            <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-fono/15 text-fono-light">
-                <Icon name="plus" className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-bold">Nuevo producto</p>
-                <p className="text-[11px] text-mute">Se guarda en el catálogo y entra a esta venta.</p>
-              </div>
-            </div>
+        <Popup
+          open={Boolean(nuevoProd)}
+          onClose={cancelarNuevoProd}
+          busy={creandoProd}
+          tipo="formulario"
+          tamano="md"
+          title="Nuevo producto"
+          description="Se guarda en el catálogo y entra a esta venta."
+          testId="pos-nuevo-producto-popup"
+          acciones={{
+            primaria: {
+              label: creandoProd ? 'Creando…' : `Crear${coloresNuevos.length > 0 ? ` (${coloresNuevos.length} colores)` : ''}`,
+              onClick: crearProducto,
+              disabled: creandoProd || !nombreProd.trim(),
+            },
+            secundaria: { label: 'Cancelar', cierra: true, disabled: creandoProd },
+          }}
+        >
+          <div className="space-y-3">
             <Input
               autoFocus
               value={nombreProd}
@@ -214,17 +250,19 @@ export default function PasoProductos({
                   placeholder="0"
                 />
               </label>
-              <label className="block text-xs text-mute">
-                Precio mayorista (Gs)
-                <MoneyInput
-                  className="mt-1"
-                  value={nuevoDetalles.mayorista}
-                  onValueChange={v =>
-                    setNuevoDetalles(d => ({ ...d, mayorista: v === '' ? '' : String(v) }))
-                  }
-                  placeholder="Opcional"
-                />
-              </label>
+              {mayoristas && (
+                <label className="block text-xs text-mute">
+                  Precio mayorista (Gs)
+                  <MoneyInput
+                    className="mt-1"
+                    value={nuevoDetalles.mayorista}
+                    onValueChange={v =>
+                      setNuevoDetalles(d => ({ ...d, mayorista: v === '' ? '' : String(v) }))
+                    }
+                    placeholder="Opcional"
+                  />
+                </label>
+              )}
               <label className="block text-xs text-mute">
                 Costo (Gs)
                 <MoneyInput
@@ -279,30 +317,11 @@ export default function PasoProductos({
                 cambia en la fila de la venta.
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                onClick={crearProducto}
-                disabled={creandoProd || !nombreProd.trim()}
-                className="flex-1"
-              >
-                {creandoProd ? 'Creando…' : `Crear${coloresNuevos.length > 0 ? ` (${coloresNuevos.length} colores)` : ''}`}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label="Cancelar producto nuevo"
-                onClick={cancelarNuevoProd}
-                disabled={creandoProd}
-              >
-                <Icon name="close" className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
-        ) : (
+        </Popup>
           <>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <div id="pos-busqueda-producto" className="relative min-w-0 basis-full">
+              <div id="pos-busqueda-producto" className="relative min-w-0 flex-1 basis-56">
                 <ProductCombobox
                   products={productos}
                   placeholder="Buscar producto…"
@@ -345,34 +364,44 @@ export default function PasoProductos({
                   Cobrar <kbd className="rounded bg-black/15 px-1.5 py-0.5 font-mono text-[10px]">F2</kbd>
                 </button>
               )}
-              {puedeCrearProducto && (
-                <button
-                  type="button"
-                  onClick={() => setNuevoProd(true)}
-                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
-                >
-                  <Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto
-                </button>
-              )}
             </div>
-            {setAccesorio && (
-              <div className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="pos-chips-accesorio">
-                {[['todas', { label: 'Todos', icon: 'grid' }], ...CLAVES_ACCESORIO.map(clave => [clave, CATEGORIAS_ACCESORIO[clave]])].map(([clave, meta]) => (
+            <div className="mb-2 flex items-center gap-2">
+              {setAccesorio ? (
+                <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="pos-chips-accesorio">
+                  {[['todas', { label: 'Todos', icon: 'grid' }], ...CLAVES_ACCESORIO.map(clave => [clave, CATEGORIAS_ACCESORIO[clave]])].map(([clave, meta]) => (
+                    <button
+                      key={clave}
+                      type="button"
+                      aria-pressed={accesorio === clave}
+                      onClick={() => setAccesorio(clave)}
+                      className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition md:min-h-8', accesorio === clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+                    >
+                      <Icon name={meta.icon} className="h-3.5 w-3.5" />{meta.label}
+                    </button>
+                  ))}
+                </div>
+              ) : <span className="flex-1" />}
+              <div role="group" aria-label="Vista del catálogo" data-testid="pos-vista-catalogo" className="flex shrink-0 gap-0.5 rounded-lg border border-ink-600 p-0.5">
+                {[['cuadricula', 'grid', 'Cuadrícula'], ['lista', 'list', 'Lista']].map(([clave, icono, etiqueta]) => (
                   <button
                     key={clave}
                     type="button"
-                    aria-pressed={accesorio === clave}
-                    onClick={() => setAccesorio(clave)}
-                    className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition md:min-h-8', accesorio === clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+                    data-testid={`pos-vista-${clave}`}
+                    aria-pressed={vista === clave}
+                    aria-label={etiqueta}
+                    title={etiqueta}
+                    onClick={() => elegirVista(clave)}
+                    className={cn('inline-flex h-11 w-11 items-center justify-center rounded-md transition md:h-8 md:w-8', vista === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
                   >
-                    <Icon name={meta.icon} className="h-3.5 w-3.5" />{meta.label}
+                    <Icon name={icono} className="h-4 w-4" />
                   </button>
                 ))}
               </div>
-            )}
+            </div>
             <div
               ref={grillaRef}
-              className="pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3"
+              data-vista={vista}
+              className={enLista ? 'pos-product-list flex flex-col gap-1.5' : 'pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3'}
               aria-label="Resultados de productos"
             >
               {!esDemo && combos.length > 0 && (
@@ -410,6 +439,35 @@ export default function PasoProductos({
                 const unidadesFamilia = fam.items.reduce((suma, item) => suma + num(item.unitsCount), 0)
                 // #404: con foto, el stock se abrevia a la cifra para que la columna angosta no haga crecer la tarjeta.
                 const fotoFamilia = p.thumbUrl || p.imagen || p.imageUrl || p.imagenes?.[0] || ''
+                if (enLista) {
+                  return (
+                    <button
+                      type="button"
+                      key={fam.base}
+                      disabled={guardando}
+                      onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
+                      className="pos-product-card pos-product-fila flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl border border-ink-600 px-2.5 py-1.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
+                    >
+                      <FotoProducto
+                        src={fotoFamilia}
+                        size={36}
+                        icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || categoriaMeta(p).icon}
+                      />
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <strong className="line-clamp-1 break-words text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
+                        <PrecioStockProducto fila productos={fam.items} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
+                        {unidadesFamilia > 0 && (
+                          <span className="truncate text-[11px] text-mute">
+                            {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
+                          </span>
+                        )}
+                      </span>
+                      <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light">
+                        <Icon name="plus" className="h-4 w-4" />
+                      </span>
+                    </button>
+                  )
+                }
                 return (
                   <button
                     type="button"
@@ -499,7 +557,6 @@ export default function PasoProductos({
               </div>
             )}
           </>
-        )}
       </section>
 
       {/* #308: con más de una variante no se elige sola: selector obligatorio. */}

@@ -13,6 +13,8 @@ import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionTabs from '@/components/app/SectionTabs'
 import { claveBadge, useBadgesPestanas } from '@/lib/badgesPestanas'
+import { usePendientesAprobacion } from '@/hooks/usePendientesAprobacion'
+import { infoBadge } from '@/components/app/sectionTabsBadge'
 import PageHeader from '@/components/app/PageHeader'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import { RecordSlotContext } from '@/components/app/RecordHeader'
@@ -38,6 +40,7 @@ import {
   segmentosEnToolbar,
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
+import '@/styles/visual-v3.css'
 
 function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
   if (sinEmpresa > 0) return `${sinEmpresa} venta${sinEmpresa === 1 ? '' : 's'} sin empresa por confirmar`
@@ -112,6 +115,7 @@ export default function AppShell({
     demo: esDemo && notificacionesActivas,
   })
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
+  usePendientesAprobacion({ rol: usuarioActual?.role, esDemo, activo: Boolean(usuarioActual?.id) })
   const enLinea = useOnlineStatus()
   // A1 (#279): si el dispositivo ya autorizó los avisos, se re-registra la
   // suscripción al arrancar (el endpoint puede cambiar). No pide permiso.
@@ -299,7 +303,7 @@ export default function AppShell({
     ? undefined
     : profileDestinations.find(([id]) => id === 'equipo')
   const helpDestination = profileDestinations.find(([id]) => id === 'ayuda')
-  const sectionButton = (section, { children: label, ...extra } = {}) => (
+  const sectionButton = (section, { children: label, pendientes = 0, ...extra } = {}) => (
     <button
       key={section.id}
       type="button"
@@ -314,6 +318,9 @@ export default function AppShell({
         className={cn('h-[18px] w-[18px] shrink-0', currentId === section.id && 'text-fono-light')}
       />
       {label}
+      {infoBadge({ badge: pendientes }) && (
+        <span data-testid="menu-badge-pendientes" aria-label={infoBadge({ badge: pendientes }).etiqueta} className="ml-auto inline-grid min-w-5 place-items-center rounded-full bg-warn/20 px-1.5 text-[11px] font-bold tabular-nums text-warn">{infoBadge({ badge: pendientes }).texto}</span>
+      )}
     </button>
   )
 
@@ -325,10 +332,28 @@ export default function AppShell({
         currentId === section.id && 'bg-ink-700 font-semibold text-fore',
       ),
       children: !collapsed && section.label,
+      pendientes: section.id === 'pedidos' ? badgesPestanas[claveBadge('pedidos', 'autorizaciones')] : 0,
     })
 
-  const groupTabs = pageTabs ? null : contextGroups.length > 1 ? contextGroups : null
-  const tabsNode = pageTabs ? (
+  // Pestañas de contexto (nivel 1) y las de la propia página (Inicio › Reportes
+  // trae las suyas): cuando hay las dos van en UNA fila, con las de la página en
+  // el lugar de su grupo (Resumen · Reportes · Ventas del día … · Operaciones).
+  const groupTabs = contextGroups.length > 1 ? contextGroups : null
+  const itemsContexto = groupTabs
+    ? groupTabs.map(group => ({ ...group, badge: badgesPestanas[claveBadge(currentSection.id, group.id)], badgeLabel: 'pendientes' }))
+    : null
+  const fusionadas = groupTabs && pageTabs
+    ? itemsContexto.flatMap(group => (group.items.some(([id]) => id === active) ? pageTabs.items.map(([id, label]) => ({ id, label })) : [group]))
+    : null
+  const tabsNode = fusionadas ? (
+    <SectionTabs
+      testId="shell-contexto"
+      label={pageTabs.label}
+      items={fusionadas}
+      value={pageTabs.value}
+      onChange={id => (pageTabs.items.some(([tabId]) => tabId === id) ? pageTabs.onChange(id) : navegar(contextGroups.find(group => group.id === id).items[0][0]))}
+    />
+  ) : pageTabs ? (
     <SectionTabs
       testId="shell-pestanas"
       label={pageTabs.label}
@@ -340,7 +365,7 @@ export default function AppShell({
     <SectionTabs
       testId="shell-contexto"
       label={`Secciones de ${currentSection.label}`}
-      items={groupTabs.map(group => ({ ...group, badge: badgesPestanas[claveBadge(currentSection.id, group.id)], badgeLabel: 'pendientes' }))}
+      items={itemsContexto}
       value={currentGroup?.id}
       onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
     />
@@ -480,7 +505,8 @@ export default function AppShell({
         <PageHeader
           title={title}
           subtitle={subtitle}
-          actions={<>{headerActions}{esDemo && <DemoVerComo entrarDemo={entrarDemo} />}</>}
+          // En celular con Stock compacto «Ver como» queda en el menú de perfil: solo, ocuparía una fila entera.
+          actions={headerActions || (esDemo && !(stockCompacto && angosta)) ? <>{headerActions}{esDemo && !(stockCompacto && angosta) && <DemoVerComo entrarDemo={entrarDemo} />}</> : null}
           aviso={esDemo && !enConfigMenu && !(stockCompacto && angosta) ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}

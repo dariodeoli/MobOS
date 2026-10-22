@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { openShellDestination } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // Unit 2C (Ventas e Inicio): QA-A on Inicio, /ops, Pedidos, Cotizaciones,
 // Clientes, Entregas and Taller at 375/768/1280/1440, light and dark. Demo
@@ -27,7 +28,7 @@ async function enterDemo(page, role = 'Dueño') {
   await page.route(/https:\/\//, route => route.abort())
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
@@ -574,10 +575,15 @@ for (const dark of [false, true]) {
       await page.setViewportSize({ width, height: 900 })
       await openShellDestination(page, 'Configuración')
       const lista = page.getByTestId('config-grupos')
-      await expect(lista.locator('[data-tab-id]')).toHaveCount(7)
+      // Configuración tiene 9 grupos desde la navegación por módulos.
+      await expect(lista.locator('[data-tab-id]')).toHaveCount(9)
       for (const item of await lista.locator('[data-tab-id]').all()) {
         expect((await item.boundingBox()).height).toBeGreaterThanOrEqual(44)
       }
+      // El menú de Configuración no lleva aviso de la demo (ahorra espacio): se mide en Pedidos.
+      await expect(page.getByTestId('demo-aviso')).toHaveCount(0)
+      await openShellDestination(page, 'Pedidos')
+      await esperarAnimaciones(page)
       const aviso = page.getByTestId('demo-aviso')
       const marco = await aviso.boundingBox()
       for (const boton of await aviso.getByRole('button').all()) {

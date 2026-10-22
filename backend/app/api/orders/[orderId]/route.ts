@@ -13,6 +13,8 @@ import { numero } from '../../../../lib/montos'
 import { withItemWarranty } from '../../../../lib/order-warranty'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
+import { creditTermEnabled, effectiveCreditLimits, parseCreditConfig, resolveCreditTerm } from '../../../../lib/credit-config'
+import { assertNoPaymentInVerification } from '../../../../lib/payment-verification'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -20,6 +22,7 @@ const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
     include: {
       proofs: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
       createdBy: { select: { id: true, name: true } },
+      reconciliation: { select: { state: true, note: true, resolvedVia: true, resolvedAt: true, verifiedBy: { select: { id: true, name: true } } } },
     },
   },
   customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
@@ -55,7 +58,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       include: {
         items: true,
         payments: { select: { amountPyg: true, status: true } },
-        customer: { select: { id: true, name: true, creditLimitPyg: true, creditDays: true } },
+        customer: { select: { id: true, name: true, creditLimitPyg: true, creditDays: true, creditTolerancePct: true, creditTermMode: true, creditDayOfMonth: true, creditInstallments: true } },
       },
     })
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
@@ -175,12 +178,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       // Una venta que superó el crédito del cliente no sale hasta que un
       // administrador o gerente la autorice (ni siquiera lo salta un admin).
       entregando = true
+      // Un cobro en verificación frena la entrega ANTES de mirar el crédito: si no, un cliente con
+      // crédito convertiría en silencio un PIX pendiente en venta a crédito.
+      await assertNoPaymentInVerification(prisma, tenant, existing.id)
       await assertCreditCleared(prisma, tenant, existing.id) // chequeo temprano; el definitivo va en la transacción
       const pagado = netPaid(existing.payments)
       pendingDeliveryPyg = Math.max(0, numero(existing.totalPyg) - pagado)
       if (pendingDeliveryPyg > 0) {
-        const credito = existing.customer && numero(existing.customer.creditLimitPyg) > 0 && Number(existing.customer.creditDays || 0) > 0
-          ? { creditDays: Number(existing.customer.creditDays) }
+        const tenantRow = await prisma.tenant.findUnique({ where: { id: tenant }, select: { settings: true } })
+        const config = parseCreditConfig(tenantRow?.settings)
+        const credito = existing.customer && effectiveCreditLimits(existing.customer, config).limitPyg > 0 && creditTermEnabled(existing.customer, config)
+          ? resolveCreditTerm({ customer: existing.customer, config, unpaidPyg: pendingDeliveryPyg })
           : null
         if (credito) {
           // Entregar con saldo convierte el pedido en venta a crédito: el crédito
@@ -188,7 +196,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           // vs. el límite). Si lo supera, hace falta la autorización de crédito.
           if (!existing.creditDays) {
             creditGate = { customerId: existing.customer!.id, pendingPyg: pendingDeliveryPyg }
-            creditUpdate = { creditDays: credito.creditDays, dueAt: new Date(Date.now() + credito.creditDays * 86400000) }
+            creditUpdate = { creditDays: credito.creditDays, dueAt: credito.dueAt }
           }
         } else if (!canApproveOrderDiscount(session.user)) {
           const rawDeliveryAuthorizationId = body.deliveryAuthorizationId
@@ -203,6 +211,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     }
     const order = await prisma.$transaction(async tx => {
       if (entregando) {
+        await assertNoPaymentInVerification(tx, tenant, existing.id)
         await assertCreditCleared(tx, tenant, existing.id)
         if (creditGate) await assertCreditAvailableForDelivery(tx, { tenantId: tenant, orderId: existing.id, customerId: creditGate.customerId, pendingPyg: creditGate.pendingPyg })
       }

@@ -6,15 +6,15 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto, updateGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
-import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Stat, FormField, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
+import StatGrid from '@/components/shared/StatGrid'
+import BarraGestion from '@/components/shared/BarraGestion'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import useValidacionFormulario from '@/hooks/useValidacionFormulario'
 import { ETIQUETAS_GASTO, reglasGasto, valoresGasto } from '@/lib/validacionGlobal'
-import { temaV2Activo } from '@/lib/temaV2'
-import { cn } from '@/lib/utils'
 import { KIND_LABELS } from '@/lib/paymentAccounts'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { CLAVES_FIN, MONEDAS_DE_GASTO, cuentaDeGastoValida } from '@/lib/finUltimoUsado'
@@ -48,7 +48,6 @@ const montoVisible = (row) => {
 
 export default function Gastos() {
   const { esDemo, sucursal, empresa, sesion } = useSesion()
-  const v2 = temaV2Activo()
   const [form, setForm] = useState(inicial)
   // #311: el alta vive en un cajón; el libro queda como protagonista y el
   // formulario no compite abierto dentro de la página.
@@ -140,23 +139,43 @@ export default function Gastos() {
   const total = rows.filter(row => row.kind === 'EXPENSE' && row.status !== 'VOID').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
   const chequesPendientes = rows.filter(row => row.kind === 'CHEQUE' && row.status === 'PENDING').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
 
-  return <div className="space-y-3">
-    <div className="grid gap-3 sm:grid-cols-3" data-testid="gastos-resumen">
-      <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="gastos-total"><p className="text-xs leading-4 text-mute">Gastos (sin anular)</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(total)}</strong></div>
-      <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="gastos-cheques"><p className="text-xs leading-4 text-mute">Cheques pendientes</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl', chequesPendientes > 0 ? 'text-warn' : 'text-mute')}>{gs(chequesPendientes)}</strong></div>
-      <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="gastos-movimientos"><p className="text-xs leading-4 text-mute">Movimientos en el libro</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{rows.length}</strong></div>
-    </div>
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-bold">Gastos, cheques y adelantos</h2>
-          <p className="mt-1 text-sm text-mute">Registrá la salida en un cajón y seguí en el libro: la cotización queda congelada al guardar y los cheques quedan pendientes hasta cobrarse o anularse.</p>
-          {hayRecordado && <p className="mt-1 text-xs text-mute">Tipo, moneda y cuenta arrancan con tu última elección; podés cambiarlos.</p>}
-        </div>
-        <Button type="button" onClick={() => { setMessage(''); validacion.limpiar(); setDrawerOpen(true) }}>Registrar movimiento</Button>
+  const [busqueda, setBusqueda] = useState('')
+  const [tab, setTab] = useState('todos')
+  const TABS = [['todos', 'Todos'], ['EXPENSE', 'Gastos'], ['CHEQUE', 'Cheques'], ['otros', 'Otros']]
+  const visibles = rows.filter(row => {
+    if (tab === 'otros' ? (row.kind === 'EXPENSE' || row.kind === 'CHEQUE') : tab !== 'todos' && row.kind !== tab) return false
+    const q = busqueda.trim().toLowerCase()
+    if (!q) return true
+    return [row.description, row.motivo, row.counterparty, row.reference, KINDS[row.kind]].filter(Boolean).join(' ').toLowerCase().includes(q)
+  })
+  const abrirAlta = () => { setMessage(''); validacion.limpiar(); setDrawerOpen(true) }
+
+  return <div className="gp ventas-f3 space-y-3" data-testid="gastos-pagina">
+    <div className="gp-cabecera">
+      <div className="min-w-0">
+        <h2>Gastos, cheques y adelantos</h2>
+        {hayRecordado && <p className="text-xs">Tipo, moneda y cuenta arrancan con tu última elección; podés cambiarlos.</p>}
       </div>
-      {message && <Aviso tono="error" className="p-3">{message}</Aviso>}
-    </Card>
+    </div>
+    <BarraGestion
+      etiqueta="Acciones de Gastos"
+      testId="barra-gastos"
+      buscar={busqueda}
+      onBuscar={setBusqueda}
+      placeholder="Descripción, contraparte o referencia"
+      ariaBuscar="Buscar movimientos"
+      tabs={TABS}
+      tab={tab}
+      onTab={setTab}
+      etiquetaTabs="Tipo de movimiento"
+      primary={<Button type="button" onClick={abrirAlta}>Registrar movimiento</Button>}
+    />
+    <StatGrid testId="gastos-resumen" className="" etiqueta="Resumen de gastos">
+      <Stat compact testId="gastos-total" label="Gastos (sin anular)" valor={gs(total)} valorClassName="text-bad" />
+      <Stat compact testId="gastos-cheques" label="Cheques pendientes" valor={gs(chequesPendientes)} valorClassName={chequesPendientes > 0 ? 'text-warn' : 'text-mute'} />
+      <Stat compact testId="gastos-movimientos" label="Movimientos en el libro" valor={rows.length} />
+    </StatGrid>
+    {message && <Aviso tono="error" className="p-3">{message}</Aviso>}
     <Popup open={drawerOpen} onClose={() => !busy && setDrawerOpen(false)} title="Registrar salida, cheque o adelanto">
       <form onSubmit={save} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <FormField label={`Monto ${form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}`} htmlFor="monto-gasto" error={validacion.errorDe('monto')}>
@@ -196,8 +215,8 @@ export default function Gastos() {
         <div className="flex items-end"><Button type="submit" disabled={busy || !validacion.valido || faltaAutorizacion} title={motivoBloqueo || undefined}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
       </form>
     </Popup>
-    <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
-      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} data-testid="gasto-fila" className={cn('flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40', v2 && 'v2-tile')}><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
-    </Card>
+    <section aria-label="Libro financiero" data-testid="gastos-libro">
+      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : visibles.length === 0 ? <EmptyState compact icon="box" title="Ningún movimiento coincide" description="Probá otra búsqueda o cambiá el tipo." action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setTab('todos') }}>Ver todos</Button>} /> : <div className="gp-lista">{visibles.map((row, indice) => <div key={row.id} data-testid="gasto-fila" style={{ '--i': Math.min(indice, 12) }} className="gp-fila"><span className="gp-fila-main"><b className="gp-fila-titulo">{row.description || row.motivo}</b><span className="gp-fila-sub">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="gp-fila-lado"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="gp-fila-monto text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
+    </section>
   </div>
 }

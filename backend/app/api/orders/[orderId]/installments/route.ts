@@ -24,11 +24,12 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       if (order.status === 'CANCELLED') throw new Error('Este pedido está cancelado.')
       const confirmed = order.payments.filter((payment) => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
       const pending = Math.max(0, numero(order.totalPyg) - confirmed)
+      if (order.payments.some((payment) => payment.status === 'PENDING' && payment.pendingReason === 'VERIFICACION')) throw new Error('Hay un pago en verificación: el saldo pendiente se calcula cuando se apruebe o se rechace. No se puede crear un plan de cuotas todavía (saldo).')
       if (pending <= 0) throw new Error('Este pedido no tiene saldo pendiente.')
       if (order.payments.some((payment) => payment.status === 'PENDING' && payment.dueAt)) throw new Error('Ya existe un plan de cuotas para este pedido.')
       const base = Math.floor(pending / count)
       const cuotas = Array.from({ length: count }, (_, index) => ({
-        tenantId: session.user.tenantId, orderId: order.id, method: 'CREDIT' as const, status: 'PENDING' as const,
+        tenantId: session.user.tenantId, orderId: order.id, method: 'CREDIT' as const, status: 'PENDING' as const, pendingReason: 'CUOTA' as const,
         amountPyg: index === count - 1 ? pending - base * (count - 1) : base,
         reference: `Cuota ${index + 1}/${count}`,
         dueAt: new Date(firstDueAt.getTime() + index * 30 * DAY_MS),

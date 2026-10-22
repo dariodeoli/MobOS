@@ -6,6 +6,8 @@ import { datosEtiquetaUnidad } from './etiquetaUnidad.js'
 import { documentoImagen } from './compartirDocumento.js'
 import { pdfDeJpegPaginas } from './pdfDocumento.js'
 import { erroresPlantilla } from './plantillas.js'
+import { esDocumentoFlujo } from './perfiles.js'
+import { htmlConDiseno } from './disenoPro.js'
 import { MM_A_PX, mmAPuntos, paginaFisica, rotacionElemento } from './geometria.js'
 const escape = v =>
   String(v ?? '').replace(
@@ -108,21 +110,20 @@ export async function renderPlantilla({ kind, definition, data = [], premiumBuil
     throw Error('El lote debe contener de 1 a 200 documentos.')
   const size = paginaFisica(definition),
     pages = []
-  if (kind === 'comprobante') {
+  if (esDocumentoFlujo(kind)) {
     if (definition.page.orientation !== 0 || definition.elements.some(e => e.rotation !== 0))
-      throw Error('El comprobante conserva flujo premium: no admite rotación en esta fase.')
+      throw Error('El documento conserva el flujo premium: no admite rotación en esta fase.')
+    // El comprobante trae su propio armado premium; ticket, cotización y remito lo
+    // arma quien los imprime (mismo encabezado y pie estándar) y llega como builder.
+    if (kind !== 'comprobante' && !premiumBuilder)
+      throw Error('Falta el armado premium del documento para aplicar el diseño.')
     const build =
       premiumBuilder ||
       (await import('../../components/shared/OrderReceipt.jsx')).buildOrderReceiptHtml
     for (const order of data) {
       const html = await build(order, { format: 'thermal-80' })
-      const m = definition.page.margins
-      const css = `@page{size:${size.widthMm}mm ${definition.page.heightMm ? `${size.heightMm}mm` : 'auto'};margin:0}html,body{width:${size.widthMm}mm!important;max-width:none!important;margin:0!important;min-height:0!important}body{padding:${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm!important;overflow-wrap:anywhere}${definition.elements
-        .filter(e => e.binding === 'items')
-        .map(e => `table{font-size:${e.fontSizePt}pt!important}`)
-        .join('')}`
       pages.push({
-        html: html.replace('</head>', `<style>${css}</style></head>`),
+        html: htmlConDiseno(html, definition, { pagina: true }),
         size: { ...size, heightMm: definition.page.heightMm },
       })
     }

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination } from '../helpers/shell-navigation.js'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
+import { entrarDemoComo } from '../helpers/demo.js'
 
 // #400 (unidad I): la ficha de unidad se arma como una página de detalle tipo
 // Shopify: encabezado compacto (chips + IMEI con copiar), columna principal con
@@ -20,7 +21,7 @@ async function abrirFicha(page, { role, width, height = 900 }) {
   await page.addInitScript(() => sessionStorage.setItem('mobos:demo-guia-vista', '1'))
   await page.setViewportSize({ width, height })
   await page.goto('/demo', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: `Entrar como ${role}`, exact: true }).click()
+  await entrarDemoComo(page, role)
   await expect(page.getByTestId('shell')).toBeVisible()
   await openShellDestination(page, 'Unidades')
   await expect(page.locator('main[aria-busy="true"]')).toHaveCount(0)

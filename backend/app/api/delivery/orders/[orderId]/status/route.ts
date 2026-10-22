@@ -7,6 +7,9 @@ import { canUseDelivery, deliveryBalance } from '../../../../../../lib/delivery'
 import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { consumeAuthorization, usableAuthorization } from '../../../../../../lib/authorizations'
 import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../../../../lib/credit-authorization'
+import { creditTermEnabled, effectiveCreditLimits, parseCreditConfig, resolveCreditTerm } from '../../../../../../lib/credit-config'
+import { assertNoPaymentInVerification } from '../../../../../../lib/payment-verification'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 // Estado de entrega del repartidor: a entregar → en camino → entregado. Solo
 // sobre sus pedidos asignados y sin saltarse las reglas de la tienda: entregar
@@ -17,9 +20,10 @@ import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../
 // registró: si cobró el total en la calle, no queda saldo abierto y la entrega
 // procede aunque la rendición todavía no esté verificada.
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
+  if (request.method !== 'GET' && !await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canUseDelivery(session.user)) return error('No autorizado.', 403)
   try {
     const { orderId } = await context.params
@@ -39,6 +43,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     let creditGate: { customerId: string; pendingPyg: number } | null = null
     const entregando = fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED'
     if (fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED') {
+      // El cobro en verificación frena la entrega antes de cualquier lógica de crédito.
+      await assertNoPaymentInVerification(prisma, tenant, existing.id)
       await assertCreditCleared(prisma, tenant, existing.id) // chequeo temprano; el definitivo va en la transacción
       const pagos = await prisma.payment.groupBy({
         by: ['status'],
@@ -50,14 +56,17 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       pendingDeliveryPyg = deliveryBalance(existing.totalPyg, confirmado, preCobrado).pendingPyg
       if (pendingDeliveryPyg > 0) {
         const cliente = existing.customerId
-          ? await prisma.customer.findFirst({ where: { id: existing.customerId, tenantId: tenant }, select: { creditLimitPyg: true, creditDays: true } })
+          ? await prisma.customer.findFirst({ where: { id: existing.customerId, tenantId: tenant }, select: { creditLimitPyg: true, creditDays: true, creditTolerancePct: true, creditTermMode: true, creditDayOfMonth: true, creditInstallments: true } })
           : null
-        const credito = cliente && Number(cliente.creditLimitPyg || 0) > 0 && Number(cliente.creditDays || 0) > 0 ? Number(cliente.creditDays) : null
+        const config = parseCreditConfig((await prisma.tenant.findUnique({ where: { id: tenant }, select: { settings: true } }))?.settings)
+        const credito = cliente && effectiveCreditLimits(cliente, config).limitPyg > 0 && creditTermEnabled(cliente, config)
+          ? resolveCreditTerm({ customer: cliente, config, unpaidPyg: pendingDeliveryPyg })
+          : null
         if (credito) {
           if (!existing.creditDays) {
             if (!existing.customerId) throw new InputError('El pedido no tiene cliente.', 409)
             creditGate = { customerId: existing.customerId, pendingPyg: pendingDeliveryPyg }
-            creditUpdate = { creditDays: credito, dueAt: new Date(Date.now() + credito * 86400000) }
+            creditUpdate = { creditDays: credito.creditDays, dueAt: credito.dueAt }
           }
         } else {
           const authorization = await prisma.customerAuthorization.findFirst({
@@ -71,6 +80,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     }
     const order = await prisma.$transaction(async tx => {
       if (entregando) {
+        await assertNoPaymentInVerification(tx, tenant, existing.id)
         await assertCreditCleared(tx, tenant, existing.id)
         if (creditGate) await assertCreditAvailableForDelivery(tx, { tenantId: tenant, orderId: existing.id, customerId: creditGate.customerId, pendingPyg: creditGate.pendingPyg })
       }

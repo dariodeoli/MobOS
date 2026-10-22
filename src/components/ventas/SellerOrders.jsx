@@ -480,6 +480,15 @@ export default function SellerOrders() {
     </SellerSection>
   }
 
+  const vacioPedidos = (
+    <EmptyState
+      icon="box"
+      title="No hay pedidos en esta vista."
+      description="Las ventas del POS aparecen aquí. Prueba otra búsqueda o cambia el filtro."
+      action={<Button onClick={() => navigate('/pos')}>Nueva venta</Button>}
+    />
+  )
+
   return (
     <div className="ventas-f3 ped-rd" data-testid="ventas-pedidos-f3">
       <SellerSection title="Pedidos">
@@ -563,14 +572,8 @@ export default function SellerOrders() {
           />
         )}
         <SellerFeedback {...data} empty={false} />
-        {!data.loading && !data.error && !rows.length && (
-          <EmptyState
-            icon="box"
-            title="No hay pedidos en esta vista."
-            description="Las ventas del POS aparecen aquí. Prueba otra búsqueda o cambia el filtro."
-            action={<Button onClick={() => navigate('/pos')}>Nueva venta</Button>}
-          />
-        )}
+        {/* Celular: sin tabla, el vacío va solo. En escritorio va debajo de los títulos de columna. */}
+        {!data.loading && !data.error && !rows.length && angosta && vacioPedidos}
         {!data.loading &&
           !data.error &&
           (angosta ? (
@@ -602,6 +605,7 @@ export default function SellerOrders() {
                 <span aria-hidden="true" />
               </div>
               <div>
+                {!rows.length && vacioPedidos}
                 {rows.map((row, indice) => (
                   <FilaPedido
                     key={row.id}

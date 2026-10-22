@@ -17,6 +17,7 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import { EstadoPagoBadge } from './PagoVerificacion'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
 import { whatsappUrl } from '@/utils/telefono'
 import { renderMessage } from '@/components/customers/customerMessaging'
@@ -392,7 +393,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
     {!onVerComprobante && <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)} />}
     <VentanaDetalle open={open && !comprobante} busy={busy} className="pagos-pedido" onClose={() => !busy && onClose()} title={`Pagos · ${codigoPedido(order.codigo || order.orderNumber) || order.cliente || 'Pedido'}`} size="lg">
     <p className="mb-3 text-xs text-mute">Cobrá el saldo en uno o varios pagos. Adjuntar un archivo no confirma una transferencia.</p>
-    {trackingUrlFor(order) && !esDemo && (
+    {trackingUrlFor(order) && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
         {whatsappTrackingLink(order, '', plantillaSeguimiento) ? (
           <a className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black transition hover:brightness-110" href={whatsappTrackingLink(order, '', plantillaSeguimiento)} target="_blank" rel="noopener noreferrer">Enviar seguimiento por WhatsApp</a>
@@ -513,7 +514,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
             {revertido && <Badge color="red">Revertido</Badge>}
             {esRev && <Badge color="red"><span title={motivoCorreccion ? `Motivo: ${motivoCorreccion}` : undefined}>Reversión</span></Badge>}
             {deCorreccion && <Badge color="blue"><span title={motivoCorreccion ? `Motivo: ${motivoCorreccion}` : 'Pago nacido de una corrección'}>Corrección</span></Badge>}
-            {!inerte && <Badge color={concTone}>{concLabel}</Badge>}
+            {!inerte && (p.pendingReason === 'VERIFICACION' || p.status === 'REJECTED' ? <EstadoPagoBadge pago={p} /> : <Badge color={concTone}>{concLabel}</Badge>)}
             {p.dueAt && <Badge color="orange">Vence {new Date(p.dueAt).toLocaleDateString('es-PY')}</Badge>}
             {p.status === 'PENDING' && p.dueAt && canReconcile && <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => cobrarCuota(p)}>Cobrar cuota</button>}
           </div>
@@ -526,6 +527,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
         <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}{p.settlesAt ? ` · se acredita el ${new Date(p.settlesAt).toLocaleDateString('es-PY')}` : ''}</p>
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
         {(proofs[p.id] || []).map(file => <button key={file.id} className="mt-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}
+        {p.status === 'REJECTED' && p.reconciliation?.note && <p className="mt-1 text-xs text-bad" data-testid="pago-motivo-rechazo">Motivo del rechazo: {p.reconciliation.note}</p>}
         {motivoCorreccion && (esRev || deCorreccion) && <p className="mt-1 text-xs text-mute">Motivo: {motivoCorreccion}</p>}
         {!inerte && <label className="mt-2 block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<AttachmentInput disabled={busy} className="mt-2 block w-full text-xs" onSelect={file => upload(p.id, file)} onError={setError} /></label>}
         {canReconcile && !inerte && <div className="mt-3 border-t border-fore/10 pt-3"><Input aria-label={`Comentario de conciliación ${p.id}`} placeholder="Comentario interno de conciliación" maxLength={2000} value={notes[p.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} /><div className="mt-2 flex gap-2"><Button disabled={busy} onClick={() => reconcile(p.id, 'VERIFIED')}>Verificar</Button><button disabled={busy} className="rounded-lg border border-bad/30 px-3 text-sm text-bad" onClick={() => reconcile(p.id, 'REJECTED')}>Rechazar</button></div></div>}

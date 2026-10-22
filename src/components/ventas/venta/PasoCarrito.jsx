@@ -1,5 +1,6 @@
 import { Label, MoneyInput } from '@/components/ui'
 import ListaVenta from './ListaVenta'
+import LineasSoloLectura from './LineasSoloLectura'
 import AutorizacionDescuento from './AutorizacionDescuento'
 import AutorizacionBloque from './AutorizacionBloque'
 import EncabezadoBloque from './EncabezadoBloque'
@@ -54,7 +55,7 @@ export default function PasoCarrito({
       data-testid="pos-bloque-carrito"
       className={cn(
         // #281 · identidad de color: carrito = verde de venta (ok).
-        'pos-carrito scroll-mt-32 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
+        'pos-carrito scroll-mt-32 flex min-h-0 flex-col overflow-clip rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
         modoCobro && 'pos-carrito-colapsado',
         // El carrito NO es sticky: el cobro va debajo en la misma columna y un
         // bloque pegado se montaba sobre él al scrollear. El botón Cobrar queda
@@ -63,41 +64,36 @@ export default function PasoCarrito({
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ok/20 bg-ok/[.06] px-3 py-1.5">
+      <div className="shrink-0 border-b border-ok/20 bg-ok/[.06] px-3 py-1.5 [&>[data-bloque-cab]]:mb-0 [&>[data-bloque-cab]]:flex-nowrap">
         <EncabezadoBloque
           compacto
           titulo="Productos de esta venta"
           tono="text-ok"
-          extra={
-            <span className="shrink-0 text-xs text-mute">
-              {items.length} {items.length === 1 ? 'producto' : 'productos'} · {unidades}{' '}
-              {unidades === 1 ? 'unidad' : 'unidades'}
-            </span>
-          }
+          descripcion={`${items.length} ${items.length === 1 ? 'producto' : 'productos'} · ${unidades} ${unidades === 1 ? 'unidad' : 'unidades'}`}
+          extra={modoCobro ? (
+            <button
+              type="button"
+              data-testid="carrito-editar"
+              onClick={onEditar}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-ok/40 px-2.5 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 md:min-h-9"
+            >
+              Editar productos
+            </button>
+          ) : items.length > 0 ? (
+            <button
+              type="button"
+              onClick={onVaciarCarrito}
+              disabled={guardando}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50 md:min-h-9"
+            >
+              Vaciar carrito
+            </button>
+          ) : null}
         />
-        {modoCobro && (
-          <button
-            type="button"
-            data-testid="carrito-editar"
-            onClick={onEditar}
-            className="inline-flex min-h-11 items-center rounded-lg border border-ok/40 px-2.5 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 md:min-h-0"
-          >
-            Editar productos
-          </button>
-        )}
-        {!modoCobro && items.length > 0 && (
-          <button
-            type="button"
-            onClick={onVaciarCarrito}
-            disabled={guardando}
-            className="inline-flex min-h-11 items-center rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50 md:min-h-0"
-          >
-            Vaciar carrito
-          </button>
-        )}
       </div>
 
-      <div data-testid="pos-carrito-cuerpo" className={cn('pos-carrito-cuerpo min-h-0 flex-1 overflow-y-auto', modoCobro && 'hidden')}>
+      <div data-testid="pos-carrito-cuerpo" className="pos-carrito-cuerpo min-h-0 flex-1">
+      {modoCobro ? <LineasSoloLectura items={items} productos={productos} /> : <>
       <ListaVenta
         items={items}
         productos={productos}
@@ -178,6 +174,7 @@ export default function PasoCarrito({
           )}
         </div>
       )}
+      </>}
       </div>
 
       <div className="shrink-0 border-t border-ink-600 bg-ink-700 px-3 py-1.5">
@@ -185,7 +182,7 @@ export default function PasoCarrito({
             el mismo importe dos veces. */}
         {(descuentoTotal > 0 || Number(montoDelivery || 0) > 0) && (
           <div className="pos-money-row flex flex-wrap items-center gap-x-4 gap-y-0 text-xs text-mute">
-            <span>Subtotal <span className="pos-money-value tabular-nums">{gs(totalCarrito)}</span></span>
+            <span>Subtotal <span className="pos-money-value whitespace-nowrap tabular-nums">{gs(totalCarrito)}</span></span>
             {descuentoTotal > 0 && <span className="text-warn">Descuento <span className="pos-money-value tabular-nums">− {gs(descuentoTotal)}</span></span>}
             {Number(montoDelivery || 0) > 0 && <span>Envío <span className="pos-money-value tabular-nums">{gs(montoDelivery)}</span></span>}
           </div>
@@ -205,7 +202,7 @@ export default function PasoCarrito({
               type="button"
               data-testid="carrito-listo"
               onClick={onListo}
-              className="pos-tk-cobrar hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
+              className="pos-tk-cobrar hidden h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 md:inline-flex lg:h-10"
             >
               <span>Cobrar</span> <span className="tabular-nums">{gs(totalGeneral ?? totalCarrito)}</span>
               <span className="sr-only">Listo, ir a cobrar</span>

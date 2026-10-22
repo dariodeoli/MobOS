@@ -58,7 +58,7 @@ test('#323 · horario de acceso: labels visibles, error adentro y cierre con cam
 })
 
 test('#323 · sucursales: error por campo y confirmación al descartar', async ({ page }) => {
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   const fila = page.locator('article').filter({ hasText: SEED.branchName }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })

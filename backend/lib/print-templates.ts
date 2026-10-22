@@ -1,17 +1,29 @@
 import presets from './print-templates-presets.json'
+import { PRESETS_PRO } from './print-templates-pro.mjs'
 import { InputError } from './payment-input'
 
-export const PRINT_TEMPLATE_KINDS = ['comprobante', 'etiquetas-producto', 'etiquetas-stock'] as const
+export const PRINT_TEMPLATE_KINDS = ['comprobante', 'etiquetas-producto', 'etiquetas-stock', 'ticket', 'cotizacion', 'remito'] as const
 export type PrintTemplateKind = typeof PRINT_TEMPLATE_KINDS[number]
+// Documentos de flujo: el contenido lo arma el comprobante premium (encabezado y
+// pie estándar), el diseño solo cambia papel, márgenes, tamaños y alineación; el
+// alto es continuo (null).
+export const FLOW_KINDS: readonly PrintTemplateKind[] = ['comprobante', 'ticket', 'cotizacion', 'remito']
+const HEADER_FOOTER = ['brand', 'documentTitle', 'documentNumber', 'date', 'nonFiscal', 'qr']
 const REQUIRED: Record<PrintTemplateKind, string[]> = {
   comprobante: ['brand', 'documentTitle', 'documentNumber', 'items', 'total', 'nonFiscal', 'qr', 'customer', 'payments', 'warranty', 'date'],
   'etiquetas-producto': ['product', 'sku', 'barcode'],
   'etiquetas-stock': ['model', 'serial', 'qr', 'barcode'],
+  ticket: [...HEADER_FOOTER, 'items', 'total'],
+  cotizacion: [...HEADER_FOOTER, 'customer', 'items', 'total'],
+  remito: [...HEADER_FOOTER, 'customer', 'items'],
 }
 const OPTIONAL: Record<PrintTemplateKind, string[]> = {
   comprobante: [],
   'etiquetas-producto': ['price', 'brand', 'qr'],
   'etiquetas-stock': ['brand', 'condition', 'battery', 'location', 'supplierCode'],
+  ticket: ['customer', 'payments', 'warranty'],
+  cotizacion: [],
+  remito: ['total'],
 }
 type Obj = Record<string, unknown>
 const fail = (message: string): never => { throw new InputError(message) }
@@ -43,7 +55,7 @@ export function templateDefinition(kind: PrintTemplateKind, value: unknown) {
   if (root.schemaVersion !== 1) return fail('Versión de plantilla no admitida.')
   const page = object(root.page, ['widthMm', 'heightMm', 'orientation', 'margins'], 'Página')
   const widthMm = number(page.widthMm, 5, 216, 'Ancho')
-  const heightMm = page.heightMm === null && kind === 'comprobante' ? null : number(page.heightMm, 10, 2000, 'Alto')
+  const heightMm = page.heightMm === null && FLOW_KINDS.includes(kind) ? null : number(page.heightMm, 10, 2000, 'Alto')
   const orientation = choice(page.orientation, [0, 90], 'Orientación')
   const margins = object(page.margins, ['top', 'right', 'bottom', 'left'], 'Márgenes')
   const normalizedMargins = { top: number(margins.top, 0, 40, 'Margen superior'), right: number(margins.right, 0, 40, 'Margen derecho'), bottom: number(margins.bottom, 0, 40, 'Margen inferior'), left: number(margins.left, 0, 40, 'Margen izquierdo') }
@@ -93,6 +105,12 @@ export function templateDefinition(kind: PrintTemplateKind, value: unknown) {
 export function builtinTemplates() {
   return presets.map(preset => ({ ...preset, definition: templateDefinition(templateKind(preset.kind), preset.definition) }))
 }
+/** Galería de Impresión Pro: 3 o 4 diseños por documento, todos validados como cualquier plantilla. */
+export function proTemplates() {
+  return PRESETS_PRO.map(preset => ({ ...preset, pro: true, definition: templateDefinition(templateKind(preset.kind), preset.definition) }))
+}
+/** Todo lo que se ofrece al crear una plantilla: lo incorporado y los diseños pro. */
+export function allBuiltinTemplates() { return [...builtinTemplates(), ...proTemplates()] }
 export function templateInput(value: unknown, partial = false) {
   return object(value, partial ? ['revision', 'name', 'definition'] : ['kind', 'name', 'definition'], 'Datos')
 }

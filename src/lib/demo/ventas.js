@@ -9,6 +9,7 @@ import { EMPRESA_DEMO, SUCURSALES_DEMO } from './empresa.js'
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS } from './iphones.js'
 import { CATALOGO_VENTA } from './catalogoPro.js'
 import { generarVentasHistorial } from './ventasHistorial.js'
+import { ventasCobertura } from './ventasCobertura.js'
 import { diaDemo, instanteDemo } from './reloj.js'
 
 // ── Catálogo de líneas demo (descripción, modelo y categoría visibles) ──
@@ -191,7 +192,7 @@ const VENTAS_MANUALES = [
     clienteId: 'demo-cliente-ramiro', cliente: 'Ramiro Cáceres', vendedorId: 'demo-user-vendedor',
     entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0, creditDays: 30,
     items: [linea('demo-iphone-15-128-azul', 2, 4850000), linea('demo-cargador-usbc-20w', 2, 220000)],
-    pagos: [pago('demo-pago-credito-1-a', 'TRANSFERENCIA', 'Itaú · Cuenta corriente', 4000000, '11:10')],
+    pagos: [pago('demo-pago-credito-1-a', 'TRANSFERENCIA', 'Itaú · Cuenta corriente', 4000000, '11:10'), { ...pago('demo-pago-credito-1-b', 'TRANSFERENCIA', 'Itaú · Cuenta corriente', 2000000, '10:20'), diasDespues: 8 }],
     observacion: 'Mayorista a crédito a 30 días',
   },
   {
@@ -199,7 +200,7 @@ const VENTAS_MANUALES = [
     clienteId: 'demo-cliente-distribuidora-luque', cliente: 'Distribuidora Luque S.A.', vendedorId: 'demo-user-gerente',
     entrega: 'DELIVERY', fulfillment: 'DELIVERED', montoDelivery: 40000, creditDays: 30,
     items: [linea('demo-iphone-14-128-medianoche', 3, 3600000)],
-    pagos: [pago('demo-pago-credito-2-a', 'TRANSFERENCIA', 'Continental · Cuenta corriente', 3000000, '15:40')],
+    pagos: [pago('demo-pago-credito-2-a', 'TRANSFERENCIA', 'Continental · Cuenta corriente', 3000000, '15:40'), { ...pago('demo-pago-credito-2-b', 'TRANSFERENCIA', 'Continental · Cuenta corriente', 1500000, '09:50'), diasDespues: 13 }],
     observacion: 'Factura a 30 días, entrega en depósito',
   },
   {
@@ -207,7 +208,7 @@ const VENTAS_MANUALES = [
     clienteId: 'demo-cliente-hugo', cliente: 'Hugo Benítez', vendedorId: 'demo-user-vendedora',
     entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0, creditDays: 7,
     items: [linea('demo-iphone-12-128-verde', 1, 2350000)],
-    pagos: [pago('demo-pago-credito-3-a', 'DINERO', '', 1500000, '10:05')],
+    pagos: [pago('demo-pago-credito-3-a', 'DINERO', '', 1500000, '10:05'), { ...pago('demo-pago-credito-3-b', 'DINERO', '', 250000, '16:30'), diasDespues: 20 }],
     observacion: 'Crédito a 7 días con cuota pendiente (en mora)',
   },
   {
@@ -215,7 +216,7 @@ const VENTAS_MANUALES = [
     clienteId: 'demo-cliente-maria', cliente: 'María González', vendedorId: 'demo-user',
     entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0, creditDays: 15,
     items: [linea('demo-airpods-pro-2-usbc', 1, 1850000), linea('demo-funda-magsafe-transparente', 1, 180000)],
-    pagos: [pago('demo-pago-credito-4-a', 'DINERO', '', 1000000, '17:15')],
+    pagos: [pago('demo-pago-credito-4-a', 'DINERO', '', 1000000, '17:15'), { ...pago('demo-pago-credito-4-b', 'DINERO', '', 400000, '10:40'), diasDespues: 9 }],
     observacion: 'Crédito a 15 días con seña en efectivo',
   },
   {
@@ -251,11 +252,44 @@ const VENTAS_MANUALES = [
     pagos: [],
     observacion: 'Anulado: el cliente cambió de modelo',
   },
+  // ── «Recién»: pedidos de hace minutos (relativos al momento de carga) en
+  // distintos estados, para que Hoy, Inicio y los KPI de período nunca queden vacíos.
+  {
+    id: 'demo-venta-recien-1', numero: 'AUR-0408', diasAtras: 0, hora: 0, minuto: 0, haceMin: 4,
+    clienteId: 'demo-cliente-camila', cliente: 'Camila Arévalo', vendedorId: 'demo-user',
+    entrega: 'RETIRO', fulfillment: 'PICKED_UP', montoDelivery: 0,
+    items: [linea('demo-cargador-usbc-20w', 1, 220000)],
+    pagos: [pago('demo-pago-recien-1', 'DINERO', '', 220000, '00:00')],
+    observacion: 'Venta recién cobrada en efectivo',
+  },
+  {
+    id: 'demo-venta-recien-2', numero: 'AUR-0409', diasAtras: 0, hora: 0, minuto: 0, haceMin: 22,
+    clienteId: 'demo-cliente-lorena', cliente: 'Lorena Servín', vendedorId: 'demo-user-vendedora',
+    entrega: 'DELIVERY', fulfillment: 'PROCESSING', montoDelivery: 25000,
+    items: [linea('demo-iphone-14-128-medianoche', 1, 3600000)],
+    pagos: [pago('demo-pago-recien-2', 'TRANSFERENCIA', 'Itaú · Cuenta corriente', 1000000, '00:00')],
+    observacion: 'Seña por transferencia, saldo contra entrega',
+  },
+  {
+    id: 'demo-venta-recien-3', numero: 'AUR-0410', diasAtras: 0, hora: 0, minuto: 0, haceMin: 11,
+    clienteId: 'demo-cliente-derlis', cliente: 'Derlis Giménez', vendedorId: 'demo-user-vendedor',
+    entrega: 'RETIRO', fulfillment: 'READY_FOR_PICKUP', montoDelivery: 0,
+    items: [linea('demo-airpods-pro-2-usbc', 1, 1850000)],
+    pagos: [pago('demo-pago-recien-3', 'POS UENO', 'Ueno · Tarjeta', 1850000, '00:00')],
+    observacion: 'Pagó con tarjeta, retira en unos minutos',
+  },
 ]
 
 // Ventas manuales (ids estables, casos puntuales) + ~120 días de historial
 // generado (#451). Los ids `demo-hist-*` son deterministas.
-export const VENTAS_DEMO = [...VENTAS_MANUALES, ...generarVentasHistorial()]
+// Una de cada tres ventas con tarjeta del historial entra por la terminal Dinelco
+// (así las dos procesadoras tienen movimientos, sin tocar la secuencia del azar).
+const conDinelco = (venta) => {
+  const hash = String(venta.id).split('').reduce((suma, c) => (suma * 31 + c.charCodeAt(0)) >>> 0, 7)
+  if (hash % 3 !== 0) return venta
+  return { ...venta, pagos: (venta.pagos || []).map((p) => (p.medioPago === 'POS UENO' ? { ...p, medioPago: 'TARJETA', cuenta: 'Dinelco · Tarjeta' } : p)) }
+}
+export const VENTAS_DEMO = [...VENTAS_MANUALES, ...generarVentasHistorial().map(conDinelco), ...ventasCobertura()]
 
 // ── Derivaciones puras ──────────────────────────────────────────────
 export const totalProductos = (venta) => (venta.items || []).reduce((suma, item) => suma + (Number(item.totalPyg) || 0), 0)
@@ -267,8 +301,16 @@ export const estadoPagoDeVenta = (venta) => {
   return total > 0 && pagado >= total ? 'Pagado' : pagado > 0 ? 'Parcial' : 'Pendiente'
 }
 export const fechaDeVenta = (venta, ahora = new Date()) => diaDemo(venta.diasAtras, ahora)
-export const creadoEnDeVenta = (venta, ahora = new Date()) => instanteDemo(venta.diasAtras, venta.hora, venta.minuto, ahora)
-const conHora = (venta, hora, diasDespues = 0, ahora = new Date()) => {
+// Ventas «recién» (`haceMin`): ocurren hace minutos respecto del momento de carga
+// de la demo, acotadas al inicio del día de hoy, para que «Hoy» nunca quede vacío.
+const instanteReciente = (venta, minDespues = 0, ahora = new Date()) => {
+  const inicioHoy = new Date(instanteDemo(0, 0, 0, ahora)).getTime()
+  const base = Math.max(inicioHoy, ahora.getTime() - Number(venta.haceMin) * 60000)
+  return new Date(Math.min(ahora.getTime(), base + (Number(minDespues) || 0) * 60000)).toISOString()
+}
+export const creadoEnDeVenta = (venta, ahora = new Date()) => (venta.haceMin != null ? instanteReciente(venta, 0, ahora) : instanteDemo(venta.diasAtras, venta.hora, venta.minuto, ahora))
+const conHora = (venta, hora, diasDespues = 0, ahora = new Date(), minDespues = 0) => {
+  if (venta.haceMin != null) return instanteReciente(venta, minDespues, ahora)
   const [h, m] = String(hora || '10:30').split(':').map(Number)
   return instanteDemo(Math.max(0, venta.diasAtras - (Number(diasDespues) || 0)), Number.isFinite(h) ? h : 10, Number.isFinite(m) ? m : 0, ahora)
 }
@@ -281,7 +323,7 @@ const cuponDePago = (venta, pago, indice, ahora) => ({
   cuenta: pago.cuenta || '',
   monto: Number(pago.monto) || 0,
   amountPyg: Number(pago.monto) || 0,
-  fecha: conHora(venta, pago.hora, pago.diasDespues, ahora),
+  fecha: conHora(venta, pago.hora, pago.diasDespues, ahora, pago.minDespues),
 })
 
 /** Ventas en la forma legacy que consume `storage.js`/el POS. */
@@ -316,7 +358,7 @@ export function ventasDemoLegacy(ahora = new Date()) {
       creadoEn: creadoEnDeVenta(venta, ahora),
       cliente: venta.cliente,
       clienteId: venta.clienteId,
-      customer: { id: venta.clienteId, name: venta.cliente },
+      customer: { id: venta.clienteId, name: venta.cliente, ...(venta.clienteEmail ? { email: venta.clienteEmail } : {}) },
       productoId: items[0]?.productoId || null,
       productoNombre: items[0]?.descripcion || '',
       items,
@@ -352,7 +394,7 @@ export function pedidosDemoDeCliente(clienteId, ahora = new Date()) {
     .map((venta) => {
       const pagos = (venta.pagos || []).map((item) => {
         const medio = MEDIO_CRM[String(item.medioPago || '').toUpperCase()] || { code: 'CASH', label: String(item.medioPago || 'Efectivo') }
-        return { amountPyg: Number(item.monto) || 0, method: medio.code, methodLabel: medio.label, paidAt: conHora(venta, item.hora, item.diasDespues, ahora) }
+        return { amountPyg: Number(item.monto) || 0, method: medio.code, methodLabel: medio.label, paidAt: conHora(venta, item.hora, item.diasDespues, ahora, item.minDespues) }
       })
       const cobrado = pagos.reduce((suma, item) => suma + item.amountPyg, 0)
       const total = totalDeVenta(venta)
@@ -367,6 +409,7 @@ export function pedidosDemoDeCliente(clienteId, ahora = new Date()) {
         status: venta.status === 'CANCELLED' ? 'CANCELLED' : cobrado >= total && total > 0 ? 'COMPLETED' : 'PENDING',
         deliveryType: venta.entrega,
         fulfillmentStatus: venta.fulfillment || (venta.entrega === 'DELIVERY' ? 'DELIVERED' : 'PICKED_UP'),
+        ...(Number(venta.creditDays) > 0 ? { creditDays: Number(venta.creditDays) } : {}),
         branch: { id: 'mobos-demo-central', name: 'Casa Central' },
         seller: { id: vendedor.id, name: vendedor.nombre },
         serials: [],

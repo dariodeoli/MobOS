@@ -23,7 +23,7 @@ export default function Notificaciones() {
           titulo={correo || 'Tu tienda no tiene un correo cargado'}
           descripcion="Es el correo de contacto de la tienda. Podés cambiarlo en Datos generales."
           valor={correo ? dominioDeCorreo(correo) : ''}
-          onClick={() => navigate('/configuracion/organizacion')}
+          onClick={() => navigate('/configuracion/negocio')}
           testId="fila-remitente"
         />
         {publico && (

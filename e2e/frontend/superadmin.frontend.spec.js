@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // Panel de plataforma (/superadmin). Frontend-only: el API se simula. Cubre la
 // redirección cuando el API niega el acceso y el panel a 390 y 1440 (claro y
@@ -126,6 +127,8 @@ for (const [ancho, alto, oscuro] of [[1440, 900, false], [390, 844, true], [360,
     await expect(dialogo).toBeVisible()
     await expect(page.getByTestId('detalle-empresa')).toContainText('Tienda 1')
     const cerrar = dialogo.getByRole('button', { name: 'Cerrar' })
+    // El Popup entra con escala: medir el target cuando la animación terminó.
+    await esperarAnimaciones(page)
     expect((await cerrar.boundingBox()).width).toBeGreaterThanOrEqual(44)
     await page.screenshot({ path: `${out}/empresa-detalle-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png` })
     m = await sinScroll(page)

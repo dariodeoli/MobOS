@@ -88,6 +88,8 @@ export default function usePlantillasEmpresa(kind = '') {
       if (!valid()) return null
       setState(s => ({ ...s, notice }))
       await load()
+      // El diseño predeterminado de cotización, remito y ticket se recarga en la sesión.
+      window.dispatchEvent(new Event('mobos:print-templates-updated'))
       return result
     } catch (error) {
       if (valid() && error.code !== 'CONTEXT_CHANGED')

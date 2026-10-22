@@ -37,7 +37,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '    <Modal open={crearAbierto}',
       '    </>\n    </div>\n  </SellerSection>',
-      'c09a990549c6c4401e6d6c13312d19853fd67b42914c069f977e89468c9c21ad',
+      '368ae93ae37a42cf8c7fcccbb4a3e21575e3e8ee6501d2633a31b48fc3adc593',
     ],
   ])
     assert.equal(digest(between(originalHandlers, start, end)), expected)
@@ -45,10 +45,11 @@ test('Clientes preserves create/import/export payloads, validation and original 
 
 test('Clientes preserves reviewed fiscal profile and unchanged summary/communication engines', () => {
   for (const [file, expected] of [
+    // Módulo Mayoristas: ficha y resumen ocultan el tipo/solicitud mayorista con el módulo apagado (useModulos).
     // Rediseño página de cliente: solo estructura visual (encabezado, KPI, columna lateral); la lógica no cambió.
     // #498: alta/edición fiscal demo y geometría de teclado revisadas; cubierta por ruc498-identidad frontend y demoBillingIdentities.
-    ['CustomerProfile.jsx', '1f233f0e20893a08d9709aab36a322e1163804ec2c49a1481f0a69bf002ef079'],
-    ['ClienteResumenPopup.jsx', '5aba729a4e2996ca117f801c4682081c3301acb359c63a84afa162ddee1bffa2'],
+    ['CustomerProfile.jsx', '1397f84a9059489ce1d7ec13fdc77e3979fd7090610782352f531df15ff52e72'],
+    ['ClienteResumenPopup.jsx', 'd8fd0e032ca0542a911b6582621971099fa2cad69fa810b7398d4798e91cc510'],
     [
       'CustomerCommunicationCard.jsx',
       '0e4be9e86ebc7167a8651ff7ee4c3ca063db1aff3c72e00e0b3f911bb42cf407',

@@ -3,10 +3,13 @@ import { Button, Card, Select } from '@/components/ui'
 import { Modal, ConfirmDialog } from '@/components/shared/popupKit'
 import usePlantillasEmpresa from './impresion/usePlantillasEmpresa'
 import EditorPlantilla from './impresion/EditorPlantilla'
+import GaleriaPro from './impresion/GaleriaPro'
+import useImpresionPro from './impresion/useImpresionPro'
 import VistaPlantilla from './impresion/VistaPlantilla'
 import {
   TIPOS_PLANTILLA,
   clonarPlantilla,
+  esDocumentoFlujo,
   erroresPlantilla,
   nombrePlantillaValido,
 } from '@/lib/printing/plantillas'
@@ -25,29 +28,55 @@ const qrDeMuestra = (crear, valor) => {
     return ''
   }
 }
+const MUESTRA_PEDIDO = {
+  id: 'QA-507',
+  number: 'QA-507',
+  status: 'PAID',
+  totalPyg: 180000,
+  paidPyg: 180000,
+  createdAt: '2026-10-15T12:00:00Z',
+  orderNumber: 'QA-507',
+  items: [{ description: 'Funda de muestra', quantity: 1, unitPricePyg: 180000, totalPyg: 180000 }],
+  payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 180000 }],
+  customer: { name: 'Cliente de muestra' },
+}
+const MUESTRA_COTIZACION = {
+  id: 'QA-COT',
+  number: 'COT-0001',
+  customerName: 'Cliente de muestra',
+  createdAt: '2026-10-15T12:00:00Z',
+  validUntil: '2026-10-30T12:00:00Z',
+  subtotalPyg: 4850000,
+  totalPyg: 4850000,
+  items: [{ description: 'iPhone 15 · 128 GB', quantity: 1, unitPricePyg: 4850000, totalPyg: 4850000 }],
+}
+const MUESTRA_REMITO = {
+  id: 'QA-REM',
+  createdAt: '2026-10-15T12:00:00Z',
+  sourceBranch: { name: 'Sucursal Centro' },
+  destinationBranch: { name: 'Sucursal Shopping' },
+  lines: [{ sourceProduct: { name: 'iPhone 15 · 128 GB' }, quantity: 1, serials: ['350000000000000'] }],
+}
+// ticket, cotización y remito los arma el comprobante premium de cada documento:
+// la muestra usa los mismos constructores que la impresión real.
+const premiumDe = kind => {
+  if (kind === 'comprobante') return undefined
+  return async documento => {
+    const recibo = await import('@/components/shared/OrderReceipt')
+    if (kind === 'cotizacion') return recibo.buildProformaHtml(documento, { format: 'a4' })
+    if (kind === 'remito') return recibo.buildRemisionHtml(documento, { format: 'a4' })
+    return recibo.buildOrderReceiptHtml(documento, { format: 'thermal-80' })
+  }
+}
 const sample = kind =>
-  kind === 'comprobante'
-    ? [
-        {
-          id: 'QA-507',
-          number: 'QA-507',
-          status: 'PAID',
-          totalPyg: 180000,
-          paidPyg: 180000,
-          createdAt: '2026-10-15T12:00:00Z',
-          orderNumber: 'QA-507',
-          items: [
-            {
-              description: 'Funda de muestra',
-              quantity: 1,
-              unitPricePyg: 180000,
-              totalPyg: 180000,
-            },
-          ],
-          payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 180000 }],
-          customer: { name: 'Cliente de muestra' },
-        },
-      ]
+  kind === 'cotizacion'
+    ? [MUESTRA_COTIZACION]
+    : kind === 'remito'
+      ? [MUESTRA_REMITO]
+      : kind === 'ticket'
+        ? [MUESTRA_PEDIDO]
+        : kind === 'comprobante'
+          ? [MUESTRA_PEDIDO]
     : kind === 'etiquetas-stock'
       ? [
           {
@@ -74,6 +103,7 @@ const sample = kind =>
         ]
 export default function PlantillasImpresion() {
   const store = usePlantillasEmpresa(),
+    pro = useImpresionPro(),
     [kind, setKind] = useState('etiquetas-producto'),
     [draft, setDraft] = useState(null),
     [render, setRender] = useState(null),
@@ -103,7 +133,7 @@ export default function PlantillasImpresion() {
       setRenderError(errors.join(' '))
       return
     }
-    renderPlantilla({ kind: draft.kind, definition: draft.definition, data: sample(draft.kind) })
+    renderPlantilla({ kind: draft.kind, definition: draft.definition, data: sample(draft.kind), premiumBuilder: premiumDe(draft.kind) })
       .then(result => {
         if (request === epoch.current) setRender(result)
       })
@@ -156,6 +186,32 @@ export default function PlantillasImpresion() {
       'Plantilla eliminada y sus asignaciones retiradas.',
     )
   }
+  // Impresión Pro: galería de diseños y predeterminado por documento. Con el
+  // módulo apagado se imprime el premium normal y los predeterminados se ignoran.
+  const proApagado = pro.listo && !pro.activo
+  const predeterminada = store.templates.find(t => t.id === store.effective[kind]?.templateId)
+  const usarDiseno = async diseno => {
+    const existente = store.templates.find(t => t.kind === kind && t.name === diseno.name)
+    const guardada =
+      existente ||
+      (await store.mutate(
+        'create',
+        [{ kind, name: diseno.name, definition: clonarPlantilla(diseno.definition) }],
+        'Diseño agregado.',
+      ))
+    if (!guardada) return
+    await store.mutate(
+      'setDefault',
+      [{ kind, branchId: store.contexto.sucursalId, templateId: guardada.id }],
+      `«${diseno.name}» es el diseño predeterminado de ${TIPOS_PLANTILLA[kind]}.`,
+    )
+  }
+  const usarHabitual = () =>
+    store.mutate(
+      'setDefault',
+      [{ kind, branchId: store.contexto.sucursalId, templateId: null }],
+      'Se usa el formato habitual (comprobante premium).',
+    )
   const errors = draft ? erroresPlantilla(draft.kind, draft.definition) : []
   const original = store.templates.find(t => t.id === draft?.id)
   const dirty = Boolean(
@@ -275,6 +331,25 @@ export default function PlantillasImpresion() {
         >
           Quitar asignación de toda la empresa
         </Button>
+      )}
+      {proApagado ? (
+        <p role="status" className="rounded-xl border border-ink-600 p-3 text-sm text-mute" data-testid="pro-apagado">
+          Impresión Pro está desactivada: se imprime el comprobante premium de siempre y los diseños
+          predeterminados se ignoran. Tus plantillas guardadas se conservan. Activá el módulo
+          «Impresión Pro» para usar la galería.
+        </p>
+      ) : (
+        esDocumentoFlujo(kind) || kind.startsWith('etiquetas') ? (
+          <GaleriaPro
+            kind={kind}
+            store={store}
+            enUso={predeterminada?.name || null}
+            habitual={!store.effective[kind]?.templateId}
+            onPersonalizar={setDraft}
+            onUsar={usarDiseno}
+            onQuitar={usarHabitual}
+          />
+        ) : null
       )}
       {store.loading && <p role="status">Cargando plantillas…</p>}
       <ul className="space-y-3">

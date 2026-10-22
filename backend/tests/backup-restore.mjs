@@ -75,7 +75,7 @@ async function main() {
   // de la API excluye cancelados y completados (pagados y entregados): la
   // comparación pide el filtro "todos", que lista el historial completo.
   const apiProducts = await apiCount('/api/products')
-  const apiOrders = await apiCount('/api/orders?filtro=todos')
+  const apiOrders = await apiCount('/api/orders?filtro=todos&limit=500')
   const sourceProducts = psqlCount(databaseUrl, `SELECT COUNT(*) FROM "Product" WHERE "tenantId" = '${TENANT}';`)
   const sourceOrders = psqlCount(databaseUrl, `SELECT COUNT(*) FROM "Order" WHERE "tenantId" = '${TENANT}';`)
   if (apiProducts !== sourceProducts) fail(`API devolvió ${apiProducts} productos pero la base tiene ${sourceProducts}`)

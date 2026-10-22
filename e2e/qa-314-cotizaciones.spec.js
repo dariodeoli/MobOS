@@ -8,6 +8,7 @@ import { openShellDestination } from './helpers/shell-navigation.js'
 // desde el portal público con código (misma pestaña, historial y evidencia).
 // Capturas: MOBOS_CAPTURAS=docs/QA-314-cotizaciones npx playwright test e2e/qa-314-cotizaciones.spec.js
 import { test, expect } from '@playwright/test'
+import { COTIZACIONES_DEMO } from '../src/lib/demo/cotizaciones.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 import { clickRowAction } from './helpers/row-actions.js'
 
@@ -59,7 +60,7 @@ test('cotizaciones demo: fixtures en etapas, estado vacío y modal con etiquetas
 
   // Fixtures en todas las etapas del pipeline.
   const filas = page.getByTestId('cotizacion-fila')
-  await expect(filas).toHaveCount(6)
+  await expect(filas).toHaveCount(COTIZACIONES_DEMO.length)
   const estados = await filas.evaluateAll((nodos) => nodos.map((nodo) => nodo.getAttribute('data-estado')))
   for (const etapa of ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED']) {
     expect(estados, `falta la etapa ${etapa} en la lista demo`).toContain(etapa)

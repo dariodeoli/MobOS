@@ -5,6 +5,7 @@ import { flagsV2, rutaV2 } from '@/lib/flags'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { publicUrls, rutaInterna } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
+import { puedeVerificarPagos } from '@/lib/verificacionPagos'
 import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
@@ -119,7 +120,12 @@ function SoloFuera() {
   const { estado } = useSesion()
   const { search } = useLocation()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'dentro') return <Navigate to={volverSeguro(new URLSearchParams(search).get('volver')) || '/'} replace />
+  // `volver` lo arma el redirect de las áreas protegidas; `next` viene de los enlaces públicos
+  // (enlaceLogin). Con la sesión recuperada tarde, Login ya no llega a montarse: se respeta acá.
+  if (estado === 'dentro') {
+    const params = new URLSearchParams(search)
+    return <Navigate to={volverSeguro(params.get('volver')) || rutaInterna(params.get('next')) || '/'} replace />
+  }
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return <Login />
 }
@@ -142,6 +148,18 @@ function SoloPropietario({ children }) {
   if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   if (!sesion?.esPropietario) return <Navigate to="/" replace />
+  return children
+}
+
+// Finanzas: el dueño la ve completa; gerente y caja entran solo a «Verificación»
+// (el panel les deja esa pestaña). El resto de los roles vuelve al inicio.
+function SoloFinanzas({ children }) {
+  const { estado, sesion } = useSesion()
+  const ubicacion = useLocation()
+  if (estado === 'cargando') return <Cargando />
+  if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
+  if (estado === 'sinEmpresa') return <SinEmpresa />
+  if (!sesion?.esPropietario && !puedeVerificarPagos(sesion?.rol)) return <Navigate to="/" replace />
   return children
 }
 
@@ -197,8 +215,9 @@ function AreaProtegida({ owner = false, children }) {
 // ruta interna /pedidos/:orderId.
 function RedirigirPedidoPublico({ externo = false, mismo = false }) {
   const { token } = useParams()
-  const { search } = useLocation()
-  const destino = `/pedidos/${encodeURIComponent(token || '')}${search || ''}`
+  const { search, hash } = useLocation()
+  // El fragmento viaja con el enlace: el seguimiento de la demo (#d=…) lo necesita.
+  const destino = `/pedidos/${encodeURIComponent(token || '')}${search || ''}${hash || ''}`
   if (externo) return <Navigate to={`${publicUrls.clientPortal}${destino}`} replace />
   if (mismo) return <Navigate to={destino} replace />
   // Dev, localhost y e2e: la página se abre en el mismo origen (sin canónica).
@@ -425,7 +444,7 @@ export default function App() {
               pestaña de Configuración (su lugar en la IA de 7 grupos). */}
           <Route path="/mi-cuenta" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/finanzas/:seccion?" element={<SoloFinanzas><PanelVendedor /></SoloFinanzas>} />
           <Route path="/stock/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/inventario/:seccion?" element={<AreaProtegida owner><InventarioRedirect /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />

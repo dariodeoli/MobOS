@@ -1,11 +1,13 @@
 import { error, json } from '../../../../../../lib/http'
 import { arrivalActor, arrivalErrorResponse, patchLine } from '../../../../../../lib/arrival-service'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 // Edita una línea del borrador (producto, serie, destino, vínculos, nota) y
 // vuelve a validar toda la llegada.
 export async function PATCH(request: Request, { params }: RouteContext) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const actor = await arrivalActor(request)
   if (actor instanceof Response) return actor
   let body: Record<string, unknown>

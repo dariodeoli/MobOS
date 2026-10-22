@@ -1,6 +1,7 @@
 import { Prisma, type Payment, type PaymentAccount, type PaymentMethod, type PaymentStatus } from '@prisma/client'
 import { LIMITE_MONTO_VENTAS, numero } from './montos'
 import { codigoGiftCardValido } from './gift-card-code'
+import { decideInitialPaymentState, parsePaymentVerification, type PaymentVerificationPolicy, type PendingReason } from './payment-verification-policy'
 
 export const INT_MAX = 2147483647
 export class InputError extends Error {
@@ -28,6 +29,10 @@ type NormalizedPayment = {
   // Efectivo realmente entregado (> originalAmount) cuando hubo vuelto (#455).
   tenderedAmount?: Prisma.Decimal;
   settlesAt?: Date;
+  // Por qué nace PENDING (VERIFICACION/CUOTA/REPARTO/MANUAL); en un pago aprobado por SELF queda VERIFICACION.
+  pendingReason?: PendingReason;
+  // Solo informativo para quien crea el pago: NO es una columna (quitarlo antes de guardar).
+  selfApproved?: boolean;
   dueAt?: Date;
   tradeIn?: TradeInInput;
   giftCard?: { code: string };
@@ -58,10 +63,28 @@ export function rateOriginSnapshot(value: unknown): { rateOrigin?: Prisma.InputJ
 }
 
 // On an idempotent replay, use the immutable snapshot: later account edits must not change the original operation.
-export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: string, value: unknown, previous?: Payment): Promise<NormalizedPayment> {
+//
+// El estado del pago lo decide el SERVIDOR según la política de verificación de la
+// empresa: lo que mande el cliente en `status` solo puede pedir «pendiente»; nunca
+// fuerza CONFIRMED sobre un medio o cuenta que pide verificación. `ctx.skipPolicy`
+// es para flujos internos ya autorizados (corrección de medio de pago).
+export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: string, value: unknown, previous?: Payment, ctx: { actor?: { role?: string | null }; policy?: PaymentVerificationPolicy; skipPolicy?: boolean } = {}): Promise<NormalizedPayment> {
   const input = objectInput(value)
-  const status = input.status ?? 'CONFIRMED'
-  if (!['PENDING', 'CONFIRMED', 'REJECTED', 'REFUNDED'].includes(status as string)) throw new InputError('Estado de pago inválido.')
+  const requestedStatus = input.status ?? 'CONFIRMED'
+  if (!['PENDING', 'CONFIRMED'].includes(requestedStatus as string)) throw new InputError('Estado de pago inválido: un cobro nuevo solo nace aprobado o pendiente.')
+  // El estado se resuelve cuando se conoce el medio y la cuenta (más abajo).
+  let status: 'PENDING' | 'CONFIRMED' = requestedStatus as 'PENDING' | 'CONFIRMED'
+  let pendingReason: PendingReason | undefined
+  let selfApproved = false
+  const decideStatus = async (method: string, accountId: string | null) => {
+    if (previous) { status = previous.status as 'PENDING' | 'CONFIRMED'; pendingReason = (previous.pendingReason as PendingReason | null) ?? undefined; return }
+    if (ctx.skipPolicy) { if (status === 'PENDING') pendingReason = method === 'CREDIT' ? 'CUOTA' : 'MANUAL'; return }
+    const policy = ctx.policy ?? parsePaymentVerification((await tx.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }))?.settings)
+    const decision = decideInitialPaymentState(policy, { method, accountId, role: ctx.actor?.role ?? null, requestedStatus })
+    status = decision.status
+    pendingReason = decision.pendingReason ?? undefined
+    selfApproved = decision.selfApproved
+  }
   let reference: string | null = null
   if (input.reference !== undefined && input.reference !== null && input.reference !== '') reference = textInput(input.reference, 'reference')
   let result: NormalizedPayment
@@ -81,6 +104,7 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     const method = snapshot.kind as PaymentMethod
     if (input.method !== undefined && input.method !== method) throw new InputError('El método no coincide con la cuenta.')
     if (input.currency !== undefined && input.currency !== currency) throw new InputError('La moneda no coincide con la cuenta.')
+    await decideStatus(method, accountId)
     const originalAmount = decimalInput(input.originalAmount, 'originalAmount', currency === 'PYG' ? 0 : 8)
     const exchangeRatePyg = decimalInput(input.exchangeRatePyg ?? (currency === 'PYG' ? 1 : undefined), 'exchangeRatePyg', 6)
     if (currency === 'PYG' && !exchangeRatePyg.eq(1)) throw new InputError('La cotización PYG debe ser 1.')
@@ -101,8 +125,11 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     if (input.originalAmount !== undefined || input.exchangeRatePyg !== undefined || input.currency !== undefined) throw new InputError('Los campos de moneda requieren accountId.')
     const amountPyg = Number(input.amountPyg)
     if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > LIMITE_MONTO_VENTAS || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT', 'GIFT_CARD'].includes(input.method as string)) throw new InputError(`El monto debe ser un entero positivo hasta ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')} y el método tiene que ser válido.`)
+    await decideStatus(input.method as string, null)
     result = { amountPyg, method: input.method as PaymentMethod, status: status as PaymentStatus, reference }
   }
+  if (pendingReason) result.pendingReason = pendingReason
+  if (selfApproved) result.selfApproved = true
   // Previsión de acreditación: medios con settlementDays (tarjeta, PIX) tienen
   // fecha estimada de ingreso a la cuenta de la empresa.
   const snapshotDays = result.accountSnapshot && typeof result.accountSnapshot === 'object' && 'settlementDays' in (result.accountSnapshot as Record<string, unknown>) ? Number((result.accountSnapshot as Record<string, unknown>).settlementDays) : 0

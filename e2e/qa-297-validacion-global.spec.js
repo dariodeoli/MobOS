@@ -95,7 +95,7 @@ test('#297 · compra incompleta: crear pedido bloqueado y la línea señala qué
 
 test('#297 · impresora sin configuración: guardar bloqueado hasta completar nombre y destino', async ({ page }) => {
   await entrarDemo(page)
-  await page.goto('/configuracion/dispositivos')
+  await page.goto('/configuracion/impresion')
   await page.getByRole('button', { name: 'Agregar impresora' }).click()
   const panel = page.getByRole('dialog', { name: 'Agregar impresora' })
   const guardar = panel.getByRole('button', { name: 'Guardar impresora' })
@@ -124,7 +124,8 @@ test('#297 · impresora sin configuración: guardar bloqueado hasta completar no
 test('#297 · promoción incompleta: crear cupón bloqueado hasta completar los datos', async ({ page }) => {
   await entrarDemo(page)
   await page.goto('/promociones')
-  const form = page.locator('form').filter({ hasText: 'Crear cupón' })
+  await page.getByRole('button', { name: 'Nuevo cupón' }).click()
+  const form = page.getByRole('dialog', { name: 'Crear cupón' })
   const crear = form.getByRole('button', { name: 'Crear cupón' })
 
   await expect(crear).toBeDisabled()
@@ -213,7 +214,7 @@ test('#297 · POS: con total Gs 0 no se canjean gift cards ni se cargan pagos', 
   await ensureCobro(page)
 
   const pagar = page.getByRole('button', { name: '+ Agregar pago' })
-  const canjear = page.getByRole('button', { name: '+ Canjear gift card' })
+  const canjear = page.getByRole('button', { name: 'Gift card', exact: true })
   await expect(page.getByTestId('cobro-total-cero')).toContainText('Cargá un producto con precio')
   await expect(pagar).toBeDisabled()
   await expect(canjear).toBeDisabled()
@@ -222,6 +223,7 @@ test('#297 · POS: con total Gs 0 no se canjean gift cards ni se cargan pagos', 
 
   // Con precio real vuelven a quedar disponibles.
   await page.getByTestId('carrito-editar').click()
+  await fila.getByRole('button', { name: /^Ver detalle de / }).click()
   await fila.getByLabel(/^Precio de venta de /).fill('45000')
   await ensureCobro(page)
   await expect(pagar).toBeEnabled()

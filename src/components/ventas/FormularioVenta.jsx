@@ -37,7 +37,10 @@ import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVe
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
+import { useModulos } from '@/lib/useModulos'
 import { guardarClienteDemo, listarClientesDemo, registrarPedidoDemoDeVenta } from '@/lib/demoClientes'
+import { enviarYAvisarCorreoDemo } from '@/lib/demoCorreo'
+import { itemsParaCorreoDemo, payloadCorreoDemo } from '@/lib/demoCorreoRequest'
 import { evaluarCredito, preguntaEntregaAplica } from '@/lib/credito'
 import { autorizacionCreditoDemo, evaluarCreditoDemo } from '@/lib/demoCreditoStore'
 import EntregaPregunta from './venta/EntregaPregunta'
@@ -48,14 +51,15 @@ import { alInvalidarSnapshots } from '@/lib/offline/snapshot'
 import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
 import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
-import { Aviso, Button, Card, EmptyState, Input, Label, useToast } from '@/components/ui'
+import { Aviso, Button, Card, EmptyState, Input, Label, Nota, useToast } from '@/components/ui'
 import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
+import Popup from '@/components/shared/Popup'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
-import { accountPayment, pagosSinVuelto, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
+import { accountPayment, cambiarCuentaPago, pagosSinVuelto, updateAccountPayment, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import GiftCardsPos from './venta/GiftCardsPos'
@@ -70,6 +74,7 @@ import { categoriaAccesorioDe } from '@/lib/categoriasAccesorio'
 import { subirFotosPendientes } from '@/components/productos/GaleriaFotosProducto'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
+import LineasSoloLectura from './venta/LineasSoloLectura'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
@@ -78,6 +83,7 @@ import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
 import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
 import CobroMovil from './movil/CobroMovil'
 import { pagoDeMedio, vueltoDePagos } from './movil/posMovil'
+import { recordarCuentaReciente } from '@/utils/cobroMedios'
 import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 import { isNativeIOS } from '@/lib/plataforma'
 import { compartirNativo } from '@/lib/nativo/compartir'
@@ -360,6 +366,11 @@ export default function FormularioVenta({
   onIr,
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
+  // Módulo «Venta sin stock»: apagado, el POS no ofrece vender sin stock ni sin IMEI (sobre pedido).
+  const { activo: moduloOn } = useModulos()
+  const ventaSinStock = moduloOn('venta-sin-stock')
+  // Mayoristas apagado: el POS no aplica ni muestra precio mayorista (el servidor tampoco).
+  const mayoristas = moduloOn('mayoristas')
   const navigate = useNavigate()
   const layoutRef = useRef(null)
   useAlturaPos(layoutRef)
@@ -522,6 +533,8 @@ export default function FormularioVenta({
   const [avisoEnlaceDemo, setAvisoEnlaceDemo] = useState(null)
   // Gift cards (#280): emisión/consulta desde el POS y canje dentro del cobro.
   const [giftCardsOpen, setGiftCardsOpen] = useState(false)
+  const [detallesAbierto, setDetallesAbierto] = useState(false)
+  const [confirmarNueva, setConfirmarNueva] = useState(false)
 
   // Un pago que entra por otro camino (canje borrador, venta recuperada) apaga
   // «Paga al recibir»: nunca quedan pagos ocultos.
@@ -762,7 +775,7 @@ export default function FormularioVenta({
     if (!producto) return undefined
     const info = preciosCache.current.get(`${customer?.id || ''}:${id}:${quantity}`)
     if (info) return Number(info.unitPricePygFallback ?? info.unitPricePyg) || 0
-    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
+    if (mayoristas && customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
     return Number(producto.precioVenta) || 0
   }
   // Venta bajo lista: diferencia acumulada entre el precio de lista y el precio
@@ -821,7 +834,7 @@ export default function FormularioVenta({
   // Precio con el que entra un producto a la venta: mayorista si el cliente lo es.
   function precioDe(producto) {
     if (!producto) return 0
-    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) {
+    if (mayoristas && customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) {
       return Number(producto.wholesalePricePyg)
     }
     return Number(producto.precioVenta) || 0
@@ -1504,6 +1517,7 @@ export default function FormularioVenta({
           cliente: String(f.cliente ?? '').trim(),
           clienteId: clienteDemo.id,
           clienteTelefono: clienteDemo.phone,
+          clienteEmail: clienteDemo.email || customer.email || '',
           clienteDireccion: clienteDemo.address,
           fecha: fechaVenta,
           medioPago: f.medioPago,
@@ -1572,6 +1586,19 @@ export default function FormularioVenta({
           throw new Error(result?.error || 'No se pudo registrar el canje demo.')
         recordDemoPromotionUsage(orderItems, productos, gsNum(descuento))
         completedOrder = order
+        // Correo real de la demo (comprobante) si el cliente tiene correo propio: el
+        // envío no frena la venta y, apagado o sin red, la demo sigue igual.
+        const correoCliente = String(clienteDemo.email || customer.email || '').trim()
+        if (correoCliente) {
+          void enviarYAvisarCorreoDemo(toast, payloadCorreoDemo({
+            kind: 'receipt',
+            numero: numeroPedidoDemo,
+            email: correoCliente,
+            cliente: String(clienteDemo.name || customer.name || f.cliente || '').trim(),
+            items: itemsParaCorreoDemo(orderItems, { envio: montoDeliveryEfectivo }),
+            descuento: lista.reduce((suma, it) => suma + descuentoItem(it), 0) + gsNum(descuento),
+          }))
+        }
       }
 
       recordarUltimo(ULTIMO_VENDEDOR, f.vendedorId)
@@ -1685,6 +1712,22 @@ export default function FormularioVenta({
     ])
   }
 
+  // Tarjetas de medio del cobro («Efectivo», «Transferencia»…): un toque agrega
+  // un pago por lo que falta. Con la cuenta ya elegida (una sola del medio) la
+  // fila sale completa con la misma regla de `cambiarCuentaPago` que usa el
+  // selector; si el medio tiene varias cuentas, la fila pide la cuenta.
+  function agregarPagoDeMedio({ cuenta = null, medio = '' } = {}) {
+    if (!cuentas || !usaCuentas || totalGeneral <= 0) return
+    const base = { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
+    if (!cuenta) {
+      setPagos(arr => [...arr, { ...base, medioSugerido: medio }])
+      return
+    }
+    recordarCuentaReciente(cuenta.id)
+    const { cambio } = cambiarCuentaPago(base, cuentas, cuenta.id, pendiente)
+    setPagos(arr => [...arr, updateAccountPayment({ ...base, ...cambio }, {}, cuentas)])
+  }
+
   // Gift card (#280): fila de cobro propia. El código se consulta contra el
   // saldo y el monto se propone con lo que falta pagar (nunca más que el saldo).
   function agregarGiftCard() {
@@ -1773,6 +1816,18 @@ export default function FormularioVenta({
     setItems(arr => arr.map(it =>
       it.descuento || it.descuentoPct ? { ...it, descuento: '', descuentoPct: '' } : it,
     ))
+  }
+  // «Nueva venta»: vacía carrito, cliente y pagos y vuelve al paso de productos.
+  // Con datos cargados pide confirmar antes de perderlos.
+  function empezarVentaNueva() {
+    limpiarCarrito()
+    setModoCobro(false)
+    setHoja(null)
+    setConfirmarNueva(false)
+  }
+  function pedirNuevaVenta() {
+    if (carritoConDatos || pagos.some(p => p.tradeIn || Number(p.monto) > 0)) setConfirmarNueva(true)
+    else empezarVentaNueva()
   }
   // Cambiar o quitar el cliente apaga «Vender a crédito»: el crédito es de la ficha anterior.
   function cambiarCliente(siguiente) {
@@ -1913,7 +1968,7 @@ export default function FormularioVenta({
   function pedirRecuperar(suspendida) {
     // Si cambió la disponibilidad, primero se avisa: volver o vender igual.
     const faltantes = faltantesDe(suspendida)
-    if (faltantes.length) {
+    if (faltantes.length && ventaSinStock) {
       setStockPendiente({ suspendida, faltantes })
       return
     }
@@ -2032,6 +2087,22 @@ export default function FormularioVenta({
     }
   }
 
+  // Paso 2 · Cobrar: Esc vuelve a productos. Va en captura para ver si había una
+  // lista desplegada o una ventana abierta ANTES de que su propio Esc la cierre
+  // (si no, un Esc que solo cierra la lista sacaría también del cobro).
+  useEffect(() => {
+    if (!modoCobro) return undefined
+    const alEscape = event => {
+      if (event.key !== 'Escape' || esMovilRef.current) return
+      const busqueda = document.getElementById('pos-busqueda-producto')
+      if (busqueda && busqueda.closest('[hidden]')) return
+      if (document.querySelector('[role="dialog"]:not([hidden]), [role="alertdialog"]:not([hidden]), [role="listbox"], [role="menu"], [aria-haspopup][aria-expanded="true"]')) return
+      setModoCobro(false)
+    }
+    document.addEventListener('keydown', alEscape, true)
+    return () => document.removeEventListener('keydown', alEscape, true)
+  }, [modoCobro])
+
   // Atajos del POS. Solo actúan mientras esta vista está visible (el panel la
   // mantiene montada con `hidden`) y nunca cuando se escribe en un campo,
   // salvo Escape. Los handlers usan el estado del render actual; el efecto se
@@ -2096,6 +2167,9 @@ export default function FormularioVenta({
         <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-suspendidas" onClick={abrirSuspendidas} title="Ventas suspendidas" aria-label="Ventas suspendidas">
           <Icon name="clock" className="h-4 w-4" />
         </Button>
+        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-detalles" onClick={() => setDetallesAbierto(true)} title="Detalles de la venta y atajos de teclado" aria-label="Detalles de la venta y del día" aria-haspopup="dialog">
+          <Icon name="info" className="h-4 w-4" />
+        </Button>
         <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)} title="Gift cards" aria-label="Gift cards">
           <Icon name="card" className="h-4 w-4" />
         </Button>
@@ -2113,7 +2187,7 @@ export default function FormularioVenta({
     return esMovil ? null : elemento
   }
   // Mismo criterio que «Sobre pedido» del cobro de escritorio: cualquier vendedor.
-  const puedeVenderSinStock = true
+  const puedeVenderSinStock = ventaSinStock
   const pendientesMovil = pendientesVenta.map(p => ({
     ...p,
     stock: num(productos.find(prod => prod.id === items.find(it => it.key === p.key)?.productoId)?.stock),
@@ -2274,6 +2348,10 @@ export default function FormularioVenta({
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
           // Celular: Enter en un campo nunca guarda la venta; solo el botón explícito.
           if (esMovilRef.current && target.tagName === 'INPUT') event.preventDefault()
+          // Enter en los buscadores (producto y cliente) elige o agrega, nunca confirma
+          // la venta: si la lista aún no se filtró, el envío implícito del formulario
+          // cobraba el carrito a medio armar.
+          if (target.closest('#pos-busqueda-producto, [data-testid="pos-bloque-cliente"]')) event.preventDefault()
         }}
         className="pos-f2 flex flex-col gap-4"
       >
@@ -2285,23 +2363,36 @@ export default function FormularioVenta({
           </div>
         )}
 
-        {/* Resumen fijo: cruza las dos columnas en desktop y queda al pie en
-            pantallas angostas (ahí la barra superior es el acceso rápido). */}
-        <div
-          data-testid="resumen-columna"
-          className={esMovil ? 'order-last hidden' : 'order-last'}
-        >
-          <details className="inicio-disclosure"><summary>Detalles de la venta y del día</summary>
-          <p className="mb-2 text-xs text-mute">Fecha: {fechaClave().split('-').reverse().join('/')}</p>
-          <ResumenVenta
-            items={items}
-            unidades={cantTotal}
-            montoDescuento={gsNum(descuento)}
-            montoDelivery={montoDeliveryEfectivo}
-            dia={resumenDia}
-          />
-          </details>
-        </div>
+        {/* Detalles de la venta y del día + atajos: viven en un popup que abre el
+            ícono de la cabecera de Productos, para que el catálogo y el ticket
+            ocupen todo el alto de la pantalla (sin franjas debajo). */}
+        {!esMovil && (
+          <Popup
+            open={detallesAbierto}
+            onClose={() => setDetallesAbierto(false)}
+            tipo="detalle"
+            tamano="md"
+            title="Detalles de la venta y del día"
+            testId="pos-detalles-popup"
+          >
+            <div data-testid="resumen-columna" className="space-y-4">
+              <p className="text-xs text-mute">Fecha: {fechaClave().split('-').reverse().join('/')}</p>
+              <ResumenVenta
+                items={items}
+                unidades={cantTotal}
+                montoDescuento={gsNum(descuento)}
+                montoDelivery={montoDeliveryEfectivo}
+                dia={resumenDia}
+              />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-mute" data-testid="pos-atajos">
+                <span className="font-semibold uppercase tracking-wider">Atajos</span>
+                <Atajo k="F2" label="Cobrar" />
+                <Atajo k="Ctrl+S" label="Guardar venta" />
+                <Atajo k="Esc" label="Cerrar ventana" />
+              </div>
+            </div>
+          </Popup>
+        )}
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
         <div
@@ -2372,14 +2463,6 @@ export default function FormularioVenta({
               onCobrar={irACobrarRapido}
               acciones={barraPos}
             />)}
-
-            {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
-            <div className="hidden items-center gap-x-4 gap-y-1.5 text-xs text-mute md:flex">
-              <span className="font-semibold uppercase tracking-wider text-mute">Atajos</span>
-              <Atajo k="F2" label="Cobrar" />
-              <Atajo k="Ctrl+S" label="Guardar venta" />
-              <Atajo k="Esc" label="Cerrar ventana" />
-            </div>
           </div>
 
           {/* Columna de la venta (carrito + cobro y entrega): pegada como un solo
@@ -2453,6 +2536,7 @@ export default function FormularioVenta({
               pagos={pagos}
               setPagos={setPagos}
               onAgregarPago={agregarPago}
+              onAgregarMedio={agregarPagoDeMedio}
               onAgregarGiftCard={agregarGiftCard}
               onConsultarGiftCard={consultarGiftCard}
               guardando={guardando}
@@ -2465,7 +2549,7 @@ export default function FormularioVenta({
               totalGeneral={totalGeneral}
               totalPagado={totalPagado}
               pendiente={pendiente}
-              vuelto={vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0}
+              vuelto={(vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0) + vueltoDePagos(pagos)}
               f={f}
               setF={setF}
               set={set}
@@ -2474,7 +2558,10 @@ export default function FormularioVenta({
               cantTotal={cantTotal}
               ok={ok}
               pendientes={pendientesVenta}
+              ventaSinStock={ventaSinStock}
               onIrAlCarrito={irAlCarrito}
+              onVolver={esMovil ? () => setHoja(null) : () => setModoCobro(false)}
+              onNuevaVenta={pedirNuevaVenta}
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
@@ -2521,6 +2608,8 @@ export default function FormularioVenta({
               <CobroMovil
                 open
                 onClose={() => setHoja(null)}
+                onNuevaVenta={pedirNuevaVenta}
+                lineas={<LineasSoloLectura items={items} productos={productos} />}
                 cuentas={cuentas}
                 usaCuentas={usaCuentas}
                 errorCuentas={errorCuentas}
@@ -2596,6 +2685,7 @@ export default function FormularioVenta({
                 {fila.nombre} · {gs(Number(fila.precio) || 0)} c/u
               </p>
               <SerialUnitPicker
+                sobrePedido={ventaSinStock}
                 product={productoFila}
                 branchId={sucursal?.id || ''}
                 customerName={customer.name || f.cliente}
@@ -2610,6 +2700,7 @@ export default function FormularioVenta({
                 }}
                 disabled={guardando}
               />
+              {ventaSinStock ? (
               <label className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${unidadesDeImei > 0 ? 'border-ink-600 bg-ink-800/40 text-mute/70' : 'border-warn/30 bg-warn/5 text-mute'}`}>
                 <input
                   type="checkbox"
@@ -2624,9 +2715,14 @@ export default function FormularioVenta({
                     : <>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; el IMEI se completa al entregar.</>}
                 </span>
               </label>
+              ) : unidadesDeImei > 0 ? (
+                <p className="rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-sm text-mute">Con stock no se vende sin IMEI: elegí la unidad de arriba (hay {unidadesDeImei} disponible{unidadesDeImei === 1 ? '' : 's'}).</p>
+              ) : (
+                <Nota tono="warn" como="div" compact data-testid="imei-sin-unidades">No hay unidades disponibles de este equipo. Quitalo del carrito o elegí otro.</Nota>
+              )}
               {!decidido && (
                 <p role="status" data-testid="imei-falta-eleccion" className="text-xs font-semibold text-warn">
-                  Elegí la unidad exacta o marcá «vender sin IMEI» para cerrar la línea.
+                  {ventaSinStock ? 'Elegí la unidad exacta o marcá «vender sin IMEI» para cerrar la línea.' : 'Elegí la unidad exacta para cerrar la línea.'}
                 </p>
               )}
               <div className="flex justify-end">
@@ -2634,7 +2730,7 @@ export default function FormularioVenta({
                   type="button"
                   onClick={() => setImeiPara(null)}
                   disabled={!decidido}
-                  title={!decidido ? 'Elegí la unidad exacta o marcá «vender sin IMEI».' : undefined}
+                  title={!decidido ? (ventaSinStock ? 'Elegí la unidad exacta o marcá «vender sin IMEI».' : 'Elegí la unidad exacta.') : undefined}
                 >
                   Listo
                 </Button>
@@ -2887,6 +2983,17 @@ export default function FormularioVenta({
         confirmLabel="Descartar"
         variant="danger"
         busy={descartando}
+      />
+
+      <ConfirmDialog
+        open={confirmarNueva}
+        onCancel={() => setConfirmarNueva(false)}
+        onConfirm={empezarVentaNueva}
+        title="¿Empezar una venta nueva?"
+        description="Se vacían el carrito, el cliente y los pagos de esta venta. No se puede deshacer."
+        confirmLabel="Vaciar y empezar"
+        cancelLabel="Seguir con esta venta"
+        variant="danger"
       />
 
       <GiftCardsPos

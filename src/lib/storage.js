@@ -980,7 +980,7 @@ export async function guardarOrdenApi(payload, opciones = {}) {
 function enriquecerVentaDemo(venta, prod) {
   venta.productoNombre = venta.productoNombre || prod?.nombre || ''
   venta.tenant = venta.tenant || { id: EMPRESA_DEMO.id, name: EMPRESA_DEMO.razonSocial, ruc: EMPRESA_DEMO.ruc, address: EMPRESA_DEMO.direccion, phone: EMPRESA_DEMO.telefono, email: EMPRESA_DEMO.email }
-  venta.customer = venta.customer || { id: venta.clienteId || null, name: venta.cliente || 'Consumidor final', phone: venta.clienteTelefono || '', address: venta.clienteDireccion || '', countryCode: '+595' }
+  venta.customer = venta.customer || { id: venta.clienteId || null, name: venta.cliente || 'Consumidor final', phone: venta.clienteTelefono || '', email: venta.clienteEmail || '', address: venta.clienteDireccion || '', countryCode: '+595' }
   const sucursal = SUCURSALES_DEMO.find(s => s.id === ctx.sucursalId) || SUCURSALES_DEMO[0]
   venta.branch = venta.branch || { id: sucursal.id, name: sucursal.name, address: sucursal.address, city: sucursal.city }
   venta.deliveryType = venta.deliveryType || (String(venta.entrega || '').toLowerCase().includes('delivery') ? 'DELIVERY' : 'RETIRO')

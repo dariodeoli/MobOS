@@ -647,18 +647,20 @@ test('el buscador global usa PaletaComandos y no reimplementa la paleta (#241)',
   assert.ok(!/setTimeout\(/.test(buscador), 'el debounce vive en la paleta')
 })
 
-// #253: la estructura visual de Configuración (7 grupos con icono y
+// #253: la estructura visual de Configuración (9 grupos con icono y
 // descripción) vive en un solo módulo y la pantalla la reutiliza con la
 // semántica de pestañas que ya cubren los e2e.
-test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () => {
+test('los 9 grupos de Configuración viven en config/gruposConfig (#253)', () => {
   const meta = leerFuente(join(RAIZ, 'components/control/config/gruposConfig.js'), 'utf8')
   const esperados = {
     'mi-cuenta': 'user',
-    'organizacion': 'store',
+    'negocio': 'store',
+    'modulos': 'grid',
     'equipo': 'users',
-    'comercial': 'tag',
+    'ventas-cobros': 'tag',
     'seguridad': 'shield',
-    'dispositivos': 'printer',
+    'impresion': 'printer',
+    'mensajes': 'send',
     'sistema': 'pulse',
   }
   for (const [id, icono] of Object.entries(esperados)) {
@@ -681,7 +683,7 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
   assert.ok(!/colapsado=|onToggle/.test(nav), 'el adaptador no habilita el colapso a iconos (#298)')
   assert.match(nav, /data-testid="config-grupos"/, 'el adaptador conserva los testids')
   const panel = leerFuente(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
-  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/, 'Configuración usa la navegación de los 7 grupos')
+  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/, 'Configuración usa la navegación de los 9 grupos')
   assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')
 })
 
@@ -747,7 +749,7 @@ test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle d
   assert.match(picker, /unidadesElegibles\(/, 'el selector usa la elegibilidad compartida (utils/inventario)')
   assert.match(picker, /data-testid="picker-sin-sucursal"/, 'sin sucursal explica qué falta y cómo seguir')
   assert.match(picker, /picker-error/, 'los fallos de carga muestran un aviso del selector')
-  assert.match(picker, /setError\(mensajeDeCarga\(cause\)\)/, 'los fallos pasan por el mensaje accionable (sin texto crudo del API)')
+  assert.match(picker, /setError\(mensajeDeCarga\(cause/, 'los fallos pasan por el mensaje accionable (sin texto crudo del API)')
   const detalle = leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8')
   assert.doesNotMatch(detalle, /catch\s*\{\s*setUnits\(\[\]\)\s*\}/, 'el detalle no silencia el fallo de unidades')
   assert.match(detalle, /productId: current\.id/, 'el detalle pide las unidades por producto (no por texto)')

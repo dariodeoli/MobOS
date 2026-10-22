@@ -196,10 +196,14 @@ test('tarjeta de transferencia: alias visible y «Copiar datos» deja un bloque 
   await fila.getByLabel('Cuenta de cobro').click()
   await page.getByRole('listbox', { name: 'Cuentas de cobro' }).getByRole('option', { name: /Itaú/ }).first().click()
   const tarjeta = fila.getByTestId('cuenta-capsula')
+  // Una fila: los datos para el cliente (alias, RUC…) salen del ⋯.
+  await expect(tarjeta.getByTestId('cuenta-capsula-datos')).toHaveCount(0)
+  await tarjeta.getByRole('button', { name: 'Más acciones del pago 1' }).click()
+  await page.getByTestId('cuenta-ver-datos').click()
   await expect(tarjeta.getByTestId('cuenta-alias')).toContainText('80012345-0')
-  await tarjeta.getByText('Ver datos para el cliente').click()
   await expect(tarjeta.getByTestId('cuenta-capsula-datos')).toContainText('Alias (RUC)')
-  await tarjeta.getByTestId('cuenta-copiar-datos').click()
+  await tarjeta.getByRole('button', { name: 'Más acciones del pago 1' }).click()
+  await page.getByTestId('cuenta-copiar-datos').click()
   const texto = await page.evaluate(() => navigator.clipboard.readText())
   const lineas = texto.split('\n')
   expect(lineas.slice(0, 5)).toEqual(['Titular: Aurora Móviles', 'Banco: Itaú', 'Nro de cuenta: 001-2456789', 'CI/RUC: 80012345-0', 'Alias (RUC): 80012345-0'])
@@ -223,9 +227,10 @@ test('«Agregar nota» es un casillero, «Vender a crédito» comparte renglón 
   const entrega = await page.locator('#entrega').boundingBox()
   const paga = await cobro.getByTestId('pos-paga-al-recibir').boundingBox()
   expect(Math.abs((paga.y + paga.height / 2) - (entrega.y + entrega.height / 2)), 'paga al recibir en el mismo bloque compacto que la entrega').toBeLessThan(60)
-  // Listo, ir a cobrar: la lista de productos se resume y el cobro gana altura.
+  // Listo, ir a cobrar: las líneas pasan a solo lectura (sin campos editables) y «Editar productos» vuelve.
   await expect(page.getByTestId('carrito-editar')).toBeVisible()
-  await expect(page.getByTestId('pos-carrito-cuerpo')).toBeHidden()
+  await expect(page.getByTestId('cobro-lineas')).toBeVisible()
+  await expect(page.getByTestId('pos-carrito-cuerpo').locator('input, select')).toHaveCount(0)
   await expect(page.getByTestId('carrito-total')).toContainText('Gs 900.000')
   await page.screenshot({ path: `${out}/listo-cobrar-1440.png` })
   await page.getByTestId('carrito-editar').click()
@@ -316,4 +321,85 @@ test('#487 POS demo conserva pedido multítem y saldo parcial al reabrir y cobra
   expect(final.recibo).toContain('Funda MagSafe Transparente')
   expect(final.recibo).toContain('iPhone 15 128GB Azul')
   expect(final.recibo).toContain('5.030.000')
+})
+
+// Scroll de página (22-10-2026): ningún contenedor del cobro recorta su contenido ni encierra
+// el contenido en una ventana con scroll propio. Mide cada elemento del cobro contra sus
+// ancestros con overflow (hidden/clip/auto/scroll) hasta la raíz.
+async function recortesDelCobro(page, raiz, soloClip = false) {
+  return page.evaluate(([selector, soloClip]) => {
+    const base = document.querySelector(selector)
+    const fallas = []
+    for (const el of base.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height || getComputedStyle(el).visibility === 'hidden') continue
+      for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+        const cs = getComputedStyle(a)
+        if (cs.position === 'fixed') break
+        const corta = ['hidden', 'clip'].includes(cs.overflowY)
+        const scroll = ['auto', 'scroll'].includes(cs.overflowY) && a.scrollHeight > a.clientHeight + 1
+        if (!corta && !scroll) continue
+        if (soloClip && ['auto', 'scroll'].includes(cs.overflowY)) break
+        const ar = a.getBoundingClientRect()
+        if (corta && r.bottom > ar.bottom + 1) fallas.push(`${el.dataset.testid || el.tagName + '.' + el.className.toString().slice(0, 50) + ' «' + (el.textContent || '').slice(0, 30) + '»'} (${Math.round(r.bottom)}) corta por ${a.dataset.testid || a.className.toString().slice(0, 40)} (${Math.round(ar.bottom)})`)
+        if (scroll && !soloClip && !a.matches('[data-testid="popup-cuerpo"], [role="listbox"]')) fallas.push(`${a.dataset.testid || a.className.toString().slice(0, 40)} tiene scroll interno`)
+        if (fallas.length > 8) return fallas
+      }
+    }
+    return [...new Set(fallas)]
+  }, [raiz, soloClip])
+}
+
+const TRES_PAGOS = [pagoPyg('demo-transfer-itau', 300000), pagoPyg('demo-cash-pyg', 100000), pagoPyg('demo-transfer-ueno-ahorro', 50000)]
+
+for (const [width, height] of [[1440, 900], [1280, 800]]) {
+  test(`cobro a ${width}x${height} con 3 pagos y la cuenta de cobro desplegada: nada recortado ni con scroll interno`, async ({ page }) => {
+    await enterPos(page, width, height, { items: 5, pagos: TRES_PAGOS })
+    const filasPago = page.locator('[data-testid^="pago-fila-"]')
+    await expect(filasPago).toHaveCount(3)
+    await page.getByTestId('pos-cobro').getByRole('button', { name: /^\+ Agregar (otro )?pago$/ }).click()
+    await expect(filasPago).toHaveCount(4)
+    await filasPago.last().getByLabel('Cuenta de cobro').click()
+    await expect(page.getByRole('listbox', { name: 'Cuentas de cobro' })).toBeVisible()
+    await page.waitForTimeout(400)
+    expect(await recortesDelCobro(page, '[data-testid="pos-layout"]')).toEqual([])
+    await page.keyboard.press('Escape')
+    // Con el cobro lleno la página se desplaza y el último control se alcanza.
+    const guardar = page.getByTestId('pos-cobro').locator('button[type="submit"]').first()
+    await guardar.scrollIntoViewIfNeeded()
+    await expect(guardar).toBeInViewport()
+  })
+}
+
+test('cobro a 390 con 3 pagos: la hoja de cobro no recorta su contenido', async ({ page }) => {
+  await enterPos(page, 390, 844, { items: 5, pagos: TRES_PAGOS })
+  await page.getByTestId('pos-barra-carrito-abrir').click()
+  await page.getByTestId('carrito-cobrar').click()
+  const hoja = page.getByTestId('cobro-movil')
+  await expect(hoja).toBeVisible()
+  await page.waitForTimeout(500)
+  expect(await recortesDelCobro(page, '[data-testid="cobro-movil"]', true)).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+})
+
+test('Paso 2: el resumen muestra las líneas (nombre, cantidad × precio, subtotal) en solo lectura, en escritorio y celular', async ({ page }) => {
+  await enterPos(page, 1440, 900, { items: 3 })
+  const lineas = page.getByTestId('cobro-lineas').locator('li')
+  await expect(lineas).toHaveCount(3)
+  for (const li of await lineas.all()) {
+    await expect(li).toContainText('1 × Gs 180.000')
+    await expect(li.locator('b')).not.toBeEmpty()
+    expect(await li.locator('input, select, textarea').count(), 'solo lectura').toBe(0)
+  }
+  await expect(page.getByTestId('carrito-editar')).toBeVisible()
+  await expect(page.getByTestId('carrito-total')).toContainText('Gs 540.000')
+})
+
+test('Paso 2 en celular: la hoja de cobro lista las líneas y ofrece Volver y Nueva venta', async ({ page }) => {
+  await enterPos(page, 390, 844, { items: 3 })
+  await page.getByTestId('pos-barra-carrito-abrir').click()
+  await page.getByTestId('carrito-cobrar').click()
+  await expect(page.getByTestId('cobro-movil-lineas').locator('li')).toHaveCount(3)
+  await expect(page.getByTestId('cobro-volver')).toBeVisible()
+  await expect(page.getByTestId('cobro-nueva-venta')).toBeVisible()
 })

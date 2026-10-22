@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../../lib/payment-input'
 import { estadoNecesidadTras, generarCodigoOtp, generarTokenPublico, hashToken, huellaOtp, requiereAprobacionCliente, resumenAlternativa, vigenciaOtp } from '../../../../../../lib/supply-alternatives'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 // A5 (#279) · El **vendedor resuelve** la alternativa propuesta: aceptar,
 // mantener y esperar, cancelar el producto o enviar las opciones al cliente.
@@ -10,6 +11,7 @@ import { estadoNecesidadTras, generarCodigoOtp, generarTokenPublico, hashToken, 
 const DECISIONES = ['ACEPTAR', 'MANTENER', 'CANCELAR', 'ENVIAR_CLIENTE']
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { ensureCobro } from '../helpers/ensure-cobro.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // POS redesign (owner feedback): sin solapes, teléfono en una fila, catálogo
 // denso y sin scroll horizontal. Demo frontend-only (sin backend).
@@ -74,7 +75,7 @@ async function assertNoOverlap(page, label) {
       monto: await caja(page.locator('#monto-entrega')),
       pagos: await caja(page.getByTestId('pos-bloque-pagos')),
       agregar: await caja(page.getByRole('button', { name: '+ Agregar pago' })),
-      gift: await caja(page.getByRole('button', { name: '+ Canjear gift card' })),
+      gift: await caja(page.getByRole('button', { name: 'Gift card', exact: true })),
       total: await page.getByTestId('carrito-total').boundingBox(),
       tiles: await caja(page.getByTestId('pos-tiles-resumen')),
     }
@@ -126,8 +127,18 @@ for (const width of [1280, 1440, 1920]) {
     expect(cliente.y + cliente.height).toBeLessThanOrEqual(carrito.y + 1)
     // Ticket de ancho fijo: 410 px desde 1280, algo menos en pantallas más chicas.
     if (width >= 1280) expect(Math.abs(columna.width - 410)).toBeLessThanOrEqual(2)
-    // Sin scroll de página: el POS mide el alto de la pantalla.
-    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(900 + 2)
+    // Scroll de PÁGINA (sin scroll interno): ni el catálogo ni el ticket encierran su contenido
+    // en una ventana propia, y el ticket queda pegado arriba mientras se desliza el catálogo.
+    const interno = await page.evaluate(() => ['pos-bloque-productos', 'pos-columna-venta', 'pos-carrito-cuerpo'].map(id => {
+      const el = document.querySelector(`[data-testid="${id}"]`)
+      return [id, getComputedStyle(el).overflowY, el.scrollHeight - el.clientHeight]
+    }))
+    for (const [id, overflowY] of interno) expect(['auto', 'scroll'], `${id} sin scroll interno`).not.toContain(overflowY)
+    expect(interno.every(([, , sobra]) => sobra <= 1)).toBe(true)
+    expect(await page.getByTestId('pos-columna-venta').evaluate(el => getComputedStyle(el).position)).toBe('sticky')
+    // Sin espacio muerto: el POS llega al borde inferior de la pantalla (900) como mínimo.
+    expect(columna.y + columna.height, 'el ticket llega abajo').toBeGreaterThanOrEqual(900 - 80)
+    expect(productos.y + productos.height, 'el catálogo llega abajo').toBeGreaterThanOrEqual(900 - 80)
     // «Cobrar» (abre el cobro) alcanzable sin deslizar la página.
     const cobrar = page.getByTestId('carrito-listo')
     const b = await cobrar.boundingBox()
@@ -175,16 +186,20 @@ test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y una sola fr
 test('teléfono: código y número en una sola fila, RUC aparte y por contenido (#389)', async ({ page }) => {
   await enterPos(page, 1440, 900)
   await page.getByTestId('pos-bloque-cliente').getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
+  await expect(page.getByLabel('Teléfono del cliente')).toBeVisible()
+  await esperarAnimaciones(page)
   const code = await page.getByRole('combobox', { name: 'Código de país' }).or(page.getByRole('button', { name: /Código de país/ })).first().boundingBox()
   const num = await page.getByLabel('Teléfono del cliente').boundingBox()
   expect(Math.abs((code.y + code.height / 2) - (num.y + num.height / 2))).toBeLessThan(6)
   expect(num.x).toBeGreaterThanOrEqual(code.x + code.width - 1)
   // #389: los datos cortos ya no ocupan todo el ancho (docs/CAMPOS.md §2.1):
-  // el teléfono con su código mide <= 20rem y el CI/RUC <= 16rem, en su propia fila.
+  // el teléfono con su código mide <= 20rem y el CI/RUC <= 16rem; al ser cortos comparten fila.
   expect(num.x + num.width - code.x).toBeLessThanOrEqual(320 + 1.5)
   const ruc = await page.getByLabel('CI o RUC del cliente', { exact: true }).boundingBox()
   expect(ruc.width).toBeLessThanOrEqual(256 + 1.5)
-  expect(ruc.y + ruc.height).toBeLessThanOrEqual(code.y)
+  // CI/RUC y teléfono van en la misma fila (cortos juntos) o el RUC arriba; nunca se pisan.
+  expect(ruc.x + ruc.width <= code.x + 1 || ruc.y + ruc.height <= code.y).toBe(true)
   await page.screenshot({ path: `${out}/1440-cliente.png` })
 })
 
@@ -330,7 +345,7 @@ test('pagos: sin «Equivalente» en cuentas en guaraníes y «Paga al recibir» 
   await page.getByRole('listbox', { name: 'Cuentas de cobro' }).getByRole('option').first().click()
   await expect(fila.getByTestId('cuenta-capsula')).toBeVisible()
   await expect(fila.getByText(/^Equivalente/)).toHaveCount(0)
-  await expect(fila.getByTestId('cuenta-cambiar')).toBeVisible()
+  await expect(fila.getByRole('button', { name: 'Más acciones del pago 1' })).toBeVisible()
   // Con un pago cargado, «Paga al recibir» pide confirmación antes de descartarlo.
   await cobro.getByTestId('pos-paga-al-recibir').click()
   const dialogo = page.getByRole('alertdialog', { name: /Descartar los pagos cargados/ })
@@ -361,7 +376,8 @@ for (const ancho of [375, 1440]) {
     const tope = Math.max(...actuales) + 8
     for (const m of medidas.filter(item => item.foto)) {
       expect(m.lado).toBeGreaterThanOrEqual(40)
-      expect(m.lado).toBeLessThanOrEqual(48)
+      // Desde 1280 la «venta rápida» usa foto de 64 px (posCobro.css); debajo, 40-48.
+      expect(m.lado).toBeLessThanOrEqual(ancho >= 1280 ? 64 : 48)
       expect(m.alto, `con foto ${m.alto}, tope ${tope}`).toBeLessThanOrEqual(tope)
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho)
@@ -391,3 +407,92 @@ for (const width of [320, 390, 1440]) for (const dark of [false, true]) {
     }
   })
 }
+
+// ── POS con espacio (22-10-2026): catálogo a todo el alto, lista/cuadrícula, «Nuevo producto» en
+// la cabecera con X roja, nada suelto en una fila y Paso 2 con «Volver» y «Nueva venta».
+test('vista Lista/Cuadrícula del catálogo: filas compactas, persiste y «Nuevo producto» va en la cabecera', async ({ page }) => {
+  await enterPos(page, 1440, 900)
+  const bloque = page.getByTestId('pos-bloque-productos')
+  const nuevo = bloque.getByTestId('pos-nuevo-producto')
+  await expect(nuevo).toBeVisible()
+  const titulo = await bloque.getByRole('heading', { name: 'Productos', exact: true }).boundingBox()
+  const nb = await nuevo.boundingBox()
+  expect(Math.abs((nb.y + nb.height / 2) - (titulo.y + titulo.height / 2)), 'Nuevo producto en la fila del título').toBeLessThan(30)
+  // El selector de vista comparte fila con los chips: ningún control solo.
+  const vista = await page.getByTestId('pos-vista-catalogo').boundingBox()
+  const chips = await page.getByTestId('pos-chips-accesorio').boundingBox()
+  expect(Math.abs((vista.y + vista.height / 2) - (chips.y + chips.height / 2))).toBeLessThan(8)
+
+  await page.getByTestId('pos-vista-lista').click()
+  await expect(page.getByTestId('pos-vista-lista')).toHaveAttribute('aria-pressed', 'true')
+  const filas = page.locator('.pos-product-fila')
+  await expect.poll(() => filas.count()).toBeGreaterThan(8)
+  const altos = await filas.evaluateAll(els => els.map(e => e.getBoundingClientRect().height))
+  for (const alto of altos) { expect(alto).toBeGreaterThanOrEqual(44); expect(alto).toBeLessThanOrEqual(96) }
+  await expect(filas.first().getByTestId('pos-precio-aplicable')).toContainText('Gs')
+  await expect(filas.first().getByTestId('pos-stock-condicion')).toContainText('Nuevo')
+  // Sin lista de precios ni «elegí variante» en las tarjetas.
+  await expect(page.locator('.pos-product-card').filter({ hasText: /elegí variante|Lista Mayorista|Minorista/ })).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('mobos:pos-catalogo-vista'))).toBe('lista')
+  await page.reload()
+  await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+  await expect(page.getByTestId('pos-vista-lista')).toHaveAttribute('aria-pressed', 'true')
+  await page.getByTestId('pos-vista-cuadricula').click()
+  await expect(page.locator('.pos-product-fila')).toHaveCount(0)
+})
+
+test('Nuevo producto abre un popup con X roja arriba y Esc lo cierra', async ({ page }) => {
+  await enterPos(page, 1440, 900)
+  await page.getByTestId('pos-nuevo-producto').click()
+  const popup = page.getByRole('dialog', { name: 'Nuevo producto' })
+  await expect(popup).toBeVisible()
+  await esperarAnimaciones(page)
+  const x = popup.getByRole('button', { name: 'Cerrar', exact: true })
+  const caja = await popup.boundingBox()
+  const xb = await x.boundingBox()
+  expect(xb.y - caja.y).toBeLessThan(60)
+  expect(caja.x + caja.width - (xb.x + xb.width)).toBeLessThan(40)
+  expect(xb.width).toBeGreaterThanOrEqual(44)
+  await page.keyboard.press('Escape')
+  await expect(popup).toHaveCount(0)
+})
+
+for (const [w, h] of [[1440, 900], [1280, 800]]) {
+  test(`sin espacio muerto bajo el POS a ${w}×${h}`, async ({ page }) => {
+    await enterPos(page, w, h)
+    await esperarAnimaciones(page)
+    const m = await page.evaluate(() => {
+      const bajo = id => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect().bottom
+      return { prod: bajo('pos-bloque-productos'), col: bajo('pos-columna-venta') }
+    })
+    expect(m.prod, `${w}x${h}: el catálogo llega al borde inferior`).toBeGreaterThanOrEqual(h - 70)
+    expect(m.col, `${w}x${h}: el ticket llega al borde inferior`).toBeGreaterThanOrEqual(h - 70)
+    await expect(page.getByText('Detalles de la venta y del día')).toHaveCount(0)
+  })
+}
+
+test('Paso 2: «Volver a productos» y «Nueva venta» en la cabecera; Esc vuelve; Nueva venta confirma', async ({ page }) => {
+  await enterPos(page, 1440, 900, false, true, 0, true)
+  const cab = page.getByTestId('pos-cobro-header')
+  await expect(cab).toBeVisible()
+  const volver = cab.getByRole('button', { name: /Volver a productos/ })
+  const nueva = cab.getByRole('button', { name: 'Nueva venta' })
+  const vb = await volver.boundingBox(), nb = await nueva.boundingBox(), cb = await cab.boundingBox()
+  expect(vb.x - cb.x).toBeLessThan(20)
+  expect(cb.x + cb.width - (nb.x + nb.width)).toBeLessThan(20)
+  expect(Math.abs(vb.y - nb.y)).toBeLessThan(6)
+  // «Editar productos» vive en la cabecera «Productos de esta venta», no solo en una fila.
+  const car = await page.getByTestId('pos-bloque-carrito').boundingBox()
+  const ed = await page.getByTestId('carrito-editar').boundingBox()
+  expect(ed.y - car.y).toBeLessThan(70)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('pos-cobro')).toBeHidden()
+  await expect(page.getByTestId('carrito-listo')).toBeVisible()
+  await page.getByTestId('carrito-listo').click()
+  await page.getByTestId('pos-cobro-header').getByRole('button', { name: 'Nueva venta' }).click()
+  const alerta = page.getByRole('alertdialog')
+  await expect(alerta).toBeVisible()
+  await alerta.getByRole('button', { name: 'Vaciar y empezar' }).click()
+  await expect(page.getByTestId('pos-cobro')).toHaveCount(0)
+  await expect(page.getByTestId('carrito-total')).toContainText('Gs 0')
+})

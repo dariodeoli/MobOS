@@ -12,18 +12,18 @@ import { serialNormalizado as normalize, unidadesElegibles } from '@/utils/inven
 // #286: mensaje honesto y accionable para cada fallo (nunca el texto crudo del
 // API sin salida): permiso/sucursal se explican y siempre queda el camino de
 // «sobre pedido».
-const mensajeDeCarga = (cause) => {
+const mensajeDeCarga = (cause, sobrePedido = true) => {
   const status = Number(cause?.status || 0)
   if (status === 401) return 'Tu sesión venció: volvé a entrar para elegir el equipo.'
-  if (status === 403) return 'No podés ver el stock de esa sucursal. Revisá tu sucursal activa o pedile a administración que te asigne una. Mientras tanto, podés marcar la venta «sobre pedido» y asignar el IMEI al entregar.'
+  if (status === 403) return 'No podés ver el stock de esa sucursal. Revisá tu sucursal activa o pedile a administración que te asigne una.' + (sobrePedido ? ' Mientras tanto, podés marcar la venta «sobre pedido» y asignar el IMEI al entregar.' : '')
   const detalle = String(cause?.message || '').trim()
-  return `${detalle || 'No se pudieron cargar los IMEI de este modelo.'} Probá de nuevo; si persiste, vendé «sobre pedido» y asigná el IMEI al entregar.`
+  return `${detalle || 'No se pudieron cargar los IMEI de este modelo.'} Probá de nuevo.${sobrePedido ? ' Si persiste, vendé «sobre pedido» y asigná el IMEI al entregar.' : ''}`
 }
 
 // Selector para una línea de venta. La reserva se hace antes del checkout para
 // evitar que dos vendedores elijan el mismo equipo; el backend mantiene la
 // autoridad sobre disponibilidad y vencimiento.
-export default function SerialUnitPicker({ product, branchId = '', customerName, selectedSerials = [], onChange, onRequiresSerial, disabled = false }) {
+export default function SerialUnitPicker({ product, branchId = '', customerName, selectedSerials = [], onChange, onRequiresSerial, disabled = false, sobrePedido = true }) {
   const [units, setUnits] = useState([])
   const [loading, setLoading] = useState(false)
   const [busySerial, setBusySerial] = useState('')
@@ -54,8 +54,8 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
       setUnits(matched)
       // Segundo argumento: cuántas unidades hay (guía inline del POS).
       onRequiresSerial?.(matched.length > 0, matched.length)
-    } catch (cause) { setError(mensajeDeCarga(cause)) } finally { setLoading(false) }
-  }, [product, branchId, onRequiresSerial])
+    } catch (cause) { setError(mensajeDeCarga(cause, sobrePedido)) } finally { setLoading(false) }
+  }, [product, branchId, onRequiresSerial, sobrePedido])
 
   // El efecto inicial carga solo cuando cambia el producto o la sucursal; el ref
   // mantiene la versión más reciente de load sin volver a disparar la descarga.
@@ -88,10 +88,10 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   if (loading) return <div className="mt-3 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
   // #286: sin sucursal no hay stock que ofrecer; se dice por qué y cómo seguir.
   if (sinSucursal) return <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn/40 bg-warn/5 px-3 py-2 text-xs text-warn" role="status" data-testid="picker-sin-sucursal">
-    <span className="min-w-0 flex-1">Tu usuario no tiene sucursal asignada: pedile a administración que te asigne una para elegir el equipo físico. Mientras tanto, podés vender «sobre pedido» y asignar el IMEI al entregar.</span>
+    <span className="min-w-0 flex-1">Tu usuario no tiene sucursal asignada: pedile a administración que te asigne una para elegir el equipo físico. {sobrePedido ? ' Mientras tanto, podés vender «sobre pedido» y asignar el IMEI al entregar.' : ''}</span>
     <Button type="button" variant="ghost" className="h-8 shrink-0 px-2 text-[11px] text-warn" onClick={() => load()}>Reintentar</Button>
   </div>
-  if (!units.length && !error) return <p className="mt-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3 py-2 text-xs text-mute">No hay unidades disponibles de este modelo en tu sucursal. Si el cliente la espera, marcala como «sobre pedido»: el IMEI se asigna al entregar.</p>
+  if (!units.length && !error) return <p className="mt-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3 py-2 text-xs text-mute">No hay unidades disponibles de este modelo en tu sucursal.{sobrePedido ? ' Si el cliente la espera, marcala como «sobre pedido»: el IMEI se asigna al entregar.' : ''}</p>
 
   const consulta = normalize(busqueda)
   const visibles = consulta ? units.filter(unit => normalize(unit.serial).includes(consulta) || String(unit.supplierName || '').toLowerCase().includes(busqueda.trim().toLowerCase())) : units

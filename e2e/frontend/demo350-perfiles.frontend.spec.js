@@ -38,7 +38,7 @@ for (const width of [390,1440]) for (const dark of [false,true]) {
     await expect(page.getByRole('textbox',{name:'Nombre de Diego Editado',exact:true})).toHaveValue('Diego Editado')
     expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)
 
-    await page.goto('/configuracion/organizacion')
+    await page.goto('/configuracion/negocio')
     await expect(page.getByTestId('fila-contacto')).toContainText('35800100@correo.com.py')
     await page.getByTestId('fila-contacto').click()
     await expect(page.getByRole('combobox',{name:'Correo de la empresa',exact:true})).toHaveValue('35800100@correo.com.py')

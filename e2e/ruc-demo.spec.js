@@ -1,7 +1,7 @@
 // #498: demo consulta GET público OwnData (mock QA), sin escrituras de negocio.
 import { test, expect } from '@playwright/test'
 import { silenciarAvisoMetricas } from './helpers/demo.js'
-import { mockRucPublic } from './helpers/ruc-public.js'
+import { mockRucPublic, rucPublicPayload } from './helpers/ruc-public.js'
 
 test.beforeEach(({ page }) => silenciarAvisoMetricas(page))
 
@@ -44,20 +44,10 @@ test('demo: el extractor de RUC consulta OwnData público y espera confirmación
   await expect(boton).toBeEnabled()
   await boton.click()
 
-  // La respuesta mínima pública se admite, pero exige consentimiento.
-  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
-  await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
-  const nombreOficial = (await raiz.locator('b').first().innerText()).trim()
-  expect(nombreOficial).toBe('COMERCIAL QA 80012345 S.A.')
-
-  // Sin confirmación no se pisa nada.
-  await expect(cliente).toHaveValue('Cliente Demo QA234')
-  await expect(ruc).toHaveValue('80012345-0')
-
-  // El consentimiento guarda la identidad fiscal y conserva el nombre visible.
-  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
-  await expect(raiz.getByText('Simulada en demo')).toBeHidden()
-  // #350 guarda la ficha durante la sesión y cierra el editor al consentir.
+  // La respuesta pública se aplica directo: sin tarjeta ni botones de confirmación.
+  await expect(page.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
+  await expect(page.getByText('La razón social se aplica solo si la confirmás.')).toHaveCount(0)
+  // #350 guarda la ficha durante la sesión y cierra el editor al aplicar.
   await expect(editor).toBeHidden()
   await expect(page.getByTestId('cliente-elegido-nombre')).toHaveText('Cliente Demo QA234')
   await expect(page.getByTestId('cliente-elegido')).toContainText('80012345-0')
@@ -108,20 +98,19 @@ test('demo: la empresa privada consulta OwnData público y no pisa sin confirmar
   await ruc.fill('80012345-0')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
-  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+  await expect(raiz.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
   await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
-  const razonOficial = (await raiz.locator('b').first().innerText()).trim()
-  expect(razonOficial).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
-
-  // Sin confirmación el nombre cargado no se toca.
+  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
+  // Se aplica directo la razón social oficial y el documento.
+  await expect(nombre).toHaveValue('COMERCIAL QA 80012345 S.A.')
+  // Deshacer restaura lo que había cargado.
+  await raiz.getByRole('button', { name: 'Deshacer' }).click()
   await expect(nombre).toHaveValue('EMPRESA CARGADA A MANO')
-  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
-  await expect(nombre).toHaveValue(razonOficial)
   expect(api.calls.length).toBeGreaterThan(0)
   api.assertClean()
 })
 
-// Demo: una CI sin guion también consulta OwnData público y "Usar estos datos" completa
+// Demo: una CI sin guion también consulta OwnData público y se aplica directo
 // el formulario; la ciudad del mismo formulario sugiere ciudades de Paraguay
 // (catálogo de la biblioteca, sin API) y completa el departamento.
 test('demo: CI en Clientes consulta OwnData público y la ciudad autocompleta con departamento', async ({ page }) => {
@@ -136,15 +125,11 @@ test('demo: CI en Clientes consulta OwnData público y la ciudad autocompleta co
   await ruc.fill('1234567')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
-  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
+  await expect(raiz.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
   await expect(raiz.getByText('Simulada en demo')).toHaveCount(0)
-  await expect(raiz.getByText('RUC 1234567-9')).toBeVisible()
-  const nombreOficial = (await raiz.locator('b').first().innerText()).trim()
-  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
-  await expect(raiz.getByText('Simulada en demo')).toBeHidden()
+  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
   // La razón social queda como nombre fiscal del formulario y el RUC se completa con su DV.
   await expect(ruc).toHaveValue('1234567-9')
-  expect(nombreOficial).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
 
   const ciudad = page.getByPlaceholder('Ej: Asunción, Ciudad del Este…').or(page.getByPlaceholder('Ciudad')).first()
   await ciudad.fill('Ciudad del')
@@ -157,10 +142,9 @@ test('demo: CI en Clientes consulta OwnData público y la ciudad autocompleta co
   api.assertClean()
 })
 
-test('demo: RUC 5215244 usa fixture local y exige confirmación', async ({ page }) => {
-  const requests = []
-  page.on('request', request => {
-    if (request.url().includes('/api/public/ruc')) requests.push(request.url())
+test('demo: RUC 5215244 consulta OwnData real; el ejemplo solo aparece si la API no responde', async ({ page }) => {
+  const api = await mockRucPublic(page, {
+    respond: ({ query, call }) => call === 1 ? { status: 200, json: rucPublicPayload(query, 'RAZON REAL DE LA API S.A.') } : { abort: true },
   })
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
@@ -169,16 +153,18 @@ test('demo: RUC 5215244 usa fixture local y exige confirmación', async ({ page 
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Datos fiscales', exact: true }).click()
   await page.getByRole('button', { name: 'Agregar empresa' }).click()
   const ruc = page.locator('#priv-ruc')
-  const nombreManual = page.locator('#priv-legal-name')
-  await nombreManual.fill('NOMBRE CARGADO A MANO')
+  const nombre = page.locator('#priv-legal-name')
   await ruc.fill('5215244-8')
   const raiz = ruc.locator('xpath=ancestor::*[contains(@class,"mobos-ruc-field")][1]')
   await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
-  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toBeVisible()
-  await expect(raiz.getByText('Simulada en demo')).toBeVisible()
-  await expect(raiz).toContainText('DISTRIBUIDORA AURORA S.A.')
-  await expect(nombreManual).toHaveValue('NOMBRE CARGADO A MANO')
-  await expect(requests).toEqual([])
-  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
-  await expect(page.locator('#priv-legal-name')).toHaveValue('DISTRIBUIDORA AURORA S.A.')
+  await expect(raiz.getByText('Datos del RUC cargados')).toBeVisible()
+  await expect(nombre).toHaveValue('RAZON REAL DE LA API S.A.')
+  expect(api.calls).toEqual(['5215244-8'])
+  // Segunda consulta: la API no responde -> ejemplo ficticio, dicho claro.
+  await ruc.fill('5215244')
+  await ruc.fill('5215244-8')
+  await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
+  await expect(raiz.getByText('OwnData no respondió: datos de ejemplo cargados')).toBeVisible()
+  await expect(nombre).toHaveValue('DISTRIBUIDORA AURORA S.A.')
+  expect(api.calls).toEqual(['5215244-8', '5215244-8'])
 })

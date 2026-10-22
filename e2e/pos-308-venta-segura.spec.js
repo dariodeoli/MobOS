@@ -187,13 +187,13 @@ test('sin productos no se cargan pagos ni se canjean gift cards (#308)', async (
     await expect(page.getByTestId('carrito-listo')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /^Cobrar(?:\s|$)/ })).toHaveCount(0)
     await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeHidden()
-    await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Gift card', exact: true })).toBeHidden()
 
     // Con un producto vuelven a estar disponibles.
     await agregar(page, nombre)
     await ensureCobro(page)
     await expect(page.getByRole('button', { name: '+ Agregar pago' })).toBeEnabled()
-    await expect(page.getByRole('button', { name: '+ Canjear gift card' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Gift card', exact: true })).toBeEnabled()
     await expect(page.getByTestId('cobro-sin-productos')).toHaveCount(0)
   } finally {
     await borrarProducto(page, productId)

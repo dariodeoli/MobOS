@@ -2,6 +2,7 @@ import { lockCashSessionDomain } from './cash-session-lock'
 import { createHash } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { InputError, normalizePayment, objectInput, textInput } from './payment-input'
+import { recordPaymentVerificationStart } from './payment-verification'
 import { canAccessOrder } from './orders'
 import { numero } from './montos'
 import { canCorrectPayment, staffCorrectsPaymentsFrom } from './payment-correction-policy'
@@ -45,13 +46,14 @@ export function assertSplitMatches(originalPyg: number, rows: Array<{ amountPyg:
   }
 }
 
-type OriginalLike = { method: string; status: string; amountPyg: bigint | number; currency: string | null; dueAt: Date | null; reversalOfId: string | null; correctionId: string | null; deliveryUserId?: string | null; deliverySettlementId?: string | null }
+type OriginalLike = { method: string; status: string; amountPyg: bigint | number; currency: string | null; dueAt: Date | null; reversalOfId: string | null; correctionId: string | null; deliveryUserId?: string | null; deliverySettlementId?: string | null; pendingReason?: string | null }
 
 /** Motivo por el que v1 no admite corregir este pago (422) o ya no corresponde (409). */
 export function correctionBlock(original: OriginalLike, hasReversal: boolean): { status: 409 | 422; message: string } | null {
   if (original.reversalOfId || original.correctionId) return { status: 409, message: 'Ya es una corrección: corregí el pago original desde el historial del pedido.' }
   if (hasReversal) return { status: 409, message: 'Este pago ya fue corregido.' }
   if (original.deliveryUserId || original.deliverySettlementId) return { status: 422, message: 'Los cobros del repartidor no se pueden corregir todavía: se concilian con su rendición.' }
+  if (original.status === 'PENDING' && original.pendingReason === 'VERIFICACION') return { status: 409, message: 'El pago está en verificación: primero se aprueba o se rechaza, después se corrige el medio.' }
   if (original.status !== 'CONFIRMED') return { status: 409, message: 'Solo se corrigen pagos confirmados.' }
   if ((UNSUPPORTED_METHODS as readonly string[]).includes(original.method)) return { status: 422, message: 'Este medio de pago no se puede corregir todavía (trade-in, saldo a favor, gift card, crédito o cripto).' }
   if (original.dueAt) return { status: 422, message: 'Las cuotas no se pueden corregir.' }
@@ -153,7 +155,7 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
     const account = await tx.paymentAccount.findFirst({ where: { id: row.accountId, tenantId, isActive: true }, select: { currency: true, kind: true } })
     if (!account) throw new InputError(`La cuenta del pago ${index + 1} no existe o está inactiva.`, 409)
     if (account.currency !== 'PYG') throw new InputError(`El pago ${index + 1} debe ser en guaraníes.`, 422)
-    const normalized = await normalizePayment(tx, tenantId, { accountId: row.accountId, originalAmount: row.amountPyg, status: row.toDriver ? 'PENDING' : 'CONFIRMED' })
+    const normalized = await normalizePayment(tx, tenantId, { accountId: row.accountId, originalAmount: row.amountPyg, status: row.toDriver ? 'PENDING' : 'CONFIRMED' }, undefined, { actor })
     if (normalized.currency && normalized.currency !== 'PYG') throw new InputError(`El pago ${index + 1} debe ser en guaraníes.`, 422)
     if ((UNSUPPORTED_METHODS as readonly string[]).includes(normalized.method)) throw new InputError(`El pago ${index + 1} usa un medio que no admite correcciones (${normalized.method}).`, 422)
     if (row.toDriver) {
@@ -198,18 +200,19 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
   })
   const created = []
   for (const [index, { row, normalized }] of prepared.entries()) {
-    const { tradeIn: _tradeIn, giftCard: _giftCard, ...data } = normalized
+    const { tradeIn: _tradeIn, giftCard: _giftCard, selfApproved, ...data } = normalized
     const payment = await tx.payment.create({
       data: {
-        ...data, tenantId, orderId: order.id, correctionId: correction.id,
+        ...data, ...(row.toDriver ? { pendingReason: 'REPARTO' as const } : {}), tenantId, orderId: order.id, correctionId: correction.id,
         userId: original.userId, createdById: original.createdById, idempotencyKey: `${idempotencyKey}:n${index}`, paidAt: now,
         ...(row.toDriver ? { deliveryUserId: order.assignedToId, collectedAt: now } : {}),
       },
     })
     // La transferencia nueva queda por conciliar como cualquier cobro por transferencia.
     if (normalized.method === 'TRANSFER' && !row.toDriver) {
-      await tx.paymentReconciliation.create({ data: { tenantId, paymentId: payment.id, state: 'PENDING' } })
+      await tx.paymentReconciliation.upsert({ where: { paymentId: payment.id }, create: { tenantId, paymentId: payment.id, state: 'PENDING' }, update: {} })
     }
+    if (!row.toDriver) await recordPaymentVerificationStart(tx, { tenantId, actor: { id: actor.id, name: actor.id, role: actor.role }, payment, selfApproved: Boolean(selfApproved) })
     created.push(payment)
   }
 

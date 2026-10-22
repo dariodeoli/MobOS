@@ -102,20 +102,19 @@ test('demo reset discards a created card and restores seeds without real writes'
   expect(writes).toEqual([])
 })
 
-test('the built-in RUC fixture creates/selects a demo card without provider requests', async ({ page }) => {
+test('the example RUC fixture is used only when OwnData is unavailable and still selects a demo card', async ({ page }) => {
   const writes = await enterDemo(page)
   const lookups = []
-  page.on('request', request => { if (request.url().includes('/api/public/ruc')) lookups.push(request.url()) })
+  await page.route('**/api/public/ruc?*', route => { lookups.push(route.request().url()); return route.abort() })
   const editor = await newEditor(page, 'Cliente RUC Demo350')
   await editor.getByLabel('CI o RUC del cliente', { exact: true }).fill('5215244')
   await editor.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
-  await editor.getByRole('button', { name: 'Usar estos datos' }).click()
   await expect(page.getByTestId('cliente-elegido')).toContainText('Cliente RUC Demo350')
   const created = (await cards(page)).find(row => row.name === 'Cliente RUC Demo350')
   expect(created.id).toMatch(/^demo-cliente-/)
   expect(created.nameOfficial).toBe('DISTRIBUIDORA AURORA S.A.')
   expect(created.document).toBe('5215244-8')
-  expect(lookups).toEqual([])
+  expect(lookups.length).toBeGreaterThan(0)
   expect(writes).toEqual([])
 })
 
@@ -131,7 +130,7 @@ test('long fiscal data stays recoverable until a valid visible demo name is conf
   const editor = await newEditor(page, '')
   await editor.getByLabel('CI o RUC del cliente', { exact: true }).fill('80012345')
   await editor.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
-  await editor.getByRole('button', { name: 'Usar estos datos' }).click()
+  await expect(editor.getByText(/Datos del RUC cargados|datos de ejemplo cargados/)).toBeVisible()
   await expect(editor).toBeVisible()
   await expect(editor.getByRole('alert')).toContainText(/nombre visible/)
   expect((await cards(page)).length).toBe(initialCount)

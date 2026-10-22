@@ -1,4 +1,5 @@
 import { assertCanVerify, readVerificationPolicy, verificationSnapshot } from '../../../../lib/stock-verification-policy'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 import { InputError } from '../../../../lib/payment-input'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
@@ -18,6 +19,7 @@ const text = (value: unknown, max = 128) => typeof value === 'string' && value.t
 // es además la recepción: la unidad pasa a disponible, se asigna a una ubicación
 // (Depósito 1, Depósito 2, Piso de venta…) y recién ahí suma al stock del local.
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
 // Deshacer el check de una fila: solo quien verificó, dentro del minuto y si nadie
 // volvió a verificar la unidad. Restaura quién/cuándo anterior y deja el evento en la cronología.
 export async function DELETE(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }

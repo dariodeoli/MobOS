@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { recomputeStock } from '../../../lib/stock'
 import { ensureStoreBranch } from '../../../lib/store-branch'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const MAX_SERIALES = 5000
 
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['stock:manage', 'stock:read'])) return error('No autorizado.', 403)
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {

@@ -9,6 +9,14 @@ export const CATEGORIAS_PLANTILLA = [
   { clave: 'COLLECTIONS', nombre: 'Cobranzas' },
 ]
 
+// Canal de la plantilla: el mismo evento tiene versión WhatsApp y versión correo
+// (las de correo llevan asunto y la clave `email.<evento>`).
+export const CANALES_PLANTILLA = [
+  { clave: 'whatsapp', nombre: 'WhatsApp' },
+  { clave: 'email', nombre: 'Correo' },
+]
+export const PREFIJO_CORREO = 'email.'
+
 export const VARIABLES_POR_CONTEXTO = {
   CUSTOMERS: [
     { clave: 'cliente', descripcion: 'Nombre del cliente' },
@@ -21,6 +29,7 @@ export const VARIABLES_POR_CONTEXTO = {
     { clave: 'producto', descripcion: 'Producto o equipo de la compra' },
     { clave: 'fecha', descripcion: 'Fecha del mensaje' },
     { clave: 'ultima_compra', descripcion: 'Fecha de la última compra' },
+    { clave: 'enlace_resena', descripcion: 'Enlace para dejar una reseña (opcional)' },
   ],
   ORDERS: [
     { clave: 'cliente', descripcion: 'Nombre del cliente' },
@@ -35,6 +44,11 @@ export const VARIABLES_POR_CONTEXTO = {
     { clave: 'vendedor', descripcion: 'Vendedor a cargo' },
     { clave: 'fecha', descripcion: 'Fecha del pedido' },
     { clave: 'seguimiento', descripcion: 'Enlace público de seguimiento' },
+    { clave: 'garantia', descripcion: 'Cobertura de la garantía (ej. 12 meses)' },
+    { clave: 'garantia_hasta', descripcion: 'Fecha en que vence la garantía' },
+    { clave: 'cotizacion', descripcion: 'Número de cotización' },
+    { clave: 'vigencia', descripcion: 'Validez de la cotización' },
+    { clave: 'enlace', descripcion: 'Enlace público de la cotización' },
   ],
   SERVICE: [
     { clave: 'cliente', descripcion: 'Nombre del cliente' },
@@ -89,6 +103,12 @@ export const VALORES_EJEMPLO = {
   recargo: 'Gs 0',
   ultima_compra: '10-sep-2026',
   reservation_until: '25-sep-2026',
+  garantia: '12 meses',
+  garantia_hasta: '21-sep-2027',
+  cotizacion: 'COT-0012',
+  vigencia: '28-sep-2026',
+  enlace: 'https://moboss.online/cotizacion/abc123',
+  enlace_resena: 'https://g.page/r/tu-negocio/review',
 }
 
 // Marcadores heredados que se resuelven contra la clave nueva equivalente.
@@ -107,3 +127,8 @@ export function renderPlantilla(body, valores = {}) {
     return alterno === undefined || alterno === null ? '' : String(alterno)
   })
 }
+
+/** Clave de la versión correo de un evento. */
+export const claveCorreo = (evento) => `${PREFIJO_CORREO}${evento}`
+/** Canal de una plantilla (las filas viejas no traen `channel`). */
+export const canalDe = (plantilla) => (plantilla?.channel === 'email' || String(plantilla?.key || '').startsWith(PREFIJO_CORREO) ? 'email' : 'whatsapp')

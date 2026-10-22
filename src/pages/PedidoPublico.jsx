@@ -14,6 +14,7 @@ import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, etiquetaEntrega as nomb
 import { temaV2Activo } from '@/lib/temaV2'
 import ProductFooter from '@/components/app/ProductFooter'
 import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, EnlacePoliticas, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
+import { esTokenDemo, leerSeguimientoDemo } from '@/lib/seguimientoDemo'
 import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 import '@/components/publico/publicoRediseno.css'
 
@@ -24,14 +25,23 @@ export default function PedidoPublico() {
   const { token } = useParams()
   const [order, setOrder] = useState(null)
   const [error, setError] = useState('')
+  const esDemo = esTokenDemo(token)
   useEffect(() => {
     let active = true
     setError(''); setOrder(null)
+    // Pedido demo: vive solo en el navegador de quien lo creó. El enlace trae el
+    // resumen en el fragmento (#d=…) y no se llama al backend.
+    if (esDemo) {
+      const demo = leerSeguimientoDemo(typeof window !== 'undefined' ? window.location.hash : '')
+      if (demo) setOrder(demo)
+      else setError('Este enlace de la demo no trae los datos del pedido. Generá el comprobante de nuevo desde la demo.')
+      return undefined
+    }
     fetch(`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}`)
       .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Pedido no encontrado.'); if (active) setOrder(payload) })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar el pedido.') })
     return () => { active = false }
-  }, [token])
+  }, [token, esDemo])
 
   // Mismo cálculo que el comprobante impreso (utils/pedido): el cliente ve el
   // total, lo pagado y el saldo que salieron en el papel.
@@ -69,13 +79,16 @@ export default function PedidoPublico() {
     <main data-publico="1" className={cn('min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10', temaV2Activo() && 'tema-v2')}>
       <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}section>div[hidden]{display:block!important}button[aria-expanded] svg{display:none!important}}`}</style>
       <div className="mx-auto max-w-xl space-y-3">
+        {esDemo && (
+          <div data-testid="banda-demo" role="note" className="rounded-xl border border-warn/40 bg-warn/10 px-4 py-2 text-center text-sm font-bold text-warn">Demo · datos ficticios</div>
+        )}
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {order && (
           <>
             {/* Encabezado: logo y tienda; debajo, el estado como protagonista. */}
             <CabeceraTienda
-              logo={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`}
-              logoClaro={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=light`}
+              logo={esDemo ? '' : `${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`}
+              logoClaro={esDemo ? '' : `${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=light`}
               empresa={order.company?.name}
               detalle={order.branch ? [order.branch.name, [order.branch.address, order.branch.city, order.branch.department].filter(Boolean).join(', '), order.branch.phone, order.branch.instagram ? `@${order.branch.instagram}` : ''].filter(Boolean).join(' · ') : ''}
             >
@@ -143,9 +156,9 @@ export default function PedidoPublico() {
                   <div key={index} className="rounded-xl bg-ink-800/60 px-3 py-2 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <span className="min-w-0 truncate">{item.description}</span>
-                      <span className="shrink-0 text-mute">× {item.quantity}</span>
+                      {!item.resumen && <span className="shrink-0 text-mute">× {item.quantity}</span>}
                     </div>
-                    {order.level !== 'rapido' && (
+                    {order.level !== 'rapido' && !item.resumen && (
                       <div className="mt-1 flex items-center justify-between gap-3 text-xs text-mute">
                         <span>{item.quantity} × {gs(item.unitPricePyg)}{Number(item.discountPyg || 0) > 0 ? ` · descuento − ${gs(item.discountPyg)}` : ''}</span>
                         <CeldaMoneda valor={item.totalPyg} />

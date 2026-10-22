@@ -31,7 +31,7 @@ function Fixture() {
       <button onClick={() => setStockMode('invalid')}>Stock inválido</button><button onClick={() => setStockMode('zero')}>Stock cero</button><button onClick={() => setCustomer('A')}>Cliente A</button><button onClick={() => setCustomer('B')}>Cliente B</button>
       {branches.slice(0, 2).map((branch, i) => <button key={branch.id} onClick={() => session.cambiarSucursal(branch.id)}>Sucursal {i + 1}</button>)}
     </div>
-    {new URLSearchParams(location.search).has('form') ? <FormularioVenta /> : <PasoProductos productos={items} familiasVisibles={[family]} resolverPreciosCatalogo={quote} contextoPreciosCatalogo={`${session.empresa?.id}:${session.sucursal?.id}:${customer}`} nuevoProd={false} combos={[]} setBusquedaProducto={() => {}} setAccesorio={() => {}} agregarProducto={() => {}} variantePara={variant} onElegirVariante={(value, options) => options?.elegir ? setVariant(null) : setVariant(value)} onCerrarVariante={() => setVariant(null)} />}
+    {new URLSearchParams(location.search).has('form') ? <FormularioVenta /> : <PasoProductos productos={items} familiasVisibles={[family]} resolverPreciosCatalogo={quote} contextoPreciosCatalogo={`${session.empresa?.id}:${session.sucursal?.id}:${customer}`} nuevoProd={false} nombreProd="" nuevoDetalles={{}} colorInput="" coloresNuevos={[]} combos={[]} setBusquedaProducto={() => {}} setAccesorio={() => {}} agregarProducto={() => {}} variantePara={variant} onElegirVariante={(value, options) => options?.elegir ? setVariant(null) : setVariant(value)} onCerrarVariante={() => setVariant(null)} />}
   </main>
 }
 createRoot(document.getElementById('root')).render(<BrowserRouter><SesionProvider><Fixture /></SesionProvider></BrowserRouter>)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '@/components/shared/gestionProfundo.css'
 import { listVentas, listGastos, listAds, productosById, getVendedores } from '@/lib/storage'
 import { responder, SUGERENCIAS } from '@/utils/asistente'
 import { Card, Button, Input, Badge } from '@/components/ui'
@@ -82,60 +83,68 @@ export default function Asistente() {
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">
-            <Icon name="sparkles" className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="font-bold leading-tight">Asistente de ganancias</h2>
-            <p className="text-sm text-mute">
-              Preguntá en tus palabras. Entiende temas (ganancia, gastos, ads, comisiones,
-              productos, vendedores) y períodos (hoy, semana, mes, año).
-            </p>
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            consultar()
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            value={pregunta}
-            onChange={(e) => setPregunta(e.target.value)}
-            placeholder="Ej: ¿cuánto gané esta semana?"
-            autoCapitalize="sentences"
-          />
-          <Button type="submit" className="shrink-0">
-            Preguntar
-          </Button>
-        </form>
-
-        <div className="flex flex-wrap gap-2">
-          {SUGERENCIAS.map((s) => (
-            <button
-              key={s.label}
-              onClick={() => consultar(s.q)}
-              className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore"
+    <div className="gp space-y-4" data-testid="asistente-pagina">
+      <div className="gp-dos">
+        <div className="gp-principal">
+          <Card className="space-y-3">
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-fono-light">
+                <Icon name="sparkles" className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="font-bold leading-tight">Asistente de ganancias</h2>
+                <p className="text-sm text-mute">
+                  Preguntá en tus palabras. Entiende temas (ganancia, gastos, ads, comisiones,
+                  productos, vendedores) y períodos (hoy, semana, mes, año).
+                </p>
+              </div>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                consultar()
+              }}
+              className="flex gap-2"
             >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </Card>
+              <Input
+                value={pregunta}
+                onChange={(e) => setPregunta(e.target.value)}
+                placeholder="Ej: ¿cuánto gané esta semana?"
+                autoCapitalize="sentences"
+              />
+              <Button type="submit" className="shrink-0">
+                Preguntar
+              </Button>
+            </form>
+          </Card>
 
-      {resp ? (
-        <Respuesta r={resp} />
-      ) : (
-        <Card className="text-center text-mute py-10">
-          <div className="text-4xl mb-2"></div>
-          <p className="text-sm">Tocá una pregunta sugerida o escribí la tuya para empezar.</p>
-        </Card>
-      )}
+          {resp ? (
+            <Respuesta r={resp} />
+          ) : (
+            <Card className="py-10 text-center text-mute">
+              <p className="text-sm">Tocá una pregunta sugerida o escribí la tuya para empezar.</p>
+            </Card>
+          )}
+        </div>
+
+        <aside className="gp-lateral" aria-label="Preguntas sugeridas">
+          <Card>
+            <h3 className="mb-2 text-sm font-bold">Preguntas sugeridas</h3>
+            <div className="flex flex-wrap gap-2">
+              {SUGERENCIAS.map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => consultar(s.q)}
+                  className="min-h-11 rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore lg:min-h-8"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </aside>
+      </div>
     </div>
   )
 }

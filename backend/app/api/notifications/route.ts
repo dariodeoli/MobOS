@@ -4,6 +4,10 @@ import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { AUTHORIZATION_RESOLVERS } from '../../../lib/authorizations'
 import { mencionadosEn, variantesDeNombre } from '../../../lib/menciones'
+import { parseCreditConfig } from '../../../lib/credit-config'
+import { PAYMENT_VERIFIER_ROLES } from '../../../lib/payment-verification-policy'
+import { verificationOrderScope } from '../../../lib/payment-verification-scope'
+import { METHOD_LABELS } from '../../../lib/reconciliation'
 import { ACCIONES_PRODUCTO, ACCIONES_UNIDAD, avisosDeStock, claveDisponibilidad, eventosDeAuditoria } from '../../../lib/stock-notices'
 
 // Centro de notificaciones del panel: lista corta y accionable, sin tabla
@@ -160,6 +164,64 @@ export async function GET(request: Request) {
     } else {
       const aprobada = autorizacion.status === 'APPROVED'
       items.push({ id: `autorizacion-${autorizacion.id}`, kind: aprobada ? 'APROBADA' : 'RECHAZADA', title: aprobada ? 'Solicitud aprobada' : 'Solicitud rechazada', detail: `${etiqueta} · ${quien}${cliente}`, at: autorizacion.resolvedAt || autorizacion.createdAt, href: '/autorizaciones' })
+    }
+  }
+
+  // Pagos por verificar y cuotas por vencer (derivados de los propios pagos, sin tabla de avisos):
+  //  · PAGO_POR_VERIFICAR → quien verifica (su sucursal; el administrador, toda la empresa);
+  //  · PAGO_APROBADO / PAGO_RECHAZADO → el vendedor del pedido (el rechazo trae el motivo);
+  //  · CUOTA_POR_VENCER → quien verifica y el vendedor, según los días de aviso del módulo de crédito.
+  const orderScope = verificationOrderScope(session)
+  if (orderScope) {
+    const verifica = (PAYMENT_VERIFIER_ROLES as readonly string[]).includes(user.role)
+    if (verifica) {
+      const porVerificar = await prisma.payment.findMany({
+        where: { tenantId: user.tenantId, status: 'PENDING', pendingReason: 'VERIFICACION', order: orderScope },
+        orderBy: { createdAt: 'asc' }, take: 20,
+        select: { id: true, method: true, amountPyg: true, createdAt: true, order: { select: { id: true, orderNumber: true, customer: { select: { name: true } } } } },
+      })
+      for (const pago of porVerificar) {
+        items.push({ id: `pago-verificar-${pago.id}`, kind: 'PAGO_POR_VERIFICAR', title: 'Pago por verificar', detail: `${pago.order.orderNumber || pago.order.id} · ${pago.order.customer?.name || 'Consumidor final'} · ${gs(pago.amountPyg)} · ${METHOD_LABELS[pago.method] || pago.method}`, at: pago.createdAt, href: '/autorizaciones?tab=pagos' })
+      }
+    }
+    const resueltos = await prisma.payment.findMany({
+      where: { tenantId: user.tenantId, pendingReason: 'VERIFICACION', status: { in: ['CONFIRMED', 'REJECTED'] }, reconciliation: { is: { resolvedAt: { gte: desde }, resolvedVia: 'PANEL' } }, OR: [{ order: { sellerId: user.id } }, { createdById: user.id }] },
+      orderBy: { createdAt: 'desc' }, take: 20,
+      select: { id: true, status: true, method: true, amountPyg: true, createdAt: true, order: { select: { id: true, orderNumber: true } }, reconciliation: { select: { note: true, resolvedAt: true } } },
+    })
+    // Un rechazo sobre una cuota del plan de crédito la deja pendiente de nuevo (con su vencimiento): el aviso lo dice.
+    const rechazados = resueltos.filter(pago => pago.status === 'REJECTED').map(pago => pago.id)
+    const cuotasRestauradas = new Map<string, string>()
+    if (rechazados.length) {
+      const restauradas = await prisma.auditLog.findMany({ where: { tenantId: user.tenantId, action: 'CREDIT_INSTALLMENT_RESTORED', entity: 'Payment', entityId: { in: rechazados } }, select: { entityId: true, metadata: true } })
+      for (const fila of restauradas) {
+        if (!fila.entityId) continue
+        const vence = fila.metadata && typeof fila.metadata === 'object' && !Array.isArray(fila.metadata) ? (fila.metadata as Record<string, unknown>).dueAt : null
+        const fecha = typeof vence === 'string' ? new Date(vence) : null
+        cuotasRestauradas.set(fila.entityId, fecha && Number.isFinite(fecha.getTime()) ? ` · la cuota volvió a quedar pendiente (vence ${fecha.toLocaleDateString('es-PY', { timeZone: 'America/Asuncion' })})` : ' · la cuota volvió a quedar pendiente')
+      }
+    }
+    for (const pago of resueltos) {
+      const aprobado = pago.status === 'CONFIRMED'
+      const codigo = pago.order.orderNumber || pago.order.id
+      items.push({ id: `pago-resuelto-${pago.id}`, kind: aprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO', title: aprobado ? 'Pago aprobado' : 'Pago rechazado', detail: `${codigo} · ${gs(pago.amountPyg)} · ${METHOD_LABELS[pago.method] || pago.method}${!aprobado && pago.reconciliation?.note ? ` · ${recorte(pago.reconciliation.note, 80)}` : ''}${!aprobado ? cuotasRestauradas.get(pago.id) || '' : ''}`, at: pago.reconciliation?.resolvedAt || pago.createdAt, href: `/pedidos/${pago.order.id}` })
+    }
+    const tenantRow = await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { settings: true } })
+    const diasAviso = parseCreditConfig(tenantRow?.settings).avisos.internosDiasAntes
+    if (diasAviso.length && (verifica || user.role === 'VENDEDOR')) {
+      const ahora = Date.now()
+      const inicioHoy = new Date(Math.floor((ahora - 3 * 3_600_000) / 86_400_000) * 86_400_000 + 3 * 3_600_000)
+      const limiteAviso = new Date(inicioHoy.getTime() + (Math.max(...diasAviso) + 1) * 86_400_000)
+      const cuotas = await prisma.payment.findMany({
+        where: { tenantId: user.tenantId, method: 'CREDIT', status: 'PENDING', dueAt: { gte: inicioHoy, lt: limiteAviso }, order: { ...orderScope, status: { not: 'CANCELLED' } } },
+        orderBy: { dueAt: 'asc' }, take: 20,
+        select: { id: true, amountPyg: true, dueAt: true, order: { select: { id: true, orderNumber: true, customer: { select: { name: true } } } } },
+      })
+      for (const cuota of cuotas) {
+        const vence = cuota.dueAt!
+        const dias = Math.floor((vence.getTime() - inicioHoy.getTime()) / 86_400_000)
+        items.push({ id: `cuota-vencer-${cuota.id}`, kind: 'CUOTA_POR_VENCER', title: dias <= 0 ? 'Cuota que vence hoy' : `Cuota por vencer en ${dias} ${dias === 1 ? 'día' : 'días'}`, detail: `${cuota.order.orderNumber || cuota.order.id} · ${cuota.order.customer?.name || 'Consumidor final'} · ${gs(cuota.amountPyg)}`, at: inicioHoy, href: `/pedidos/${cuota.order.id}` })
+      }
     }
   }
 

@@ -32,7 +32,8 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
       className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-ink-600 bg-ink-800 pl-3 text-xs leading-4 text-mute"
     >
       <span className="shrink-0 font-semibold text-fore">Demo</span>
-      <span className="hidden min-w-0 truncate md:inline">datos ficticios, no se guardan</span>
+      {/* Solo con espacio de sobra: si no, el aviso empuja «Ver como» y la sucursal a una segunda fila. */}
+      <span className="hidden min-w-0 truncate min-[1440px]:inline">datos ficticios, no se guardan</span>
       <span className="flex shrink-0 items-center gap-2">
         {onSalir && (
           <button
@@ -51,7 +52,7 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
           onClick={onComoFunciona}
           className={enlace}
         >
-          Cómo funciona
+          {angosta ? 'Guía' : 'Cómo funciona'}
         </button>
         <button
           type="button"

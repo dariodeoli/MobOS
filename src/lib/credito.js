@@ -2,18 +2,43 @@
 // El servidor es la autoridad; acá solo se anticipa lo que va a pasar para avisar
 // al vendedor antes de cobrar y para que la demo se comporte igual.
 
+export const TOLERANCIAS_CREDITO = [0, 10, 20, 30]
+
+/** Tolerancia válida: solo 0, 10, 20 o 30; cualquier otro valor cae a 0. */
+export function normalizarTolerancia(valor) {
+  const n = Number(valor)
+  return TOLERANCIAS_CREDITO.includes(n) ? n : 0
+}
+
+/** Tope automático en enteros: floor(límite × (100 + pct) / 100). */
+export function topeCredito(limite, tolerancia) {
+  const lim = Math.max(0, Math.trunc(Number(limite) || 0))
+  const total = lim * (100 + normalizarTolerancia(tolerancia))
+  return (total - (total % 100)) / 100
+}
+
 /**
  * `deuda` es la deuda abierta del cliente SIN esta venta y `saldo` lo que esta
  * venta deja sin cobrar. Sin límite configurado el disponible es 0: toda venta
- * a crédito pide autorización.
+ * a crédito pide autorización. Con `tolerancia` (0/10/20/30 %) hasta el tope
+ * pasa sola; `exceso` es lo que pasa del tope.
  */
-export function evaluarCredito({ limite, deuda, saldo }) {
+export function evaluarCredito({ limite, deuda, saldo, tolerancia }) {
   const lim = Math.max(0, Math.trunc(Number(limite) || 0))
   const deu = Math.max(0, Math.trunc(Number(deuda) || 0))
   const sal = Math.max(0, Math.trunc(Number(saldo) || 0))
+  const tol = lim > 0 ? normalizarTolerancia(tolerancia) : 0
+  const tope = topeCredito(lim, tol)
   const disponible = Math.max(0, lim - deu)
-  const exceso = Math.max(0, deu + sal - lim)
-  return { limite: lim, deuda: deu, saldo: sal, disponible, exceso, sinLimite: lim <= 0, requiereAutorizacion: sal > 0 && exceso > 0 }
+  const disponibleTope = Math.max(0, tope - deu)
+  const excesoLimite = Math.max(0, deu + sal - lim)
+  const exceso = Math.max(0, deu + sal - tope)
+  return {
+    limite: lim, deuda: deu, saldo: sal, disponible, tolerancia: tol, tope, disponibleTope, exceso, excesoLimite,
+    usaTolerancia: sal > 0 && excesoLimite > 0 && exceso === 0,
+    sinLimite: lim <= 0,
+    requiereAutorizacion: sal > 0 && exceso > 0,
+  }
 }
 
 export const ESTADO_CREDITO = {

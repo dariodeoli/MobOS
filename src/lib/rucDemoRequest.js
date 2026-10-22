@@ -1,8 +1,8 @@
 import { ApiError } from './api/errors.js'
 
-// Fixtures explícitos para recorrer la demo sin consumir OwnData. Sólo estos
-// identificadores quedan locales; cualquier otro RUC continúa por el adaptador
-// público y conserva su fallback manual ante 4xx/5xx.
+// Ejemplo ficticio de la demo: NUNCA reemplaza a la consulta real. Solo se usa
+// cuando OwnData no está disponible (sin configurar, sin red, timeout o 5xx) y
+// el resultado queda marcado `simulado` para decirlo claro en pantalla.
 const DEMO_RUC_FIXTURES = Object.freeze({
   '5215244': Object.freeze({ name: 'DISTRIBUIDORA AURORA S.A.', fullRuc: '5215244-8', simulado: true }),
 })
@@ -13,11 +13,13 @@ export async function consultarRucDemoReal(query, { apiUrl, signal, fetchImpl = 
   if (!/^[1-9]\d{0,8}(?:-\d)?$/.test(String(query || ''))) throw new ApiError('Ingresá un RUC válido.', { code: 'invalid_ruc' })
   const base = String(query).split('-')[0]
   const fixture = DEMO_RUC_FIXTURES[base]
-  if (fixture && (String(query) === base || String(query) === fixture.fullRuc)) {
-    if (signal?.aborted) throw new ApiError('La consulta RUC fue cancelada.', { code: 'REQUEST_ABORTED' })
+  const esFixture = Boolean(fixture) && (String(query) === base || String(query) === fixture.fullRuc)
+  const respaldo = (error) => {
+    const indisponible = !error.status || error.status >= 500
+    if (!esFixture || !indisponible || error.code === 'REQUEST_ABORTED') throw error
     return { demoFixture: true, ...fixture }
   }
-  if (!apiUrl) throw new ApiError('La consulta RUC no está configurada. Podés completar los datos manualmente.', { code: 'API_NOT_CONFIGURED' })
+  if (!apiUrl) return respaldo(new ApiError('La consulta RUC no está configurada. Podés completar los datos manualmente.', { code: 'API_NOT_CONFIGURED' }))
   const controller = new AbortController()
   let expired = false
   const abort = () => controller.abort()
@@ -40,10 +42,10 @@ export async function consultarRucDemoReal(query, { apiUrl, signal, fetchImpl = 
     }
     return payload
   } catch (cause) {
-    if (expired) throw new ApiError('La consulta RUC tardó demasiado. Reintentá o completá los datos manualmente.', { code: 'REQUEST_TIMEOUT' })
     if (signal?.aborted) throw new ApiError('La consulta RUC fue cancelada.', { code: 'REQUEST_ABORTED' })
-    if (cause instanceof ApiError) throw cause
-    throw new ApiError('No se pudo consultar OwnData. Reintentá o completá los datos manualmente.', { code: 'RUC_UNAVAILABLE', cause })
+    if (expired) return respaldo(new ApiError('La consulta RUC tardó demasiado. Reintentá o completá los datos manualmente.', { code: 'REQUEST_TIMEOUT' }))
+    if (cause instanceof ApiError) return respaldo(cause)
+    return respaldo(new ApiError('No se pudo consultar OwnData. Reintentá o completá los datos manualmente.', { code: 'RUC_UNAVAILABLE', cause }))
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener('abort', abort)

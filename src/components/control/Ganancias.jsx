@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import '@/components/shared/gestionProfundo.css'
 import { useUrlState } from '@/hooks/useUrlState'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
@@ -42,8 +43,10 @@ export default function Ganancias() {
   const negativo = g.estado === 'perdida'
 
   return (
-    <div className="space-y-4">
+    <div className="gp space-y-4" data-testid="ganancias-pagina">
       <PeriodoTabs periodo={periodo} setPeriodo={setPeriodo} />
+      <div className="gp-dos">
+      <div className="gp-principal">
 
       {/* Resultado grande */}
       <Card
@@ -77,8 +80,10 @@ export default function Ganancias() {
 
       {/* Calendario de resultados por día */}
       <CalendarioGanancias datos={datos} serieApi={serieApi} seguroPct={seguroPct} />
+      </div>
 
-      {/* Desglose */}
+      {/* Desglose (lateral derecha) */}
+      <aside className="gp-lateral">
       <Card>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h3 className="font-bold">Cómo se calcula</h3>
@@ -101,6 +106,8 @@ export default function Ganancias() {
           </div>
         )}
       </Card>
+      </aside>
+      </div>
     </div>
   )
 }

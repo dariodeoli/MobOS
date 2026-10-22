@@ -14,7 +14,7 @@ test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
     await page.goto('/resumen')
     await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
-    for (const label of ['Vendido', 'Cobrado', 'Por cobrar', 'Ganancia', 'Ventas']) {
+    for (const label of ['Vendido', 'Cobrado', 'Por cobrar', 'Ganancia']) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
     }
   })
@@ -516,7 +516,7 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
     'base64',
   )
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   // #299: el logo vive en la sección Identidad visual.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Identidad visual', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
@@ -620,7 +620,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await expect(vendedor.getByText('Solicitud enviada', { exact: false })).toBeVisible()
   await contextoVendedor.close()
 
-  await page.goto('/autorizaciones')
+  await page.goto('/autorizaciones?tab=precios')
   await expect(page.getByRole('region', { name: 'Autorizaciones comerciales' })).toBeVisible()
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toBeVisible()
@@ -633,7 +633,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
 
   // La bandeja es una sola: la tarjeta duplicada de Configuración se eliminó.
   // #IA: se revisa Organización (la sección que reúne negocio y datos).
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page.getByRole('heading', { name: 'Solicitudes del cliente' })).toHaveCount(0)
   // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
   await page.goto('/plantillas')
@@ -670,7 +670,7 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
   await page.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(page.getByText('Solicitud enviada', { exact: false })).toBeVisible()
 
-  await page.goto('/autorizaciones')
+  await page.goto('/autorizaciones?tab=precios')
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toContainText('Tu solicitud')
   await fila.getByRole('button', { name: 'Aprobar' }).click()
@@ -1335,7 +1335,7 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
   // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
-  await selectConfigSection(page, 'Organización')
+  await selectConfigSection(page, 'Negocio')
   // #299: archivar/eliminar y la verificación de identidad están en Zona de peligro.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()

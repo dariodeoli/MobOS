@@ -117,7 +117,7 @@ test('Compras: RUC del proveedor', async ({ page }) => {
 test('Config: RUC del negocio', async ({ page }) => {
   // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
   await page.goto('/configuracion/negocio')
-  await expect(page.locator('h1')).toHaveText('Organización')
+  await expect(page.locator('h1')).toHaveText('Negocio')
   // #422: Información comercial abre el formulario (nombre y RUC) en una ventana
   // y recién ahí se llena con lo guardado.
   await page.getByTestId('fila-comercial').click()

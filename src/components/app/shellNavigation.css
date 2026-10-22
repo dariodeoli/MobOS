@@ -1,11 +1,15 @@
 /* Scoped to the authenticated shell; landing, portal and demo data are unchanged. */
 .shell-nav-v2 {
-  --c-paper: 246 247 246;
+  /* Visual v3 (docs/visual-v3/DIRECCION.md): lienzo con tinte cálido,
+     tarjetas blancas elevadas y líneas hairline. */
+  --c-paper: 244 244 240;
   --c-ink: 255 255 255;
-  --c-ink-600: 228 231 228;
-  --c-ink-700: 240 242 240;
-  --c-fore: 14 17 22;
-  --c-mute: 90 100 112;
+  --c-ink-900: 255 255 255;
+  --c-ink-800: 249 249 246;
+  --c-ink-600: 228 229 222;
+  --c-ink-700: 239 240 235;
+  --c-fore: 16 20 18;
+  --c-mute: 84 92 90;
   --shell-bottom-space: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 /* #587: el rail colapsado es una columna de iconos estable. Nunca se desplaza
@@ -49,12 +53,15 @@
   }
 }
 .dark .shell-nav-v2 {
-  --c-paper: 11 13 16;
-  --c-ink: 19 22 27;
-  --c-ink-600: 47 53 64;
-  --c-ink-700: 24 28 34;
-  --c-fore: 242 244 247;
-  --c-mute: 163 172 184;
+  /* Oscuro de verdad: cuanto más elevada la superficie, más clara. */
+  --c-paper: 10 11 13;
+  --c-ink: 23 25 29;
+  --c-ink-900: 18 20 23;
+  --c-ink-800: 29 32 37;
+  --c-ink-600: 50 54 62;
+  --c-ink-700: 36 39 45;
+  --c-fore: 243 244 246;
+  --c-mute: 165 172 182;
 }
 .shell-nav-v2 .shell-body {
   padding-bottom: var(--shell-bottom-space);
@@ -68,9 +75,16 @@
 }
 /* Shared alignment contract for every authenticated page: the page title,
    page actions and shell selectors sit on the same 44px control rhythm. */
-.shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']:not(.sr-only)),
-.shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions) {
+.shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']:not(.sr-only, .max-lg\:sr-only)),
+.shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions:not([data-solo-escritorio])) {
   min-height: 44px;
+}
+/* Acciones solo de escritorio (utilidades): en celular no dejan una fila vacía de 44 px. */
+@media (min-width: 1024px) {
+  .shell-nav-v2 .shell-page-header-row:has([data-testid='shell-page-title']),
+  .shell-nav-v2 .shell-page-header-row:has(.shell-page-header-actions[data-solo-escritorio]) {
+    min-height: 44px;
+  }
 }
 .shell-nav-v2 .shell-page-header-actions {
   min-height: 44px;

@@ -104,8 +104,8 @@ for (const [ancho, alto] of [[360, 740], [390, 844], [1440, 900]]) {
   test(`Configuración › Políticas ${ancho}px: filas con «›», estado, plantilla y publicar`, async ({ page }) => {
     await page.setViewportSize({ width: ancho, height: alto })
     await entrarDemo(page)
-    await page.goto('/configuracion/organizacion', { waitUntil: 'domcontentloaded' })
-    await page.getByRole('tablist', { name: 'Secciones de Organización' }).getByRole('tab', { name: 'Políticas' }).click()
+    await page.goto('/configuracion/negocio', { waitUntil: 'domcontentloaded' })
+    await page.getByRole('tablist', { name: 'Secciones de Negocio' }).getByRole('tab', { name: 'Políticas' }).click()
     const lista = page.getByTestId('politicas-lista')
     await expect(lista.locator('[data-politica]')).toHaveCount(6)
     await expect(lista.locator('[data-politica="cambios"]')).toContainText('Sin texto')

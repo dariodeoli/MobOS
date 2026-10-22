@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Aviso, Button, Card, EmptyState, Input, Label, Select, Stat } from '@/components/ui'
+import { Aviso, Button, EmptyState, Input, Label, Select, Stat } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
 import StatGrid from '@/components/shared/StatGrid'
 import Toolbar from '@/components/shared/Toolbar'
+import SearchField from '@/components/shared/SearchField'
+import ChipsFiltro from '@/components/ventas/ChipsFiltro'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
@@ -24,6 +28,7 @@ import { CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
+import MovimientosCuentaDemo from '@/components/control/MovimientosCuentaDemo'
 // Listado: una fila por cuenta (tabla desde xl, tarjeta debajo), con comisión,
 // acreditación y descuento. El banco o la procesadora se muestra UNA vez: logo
 // + nombre en la primera celda (nunca otra vez en «Datos»).
@@ -124,6 +129,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
+  const [movimientosDe, setMovimientosDe] = useState(null)
   const [form, setForm] = useState(null)
   const [flags, setFlags] = useState(flagsFrom(EMPTY))
   const [editingId, setEditingId] = useState(null)
@@ -134,7 +140,17 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
   const [companies, setCompanies] = useState([])
   const [nombreTocado, setNombreTocado] = useState(false)
   const nombreTocadoRef = useRef(false)
-  const lista = usePaginaLista(accounts, { tamano: { compacto: 10, amplio: 25 } })
+  const [busqueda, setBusqueda] = useState('')
+  const [estadoCuentas, setEstadoCuentas] = useState('todas')
+  const cuentasVisibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    return accounts.filter((account) => {
+      if (estadoCuentas === 'activas' && !account.isActive) return false
+      if (estadoCuentas === 'inactivas' && account.isActive) return false
+      return !q || [account.name, account.bank, account.processor, account.holder, account.accountNumber, KIND_LABELS[account.kind]].filter(Boolean).join(' ').toLowerCase().includes(q)
+    })
+  }, [accounts, busqueda, estadoCuentas])
+  const lista = usePaginaLista(cuentasVisibles, { tamano: { compacto: 10, amplio: 25 } })
 
   useEffect(() => {
     let cancelled = false
@@ -287,13 +303,16 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
   const opcionesTitulares = useMemo(() => opcionesDePartes(holders, companies), [holders, companies])
 
   return (
-    <Card className="finanzas-tactil space-y-4">
+    <div className="gp ventas-f3 finanzas-tactil space-y-4">
+      {movimientosDe && <MovimientosCuentaDemo cuenta={movimientosDe} onClose={() => setMovimientosDe(null)} />}
       {/* #388: una barra (plantillas rápidas · demo · Añadir cuenta) y tira de KPI de una línea. */}
       <Toolbar
         plano
         lista
         label="Acciones de cuentas de cobro"
         testId="barra-cuentas"
+        className="ventas-f3-toolbar"
+        search={accounts.length > 0 ? <SearchField ariaLabel="Buscar cuentas" placeholder="Nombre, banco, titular o número" value={busqueda} onChange={(event) => setBusqueda(event.target.value)} /> : undefined}
         filters={!loading && !loadError && !form ? (
           <div role="group" aria-label="Plantillas rápidas" className="flex items-center gap-2">
             {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}
@@ -309,10 +328,12 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
           ))}
         </StatGrid>
       )}
+      {accounts.length > 0 && <ChipsFiltro etiqueta="Estado de las cuentas" opciones={[['todas', 'Todas'], ['activas', 'Activas'], ['inactivas', 'Inactivas']]} valor={estadoCuentas} onChange={setEstadoCuentas} />}
       {loading && <p role="status" className="text-sm text-mute">Cargando cuentas…</p>}
       {loadError && <div role="alert" className="space-y-2 text-sm text-bad"><p>{loadError}</p><Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>Reintentar</Button></div>}
       {message && <Aviso tono={message.ok ? 'ok' : 'error'}>{message.text}</Aviso>}
-      {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." action={<Button type="button" onClick={() => openForm()}>Añadir cuenta</Button>} />}
+      {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." />}
+      {!loading && !loadError && accounts.length > 0 && cuentasVisibles.length === 0 && <EmptyState compact icon="wallet" title="Ninguna cuenta coincide" description="Probá otra búsqueda o cambiá el estado." action={<Button type="button" variant="outline" onClick={() => { setBusqueda(''); setEstadoCuentas('todas') }}>Ver todas</Button>} />}
       {form && (
         <Popup
           open
@@ -337,8 +358,10 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
               onChange={(valor) => change('document', valor)}
               esDemo={esDemo}
               onAplicar={(datos) => {
+                const antes = form
                 if (datos.fullRuc) change('document', datos.fullRuc)
                 if (datos.name) change('holder', datos.name)
+                return () => setForm(antes)
               }}
             />
           </div>}
@@ -401,6 +424,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
         }
         const acciones = (account) => (
           <span className="flex flex-wrap items-center justify-end gap-1.5">
+            {esDemo && <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" aria-label={`Movimientos de ${account.name}`} data-testid="cuenta-movimientos-abrir" onClick={() => setMovimientosDe(account)}>Movimientos</Button>}
             <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
             <Button type="button" variant="ghost" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
           </span>
@@ -454,6 +478,6 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
           />
         )
       })()}
-    </Card>
+    </div>
   )
 }

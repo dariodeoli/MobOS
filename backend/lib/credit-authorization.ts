@@ -8,6 +8,8 @@ import { pinValido } from './pin'
 import { enviarWebPush } from './web-push'
 import { logError } from './log'
 import { evaluateCreditSale, type CreditEvaluation } from './credit-rules'
+import { effectiveCreditLimits, parseCreditConfig } from './credit-config'
+import { selfApproveRolesFor } from './payment-verification'
 
 // Autorización de crédito (issue «sin entrega automática»): una venta a crédito
 // cuyo saldo sin cobrar supera el crédito disponible del cliente (límite menos
@@ -37,10 +39,23 @@ type Db = Prisma.TransactionClient | typeof prisma
  * acá: la segunda espera a que la primera confirme y ya ve su pedido.
  * `excludeOrderId` deja afuera el pedido que se está evaluando.
  */
-export async function lockCustomerCredit(tx: Prisma.TransactionClient, tenantId: string, customerId: string, excludeOrderId?: string): Promise<{ limitPyg: number; debtPyg: number; creditDays: number | null }> {
-  const rows = await tx.$queryRaw<Array<{ creditLimitPyg: bigint | number | null; creditDays: number | null }>>`
-    SELECT "creditLimitPyg", "creditDays" FROM "Customer" WHERE "id" = ${customerId} AND "tenantId" = ${tenantId} FOR UPDATE`
+export type CustomerCreditPosition = {
+  /** Límite efectivo: el de la ficha o, si no tiene, el del módulo. */
+  limitPyg: number
+  /** Tolerancia efectiva (ficha o módulo) en %. */
+  tolerancePct: number
+  limitSource: 'customer' | 'module'
+  debtPyg: number
+  creditDays: number | null
+  terms: { creditDays: number | null; creditLimitPyg: bigint | null; creditTolerancePct: number | null; creditTermMode: string | null; creditDayOfMonth: number | null; creditInstallments: number | null }
+}
+
+export async function lockCustomerCredit(tx: Prisma.TransactionClient, tenantId: string, customerId: string, excludeOrderId?: string): Promise<CustomerCreditPosition> {
+  const rows = await tx.$queryRaw<Array<{ creditLimitPyg: bigint | null; creditDays: number | null; creditTolerancePct: number | null; creditTermMode: string | null; creditDayOfMonth: number | null; creditInstallments: number | null }>>`
+    SELECT "creditLimitPyg", "creditDays", "creditTolerancePct", "creditTermMode", "creditDayOfMonth", "creditInstallments" FROM "Customer" WHERE "id" = ${customerId} AND "tenantId" = ${tenantId} FOR UPDATE`
   if (!rows.length) throw new InputError('Cliente no encontrado.', 404)
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } })
+  const effective = effectiveCreditLimits(rows[0], parseCreditConfig(tenant?.settings))
   // Deuda abierta = Σ (total − cobrado confirmado − saldo a favor emitido por
   // devolución parcial) de los pedidos PENDING del cliente. Un pedido cuya
   // última autorización de crédito fue RECHAZADA no consume crédito: no se puede
@@ -59,7 +74,7 @@ export async function lockCustomerCredit(tx: Prisma.TransactionClient, tenantId:
       )`
   const debtPyg = numero(debt[0]?.total)
   if (!Number.isSafeInteger(debtPyg)) throw new InputError('No se pudo calcular la deuda del cliente.', 409)
-  return { limitPyg: numero(rows[0].creditLimitPyg), debtPyg: Math.max(0, debtPyg), creditDays: rows[0].creditDays }
+  return { limitPyg: effective.limitPyg, tolerancePct: effective.tolerancePct, limitSource: effective.source, debtPyg: Math.max(0, debtPyg), creditDays: rows[0].creditDays, terms: rows[0] }
 }
 
 export type CreditApprover = { id: string; name: string; role: string }
@@ -67,16 +82,16 @@ export type CreditApprover = { id: string; name: string; role: string }
 export const isCreditResolverRole = (role: string) => (AUTHORIZATION_RESOLVERS as readonly string[]).includes(role)
 
 /**
- * Auto-aprobación («Autorizo yo»): el dueño/administrador es la última instancia
- * de la empresa y puede aprobar el crédito de su propia venta; un gerente NO
- * puede aprobar el crédito que sobrepasó él mismo (lo aprueba otro gerente o el
- * administrador). Misma regla en todos los caminos: venta con «Autorizo yo»,
- * PIN propio, POST credit-authorization y PATCH /api/authorizations. Queda en
- * la auditoría como `selfApproved`.
+ * Auto-aprobación: NADIE aprueba el crédito de su propia venta (tampoco el
+ * administrador), salvo que la empresa haya autorizado su rol en
+ * «Verificación de pagos › quién aprueba lo propio» (`selfApproveRoles`).
+ * Misma regla en todos los caminos: venta con «Autorizo yo», PIN propio, POST
+ * credit-authorization y PATCH /api/authorizations. Queda en la auditoría como
+ * `selfApproved`.
  */
-export function assertSelfApprovalAllowed(approver: CreditApprover, requesterId: string | null | undefined) {
-  if (requesterId && approver.id === requesterId && approver.role !== 'ADMIN') {
-    throw new InputError('No podés aprobar tu propia venta a crédito sobre el límite: pedí que la apruebe otro gerente o el administrador.', 403)
+export function assertSelfApprovalAllowed(approver: CreditApprover, requesterId: string | null | undefined, allowedRoles: readonly string[] = []) {
+  if (requesterId && approver.id === requesterId && !allowedRoles.includes(approver.role)) {
+    throw new InputError('No podés aprobar tu propia venta a crédito sobre el límite: pedí que la apruebe otra persona de administración o gerencia.', 403)
   }
 }
 
@@ -237,7 +252,7 @@ export async function assertCreditCleared(db: Db, tenantId: string, orderId: str
 }
 
 export function creditRequestValue(orderId: string, evaluation: CreditEvaluation, extra: Record<string, unknown> = {}): Prisma.InputJsonValue {
-  return { orderId, overPyg: evaluation.overPyg, limitPyg: evaluation.limitPyg, debtPyg: evaluation.debtPyg, unpaidPyg: evaluation.unpaidPyg, availablePyg: evaluation.availablePyg, noLimit: evaluation.noLimit, ...extra } as Prisma.InputJsonValue
+  return { orderId, overPyg: evaluation.overPyg, capPyg: evaluation.capPyg, tolerancePct: evaluation.tolerancePct, limitPyg: evaluation.limitPyg, debtPyg: evaluation.debtPyg, unpaidPyg: evaluation.unpaidPyg, availablePyg: evaluation.availablePyg, noLimit: evaluation.noLimit, ...extra } as Prisma.InputJsonValue
 }
 
 /** Crea la solicitud pendiente del pedido y deja el rastro en la auditoría. */
@@ -258,7 +273,7 @@ export async function createCreditHold(tx: Prisma.TransactionClient, input: { te
 export async function resolveCreditAuthorization(tx: Prisma.TransactionClient, input: { tenantId: string; orderId: string; orderNumber: string | null; authorizationId: string; action: 'approve' | 'reject'; approver: CreditApprover; performedById: string; via: 'SESSION' | 'PIN' | 'POS'; note?: string | null }) {
   const current = await tx.customerAuthorization.findFirst({ where: { id: input.authorizationId, tenantId: input.tenantId, kind: CREDIT_OVER_KIND, entity: 'ORDER', entityId: input.orderId }, select: { id: true, status: true, requestedValue: true, customerId: true, requestedById: true } })
   if (!current) throw new InputError('Autorización de crédito no encontrada.', 404)
-  if (input.action === 'approve') assertSelfApprovalAllowed(input.approver, current.requestedById)
+  if (input.action === 'approve') assertSelfApprovalAllowed(input.approver, current.requestedById, await selfApproveRolesFor(tx, input.tenantId))
   const now = new Date()
   const claimed = await tx.customerAuthorization.updateMany({
     where: { id: current.id, tenantId: input.tenantId, status: 'PENDING' },
@@ -276,7 +291,7 @@ export async function resolveCreditAuthorization(tx: Prisma.TransactionClient, i
 
 /** Aprobación directa en el mostrador (PIN o dueño en el POS): nace aprobada. */
 export async function recordCreditApproval(tx: Prisma.TransactionClient, input: { tenantId: string; orderId: string; orderNumber: string | null; customerId: string; requestedById: string; evaluation: CreditEvaluation; approver: CreditApprover; via: 'SESSION' | 'PIN' | 'POS' }) {
-  assertSelfApprovalAllowed(input.approver, input.requestedById)
+  assertSelfApprovalAllowed(input.approver, input.requestedById, await selfApproveRolesFor(tx, input.tenantId))
   const now = new Date()
   const created = await tx.customerAuthorization.create({
     data: { tenantId: input.tenantId, customerId: input.customerId, kind: CREDIT_OVER_KIND, status: 'APPROVED', entity: 'ORDER', entityId: input.orderId, requestedById: input.requestedById, resolvedById: input.approver.id, resolvedAt: now, usedAt: now, usedByOrderId: input.orderId, requestedValue: creditRequestValue(input.orderId, input.evaluation, { orderNumber: input.orderNumber }), resolvedValue: { approved: true } },
@@ -318,7 +333,7 @@ export async function notifyCreditHold(input: { tenantId: string; orderId: strin
 export async function assertCreditAvailableForDelivery(tx: Prisma.TransactionClient, input: { tenantId: string; orderId: string; customerId: string; pendingPyg: number }) {
   const posicion = await lockCustomerCredit(tx, input.tenantId, input.customerId, input.orderId)
   const saldo = Math.max(0, input.pendingPyg - await creditedBackPyg(tx, input.tenantId, input.orderId))
-  const evaluacion = evaluateCreditSale({ limitPyg: posicion.limitPyg, debtPyg: posicion.debtPyg, unpaidPyg: saldo })
+  const evaluacion = evaluateCreditSale({ limitPyg: posicion.limitPyg, debtPyg: posicion.debtPyg, unpaidPyg: saldo, tolerancePct: posicion.tolerancePct })
   if (!evaluacion.requiresAuthorization) return
   const autorizacion = (await creditAuthorizationsFor(tx, input.tenantId, [input.orderId])).get(input.orderId)
   if (autorizacion?.status !== 'APPROVED') {

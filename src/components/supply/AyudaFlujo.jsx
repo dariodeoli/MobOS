@@ -103,13 +103,15 @@ export function RecorridoFlujo({ actual, onIr, className }) {
 }
 
 /** Encabezado de pestaña: línea corta + «?» con el detalle + recorrido. */
-export default function EncabezadoFlujo({ paso, onIr, className }) {
+// `accion`: control único de la vista (p. ej. Actualizar): va en la fila del recorrido, no solo en la suya.
+export default function EncabezadoFlujo({ paso, onIr, className, accion = null }) {
   const ayuda = AYUDA_FLUJO[paso]
   if (!ayuda) return null
   return (
     <div className={cn('space-y-2', className)} data-testid="encabezado-flujo">
       <div className="flex min-w-0 items-center gap-2">
         <RecorridoFlujo actual={paso} onIr={onIr} className="flex-1" />
+        {accion}
         <Popover
           label={`Ayuda: ${ayuda.titulo}`}
           side="bottom"

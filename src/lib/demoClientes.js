@@ -5,7 +5,10 @@ import { codigoPedido, totalesPedido } from '../utils/pedido.js'
 import { etiquetaServicio } from './estadosServicio.js'
 import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
 import { pedidosDemoDeCliente } from './demo/ventas.js'
+import { eventosClienteDemo } from './demo/historiaCliente.js'
+import { ORDENES_TALLER_DEMO } from './demo/taller.js'
 import { analiticaDePedidos } from './customerAggregates.js'
+import { diaDemo } from './demo/reloj.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
 // del navegador: los seeds se combinan con lo creado o editado en
 // memoria contextual de la pestaña. Al recargar/resetear vuelve el seed.
@@ -17,7 +20,7 @@ const hoy = () => new Date()
 const haceDias = (dias) => new Date(hoy().getTime() - dias * 86400000).toISOString()
 const usuarioDemo = (nombre = 'Equipo demo') => ({ id: 'demo-user', name: nombre })
 
-const EVENTOS = (customer) => [
+const EVENTOS_LUCIA = (customer) => [
   { id: 'demo-e1', type: 'customer', action: 'Cliente creado', createdAt: customer.createdAt, user: usuarioDemo('Dueño demo'), detail: 'Alta en el mostrador' },
   { id: 'demo-e2', type: 'order', action: 'Pedido creado', createdAt: haceDias(12), user: usuarioDemo('Diego López'), detail: 'Pedido MOB #0008 · Gs 3.000.000 · Pendiente' },
   { id: 'demo-e3', type: 'payment', action: 'Pago confirmado', createdAt: haceDias(10), user: usuarioDemo('Caja demo'), detail: 'Pedido MOB #0008 · Gs 1.500.000 · CASH' },
@@ -27,6 +30,10 @@ const EVENTOS = (customer) => [
   { id: 'demo-e7', type: 'warranty', action: 'Garantía registrada', createdAt: haceDias(3), user: usuarioDemo('Taller demo'), detail: 'iPhone 15 · serial DEMO-FERNANDEZ · En diagnóstico' },
   { id: 'demo-e8', type: 'audit', action: 'Tipo de cliente actualizado', label: 'Tipo de cliente actualizado', createdAt: haceDias(2), user: usuarioDemo('Ana Giménez'), detail: 'Campos: Tipo de cliente' },
 ]
+
+// El resto de la cronología (pedidos, pagos, entregas, cuotas, mensajes, garantías, taller) se deriva
+// de la ficha en `demo/historiaCliente.js`; acá solo quedan las decisiones de gerencia de Lucía.
+const EVENTOS = (customer) => (customer.id === 'demo-cliente-lucia' ? EVENTOS_LUCIA(customer).filter((evento) => evento.type === 'audit') : [])
 
 const ANALITICA_VACIA = { ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }
 
@@ -354,6 +361,14 @@ const historial = (cliente, cantidad, salto = 83, arranque = 24) => Array.from({
     items: [{ id: `${cliente}-i-${i + 1}`, description: descripcion, quantity: 1, model: modelo, category: categoria, serials: [AUR_SERIALES[(cliente.length + i) % AUR_SERIALES.length]] }],
   })
 })
+// Órdenes de taller de la demo en la ficha de su cliente (misma fuente que el taller).
+const servicioDeFila = (fila) => ({ id: fila.id, serviceNumber: fila.serviceNumber, device: fila.device, serviceName: fila.serviceName, serial: fila.serial, status: fila.status, receivedAt: fila.receivedAt, deliveredAt: fila.deliveredAt || null, diagnosis: fila.diagnosis, pricePyg: fila.pricePyg, technicianName: fila.technicianName })
+for (const cliente of SEED_DEMO_CLIENTES) {
+  const propios = cliente.demoProfile.services || []
+  if (propios.length) continue // las fichas con órdenes propias (seed) conservan su detalle
+  const nuevos = ORDENES_TALLER_DEMO.filter((fila) => fila.customerId === cliente.id).map(servicioDeFila)
+  if (nuevos.length) cliente.demoProfile.services = nuevos
+}
 for (const cliente of SEED_DEMO_CLIENTES) {
   // #324: si el cliente tiene ventas en la fuente canónica, sus pedidos son
   // esos (los mismos que ve el POS y el comprobante). El resto conserva su
@@ -555,8 +570,11 @@ export function buildDemoProfile(customer = {}, { empresaId } = {}) {
 }
 
 export function buildDemoTimeline(customer = {}) {
-  const base = Array.isArray(customer.demoProfile?.timeline) ? customer.demoProfile.timeline : EVENTOS(customer)
-  return [...base, ...eventosInformeDemo(customer.id), ...eventosServicioDemo(customer)].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const guardados = Array.isArray(customer.demoProfile?.timeline) ? customer.demoProfile.timeline : EVENTOS(customer)
+  const vistos = new Set()
+  return [...guardados, ...eventosClienteDemo(customer), ...eventosInformeDemo(customer.id), ...eventosServicioDemo(customer)]
+    .filter((evento) => evento?.id && !vistos.has(evento.id) && vistos.add(evento.id))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
 export function buildDemoAnalytics(customer = {}) {
@@ -849,6 +867,17 @@ export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'n
   return evento
 }
 
+/**
+ * La venta del POS trae el día como clave (AAAA-MM-DD): la ficha necesita un
+ * instante. Hoy es «ahora» (la venta queda la más reciente del cliente); otro
+ * día, mediodía de Paraguay.
+ */
+function instanteDeVenta(fecha) {
+  if (!fecha) return new Date().toISOString()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha))) return fecha
+  return fecha === diaDemo(0) ? new Date().toISOString() : `${fecha}T15:00:00.000Z`
+}
+
 /** Forma canónica de un pedido demo (misma que los seeds). */
 function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [], vendedor = '', sucursal = '', estado, credito = null, creditDays = null } = {}) {
   const totalPyg = Math.max(0, Math.round(Number(total) || 0))
@@ -868,7 +897,7 @@ function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [
     totalPyg,
     collectedPyg,
     pendingPyg,
-    createdAt: fecha || new Date().toISOString(),
+    createdAt: instanteDeVenta(fecha),
     status: estado || (pendingPyg > 0 ? 'PENDING' : 'COMPLETED'),
     // Una venta del mostrador queda «En preparación» hasta que el vendedor
     // confirma que el cliente ya se llevó el producto (nunca se marca sola).

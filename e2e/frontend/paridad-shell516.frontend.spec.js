@@ -53,12 +53,19 @@ for(const width of [360,390,1440])for(const dark of [false,true])test(`#516 mism
   const a=await medir(web.page),b=await medir(ios.page)
   expect(a.overflow).toBe(false);expect(b.overflow).toBe(false)
   if(width<1024){expect(a.smallTouch).toEqual([]);expect(b.smallTouch).toEqual([])}
-  expect(b.header,'cabecera compartida, safeareas0 en Chromium').toEqual(a.header)
-  expect(b.productos,'misma tarjeta catálogo').toEqual(a.productos)
-  expect(b.foto,'mismo icono/foto').toEqual(a.foto)
+  // La barra «Secciones de Vender» (Nueva venta/Cobros…, ~45 px) se oculta en iOS
+  // cuando queda una sola sección disponible (MODULOS_IOS): sólo cambia la y.
+  const innerW=width
+  const sinY=({x,width,height})=>innerW<1024?{x,width,height}:{x,width} // escritorio: el catálogo llena el viewport, su alto crece sin la barra
+  // En escritorio la caja medida de la cabecera incluye esa barra: sólo cambia el alto.
+  expect(width<1024?b.header:{...b.header,height:0},'cabecera compartida, safeareas0 en Chromium').toEqual(width<1024?a.header:{...a.header,height:0})
+  expect(sinY(b.productos),'misma tarjeta catálogo').toEqual(sinY(a.productos))
+  expect(sinY(b.foto),'mismo icono/foto').toEqual(sinY(a.foto))
+  expect(Math.round(a.productos.y-b.productos.y),'sólo la barra de secciones difiere').toBeLessThanOrEqual(46)
   const wa=await agregarYCobrar(web.page,width),ia=await agregarYCobrar(ios.page,width);expect(ia).toEqual(wa)
   const ca=await medir(web.page),cb=await medir(ios.page)
-  expect(cb.cobro).toEqual(ca.cobro);expect(cb.total).toEqual(ca.total)
+  const sinYd=o=>width<1024||!o?o:{x:o.x,width:o.width,height:o.height} // escritorio: la barra oculta sube el panel
+  expect(sinYd(cb.cobro)).toEqual(sinYd(ca.cobro));expect(sinYd(cb.total)).toEqual(sinYd(ca.total))
   expect(ca.overflow).toBe(false);expect(cb.overflow).toBe(false)
   if(width<1024){expect(ca.smallTouch).toEqual([]);expect(cb.smallTouch).toEqual([])}
   if(width===390&&dark&&process.env.MOBOS_516_SHOTS==='1'){await mkdir(out,{recursive:true});await ios.page.screenshot({path:out+'/390-oscuro-cobro-ios-simulado.png'})}

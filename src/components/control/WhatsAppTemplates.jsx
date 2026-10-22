@@ -8,7 +8,8 @@ import Popup from '@/components/shared/Popup'
 import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
-import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
+import { CANALES_PLANTILLA, CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, canalDe, renderPlantilla } from '@/lib/whatsappPlantillas'
+import { PLANTILLAS_CORREO_DEMO } from '@/lib/demo/plantillas'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
@@ -28,23 +29,30 @@ const REGLAS_EDITOR = {
 // Plantillas demo (#201): viven en memoria del módulo —nunca en la base ni en
 // localStorage— y se reinician al recargar. Los guardados no salen al API.
 let plantillasDemo = null
-const plantillasDemoIniciales = () => [
+const plantillasDemoIniciales = () => [...plantillasDemoBase(), ...PLANTILLAS_CORREO_DEMO.map((item) => ({ ...item, isDefault: false }))]
+const plantillasDemoBase = () => [
   { id: 'demo-tpl-pedido-listo', name: 'Pedido listo para retirar', body: 'Hola {{cliente}}, tu pedido {{pedido}} está listo para retirar. Total {{total}}. ¡Te esperamos!', category: 'ORDERS', isActive: true, isDefault: true },
   { id: 'demo-tpl-pedido-seguimiento', name: 'Seguimiento del pedido', body: 'Hola {{cliente}}, podés seguir tu pedido {{pedido}} acá: {{seguimiento}}.', category: 'ORDERS', isActive: true, isDefault: false },
   { id: 'demo-tpl-cliente-saldo', name: 'Saldo pendiente', body: 'Hola {{cliente}}, te recordamos que tenés un saldo pendiente de {{saldo_pendiente}}.', category: 'CUSTOMERS', isActive: true, isDefault: true },
   { id: 'demo-tpl-servicio-estado', name: 'Equipo en taller', body: 'Hola {{cliente}}, tu equipo {{equipo}} está en {{estado}}. Te avisamos cuando esté listo.', category: 'SERVICE', isActive: true, isDefault: true },
   { id: 'demo-tpl-cobranza-cuota', name: 'Cuota próxima', body: 'Hola {{cliente}}, tu cuota de {{pedido}} vence el {{fecha}}. Cualquier duda, escribinos.', category: 'COLLECTIONS', isActive: true, isDefault: true },
-]
+  { id: 'demo-tpl-pedido-confirmado', name: 'Pedido confirmado', body: '¡Hola {{cliente}}! 🧾 Confirmamos tu pedido {{pedido}} por {{total}}. Te avisamos apenas avance. ¡Gracias por tu compra! — {{empresa}}', category: 'ORDERS', isActive: true, isDefault: false },
+  { id: 'demo-tpl-sobre-pedido', name: 'Llegó tu pedido sobre encargo', body: '¡Hola {{cliente}}! 🎉 Llegó el {{producto}} que encargaste (pedido {{pedido}}). Pasá a retirarlo por {{sucursal}} cuando quieras. — {{empresa}}', category: 'ORDERS', isActive: true, isDefault: false },
+  { id: 'demo-tpl-garantia', name: 'Garantía registrada', body: '¡Hola {{cliente}}! 🛡️ Registramos la garantía de tu {{producto}} (pedido {{pedido}}): {{garantia}}, hasta el {{garantia_hasta}}. — {{empresa}}', category: 'ORDERS', isActive: true, isDefault: false },
+  { id: 'demo-tpl-cotizacion', name: 'Cotización enviada', body: '¡Hola {{cliente}}! 🧾 Te enviamos la cotización {{cotizacion}} por {{total}}, válida hasta {{vigencia}}. Podés verla acá: {{enlace}}. — {{empresa}}', category: 'ORDERS', isActive: true, isDefault: false },
+  { id: 'demo-tpl-resena', name: 'Pedido de reseña', body: '¡Hola {{nombre}}! 🙌 ¿Cómo te fue con tu {{producto}}? Contanos tu experiencia respondiendo este mensaje. ¡Gracias! — {{empresa}}', category: 'CUSTOMERS', isActive: true, isDefault: false },
+].map((item) => ({ channel: 'whatsapp', ...item }))
 const avisarGuardadoDemo = () => { try { window.dispatchEvent(new CustomEvent('mobos:demo-guardado')) } catch { /* sin window */ } }
 
-const editorVacio = (category) => ({ id: null, name: '', body: '', category, isActive: true, isDefault: false })
-const editorDe = (plantilla) => ({ id: plantilla.id, name: plantilla.name || '', body: plantilla.body || '', category: plantilla.category || 'ORDERS', isActive: plantilla.isActive !== false, isDefault: plantilla.isDefault === true })
+const editorVacio = (category, channel = 'whatsapp') => ({ id: null, name: '', body: '', subject: '', channel, category, isActive: true, isDefault: false })
+const editorDe = (plantilla) => ({ id: plantilla.id, name: plantilla.name || '', body: plantilla.body || '', subject: plantilla.subject || '', channel: canalDe(plantilla), category: plantilla.category || 'ORDERS', isActive: plantilla.isActive !== false, isDefault: plantilla.isDefault === true })
 
 // Sección de Configuración: plantillas de WhatsApp centralizadas por contexto.
 // Los borradores se pierden al cerrar el editor, nunca se envían solos.
 export default function WhatsAppTemplates() {
   const toast = useToast()
   const [categoria, setCategoria] = useState('ORDERS')
+  const [canal, setCanal] = useState('whatsapp')
   const [items, setItems] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -65,11 +73,11 @@ export default function WhatsAppTemplates() {
       setItems(plantillasDemo)
       return
     }
-    try { const rows = await api.get('/api/message-templates'); setItems(Array.isArray(rows) ? rows : []) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las plantillas.'); setItems([]) }
+    try { const rows = await api.get('/api/message-templates?channel=all'); setItems(Array.isArray(rows) ? rows : []) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las plantillas.'); setItems([]) }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
-  const deCategoria = (items || []).filter((item) => item.category === categoria)
+  const deCategoria = (items || []).filter((item) => item.category === categoria && canalDe(item) === canal)
   const variables = VARIABLES_POR_CONTEXTO[editor?.category] || VARIABLES_POR_CONTEXTO[categoria] || []
 
   function abrirEditor(plantilla) {
@@ -101,27 +109,31 @@ export default function WhatsAppTemplates() {
     event.preventDefault()
     if (busy || !editor) return
     if (!validar({ nombre: editor.name, cuerpo: editor.body }).valido) return
+    if (editor.channel === 'email' && !editor.subject.trim()) { setEditorError('El asunto del correo es obligatorio.'); return }
     const nombre = editor.name.trim()
     const cuerpo = editor.body.trim()
+    const asunto = editor.channel === 'email' ? editor.subject.trim() : ''
     setBusy(true); setEditorError('')
     if (isDemoRuntime) {
       const actual = plantillasDemo || (plantillasDemo = plantillasDemoIniciales())
       plantillasDemo = editor.id
-        ? actual.map((item) => (item.id === editor.id ? { ...item, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault } : item))
-        : [...actual, { id: `demo-tpl-${Date.now().toString(36)}`, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault }]
+        ? actual.map((item) => (item.id === editor.id ? { ...item, name: nombre, body: cuerpo, subject: asunto, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault } : item))
+        : [...actual, { id: `demo-tpl-${Date.now().toString(36)}`, channel: editor.channel, subject: asunto, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault }]
       setItems(plantillasDemo)
       toast.success(editor.id ? 'Plantilla actualizada.' : 'Plantilla creada.')
       setCategoria(editor.category)
+      setCanal(editor.channel)
       setEditor(null)
       avisarGuardadoDemo()
       setBusy(false)
       return
     }
     try {
-      if (editor.id) await api.patch('/api/message-templates', { id: editor.id, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault })
-      else await api.post('/api/message-templates', { name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault })
+      if (editor.id) await api.patch('/api/message-templates', { id: editor.id, name: nombre, body: cuerpo, ...(editor.channel === 'email' ? { subject: asunto } : {}), category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault })
+      else await api.post('/api/message-templates', { name: nombre, body: cuerpo, channel: editor.channel, ...(editor.channel === 'email' ? { subject: asunto } : {}), category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault })
       toast.success(editor.id ? 'Plantilla actualizada.' : 'Plantilla creada.')
       setCategoria(editor.category)
+      setCanal(editor.channel)
       setEditor(null)
       await cargar()
     } catch (cause) { setEditorError(cause?.message || 'No se pudo guardar la plantilla.') } finally { setBusy(false) }
@@ -169,15 +181,22 @@ export default function WhatsAppTemplates() {
       <BarraModulo
         icono="send"
         titulo="Plantillas"
-        descripcion="Mensajes reutilizables por contexto para clientes, pedidos y servicio. Las variables se completan al enviar."
+        descripcion="Mensajes listos por evento, en WhatsApp y en correo. Las variables se completan al enviar y nada se manda solo."
         testId="barra-plantillas"
         className="border-0 pb-0"
       >
-        <Button type="button" onClick={() => abrirEditor(editorVacio(categoria))}><Icon name="plus" className="h-3.5 w-3.5" />Nueva plantilla</Button>
+        <Button type="button" onClick={() => abrirEditor(editorVacio(categoria, canal))}><Icon name="plus" className="h-3.5 w-3.5" />Nueva plantilla</Button>
       </BarraModulo>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Canal de las plantillas" data-testid="plantillas-canal">
+        {CANALES_PLANTILLA.map((item) => (
+          <button key={item.clave} type="button" aria-pressed={canal === item.clave} onClick={() => setCanal(item.clave)} className={cn('min-h-11 rounded-lg border px-3.5 text-xs font-semibold transition md:min-h-9', canal === item.clave ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:text-fore')}>
+            {item.nombre}{items ? ` (${items.filter((plantilla) => canalDe(plantilla) === item.clave).length})` : ''}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap gap-2">
         {CATEGORIAS_PLANTILLA.map((item) => {
-          const total = (items || []).filter((plantilla) => plantilla.category === item.clave).length
+          const total = (items || []).filter((plantilla) => plantilla.category === item.clave && canalDe(plantilla) === canal).length
           return (
             <button key={item.clave} type="button" onClick={() => setCategoria(item.clave)} className={cn('rounded-lg border px-3 py-1.5 text-xs font-semibold transition', categoria === item.clave ? 'border-fono/40 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:text-fore')}>
               {item.nombre}{items ? ` (${total})` : ''}
@@ -201,7 +220,7 @@ export default function WhatsAppTemplates() {
                 <b className={cn('min-w-0', CELDA_IDENTIDAD)} title={item.name}>{item.name}</b>
                 {item.isDefault && <Badge color="blue" className="shrink-0 whitespace-nowrap px-1.5 py-0 text-[10px]"><Icon name="check" className="h-3 w-3" />Predeterminada</Badge>}
               </span>
-              <span className={CELDA_DATO} title={item.body}>{item.body}</span>
+              <span className={CELDA_DATO} title={canalDe(item) === 'email' ? `${item.subject || ''} — ${item.body}` : item.body}>{canalDe(item) === 'email' && item.subject ? <><b className="font-semibold text-fore">{item.subject}</b> · {item.body.replace(/\s+/g, ' ')}</> : item.body}</span>
               <span className={cn('inline-flex items-center gap-1 text-xs font-semibold', item.isActive !== false ? 'text-ok' : 'text-mute')}>
                 <Icon name={item.isActive !== false ? 'check' : 'close'} className="h-3.5 w-3.5" />{item.isActive !== false ? 'Activa' : 'Inactiva'}
               </span>
@@ -228,12 +247,22 @@ export default function WhatsAppTemplates() {
             <FormField label="Nombre" htmlFor="plantilla-nombre" error={errorDe('nombre')}>
               <Input id="plantilla-nombre" autoFocus maxLength={120} disabled={busy} value={editor?.name || ''} onChange={(event) => { limpiar('nombre'); setEditor((current) => ({ ...current, name: event.target.value })) }} placeholder="Ej. Pedido listo para retirar" />
             </FormField>
+            <FormField label="Canal" htmlFor="plantilla-canal">
+              <Select id="plantilla-canal" disabled={busy || Boolean(editor?.id)} value={editor?.channel || 'whatsapp'} onChange={(event) => setEditor((current) => ({ ...current, channel: event.target.value }))}>
+                {CANALES_PLANTILLA.map((item) => <option key={item.clave} value={item.clave}>{item.nombre}</option>)}
+              </Select>
+            </FormField>
             <FormField label="Categoría" htmlFor="plantilla-categoria">
               <Select id="plantilla-categoria" disabled={busy} value={editor?.category || 'ORDERS'} onChange={(event) => setEditor((current) => ({ ...current, category: event.target.value }))}>
                 {CATEGORIAS_PLANTILLA.map((item) => <option key={item.clave} value={item.clave}>{item.nombre}</option>)}
               </Select>
             </FormField>
           </div>
+          {editor?.channel === 'email' && (
+            <FormField label="Asunto" htmlFor="plantilla-asunto">
+              <Input id="plantilla-asunto" maxLength={200} disabled={busy} value={editor?.subject || ''} onChange={(event) => setEditor((current) => ({ ...current, subject: event.target.value }))} placeholder="Ej. Tu pedido {{pedido}} está listo" />
+            </FormField>
+          )}
           <div>
             <FormField label="Mensaje" htmlFor="plantilla-mensaje" error={errorDe('cuerpo')}>
               <Textarea
@@ -258,14 +287,15 @@ export default function WhatsAppTemplates() {
             </div>
             <div className="mt-3">
               <p className={ROTULO_DATO}>Vista previa (datos de ejemplo)</p>
-              <p className="mt-1.5 w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm border border-ok/25 bg-ok/10 px-3 py-2 text-xs leading-5 text-fore">
+              {editor?.channel === 'email' && <p className="mt-1.5 text-xs text-mute">Asunto: <b className="text-fore">{renderPlantilla(editor?.subject, VALORES_EJEMPLO) || '—'}</b></p>}
+              <p className="mt-1.5 w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm border border-ok/25 bg-ok/10 px-3 py-2 text-xs leading-5 text-fore" data-testid="plantilla-vista">
                 {renderPlantilla(editor?.body, VALORES_EJEMPLO) || 'Escribí el mensaje para verlo con datos de ejemplo.'}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isActive !== false} onChange={(event) => setEditor((current) => ({ ...current, isActive: event.target.checked }))} />Activa</label>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isDefault === true} onChange={(event) => setEditor((current) => ({ ...current, isDefault: event.target.checked }))} />Predeterminada de {NOMBRE_CATEGORIA[editor?.category] || 'la categoría'}</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isDefault === true} onChange={(event) => setEditor((current) => ({ ...current, isDefault: event.target.checked }))} />Predeterminada de {NOMBRE_CATEGORIA[editor?.category] || 'la categoría'} ({editor?.channel === 'email' ? 'correo' : 'WhatsApp'})</label>
           </div>
           {editorError && <Aviso tono="error">{editorError}</Aviso>}
           <FormActions>

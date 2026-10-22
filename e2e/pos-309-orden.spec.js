@@ -128,10 +128,14 @@ test('el ticket de la columna de venta y el total vive una sola vez (#309)', asy
     // El total (una sola vez) está en el carrito y no se repite en la franja.
     const total = page.getByTestId('carrito-total')
     await expect(total).toHaveText('Gs 90.000')
+    // El resumen «Esta venta» vive en el popup «Detalles de la venta y del día».
+    await page.getByTestId('pos-detalles').click()
     const estaVenta = page.getByTestId('resumen-compra').locator(':scope > div').first()
     await expect(estaVenta).toContainText('Esta venta')
     await expect(estaVenta).toContainText('1 producto · 1 unidad')
     await expect(estaVenta).not.toContainText('Gs 90.000')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('pos-detalles-popup')).toHaveCount(0)
     // Ni el cobro repite el Total: `cobro-total` es la misma fila del carrito.
     await expect(page.getByTestId('cobro-total')).toHaveCount(1)
     await expect(page.getByTestId('pos-tiles-resumen')).not.toContainText('Total')

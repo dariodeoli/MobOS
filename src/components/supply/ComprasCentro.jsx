@@ -1,4 +1,7 @@
 import './compras.css'
+import Toolbar from '@/components/shared/Toolbar'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { resources } from '@/lib/api'
@@ -8,7 +11,6 @@ import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, T
 import Popup from '@/components/shared/Popup'
 import SearchField from '@/components/shared/SearchField'
 import AttachmentList from '@/components/shared/AttachmentList'
-import BarraModulo from '@/components/shared/BarraModulo'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
 import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
@@ -127,21 +129,27 @@ export default function ComprasCentro() {
   }
 
   return (
-    <div className="compras-flujo space-y-4" data-testid="compras-centro">
-      <BarraModulo icono="store" titulo="Compras del Centro" testId="barra-compras-centro">
-        <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
-          <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
-        </Button>
-      </BarraModulo>
+    <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="compras-centro">
       <EncabezadoFlujo paso="compras-centro" onIr={(paso) => navigate(paso.ruta)} />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchField value={busqueda} onChange={(evento) => setBusqueda(evento.target.value)} placeholder="Buscar por código, proveedor o producto" ariaLabel="Buscar en compras del Centro" className="min-w-0 flex-1" />
-        <Select value={estado} onChange={(evento) => setEstado(evento.target.value)} className="w-auto" aria-label="Estado de la compra">
-          {ESTADOS_FILTRO.map((clave) => <option key={clave} value={clave}>{clave === 'TODAS' ? 'Todos los estados' : etiquetaCompra(clave)}</option>)}
-        </Select>
-        {totalLibres > 0 && <Badge color="blue">{totalLibres} unidad(es) libres</Badge>}
-      </div>
+      <Toolbar
+        plano
+        lista
+        label="Acciones de Compras del Centro"
+        testId="barra-compras-centro"
+        className="ventas-f3-toolbar"
+        search={<SearchField value={busqueda} onChange={(evento) => setBusqueda(evento.target.value)} placeholder="Buscar por código, proveedor o producto" ariaLabel="Buscar en compras del Centro" />}
+        sort={(
+          <Select value={estado} onChange={(evento) => setEstado(evento.target.value)} className="w-auto" aria-label="Estado de la compra">
+            {ESTADOS_FILTRO.map((clave) => <option key={clave} value={clave}>{clave === 'TODAS' ? 'Todos los estados' : etiquetaCompra(clave)}</option>)}
+          </Select>
+        )}
+        more={totalLibres > 0 ? <Badge color="blue">{totalLibres} unidad(es) libres</Badge> : undefined}
+        primary={(
+          <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
+            <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
+          </Button>
+        )}
+      />
 
       {error && <Card className="text-sm text-bad">{error}</Card>}
       {cargando && !compras.length ? (

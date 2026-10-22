@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useModulos } from '@/lib/useModulos'
 import { Link } from 'react-router-dom'
 import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
@@ -21,6 +22,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { demoInventorySeed, listDemoTransfers, listDemoUnits } from '@/lib/demoInventory'
 import { eventosDemo } from '@/components/productos/kardexDemo'
+import { fuentesHistoriaDemo } from '@/lib/demoHistoria'
 import { cn } from '@/lib/utils'
 import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
 import FotoProducto from '@/components/shared/FotoProducto'
@@ -56,11 +58,15 @@ const esCompraRecibida = (action) => /recibida/i.test(String(action || ''))
 // (IMEI), kardex, precios, compras, historial y edición para administración o
 // gerencia.
 export default function ProductoDetalle({ product, canManage, esDemo, onClose, onChanged, onSell, onAnterior, onSiguiente, posicion }) {
+  // El enlace a Inventario existe solo con el módulo «Inventario por unidades».
+  const { vistaVisible, activo: moduloOn } = useModulos()
+  const mayoristasOn = moduloOn('mayoristas')
   const toast = useToast()
   const [current, setCurrent] = useState(product)
   const { sucursal } = useSesion()
   const [units, setUnits] = useState([])
   const [loadingUnits, setLoadingUnits] = useState(!esDemo)
+  const pedidoUnidades = useRef(0)
   // #286: si la carga falla se dice (con reintento) en vez de mostrar «no tiene
   // unidades» aunque existan.
   const [errorUnits, setErrorUnits] = useState('')
@@ -93,7 +99,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     compatibles: modelosCompatibles(product).join(', '),
   }))
 
-  const loadUnits = useCallback(async () => {
+  const loadUnits = useCallback(async (reintento = 0) => {
     if (!current?.id) { setLoadingUnits(false); return }
     // Demo (#306): las unidades ficticias ya existen en el inventario del demo;
     // se leen del store local en vez de decir que hacen falta una cuenta real.
@@ -103,6 +109,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
       setUnits(listDemoUnits('', 'active').filter((unidad) => unidad.productId === current.id))
       return
     }
+    // Solo la última consulta escribe: al cambiar de sucursal la anterior se
+    // descarta (su error CONTEXT_CHANGED no puede pisar la lectura vigente).
+    const pedido = ++pedidoUnidades.current
     setLoadingUnits(true)
     setErrorUnits('')
     try {
@@ -113,11 +122,16 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
       const query = new URLSearchParams({ productId: current.id })
       if (sucursal?.id) query.set('branchId', sucursal.id)
       const rows = await api.get(`/api/inventory-units?${query.toString()}`)
+      if (pedido !== pedidoUnidades.current) return
       setUnits(Array.isArray(rows) ? rows : [])
     } catch (cause) {
+      if (pedido !== pedidoUnidades.current) return
+      // Cambiar de sucursal renueva el contexto de acceso con la consulta ya en
+      // vuelo: no es un fallo, se vuelve a leer con el contexto nuevo.
+      if (cause?.code === 'CONTEXT_CHANGED' && reintento < 2) return loadUnits(reintento + 1)
       setUnits([])
       setErrorUnits(cause?.message || 'No se pudieron cargar los equipos de este producto.')
-    } finally { setLoadingUnits(false) }
+    } finally { if (pedido === pedidoUnidades.current) setLoadingUnits(false) }
   }, [current?.id, esDemo, sucursal?.id])
   useEffect(() => { loadUnits() }, [loadUnits])
   useEffect(() => {
@@ -170,7 +184,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   // revisiones, bajas y traslados) alimentan kardex y compras sin API.
   const eventosDemoProducto = useMemo(() => {
     if (!esDemo) return []
-    return eventosDemo({ producto: productoKardex, unidades: unidadesDemo, transferencias: listDemoTransfers() })
+    return eventosDemo({ producto: productoKardex, unidades: unidadesDemo, transferencias: listDemoTransfers(), historia: fuentesHistoriaDemo() })
   }, [esDemo, productoKardex, unidadesDemo])
   const comprasFilas = esDemo
     ? eventosDemoProducto.filter((evento) => evento.kind === 'COMPRA').map((evento) => ({
@@ -281,7 +295,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <p className="mt-1 text-xs text-mute">{current?.branch?.name || ''}{current?.branchId && !current?.branch?.name ? 'Sucursal asignada' : ''}</p>
             <div className="mt-4 flex flex-wrap items-end gap-4">
               <div><p className="text-xs text-mute">Precio de venta</p><p className="text-2xl font-bold tabular-nums text-fono-light">{precio(current) > 0 ? <Money value={precio(current)} /> : '—'}</p></div>
-              {mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums"><Money value={mayorista(current)} /></p></div>}
+              {mayoristasOn && mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums"><Money value={mayorista(current)} /></p></div>}
               {current?.priceUsd != null && Number(current.priceUsd) > 0 && <div><p className="text-xs text-mute">En dólares</p><p className="text-lg font-semibold tabular-nums"><Money value={current.priceUsd} currency="USD" /></p></div>}
               <div className="ml-auto text-right"><p className="text-xs text-mute">Stock</p><p className="text-2xl font-bold tabular-nums" data-testid="producto-stock">{stockMostrado}</p></div>
             </div>
@@ -328,7 +342,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               pasa a la vista de Unidades acotada a este producto. */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
-            {units.length > 0 && (
+            {units.length > 0 && vistaVisible('unidades') && (
               <Link
                 to={`/stock/unidades?producto=${encodeURIComponent(current.id)}${current.sku ? `&q=${encodeURIComponent(current.sku)}` : ''}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1 text-[11px] font-semibold text-fono-light transition hover:border-fono/40"
@@ -388,7 +402,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Precio de venta</p><p className="mt-1 font-semibold">{precio(current) > 0 ? <Money value={precio(current)} /> : '—'}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Mayorista</p><p className="mt-1 font-semibold">{mayorista(current) > 0 ? <Money value={mayorista(current)} /> : '—'}</p></div>
+            {mayoristasOn && <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Mayorista</p><p className="mt-1 font-semibold">{mayorista(current) > 0 ? <Money value={mayorista(current)} /> : '—'}</p></div>}
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">En dólares</p><p className="mt-1 font-semibold">{current?.priceUsd != null && Number(current.priceUsd) > 0 ? <Money value={current.priceUsd} currency="USD" /> : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{costoUnitario > 0 ? <Money value={costoUnitario} /> : <span className="text-warn">pendiente</span>}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Margen</p><p className="mt-1 font-semibold">{costoUnitario > 0 && precio(current) > 0 ? <><Money value={margen} /> <span className="text-xs font-normal text-mute">{formatPercent(margenPct)}%</span></> : '—'}</p></div>
@@ -407,7 +421,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <div><Label htmlFor="color">Color</Label><Input id="color" value={form.color} onChange={event => setForm(current => ({ ...current, color: event.target.value }))} placeholder="Ej. Titanio Negro" /></div>
               <div><Label htmlFor="capacidad">Capacidad</Label><Input id="capacidad" value={form.capacidad} onChange={event => setForm(current => ({ ...current, capacidad: event.target.value }))} placeholder="Ej. 256GB" /></div>
               <div><Label htmlFor="precio-de-venta-gs">Precio de venta (Gs)</Label><MoneyInput id="precio-de-venta-gs" value={form.precio} onValueChange={value => setForm(current => ({ ...current, precio: value === '' ? '' : String(value) }))} /></div>
-              <div><Label htmlFor="precio-mayorista-gs">Precio mayorista (Gs)</Label><MoneyInput id="precio-mayorista-gs" value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>
+              {mayoristasOn && <div><Label htmlFor="precio-mayorista-gs">Precio mayorista (Gs)</Label><MoneyInput id="precio-mayorista-gs" value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>}
               <div><Label htmlFor="costo-gs">Costo (Gs)</Label><MoneyInput id="costo-gs" value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>
               <div><Label htmlFor="seguro">Seguro (%)</Label><PercentField id="seguro" value={form.seguro} onChange={value => setForm(current => ({ ...current, seguro: value }))} placeholder="Ej. 2" /></div>
               <div><Label htmlFor="umbral-de-reposicion">Umbral de reposición</Label><Input id="umbral-de-reposicion" inputMode="numeric" value={form.umbral} onChange={event => setForm(current => ({ ...current, umbral: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 3" /></div>

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { newCompanySettings } from './module-store'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { hashToken, requiresAdminPinSetup } from './auth'
@@ -51,7 +52,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
           const linked = await tx.googleStoreAccess.findFirst({ where: { subject: identity.sub, tenantId: existing.id }, select: { tenantId: true } })
           if (!linked) throw new AuthFlowError('existing_account', 'Este correo ya tiene una empresa. Entrá con contraseña; la vinculación con Google requiere validar al dueño.', 409)
         }
-        const created = await tx.tenant.create({ data: { name: input.companyName, email: existing ? null : identity.email, emailVerifiedAt: existing ? null : new Date(), slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
+        const created = await tx.tenant.create({ data: { name: input.companyName, email: existing ? null : identity.email, emailVerifiedAt: existing ? null : new Date(), slug: `tienda-${randomBytes(16).toString('hex')}`, settings: newCompanySettings({ onboarding: { adminPinPending: true } }) } })
         const admin = await tx.user.create({ data: { tenantId: created.id, name: identity.name?.slice(0, 100) || 'Administrador', email: identity.email, pinHash, role: 'ADMIN' } })
         await recordGoogleIdentity(tx, identity)
         await tx.googleStoreAccess.create({ data: { subject: identity.sub, tenantId: created.id, owner: true } })

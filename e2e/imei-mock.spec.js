@@ -185,6 +185,10 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
     const tokenVendedor = String(pin.headers()['set-cookie'] || '').match(/mobos_seller_session=([^;,\n]*)/)?.[1] || ''
     expect(tokenVendedor).toBeTruthy()
     const cabecerasB = { Authorization: `Bearer ${tokenVendedor}` }
+    // Las empresas nuevas arrancan sin «Verificación de IMEI» (módulo opcional): el
+    // dueño de la tienda B lo activa para poder consultar, como en la app.
+    const activar = await apiB.put(`${API}/api/tenant/modules`, { headers: cabecerasB, data: { moduleId: 'verificacion-imei', enabled: true } })
+    expect(activar.status(), await activar.text()).toBe(200)
 
     // Precheck en B: no ve la consulta reciente de A (aislamiento por tenant).
     const precheckB = await apiB.post(`${API}/api/imei`, { headers: cabecerasB, data: { action: 'precheck', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC' } })

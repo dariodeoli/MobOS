@@ -1,4 +1,5 @@
 import DocumentoPlantilla from '@/components/control/impresion/DocumentoPlantilla'
+import { aplicarDisenoPredeterminado } from '@/lib/printing/disenoPro'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Aviso, Button, useResultado, useToast } from '@/components/ui'
 import { ConfirmDialog, FormActions } from '@/components/shared/popupKit'
@@ -122,8 +123,10 @@ export default function ComprobantePreview({ order, open, onClose, formatos: for
     setCargando(true)
     ;(async () => {
       const token = await tokenDeNivel(documento.id, nivel)
-      const built = await buildOrderReceiptHtml(documento, { level: nivel, format: formato, token, contexto })
-      const builtPlantilla = formato === 'thermal-80' ? built : await buildOrderReceiptHtml(documento, { level: nivel, format: 'thermal-80', token, contexto })
+      const armado = await buildOrderReceiptHtml(documento, { level: nivel, format: formato, token, contexto })
+      // Impresión Pro: el rollo toma el diseño de ticket predeterminado (si hay y el módulo está activo).
+      const built = String(formato).startsWith('thermal') ? aplicarDisenoPredeterminado('ticket', armado) : armado
+      const builtPlantilla = formato === 'thermal-80' ? armado : await buildOrderReceiptHtml(documento, { level: nivel, format: 'thermal-80', token, contexto })
       if (active) { setHtmlPlantilla(builtPlantilla); setHtml(built); setCargando(false) }
     })()
     return () => { active = false }

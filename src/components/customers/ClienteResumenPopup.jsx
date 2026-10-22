@@ -8,6 +8,7 @@ import { gs } from '@/utils/calculos'
 import { fechaLegible } from '@/utils/pedido'
 import { ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
 import { cn } from '@/lib/utils'
+import { useModulos } from '@/lib/useModulos'
 
 // Resumen rápido del cliente (#236, ajustado en #313): el «ojito» de la lista
 // abre un vistazo de contacto + saldo + acciones. El contenido extenso (últimas
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils'
 const fechaDe = (valor) => (valor ? fechaLegible(valor) : '—')
 
 export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onEditar, templates }) {
+  const mayoristas = useModulos().activo('mayoristas')
   if (!row) return null
   const stats = row.stats || {}
   const contacto = row.phone || row.phones?.[0] || ''
@@ -44,7 +46,7 @@ export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onE
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-bold">{row.name || 'Sin nombre'}</p>
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-mute">
-              <Badge color={row.wholesale ? 'orange' : 'slate'}>{row.wholesale ? 'Mayorista' : 'Cliente final'}</Badge>
+              {mayoristas && <Badge color={row.wholesale ? 'orange' : 'slate'}>{row.wholesale ? 'Mayorista' : 'Cliente final'}</Badge>}
               <span className="tabular-nums">{telefono || 'Sin teléfono'}</span>
               {row.email && <span className="truncate">{row.email}</span>}
             </p>

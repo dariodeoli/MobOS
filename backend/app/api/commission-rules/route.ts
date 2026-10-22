@@ -2,6 +2,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { UserRole, type Prisma } from '@prisma/client'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 // Reglas de comisión sobre el margen de las ventas. Solo ADMIN las gestiona.
 // Cada regla aplica a un usuario específico o a un rol, nunca a ambos a la vez,
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'comisiones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'comisiones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
@@ -120,6 +123,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'comisiones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)

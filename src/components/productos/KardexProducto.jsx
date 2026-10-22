@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { FECHA_KARDEX, consultaKardex, extremosDelRango } from '@/utils/kardex'
 import { listDemoTransfers, demoInventorySeed } from '@/lib/demoInventory'
 import { construirKardexDemo } from '@/components/productos/kardexDemo'
+import { fuentesHistoriaDemo } from '@/lib/demoHistoria'
 
 // Descarga el CSV del rango que se está viendo, con la sesión de cookies.
 async function descargarKardexCsv(productId, rango, nombreArchivo) {
@@ -86,6 +87,7 @@ export default function KardexProducto({ product, esDemo = false, onCerrar }) {
           producto: product,
           unidades: demoInventorySeed().units,
           transferencias: listDemoTransfers(),
+          historia: fuentesHistoriaDemo(),
           ...rango,
         }))
       } else {

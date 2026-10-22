@@ -92,7 +92,7 @@ function BarraUnidades({ ctx, elegirEstado, limpiar }) {
     <Toolbar
       plano
       testId="barra-inventario"
-      className="max-sm:flex-nowrap max-sm:gap-x-2"
+      className="max-sm:flex-nowrap max-sm:gap-x-1"
       label="Acciones de Stock"
       searchClassName="max-sm:flex-1 max-sm:basis-0 sm:min-w-[19rem]"
       search={<Buscador ctx={ctx} placeholder={angosta ? 'IMEI o modelo' : 'Escanear IMEI, SKU o buscar modelo'} />}

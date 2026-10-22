@@ -3,6 +3,7 @@ import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { promotionInput } from '../../../lib/promotions'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 export async function GET(request: Request) {
   const session = await requireSession(request)
@@ -11,6 +12,7 @@ export async function GET(request: Request) {
   return json(await prisma.promotion.findMany({ where: { tenantId: session.user.tenantId, ...(session.user.role === 'ADMIN' ? {} : { isActive: true, startsAt: { lte: now }, endsAt: { gt: now } }) }, orderBy: { createdAt: 'desc' } }))
 }
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'promociones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('Solo el administrador configura promociones.', 403)
@@ -21,6 +23,7 @@ export async function POST(request: Request) {
   } catch (e) { return error(e instanceof InputError ? e.message : 'Datos inválidos o código ya existente.', 400) }
 }
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'promociones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('Solo el administrador configura promociones.', 403)

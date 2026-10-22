@@ -21,6 +21,10 @@ const pgBin = process.env.MOBOS_TEST_PG_BIN || '/opt/homebrew/bin'
 const psql = (sql) => execFileSync(join(pgBin, 'psql'), ['-X', '--no-psqlrc', '-At', '-v', 'ON_ERROR_STOP=1', databaseUrl, '-c', sql], { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim()
 
 const stamp = Date.now().toString(36)
+// Configuración de la empresa: se restaura al final. Nadie aprueba lo propio salvo los roles de selfApproveRoles.
+const settingsOriginal = psql(`SELECT COALESCE("settings", '{}'::jsonb)::text FROM "Tenant" WHERE "id" = 'tenant-a-it'`)
+const mergeSettings = (value) => psql(`UPDATE "Tenant" SET "settings" = COALESCE("settings", '{}'::jsonb) || '${JSON.stringify(value)}'::jsonb WHERE "id" = 'tenant-a-it'`)
+const setSelfApprove = (roles) => mergeSettings({ paymentVerification: { methods: {}, selfApproveRoles: roles } })
 async function call(path, { method = 'GET', token = adminToken, body, headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
@@ -171,6 +175,10 @@ try {
   assert.equal(r.payload.creditAuthorization?.status, 'APPROVED')
   assert.equal(r.payload.creditAuthorization?.resolvedByName, 'Gerente A')
   assert.equal(r.payload.fulfillmentStatus, 'PROCESSING', 'aprobar el crédito no entrega: la entrega se confirma aparte')
+  // Nadie aprueba lo propio, tampoco el administrador, salvo que la empresa lo autorice (selfApproveRoles).
+  r = await venta(mostrador.id, 600000, { creditDays: 7, creditSelfApproval: true }, adminToken)
+  assert.equal(r.status, 403, 'el administrador tampoco se autoriza solo sin configuración')
+  setSelfApprove(['ADMIN'])
   r = await venta(mostrador.id, 600000, { creditDays: 7, creditSelfApproval: true }, adminToken)
   assert.equal(r.status, 201, JSON.stringify(r.payload))
   assert.equal(r.payload.creditAuthorization?.status, 'APPROVED')
@@ -301,4 +309,5 @@ try {
   console.log('credito-autorizacion: OK')
 } finally {
   psql(`UPDATE "User" SET "pinHash" = '${hashOriginal}' WHERE "id" = 'user-gerente-it'`)
+  psql(`UPDATE "Tenant" SET "settings" = '${settingsOriginal.replace(/'/g, "''")}'::jsonb WHERE "id" = 'tenant-a-it'`)
 }

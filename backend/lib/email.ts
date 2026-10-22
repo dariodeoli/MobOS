@@ -299,6 +299,49 @@ export function quoteEmail(input: { to: string; customerName: string; number: st
   return { to: input.to, subject: `Cotización ${input.number} · ${company}`, ...content }
 }
 
+// Correos de la DEMO pública (pedido de Dario): comprobante, cotización y avisos por
+// estado con datos ficticios. Solo recibe datos estructurados ya validados por
+// `demo-email.ts`; los únicos textos libres son el nombre del cliente y las
+// descripciones de ítems (sanitizados antes) y todo se escapa en la plantilla. Los
+// enlaces apuntan a la demo y al registro, nunca a datos reales.
+export type DemoEmailKind = 'receipt' | 'quote' | 'ready_for_pickup' | 'in_transit' | 'delivered'
+export const DEMO_EMAIL_LEGEND = 'Demo de MobOS · datos ficticios'
+
+const DEMO_STATUS_COPY: Record<Exclude<DemoEmailKind, 'receipt' | 'quote'>, { eyebrow: string; title: string; body: string; label: string; subject: string; tone: EmailTone }> = {
+  ready_for_pickup: { eyebrow: 'Pedido listo', title: 'Tu pedido está listo para retirar', body: 'Ya podés pasar a retirarlo por la tienda.', label: 'Listo para retirar', subject: 'listo para retirar', tone: 'success' },
+  in_transit: { eyebrow: 'Pedido en camino', title: 'Tu pedido está en camino', body: 'Salió de la tienda y va rumbo a tu dirección.', label: 'En camino', subject: 'en camino', tone: 'info' },
+  delivered: { eyebrow: 'Pedido entregado', title: 'Tu pedido fue entregado', body: 'Gracias por tu compra. Esperamos que lo disfrutes.', label: 'Entregado', subject: 'entregado', tone: 'success' },
+}
+
+export function demoDocumentEmail(input: { to: string; kind: DemoEmailKind; number: string; customerName: string; items: Array<{ quantity: number; description: string; unitPricePyg: number }>; discountPyg?: number; totalPyg: number; validUntilLabel?: string | null }) {
+  const demoLink = actionLink('/demo')
+  const signupLink = actionLink('/login')
+  if (!demoLink || !signupLink || !emailPattern.test(input.to) || !input.number.trim() || !Array.isArray(input.items) || !input.items.length) return null
+  const company = 'Tienda de ejemplo'
+  const filas = input.items.map(item => ({ quantity: Number(item.quantity || 0), description: String(item.description || 'Ítem'), totalPyg: Number(item.quantity || 0) * Number(item.unitPricePyg || 0), unitPricePyg: Number(item.unitPricePyg || 0) }))
+  const descuento = Number(input.discountPyg || 0)
+  const banda = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" data-demo-band="1" style="margin:0 0 18px;border-collapse:separate"><tbody><tr><td align="center" style="padding:9px 12px;background:${TONE.warning.surface};border:1px solid ${TONE.warning.border};border-radius:10px;color:${TONE.warning.ink};font-size:12px;font-weight:800;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">${escapeHtml(DEMO_EMAIL_LEGEND)}</td></tr></tbody></table>`
+  const lineasHtml = filas.map(fila => `<tr><td class="email-muted" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.muted};font-size:14px;line-height:1.45">${escapeHtml(String(fila.quantity))} × ${escapeHtml(fila.description)}</td><td class="email-text" align="right" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.ink};font-size:14px;font-weight:700;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:break-word">${escapeHtml(formatPyg(fila.totalPyg))}</td></tr>`).join('')
+  const filaDescuento = descuento > 0 ? `<tr><th scope="row" align="right" style="padding:9px 12px;color:${COLOR.muted};font-size:13px;line-height:1.45">Descuento</th><td align="right" style="padding:9px 12px;color:${COLOR.muted};font-size:13px;line-height:1.45">- ${escapeHtml(formatPyg(descuento))}</td></tr>` : ''
+  const tabla = `<table role="table" aria-label="Detalle" width="100%" cellpadding="0" cellspacing="0" class="receipt-table email-detail" style="margin:20px 0 0;background:${COLOR.surface};border-collapse:collapse"><thead><tr><th scope="col" class="email-table-heading" align="left" style="padding:10px 12px;background:${COLOR.surface};border-bottom:2px solid ${COLOR.brand};color:${COLOR.brand};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Detalle</th><th scope="col" class="email-table-heading" align="right" style="padding:10px 12px;background:${COLOR.surface};border-bottom:2px solid ${COLOR.brand};color:${COLOR.brand};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Importe</th></tr></thead><tbody>${lineasHtml}${filaDescuento}<tr><th scope="row" align="right" style="padding:16px 12px 6px;border-top:2px solid ${COLOR.ink};color:${COLOR.ink};font-size:22px;font-weight:800;line-height:1.3">Total</th><td align="right" style="padding:16px 12px 6px;border-top:2px solid ${COLOR.ink};color:${COLOR.ink};font-size:22px;font-weight:800;line-height:1.45;white-space:normal;overflow-wrap:anywhere;word-break:break-word">${escapeHtml(formatPyg(input.totalPyg))}</td></tr></tbody></table>`
+  const textoFilas = `${filas.map(fila => `${fila.quantity} × ${fila.description} — ${formatPyg(fila.totalPyg)}`).join('\n')}${descuento > 0 ? `\nDescuento: - ${formatPyg(descuento)}` : ''}\nTotal: ${formatPyg(input.totalPyg)}`
+  const numero = displayOrderNumber(input.number)
+  const lead = input.customerName.trim() ? `Hola ${input.customerName},` : undefined
+  const footer = `${DEMO_EMAIL_LEGEND}. Este correo se generó desde la demo pública; no es un documento real. Cuando quieras usarlo con tu tienda, creá tu cuenta.`
+  const nota = `\n\n${DEMO_EMAIL_LEGEND}\nCreá tu cuenta: ${signupLink}`
+  const cta = `<p class="email-muted" style="margin:18px 0 0;color:${COLOR.muted};font-size:14px;line-height:1.6">¿Te gustó la demo? <a class="email-link" href="${escapeHtml(signupLink)}" style="color:${COLOR.link};font-weight:700;text-decoration:underline">Creá tu cuenta en MobOS</a> (${escapeHtml(signupLink)}).</p>`
+  if (input.kind === 'receipt' || input.kind === 'quote') {
+    const esCotizacion = input.kind === 'quote'
+    const detalles = detailCard([{ label: esCotizacion ? 'Cotización' : 'Pedido', value: numero }, ...(esCotizacion && input.validUntilLabel ? [{ label: 'Validez', value: input.validUntilLabel }] : []), { label: 'Comercio', value: company }], esCotizacion ? 'Datos de la cotización' : 'Datos del pedido', esCotizacion ? 'brand' : 'success')
+    const content = template({ company, eyebrow: esCotizacion ? 'Cotización' : 'Comprobante de compra', title: esCotizacion ? `Cotización ${numero}` : `Comprobante ${numero}`, lead, body: esCotizacion ? `Te enviamos una cotización de ejemplo de ${company}.` : `Gracias por tu compra en ${company}.`, contentHtml: `${banda}${detalles.html}${tabla}${cta}`, contentText: `${detalles.text}\n${textoFilas}${nota}`, action: { label: 'Probar la demo de MobOS', url: demoLink }, footer, tone: esCotizacion ? 'brand' : 'success' })
+    return { to: input.to, subject: `${esCotizacion ? 'Cotización' : 'Comprobante'} ${numero} · ${DEMO_EMAIL_LEGEND}`, ...content }
+  }
+  const copy = DEMO_STATUS_COPY[input.kind]
+  const detalles = detailCard([{ label: 'Pedido', value: numero }, { label: 'Estado', value: copy.label }, { label: 'Comercio', value: company }], 'Estado del pedido', copy.tone)
+  const content = template({ company, eyebrow: copy.eyebrow, title: copy.title, lead, body: copy.body, contentHtml: `${banda}${detalles.html}${tabla}${cta}`, contentText: `${detalles.text}\n${textoFilas}${nota}`, action: { label: 'Probar la demo de MobOS', url: demoLink }, footer, tone: copy.tone })
+  return { to: input.to, subject: `Tu pedido ${numero} está ${copy.subject} · ${DEMO_EMAIL_LEGEND}`, ...content }
+}
+
 /**
  * A3 (#279): código de un solo uso para aprobar un presupuesto desde el enlace
  * público. El código va en el cuerpo y nunca se guarda en claro.

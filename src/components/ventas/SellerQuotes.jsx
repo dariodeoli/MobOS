@@ -7,13 +7,12 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Button, DocumentoImpresion, EmptyState, FormField, Input, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
+import { Aviso, Button, DocumentoImpresion, EmptyState, FormField, Input, MoneyInput, Stat, Textarea, MenuDesplegable } from '@/components/ui'
 import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
-import SearchField from '@/components/shared/SearchField'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
 import { buildProformaHtml, printProformaReceipt, printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
@@ -27,17 +26,24 @@ import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone, whatsappUrl } from '@/utils/telefono'
 import { mensajeCotizacion } from '@/lib/mensajeCotizacion'
+import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { PLANTILLA_COTIZACION } from '@/lib/avisos'
 import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
 import { compartirArchivo, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { cotizacionUrlFor, estadoCotizacion } from '@/lib/cotizaciones'
+import { solicitarCorreoDemo } from '@/lib/demoCorreo'
+import { itemsParaCorreoDemo, payloadCorreoDemo } from '@/lib/demoCorreoRequest'
 import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion, crearDemoCotizacion } from '@/lib/demoCotizaciones'
 import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import Toolbar from '@/components/shared/Toolbar'
+import SearchField from '@/components/shared/SearchField'
+import ChipsFiltro from './ChipsFiltro'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/shared/gestionProfundo.css'
 import StatusChip from '@/components/shared/StatusChip'
 import SelectorResultadoCompacto from '@/components/shared/SelectorResultadoCompacto'
-import ChipsFiltro from './ChipsFiltro'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import { quoteActions } from '@/lib/ventasF3'
@@ -245,10 +251,19 @@ export default function SellerQuotes() {
     try {
       // #314: en demo la cotización vive en el navegador y recorre el mismo
       // pipeline (enviar → aceptar → convertir) que la cuenta real.
-      if (esDemo) crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
+      let creada = null
+      if (esDemo) creada = crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
       else await resources.quotes.create(datos)
       setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClienteSeleccionado(null); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
       setNotice('Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
+      // Correo real de la demo: si el cliente elegido tiene correo, le llega la cotización.
+      const correoCliente = String(clienteSeleccionado?.email || '').trim()
+      if (esDemo && creada && correoCliente) {
+        solicitarCorreoDemo(payloadCorreoDemo({
+          kind: 'quote', numero: creada.number, email: correoCliente, cliente: datos.customerName,
+          items: itemsParaCorreoDemo(datos.items), descuento: datos.discountPyg, validUntil: creada.validUntil,
+        })).then(({ aviso }) => { if (aviso) setNotice(`Cotización creada. ${aviso.tipo === 'success' ? aviso.titulo : `${aviso.titulo}: ${aviso.detalle}`}`) })
+      }
       await data.refresh()
     } catch (cause) {
       setCrearError(cause?.message || 'No se pudo crear la cotización.')
@@ -421,7 +436,7 @@ export default function SellerQuotes() {
   }
 
   return (
-    <div className="ventas-f3" data-testid="ventas-cotizaciones-f3">
+    <div className="gp ventas-f3" data-testid="ventas-cotizaciones-f3">
       <SellerSection title="Cotizaciones">
         <Toolbar
           label="Acciones de Cotizaciones"
@@ -454,6 +469,13 @@ export default function SellerQuotes() {
             </Button>
           }
         />
+        {!data.loading && !data.error && rows.length > 0 && (
+          <StatGrid testId="cotizaciones-resumen" etiqueta="Resumen de cotizaciones">
+            <Stat compact label="En esta vista" valor={rows.length} />
+            <Stat compact label="Total cotizado" valor={gs(rows.reduce((suma, row) => suma + Number(row.totalPyg || 0), 0))} />
+            <Stat compact label="Vencen en 2 días o menos" valor={rows.filter(row => vencimiento(row).urgente).length} valorClassName={rows.some(row => vencimiento(row).urgente) ? 'text-warn' : 'text-mute'} />
+          </StatGrid>
+        )}
         {notice && <Aviso tono="ok">{notice}</Aviso>}
         {error && <Aviso tono="error">{error}</Aviso>}
         <SellerFeedback {...data} empty={false} />
@@ -547,7 +569,7 @@ export default function SellerQuotes() {
                       {gs(row.totalPyg)}
                     </span>
                     <div
-                      className="ventas-f3-quote-actions"
+                      className={cn('ventas-f3-quote-actions', !row.order && !actions.send && !actions.convert && !actions.link && 'ventas-f3-quote-actions--solo')}
                       onClickCapture={event => {
                         // Capture a persistent return target before the menu item unmounts.
                         // The menu's deferred focus cannot establish the modal's opener.
@@ -782,6 +804,22 @@ export default function SellerQuotes() {
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
           <Button type="button" variant="success" disabled={enlaceBusy || !enlace} onClick={enviarWhatsApp} data-testid="cotizacion-whatsapp"><Icon name="send" className="h-4 w-4" />Enviar por WhatsApp</Button>
+          <AvisarPorCorreo
+            email={enlace?.customer?.email || enlace?.customerEmail}
+            category="ORDERS"
+            evento={PLANTILLA_COTIZACION}
+            disabled={enlaceBusy || !enlace}
+            demoCorreo={enlace ? { kind: 'quote', numero: enlace.number, cliente: enlace.customerName, items: itemsParaCorreoDemo(enlace.items), descuento: enlace.discountPyg, validUntil: enlace.validUntil } : null}
+            title={enlace?.customerName}
+            contexto={{
+              cliente: enlace?.customerName || enlace?.customer?.name || 'cliente',
+              nombre: enlace?.customerName || enlace?.customer?.name || 'cliente',
+              cotizacion: enlace?.number || '',
+              total: gs(Number(enlace?.totalPyg || 0)),
+              vigencia: enlace?.validUntil ? new Date(enlace.validUntil).toLocaleDateString('es-PY') : '',
+              enlace: enlaceUrl || '',
+            }}
+          />
           <CompartirPdf
             construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: enlaceUrl })}
             nombre={`cotizacion-${enlace?.number || ''}`}

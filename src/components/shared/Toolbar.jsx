@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils'
 // búsqueda.
 //
 // `lista` activa el patrón de las pantallas de lista (#388):
-//  - Escritorio: UNA fila — buscador (flexible, 320–420 px) · chips (`filters`) ·
-//    orden (`sort`, ancho según su contenido) · lista/cuadrícula (`display`) ·
-//    acción principal a la derecha.
+//  - Escritorio: UNA fila — chips (`filters`) · orden (`sort`, ancho según su
+//    contenido) · lista/cuadrícula (`display`) · buscador (flexible, 320–420 px) ·
+//    acción principal a la derecha (pedido de Dario: buscar entre ordenar y la acción).
 //  - Celular (<640 px): buscador + acción principal en una fila; chips en una fila
 //    con scroll horizontal; `sort` y `display` detrás de UN botón «Ordenar / Vista»
 //    de 44 px que abre un panel (el mismo DOM: no se duplican controles).
@@ -44,13 +44,13 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
     return () => { document.removeEventListener('mousedown', cerrarFuera); document.removeEventListener('keydown', cerrarEscape) }
   }, [abierto])
   const huecoOrden = sort && (
-    <div data-slot="sort" className={cn('min-w-0', lista && 'sm:flex sm:shrink-0 sm:flex-wrap sm:items-center sm:gap-2 sm:[&_select]:w-auto', ordenVista && 'max-sm:flex max-sm:flex-col max-sm:gap-2')}>
+    <div data-slot="sort" className={cn('min-w-0', lista && 'sm:order-[2] sm:flex sm:shrink-0 sm:flex-wrap sm:items-center sm:gap-2 sm:[&_select]:w-auto', ordenVista && 'max-sm:flex max-sm:flex-col max-sm:gap-2')}>
       {ordenVista && <span className="block text-xs font-medium text-mute sm:hidden">{etiquetaOrden}</span>}
       {sort}
     </div>
   )
   const huecoVista = display && (
-    <div data-slot="display" className={cn('flex min-w-0 items-center', ordenVista && 'max-sm:flex-col max-sm:items-start')}>
+    <div data-slot="display" className={cn('flex min-w-0 items-center', lista && 'sm:order-[2]', ordenVista && 'max-sm:flex-col max-sm:items-start')}>
       {ordenVista && <span className="mb-1 block text-xs font-medium text-mute sm:hidden">Vista</span>}
       {display}
     </div>
@@ -77,7 +77,7 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
             data-slot="search"
             className={cn(
               'min-w-0 basis-full sm:min-w-[14rem] sm:flex-1 sm:basis-64',
-              lista && 'max-sm:order-[-5] max-sm:flex-1 max-sm:basis-40 sm:min-w-[14rem] sm:max-w-[20rem] sm:basis-64',
+              lista && 'max-sm:order-[-5] max-sm:flex-1 max-sm:basis-40 sm:order-[3] sm:min-w-[14rem] sm:max-w-[20rem] sm:basis-64',
               searchClassName,
             )}
           >
@@ -89,6 +89,7 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
             data-slot="filters"
             className={cn(
               'flex min-w-0 items-center gap-2',
+              lista && 'sm:order-[1]',
               lista && !scrollFiltros && 'flex-wrap max-sm:order-[-2] max-sm:basis-full',
               lista && scrollFiltros
                 ? cn(
@@ -136,7 +137,7 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
         )}
         {children}
         {derecha && (
-          <div data-slot="actions" className={cn('ml-auto flex max-w-full flex-wrap items-center justify-end gap-2', lista && 'max-sm:order-[-4]')}>
+          <div data-slot="actions" className={cn('ml-auto flex max-w-full flex-wrap items-center justify-end gap-2', lista && 'max-sm:order-[-4] sm:order-[4]')}>
             {more}
             {primary}
           </div>

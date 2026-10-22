@@ -35,6 +35,8 @@ import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { Checkbox, etiquetaEnvio, etiquetaMetodoEnvio, etiquetaNecesidad, etiquetaOrigen } from 'owncoding-ui'
 import { esProductoApple } from '@/lib/appleInventory'
+import { listVentas } from '@/lib/storage'
+import { historiaUnidadDemo } from '@/lib/demo/historiaStock'
 
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 // #233: aclaración que acompaña toda conciliación (el panel del proveedor no
@@ -170,7 +172,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       const consultasDemo = esDemo ? consultasDemoImei(unit.serial).map(consulta => ({ id: consulta.id, type: 'imei', label: 'Consulta IMEI', createdAt: consulta.requestedAt, user: consulta.verificador ? { id: consulta.verificador.id, name: consulta.verificador.nombre } : null, detail: `${consulta.serviceName} · ${consulta.etiqueta}` })) : []
       const reparacionesDemo = esDemo ? (getDemoServicio().rows || []).filter(fila => String(fila.serial || '').toUpperCase() === String(unit.serial || '').toUpperCase()).map(fila => ({ id: fila.id, type: 'repair', label: `Reparación ${fila.serviceNumber || ''}`.trim(), createdAt: fila.receivedAt || fila.createdAt, user: fila.technicianName ? { id: '', name: fila.technicianName } : null, detail: `${fila.device || 'Equipo'} · ${fila.status}`, costPyg: fila.costPyg, serviceNumber: fila.serviceNumber, status: fila.status, repairsAppliedAt: null })) : []
       // Los eventos del demo usan `at`/`title`; la cronología de la cuenta real usa `createdAt`/`label`.
-      const eventosDemo = esDemo ? (unit.events || []).map(evento => ({ ...evento, label: evento.label || evento.title, createdAt: evento.createdAt || evento.at })) : []
+      // Historia rica del IMEI (compra, ingreso, verificación, reservas, traslados, venta con su pedido real); lo registrado a mano en la pestaña se suma.
+      const eventosDemo = esDemo ? [...historiaUnidadDemo(unit, { ventas: listVentas() }), ...(unit.events || []).filter(evento => evento.type !== 'sale').map(evento => ({ ...evento, label: evento.label || evento.title, createdAt: evento.createdAt || evento.at }))] : []
       const payload = esDemo
         ? { events: [...eventosDemo, ...consultasDemo, ...reparacionesDemo].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()) }
         : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)

@@ -54,7 +54,7 @@ test('ruta de política: gerente/admin sin propiedad no guardan; dueño audita y
   db.$transaction = async (fn: any) => fn(db)
   const session = { user: { id: 'owner', tenantId: 'tenant', role: 'ADMIN' } }
   const route = load('../app/api/tenant/stock-verification/route.ts', {
-    '@prisma/client': {}, '../../../../lib/prisma': { prisma: db }, '../../../../lib/auth': { requireSession: async () => session }, '../../../../lib/http': http,
+    '@prisma/client': {}, '../../../../lib/prisma': { prisma: db }, '../../../../lib/auth': { requireSession: async () => session }, '../../../../lib/http': http, '../../../../lib/modulos-guard': { moduloGuard: async () => null },
     '../../../../lib/stock-verification-policy': { verificationPolicy, policyFromSettings, canVerify, verificationOwner: async () => owner },
   })
   const req = (body: unknown) => new Request('http://test', { method: 'PUT', body: JSON.stringify(body) })
@@ -84,7 +84,7 @@ test('check directo: política servidor bloquea batch disponible, permite recepc
   db.$transaction = async (fn: any) => fn(db)
   const session = { user: { id: 'seller', tenantId: 'tenant', role: 'VENDEDOR', branchId: 'branch' } }
   const route = load('../app/api/inventory-units/verify/route.ts', {
-    '../../../../lib/prisma': { prisma: db }, '../../../../lib/auth': { requireSession: async () => session }, '../../../../lib/http': { ...http, tenantId: async () => 'tenant' },
+    '../../../../lib/prisma': { prisma: db }, '../../../../lib/auth': { requireSession: async () => session }, '../../../../lib/http': { ...http, tenantId: async () => 'tenant' }, '../../../../lib/modulos-guard': { moduloGuard: async () => null },
     '../../../../lib/validation': { serialKey: (v: any) => typeof v === 'string' ? v.toUpperCase() : '' },
     '../../../../lib/stock': { changeStock: async () => {} }, '../../../../lib/inventory': { INVENTORY_PHYSICALLY_VERIFIED: 'INVENTORY_PHYSICALLY_VERIFIED' },
     '../../../../lib/stock-verification': { canUndoVerification: () => true }, '../../../../lib/transit': { reservaDeAsignacion: () => ({ status: 'AVAILABLE' }), vincularAsignacionAlRecibir: async () => false },
@@ -111,7 +111,7 @@ test('escaneo de sesión no permite evadir la política con una sesión ya abier
   db.$transaction = async (fn: any) => fn(db)
   const route = load('../app/api/stock-verifications/[id]/route.ts', {
     '../../../../lib/prisma': { prisma: db }, '../../../../lib/auth': { requireSession: async () => ({ user: { id: 'u', tenantId: 't', role: 'VENDEDOR', branchId: 'b' } }), canAccessAny: () => false },
-    '../../../../lib/http': { ...http, tenantId: async () => 't' }, '../../../../lib/payment-input': { InputError, objectInput, textInput },
+    '../../../../lib/http': { ...http, tenantId: async () => 't' }, '../../../../lib/modulos-guard': { moduloGuard: async () => null }, '../../../../lib/payment-input': { InputError, objectInput, textInput },
     '../../../../lib/validation': { serialKey: (v: any) => v }, '../../../../lib/inventory': { INVENTORY_PHYSICALLY_VERIFIED: 'INVENTORY_PHYSICALLY_VERIFIED' },
     '../../../../lib/stock-verification': {}, '../../../../lib/stock-verification-db': {},
     '../../../../lib/stock-verification-policy': { assertCanVerify, readVerificationPolicy: async () => verificationPolicy({ roles: ['GERENTE'] }), verificationSnapshot },

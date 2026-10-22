@@ -1,4 +1,5 @@
 import { htmlConAreaTermica } from '@/lib/printing/papelTermico'
+import { aplicarDisenoPredeterminado } from '@/lib/printing/disenoPro'
 import { gs } from '@/utils/calculos'
 import { qrDataUrl } from '@/lib/qr'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
@@ -25,6 +26,7 @@ import { ETIQUETA_AVISO } from '@/lib/printing/listaPrecios'
 import { COLORES_BASE, paletaFila } from '@/lib/stockDisplay'
 
 import { publicUrls } from '@/lib/urls'
+import { enlaceSeguimientoDemo, esTokenDemo } from '@/lib/seguimientoDemo'
 
 const publicBase = () =>
   String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') ||
@@ -212,12 +214,17 @@ export async function buildEtiquetasLoteHtml(etiquetas = [], { ancho = 80, compr
 export const trackingUrlFor = (order) => {
   // El QR del comprobante abre la página pública del pedido (estado + garantías).
   const base = pedidoBase()
+  // Pedido demo: vive solo en el navegador; el enlace lleva el resumen en el fragmento.
+  if (order && base && (esTokenDemo(order.publicToken) || (isDemoRuntime && !order.publicToken && order.id))) {
+    return enlaceSeguimientoDemo(base, order, order.publicToken || order.id)
+  }
   return order?.publicToken && base ? `${base}/pedidos/${encodeURIComponent(order.publicToken)}` : ''
 }
 
 // Enlace privado del nivel de comprobante (rápido | completo | detallado).
-export const accessUrlFor = (token) => {
+export const accessUrlFor = (token, order = null) => {
   const base = pedidoBase()
+  if (base && token && esTokenDemo(token) && order) return enlaceSeguimientoDemo(base, order, token)
   return token && base ? `${base}/pedidos/${encodeURIComponent(token)}` : ''
 }
 
@@ -453,11 +460,11 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const { total, pagado: paid, pendiente: pendienteBruto } = totalesPedido(order)
   const when = order.createdAt || order.creadoEn || order.fecha
   const politica = await getPoliticasImpresion()
-  const linkPedido = token ? accessUrlFor(token) : trackingUrlFor(order)
+  const linkPedido = token ? accessUrlFor(token, order) : trackingUrlFor(order)
   // Sin enlace del pedido, el QR lleva a las políticas públicas de la tienda (#433).
   const link = linkPedido || politica.url
   let qr = ''
-  try { if (link) qr = await qrDataUrl(link, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (link) qr = await qrDataUrl(link, { nivel: link.length > 500 ? 'L' : 'H', margen: 2, ancho: link.length > 500 ? 480 : 320 }) } catch { /* el enlace queda impreso igual */ }
   const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
   const empresa = order.tenant?.name || order.empresaNombre || ''
   const sucursal = order.branch || null
@@ -552,7 +559,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ${cronologia}
     <div class="pie-doc">
       <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaConPolitica(garantiaDeVenta(order), politica)).replace(/\n/g, '<br>')}<br>Documento no fiscal · No válido como factura.</div>
-      ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link)}` : ''}</div></div>` : ''}
+      ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante" data-enlace="${escapeHtml(link)}">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link.split('#')[0])}` : ''}</div></div>` : ''}
     </div>
     ${footer('', empresa)}
   </body></html>`
@@ -680,7 +687,12 @@ export async function printDeliveryNote(order, options = {}) {
 
 // Remisión interna: traslado entre sucursales con la firma de quien despacha y
 // quien recibe. El remito ya lista los IMEI; acá se firma la entrega.
-export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
+// Impresión Pro: con el módulo activo y un diseño predeterminado, la remisión y
+// la proforma toman su tamaño de letra y alineación; sin módulo, premium normal.
+export async function buildRemisionHtml(transfer, opciones = {}) {
+  return aplicarDisenoPredeterminado('remito', await armarRemisionHtml(transfer, opciones))
+}
+async function armarRemisionHtml(transfer, { format = 'a4' } = {}) {
   const lines = Array.isArray(transfer.lines) ? transfer.lines : []
   const lineas = lines.map((line) => {
     const seriales = Array.isArray(line.serials) ? line.serials : []
@@ -741,7 +753,10 @@ export async function printInternalReceipt(payment, order, options = {}) {
 
 // Proforma / presupuesto de una cotización: ítems, descuento, total y validez,
 // sin el QR de aceptación (es un presupuesto impreso, no un enlace vivo).
-export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = {}) {
+export async function buildProformaHtml(quote, opciones = {}) {
+  return aplicarDisenoPredeterminado('cotizacion', await armarProformaHtml(quote, opciones))
+}
+async function armarProformaHtml(quote, { format = 'a4', enlace = '' } = {}) {
   const items = Array.isArray(quote.items) ? quote.items : []
   const logo = await getLogoDataUrl()
   // Enlace público de aceptación (opcional): el PDF que se comparte por

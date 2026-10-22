@@ -7,11 +7,11 @@ export const SHELL_DESTINATIONS = {
   Inicio: ['Inicio', 'resumen', 'resumen'],
   POS: ['Vender', 'cargar', 'cargar'],
   'Nueva venta': ['Vender', 'cargar', 'cargar'],
-  Pedidos: ['Ventas', 'pedidos', 'pedidos'],
-  'Mis pedidos': ['Ventas', 'pedidos', 'pedidos'],
-  Cotizaciones: ['Ventas', 'cotizaciones', 'cotizaciones'],
-  Delivery: ['Ventas', 'repartos', 'repartos'],
-  Autorizaciones: ['Ventas', 'autorizaciones', 'autorizaciones'],
+  Pedidos: ['Pedidos', 'pedidos', 'pedidos'],
+  'Mis pedidos': ['Pedidos', 'pedidos', 'pedidos'],
+  Cotizaciones: ['Pedidos', 'cotizaciones', 'cotizaciones'],
+  Delivery: ['Pedidos', 'repartos', 'repartos'],
+  Autorizaciones: ['Pedidos', 'autorizaciones', 'autorizaciones'],
   Clientes: ['Clientes', 'clientes', 'clientes'],
   Promociones: ['Clientes', 'promociones', 'promociones'],
   Plantillas: ['Clientes', 'plantillas', 'plantillas'],
@@ -27,15 +27,17 @@ export const SHELL_DESTINATIONS = {
   'Lista por modelo': ['Stock', 'precios', 'celulares'],
   Comparador: ['Stock', 'precios', 'comparador'],
   'Centro de Control': ['Stock', 'precios', 'centro-control'],
-  Compras: ['Compras', 'compras', 'compras'],
-  'Por comprar': ['Compras', 'abastecimiento', 'abastecimiento'],
-  'Compras del Centro': ['Compras', 'compras-centro', 'compras-centro'],
-  'Preparar compra': ['Compras', 'preparacion', 'preparacion'],
-  'Preparar lote': ['Compras', 'lotes', 'lotes'],
-  Recepción: ['Compras', 'recepcion', 'recepcion'],
-  'Métricas de abastecimiento': ['Compras', 'metricas', 'metricas'],
+  // Compras es un grupo de Stock; Abastecimiento (módulo) es su grupo segmentado.
+  Compras: ['Stock', 'compras', 'compras'],
+  'Por comprar': ['Stock', 'abastecimiento', 'abastecimiento'],
+  'Compras del Centro': ['Stock', 'abastecimiento', 'compras-centro'],
+  'Preparar compra': ['Stock', 'abastecimiento', 'preparacion'],
+  'Preparar lote': ['Stock', 'abastecimiento', 'lotes'],
+  Recepción: ['Stock', 'abastecimiento', 'recepcion'],
+  'Métricas de abastecimiento': ['Stock', 'abastecimiento', 'metricas'],
   Finanzas: ['Finanzas', 'finanzas', 'finanzas'],
-  Análisis: ['Análisis', 'analisis', 'analisis'],
+  // Análisis es Inicio › Reportes (la URL /analisis no cambia).
+  Análisis: ['Inicio', 'analisis', 'analisis'],
   // Último destino principal del dueño; sus secciones son el riel de la página.
   Configuración: ['Configuración', 'equipo', 'equipo'],
   'Tablero de operaciones': ['Inicio', 'ops', 'ops'],
@@ -123,8 +125,11 @@ async function clickTab(container, id) {
     }
     await item.click()
   }
+  // Inicio › Reportes: dentro de Análisis, sus pestañas propias ocupan el lugar del
+  // grupo en la misma fila y la activa es «reportes» (la primera de Análisis).
+  const activa = id === 'analisis' ? 'reportes' : id
   await expect
-    .poll(() => container.locator(`[data-tab-id="${id}"][aria-current="page"]`).count())
+    .poll(() => container.locator(`[data-tab-id="${activa}"][aria-current="page"]`).count())
     .toBe(1)
   return true
 }
@@ -174,7 +179,7 @@ export async function openShellDestination(page, label) {
   let target = SHELL_DESTINATIONS[label]
   if (label === 'Trade-In')
     target = (await primary.getByRole('button', { name: 'Inicio', exact: true }).count())
-      ? ['Taller', 'tradein-admin', 'tradein-admin']
+      ? ['Vender', 'cotizador', 'tradein-admin']
       : ['Vender', 'cotizador', 'cotizador']
   if (!target) throw new Error(`Unknown shell journey: ${label}`)
   const [section, group, destination] = target
@@ -224,14 +229,21 @@ const SINGLE_SECTION_LABEL = {
   Inicio: 'Inicio',
   Vender: 'Nueva venta',
   Finanzas: 'Finanzas',
-  Análisis: 'Análisis',
   Configuración: 'Configuración',
   Taller: 'Taller y garantías',
 }
 // Read every permitted context through UI navigation, not direct routes.
+// Texto visible del botón sin el contador de pendientes (badge), que es un
+// dato aparte del nombre de la sección.
+const textosSinBadge = locator => locator.evaluateAll(els => els.map(el => {
+  const copia = el.cloneNode(true)
+  copia.querySelectorAll('[data-testid^="menu-badge"]').forEach(b => b.remove())
+  return copia.textContent || ''
+}))
+
 export async function shellCatalog(page) {
   const primary = await shellPrimary(page)
-  const sections = (await primary.getByRole('button').allTextContents())
+  const sections = (await textosSinBadge(primary.getByRole('button')))
     .map(s => s.trim())
     .filter(s => s && s !== 'Más')
   const more = page.getByTestId('shell-mas')
@@ -239,7 +251,7 @@ export async function shellCatalog(page) {
   if (await more.count() && await more.isVisible()) {
     await more.click()
     const sheet = page.getByTestId('shell-mas-hoja')
-    const extra = (await sheet.getByRole('button').allTextContents()).map(s => s.trim())
+    const extra = (await textosSinBadge(sheet.getByRole('button'))).map(s => s.trim())
     await page.keyboard.press('Escape')
     sections.push(...extra.filter(s => s !== 'Ayuda'))
   }
