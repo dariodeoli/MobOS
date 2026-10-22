@@ -163,10 +163,12 @@ test('al recargar el bloqueo no se pinta la foto anterior (placeholder hasta res
   // La foto vieja del dispositivo no se pintó en ningún momento (contrato #271).
   expect(await page.evaluate(() => window.__avataresPintados || [])).not.toContain(FOTO_VIEJA)
 
-  // Cuando se libera, entra la foto correcta y es la única que se pintó.
+  // Cuando se libera, el bloqueo sigue sin foto: el PIN identifica al vendedor
+  // y «Ingresá tu código» no preselecciona usuario. La foto vieja nunca entra.
   liberarAvatar()
-  await expect(bloqueo.locator(`img[alt="Foto de ${nombre}"]`)).toBeVisible({ timeout: 20_000 })
-  expect(await page.evaluate(() => window.__avataresPintados || [])).toEqual([`data:image/png;base64,${png.toString('base64')}`])
+  await expect(bloqueo.getByTestId('lock-ingresa')).toHaveText('Ingresá tu código')
+  await expect(bloqueo.locator('img[alt^="Foto de"]')).toHaveCount(0)
+  expect(await page.evaluate(() => window.__avataresPintados || [])).not.toContain(FOTO_VIEJA)
   await page.screenshot({ path: join(DIR, 'bloqueo-reload-resuelto.jpg'), type: 'jpeg', quality: 74 })
 
   // La API del avatar ya respondió: la evidencia de cabeceras quedó en el test 1.
