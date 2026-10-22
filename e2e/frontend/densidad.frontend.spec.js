@@ -171,7 +171,8 @@ test.describe('entrada a una sección', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
     const primary = await shellPrimary(page)
-    await primary.getByRole('button', { name: 'Compras', exact: true }).click()
+    // Compras es un grupo de Stock: se llega por su pestaña y se vuelve a la primera.
+    await page.getByTestId('shell-contexto').locator('[data-tab-id="compras"]').click()
     await expect(page).toHaveURL(/\/compras$/)
     await primary.getByRole('button', { name: 'Stock', exact: true }).click()
     await expect(page).toHaveURL(/\/stock\/unidades/)

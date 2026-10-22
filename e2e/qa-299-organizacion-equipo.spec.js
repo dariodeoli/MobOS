@@ -1,7 +1,8 @@
 // #299 · Organización y Equipo: dividir por tareas y normalizar roles.
 //
-// - Organización en secciones por tarea: Datos generales · Tienda de módulos · Identidad visual ·
-//   Sucursales y depósitos · Datos fiscales · Numeración · Zona de peligro.
+// - Negocio en secciones por tarea: Datos generales · Identidad visual ·
+//   Sucursales y depósitos · Datos fiscales · Numeración · Plan · Zona de peligro
+//   (los módulos y las notificaciones tienen su propio grupo en Configuración).
 //   Cada sección muestra solo su contenido (nada de una columna con todo).
 // - Equipo en pestañas: Miembros · Invitaciones · Permisos · Rendimiento.
 // - Los roles se leen igual en todas las pantallas (Dueño, no dueno/DUENO/ADMIN).
@@ -25,20 +26,19 @@ async function capturar(page, nombre) {
 
 const ORG = [
   ['Datos generales', 'Datos de la tienda'],
-  ['Tienda de módulos', 'Tienda de módulos'],
   ['Identidad visual', 'Logo de la empresa'],
   ['Sucursales y depósitos', 'Tiendas'],
   ['Datos fiscales', 'Empresas/personas jurídicas (privado)'],
   ['Numeración', 'Identificador de pedidos'],
   ['Políticas', 'Políticas de la tienda'],
   ['Portal de clientes', 'Cuentas de cliente'],
-  ['Notificaciones', 'Correo del remitente'],
+  ['Plan y facturación', 'Plan y facturación'],
   ['Zona de peligro', 'Archivar empresa'],
 ]
 
 test('#299 · Organización se abre por tareas, sin mezclar todo en una columna', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   const secciones = page.getByTestId('organizacion-secciones')
   await expect(secciones.getByRole('tab')).toHaveCount(ORG.length)
 
@@ -51,9 +51,7 @@ test('#299 · Organización se abre por tareas, sin mezclar todo en una columna'
 
   for (const [tab, contenido] of ORG.slice(1)) {
     await secciones.getByRole('tab', { name: tab, exact: true }).click()
-    if (contenido === 'Tienda de módulos') {
-      await expect(page.getByTestId('tienda-modulos')).toBeVisible({ timeout: 20_000 })
-    } else if (contenido === 'Tiendas') {
+    if (contenido === 'Tiendas') {
       await expect(page.getByTestId('tiendas-sucursales')).toBeVisible({ timeout: 20_000 })
     } else {
       await expect(page.getByRole('heading', { name: contenido, exact: true }).first()).toBeVisible({ timeout: 20_000 })

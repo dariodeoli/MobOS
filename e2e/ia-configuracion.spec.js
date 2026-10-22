@@ -1,4 +1,4 @@
-// IA de Configuración (#IA · #250/#83): siete secciones sin duplicar, las
+// IA de Configuración (#IA · #250/#83): nueve grupos sin duplicar, las
 // rutas viejas redirigen a la sección nueva y Documentación vive en /ayuda.
 //
 // Capturas: `QA_IA_CAPTURAS` (default test-results/qa-ia-config) — se
@@ -16,12 +16,14 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-
 // Sección nueva → contenido que la identifica: un encabezado propio o, cuando
 // la sección ordena su pantalla en paneles (#253 · Dispositivos), su navegación.
 const SECCIONES = [
-  ['Organización', 'Datos de la tienda', 'organizacion'],
+  ['Negocio', 'Datos de la tienda', 'negocio'],
+  ['Módulos', '', 'modulos', 'modulos-pantalla'],
   ['Equipo y acceso', 'Integrantes', 'equipo'],
-  ['Impresoras', '', 'dispositivos', 'paneles-impresion'],
-  ['Comercial', 'Seguro de ventas', 'comercial'],
+  ['Ventas y cobros', 'Seguro de ventas', 'ventas-cobros'],
+  ['Impresión y documentos', '', 'impresion', 'paneles-impresion'],
+  ['Mensajes y avisos', '', 'mensajes', 'notificaciones-pantalla'],
   ['Seguridad', 'Sesiones activas', 'seguridad'],
-  ['Sistema', 'Sincronización', 'sistema'],
+  ['Integraciones y sistema', 'Sincronización', 'sistema'],
   ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
 ]
 
@@ -30,13 +32,15 @@ test('las rutas viejas de Configuración entran por su sección nueva', async ({
   const REDIRECCIONES = [
     ['/configuracion/identidad', /\/configuracion\/mi-cuenta$/],
     ['/configuracion/preferencias', /\/configuracion\/mi-cuenta$/],
-    ['/configuracion/negocio', /\/configuracion\/organizacion$/],
-    ['/configuracion/sucursales', /\/configuracion\/organizacion$/],
+    ['/configuracion/organizacion', /\/configuracion\/negocio$/],
+    ['/configuracion/comercial', /\/configuracion\/ventas-cobros$/],
+    ['/configuracion/dispositivos', /\/configuracion\/impresion$/],
+    ['/configuracion/sucursales', /\/configuracion\/negocio$/],
     ['/configuracion/roles', /\/configuracion\/equipo$/],
-    ['/configuracion/precios', /\/configuracion\/comercial$/],
+    ['/configuracion/precios', /\/configuracion\/ventas-cobros$/],
     ['/configuracion/historial', /\/configuracion\/seguridad$/],
-    ['/configuracion/impresoras', /\/configuracion\/dispositivos$/],
-    ['/configuracion/impresion', /\/configuracion\/dispositivos$/],
+    ['/configuracion/impresoras', /\/configuracion\/impresion$/],
+    ['/configuracion/impresion', /\/configuracion\/impresion$/],
     ['/configuracion/documentacion', /\/ayuda\/ayuda$/],
   ]
   for (const [vieja, nueva] of REDIRECCIONES) {
@@ -45,10 +49,10 @@ test('las rutas viejas de Configuración entran por su sección nueva', async ({
   }
 })
 
-test('Configuración tiene siete secciones y ninguna duplica contenido', async ({ page }) => {
+test('Configuración tiene nueve grupos y ninguno duplica contenido', async ({ page }) => {
   await page.goto('/configuracion')
-  // Sin hijo entra por la primera (la más usada): Organización.
-  await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
+  // Sin hijo entra por la primera (la más usada): Negocio.
+  await expect(page).toHaveURL(/\/configuracion\/negocio$/)
   await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(SECCIONES.length)
 
   for (const [nombre, contenido, slug, testid] of SECCIONES) {
@@ -64,7 +68,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
 
   // Sin duplicar: la foto es de Mi cuenta y el ID de tienda no se repite en
   // Datos de la tienda (el detalle de Tiendas es el único lugar donde se copia).
-  await selectConfigSection(page, 'Organización')
+  await selectConfigSection(page, 'Negocio')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toHaveCount(1)
   await expect(page.getByText('Mi foto')).toHaveCount(0)
   await expect(page.getByText('ID de la tienda', { exact: true })).toHaveCount(0)
@@ -112,7 +116,7 @@ test('Mi cuenta se abre desde el avatar; Precios vive en una sola pantalla', asy
 
   // Precios: una sola pantalla (Inventario → Precios) que Comercial reúne con
   // el resto de los ajustes comerciales; la ruta propia sigue viva.
-  await page.goto('/configuracion/comercial')
+  await page.goto('/configuracion/ventas-cobros')
   await expect(page.getByRole('heading', { name: 'Seguro de ventas' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Listas de precios' })).toBeVisible()
   await page.goto('/precios')
@@ -175,7 +179,7 @@ test('Organización: capturas por bloque (#253/#299)', async ({ page }) => {
   // Evidencia del grupo completo, sección por sección: datos generales,
   // identidad visual (logos), datos legales, tiendas y sucursales, numeración
   // y zona de peligro.
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toBeVisible({ timeout: 20_000 })
   await capturar(page, 'organizacion-datos-generales')
 
@@ -198,7 +202,7 @@ test('Organización: capturas por bloque (#253/#299)', async ({ page }) => {
 
 test('las secciones nuevas se ven en mobile y en oscuro sin desborde', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toBeVisible()
   await capturar(page, 'organizacion-mobile')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
@@ -209,7 +213,7 @@ test('las secciones nuevas se ven en mobile y en oscuro sin desborde', async ({ 
 
   // Oscuro: el tema se guarda en `mobos:theme` y se aplica al recargar.
   await page.addInitScript(() => localStorage.setItem('mobos:theme', 'dark'))
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page.locator('html.dark')).toHaveCount(1)
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toBeVisible()
   await capturar(page, 'organizacion-oscuro')

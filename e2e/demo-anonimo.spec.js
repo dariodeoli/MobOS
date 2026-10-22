@@ -141,14 +141,16 @@ const MODULOS_OWNER = [
   ['/resumen', 'Inicio'],
   ['/analisis', 'Reportes'],
   ['/finanzas', 'Caja'],
-  ['/configuracion', 'Organización'],
-  ['/configuracion/organizacion', 'Organización'],
+  ['/configuracion', 'Negocio'],
+  ['/configuracion/negocio', 'Negocio'],
+  ['/configuracion/modulos', 'Módulos'],
+  ['/configuracion/mensajes', 'Mensajes y avisos'],
   ['/configuracion/equipo', 'Equipo y acceso'],
-  ['/configuracion/comercial', 'Comercial'],
+  ['/configuracion/ventas-cobros', 'Ventas y cobros'],
   ['/configuracion/seguridad', 'Seguridad'],
-  ['/configuracion/dispositivos', 'Impresoras'],
+  ['/configuracion/impresion', 'Impresión y documentos'],
   ['/ayuda/ayuda', 'Ayuda'],
-  ['/configuracion/sistema', 'Sistema'],
+  ['/configuracion/sistema', 'Integraciones y sistema'],
 ]
 
 test('la demo entra sin login, navega con datos ficticios y no toca el API', async ({ page }) => {
@@ -250,7 +252,7 @@ test('dueño: recorrido demo con datos ficticios y capturas opcionales', async (
     ['/finanzas/conciliacion', /Conciliaci/i, '05-conciliacion'],
     ['/analisis/ganancias', /Ganancias/i, '06-ganancias'],
     ['/servicio', /Servicio|Taller|Órdenes/i, '07-servicio'],
-    ['/configuracion/dispositivos', /Dispositivos|Impresi/i, '08-impresoras'],
+    ['/configuracion/impresion', /Dispositivos|Impresi/i, '08-impresoras'],
   ]
   for (const [ruta, texto, nombre] of pantallas) {
     await page.goto(ruta)
@@ -494,17 +496,17 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
 
   // Sucursales explican que se administran con una cuenta real; Precios ya
   // muestra listas ficticias auditables (#324).
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   // #299: las sucursales viven en su propia sección de Organización.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
-  await page.goto('/configuracion/comercial')
+  await page.goto('/configuracion/ventas-cobros')
   await expect(page.getByTestId('lista-precio-fila').first()).toBeVisible()
   await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toHaveCount(0)
 
   // El interruptor de seguro tiene nombre accesible y no expone atributos raros.
-  await page.goto('/configuracion/comercial')
+  await page.goto('/configuracion/ventas-cobros')
   await expect(page.getByRole('switch', { name: 'Aplica seguro' })).toBeVisible()
 })
 

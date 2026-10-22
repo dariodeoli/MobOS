@@ -516,7 +516,7 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
     'base64',
   )
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   // #299: el logo vive en la sección Identidad visual.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Identidad visual', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
@@ -633,7 +633,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
 
   // La bandeja es una sola: la tarjeta duplicada de Configuración se eliminó.
   // #IA: se revisa Organización (la sección que reúne negocio y datos).
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await expect(page.getByRole('heading', { name: 'Solicitudes del cliente' })).toHaveCount(0)
   // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
   await page.goto('/plantillas')
@@ -1335,7 +1335,7 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
   // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
-  await selectConfigSection(page, 'Organización')
+  await selectConfigSection(page, 'Negocio')
   // #299: archivar/eliminar y la verificación de identidad están en Zona de peligro.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()

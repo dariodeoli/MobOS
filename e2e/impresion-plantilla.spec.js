@@ -24,7 +24,7 @@ const abrirAccion = async (tarjeta, opcion) => {
 test.describe('plantilla del ticket de prueba', () => {
   test('ADMIN edita la plantilla, la guarda y el ticket corto es el predeterminado', async ({ page }) => {
     test.setTimeout(120_000)
-    await page.goto('/configuracion/dispositivos')
+    await page.goto('/configuracion/impresion')
     // Impresora propia de la prueba (idempotente por destino): la base e2e se
     // reutiliza entre corridas.
     await page.evaluate(

@@ -65,17 +65,15 @@ for (const width of widths) {
           .getByRole('navigation', { name: 'Navegación principal', exact: true })
     await expect(navigation.getByRole('button')).toHaveText(
       mobile
-        ? ['Inicio', 'Vender', 'Ventas', 'Stock', 'Más']
+        ? ['Inicio', 'Vender', 'Pedidos', 'Stock', 'Más']
         : [
             'Inicio',
             'Vender',
-            'Ventas',
+            'Pedidos',
             'Clientes',
             'Taller',
             'Stock',
-            'Compras',
             'Finanzas',
-            'Análisis',
             'Configuración',
           ],
     )
@@ -179,9 +177,9 @@ for (const width of widths) {
 }
 
 for (const [role, landing, labels] of [
-  ['Vendedor', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
-  ['Gerente', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
-  ['Caja', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  ['Vendedor', /\/pos/, ['Vender', 'Pedidos', 'Clientes', 'Stock']],
+  ['Gerente', /\/pos/, ['Vender', 'Pedidos', 'Clientes', 'Stock']],
+  ['Caja', /\/pos/, ['Vender', 'Pedidos', 'Clientes', 'Stock']],
   // A single section needs no bottom bar.
   ['Técnico', /\/servicio/, null],
   ['Delivery', /\/delivery\/repartos/, null],
@@ -203,7 +201,7 @@ for (const [role, landing, labels] of [
       )
       await profile.getByRole('button', { name: 'Mi perfil', exact: true }).click()
       await expect(page).toHaveURL(/\/mi-cuenta/)
-      await page.goto('/configuracion/organizacion')
+      await page.goto('/configuracion/negocio')
       await expect(page).toHaveURL(landing)
     }
   })
@@ -284,8 +282,9 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
   const navigation = page.getByTestId('shell-bottom-nav')
   // Section → level 1 tab → catalog ids it renders (level 2 when several).
   const destinations = {
-    Inicio: { resumen: ['resumen'], ops: ['ops'] },
-    Ventas: {
+    Inicio: { resumen: ['resumen'], analisis: ['analisis'], ops: ['ops'] },
+    Vender: { cargar: ['cargar'], cotizador: ['tradein-admin'] },
+    Pedidos: {
       pedidos: ['pedidos'],
       cotizaciones: ['cotizaciones'],
       repartos: ['repartos'],
@@ -293,28 +292,23 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
     },
     Clientes: {
       clientes: ['clientes'],
+      campanas: ['campanas'],
       promociones: ['promociones'],
       plantillas: ['plantillas'],
     },
-    Taller: { servicio: ['servicio'], 'tradein-admin': ['tradein-admin'] },
+    // Taller (módulo Taller y servicios) tiene un solo destino en el menú del dueño.
+    Taller: {},
     Stock: {
       unidades: ['unidades'],
       productos: ['productos'],
+      compras: ['compras'],
       traslados: ['traslados'],
       control: ['control'],
       precios: ['precios', 'celulares', 'comparador', 'centro-control'],
-    },
-    Compras: {
-      compras: ['compras'],
-      abastecimiento: ['abastecimiento'],
-      'compras-centro': ['compras-centro'],
-      preparacion: ['preparacion'],
-      lotes: ['lotes'],
-      recepcion: ['recepcion'],
-      metricas: ['metricas'],
+      // Abastecimiento (módulo) agrupa las seis vistas de compras avanzadas.
+      abastecimiento: ['abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion', 'metricas'],
     },
     Finanzas: {},
-    Análisis: {},
   }
   const enter = async label => {
     const direct = navigation.getByRole('button', { name: label, exact: true })
@@ -331,6 +325,7 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
     unidades: '/stock/unidades',
     traslados: '/stock/traslados',
     control: '/stock/conteos',
+    analisis: '/analisis/reportes',
     'tradein-admin': '/trade-in',
   }
   for (const [label, groups] of Object.entries(destinations)) {
@@ -347,6 +342,8 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
     await expect(context.locator('[aria-current="page"]')).toHaveCount(1)
     for (const [group, ids] of Object.entries(groups)) {
       await clickShellTab(page, 'shell-contexto', group)
+      // Precios pone su segundo nivel en la barra de la vista: esperar a que la vista anterior salga.
+      if (ids.length > 1) await expect(page.getByTestId('shell-subcontexto')).toHaveCount(1)
       for (const id of ids) {
         if (ids.length > 1) await clickShellTab(page, 'shell-subcontexto', id)
         const route = routes[id] || rutaDeVista(id)
@@ -978,7 +975,7 @@ for (const width of [320, 390, 1440]) {
       await setF3Theme(page, width, dark)
       await page
         .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
-        .getByRole('button', { name: 'Ventas', exact: true })
+        .getByRole('button', { name: 'Pedidos', exact: true })
         .click()
       const orders = page.getByTestId('ventas-pedidos-f3')
       await expect(orders).toBeVisible()
@@ -1287,7 +1284,7 @@ for (const width of [320, 390, 1440]) {
       })
       await page
         .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
-        .getByRole('button', { name: 'Ventas', exact: true })
+        .getByRole('button', { name: 'Pedidos', exact: true })
         .click()
       await page.getByRole('button', { name: 'Todos', exact: true }).click()
       const order = page.getByTestId('pedido-fila').filter({ hasText: fixture.customer })

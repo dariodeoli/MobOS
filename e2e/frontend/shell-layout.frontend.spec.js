@@ -162,27 +162,27 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
   await expect(tabs.locator('[data-tab-id="metricas"]')).toHaveAttribute('aria-current', 'page')
 })
 
-test('mobile owner bottom bar is Inicio, Vender, Ventas, Stock and Más; the sheet reaches the rest and Esc closes it', async ({
+test('mobile owner bottom bar is Inicio, Vender, Pedidos, Stock and Más; the sheet reaches the rest and Esc closes it', async ({
   page,
 }) => {
   await mkdir(out, { recursive: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)
   const bar = page.getByTestId('shell-bottom-nav')
-  await expect(bar.getByRole('button')).toHaveText(['Inicio', 'Vender', 'Ventas', 'Stock', 'Más'])
+  await expect(bar.getByRole('button')).toHaveText(['Inicio', 'Vender', 'Pedidos', 'Stock', 'Más'])
   const barBox = await bar.boundingBox()
   expect(barBox.height).toBeLessThanOrEqual(64)
   await page.getByTestId('shell-mas').click()
   const sheet = page.getByTestId('shell-mas-hoja')
   await expect(
     sheet.getByRole('button'),
-  ).toHaveText(['Clientes', 'Taller', 'Compras', 'Finanzas', 'Análisis', 'Configuración', 'Ayuda'])
+  ).toHaveText(['Clientes', 'Taller', 'Finanzas', 'Configuración', 'Ayuda'])
   await page.screenshot({ path: `${out}/390-owner-mas.png` })
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
   await page.getByTestId('shell-mas').click()
-  await sheet.getByRole('button', { name: 'Compras', exact: true }).click()
-  await expect(page).toHaveURL(/\/compras$/)
+  await sheet.getByRole('button', { name: 'Clientes', exact: true }).click()
+  await expect(page).toHaveURL(/\/clientes$/)
   await expect(page.getByTestId('shell-mas')).toHaveAttribute('aria-current', 'page')
   // The tab strip scrolls (no native select) and every tab is a 44px target.
   const strip = page.getByTestId('shell-contexto')

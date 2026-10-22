@@ -17,7 +17,7 @@ const capturar = (page, nombre) => page.screenshot({
 })
 
 test('el grupo Comercial reúne seguro, límites, fidelización y precios', async ({ page }) => {
-  await page.goto('/configuracion/comercial')
+  await page.goto('/configuracion/ventas-cobros')
   await expect(page.getByTestId('config-comercial')).toBeVisible()
 
   // Los cuatro bloques del grupo (#253), con los precios dentro.
@@ -43,13 +43,13 @@ test('el grupo Comercial reúne seguro, límites, fidelización y precios', asyn
 
   // El deep link viejo de precios entra a la misma sección.
   await page.goto('/configuracion/precios')
-  await expect(page).toHaveURL(/\/configuracion\/comercial$/)
+  await expect(page).toHaveURL(/\/configuracion\/ventas-cobros$/)
   await expect(page.getByRole('heading', { name: 'Listas de precios', exact: true })).toBeVisible()
 })
 
 test('el grupo Comercial se ve en mobile sin desborde', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/configuracion/comercial')
+  await page.goto('/configuracion/ventas-cobros')
   await expect(page.getByRole('heading', { name: 'Seguro de ventas', exact: true })).toBeVisible()
   await expect(page.locator('#limite-gasto')).not.toHaveValue('', { timeout: 20_000 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)

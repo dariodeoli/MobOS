@@ -321,7 +321,7 @@ for (const [status, code, mensaje] of [
 test('dueño sin cuenta vinculada: Configuración → Tiendas explica qué hacer y deja la alta con Google', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 })
   await montar(page, { errorLista: 403 })
-  await page.goto('/configuracion/organizacion')
+  await page.goto('/configuracion/negocio')
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   const aviso = page.getByTestId('tiendas-sin-cuenta')
   await expect(aviso).toBeVisible()
