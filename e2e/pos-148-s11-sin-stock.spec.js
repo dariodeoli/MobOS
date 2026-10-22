@@ -207,7 +207,7 @@ test('la venta serializada cierra aunque haya 500 unidades con el mismo texto (#
     await guia.getByRole('button', { name: 'Elegir unidad' }).click()
     await expect(page.getByText('Elegir IMEI de esta venta')).toBeVisible()
     await expect(page.getByTitle(imei)).toBeVisible({ timeout: 15_000 })
-    await page.getByRole('button', { name: 'Elegir' }).click()
+    await page.getByRole('button', { name: 'Elegir', exact: true }).click()
     const selector = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })
     await expect(selector.getByRole('button', { name: 'Liberar' })).toBeVisible({ timeout: 15_000 })
     await expect(selector.getByRole('button', { name: 'Listo', exact: true })).toBeEnabled()

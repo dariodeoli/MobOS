@@ -45,7 +45,7 @@ configurada:
 | --- | --- | --- |
 | `/api/internal/email-outbox` | Drena la cola de correos (reintentos; entrega at-least-once) | cada 10 min |
 | `/api/internal/remind-due-payments` | Recordatorios de cuotas a 3 días, reclamo de vencidas y aviso de reservas por vencer | 1 vez al día |
-| `/api/internal/release-expired-reservations` | Libera reservas vencidas y avisa al cliente | 1 vez al día |
+| `/api/internal/release-expired-reservations` | Libera reservas vencidas y avisa al cliente (las retenciones de carrito del POS, CART_HOLD, se sueltan sin aviso) | 1 vez al día |
 
 Pasos:
 
