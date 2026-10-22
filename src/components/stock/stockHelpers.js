@@ -182,7 +182,7 @@ export const TAB_LABEL = {
   transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
   taller: 'Taller', conteos: 'Conteos', verificacion: 'Verificación', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
 }
-export const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
+export const ESTADO_CONTEO = { DRAFT: ['Borrador', 'slate'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
 
 // U3: pestañas servidas por la lista unificada (GET /api/stock/items, con cursor).
 export const TABS_LISTA_STOCK = ['unidades', 'vendidos', 'eliminados']

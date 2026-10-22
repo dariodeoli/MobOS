@@ -50,7 +50,7 @@ const GRID_COMPRAS = 'grid min-w-[53.5rem] grid-cols-[minmax(8rem,1.4fr)_5rem_3r
 const fechaCompra = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 // El vencimiento solo se pinta cuando apura: vencido o a 3 días. El resto es
 // una fecha más.
@@ -68,8 +68,8 @@ const vencimientoCompra = (purchase) => {
 // Estado visible de la orden: el backend solo completa `receivedAt` cuando la
 // recepción termina; mientras falte mercadería la orden queda en PARTIAL.
 const ESTADOS_COMPRA = {
-  DRAFT: { texto: 'Borrador', color: 'orange' },
-  PARTIAL: { texto: 'Parcial', color: 'blue' },
+  DRAFT: { texto: 'Borrador', color: 'slate' },
+  PARTIAL: { texto: 'Parcial', color: 'orange' },
   RECEIVED: { texto: 'Recibida', color: 'green' },
 }
 const estadoCompra = (purchase) => ESTADOS_COMPRA[purchase.status] || ESTADOS_COMPRA.DRAFT

@@ -55,9 +55,9 @@ export const ESTADOS = {
     DIFFERENCE: { label: 'Con diferencia', tono: 'warn' },
   },
   liquidacion: {
-    DRAFT: { label: 'Borrador', tono: 'warn' },
+    DRAFT: { label: 'Borrador', tono: 'neutral' },
     PAID: { label: 'Pagada', tono: 'ok' },
-    CANCELLED: { label: 'Anulada', tono: 'neutral' },
+    CANCELLED: { label: 'Anulada', tono: 'bad' },
   },
   cuenta: {
     ACTIVA: { label: 'Activa', tono: 'ok' },
