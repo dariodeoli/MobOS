@@ -544,7 +544,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
                       <>
                         <Button
                           type="button"
-                          className="h-8 px-2 text-xs"
+                          className="h-11 px-3 text-xs md:h-8 md:px-2"
                           onClick={() => abrirAprobar(row)}
                         >
                           Aprobar
@@ -552,7 +552,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
                         <Button
                           type="button"
                           variant="ghost"
-                          className="h-8 px-2 text-xs"
+                          className="h-11 px-3 text-xs md:h-8 md:px-2"
                           onClick={() => {
                             setRejectNote('')
                             limpiar('motivo')
