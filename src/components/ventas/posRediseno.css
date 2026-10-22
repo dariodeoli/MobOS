@@ -396,3 +396,78 @@ button[data-testid='cobro-confirmar-venta']:disabled,
 @media (max-width: 1023px) {
   .pos-f2 [data-testid='pos-bloque-productos'] button[title='Ir al cobro'] { display: none; }
 }
+
+/* ───────────── Scroll de PÁGINA (decisión de Dario, 22-10-2026) ─────────────
+   El POS no tiene scroll interno: catálogo y ticket crecen con su contenido y
+   se desplaza la página. --pos-alto (que mide FormularioVenta) es solo el
+   MÍNIMO: ambos bloques llegan al borde inferior aunque tengan pocas filas.
+   El ticket queda pegado arriba (sticky) mientras el catálogo se desliza, y
+   el bloque Total + Cobrar queda pegado al pie de la pantalla si el ticket es
+   más alto que la ventana. */
+@media (min-width: 1024px) {
+  .pos-f2 .pos-layout {
+    height: auto !important;
+    min-height: var(--pos-alto, 0);
+    align-items: start;
+  }
+  .pos-f2 .pos-col-izq,
+  .pos-f2 .pos-columna-venta {
+    height: auto;
+    min-height: var(--pos-alto, 0);
+    overflow: visible;
+  }
+  .pos-f2 .pos-col-izq {
+    display: flex;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] {
+    flex: 1 1 auto;
+    min-height: var(--pos-alto, 0);
+    overflow: visible;
+  }
+  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] > :first-child {
+    position: static;
+    margin-top: 0;
+    padding-top: 0;
+    background: transparent;
+  }
+  .pos-f2 .pos-columna-venta {
+    position: sticky;
+    top: 8px;
+    align-self: start;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta {
+    overflow: clip;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-cliente'] {
+    max-height: none;
+    overflow: visible;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) .pos-columna-venta > [data-testid='pos-bloque-carrito'] {
+    flex: 1 0 auto;
+    overflow: visible;
+  }
+  .pos-f2 .pos-layout:not([data-cobro]) [data-testid='pos-carrito-cuerpo'] {
+    flex: 1 0 auto;
+    overflow: visible;
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-columna-venta {
+    overflow: visible;
+    position: static;
+    min-height: 0;
+  }
+  /* Total + Cobrar: pegado al pie de la ventana mientras el ticket la supere. */
+  .pos-f2 [data-testid='pos-bloque-carrito'] {
+    overflow: visible;
+  }
+  .pos-f2 [data-testid='pos-bloque-carrito'] > [data-testid='pos-carrito-cuerpo'] + div {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    background: rgb(var(--c-ink));
+    box-shadow: 0 -6px 12px -8px rgb(0 0 0 / 0.25);
+  }
+}
+
+/* Vista Lista del catálogo: miniatura de 40 px y fila compacta (la «venta rápida» de 64 px es de la cuadrícula). */
+.pos-f2 .pos-product-fila { padding: 6px 10px; min-height: 52px; gap: 10px; }
+.pos-f2 .pos-product-fila [data-testid='foto-producto'] { width: 40px !important; height: 40px !important; }

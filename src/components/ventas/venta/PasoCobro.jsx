@@ -73,6 +73,8 @@ export default function PasoCobro({
   onSobrePedido,
   onTransito,
   onIrAlCarrito,
+  onVolver = null,
+  onNuevaVenta = null,
   modoMovil = false,
 }) {
   // The desktop payment footer must not exist in the DOM on touch/tablet
@@ -161,15 +163,21 @@ export default function PasoCobro({
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <header data-testid="pos-cobro-header" className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600/70 px-1 pb-2">
-        <div className="min-w-0">
+      <header data-testid="pos-cobro-header" className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink-600/70 px-1 pb-2">
+        {(onVolver || onIrAlCarrito) && (
+          <Button type="button" variant="outline" data-testid="cobro-volver" className="min-h-11 shrink-0 md:min-h-10" onClick={onVolver || onIrAlCarrito}>
+            <Icon name="arrowLeft" className="mr-1.5 h-4 w-4" />
+            Volver a productos
+          </Button>
+        )}
+        <div className="min-w-0 flex-1 basis-40">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-fono-light">Paso 2 · Cobrar</p>
           <h3 className="truncate text-base font-bold text-ink-100">Entrega, pagos y confirmación</h3>
         </div>
-        {onIrAlCarrito && (
-          <Button type="button" variant="secondary" className="min-h-10 shrink-0" onClick={onIrAlCarrito}>
-            <Icon name="cart" className="mr-1.5 h-4 w-4" />
-            Editar ticket
+        {onNuevaVenta && (
+          <Button type="button" variant="outline" data-testid="cobro-nueva-venta" className="ml-auto min-h-11 shrink-0 md:min-h-10" disabled={guardando} onClick={onNuevaVenta}>
+            <Icon name="plus" className="mr-1.5 h-4 w-4" />
+            Nueva venta
           </Button>
         )}
       </header>

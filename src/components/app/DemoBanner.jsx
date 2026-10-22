@@ -51,7 +51,7 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
           onClick={onComoFunciona}
           className={enlace}
         >
-          Cómo funciona
+          {angosta ? 'Guía' : 'Cómo funciona'}
         </button>
         <button
           type="button"

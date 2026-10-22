@@ -140,18 +140,16 @@ export default function FilaVenta({
           </span>
         )}
 
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <b className="truncate text-sm" title={item.nombre}>{item.nombre}</b>
-            {/* Avisos que no pueden esperar al detalle. */}
+        <div className="min-w-0 flex-1 basis-40">
+          {/* Nombre completo en 2 líneas antes de cortar; los avisos van debajo. */}
+          <b className="line-clamp-2 break-words text-sm leading-snug" title={item.nombre}>{item.nombre}</b>
+          {/* IMEI en línea con el nombre (se toca para elegir/cambiar), cupón y
+              descuento de la línea: una sola fila compacta que envuelve. */}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 whitespace-nowrap empty:hidden">
             {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
             {item.enTransito && <Badge color="blue">En tránsito</Badge>}
             {agotado && <Badge color="red">Agotado</Badge>}
             {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
-          </div>
-          {/* IMEI en línea con el nombre (se toca para elegir/cambiar), cupón y
-              descuento de la línea: una sola fila compacta que envuelve. */}
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 empty:hidden">
             {(item.requiereSerie || tieneImei) && (
             <button
               type="button"

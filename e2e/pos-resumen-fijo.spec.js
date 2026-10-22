@@ -1,6 +1,6 @@
-// Rediseño del POS (docs/pos-rediseno): en desktop/notebook la página no se
-// desplaza; la lista de líneas del ticket sí, por dentro, y el total y Cobrar
-// quedan siempre a la vista. Móvil conserva su barra fija.
+// Rediseño del POS (docs/pos-rediseno), con la decisión de Dario del 22-10-2026:
+// sin scroll interno; se desplaza la página, el ticket queda pegado (sticky) y el
+// total y Cobrar siguen a la vista. Móvil conserva su barra fija.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 import { ensureCobro } from './helpers/ensure-cobro.js'
@@ -52,14 +52,17 @@ function medicion(page) {
 for (const [vista, width, height] of [['desktop', 1440, 900], ['notebook 1152', 1152, 800]]) {
   test.describe(vista, () => {
     test.use({ viewport: { width, height } })
-    test('la página no se desplaza y el ticket mantiene total y cobro alcanzables', async ({ page }) => {
+    test('scroll de página: el ticket queda pegado y el total y Cobrar alcanzables', async ({ page }) => {
       await agregarProducto(page)
       const antes = await medicion(page)
       await page.evaluate(() => window.scrollTo(0, 700))
       const despues = await medicion(page)
-      expect(despues.scrollY, 'la página no se desplaza').toBe(0)
-      expect(despues.columna_venta.y, 'el ticket queda en su lugar').toBe(antes.columna_venta.y)
-      expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(height + 2)
+      // Decisión de Dario (22-10): sin scroll interno; se desplaza la PÁGINA y el ticket
+      // (sticky) acompaña al catálogo: nunca sale de la pantalla.
+      expect(despues.columna_venta.position, 'el ticket es sticky').toBe('sticky')
+      expect(despues.columna_venta.y, 'el ticket sigue a la vista').toBeLessThan(height)
+      expect(despues.columna_venta.bottom, 'el ticket sigue a la vista').toBeGreaterThan(0)
+      expect(antes.carrito.height).toBeGreaterThan(0)
       await page.getByTestId('carrito-total').scrollIntoViewIfNeeded()
       await expect(page.getByTestId('carrito-total')).toBeInViewport()
       await expect(page.getByTestId('carrito-total')).toContainText('Gs 45.000')

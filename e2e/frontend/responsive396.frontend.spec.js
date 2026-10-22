@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { measureLayout } from './helpers/layoutContract.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 async function aislar(page, dark) {
   await page.route('**/api/**', r => new URL(r.request().url()).pathname.startsWith('/api/') ? r.fulfill({ status: 503, json: { error: 'QA demo aislada' } }) : r.continue())
@@ -43,6 +44,19 @@ for (const width of [360, 390, 1440]) for (const dark of [false, true]) test(`#3
   await expect(page.getByTestId('shell')).toBeVisible()
   const nav = width < 1024 ? page.getByTestId('shell-bottom-nav') : page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true })
   await nav.getByRole('button', { name: 'Vender', exact: true }).click()
+  if (width >= 1024) {
+    // Los atajos viven en el popup «Detalles de la venta y del día» (ícono de la cabecera de Productos).
+    await page.getByTestId('pos-detalles').click()
+    const atajos = page.getByTestId('pos-atajos')
+    await expect(atajos.getByText('Atajos', { exact: true })).toBeVisible()
+    await esperarAnimaciones(page)
+    const m = await measureLayout(page)
+    expect(m.lowContrast.filter(x => /Atajos|F2|Ctrl\+S|Esc/.test(x.what))).toEqual([])
+    expect(await textosPequenos(atajos, 12), 'atajos legibles sin opacidad reducida').toEqual([])
+    expect(await atajos.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('pos-detalles-popup')).toHaveCount(0)
+  }
   if (width < 1024) await page.getByRole('button', { name: /Agregar cliente/ }).click()
   const cliente = page.getByTestId(width < 1024 ? 'hoja-cliente' : 'pos-bloque-cliente')
   await cliente.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('María González')
@@ -52,12 +66,6 @@ for (const width of [360, 390, 1440]) for (const dark of [false, true]) test(`#3
   await page.getByRole('button', { name: 'Nueva dirección', exact: true }).click()
   const nuevaDireccion = page.getByTestId('direccion-tarjeta').last()
   await expect(nuevaDireccion.getByRole('button', { name: 'Guardar dirección en cliente', exact: true })).toBeVisible()
-  if (width >= 1024) await expect(page.getByText('Atajos', { exact: true })).toBeVisible()
   medidas = await measureLayout(page)
   expect(medidas.lowContrast.filter(x => /Atajos|F2|Ctrl\+S|Esc|Dirección/.test(x.what))).toEqual([])
-  if (width >= 1024) {
-    const atajos = page.getByText('Atajos', { exact: true }).locator('..')
-    expect(await textosPequenos(atajos, 12), 'atajos legibles sin opacidad reducida').toEqual([])
-    expect(await atajos.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
-  }
 })

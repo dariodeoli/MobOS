@@ -244,7 +244,7 @@ export default function SellerCatalog() {
     >
       {/* #396: Productos ⇄ Unidades ya son pestañas del shell; el switch
           repetido en la barra se sacó (el contexto viaja por los enlaces de las fichas). */}
-      <Button type="button" variant="outline" onClick={data.refresh} disabled={data.loading}>
+      <Button type="button" variant="outline" className="max-lg:hidden" onClick={data.refresh} disabled={data.loading}>
         <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
       </Button>
       {canManage && !esDemo && <Button type="button" variant="outline" onClick={() => setCombosOpen(true)}>Combos</Button>}
@@ -274,10 +274,12 @@ export default function SellerCatalog() {
           />
         </div>
         <Button>Buscar</Button>
+        {/* En celular «Actualizar» va junto a Buscar (no solo en una fila). */}
+        <Button type="button" variant="outline" className="lg:hidden" aria-label="Actualizar" title="Actualizar" onClick={data.refresh} disabled={data.loading}><Icon name="refresh" className="h-4 w-4" /></Button>
       </form>
-      <Select aria-label="Filtrar por categoría" className="w-auto" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
-      <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
-      <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition lg:min-h-9', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
+      <div className="flex w-full min-w-0 items-center gap-2 lg:contents"><Select aria-label="Filtrar por categoría" className="w-auto min-w-0 flex-1 lg:flex-none" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
+      <Select aria-label="Filtrar por condición" className="w-auto min-w-0 flex-1 lg:flex-none" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
+      <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition lg:min-h-9', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button></div>
       {!movil && <ListGridToggle value={vista} onChange={cambiarVista} />}
     {chipsAcc.length > 0 && (
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="chips-accesorio">
