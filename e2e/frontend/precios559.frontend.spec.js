@@ -32,8 +32,8 @@ for (const width of [390, 1440]) {
     })
     await page.getByRole('button', { name: 'Cliente B', exact: true }).click()
     const card = page.locator('.pos-product-card').first()
+    await expect(card).not.toContainText('110.000')
     await expect(card).toContainText('220.000')
-    await expect(card).toContainText('Lista Lista B')
     await expect(card.getByTestId('pos-stock-por-sucursal')).toContainText('3')
     mode = 'slow'
     await page.getByRole('button', { name: 'Cliente A', exact: true }).click()
