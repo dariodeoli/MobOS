@@ -81,7 +81,7 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
   if (Object.keys(fields).some(key => ['notes', 'publicNote', 'tags'].includes(key)) && !hasPermission(actor, 'customers:manage')) {
     throw new CustomerServiceError('forbidden', 'El usuario no puede gestionar clientes.')
   }
-  if (input.pricingTier !== undefined || input.creditLimitPyg !== undefined || input.creditDays !== undefined || input.creditTolerancePct !== undefined || input.creditTermMode !== undefined || input.creditDayOfMonth !== undefined || input.creditInstallments !== undefined) {
+  if (input.pricingTier !== undefined || input.creditLimitPyg !== undefined || input.creditDays !== undefined) {
     if (!privileged(actor) && !options.allowUnprivilegedCommercial) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
     if (input.pricingTier !== undefined) fields.pricingTier = input.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
     if (input.creditLimitPyg !== undefined) {
@@ -94,7 +94,11 @@ function optionalFields(input: CustomerServiceInput, actor: CustomerServiceActor
       if (value !== null && (!Number.isSafeInteger(value) || value < 0 || value > 365)) throw new CustomerServiceError('invalid', 'Plazo de crédito inválido.')
       fields.creditDays = value
     }
-    // Plazo y tolerancia propios de la ficha; vacío = vale el del módulo «Venta a crédito».
+  }
+  // Plazo y tolerancia propios de la ficha (vacío = vale el del módulo «Venta a crédito»): SOLO administración o
+  // gerencia, aun donde el crédito se edita sin privilegio. Una tolerancia mayor se traduce en plata sin autorizar.
+  if (input.creditTolerancePct !== undefined || input.creditTermMode !== undefined || input.creditDayOfMonth !== undefined || input.creditInstallments !== undefined) {
+    if (!privileged(actor)) throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar la tolerancia y el plazo de crédito.')
     const empty = (value: unknown) => value === null || value === '' ? null : value
     if (input.creditTolerancePct !== undefined) {
       const value = empty(input.creditTolerancePct) === null ? null : Number(input.creditTolerancePct)
