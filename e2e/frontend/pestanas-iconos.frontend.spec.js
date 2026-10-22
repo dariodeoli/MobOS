@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { openShellDestination, selectInventorySection } from '../helpers/shell-navigation.js'
+import { esperarAnimaciones } from '../helpers/animaciones.js'
 
 // Una sola fila de pestañas con íconos (PR «una sola fila de pestañas con íconos»):
 //  - Clientes: ni «Clientes» repetido ni una segunda fila (Clientes · Campañas).
@@ -91,7 +92,11 @@ for (const [width, height] of VIEWPORTS) {
       await nav.locator(`[data-tab-id="${id}"]`).click()
       await expect(nav.locator(`[data-tab-id="${id}"]`)).toHaveAttribute('aria-current', 'page')
       await expect(page.getByTestId('shell-subcontexto')).toBeVisible()
-      expect(await caja(page.getByTestId('shell-subcontexto'))).toEqual(base)
+      // La entrada de la vista (translateY de 8 px) mueve la fila unos ms: medir al terminar.
+      await esperarAnimaciones(page)
+      const ahora = await caja(page.getByTestId('shell-subcontexto'))
+      expect(Math.abs(ahora.y - base.y), `origen en ${id}`).toBeLessThanOrEqual(1)
+      expect({ ...ahora, y: base.y }).toEqual(base)
       // Sin botones duplicados de los segmentos.
       await expect(page.getByTestId('ir-centro-control')).toHaveCount(0)
       expect(await sinDesborde(page)).toBe(true)

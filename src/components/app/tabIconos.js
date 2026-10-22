@@ -51,6 +51,7 @@ export const TAB_ICONOS = {
   gastos: 'money',
   bancos: 'bank',
   conciliacion: 'audit',
+  'verificacion-dia': 'check',
   creditos: 'card',
   cuotas: 'calendar',
   comisiones: 'subscription',

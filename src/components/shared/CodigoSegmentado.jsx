@@ -106,7 +106,7 @@ export default function CodigoSegmentado({
                   onKeyDown={(e) => onKeyDown(i, e)}
                   onPaste={(e) => onPaste(i, e)}
                   className={cn(
-                    'codigo-seg-celda h-11 w-8 min-w-0 rounded-lg border bg-paper text-center font-mono text-base font-semibold uppercase text-fore outline-none sm:w-9',
+                    'codigo-seg-celda h-11 w-11 min-w-0 rounded-lg border bg-paper text-center font-mono text-base font-semibold uppercase text-fore outline-none lg:w-9',
                     invalido ? 'border-bad bg-bad/5' : celdas[i] ? 'border-fono-dark/60' : 'border-ink-500',
                     'focus:border-fono-dark focus:ring-2 focus:ring-fono-dark/30 disabled:opacity-50',
                   )}
