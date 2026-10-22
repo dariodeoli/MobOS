@@ -59,3 +59,17 @@ test('aviso de módulo apagado: texto, módulo y vista padre', () => {
     }
   }
 })
+
+test('Mayoristas: aparece en Ventas, nace apagado, se prende solo y explica su relación con Listas de precios', () => {
+  const def = MODULE_CATALOG.find(item => item.id === 'mayoristas')
+  assert.equal(def.name, 'Mayoristas')
+  assert.equal(def.category, 'Ventas')
+  assert.equal(def.porDatos, true)
+  assert.equal(grupoDeModulo('mayoristas'), 'ventas')
+  assert.ok(modulosOpcionales().some(item => item.id === 'mayoristas'))
+  assert.ok(filtrarModulos(nuevo(), 'ventas').some(item => item.id === 'mayoristas'))
+  assert.ok(!filtrarModulos(nuevo(), 'activos').some(item => item.id === 'mayoristas'), 'empresa nueva: apagado')
+  assert.ok(filtrarModulos(conActivos('mayoristas'), 'activos').some(item => item.id === 'mayoristas'))
+  assert.match(INCLUYE.mayoristas.join(' '), /Listas de precios/)
+  assert.deepEqual(def.dependencies.slice().sort(), ['clientes', 'ventas'])
+})

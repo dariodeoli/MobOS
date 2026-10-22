@@ -6,7 +6,7 @@ import { moduloActivo, nuevoModuleStore } from '../lib/modulos-catalogo.mjs'
 
 // Defaults por empresa de «Inventario por unidades» y «Venta sin stock»:
 // existentes se deciden por sus datos (una sola vez), nuevas arrancan apagadas.
-type Datos = { unidades: boolean; sobrePedido: boolean }
+type Datos = { unidades: boolean; sobrePedido: boolean; mayoristas?: boolean; listaMayorista?: boolean }
 function baseEnMemoria(settingsInicial: unknown, datos: Datos) {
   const estado = { settings: settingsInicial, consultas: 0, escrituras: 0, auditoria: [] as string[] }
   const tx = {
@@ -20,14 +20,16 @@ function baseEnMemoria(settingsInicial: unknown, datos: Datos) {
   const db = {
     inventoryUnit: { findFirst: async () => { estado.consultas += 1; return datos.unidades ? { id: 'u1' } : null } },
     orderItem: { findFirst: async () => { estado.consultas += 1; return datos.sobrePedido ? { id: 'i1' } : null } },
+    customer: { findFirst: async () => { estado.consultas += 1; return datos.mayoristas ? { id: 'c1' } : null } },
+    priceList: { findFirst: async () => { estado.consultas += 1; return datos.listaMayorista ? { id: 'l1' } : null } },
     tenant: { findUnique: async () => ({ settings: estado.settings }) },
     $transaction: async <T>(fn: (t: typeof tx) => Promise<T>) => fn(tx),
   }
   return { db, estado }
 }
 
-test('porDatos: son exactamente inventario-unidades y venta-sin-stock', () => {
-  assert.deepEqual([...MODULOS_POR_DATOS].sort(), ['inventario-unidades', 'venta-sin-stock'])
+test('porDatos: son exactamente inventario-unidades, mayoristas y venta-sin-stock', () => {
+  assert.deepEqual([...MODULOS_POR_DATOS].sort(), ['inventario-unidades', 'mayoristas', 'venta-sin-stock'])
 })
 
 test('empresa existente con unidades y sin backorder: unidades activo, venta sin stock apagado', async () => {
@@ -81,4 +83,33 @@ test('un preset no cambia estos módulos y abastecimiento queda visible si está
   assert.equal(moduloActivo({ moduleStore: abastecimientoOff }, 'abastecimiento'), true)
   const ambosOff = updateModuleStore({ moduleStore: abastecimientoOff }, { moduleId: 'venta-sin-stock', enabled: false })
   assert.equal(moduloActivo({ moduleStore: ambosOff }, 'abastecimiento'), false)
+})
+
+test('mayoristas: empresa existente con clientes mayoristas o con lista mayorista queda activa, una vez y auditado', async () => {
+  const conClientes = baseEnMemoria(null, { unidades: false, sobrePedido: false, mayoristas: true })
+  const a = await asegurarModulosPorDatos(conClientes.db as never, 't1')
+  assert.equal(moduloActivo({ settings: a }, 'mayoristas'), true)
+  assert.deepEqual(conClientes.estado.auditoria, ['TENANT_MODULES_AUTODETECTED'])
+  const conLista = baseEnMemoria({}, { unidades: false, sobrePedido: false, listaMayorista: true })
+  assert.equal(moduloActivo({ settings: await asegurarModulosPorDatos(conLista.db as never, 't1') }, 'mayoristas'), true)
+})
+
+test('mayoristas: empresa existente sin clientes ni lista mayorista queda apagada y no se vuelve a decidir', async () => {
+  const datos: Datos = { unidades: false, sobrePedido: false }
+  const { db, estado } = baseEnMemoria(null, datos)
+  const settings = await asegurarModulosPorDatos(db as never, 't1')
+  assert.equal(moduloActivo({ settings }, 'mayoristas'), false)
+  datos.mayoristas = true
+  const otra = await asegurarModulosPorDatos(db as never, 't1')
+  assert.equal(moduloActivo({ settings: otra }, 'mayoristas'), false, 'ya quedó decidido')
+  assert.equal(estado.escrituras, 1)
+})
+
+test('mayoristas: empresa nueva (versión 2) apagada; demo activo', () => {
+  const nueva = { moduleStore: nuevoModuleStore() }
+  assert.equal(moduloActivo(nueva, 'mayoristas'), false)
+  assert.equal(moduloActivo(nueva, 'mayoristas', { demo: true }), true)
+  assert.deepEqual(modulosPendientesPorDatos(nueva), [])
+  const activado = updateModuleStore(nueva, { moduleId: 'mayoristas', enabled: true })
+  assert.equal(moduloActivo({ moduleStore: activado }, 'mayoristas'), true)
 })

@@ -127,6 +127,7 @@
         "ia-configuracion.spec.js",
         "inventario-pos-sync.spec.js",
         "inventario-unidades.spec.js",
+        "modulos-mayoristas.spec.js",
         "modulos-stock.spec.js",
         "ocultos-plataforma.spec.js",
         "ops.spec.js",
