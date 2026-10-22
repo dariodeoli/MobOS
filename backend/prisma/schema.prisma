@@ -1751,6 +1751,10 @@ model MessageTemplate {
   context    String   @default("clientes")
   isDefault  Boolean  @default(false)
   isActive  Boolean  @default(true)
+  // Canal del mensaje: 'whatsapp' (por defecto) o 'email'. Las claves de correo
+  // llevan el prefijo `email.` para no tocar el único (tenantId, key).
+  channel   String   @default("whatsapp")
+  subject   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1758,6 +1762,7 @@ model MessageTemplate {
   @@index([tenantId, isActive])
   @@index([tenantId, category])
   @@index([tenantId, context])
+  @@index([tenantId, channel])
 }
 
 // Campaña de recompra/marketing: agrupa a los clientes contactados en un envío

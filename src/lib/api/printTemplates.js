@@ -133,7 +133,9 @@ export function clientePlantillas(
             return copy
           }
           if (data.action !== 'restore') throw error('VALIDATION', 'Acción no admitida.')
-          t.definition = clonarPlantilla(PRESETS_PLANTILLA.find(p => p.kind === t.kind).definition)
+          t.definition = clonarPlantilla(
+            (PRESETS_PLANTILLA.find(p => p.kind === t.kind && p.name === t.name) || PRESETS_PLANTILLA.find(p => p.kind === t.kind)).definition,
+          )
           t.revision++
           t.updatedAt = new Date().toISOString()
           return t

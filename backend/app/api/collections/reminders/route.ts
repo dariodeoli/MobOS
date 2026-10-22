@@ -38,7 +38,7 @@ type FilaCuota = {
     id: string
     orderNumber: string | null
     dueAt: Date | null
-    customer: { id: string; name: string | null; phone: string | null; countryCode: string | null } | null
+    customer: { id: string; name: string | null; phone: string | null; countryCode: string | null; email: string | null } | null
   }
 }
 
@@ -56,7 +56,7 @@ async function contexto(request: Request) {
 async function datosDeAviso(tenantId: string) {
   const [tenant, plantillas] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, collectionLateFeeBpPerDay: true } }),
-    prisma.messageTemplate.findMany({ where: { tenantId, category: 'COLLECTIONS' }, select: { key: true, body: true, isActive: true, isDefault: true } }),
+    prisma.messageTemplate.findMany({ where: { tenantId, category: 'COLLECTIONS', channel: 'whatsapp' }, select: { key: true, body: true, isActive: true, isDefault: true } }),
   ])
   return { tenantName: tenant?.name?.trim() || 'la tienda', moraBpPorDia: tenant?.collectionLateFeeBpPerDay ?? 0, plantillas }
 }
@@ -92,6 +92,7 @@ function armarCuota(cuota: FilaCuota, input: { now: Date; moraBpPorDia: number; 
     customerId: cuota.order?.customer?.id ?? null,
     customerName: cuota.order?.customer?.name ?? null,
     phone: cuota.order?.customer?.phone ?? null,
+    email: cuota.order?.customer?.email ?? null,
     tipo: vencida ? 'VENCIDA' : 'PROXIMA',
     saldoPendientePyg,
     recargoPyg,
@@ -130,7 +131,7 @@ export async function GET(request: Request) {
     select: {
       id: true, tenantId: true, amountPyg: true, reference: true, dueAt: true,
       whatsappRemindedAt: true, whatsappOverdueRemindedAt: true,
-      order: { select: { id: true, orderNumber: true, dueAt: true, customer: { select: { id: true, name: true, phone: true, countryCode: true } } } },
+      order: { select: { id: true, orderNumber: true, dueAt: true, customer: { select: { id: true, name: true, phone: true, countryCode: true, email: true } } } },
     },
     orderBy: { dueAt: 'asc' },
     take: 500,
@@ -160,7 +161,7 @@ export async function POST(request: Request) {
     select: {
       id: true, tenantId: true, amountPyg: true, reference: true, dueAt: true,
       whatsappRemindedAt: true, whatsappOverdueRemindedAt: true,
-      order: { select: { id: true, orderNumber: true, dueAt: true, customer: { select: { id: true, name: true, phone: true, countryCode: true } } } },
+      order: { select: { id: true, orderNumber: true, dueAt: true, customer: { select: { id: true, name: true, phone: true, countryCode: true, email: true } } } },
     },
   })
   if (!cuota) return error('Cuota no encontrada o ya cobrada.', 404)

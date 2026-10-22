@@ -27,6 +27,8 @@ import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone, whatsappUrl } from '@/utils/telefono'
 import { mensajeCotizacion } from '@/lib/mensajeCotizacion'
+import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { PLANTILLA_COTIZACION } from '@/lib/avisos'
 import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
 import { compartirArchivo, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -782,6 +784,21 @@ export default function SellerQuotes() {
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
           <Button type="button" variant="success" disabled={enlaceBusy || !enlace} onClick={enviarWhatsApp} data-testid="cotizacion-whatsapp"><Icon name="send" className="h-4 w-4" />Enviar por WhatsApp</Button>
+          <AvisarPorCorreo
+            email={enlace?.customer?.email || enlace?.customerEmail}
+            category="ORDERS"
+            evento={PLANTILLA_COTIZACION}
+            disabled={enlaceBusy || !enlace}
+            title={enlace?.customerName}
+            contexto={{
+              cliente: enlace?.customerName || enlace?.customer?.name || 'cliente',
+              nombre: enlace?.customerName || enlace?.customer?.name || 'cliente',
+              cotizacion: enlace?.number || '',
+              total: gs(Number(enlace?.totalPyg || 0)),
+              vigencia: enlace?.validUntil ? new Date(enlace.validUntil).toLocaleDateString('es-PY') : '',
+              enlace: enlaceUrl || '',
+            }}
+          />
           <CompartirPdf
             construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: enlaceUrl })}
             nombre={`cotizacion-${enlace?.number || ''}`}

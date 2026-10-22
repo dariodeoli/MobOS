@@ -83,6 +83,7 @@ export function cuotasDemo(ahora = new Date()) {
         orderNumber: venta.orderNumber || venta.numero,
         customerName: venta.cliente,
         phone: cliente.phone || '',
+        email: cliente.email || '',
         countryCode: cliente.countryCode || '+595',
         reference: `Cuota ${numero}/2`,
         dueAt: dueAt.toISOString(),

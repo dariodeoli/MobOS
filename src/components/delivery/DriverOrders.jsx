@@ -5,6 +5,9 @@ import { Aviso, Badge, Button, Input, Money, MoneyInput, Select, useToast } from
 import Popup from '@/components/shared/Popup'
 import Icon from '@/components/shared/Icon'
 import ListaDensa from '@/components/shared/ListaDensa'
+import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
+import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { plantillaDeEntrega } from '@/lib/avisos'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import { ChipsReparto } from './ChipsReparto'
 import './entregasF3.css'
@@ -19,6 +22,16 @@ const TONO_ESTADO = (fulfillment) => fulfillment === 'DELIVERED' ? 'green'
   : fulfillment === 'IN_TRANSIT' ? 'blue'
     : fulfillment === 'READY_FOR_PICKUP' ? 'orange'
       : 'slate'
+
+// Variables de la plantilla para un reparto (mismas claves que los pedidos).
+const contextoAviso = (row) => ({
+  cliente: row.cliente || 'cliente',
+  nombre: row.cliente || 'cliente',
+  pedido: codigoPedido(row.number),
+  total: montoTexto(row.total),
+  saldo_pendiente: montoTexto(row.pendiente),
+  producto: (row.articulos?.[0] || '').replace(/^\d+×\s*/, ''),
+})
 
 function FilaMonto({ label, value, tono = '' }) {
   return (
@@ -79,6 +92,19 @@ function PedidoReparto({ row, onCobrar, onEstado, busy }) {
             <Icon name="money" className="h-4 w-4" />Registrar cobro
           </Button>
         )}
+        {/* Avisar al cliente con la plantilla del estado del reparto; no envía solo. */}
+        {row.telefonoCliente && (
+          <WhatsAppMenu
+            telefono={row.telefonoCliente}
+            countryCode={row.codigoPais}
+            category="ORDERS"
+            preferKey={plantillaDeEntrega(row.fulfillment === 'PROCESSING' ? 'IN_TRANSIT' : row.fulfillment)}
+            contexto={contextoAviso(row)}
+            title={row.cliente}
+            disabled={busy}
+          />
+        )}
+        <AvisarPorCorreo email={row.email} category="ORDERS" evento={plantillaDeEntrega(row.fulfillment === 'PROCESSING' ? 'IN_TRANSIT' : row.fulfillment)} contexto={contextoAviso(row)} title={row.cliente} disabled={busy} />
       </div>
     </article>
   )

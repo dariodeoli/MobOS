@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Button, FormField, Input, Select } from '@/components/ui'
-import { CONTENIDOS, OBLIGATORIOS, OPCIONALES, tipoElemento } from '@/lib/printing/plantillas'
+import { CONTENIDOS, OBLIGATORIOS, OPCIONALES, esDocumentoFlujo, tipoElemento } from '@/lib/printing/plantillas'
 import { PERFILES_IMPRESION, aplicarPerfilPlantilla } from '@/lib/printing/perfiles'
 import { moverElemento } from '@/lib/printing/geometria'
 
 export default function EditorPlantilla({ draft, onChange, readOnly = false }) {
   const { kind, definition: d } = draft
   const [selected, setSelected] = useState(d.elements[0]?.id)
-  const receipt = kind === 'comprobante',
+  const receipt = esDocumentoFlujo(kind),
     element = d.elements.find(e => e.id === selected) || d.elements[0]
   const change = next => onChange({ ...draft, definition: next })
   const page = (key, value) => change({ ...d, page: { ...d.page, [key]: value } })
