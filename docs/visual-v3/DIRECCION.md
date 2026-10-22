@@ -19,7 +19,7 @@ Estructura Shopify y mobile first intactas; cambia el **lenguaje visual**. Códi
 - **Sin caja en caja.** Una tarjeta dentro de otra se aplana a relleno tonal (`ink-800`), sin sombra.
 - **Hairline.** Divisores internos al 70 % de `ink-600`; nunca líneas verticales en tablas.
 - **Jerarquía fuerte.** Título de página 26/32 700 (−0.03em), saludo 26px, cifras KPI 700 con tracking negativo, números tabulares en todo el shell; cabeceras en oración, sin MAYÚSCULAS.
-- **Color con intención.** Neutros cálidos; marca en gradiente (`fono-dark → fono`) solo para héroes (Vender, KPI destacado); primario sólido con bisel (Polaris); estados como chips tonales en píldora sin borde.
+- **Color con intención.** Neutros cálidos; marca en gradiente (claro `fono → menta`, oscuro `fono-dark → fono`, ambos extremos AA con texto `onbrand`) solo para héroes (Vender, KPI destacado); primario sólido con bisel (Polaris); estados como chips tonales en píldora sin borde.
 
 ## Decisiones concretas
 | Tema | Claro | Oscuro |
