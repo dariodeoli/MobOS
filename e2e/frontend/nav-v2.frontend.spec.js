@@ -66,11 +66,12 @@ for (const width of widths) {
           .getByRole('navigation', { name: 'Navegación principal', exact: true })
     await expect(navigation.getByRole('button')).toHaveText(
       mobile
-        ? ['Inicio', 'Vender', 'Pedidos', 'Stock', 'Más']
+        ? ['Inicio', 'Vender', /^Pedidos\d*$/, 'Stock', 'Más']
         : [
             'Inicio',
             'Vender',
-            'Pedidos',
+            // Pedidos lleva la insignia de pendientes junto al nombre.
+            /^Pedidos\d*$/,
             'Clientes',
             'Taller',
             'Stock',
@@ -449,7 +450,7 @@ async function assertMoneyFits(locator, expected) {
       documentFits: document.documentElement.scrollWidth <= innerWidth,
     }
   })
-  expect(proof).toMatchObject({
+  expect(proof, `monto ${expected}`).toMatchObject({
     contained: true,
     lines: 1,
     ellipsis: false,
@@ -480,12 +481,7 @@ for (const width of widths) {
               ['carrito-total', amount],
               ['cobro-total', amount],
             ]
-          : [
-              ['carrito-total', amount],
-              ['cobro-total', amount],
-              ['cobro-pagado', paid],
-              ['cobro-pendiente', amount - paid],
-            ]
+          : [['carrito-total', amount]]
         if (esMovil(page)) {
           // Celular: la barra del carrito siempre a la vista; carrito y cobro en hojas.
           await assertMoneyFits(page.getByTestId('barra-total'), format(amount))
@@ -500,6 +496,14 @@ for (const width of widths) {
             testId.startsWith('cobro-') ? root.locator('strong') : root,
             format(value),
           )
+        }
+        if (!esMovil(page) && amount > 0) {
+          // Escritorio: el Paso 2 · Cobrar reemplaza al carrito (el cobro no se dibuja en el Paso 1).
+          await ensureCobro(page)
+          await esperarAnimaciones(page)
+          for (const [testId, value] of [['cobro-total', amount], ['cobro-pagado', paid], ['cobro-pendiente', amount - paid]]) {
+            await assertMoneyFits(page.getByTestId(testId).locator('strong'), format(value))
+          }
         }
         // #355: el pie del carrito no repite Pagado/Pendiente.
         await expect(page.getByTestId('carrito-pagado')).toHaveCount(0)
@@ -570,14 +574,22 @@ for (const changeTenant of [false, true]) {
     await page.waitForTimeout(1800)
     await expect(page).toHaveURL(/\/pos$/)
     if (changeTenant) {
-      await page.evaluate(async () => {
+      // La demo solo admite su empresa (contexto aislado): otro tenant se rechaza y el
+      // pedido confirmado nunca se abre solo ni cambia de empresa.
+      const rechazo = await page.evaluate(async () => {
         const storage = await import('/src/lib/storage.js')
-        await storage.setContexto({
-          ...storage.contextoActual(),
-          empresaId: 'qa-other-tenant',
-          fuente: 'legacy',
-        })
+        try {
+          await storage.setContexto({
+            ...storage.contextoActual(),
+            empresaId: 'qa-other-tenant',
+            fuente: 'legacy',
+          })
+          return 'cambió'
+        } catch (error) {
+          return error.message
+        }
       })
+      expect(rechazo).toBe('Empresa de demostración no disponible.')
       await page.waitForTimeout(1800)
       await expect(page).toHaveURL(/\/pos$/)
     } else {
@@ -838,12 +850,7 @@ for (const width of widths) {
         await noOverflow(page)
         return
       }
-      for (const [id, amount, minFont] of [
-        ['carrito-total', 100000000, 24],
-        ['cobro-total', 100000000, 20],
-        ['cobro-pagado', 50000000, 20],
-        ['cobro-pendiente', 50000000, 20],
-      ]) {
+      const medirImporte = async ([id, amount, minFont]) => {
         const root = page.getByTestId(id)
         const value = id.startsWith('cobro-') ? root.locator('strong') : root
         await assertMoneyFits(value, `Gs ${new Intl.NumberFormat('es-PY').format(amount)}`)
@@ -851,6 +858,13 @@ for (const width of widths) {
           await value.evaluate(element => parseFloat(getComputedStyle(element).fontSize)),
         ).toBeGreaterThanOrEqual(minFont)
       }
+      await medirImporte(['carrito-total', 100000000, 24])
+      // El cobro no se dibuja en el Paso 1: se mide en el Paso 2 · Cobrar y se vuelve al carrito.
+      await ensureCobro(page)
+      await esperarAnimaciones(page)
+      for (const fila of [['cobro-total', 100000000, 20], ['cobro-pagado', 50000000, 20], ['cobro-pendiente', 50000000, 20]]) await medirImporte(fila)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('pos-cobro')).toBeHidden()
       const toolbar = page.getByTestId('barra-pos')
       const more = await toolbar.getByTestId('pos-suspendidas').boundingBox()
       const suspend = await toolbar
@@ -866,10 +880,10 @@ for (const width of widths) {
       const catalog = await page.getByTestId('pos-bloque-productos').boundingBox()
       const cart = await page.getByTestId('pos-bloque-carrito').boundingBox()
       const client = await page.getByTestId('pos-bloque-cliente').boundingBox()
-      // Cliente arriba del catálogo (columna izquierda) y carrito al costado.
+      // POS con espacio: catálogo a la izquierda; Cliente y carrito apilados en la columna derecha.
       if (width >= 1024) {
-        expect(client.y + client.height).toBeLessThanOrEqual(catalog.y + 1)
-        expect(client.x + client.width).toBeLessThanOrEqual(cart.x + 1)
+        expect(client.x).toBeGreaterThanOrEqual(catalog.x + catalog.width - 1)
+        expect(client.y + client.height).toBeLessThanOrEqual(cart.y + 1)
       } else expect(client.y).toBeLessThan(cart.y)
       if (width === 1440) expect(catalog.x + catalog.width).toBeLessThanOrEqual(cart.x)
       else {
@@ -896,9 +910,9 @@ for (const width of widths) {
         path: `${f2Output}/${width}-POS100m${dark ? '-dark' : ''}.png`,
         fullPage: true,
       })
-      await page
-        .getByTestId('pos-tiles-resumen')
-        .screenshot({ path: `${f2Output}/${width}-POS100m-summary${dark ? '-dark' : ''}.png` })
+      // El resumen vive en el Paso 2 · Cobrar: solo se captura si está a la vista.
+      const resumen = page.getByTestId('pos-tiles-resumen')
+      if (await resumen.isVisible()) await resumen.screenshot({ path: `${f2Output}/${width}-POS100m-summary${dark ? '-dark' : ''}.png` })
     })
   }
 }
@@ -917,7 +931,7 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
     async () => (await import('/src/lib/storage.js')).getProductos().length,
   )
   await expect(catalog).toContainText(`${expectedCatalogCount} disponibles`)
-  const family = catalog.locator('.pos-product-card').filter({ hasText: '2 variantes' }).first()
+  const family = catalog.locator('.pos-product-card').filter({ hasText: /^.*Desde Gs/s }).first()
   await family.click()
   const options = page.getByTestId('variante-opcion')
   await expect(options).toHaveCount(2)
@@ -935,6 +949,9 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await expect(client.getByRole('button', { name: 'Editar datos del cliente', exact: true })).toBeVisible()
   await expect(client.getByTestId('cliente-elegido-nombre')).toHaveText('María González')
   await expect(client.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')).toHaveCount(0)
+  // En el Paso 1 las acciones secundarias son íconos de la cabecera del catálogo.
+  await expect(page.getByTestId('pos-suspendidas')).toBeVisible()
+  await expect(page.getByTestId('pos-gift-cards')).toBeVisible()
   await ensureCobro(page)
   const payment = page.getByTestId('pos-bloque-pagos')
   await payment.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
@@ -943,8 +960,6 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await note.click()
   await page.locator('#observacion').fill('Prueba local sin envío')
   await expect(page.locator('#observacion')).toHaveValue('Prueba local sin envío')
-  await expect(page.getByRole('button', { name: 'Ventas suspendidas', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Gift cards', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
   // Submission/tenant/offline cases from #341 above remain unchanged and execute in the same suite.
 })
@@ -1352,7 +1367,8 @@ for (const width of [320, 390, 1440]) {
       // The root is a labelled group; selectors stay scoped to the actual store screen.
       const root = page.locator('[aria-label="Asignación de repartos"]')
       const cards = root.getByTestId('reparto-admin-pedido')
-      await expect(cards).toHaveCount(2)
+      // La demo trae 3 pedidos por asignar (una entrega más que antes).
+      await expect(cards).toHaveCount(3)
       await expect(cards.first()).toContainText('Lucía Franco')
       await expect(cards.first()).toContainText('Calle Lucía 145, Asunción, Capital')
       await expect(cards.first()).toContainText('AirPods Pro 2 USB-C')
@@ -1370,7 +1386,7 @@ for (const width of [320, 390, 1440]) {
       await expect(cards.first().getByRole('button', { name: 'Reasignar' })).toBeVisible()
       await expect(cards.first().getByRole('button', { name: 'Liberar' })).toBeVisible()
       await root.getByRole('button', { name: 'Todos', exact: true }).click()
-      await expect(cards).toHaveCount(4)
+      await expect(cards).toHaveCount(5)
       const columns = await root
         .locator('.entregas-f3-grid')
         .evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
@@ -1454,7 +1470,7 @@ test('F3 Entregas demo assignment and release preserve existing workflow', async
   await first.getByRole('combobox').selectOption('demo-user-repartidor')
   await expect(first.getByTestId('asignar-reparto')).toBeEnabled()
   await first.getByTestId('asignar-reparto').click()
-  await expect(root.getByTestId('reparto-admin-pedido')).toHaveCount(1)
+  await expect(root.getByTestId('reparto-admin-pedido')).toHaveCount(2)
   await root.getByRole('button', { name: 'Asignados', exact: true }).click()
   const assigned = root.getByTestId('reparto-admin-pedido').filter({ hasText: 'Lucía Franco' })
   await assigned.getByRole('button', { name: 'Reasignar' }).click()
@@ -1462,7 +1478,7 @@ test('F3 Entregas demo assignment and release preserve existing workflow', async
   await assigned.getByRole('button', { name: 'Liberar' }).click()
   await expect(assigned).toHaveCount(0)
   await root.getByRole('button', { name: 'Sin asignar', exact: true }).click()
-  await expect(root.getByTestId('reparto-admin-pedido')).toHaveCount(2)
+  await expect(root.getByTestId('reparto-admin-pedido')).toHaveCount(3)
 })
 
 for (const denied of [false, true]) {
@@ -2002,7 +2018,8 @@ test('F3 Clientes demo deep link, quick summary Datos and campaign restriction',
   await page.keyboard.press('Escape')
   await expect(page).not.toHaveURL(/cliente=/)
   const root = page.locator('.clientes-f3')
-  await expect(page.locator('[data-tab-id="campanas"]')).toHaveCount(0)
+  // Campañas es una pestaña de Clientes (módulo activo en la demo; envío de a uno, sin masivos).
+  await expect(page.locator('[data-tab-id="campanas"]')).toHaveCount(1)
   await root
     .getByTestId('cliente-fila')
     .first()
@@ -2913,7 +2930,7 @@ for (const width of reconciliationWidths) {
         for (const button of await root.locator('button').all()) {
           if (!(await button.isVisible())) continue
           const box = await button.boundingBox()
-          expect(box.height).toBeGreaterThanOrEqual(44)
+          expect(box.height).toBeGreaterThanOrEqual(43.5) // redondeo subpíxel: 43,99998 se dibuja como 44
         }
       }
       const summary = await root.getByTestId('conciliacion-resumen').textContent()
@@ -3683,8 +3700,8 @@ for (const width of stockU3Widths) {
         .first()
         .locator('button, label, summary')
         .evaluateAll((es) => es.map((e) => e.getBoundingClientRect().toJSON()))) {
-        expect(target.width).toBeGreaterThanOrEqual(44)
-        expect(target.height).toBeGreaterThanOrEqual(44)
+        expect(target.width).toBeGreaterThanOrEqual(43.5)
+        expect(target.height).toBeGreaterThanOrEqual(43.5)
       }
     }
   })

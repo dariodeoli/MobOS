@@ -182,7 +182,7 @@ export default function PasoCarrito({
             el mismo importe dos veces. */}
         {(descuentoTotal > 0 || Number(montoDelivery || 0) > 0) && (
           <div className="pos-money-row flex flex-wrap items-center gap-x-4 gap-y-0 text-xs text-mute">
-            <span>Subtotal <span className="pos-money-value tabular-nums">{gs(totalCarrito)}</span></span>
+            <span>Subtotal <span className="pos-money-value whitespace-nowrap tabular-nums">{gs(totalCarrito)}</span></span>
             {descuentoTotal > 0 && <span className="text-warn">Descuento <span className="pos-money-value tabular-nums">− {gs(descuentoTotal)}</span></span>}
             {Number(montoDelivery || 0) > 0 && <span>Envío <span className="pos-money-value tabular-nums">{gs(montoDelivery)}</span></span>}
           </div>
@@ -202,7 +202,7 @@ export default function PasoCarrito({
               type="button"
               data-testid="carrito-listo"
               onClick={onListo}
-              className="pos-tk-cobrar hidden h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 lg:inline-flex"
+              className="pos-tk-cobrar hidden h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-fono px-4 text-sm font-bold text-onbrand transition hover:brightness-110 md:inline-flex lg:h-10"
             >
               <span>Cobrar</span> <span className="tabular-nums">{gs(totalGeneral ?? totalCarrito)}</span>
               <span className="sr-only">Listo, ir a cobrar</span>

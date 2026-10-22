@@ -187,7 +187,7 @@ export default function FilaVenta({
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <div className="text-right">
-            <span className="pos-money-value v2-numero block text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
+            <span className="pos-money-value v2-numero block whitespace-nowrap text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
           </div>
           <button
             type="button"
