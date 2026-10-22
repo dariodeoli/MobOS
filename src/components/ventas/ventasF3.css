@@ -417,3 +417,26 @@
     row-gap: 4px;
   }
 }
+
+/* Cotización apilada (< 1024): si la única acción es el menú «Más», comparte fila con el
+   número en vez de quedar sola en una fila entera. */
+@media (max-width: 1023px) {
+  .ventas-f3 .ventas-f3-quote-grid:has(.ventas-f3-quote-actions--solo) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .ventas-f3 .ventas-f3-quote-grid:has(.ventas-f3-quote-actions--solo) :is(.ventas-f3-quote-identity, .ventas-f3-quote-total, .ventas-f3-quote-expiry, .ventas-f3-quote-state) {
+    grid-column: 1 / -1;
+  }
+  .ventas-f3 .ventas-f3-quote-grid:has(.ventas-f3-quote-actions--solo) .ventas-f3-quote-expiry {
+    grid-row: auto;
+  }
+  .ventas-f3 .ventas-f3-quote-grid:has(.ventas-f3-quote-actions--solo) .ventas-f3-quote-code {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .ventas-f3 .ventas-f3-quote-actions--solo {
+    grid-column: 2;
+    grid-row: 3;
+    justify-content: flex-end !important;
+  }
+}

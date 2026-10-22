@@ -148,7 +148,16 @@ function medir() {
     if (!/flex|grid/.test(s.display)) continue
     if (fila.getAttribute('role') === 'tablist' || fila.closest('[role="tablist"], nav, [data-tab-more], thead, [data-testid^="shell-"]')) continue
     const hijos = [...fila.children].filter(h => visible(h) && getComputedStyle(h).position !== 'absolute')
-    if (hijos.length !== 1 || !esControl(hijos[0])) continue
+    // Un envoltorio con un único control adentro (y nada más) cuenta como el control.
+    const soloControl = h => {
+      if (esControl(h)) return h
+      const interactivos = [...h.querySelectorAll('button, select, a[role="button"], [role="button"]')].filter(visible)
+      const campos = h.querySelectorAll('input, textarea, select, label')
+      return interactivos.length === 1 && campos.length === 0 && h.textContent.trim() === interactivos[0].textContent.trim() ? interactivos[0] : null
+    }
+    const unico = hijos.length === 1 ? soloControl(hijos[0]) : null
+    if (!unico) continue
+    hijos[0] = unico
     const texto = [...fila.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())
     if (texto) continue
     const rf = fila.getBoundingClientRect()
