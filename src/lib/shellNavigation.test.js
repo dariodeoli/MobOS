@@ -226,6 +226,10 @@ test('manager and cashier (verificadores) add only Autorizaciones › Pagos and 
   assert.ok(!puedeVerificarPagos('VENDEDOR') && !puedeVerificarPagos('TECNICO'))
   assert.match(panel, /esVerificador \? \[\.\.\.SELLER_NAV, \.\.\.VERIFICADOR_NAV\]/)
   assert.match(panel, /<Autorizaciones soloPagos=\{!esOwner\} \/>/)
+  // Orden de declaración (un const usado antes de definirse rompe el panel entero con pantalla en blanco).
+  const orden = ['const esOwner =', 'const esVerificador =', 'const tabsDe =', 'const tabsRutaTodas =', 'const tabsRuta =', 'const seccionRuta ='].map(clave => panel.indexOf(clave))
+  assert.ok(orden.every(indice => indice > 0))
+  assert.deepEqual([...orden].sort((a, b) => a - b), orden)
 })
 
 test('approved presentation groups keep tabs per area and segments only where a group has several views', () => {

@@ -457,11 +457,6 @@ export default function PanelVendedor() {
   // Pestañas de la subpágina: `tabsRutaTodas` valida la URL (un módulo apagado
   // no la vuelve inválida: se avisa y se redirige); `tabsRuta` es lo que se muestra.
   const modulos = useModulos()
-  const tabsRuta = useMemo(
-    () => tabsRutaTodas.filter(([id]) => (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)),
-    [tabsRutaTodas, modulos],
-  )
-  const seccionRuta = subpadre && tabsRutaTodas.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
   const esVerificador = !esOwner && !esTecnico && puedeVerificarPagos(usuario?.role)
@@ -471,6 +466,11 @@ export default function PanelVendedor() {
     return esVerificador && slug === 'finanzas' ? tabs.filter(([id]) => TABS_FINANZAS_VERIFICADOR.includes(id)) : tabs
   }, [esVerificador])
   const tabsRutaTodas = useMemo(() => (subpadre ? tabsDe(subpadre) : []), [subpadre, tabsDe])
+  const tabsRuta = useMemo(
+    () => tabsRutaTodas.filter(([id]) => (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)),
+    [tabsRutaTodas, modulos],
+  )
+  const seccionRuta = subpadre && tabsRutaTodas.some(([id]) => id === routeSeccion) ? routeSeccion : null
   // #247: adelanta los chunks de las secciones más usadas cuando el equipo está
   // ocioso (una sola vez por carga y solo si la conexión lo permite).
   usePrefetchSecciones(esOwner ? 'dueno' : esTecnico ? 'tecnico' : 'vendedor')
