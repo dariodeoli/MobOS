@@ -125,7 +125,7 @@ test('#297 · promoción incompleta: crear cupón bloqueado hasta completar los 
   await entrarDemo(page)
   await page.goto('/promociones')
   await page.getByRole('button', { name: 'Nuevo cupón' }).click()
-  const form = page.locator('form').filter({ hasText: 'Crear cupón' })
+  const form = page.getByRole('dialog', { name: 'Crear cupón' })
   const crear = form.getByRole('button', { name: 'Crear cupón' })
 
   await expect(crear).toBeDisabled()

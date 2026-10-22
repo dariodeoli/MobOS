@@ -68,7 +68,6 @@ export default function SellerPromotions() {
     <div className="gp space-y-3">
       <div className="gp-cabecera">
         <div className="min-w-0">
-          <h2>Promociones</h2>
           <p>{esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}</p>
         </div>
       </div>
