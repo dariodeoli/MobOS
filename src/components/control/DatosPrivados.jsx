@@ -115,12 +115,16 @@ export default function DatosPrivados() {
               value={empresa.ruc}
               onChange={(valor) => setEmpresa((actual) => ({ ...actual, ruc: valor }))}
               esDemo={esDemo}
-              onAplicar={(datos) => setEmpresa((actual) => ({
-                ...actual,
-                ...(datos.name ? { legalName: datos.name } : {}),
-                ...(datos.fullRuc ? { ruc: datos.fullRuc } : {}),
-                ...(direccionLegalDelProveedor(datos) ? { legalAddress: direccionLegalDelProveedor(datos) } : {}),
-              }))}
+              onAplicar={(datos) => {
+                const antes = empresa
+                setEmpresa((actual) => ({
+                  ...actual,
+                  ...(datos.name ? { legalName: datos.name } : {}),
+                  ...(datos.fullRuc ? { ruc: datos.fullRuc } : {}),
+                  ...(direccionLegalDelProveedor(datos) ? { legalAddress: direccionLegalDelProveedor(datos) } : {}),
+                }))
+                return () => setEmpresa(antes)
+              }}
             />
           </div>
           <div className="sm:col-span-2"><Label htmlFor="priv-address">Dirección legal</Label><Input id="priv-address" maxLength={400} value={empresa.legalAddress} onChange={(e) => setEmpresa({ ...empresa, legalAddress: e.target.value })} placeholder="Dirección que figura en los documentos" /></div>
@@ -157,7 +161,7 @@ export default function DatosPrivados() {
               value={titular.document}
               onChange={(valor) => setTitular((actual) => ({ ...actual, document: valor, nameOfficial: undefined, personConfirmed: false }))}
               esDemo={esDemo}
-              onAplicar={(datos) => setTitular((actual) => actual ? aplicarIdentidadTitular(actual, datos) : null)}
+              onAplicar={(datos) => { const antes = titular; setTitular((actual) => actual ? aplicarIdentidadTitular(actual, datos) : null); return () => setTitular(antes) }}
             />
           </div>
           {titular.nameOfficial && <div className="space-y-2 sm:col-span-3">

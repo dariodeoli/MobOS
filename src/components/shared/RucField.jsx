@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { RucField as CampoRuc } from 'owncoding-ui'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { BotonDentroCampo, Input } from 'owncoding-ui'
 import { api, API_URL } from '@/lib/api/client'
 import { consultarRucDemoReal } from '@/lib/rucDemoRequest'
 import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
@@ -24,23 +24,36 @@ export function sinAccesoConsultaRuc(error) {
   return [401, 403, 404, 503].includes(error?.status)
 }
 
-const useClientLayoutEffect =typeof window === 'undefined' ? useEffect : useLayoutEffect
+const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-// El componente compartido dibuja la variante compacta; MobOS conserva la
-// admisión fiscal y el contexto privado de cada consulta. Ninguna respuesta
-// cambia datos del cliente sin consentimiento y sin seguir vigente.
+// Extractor de RUC: al tocar la lupa o apretar Enter, la consulta admitida se
+// aplica directo (sin tarjeta de confirmación) y queda una línea breve con
+// «Deshacer». Si `onAplicar` devuelve una función, esa función restaura el
+// estado previo de la pantalla; sin ella el aviso se muestra sin el botón. Ninguna respuesta se aplica si
+// dejó de estar vigente (otra consulta, otro texto, campo deshabilitado).
 export default function RucField({
   esDemo = false, value, onChange, onAplicar, onDatos,
-  disabled = false, consultarDisabled = false, mostrarExtractor = true,
-  maxLength = 32, className = '', consultar: _externalLookup, ...inputProps
+  id, ariaLabel, disabled = false, consultarDisabled = false, mostrarExtractor = true,
+  maxLength = 32, className = '', placeholder = '80012345-6', consultar: _externalLookup, ...inputProps
 }) {
   const guard = useRef(null)
   if (!guard.current) guard.current = createRucRequestGuard()
   const scope = useRef(null)
+  const generado = useId()
+  const inputId = id || generado
+  const errorId = `${inputId}-error`
+  const [consultando, setConsultando] = useState(false)
+  const [error, setError] = useState('')
+  const [aplicado, setAplicado] = useState(null)
   const query = formatRucInput(value)
   const demo = esDemo || isDemoRuntime || demoSessionActive()
   scope.current = { query, demo, disabled, lookupDisabled: consultarDisabled, visible: mostrarExtractor }
-  useClientLayoutEffect(() => { guard.current.cancel() }, [query, demo, disabled, consultarDisabled, mostrarExtractor])
+  useClientLayoutEffect(() => {
+    guard.current.cancel()
+    setConsultando(false); setError('')
+    // El aviso sobrevive al cambio de texto que provoca la propia aplicación (RUC con DV).
+    setAplicado((actual) => (actual?.consultas.includes(query) ? actual : null))
+  }, [query, demo, disabled, consultarDisabled, mostrarExtractor])
   useEffect(() => () => guard.current.cancel(), [])
 
   const consultar = useCallback(async (texto) => {
@@ -52,28 +65,55 @@ export default function RucField({
       : await api.get(`/api/ruc?ruc=${encodeURIComponent(identity.query)}`, {
         signal: request.signal, cacheMs: 0, cache: 'no-store',
       })
-    // Los RUC de ejemplo marcados como fixture se admiten con el contrato demo
-    // local. El resto de la demo conserva la consulta pública de OwnData y sus
-    // errores honestos; nunca se convierte un 503 en una razón social inventada.
+    // Solo el ejemplo marcado como fixture (OwnData caído en la demo) se admite
+    // con el contrato local; el resto de la demo conserva la consulta real.
     const result = admitRucResponse(payload, identity, demo && Boolean(payload?.demoFixture))
     if (!request.isCurrent(scope.current)) return null
     if (!result) throw new Error('No se recibieron datos verificables para ese RUC.')
-    // name solo adapta la presentación; datos conserva nameOfficial y toda la
-    // evidencia admitida, sin renombrar ni inventar identidad fiscal.
-    return { name: result.nameOfficial, fullRuc: result.fullRuc, simulado: result.simulado, datos: result, request }
+    return { datos: result, request }
   }, [demo])
 
-  function aplicar(resultado) {
-    if (!resultado?.request.isCurrent(scope.current) || disabled || consultarDisabled || !mostrarExtractor) return
-    guard.current.cancel()
-    const aceptar = onAplicar || onDatos
-    aceptar?.(resultado.datos)
+  async function extraer() {
+    if (consultando || disabled || consultarDisabled || !mostrarExtractor || !query) return
+    setConsultando(true); setError(''); setAplicado(null)
+    try {
+      const resultado = await consultar(query)
+      if (!resultado || !resultado.request.isCurrent(scope.current)) return
+      guard.current.cancel()
+      const aceptar = onAplicar || onDatos
+      const restaurar = await aceptar?.(resultado.datos)
+      setAplicado({ consultas: [query, resultado.datos.fullRuc], simulado: resultado.datos.simulado === true, restaurar: typeof restaurar === 'function' ? restaurar : null })
+      setConsultando(false)
+    } catch (causa) {
+      if (scope.current.query === query) setError(causa?.message || 'No se pudo consultar el RUC. Podés completar los datos manualmente.')
+      setConsultando(false)
+    }
   }
 
-  return <CampoRuc {...inputProps} className={cn('mobos-ruc-field', ANCHO_CAMPO.documento, className)}
-    variante="compacta" maxBaseDigits={9} maxLength={maxLength}
-    value={query} disabled={disabled} consultarDisabled={consultarDisabled}
-    mostrarExtractor={mostrarExtractor} consultar={consultar}
-    onChange={(texto) => { guard.current.cancel(); onChange?.(formatRucInput(texto)) }}
-    onAplicar={aplicar} onDescartar={() => guard.current.cancel()} />
+  function deshacer() {
+    const restaurar = aplicado?.restaurar
+    setAplicado(null)
+    restaurar?.()
+  }
+
+  const hayRuc = /^[1-9][0-9]{0,8}(-[0-9])?$/.test(query)
+  return <div className={cn('mobos-ruc-field space-y-1', ANCHO_CAMPO.documento, className)}>
+    <Input {...inputProps} id={inputId} aria-label={ariaLabel} type="text" inputMode="numeric" spellCheck={false} autoComplete="off"
+      pattern="[1-9][0-9]{0,8}(-[0-9])?" maxLength={Math.min(11, Number(maxLength) || 11)} placeholder={placeholder}
+      aria-describedby={error ? errorId : undefined} aria-invalid={error ? true : undefined}
+      value={query} disabled={disabled}
+      onChange={(event) => { guard.current.cancel(); onChange?.(formatRucInput(event.target.value)) }}
+      onKeyDown={(event) => {
+        inputProps.onKeyDown?.(event)
+        if (event.key === 'Enter' && mostrarExtractor && hayRuc && !event.defaultPrevented) { event.preventDefault(); extraer() }
+      }}
+      fin={mostrarExtractor ? <BotonDentroCampo integrado etiqueta="Extraer los datos del RUC"
+        titulo={hayRuc ? 'Extraer los datos del RUC' : 'Ingresá el RUC para extraer los datos'} etiquetaOcupada="Consultando…"
+        disabled={disabled || consultarDisabled || !hayRuc} ocupado={consultando} onClick={extraer} /> : undefined} />
+    {aplicado && <p role="status" data-testid="ruc-aplicado" className="text-xs font-semibold text-ok">
+      {aplicado.simulado ? 'OwnData no respondió: datos de ejemplo cargados' : 'Datos del RUC cargados'}
+      {aplicado.restaurar && <> · <button type="button" className="font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono" onClick={deshacer}>Deshacer</button></>}
+    </p>}
+    {error && <p id={errorId} role="alert" className="text-sm text-bad-text">{error}</p>}
+  </div>
 }

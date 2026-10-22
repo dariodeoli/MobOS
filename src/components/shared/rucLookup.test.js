@@ -137,15 +137,12 @@ test('simulation accepts short and nine-digit bases using only an injected mock'
   assert.equal(await lookupDemoRuc(parseRucInput('1'), async () => ({ name: 'Unmarked mock' })), null)
 })
 
-test('component source keeps uncached internal transport and acceptance-only callbacks', () => {
+test('component source keeps uncached internal transport and applies only current results', () => {
   const source = readFileSync(new URL('./RucField.jsx', import.meta.url), 'utf8')
   assert.match(source, /api\.get\(`\/api\/ruc/)
   assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
-  const extract = source.slice(source.indexOf('const consultar = useCallback'), source.indexOf('function aplicar('))
+  const extract = source.slice(source.indexOf('const consultar = useCallback'), source.indexOf('async function extraer('))
   assert.doesNotMatch(extract, /onAplicar|onDatos|accept\?\./)
   assert.match(source, /const aceptar = onAplicar \|\| onDatos/)
-  assert.match(source, /onAplicar=\{aplicar\}/)
-  assert.match(source, /resultado\?\.request\.isCurrent\(scope\.current\)/)
-  assert.match(source, /onDescartar=\{\(\) => guard\.current\.cancel\(\)\}/)
-  assert.match(source, /variante="compacta" maxBaseDigits=\{9\}/)
+  assert.match(source, /resultado\.request\.isCurrent\(scope\.current\)/)
 })

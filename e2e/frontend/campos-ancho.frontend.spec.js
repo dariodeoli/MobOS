@@ -262,7 +262,7 @@ for (const original of ['Financiera Finexpar', 'Financiera El Comercio', 'Banco 
 }
 
 
-test('RUC compartido: 9 dígitos, nombre oficial, descartar y consentimiento antes de aplicar', async ({ page }) => {
+test('RUC compartido: 9 dígitos, nombre oficial y aplicación directa con aviso', async ({ page }) => {
   const oficial = 'PÉREZ LÓPEZ, JUAN S.A.'
   await page.route('**/api/ruc?*', route => route.fulfill({ json: {
     query: { normalized: '123456789', fullRuc: '123456789-0' }, reviewRequired: true, source: { provider: 'OwnData' },
@@ -274,12 +274,9 @@ test('RUC compartido: 9 dígitos, nombre oficial, descartar y consentimiento ant
   const raiz = page.locator('.mobos-ruc-field')
   const extraer = raiz.getByRole('button', { name: 'Extraer los datos del RUC' })
   await extraer.click()
-  await expect(raiz.getByRole('status')).toContainText(oficial)
-  await expect(page.getByTestId('ruc-aceptado')).toHaveText('null')
-  await raiz.getByRole('button', { name: 'Descartar' }).click()
-  await expect(raiz.getByRole('status')).toHaveCount(0)
-  await extraer.click()
-  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
+  // Se aplica directo: sin tarjeta con el nombre ni botón de confirmación.
+  await expect(raiz.getByRole('status')).toContainText('Datos del RUC cargados')
+  await expect(raiz.getByRole('button', { name: 'Usar estos datos' })).toHaveCount(0)
   const aceptado = JSON.parse(await page.getByTestId('ruc-aceptado').innerText())
   expect(aceptado.nameOfficial).toBe(oficial)
   expect(aceptado.fullRuc).toBe('123456789-0')
