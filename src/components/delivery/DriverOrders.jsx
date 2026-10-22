@@ -7,6 +7,7 @@ import Icon from '@/components/shared/Icon'
 import ListaDensa from '@/components/shared/ListaDensa'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
+import { itemsDeResumenCorreoDemo, tipoCorreoDemoDeEntrega } from '@/lib/demoCorreoRequest'
 import { plantillaDeEntrega } from '@/lib/avisos'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import { ChipsReparto } from './ChipsReparto'
@@ -104,7 +105,7 @@ function PedidoReparto({ row, onCobrar, onEstado, busy }) {
             disabled={busy}
           />
         )}
-        <AvisarPorCorreo email={row.email} category="ORDERS" evento={plantillaDeEntrega(row.fulfillment === 'PROCESSING' ? 'IN_TRANSIT' : row.fulfillment)} contexto={contextoAviso(row)} title={row.cliente} disabled={busy} />
+        <AvisarPorCorreo email={row.email} category="ORDERS" evento={plantillaDeEntrega(row.fulfillment === 'PROCESSING' ? 'IN_TRANSIT' : row.fulfillment)} contexto={contextoAviso(row)} title={row.cliente} disabled={busy} demoCorreo={{ kind: tipoCorreoDemoDeEntrega(row.fulfillment === 'PROCESSING' ? 'IN_TRANSIT' : row.fulfillment), numero: row.number, cliente: row.cliente, items: itemsDeResumenCorreoDemo(row.articulos, row.total) }} />
       </div>
     </article>
   )

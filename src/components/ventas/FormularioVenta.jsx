@@ -38,6 +38,8 @@ import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
 import { guardarClienteDemo, listarClientesDemo, registrarPedidoDemoDeVenta } from '@/lib/demoClientes'
+import { enviarYAvisarCorreoDemo } from '@/lib/demoCorreo'
+import { itemsParaCorreoDemo, payloadCorreoDemo } from '@/lib/demoCorreoRequest'
 import { evaluarCredito, preguntaEntregaAplica } from '@/lib/credito'
 import { autorizacionCreditoDemo, evaluarCreditoDemo } from '@/lib/demoCreditoStore'
 import EntregaPregunta from './venta/EntregaPregunta'
@@ -1504,6 +1506,7 @@ export default function FormularioVenta({
           cliente: String(f.cliente ?? '').trim(),
           clienteId: clienteDemo.id,
           clienteTelefono: clienteDemo.phone,
+          clienteEmail: clienteDemo.email || customer.email || '',
           clienteDireccion: clienteDemo.address,
           fecha: fechaVenta,
           medioPago: f.medioPago,
@@ -1572,6 +1575,19 @@ export default function FormularioVenta({
           throw new Error(result?.error || 'No se pudo registrar el canje demo.')
         recordDemoPromotionUsage(orderItems, productos, gsNum(descuento))
         completedOrder = order
+        // Correo real de la demo (comprobante) si el cliente tiene correo propio: el
+        // envío no frena la venta y, apagado o sin red, la demo sigue igual.
+        const correoCliente = String(clienteDemo.email || customer.email || '').trim()
+        if (correoCliente) {
+          void enviarYAvisarCorreoDemo(toast, payloadCorreoDemo({
+            kind: 'receipt',
+            numero: numeroPedidoDemo,
+            email: correoCliente,
+            cliente: String(clienteDemo.name || customer.name || f.cliente || '').trim(),
+            items: itemsParaCorreoDemo(orderItems, { envio: montoDeliveryEfectivo }),
+            descuento: lista.reduce((suma, it) => suma + descuentoItem(it), 0) + gsNum(descuento),
+          }))
+        }
       }
 
       recordarUltimo(ULTIMO_VENDEDOR, f.vendedorId)
