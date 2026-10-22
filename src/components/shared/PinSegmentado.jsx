@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import PinTeclado from '@/components/shared/PinTeclado'
-import { aplicarTecla, largoPin } from '@/components/shared/pinPadReglas'
+import { aplicarTecla, estadoPin, largoPin, textoEstadoPin } from '@/components/shared/pinPadReglas'
 import { isNativeIOS } from '@/lib/plataforma'
+import { vibrar } from '@/lib/nativo/haptics'
 import { Keyboard } from '@capacitor/keyboard'
 import { App } from '@capacitor/app'
 
@@ -76,6 +77,16 @@ export default function PinSegmentado({
     nodo.classList.add('pin-seg-sacude')
   }, [invalido, value])
 
+  // Háptica: error y éxito vibran una sola vez al cambiar el estado (iPhone
+  // nativo con Capacitor Haptics; en navegador, navigator.vibrate).
+  useEffect(() => { if (invalido) vibrar('error') }, [invalido])
+  useEffect(() => { if (exito) vibrar('exito') }, [exito])
+
+  // Validando: PIN completo, bloqueado y sin veredicto todavía.
+  const estado = estadoPin({ largo, total, invalido, exito, disabled })
+  const validando = estado === 'validando'
+  const estadoVoz = textoEstadoPin(estado, largo, total)
+
   function actualizar(raw) {
     if (disabled || exito) return
     const next = raw.replace(/\D/g, '').slice(0, total)
@@ -89,6 +100,7 @@ export default function PinSegmentado({
       data-testid="pin-segmentado"
       data-invalido={invalido ? 'true' : undefined}
       data-exito={exito ? 'true' : undefined}
+      data-validando={validando ? 'true' : undefined}
       data-teclado-tactil={tactil ? 'true' : undefined}
       className={cn('pin-seg relative mx-auto w-full max-w-[15rem]', discreto && 'pin-seg-discreto', className)}
     >
@@ -103,6 +115,7 @@ export default function PinSegmentado({
               data-testid="pin-celda"
               data-lleno={lleno ? 'true' : undefined}
               data-activa={activa ? 'true' : undefined}
+              style={{ '--i': i }}
               className="pin-seg-celda grid aspect-[4/5] min-w-0 place-items-center rounded-xl border-2 bg-paper"
             >
               {exito
@@ -150,6 +163,7 @@ export default function PinSegmentado({
         className="absolute inset-0 h-full w-full cursor-text border-0 bg-transparent p-0 text-base opacity-0 outline-none [caret-color:transparent]"
       />
       </div>
+      <span data-testid="pin-estado" aria-live="polite" className="sr-only">{estadoVoz}</span>
       {tactil && <PinTeclado disabled={disabled || exito} completo={largo >= total} vacio={!largo} onTecla={tecla => actualizar(aplicarTecla(value, tecla, total))} />}
     </div>
   )

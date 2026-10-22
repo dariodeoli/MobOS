@@ -90,3 +90,50 @@ test('correo/contraseña con body resize nativo: campo y acciones alcanzables; r
  await expect(main).toHaveAttribute('data-teclado-visible','false')
  expect((await medir(page,'main.auth-login')).height).toBeLessThanOrEqual(845)
 })
+
+// Pedido «pin-grande»: código grande, aire repartido y estados animados.
+for (const [width,height] of [[390,844],[375,667]]) test(`bloqueo ${width}x${height}: genérico, sin hueco muerto arriba, sin scroll y casillas grandes`,async({page})=>{
+ await page.setViewportSize({width,height});await aislar(page);await page.goto('/e2e/fixtures/pin-tactil.html')
+ await expect(page.getByTestId('pin-teclado')).toBeVisible()
+ await expect(page.getByTestId('lock-ingresa')).toHaveText('Ingresá tu código')
+ await expect(page.getByTestId('lock-saludo')).toHaveCount(0)
+ await expect(page.getByTestId('lock-ultimo')).toContainText('Dario')
+ const m=await page.locator('.lock-overlay').evaluate(el=>{
+  const top=Math.min(...[...el.querySelectorAll('img,svg,h2,p')].filter(n=>n.getBoundingClientRect().height>0).map(n=>n.getBoundingClientRect().top))
+  return {top,scroll:el.scrollHeight,client:el.clientHeight}
+ })
+ expect(m.top/height,'vacío arriba').toBeLessThanOrEqual(0.25)
+ expect(m.scroll).toBeLessThanOrEqual(m.client+1)
+ const celdas=await page.getByTestId('pin-celda').evaluateAll(els=>els.map(e=>e.getBoundingClientRect().toJSON()))
+ expect(celdas).toHaveLength(4)
+ for(const c of celdas){expect(c.width).toBeGreaterThanOrEqual(height>800?56:44);expect(Math.abs(c.width-c.height)).toBeLessThan(1)}
+ expect(celdas[1].left-celdas[0].right,'separadas').toBeGreaterThanOrEqual(8)
+ const teclas=await page.getByTestId('pin-teclado').getByRole('button').evaluateAll(els=>els.map(e=>e.getBoundingClientRect().bottom))
+ expect(Math.max(...teclas)).toBeLessThanOrEqual(height)
+ await page.getByRole('button',{name:'Dígito 3',exact:true}).click()
+ await expect(page.getByTestId('pin-estado')).toHaveText('1 de 4 dígitos ingresados')
+ await expect(page.getByTestId('pin-celda').first()).toHaveAttribute('data-lleno','true')
+})
+test('el código identifica a otro vendedor: «Hola, <Nombre>» con éxito',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await aislar(page);await page.goto('/e2e/fixtures/pin-tactil.html?estado=exito')
+ await expect(page.getByTestId('lock-saludo')).toHaveText('Hola, Lucía')
+ await expect(page.getByTestId('pin-segmentado')).toHaveAttribute('data-exito','true')
+ await expect(page.getByTestId('pin-estado')).toHaveText('PIN correcto')
+})
+test('error de PIN con movimiento reducido: sin animaciones, solo color',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'})
+ await page.setViewportSize({width:390,height:844});await aislar(page);await page.goto('/e2e/fixtures/pin-tactil.html')
+ for(const d of '9999')await page.getByRole('button',{name:`Dígito ${d}`,exact:true}).click()
+ await expect(page.getByTestId('pin-segmentado')).toHaveAttribute('data-invalido','true')
+ expect(await page.getByTestId('pin-celda').first().evaluate(el=>getComputedStyle(el).animationName)).toBe('none')
+})
+
+// Capturas de documentación (solo con MOBOS_QA_SCREENSHOTS=1).
+for (const dark of [false,true]) test(`captura pin-grande 390 ${dark?'oscuro':'claro'}`,async({page})=>{
+ test.skip(process.env.MOBOS_QA_SCREENSHOTS!=='1')
+ await page.setViewportSize({width:390,height:844});await aislar(page,dark);await page.goto('/e2e/fixtures/pin-tactil.html')
+ await expect(page.getByTestId('pin-teclado')).toBeVisible()
+ for(const d of '30')await page.getByRole('button',{name:`Dígito ${d}`,exact:true}).click()
+ await page.waitForTimeout(400)
+ await page.screenshot({path:`docs/rediseno/pin-390-${dark?'oscuro':'claro'}.png`})
+})

@@ -5,7 +5,6 @@ import ThemeLogo from '@/components/app/ThemeLogo'
 import PinPad from '@/components/shared/PinPad'
 import { Button, Eyebrow } from '@/components/ui'
 import { identidadDeUsuario } from '@/lib/identidad'
-import { vibrar } from '@/lib/nativo/haptics'
 import { getLogoDataUrl, varianteDeTema } from '@/lib/tenantLogo'
 
 // Pantalla de bloqueo del POS: identidad de la tienda, la sucursal y la
@@ -25,6 +24,7 @@ export default function PantallaBloqueada({
   onCambiarUsuario,
   onSalir,
   busy = false,
+  identificado = null,
   error,
   esDemo = false,
   faceId = null,
@@ -34,6 +34,10 @@ export default function PantallaBloqueada({
   // Identidad unificada (#211): nombre visible, primer nombre y foto con el
   // mismo orden que el resto (foto local → Google → iniciales).
   const identidad = identidadDeUsuario({ ...(usuario || { name: 'Sesión protegida' }), picture })
+  // El PIN identifica al vendedor (correo compartido): no hay usuario
+  // preseleccionado. Recién al validar se muestra «Hola, <Nombre>» con su foto.
+  const quien = identificado ? identidadDeUsuario(identificado) : null
+  const ultimo = usuario?.name ? identidad.primerNombre : ''
 
   // Logo de la tienda con la variante del tema (#163): la tarjeta sigue al
   // fondo claro/oscuro, así que se pide la variante activa al abrir. En la demo
@@ -44,11 +48,6 @@ export default function PantallaBloqueada({
     getLogoDataUrl(varianteDeTema()).then((url) => { if (vigente) setLogoEmpresa(url || '') })
     return () => { vigente = false }
   }, [abierto])
-
-  useEffect(() => {
-    if (!abierto || !error) return
-    vibrar('error')
-  }, [abierto, error])
 
   if (!abierto) return null
 
@@ -83,17 +82,26 @@ export default function PantallaBloqueada({
 
         </header>
         <div className="lock-acceso">
-        <div className="lock-persona mt-4 flex flex-col items-center gap-2">
-          <PersonaChip
-            user={{ id: usuario?.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar }}
-            picture={identidad.picture}
-            size="xl"
-            avatarClassName="lock-avatar"
-            nombreCorto
-            title={identidad.nombre}
-            className="justify-center"
-          />
-          <p className="text-[11px] text-mute">Ingresá tu PIN de {pinLength} dígitos</p>
+        <div className="lock-persona mt-4 flex flex-col items-center gap-2" aria-live="polite">
+          {quien ? (
+            <>
+              <PersonaChip
+                user={{ id: identificado.id, name: quien.nombre, hasAvatar: quien.hasAvatar }}
+                picture={quien.picture}
+                size="xl"
+                avatarClassName="lock-avatar lock-avatar-hola"
+                nombreCorto
+                title={quien.nombre}
+                className="justify-center"
+              />
+              <p data-testid="lock-saludo" className="text-base font-semibold text-fore">Hola, {quien.primerNombre}</p>
+            </>
+          ) : (
+            <>
+              <p data-testid="lock-ingresa" className="text-lg font-semibold text-fore">Ingresá tu código</p>
+              {ultimo && <span data-testid="lock-ultimo" className="rounded-full bg-ink-700 px-3 py-1 text-xs text-mute">Último ingreso: <strong className="font-semibold text-fore">{ultimo}</strong></span>}
+            </>
+          )}
         </div>
 
         {usuario?.id ? (
@@ -111,15 +119,16 @@ export default function PantallaBloqueada({
                 id="lock-pin"
                 discreto
                 autoFocus
-                disabled={busy}
+                disabled={busy || Boolean(identificado)}
                 tecladoTactil={tecladoTactil}
                 length={pinLength}
                 value={pin}
                 onChange={onPinChange}
                 invalido={Boolean(error)}
+                exito={Boolean(identificado)}
                 className="mt-4"
               />
-              <p role={error ? 'alert' : 'status'} className={`lock-ayuda mt-3 min-h-5 text-sm ${error ? 'text-bad' : 'text-mute'}`}>{error || (busy ? 'Verificando…' : 'Se valida solo al completar el PIN.')}</p>
+              <p role={error ? 'alert' : 'status'} className={`lock-ayuda mt-3 min-h-5 text-sm ${error ? 'text-bad' : 'text-mute'}`}>{error || (identificado ? 'Entrando…' : busy ? 'Verificando…' : 'Se valida solo al completar el PIN.')}</p>
               </>
             )}
             {esDemo && (
