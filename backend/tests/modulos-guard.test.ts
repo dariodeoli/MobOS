@@ -17,6 +17,8 @@ const dependencias: Record<string, unknown> = {
   './http': { error: (message: string, status = 400) => Response.json({ message }, { status }), json: (data: unknown) => Response.json(data) },
   './payment-input': { InputError: InputErrorFalso },
   './modulos-catalogo.mjs': require('../lib/modulos-catalogo.mjs'),
+  // La decisión por datos tiene sus propias pruebas (modulos-datos.test.ts): acá no consulta nada.
+  './modulos-datos': { MODULOS_POR_DATOS: [], asegurarModulosPorDatos: async (_db: unknown, _tenantId: string, actuales: unknown) => actuales },
 }
 const guardPath = path.resolve(__dirname, '../lib/modulos-guard.ts')
 const guardExports: Record<string, unknown> = {}
@@ -35,7 +37,8 @@ test('módulo apagado: la escritura da 403 y la lectura sigue en 200 en cada api
   assert.ok(conPrefijo.length >= 15)
   for (const def of conPrefijo) {
     for (const prefijo of def.apiPrefixes) {
-      settings = apagar(def.id)
+      // Un módulo «implicado por» otro sigue activo mientras el otro lo esté: se apagan los dos.
+      settings = apagar(def.id, ...(def.implicadoPor ?? []))
       for (const metodo of ['POST', 'PUT', 'PATCH', 'DELETE']) {
         const respuesta = await moduloGuard(pedido(prefijo, metodo), def.id)
         assert.equal(respuesta?.status, 403, `${metodo} ${prefijo} (${def.id} apagado)`)
@@ -123,4 +126,34 @@ test('cobertura: cada apiPrefix del catálogo tiene al menos una ruta en backend
 test('cobertura: el servidor de pedidos exige el módulo para gift cards, cupones, combos, listas y trade-in', () => {
   const fuente = readFileSync(path.resolve(__dirname, '../app/api/orders/route.ts'), 'utf8')
   for (const marca of ["exigirModulo('promociones')", "exigirModulo('gift-cards')", "exigirModulo('tradein')", "moduloOn('listas-precios')"]) assert.ok(fuente.includes(marca), `orders/route.ts sin ${marca}`)
+})
+
+test('venta sin stock: con el módulo apagado el servidor rechaza backorder con 403 y mensaje claro; activo, pasa', async () => {
+  settings = apagar('venta-sin-stock')
+  await assert.rejects(() => assertModulo('tenant-1', 'venta-sin-stock'), (cause: Error & { status?: number }) => cause.status === 403 && /Venta sin stock/.test(cause.message) && /desactivado/.test(cause.message))
+  settings = apagar()
+  await assertModulo('tenant-1', 'venta-sin-stock')
+  // El POST de pedidos lo exige antes de abrir la transacción, solo si alguna línea manda backorder: true.
+  const fuente = readFileSync(path.resolve(__dirname, '../app/api/orders/route.ts'), 'utf8')
+  assert.match(fuente, /item\.backorder === true\)\) await assertModulo\(tenant, 'venta-sin-stock'\)/)
+})
+
+test('inventario por unidades: las escrituras de unidades dan 403 apagado y las lecturas siguen', async () => {
+  settings = apagar('inventario-unidades')
+  for (const metodo of ['POST', 'PATCH', 'DELETE']) assert.equal((await moduloGuard(pedido('/api/inventory-units', metodo), 'inventario-unidades'))?.status, 403, metodo)
+  assert.equal(await moduloGuard(pedido('/api/inventory-units', 'GET'), 'inventario-unidades'), null)
+  assert.equal(moduloDePrefijo('/api/inventory-units/verify'), 'inventario-unidades')
+  settings = apagar()
+  assert.equal(await moduloGuard(pedido('/api/inventory-units', 'POST'), 'inventario-unidades'), null)
+})
+
+test('reservas: alcanza con stock avanzado o con inventario por unidades', async () => {
+  const ids = ['stock-avanzado', 'inventario-unidades']
+  settings = apagar('stock-avanzado')
+  assert.equal(await moduloGuard(pedido('/api/inventory-reservations', 'POST'), ids), null)
+  settings = apagar('stock-avanzado', 'inventario-unidades')
+  assert.equal((await moduloGuard(pedido('/api/inventory-reservations', 'POST'), ids))?.status, 403)
+  assert.equal(await moduloGuard(pedido('/api/inventory-reservations', 'GET'), ids), null)
+  const fuente = readFileSync(path.resolve(__dirname, '../app/api/inventory-reservations/route.ts'), 'utf8')
+  assert.ok(fuente.includes("['stock-avanzado', 'inventario-unidades']"))
 })

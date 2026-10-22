@@ -22,6 +22,8 @@ const GRUPO_DE_MODULO = {
   'gift-cards': 'ventas',
   promociones: 'ventas',
   ops: 'ventas',
+  'inventario-unidades': 'stock',
+  'venta-sin-stock': 'ventas',
   'listas-precios': 'stock',
   comparador: 'stock',
   abastecimiento: 'stock',
@@ -54,6 +56,8 @@ export const INCLUYE = {
   conciliacion: ['Cierre diario contra bancos y medios de cobro'],
   'gift-cards': ['Venta y canje de tarjetas de regalo en el punto de venta'],
   promociones: ['Cupones y descuentos', 'Combos de productos'],
+  'inventario-unidades': ['Stock abre primero en Inventario, equipo por equipo (IMEI o serie)', 'Vender una unidad la deja cargada en el POS', 'Reservar una unidad para un cliente', 'Vendidos y eliminados'],
+  'venta-sin-stock': ['«Vender igualmente» y «sobre pedido» en el POS', 'Vender un equipo sin IMEI hasta entregarlo', 'La pantalla Por comprar con lo que falta'],
   'listas-precios': ['Listas de precios mayoristas y por cliente'],
   comparador: ['Lista de precios por modelo', 'Comparador de modelos', 'Centro de control'],
   abastecimiento: ['Qué comprar', 'Compras del centro, preparación de compras y lotes', 'Recepción de mercadería', 'Métricas de proveedores'],
@@ -69,6 +73,7 @@ export const INCLUYE = {
 // Aviso extra al desactivar los módulos que pueden tener plata o trámites abiertos.
 export const SALDOS_AL_DESACTIVAR = {
   tradein: 'No se puede desactivar mientras haya trade-ins en curso.',
+  'inventario-unidades': 'No se puede desactivar mientras haya equipos con IMEI en stock, reservados o en tránsito.',
   delivery: 'No se puede desactivar si hay cobros de delivery sin rendir.',
   comisiones: 'No se puede desactivar si hay comisiones sin liquidar.',
   cuotas: 'No se puede desactivar si hay cuotas con saldo.',

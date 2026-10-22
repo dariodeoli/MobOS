@@ -8,8 +8,8 @@ import { newCompanyModuleStore } from '../lib/module-store'
 
 // PUT /api/tenant/modules: solo el dueño real, 409 con saldos abiertos y auditoría. Se carga la ruta
 // aislada (vm) con la base, la sesión y el chequeo de dueño de mentira.
-type Saldos = { cuotas: number; giftCards: number; delivery: number; comisiones: number; tradein: number }
-const sinSaldos = (): Saldos => ({ cuotas: 0, giftCards: 0, delivery: 0, comisiones: 0, tradein: 0 })
+type Saldos = { cuotas: number; giftCards: number; delivery: number; comisiones: number; tradein: number; unidades: number }
+const sinSaldos = (): Saldos => ({ cuotas: 0, giftCards: 0, delivery: 0, comisiones: 0, tradein: 0, unidades: 0 })
 let duenoReal = true
 let saldos = sinSaldos()
 let settings: Record<string, unknown> = {}
@@ -28,6 +28,7 @@ const tx = {
   giftCard: { aggregate: async () => agregado(saldos.giftCards, saldos.giftCards * 200000) },
   deliverySettlement: { count: async () => 0 },
   commissionSettlement: { aggregate: async () => agregado(saldos.comisiones, saldos.comisiones * 80000) },
+  inventoryUnit: { count: async () => saldos.unidades },
   tradeInDevice: { aggregate: async () => agregado(saldos.tradein, saldos.tradein * 900000) },
 }
 const real = {
@@ -45,6 +46,8 @@ const dependencias: Record<string, unknown> = {
   '../../../../lib/module-store': real.moduleStore,
   '../../../../lib/modulos-guard': { esDuenoReal: async () => duenoReal },
   '../../../../lib/modulos-saldos': real.saldos,
+  // La decisión por datos tiene sus pruebas en modulos-datos.test.ts.
+  '../../../../lib/modulos-datos': { asegurarModulosPorDatos: async (_db: unknown, _tenantId: string, actuales?: unknown) => actuales === undefined ? settings : actuales },
 }
 const routePath = path.resolve(__dirname, '../app/api/tenant/modules/route.ts')
 const routeExports: Record<string, unknown> = {}
@@ -130,4 +133,14 @@ test('PUT módulos: núcleo, dependencias y cuerpos inválidos', async () => {
   assert.equal((await put({ moduleId: 'inexistente', enabled: true })).status, 400)
   assert.equal((await put('basura')).status, 400)
   assert.equal(escrituras, 0)
+})
+
+test('PUT módulos: «Inventario por unidades» no se apaga mientras haya equipos con IMEI en stock', async () => {
+  reset(); saldos.unidades = 3
+  const respuesta = await apagarModulo('inventario-unidades')
+  assert.equal(respuesta.status, 409)
+  assert.match(JSON.stringify(await respuesta.json()), /equipo\(s\) con IMEI/)
+  assert.equal(escrituras, 0)
+  saldos.unidades = 0
+  assert.equal((await apagarModulo('inventario-unidades')).status, 200)
 })

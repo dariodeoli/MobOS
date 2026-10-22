@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
+  const moduloApagado = await moduloGuard(request, ['stock-avanzado', 'inventario-unidades']); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
+  const moduloApagado = await moduloGuard(request, ['stock-avanzado', 'inventario-unidades']); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }

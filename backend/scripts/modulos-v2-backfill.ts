@@ -7,6 +7,7 @@
 import type { Prisma } from '@prisma/client'
 import { mergeModuleStoreSettings, moduleStoreFrom } from '../lib/module-store'
 import { leerModuleStore, MODULE_STORE_VERSION } from '../lib/modulos-catalogo.mjs'
+import { aplicarModulosPorDatos, decidirModulosPorDatos, modulosPendientesPorDatos, type ClienteDatosModulos } from '../lib/modulos-datos'
 
 export type BackfillResult = { revisadas: number; migradas: number; yaEnV2: number; ids: string[] }
 
@@ -16,7 +17,7 @@ type Db = {
   }
   $transaction<T>(fn: (tx: TxDb) => Promise<T>): Promise<T>
 }
-type TxDb = {
+type TxDb = ClienteDatosModulos & {
   $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>
   tenant: {
     findUnique(args: { where: { id: string }; select: { settings: true } }): Promise<{ settings: unknown } | null>
@@ -35,8 +36,11 @@ export async function migrarEmpresa(db: Db, tenantId: string, dryRun = false, no
     if (!tenant || enV2(tenant.settings)) return false
     if (dryRun) return true
     const before = leerModuleStore({ settings: tenant.settings })
-    const after = moduleStoreFrom(tenant.settings, now)
-    await tx.tenant.update({ where: { id: tenantId }, data: { settings: mergeModuleStoreSettings(tenant.settings, after) } })
+    // «Inventario por unidades» y «Venta sin stock» se deciden por los datos de la empresa.
+    const decididos = await decidirModulosPorDatos(tx, tenantId, modulosPendientesPorDatos(tenant.settings))
+    const base = aplicarModulosPorDatos(tenant.settings, decididos, now)
+    const after = moduleStoreFrom(base, now)
+    await tx.tenant.update({ where: { id: tenantId }, data: { settings: mergeModuleStoreSettings(base, after) } })
     await tx.auditLog.create({ data: { tenantId, action: 'TENANT_MODULES_MIGRATED', entity: 'Tenant', entityId: tenantId, metadata: { fromVersion: before?.version ?? null, toVersion: MODULE_STORE_VERSION, after } as unknown as Prisma.InputJsonObject } })
     return true
   })

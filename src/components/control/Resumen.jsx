@@ -8,6 +8,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
+import { useModulos } from '@/lib/useModulos'
 import { metricasEjecutivas, reporteMetricas } from '@/lib/metricas'
 import { num, gs, variacion } from '@/utils/calculos'
 import { armarResumenDia } from '@/utils/reporteResumen'
@@ -278,6 +279,9 @@ export default function Resumen() {
     })
   }, [])
   const navigate = useNavigate()
+  // Sin «Inventario por unidades», el stock se mira por cantidad en Productos.
+  const { vistaVisible } = useModulos()
+  const rutaStock = vistaVisible('unidades') ? '/stock/unidades' : '/productos'
   const ventas = listVentas()
   const vendedores = getVendedores()
   const gastos = listGastos()
@@ -541,7 +545,7 @@ export default function Resumen() {
           <div>
             <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
             {d.sinPagar > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
-            {lowStockProducts.length > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={() => navigate('/stock/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
+            {lowStockProducts.length > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={() => navigate(rutaStock)}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
             {!pendientesHoy && !d.sinPagar && !lowStockProducts.length && <p className="text-sm text-mute">Sin pendientes disponibles en esta vista.</p>}
           </div>
         </TarjetaGrafico>
@@ -629,7 +633,7 @@ export default function Resumen() {
               type="button"
               variant="ghost"
               className="h-auto min-h-11 px-2 py-1 text-xs font-medium md:h-auto lg:min-h-0"
-              onClick={() => navigate('/stock/unidades')}
+              onClick={() => navigate(rutaStock)}
               title="Ver las alertas de stock en Inventario"
             >
               Ver alertas
@@ -655,7 +659,7 @@ export default function Resumen() {
                   <StatusChip tono={stock <= 0 ? 'bad' : 'warn'} etiqueta={stock <= 0 ? 'Sin stock' : `${stock} u.`} className="shrink-0" />
                   <button
                     type="button"
-                    onClick={() => navigate('/stock/unidades')}
+                    onClick={() => navigate(rutaStock)}
                     className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-3 py-1 text-xs text-mute transition hover:border-fono hover:text-white lg:min-h-0 lg:px-2"
                   >
                     Ver inventario

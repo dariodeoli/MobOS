@@ -68,6 +68,7 @@ export default function PasoCobro({
   cantTotal,
   ok,
   pendientes = [],
+  ventaSinStock = true,
   onElegirUnidad,
   onSobrePedido,
   onTransito,
@@ -653,7 +654,9 @@ export default function PasoCobro({
           <p className="font-semibold text-warn">
             {pendientes.some(p => p.motivo === 'imei')
               ? 'Seleccioná el IMEI/serial exacto de cada equipo antes de vender.'
-              : 'Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual.'}
+              : ventaSinStock
+                ? 'Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual.'
+                : 'Hay líneas sin stock: bajá la cantidad o quitalas del carrito para vender.'}
           </p>
           <ul className="mt-2 space-y-1.5">
             {pendientes.map(pendiente => (
@@ -665,7 +668,7 @@ export default function PasoCobro({
                   <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onElegirUnidad?.(pendiente.key)}>
                     Elegir unidad{pendiente.unidades > 1 ? ` (${pendiente.unidades})` : ''}
                   </Button>
-                ) : (
+                ) : ventaSinStock ? (
                   <>
                     <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
                       {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
@@ -681,13 +684,15 @@ export default function PasoCobro({
                       Llega en tránsito
                     </button>
                   </>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[11px]">
-            «Crear pedido» la registra sin unidad y se completa al entregar.
-          </p>
+          {ventaSinStock && (
+            <p className="mt-2 text-[11px]">
+              «Crear pedido» la registra sin unidad y se completa al entregar.
+            </p>
+          )}
         </Nota>
       )}
 

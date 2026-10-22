@@ -37,6 +37,7 @@ import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVe
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
+import { useModulos } from '@/lib/useModulos'
 import { guardarClienteDemo, listarClientesDemo, registrarPedidoDemoDeVenta } from '@/lib/demoClientes'
 import { enviarYAvisarCorreoDemo } from '@/lib/demoCorreo'
 import { itemsParaCorreoDemo, payloadCorreoDemo } from '@/lib/demoCorreoRequest'
@@ -50,7 +51,7 @@ import { alInvalidarSnapshots } from '@/lib/offline/snapshot'
 import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
 import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
-import { Aviso, Button, Card, EmptyState, Input, Label, useToast } from '@/components/ui'
+import { Aviso, Button, Card, EmptyState, Input, Label, Nota, useToast } from '@/components/ui'
 import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -362,6 +363,9 @@ export default function FormularioVenta({
   onIr,
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
+  // Módulo «Venta sin stock»: apagado, el POS no ofrece vender sin stock ni sin IMEI (sobre pedido).
+  const { activo: moduloOn } = useModulos()
+  const ventaSinStock = moduloOn('venta-sin-stock')
   const navigate = useNavigate()
   const layoutRef = useRef(null)
   useAlturaPos(layoutRef)
@@ -1929,7 +1933,7 @@ export default function FormularioVenta({
   function pedirRecuperar(suspendida) {
     // Si cambió la disponibilidad, primero se avisa: volver o vender igual.
     const faltantes = faltantesDe(suspendida)
-    if (faltantes.length) {
+    if (faltantes.length && ventaSinStock) {
       setStockPendiente({ suspendida, faltantes })
       return
     }
@@ -2129,7 +2133,7 @@ export default function FormularioVenta({
     return esMovil ? null : elemento
   }
   // Mismo criterio que «Sobre pedido» del cobro de escritorio: cualquier vendedor.
-  const puedeVenderSinStock = true
+  const puedeVenderSinStock = ventaSinStock
   const pendientesMovil = pendientesVenta.map(p => ({
     ...p,
     stock: num(productos.find(prod => prod.id === items.find(it => it.key === p.key)?.productoId)?.stock),
@@ -2490,6 +2494,7 @@ export default function FormularioVenta({
               cantTotal={cantTotal}
               ok={ok}
               pendientes={pendientesVenta}
+              ventaSinStock={ventaSinStock}
               onIrAlCarrito={irAlCarrito}
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
@@ -2612,6 +2617,7 @@ export default function FormularioVenta({
                 {fila.nombre} · {gs(Number(fila.precio) || 0)} c/u
               </p>
               <SerialUnitPicker
+                sobrePedido={ventaSinStock}
                 product={productoFila}
                 branchId={sucursal?.id || ''}
                 customerName={customer.name || f.cliente}
@@ -2626,6 +2632,7 @@ export default function FormularioVenta({
                 }}
                 disabled={guardando}
               />
+              {ventaSinStock ? (
               <label className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${unidadesDeImei > 0 ? 'border-ink-600 bg-ink-800/40 text-mute/70' : 'border-warn/30 bg-warn/5 text-mute'}`}>
                 <input
                   type="checkbox"
@@ -2640,9 +2647,14 @@ export default function FormularioVenta({
                     : <>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; el IMEI se completa al entregar.</>}
                 </span>
               </label>
+              ) : unidadesDeImei > 0 ? (
+                <p className="rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-sm text-mute">Con stock no se vende sin IMEI: elegí la unidad de arriba (hay {unidadesDeImei} disponible{unidadesDeImei === 1 ? '' : 's'}).</p>
+              ) : (
+                <Nota tono="warn" como="div" compact data-testid="imei-sin-unidades">No hay unidades disponibles de este equipo. Quitalo del carrito o elegí otro.</Nota>
+              )}
               {!decidido && (
                 <p role="status" data-testid="imei-falta-eleccion" className="text-xs font-semibold text-warn">
-                  Elegí la unidad exacta o marcá «vender sin IMEI» para cerrar la línea.
+                  {ventaSinStock ? 'Elegí la unidad exacta o marcá «vender sin IMEI» para cerrar la línea.' : 'Elegí la unidad exacta para cerrar la línea.'}
                 </p>
               )}
               <div className="flex justify-end">
@@ -2650,7 +2662,7 @@ export default function FormularioVenta({
                   type="button"
                   onClick={() => setImeiPara(null)}
                   disabled={!decidido}
-                  title={!decidido ? 'Elegí la unidad exacta o marcá «vender sin IMEI».' : undefined}
+                  title={!decidido ? (ventaSinStock ? 'Elegí la unidad exacta o marcá «vender sin IMEI».' : 'Elegí la unidad exacta.') : undefined}
                 >
                   Listo
                 </Button>

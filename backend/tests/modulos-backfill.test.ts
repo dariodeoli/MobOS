@@ -5,7 +5,7 @@ import { moduleStoreFrom } from '../lib/module-store'
 import { moduloActivo } from '../lib/modulos-catalogo.mjs'
 
 type Fila = { id: string; settings: Record<string, unknown> | null }
-function baseEnMemoria(filas: Fila[]) {
+function baseEnMemoria(filas: Fila[], datos: { unidades: string[]; sobrePedido: string[] } = { unidades: [], sobrePedido: [] }) {
   const auditoria: Array<{ tenantId: string; action: string; metadata: Record<string, unknown> }> = []
   let escrituras = 0
   const tx = {
@@ -15,6 +15,8 @@ function baseEnMemoria(filas: Fila[]) {
       update: async ({ where, data }: { where: { id: string }; data: { settings: Record<string, unknown> } }) => { escrituras += 1; filas.find(f => f.id === where.id)!.settings = data.settings },
     },
     auditLog: { create: async ({ data }: { data: { tenantId: string; action: string; metadata: Record<string, unknown> } }) => { auditoria.push(data) } },
+    inventoryUnit: { findFirst: async ({ where }: { where: { tenantId: string } }) => (datos.unidades.includes(where.tenantId) ? { id: 'u' } : null) },
+    orderItem: { findFirst: async ({ where }: { where: { order: { tenantId: string } } }) => (datos.sobrePedido.includes(where.order.tenantId) ? { id: 'i' } : null) },
   }
   const db = {
     tenant: {
@@ -81,4 +83,13 @@ test('backfill v2: --dry-run informa sin escribir', async () => {
   assert.equal(escrituras(), 0)
   assert.equal(auditoria.length, 0)
   assert.equal((filas[0].settings!.moduleStore as { version: number }).version, 1)
+})
+
+test('backfill v2: inventario por unidades y venta sin stock se deciden por los datos de cada empresa', async () => {
+  const filas: Fila[] = [{ id: 'con-unidades', settings: {} }, { id: 'con-backorder', settings: v1Delivery }, { id: 'vacia', settings: null }]
+  const { db } = baseEnMemoria(filas, { unidades: ['con-unidades'], sobrePedido: ['con-backorder'] })
+  await backfillModulosV2(db as never)
+  const estados = filas.map(f => ({ unidades: moduloActivo(f.settings, 'inventario-unidades'), sinStock: moduloActivo(f.settings, 'venta-sin-stock') }))
+  assert.deepEqual(estados, [{ unidades: true, sinStock: false }, { unidades: false, sinStock: true }, { unidades: false, sinStock: false }])
+  assert.equal(moduloActivo(filas[1].settings, 'delivery'), false, 'lo apagado a mano se respeta')
 })

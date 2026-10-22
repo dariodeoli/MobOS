@@ -8,7 +8,7 @@ import { loadTenantPreferences, PREPARED_FULFILLMENT } from '../../../lib/tenant
 import { InputError, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { moduloActivo } from '../../../lib/modulos-catalogo.mjs'
-import { moduloApagadoMensaje } from '../../../lib/modulos-guard'
+import { assertModulo, moduloApagadoMensaje } from '../../../lib/modulos-guard'
 import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
@@ -305,6 +305,8 @@ export async function POST(request: Request) {
   // Módulos apagados: el servidor no aplica gift cards, promociones, combos, listas de precios ni trade-in aunque el front los mande.
   const moduloOn = (id: string) => moduloActivo({ settings: limitesEmpresa?.settings }, id)
   const exigirModulo = (id: string) => { if (!moduloOn(id)) throw new InputError(moduloApagadoMensaje(id), 403) }
+  // Venta sin stock (sobre pedido): con el módulo apagado el servidor rechaza `backorder: true` aunque el front lo mande.
+  if (items.some((item: any) => item && typeof item === 'object' && item.backorder === true)) await assertModulo(tenant, 'venta-sin-stock')
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
   const insurancePct = Math.min(100, Math.max(0, Number(limitesEmpresa?.insurancePct ?? 0)))
   // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
