@@ -3,7 +3,7 @@
 // cuentas con las usadas hace poco primero y calcula los montos rápidos.
 // No toca montos ni payload: solo decide qué se ofrece y con qué valor.
 
-import { demoSessionActive } from '@/lib/demoMode'
+import { demoSessionActive } from '../lib/demoMode.js'
 
 export const GRUPOS_MEDIO = [
   { id: 'CASH', label: 'Efectivo', icono: 'money' },
