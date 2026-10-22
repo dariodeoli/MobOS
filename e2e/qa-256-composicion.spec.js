@@ -24,7 +24,10 @@ test.describe('composición compacta', () => {
     await expect(barra).toHaveCount(1)
     // La fecha ya no va en la barra (el shell pone el título): acompaña al
     // resumen de la venta, dentro de «Detalles de la venta y del día».
-    await expect(page.getByText(/Fecha: \d{2}\/\d{2}\/\d{4}/)).toBeAttached()
+    await page.getByTestId('pos-detalles').click()
+    await expect(page.getByTestId('pos-detalles-popup').getByText(/Fecha: \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('pos-detalles-popup')).toHaveCount(0)
     // Ventas suspendidas y Gift cards son botones de la barra; Analytics y
     // «Más» ya no existen en el POS.
     for (const accion of ['Ventas suspendidas', 'Gift cards']) {

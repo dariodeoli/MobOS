@@ -223,6 +223,7 @@ test('#297 · POS: con total Gs 0 no se canjean gift cards ni se cargan pagos', 
 
   // Con precio real vuelven a quedar disponibles.
   await page.getByTestId('carrito-editar').click()
+  await fila.getByRole('button', { name: /^Ver detalle de / }).click()
   await fila.getByLabel(/^Precio de venta de /).fill('45000')
   await ensureCobro(page)
   await expect(pagar).toBeEnabled()
