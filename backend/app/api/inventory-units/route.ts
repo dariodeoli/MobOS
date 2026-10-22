@@ -166,7 +166,7 @@ export async function GET(request: Request) {
   // POS se calcula con este desfase, no con el reloj del celular).
   const holderIds = [...new Set(units.filter(unit => unit.status === 'RESERVED' && unit.reservedById).map(unit => unit.reservedById as string))]
   const holders = holderIds.length ? new Map((await prisma.user.findMany({ where: { tenantId: tenant, id: { in: holderIds } }, select: { id: true, name: true } })).map(user => [user.id, user.name])) : new Map<string, string>()
-  const serverNow = (await prisma.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`)[0].now
+  const serverNow = (await prisma.$queryRaw<Array<{ now: string }>>`SELECT to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS now`)[0].now
   const canSeeCost = await canSeeCostForSession(session)
   // Código interno: solo en la ficha/info interna (nunca en lista de Stock ni etiquetas).
   const unitCodePrefix = resolveUnitCodePrefix(await prisma.tenant.findUnique({ where: { id: tenant }, select: { unitCodePrefix: true, orderPrefix: true, name: true } }))

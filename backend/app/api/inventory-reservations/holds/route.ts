@@ -38,7 +38,7 @@ const respuestaError = (cause: unknown, fallback: string) => {
 }
 
 export async function POST(request: Request) {
-  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
+  const moduloApagado = await moduloGuard(request, ['stock-avanzado', 'inventario-unidades']); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, POS_PERMISSIONS)) return error('No autorizado.', 403)
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       return { held, serverNow: await serverNow(tx) }
     })
     return json({
-      held: result.held.map(unit => ({ serial: unit.serial, reservedUntil: unit.reservedUntil, holdStartedAt: unit.holdStartedAt, secondsLeft: Math.max(0, Math.ceil((new Date(unit.reservedUntil).getTime() - result.serverNow.getTime()) / 1000)) })),
+      held: result.held.map(unit => ({ serial: unit.serial, reservedUntil: unit.reservedUntil, holdStartedAt: unit.holdStartedAt, secondsLeft: Math.max(0, Math.ceil((Date.parse(unit.reservedUntil) - Date.parse(result.serverNow)) / 1000)) })),
       ttlSeconds: HOLD_SECONDS, maxMinutes: HOLD_MAX_MINUTES, serverNow: result.serverNow,
     }, { status: 201 })
   } catch (cause) {
@@ -88,7 +88,7 @@ async function liberar(session: NonNullable<Awaited<ReturnType<typeof requireSes
 }
 
 export async function PATCH(request: Request) {
-  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
+  const moduloApagado = await moduloGuard(request, ['stock-avanzado', 'inventario-unidades']); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, POS_PERMISSIONS)) return error('No autorizado.', 403)
@@ -106,7 +106,7 @@ export async function PATCH(request: Request) {
     })
     const vivos = new Set(result.renewed.map(unit => unit.serial))
     return json({
-      held: result.renewed.map(unit => ({ serial: unit.serial, reservedUntil: unit.reservedUntil, holdStartedAt: unit.holdStartedAt, capped: unit.capped, secondsLeft: Math.max(0, Math.ceil((new Date(unit.reservedUntil).getTime() - result.now.getTime()) / 1000)) })),
+      held: result.renewed.map(unit => ({ serial: unit.serial, reservedUntil: unit.reservedUntil, holdStartedAt: unit.holdStartedAt, capped: unit.capped, secondsLeft: Math.max(0, Math.ceil((Date.parse(unit.reservedUntil) - Date.parse(result.now)) / 1000)) })),
       lost: serials.filter(serial => !vivos.has(serial)),
       serverNow: result.now,
     })

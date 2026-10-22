@@ -31,9 +31,14 @@ export class HoldError extends Error {
   constructor(message: string, public status: number, public details?: Record<string, unknown>) { super(message) }
 }
 
-/** Reloj de Postgres (instante exacto, no el inicio de la transacción). */
-export async function serverNow(tx: Tx): Promise<Date> {
-  const rows = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`
+// Los instantes salen de SQL ya formateados (ISO en UTC): el controlador no tiene que
+// adivinar la zona de un `timestamp` sin zona (leerlo como hora local corría el contador 3 h).
+const ISO_FORMAT = `'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'`
+const ISO = (columna: string) => Prisma.raw(`to_char(${columna}, ${ISO_FORMAT})`)
+
+/** Reloj de Postgres (instante exacto, no el inicio de la transacción) como ISO UTC. */
+export async function serverNow(tx: Tx): Promise<string> {
+  const rows = await tx.$queryRaw<Array<{ now: string }>>`SELECT ${ISO(`(clock_timestamp() AT TIME ZONE 'UTC')`)} AS now`
   return rows[0].now
 }
 
@@ -77,7 +82,7 @@ export async function activeHoldCount(tx: Tx, tenant: string, userId: string, ex
   return rows[0]?.n ?? 0
 }
 
-export type HeldUnit = { id: string; serial: string; reservedUntil: Date; holdStartedAt: Date }
+export type HeldUnit = { id: string; serial: string; reservedUntil: string; holdStartedAt: string }
 
 /**
  * Crear o renovar (idempotente) la retención de `serials` para un carrito.
@@ -105,7 +110,7 @@ export async function holdUnits(tx: Tx, input: { tenant: string; branchId: strin
       AND ("status" = 'AVAILABLE'
         OR ("status" = 'RESERVED' AND "reservationKind" = 'CART_HOLD' AND "reservedUntil" <= ${NOW_UTC})
         OR ("status" = 'RESERVED' AND "reservationKind" = 'CART_HOLD' AND "holdCartId" = ${cartId} AND "reservedById" = ${userId}))
-    RETURNING "id", "serial", ("reservedUntil" AT TIME ZONE 'UTC') AS "reservedUntil", ("holdStartedAt" AT TIME ZONE 'UTC') AS "holdStartedAt"`
+    RETURNING "id", "serial", ${ISO('"reservedUntil"')} AS "reservedUntil", ${ISO('"holdStartedAt"')} AS "holdStartedAt"`
   if (held.length !== serials.length) {
     const ok = new Set(held.map(unit => unit.serial))
     const conflicts = await conflictsFor(tx, tenant, branchId, userId, serials.filter(serial => !ok.has(serial)))
@@ -118,8 +123,6 @@ export async function holdUnits(tx: Tx, input: { tenant: string; branchId: strin
   return held
 }
 
-/** Las columnas son timestamp sin zona en UTC: al devolverlas se marcan como UTC para que el cliente reciba el instante correcto. */
-
 /** Latido: extiende las retenciones vivas del carrito sin superar el tope absoluto desde `holdStartedAt`. */
 export async function renewHolds(tx: Tx, input: { tenant: string; userId: string; cartId: string; serials?: string[] }) {
   const { tenant, userId, cartId, serials } = input
@@ -130,7 +133,7 @@ export async function renewHolds(tx: Tx, input: { tenant: string; userId: string
       "updatedAt" = ${NOW_UTC}
     WHERE "tenantId" = ${tenant} AND "holdCartId" = ${cartId} AND "reservedById" = ${userId} AND "status" = 'RESERVED' AND "reservationKind" = 'CART_HOLD'
       AND "reservedUntil" > ${NOW_UTC} AND "holdStartedAt" IS NOT NULL ${filtro}
-    RETURNING "id", "serial", ("reservedUntil" AT TIME ZONE 'UTC') AS "reservedUntil", ("holdStartedAt" AT TIME ZONE 'UTC') AS "holdStartedAt", ("holdStartedAt" + make_interval(mins => ${HOLD_MAX_MINS}) <= "reservedUntil") AS "capped"`
+    RETURNING "id", "serial", ${ISO('"reservedUntil"')} AS "reservedUntil", ${ISO('"holdStartedAt"')} AS "holdStartedAt", ("holdStartedAt" + make_interval(mins => ${HOLD_MAX_MINS}) <= "reservedUntil") AS "capped"`
 }
 
 const LIBRE = Prisma.raw(`"status" = 'AVAILABLE', "reservationKind" = NULL, "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservationCustomerId" = NULL, "reservedById" = NULL, "holdCartId" = NULL, "holdDeviceId" = NULL, "holdStartedAt" = NULL, "updatedAt" = (now() AT TIME ZONE 'UTC')`)

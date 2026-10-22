@@ -100,6 +100,8 @@ try {
   const filaS1 = result.payload.find(unit => unit.serial === s1)
   eq([filaS1.status, filaS1.reservationKind, filaS1.reservedBy.name], ['RESERVED', 'CART_HOLD', 'Caja A'], 'la lista informa quién la retiene')
   ok(filaS1.serverNow && filaS1.reservedUntil, 'serverNow y reservedUntil en la lista')
+  const restante = (Date.parse(filaS1.reservedUntil) - Date.parse(filaS1.serverNow)) / 1000
+  ok(restante > 0 && restante <= 300, `reservedUntil y serverNow comparten zona (quedan ${restante} s, no horas de desfase)`)
   eq(await auditoria('INVENTORY_RESERVATION_EXPIRED', s3), 0, 'la retención de carrito no deja evento de reserva vencida de cliente')
 
   // ── 5. Venta: convierte la retención propia; la vencida que nadie tomó también ───────────────────────────────
