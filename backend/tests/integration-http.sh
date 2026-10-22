@@ -687,6 +687,8 @@ echo "Taller para el cliente: ficha, cronología y portal..."
 node "$BACKEND_ROOT/tests/customer-service.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 out="$(response_file)"; CHECKOUT_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" mobos_seller_session)"
+echo "Carrito del POS: retención de IMEI con latido, carrera y reloj de Postgres..."
+node "$BACKEND_ROOT/tests/cart-holds.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$CHECKOUT_SELLER_B" "$DATABASE_URL" "it-maintenance-token"
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
 node "$BACKEND_ROOT/tests/invitation-app.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CHECKOUT_SELLER_B"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
@@ -929,9 +931,6 @@ node "$BACKEND_ROOT/tests/cash-sessions.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
 echo "Caja: vuelto registrado y esperado por moneda (#455)..."
 node "$BACKEND_ROOT/tests/cash-vuelto.mjs" "$BASE_URL" "$ADMIN_TOKEN"
-
-echo "Carrito del POS: retención de IMEI con latido, carrera y reloj de Postgres..."
-node "$BACKEND_ROOT/tests/cart-holds.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$CHECKOUT_SELLER_B" "$DATABASE_URL" "it-maintenance-token"
 
 echo "Día operativo de la auditoría de caja en UTC-3 (#148 §17)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/cash-audit-dia.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
