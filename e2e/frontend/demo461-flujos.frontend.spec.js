@@ -185,6 +185,29 @@ test('461-4 recepción rechaza999 y confirmar manifiesto suma exactamente unidad
   clean()
 })
 
+
+// Oráculo independiente: suma pagos recibidos (sin crédito de tienda) por etiqueta
+// de cuenta para un día de Paraguay, directo de listVentas(); la demo se enriquece
+// (ventas de cobertura en todos los medios), por eso no hay montos fijos.
+// Medios que entran al cierre de día; crédito de tienda (SALDO A FAVOR) y QR no son dinero recibido ahí.
+const RECIBIDO_MEDIOS = ['DINERO', 'DINERO USD', 'POS UENO', 'TARJETA', 'UENO BANK', 'TRANSFERENCIA', 'PIX', 'USDT - CRIPTO', 'CANJE']
+async function ledgerDelDia(page, day) {
+  return page.evaluate(async ([day, medios]) => {
+    const sales = (await import('/src/lib/storage.js')).listVentas()
+    const format = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Asuncion', year: 'numeric', month: '2-digit', day: '2-digit' })
+    const amounts = {}
+    const paymentIds = []
+    for (const sale of sales) for (const p of sale.pagos || []) {
+      if (format.format(new Date(p.fecha)) !== day) continue
+      if (!medios.includes(p.medioPago) || p.reversalOfId) continue
+      const label = p.medioPago === 'DINERO' ? 'Efectivo' : p.cuenta
+      amounts[label] = (amounts[label] || 0) + Number(p.amountPyg ?? p.monto)
+      paymentIds.push(p.id)
+    }
+    return { amounts, paymentIds, before: JSON.stringify(sales) }
+  }, [day, RECIBIDO_MEDIOS])
+}
+
 test('451-5 conciliación demo verifica día con declaración propia y nota de diferencia', async ({ page }) => {
   // Este conteo independiente corresponde al seed del15/10, no a cualquier día.
   await page.clock.setFixedTime(new Date('2026-10-15T15:00:00Z'))
@@ -195,23 +218,27 @@ test('451-5 conciliación demo verifica día con declaración propia y nota de d
   const dialog = page.getByRole('dialog', { name: 'Conciliar día por sucursal' })
   await expect(dialog.getByTestId('conciliacion-dia-estado')).toHaveText('Pendiente')
   const inputs = dialog.getByRole('textbox', { name: /^Recibido en Gs:/ })
-  const declared = [9900000, 3050000, 30000, 3250000]
-  expect(await inputs.count()).toBe(4)
+  const ledger = await ledgerDelDia(page, '2026-10-15')
+  const declared = ledger.amounts
+  const labels = Object.keys(declared)
+  expect(labels).toContain('Efectivo')
+  expect(await inputs.count()).toBe(labels.length)
   const before = await page.evaluate(async () => (await import('/src/lib/storage.js')).listVentas().flatMap(row => row.pagos || []).reduce((sum,p) => sum + Number(p.monto || 0),0))
-  // Conteos ficticios explícitos: se declara1Gs menos de efectivo para exigir
+  const field = label => dialog.getByRole('textbox', { name: new RegExp(`^Recibido en Gs: ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\([A-Z]{3}\\)$`) })
+  // Conteos ficticios explícitos: se declara 1 Gs menos de efectivo para exigir
   // diferencia+motivo, luego conteo completo; no es saldo bancario real.
-  for (let i=0;i<declared.length;i++) await inputs.nth(i).fill(String(declared[i]-(i===0?1:0)))
+  for (const label of labels) await field(label).fill(String(declared[label] - (label === 'Efectivo' ? 1 : 0)))
   const verify = dialog.getByRole('button', { name: 'Verificar día', exact: true })
   await expect(verify).toBeDisabled()
   await dialog.getByLabel('Motivo / nota del día', { exact: true }).fill('QA conteo sintético: falta un guaraní')
   await verify.click()
   await expect(dialog.getByTestId('conciliacion-dia-estado')).toHaveText('Con diferencia')
-  await inputs.first().fill(String(declared[0]))
+  await field('Efectivo').fill(String(declared.Efectivo))
   await verify.click()
   await expect(dialog.getByTestId('conciliacion-dia-estado')).toHaveText('Verificado')
   const after = await page.evaluate(async () => (await import('/src/lib/storage.js')).listVentas().flatMap(row => row.pagos || []).reduce((sum,p) => sum + Number(p.monto || 0),0))
   expect(after).toBe(before)
-  console.log('QA451-5', JSON.stringify({ declared, total: 16230000, differenceFirst: -1, stateFinal: 'Verificado', businessPaymentDelta: after-before }))
+  console.log('QA451-5', JSON.stringify({ declared, total: Object.values(declared).reduce((a,b) => a+b,0), differenceFirst: -1, stateFinal: 'Verificado', businessPaymentDelta: after-before }))
   clean()
 })
 
@@ -292,24 +319,11 @@ test.describe('451 conciliación al cambiar el día de Paraguay', () => {
   ]) test(`conteo propio ${instant}`, async ({ page }) => {
     await page.clock.setFixedTime(new Date(instant))
     const clean = await enter(page)
-    const ledger = await page.evaluate(async day => {
-      const sales = (await import('/src/lib/storage.js')).listVentas()
-      const format = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Asuncion', year: 'numeric', month: '2-digit', day: '2-digit' })
-      const amounts = {}
-      const paymentIds = []
-      for (const sale of sales) for (const p of sale.pagos || []) {
-        if (format.format(new Date(p.fecha)) !== day) continue
-        // Los seed actuales de estos dos días tienen CASH/CARD/TRANSFER y
-        // crédito de tienda (este último se excluye: no es dinero recibido).
-        if (!['DINERO', 'POS UENO', 'TARJETA', 'UENO BANK', 'TRANSFERENCIA'].includes(p.medioPago)) continue
-        const label = p.medioPago === 'DINERO' ? 'Efectivo' : p.cuenta
-        amounts[label] = (amounts[label] || 0) + Number(p.monto)
-        paymentIds.push(p.id)
-      }
-      return { amounts, paymentIds, before: JSON.stringify(sales) }
-    }, day)
-    const declared = { Efectivo: cash, [historicalAccount]: historicalAmount, 'Caja · Guaraníes': 30000, 'Itaú · Cuenta corriente': 3250000 }
-    expect(ledger.amounts).toEqual(declared)
+    const ledger = await ledgerDelDia(page, day)
+    const declared = ledger.amounts
+    // Anclas del seed original: el efectivo y la cuenta histórica del día siguen presentes.
+    expect(declared.Efectivo).toBeGreaterThanOrEqual(cash)
+    expect(declared[historicalAccount]).toBeGreaterThanOrEqual(historicalAmount)
     expect(new Set(ledger.paymentIds).size).toBe(ledger.paymentIds.length)
     await openShellDestination(page, 'Finanzas')
     await selectFinanceSection(page, 'Conciliación')
@@ -318,7 +332,7 @@ test.describe('451 conciliación al cambiar el día de Paraguay', () => {
     await expect(dialog.getByLabel('Día de Paraguay', { exact: true })).toHaveValue(day)
     const inputs = dialog.getByRole('textbox', { name: /^Recibido en Gs:/ })
     await expect(inputs).toHaveCount(Object.keys(declared).length)
-    for (const [label, amount] of Object.entries(declared)) await dialog.getByRole('textbox', { name: `Recibido en Gs: ${label} (PYG)`, exact: true }).fill(String(amount))
+    for (const [label, amount] of Object.entries(declared)) await dialog.getByRole('textbox', { name: new RegExp(`^Recibido en Gs: ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\([A-Z]{3}\\)$`) }).fill(String(amount))
     await dialog.getByRole('button', { name: 'Verificar día', exact: true }).click()
     await expect(dialog.getByTestId('conciliacion-dia-estado')).toHaveText('Verificado')
     expect(await page.evaluate(async () => JSON.stringify((await import('/src/lib/storage.js')).listVentas()))).toBe(ledger.before)
