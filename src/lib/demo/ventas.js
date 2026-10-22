@@ -316,7 +316,7 @@ export function ventasDemoLegacy(ahora = new Date()) {
       creadoEn: creadoEnDeVenta(venta, ahora),
       cliente: venta.cliente,
       clienteId: venta.clienteId,
-      customer: { id: venta.clienteId, name: venta.cliente },
+      customer: { id: venta.clienteId, name: venta.cliente, ...(venta.clienteEmail ? { email: venta.clienteEmail } : {}) },
       productoId: items[0]?.productoId || null,
       productoNombre: items[0]?.descripcion || '',
       items,

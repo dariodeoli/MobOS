@@ -11,6 +11,7 @@
         "cobro-cuotas.spec.js",
         "delivery.spec.js",
         "demo-autorizaciones.spec.js",
+        "demo-correo.spec.js",
         "equipo-integrantes.spec.js",
         "finanzas-conciliacion.spec.js",
         "fotos-producto.spec.js",
@@ -49,8 +50,8 @@
         "recorte-perfil.spec.js",
         "responsive.spec.js"
       ],
-      "tests": 144,
-      "ms": 1190412
+      "tests": 146,
+      "ms": 1202412
     },
     {
       "archivos": [

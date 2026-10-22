@@ -32,6 +32,8 @@ import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
 import { compartirArchivo, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { cotizacionUrlFor, estadoCotizacion } from '@/lib/cotizaciones'
+import { solicitarCorreoDemo } from '@/lib/demoCorreo'
+import { itemsParaCorreoDemo, payloadCorreoDemo } from '@/lib/demoCorreoRequest'
 import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion, crearDemoCotizacion } from '@/lib/demoCotizaciones'
 import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
@@ -249,10 +251,19 @@ export default function SellerQuotes() {
     try {
       // #314: en demo la cotización vive en el navegador y recorre el mismo
       // pipeline (enviar → aceptar → convertir) que la cuenta real.
-      if (esDemo) crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
+      let creada = null
+      if (esDemo) creada = crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
       else await resources.quotes.create(datos)
       setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClienteSeleccionado(null); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
       setNotice('Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
+      // Correo real de la demo: si el cliente elegido tiene correo, le llega la cotización.
+      const correoCliente = String(clienteSeleccionado?.email || '').trim()
+      if (esDemo && creada && correoCliente) {
+        solicitarCorreoDemo(payloadCorreoDemo({
+          kind: 'quote', numero: creada.number, email: correoCliente, cliente: datos.customerName,
+          items: itemsParaCorreoDemo(datos.items), descuento: datos.discountPyg, validUntil: creada.validUntil,
+        })).then(({ aviso }) => { if (aviso) setNotice(`Cotización creada. ${aviso.tipo === 'success' ? aviso.titulo : `${aviso.titulo}: ${aviso.detalle}`}`) })
+      }
       await data.refresh()
     } catch (cause) {
       setCrearError(cause?.message || 'No se pudo crear la cotización.')
@@ -798,6 +809,7 @@ export default function SellerQuotes() {
             category="ORDERS"
             evento={PLANTILLA_COTIZACION}
             disabled={enlaceBusy || !enlace}
+            demoCorreo={enlace ? { kind: 'quote', numero: enlace.number, cliente: enlace.customerName, items: itemsParaCorreoDemo(enlace.items), descuento: enlace.discountPyg, validUntil: enlace.validUntil } : null}
             title={enlace?.customerName}
             contexto={{
               cliente: enlace?.customerName || enlace?.customer?.name || 'cliente',

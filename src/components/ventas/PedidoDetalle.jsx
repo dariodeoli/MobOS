@@ -16,6 +16,7 @@ import { cn, primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
 import { plantillaDeEntrega, variablesDeProducto } from '@/lib/avisos'
+import { demoCorreoDePedido } from '@/lib/demoCorreoRequest'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import CreditoPedido from '@/components/ventas/venta/CreditoPedido'
 import EntregaPregunta from '@/components/ventas/venta/EntregaPregunta'
@@ -763,7 +764,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
                 {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
                 {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" preferKey={eventoAviso} contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
-                <AvisarPorCorreo email={order.customer?.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} />
+                <AvisarPorCorreo email={order.customer?.email || order.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} demoCorreo={demoCorreoDePedido(order)} />
                 {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               </div>
             </section>
