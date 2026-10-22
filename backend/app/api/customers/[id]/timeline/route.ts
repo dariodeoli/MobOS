@@ -5,6 +5,7 @@ import { detalleAperturaInforme, serialEnmascarado } from '../../../../../lib/de
 import { etiquetaServicio } from '../../../../../lib/service-order'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 import { displayOrderNumber } from '../../../../../lib/order-number'
+import { fechaParametro, filtrarEventos, grupoEvento, gruposValidos, resumenCompras } from '../../../../../lib/customer-history'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -122,7 +123,15 @@ type TimelineEvent = {
   createdAt: Date
   user: { id: string; name: string } | null
   detail: string
+  // Para abrir el detalle desde la fila (pedido, cotización, equipo…).
+  ref?: { kind: string; id: string }
+  // Líneas del pedido (producto, cantidad e IMEI) y montos, solo en pedidos.
+  items?: { description: string; quantity: number; serials: string[] }[]
+  amounts?: { totalPyg: number; paidPyg: number; balancePyg: number; status: string; dueAt: string | null }
 }
+
+const ESTADO_COTIZACION: Record<string, string> = { DRAFT: 'Borrador', SENT: 'Enviada', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida en pedido', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
+const ESTADO_TRADEIN: Record<string, string> = { RECEIVED: 'Recibido', REVIEW: 'En revisión', REPAIR: 'En reparación', READY: 'Listo', STOCK: 'En stock', SOLD_EXTERNAL: 'Vendido' }
 
 // Cronología del cliente: alta, pedidos, pagos confirmados, comentarios,
 // seguimientos (agendado/hecho), garantías, solicitudes y autorizaciones
@@ -143,6 +152,10 @@ export async function GET(request: Request, props: RouteContext) {
   // la ficha pide 20 y pagina con cursor.
   const limit = Number.isFinite(limitSolicitado) && limitSolicitado > 0 ? Math.min(100, Math.floor(limitSolicitado)) : 300
   const cursor = searchParams.get('cursor') || ''
+  // Filtros opcionales: grupos (compras, pagos, saldo…) y período (desde/hasta).
+  const grupos = gruposValidos(searchParams.get('grupos'))
+  const desde = fechaParametro(searchParams.get('desde'))
+  const hasta = fechaParametro(searchParams.get('hasta'), true)
 
   const customer = await prisma.customer.findFirst({
     where: { id, tenantId: tenant },
@@ -159,8 +172,9 @@ export async function GET(request: Request, props: RouteContext) {
       select: {
         id: true, orderNumber: true, totalPyg: true, status: true, fulfillmentStatus: true, createdAt: true,
         seller: { select: { id: true, name: true } },
-        items: { select: { serials: true } },
-        payments: { where: { status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE }, select: { id: true, amountPyg: true, method: true, paidAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
+        dueAt: true,
+        items: { select: { description: true, quantity: true, serials: true } },
+        payments: { where: { status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE }, select: { id: true, amountPyg: true, method: true, paidAt: true, createdAt: true, dueAt: true }, orderBy: { createdAt: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
       take: 300,
@@ -216,6 +230,60 @@ export async function GET(request: Request, props: RouteContext) {
     take: 100,
   })
 
+  const orderIds = orders.map(order => order.id)
+  const [quotes, tradeIns, credits, cuotas] = await Promise.all([
+    prisma.quote.findMany({
+      where: { tenantId: tenant, customerId: customer.id, ...(branchId ? { branchId } : {}) },
+      select: { id: true, number: true, totalPyg: true, status: true, validUntil: true, createdAt: true, seller: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    }),
+    orderIds.length
+      ? prisma.tradeInDevice.findMany({
+        where: { tenantId: tenant, orderId: { in: orderIds } },
+        select: { id: true, model: true, serial: true, valuePyg: true, status: true, createdAt: true, order: { select: { id: true, orderNumber: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      })
+      : Promise.resolve([]),
+    // Saldo a favor: solo del cliente (no depende de la sucursal del pedido).
+    branchId
+      ? Promise.resolve([])
+      : prisma.storeCredit.findMany({
+        where: { tenantId: tenant, customerId: customer.id },
+        select: { id: true, amountPyg: true, remainingPyg: true, note: true, createdAt: true, createdById: true, order: { select: { orderNumber: true } }, uses: { select: { id: true, amountPyg: true, createdAt: true, order: { select: { orderNumber: true } } } } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+    // Cuotas del plan de crédito que todavía no se cobraron (con vencimiento).
+    orderIds.length
+      ? prisma.payment.findMany({
+        where: { tenantId: tenant, orderId: { in: orderIds }, status: 'PENDING', dueAt: { not: null } },
+        select: { id: true, amountPyg: true, dueAt: true, createdAt: true, order: { select: { orderNumber: true } } },
+        orderBy: { dueAt: 'desc' },
+        take: 100,
+      })
+      : Promise.resolve([]),
+  ])
+  // Correos enviados al cliente: recibos de sus pedidos y cotizaciones.
+  const correos = (orderIds.length || quotes.length)
+    ? await prisma.emailOutbox.findMany({
+      where: {
+        tenantId: tenant,
+        sentAt: { not: null },
+        OR: [
+          ...(orderIds.length ? [{ aggregateType: 'Order', aggregateId: { in: orderIds } }] : []),
+          ...(quotes.length ? [{ aggregateType: 'Quote', aggregateId: { in: quotes.map(quote => quote.id) } }] : []),
+        ],
+      },
+      select: { id: true, kind: true, aggregateType: true, aggregateId: true, sentAt: true },
+      orderBy: { sentAt: 'desc' },
+      take: 100,
+    })
+    : []
+  const numeroPedido = new Map(orders.map(order => [order.id, displayOrderNumber(order.orderNumber)]))
+  const numeroCotizacion = new Map(quotes.map(quote => [quote.id, quote.number]))
+
   const events: TimelineEvent[] = [
     {
       id: `customer-${customer.id}`,
@@ -240,6 +308,9 @@ export async function GET(request: Request, props: RouteContext) {
         createdAt: order.createdAt,
         user: order.seller,
         detail: detalle,
+        ref: { kind: 'order', id: order.id },
+        items: order.items.map(item => ({ description: item.description, quantity: item.quantity, serials: Array.isArray(item.serials) ? (item.serials as unknown[]).map(String) : [] })),
+        amounts: { totalPyg: Number(order.totalPyg || 0), paidPyg: pagado, balancePyg: saldo, status: ESTADO_PEDIDO[order.status] || order.status, dueAt: order.dueAt ? order.dueAt.toISOString() : null },
       }
       const pagos: TimelineEvent[] = order.payments.map(payment => ({
         id: `payment-${payment.id}`,
@@ -247,10 +318,67 @@ export async function GET(request: Request, props: RouteContext) {
         action: 'Pago confirmado',
         createdAt: payment.paidAt || payment.createdAt,
         user: null,
-        detail: `Pedido ${displayOrderNumber(order.orderNumber)} · ${formatoGs(payment.amountPyg)} · ${payment.method}`,
+        detail: `Pedido ${displayOrderNumber(order.orderNumber)} · ${formatoGs(payment.amountPyg)} · ${payment.method}${payment.dueAt ? ` · cuota con vencimiento ${payment.dueAt.toLocaleDateString('es-PY')}` : ''}`,
+        ref: { kind: 'order', id: order.id },
       }))
       return [pedido, ...pagos]
     }),
+    ...quotes.map(quote => ({
+      id: `quote-${quote.id}`,
+      type: 'quote',
+      action: 'Cotización',
+      createdAt: quote.createdAt,
+      user: quote.seller,
+      detail: `${quote.number} · ${formatoGs(quote.totalPyg)} · ${ESTADO_COTIZACION[quote.status] || quote.status}${quote.validUntil ? ` · válida hasta ${quote.validUntil.toLocaleDateString('es-PY')}` : ''}`,
+      ref: { kind: 'quote', id: quote.id },
+    })),
+    ...tradeIns.map(item => ({
+      id: `tradein-${item.id}`,
+      type: 'tradein',
+      action: 'Equipo recibido en parte de pago',
+      createdAt: item.createdAt,
+      user: null,
+      detail: `${item.model} · serial ${serialEnmascarado(item.serial) || '—'} · valuado ${formatoGs(item.valuePyg)} · ${ESTADO_TRADEIN[item.status] || item.status} · Pedido ${displayOrderNumber(item.order.orderNumber)}`,
+      ref: { kind: 'order', id: item.order.id },
+    })),
+    ...credits.flatMap(credit => {
+      const alta: TimelineEvent = {
+        id: `credit-${credit.id}`,
+        type: 'credit',
+        action: 'Saldo a favor otorgado',
+        createdAt: credit.createdAt,
+        user: null,
+        detail: `${formatoGs(credit.amountPyg)}${credit.order ? ` · por el pedido ${displayOrderNumber(credit.order.orderNumber)}` : ' · crédito manual'} · disponible ${formatoGs(credit.remainingPyg)}${credit.note ? ` · ${credit.note}` : ''}`,
+      }
+      const usos: TimelineEvent[] = credit.uses.map(use => ({
+        id: `credit-use-${use.id}`,
+        type: 'credit',
+        action: 'Saldo a favor usado',
+        createdAt: use.createdAt,
+        user: null,
+        detail: `${formatoGs(use.amountPyg)} aplicado al pedido ${displayOrderNumber(use.order.orderNumber)}`,
+      }))
+      return [alta, ...usos]
+    }),
+    ...cuotas.map(cuota => ({
+      id: `cuota-${cuota.id}`,
+      type: 'credit',
+      action: 'Cuota pendiente',
+      createdAt: cuota.createdAt,
+      user: null,
+      detail: `Pedido ${displayOrderNumber(cuota.order.orderNumber)} · ${formatoGs(cuota.amountPyg)} · vence ${(cuota.dueAt as Date).toLocaleDateString('es-PY')}`,
+    })),
+    ...correos.map(correo => ({
+      id: `email-${correo.id}`,
+      type: 'message',
+      action: 'Correo enviado',
+      createdAt: correo.sentAt as Date,
+      user: null,
+      detail: correo.aggregateType === 'Quote'
+        ? `Cotización ${numeroCotizacion.get(correo.aggregateId) || ''}`.trim()
+        : `Recibo del pedido ${numeroPedido.get(correo.aggregateId) || ''}`.trim(),
+      ref: correo.aggregateType === 'Order' ? { kind: 'order', id: correo.aggregateId } : { kind: 'quote', id: correo.aggregateId },
+    })),
     ...notes.map(note => ({
       id: `note-${note.id}`,
       type: 'note',
@@ -321,7 +449,9 @@ export async function GET(request: Request, props: RouteContext) {
       }
     }),
   ]
-  events.sort((a, b) => {
+  const todos = events.map(event => ({ ...event, group: grupoEvento(event) }))
+  const filtrados = filtrarEventos(todos, { grupos, desde, hasta })
+  filtrados.sort((a, b) => {
     const diferencia = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     return diferencia !== 0 ? diferencia : String(a.id).localeCompare(String(b.id))
   })
@@ -329,13 +459,27 @@ export async function GET(request: Request, props: RouteContext) {
   // Cursor propio (no hay tabla de eventos): ISO de la fecha + id del evento.
   let inicio = 0
   if (cursor) {
-    const indice = events.findIndex((event) => `${new Date(event.createdAt).toISOString()}|${event.id}` === cursor)
+    const indice = filtrados.findIndex((event) => `${new Date(event.createdAt).toISOString()}|${event.id}` === cursor)
     inicio = indice >= 0 ? indice + 1 : 0
   }
-  const pagina = events.slice(inicio, inicio + limit)
+  const pagina = filtrados.slice(inicio, inicio + limit)
   const ultimo = pagina[pagina.length - 1]
-  const hayMas = events.length > inicio + limit && Boolean(ultimo)
+  const hayMas = filtrados.length > inicio + limit && Boolean(ultimo)
+  // Totales del cliente (primera página): gastado, ticket promedio, última
+  // compra, frecuencia, saldo pendiente y saldo a favor.
+  const pendientePyg = orders.reduce((suma, order) => {
+    if (order.status === 'CANCELLED') return suma
+    const pagado = order.payments.reduce((acc, payment) => acc + Number(payment.amountPyg || 0), 0)
+    return suma + Math.max(0, Number(order.totalPyg || 0) - pagado)
+  }, 0)
+  const resumen = cursor ? undefined : {
+    ...resumenCompras(orders),
+    pendientePyg,
+    saldoFavorPyg: credits.reduce((suma, credit) => suma + Number(credit.remainingPyg || 0), 0),
+    total: filtrados.length,
+  }
   return json({
+    ...(resumen ? { summary: resumen } : {}),
     events: pagina,
     nextCursor: hayMas ? `${new Date(ultimo.createdAt).toISOString()}|${ultimo.id}` : null,
   })
