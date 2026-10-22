@@ -22,7 +22,9 @@ async function entrarDemo(page) {
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'))
   await cerrarGuiaDemo(page)
-  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
+  // El aviso es un chip «Demo»: el texto largo solo cabe en ≥1440 px, el título siempre lo dice.
+  await expect(page.getByTestId('demo-aviso')).toBeVisible()
+  await expect(page.getByTestId('demo-aviso')).toHaveAttribute('title', /datos ficticios/)
 }
 
 async function crearCuenta(page, { kind, campos = {}, nombre }) {

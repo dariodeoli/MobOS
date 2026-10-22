@@ -3,6 +3,8 @@
 // cuentas con las usadas hace poco primero y calcula los montos rápidos.
 // No toca montos ni payload: solo decide qué se ofrece y con qué valor.
 
+import { demoSessionActive } from '@/lib/demoMode'
+
 export const GRUPOS_MEDIO = [
   { id: 'CASH', label: 'Efectivo', icono: 'money' },
   { id: 'TRANSFER', label: 'Transferencia', icono: 'bank' },
@@ -66,7 +68,8 @@ export function recientesGuardados() {
 }
 
 export function recordarCuentaReciente(id) {
-  if (!id) return
+  // La demo no deja nada en el navegador (ni siquiera esta comodidad).
+  if (!id || demoSessionActive()) return
   try {
     const resto = recientesGuardados().filter(x => x !== id)
     globalThis.localStorage?.setItem(CLAVE_RECIENTES, JSON.stringify([id, ...resto].slice(0, MAX_RECIENTES)))

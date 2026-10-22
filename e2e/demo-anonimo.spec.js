@@ -164,7 +164,9 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   await cerrarGuia(page)
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   // Banner visible de datos ficticios y encabezado con la marca (#223).
-  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
+  // El aviso es un chip «Demo»: el texto largo solo cabe en ≥1440 px, el título siempre lo dice.
+  await expect(page.getByTestId('demo-aviso')).toBeVisible()
+  await expect(page.getByTestId('demo-aviso')).toHaveAttribute('title', /datos ficticios/)
   await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
 
   // Módulos del vendedor con datos locales.
@@ -188,7 +190,9 @@ test('dueño: un guardado en demo avisa que quedó simulado', async ({ page }) =
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
-  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
+  // El aviso es un chip «Demo»: el texto largo solo cabe en ≥1440 px, el título siempre lo dice.
+  await expect(page.getByTestId('demo-aviso')).toBeVisible()
+  await expect(page.getByTestId('demo-aviso')).toHaveAttribute('title', /datos ficticios/)
 
   await page.goto('/configuracion/equipo')
   const panel = page.locator('#equipo-form')
