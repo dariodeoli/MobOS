@@ -7,6 +7,7 @@
 // el catálogo, #257): por eso las unidades reservadas, en revisión o en tránsito
 // dejan su ajuste para que el saldo corrido cierre contra ese stock.
 import { codigoPedido } from '../../utils/pedido.js'
+import { eventosAccesorio, extrasDeUnidad, ventasPorSerial } from '../../lib/demo/historiaStock.js'
 
 
 const nombreDe = (producto) => producto?.name || producto?.nombre || ''
@@ -66,11 +67,19 @@ function lineasDeTransferencia(producto, transferencias, serialesDelProducto) {
 // Movimientos de un producto del demo, en crudo y con fechas Date. La venta, la
 // baja y la reserva salen del estado real de cada unidad; no se inventan fechas
 // cuando el fixture no las trae (se usa la última marca conocida).
-export function eventosDemo({ producto, unidades = [], transferencias = [] } = {}) {
+// `historia` (opcional) = { ventas, compras, ahora }: suma la historia rica (compras, ventas
+// reales por IMEI, reservas, traslados, devoluciones). Sin ella el kardex queda mínimo.
+export function eventosDemo({ producto, unidades = [], transferencias = [], historia = null } = {}) {
   const delProducto = unidadesDe(producto, unidades)
   const serialesDelProducto = new Set(delProducto.map(serialDe).filter(Boolean))
   const { eventos: eventosDeTraslado, serialesEnTransito } = lineasDeTransferencia(producto, transferencias, serialesDelProducto)
   const eventos = []
+  const ahora = historia?.ahora || new Date()
+  const porSerial = historia ? ventasPorSerial(historia.ventas) : null
+  // Producto sin IMEI (accesorios, audio…): el kardex se arma con ventas y compras reales.
+  if (historia && !delProducto.length) {
+    return eventosAccesorio({ producto, ventas: historia.ventas, compras: historia.compras, ahora })
+  }
 
   for (const unidad of delProducto) {
     const serial = serialDe(unidad)
@@ -104,7 +113,10 @@ export function eventosDemo({ producto, unidades = [], transferencias = [] } = {
       continue
     }
     if (unidad.status === 'SOLD') {
-      const venta = unidad.sale || {}
+      const pedidoReal = porSerial?.get(serial)
+      const venta = pedidoReal
+        ? { orderNumber: pedidoReal.orderNumber || pedidoReal.numero, soldAt: pedidoReal.creadoEn || pedidoReal.createdAt, customerName: pedidoReal.cliente || pedidoReal.customer?.name }
+        : (unidad.sale || {})
       const eventoVenta = (unidad.events || []).find((evento) => evento.type === 'sale')
       const fecha = aFecha(venta.soldAt || eventoVenta?.at || unidad.lastVerifiedAt || creada)
       if (!fecha) continue
@@ -160,15 +172,16 @@ export function eventosDemo({ producto, unidades = [], transferencias = [] } = {
     }
   }
 
+  if (historia) for (const unidad of delProducto) eventos.push(...extrasDeUnidad(unidad, ahora))
   return [...eventos, ...eventosDeTraslado].filter((evento) => evento.at instanceof Date && !Number.isNaN(evento.at.getTime()))
 }
 
 // Mismo contrato que GET /api/products/:id/kardex: saldo corrido, rango por
 // fecha y totales. El saldo inicial se calcula hacia atrás desde el stock para
 // que la última línea siempre cierre contra lo que muestra el catálogo.
-export function construirKardexDemo({ producto, unidades = [], transferencias = [], desde = null, hasta = null, limite = 5000 } = {}) {
+export function construirKardexDemo({ producto, unidades = [], transferencias = [], desde = null, hasta = null, limite = 5000, historia = null } = {}) {
   const stockActual = numero(producto?.stock)
-  const ordenados = [...eventosDemo({ producto, unidades, transferencias })].sort((a, b) => a.at.getTime() - b.at.getTime() || String(a.id).localeCompare(String(b.id)))
+  const ordenados = [...eventosDemo({ producto, unidades, transferencias, historia })].sort((a, b) => a.at.getTime() - b.at.getTime() || String(a.id).localeCompare(String(b.id)))
   let saldo = stockActual - ordenados.reduce((suma, evento) => suma + numero(evento.delta), 0)
   const conSaldo = ordenados.map((evento) => {
     saldo += numero(evento.delta)

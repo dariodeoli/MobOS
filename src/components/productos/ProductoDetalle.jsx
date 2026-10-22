@@ -21,6 +21,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { demoInventorySeed, listDemoTransfers, listDemoUnits } from '@/lib/demoInventory'
 import { eventosDemo } from '@/components/productos/kardexDemo'
+import { fuentesHistoriaDemo } from '@/lib/demoHistoria'
 import { cn } from '@/lib/utils'
 import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
 import FotoProducto from '@/components/shared/FotoProducto'
@@ -170,7 +171,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   // revisiones, bajas y traslados) alimentan kardex y compras sin API.
   const eventosDemoProducto = useMemo(() => {
     if (!esDemo) return []
-    return eventosDemo({ producto: productoKardex, unidades: unidadesDemo, transferencias: listDemoTransfers() })
+    return eventosDemo({ producto: productoKardex, unidades: unidadesDemo, transferencias: listDemoTransfers(), historia: fuentesHistoriaDemo() })
   }, [esDemo, productoKardex, unidadesDemo])
   const comprasFilas = esDemo
     ? eventosDemoProducto.filter((evento) => evento.kind === 'COMPRA').map((evento) => ({
