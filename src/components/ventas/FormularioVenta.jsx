@@ -2348,6 +2348,10 @@ export default function FormularioVenta({
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
           // Celular: Enter en un campo nunca guarda la venta; solo el botón explícito.
           if (esMovilRef.current && target.tagName === 'INPUT') event.preventDefault()
+          // Enter en los buscadores (producto y cliente) elige o agrega, nunca confirma
+          // la venta: si la lista aún no se filtró, el envío implícito del formulario
+          // cobraba el carrito a medio armar.
+          if (target.closest('#pos-busqueda-producto, [data-testid="pos-bloque-cliente"]')) event.preventDefault()
         }}
         className="pos-f2 flex flex-col gap-4"
       >

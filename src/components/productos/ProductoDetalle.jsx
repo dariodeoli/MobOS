@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useModulos } from '@/lib/useModulos'
 import { Link } from 'react-router-dom'
 import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
@@ -66,6 +66,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   const { sucursal } = useSesion()
   const [units, setUnits] = useState([])
   const [loadingUnits, setLoadingUnits] = useState(!esDemo)
+  const pedidoUnidades = useRef(0)
   // #286: si la carga falla se dice (con reintento) en vez de mostrar «no tiene
   // unidades» aunque existan.
   const [errorUnits, setErrorUnits] = useState('')
@@ -98,7 +99,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     compatibles: modelosCompatibles(product).join(', '),
   }))
 
-  const loadUnits = useCallback(async () => {
+  const loadUnits = useCallback(async (reintento = 0) => {
     if (!current?.id) { setLoadingUnits(false); return }
     // Demo (#306): las unidades ficticias ya existen en el inventario del demo;
     // se leen del store local en vez de decir que hacen falta una cuenta real.
@@ -108,6 +109,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
       setUnits(listDemoUnits('', 'active').filter((unidad) => unidad.productId === current.id))
       return
     }
+    // Solo la última consulta escribe: al cambiar de sucursal la anterior se
+    // descarta (su error CONTEXT_CHANGED no puede pisar la lectura vigente).
+    const pedido = ++pedidoUnidades.current
     setLoadingUnits(true)
     setErrorUnits('')
     try {
@@ -118,11 +122,16 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
       const query = new URLSearchParams({ productId: current.id })
       if (sucursal?.id) query.set('branchId', sucursal.id)
       const rows = await api.get(`/api/inventory-units?${query.toString()}`)
+      if (pedido !== pedidoUnidades.current) return
       setUnits(Array.isArray(rows) ? rows : [])
     } catch (cause) {
+      if (pedido !== pedidoUnidades.current) return
+      // Cambiar de sucursal renueva el contexto de acceso con la consulta ya en
+      // vuelo: no es un fallo, se vuelve a leer con el contexto nuevo.
+      if (cause?.code === 'CONTEXT_CHANGED' && reintento < 2) return loadUnits(reintento + 1)
       setUnits([])
       setErrorUnits(cause?.message || 'No se pudieron cargar los equipos de este producto.')
-    } finally { setLoadingUnits(false) }
+    } finally { if (pedido === pedidoUnidades.current) setLoadingUnits(false) }
   }, [current?.id, esDemo, sucursal?.id])
   useEffect(() => { loadUnits() }, [loadUnits])
   useEffect(() => {
