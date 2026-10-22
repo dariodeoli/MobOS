@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MobOS Visual v3</title>
+<style>
+/* Prototipo autocontenido del lenguaje visual v3 (docs/visual-v3/DIRECCION.md).
+   Datos de la demo (Aurora Móviles S.A.). ?tema=oscuro · ?vista=pedidos|pedido|pos */
+:root {
+  --paper: 244 244 240; --ink: 255 255 255; --ink-800: 249 249 246; --ink-700: 239 240 235; --ink-600: 228 229 222;
+  --fore: 16 20 18; --mute: 84 92 90; --fono: 16 185 129; --fono-dark: 4 120 87; --fono-text: 6 95 70; --onbrand: 4 28 18;
+  --ok: 22 101 52; --warn: 146 64 14; --bad: 185 28 28; --info: 32 89 190; --reserved: 109 40 217;
+  --hair: rgb(var(--ink-600) / .7);
+  --e1: 0 0 0 1px rgb(24 32 28 / .045), 0 1px 2px rgb(24 32 28 / .05), 0 2px 8px -2px rgb(24 32 28 / .06);
+  --e2: 0 0 0 1px rgb(24 32 28 / .05), 0 2px 4px rgb(24 32 28 / .05), 0 12px 28px -12px rgb(24 32 28 / .16);
+  --bevel: inset 0 1px 0 rgb(255 255 255 / .16), inset 0 -1px 0 rgb(0 0 0 / .28), 0 1px 2px rgb(0 0 0 / .18);
+  --ease: cubic-bezier(.2,.8,.2,1);
+  color-scheme: light;
+}
+html.dark {
+  --paper: 10 11 13; --ink: 23 25 29; --ink-800: 29 32 37; --ink-700: 36 39 45; --ink-600: 50 54 62;
+  --fore: 243 244 246; --mute: 165 172 182; --fono: 5 241 156; --fono-dark: 4 185 120; --fono-text: 124 255 201; --onbrand: 6 30 20;
+  --ok: 74 222 128; --warn: 252 211 77; --bad: 252 165 165; --info: 159 184 255; --reserved: 196 181 253;
+  --e1: inset 0 1px 0 rgb(255 255 255 / .04), 0 0 0 1px rgb(255 255 255 / .055), 0 2px 6px -2px rgb(0 0 0 / .6);
+  --e2: inset 0 1px 0 rgb(255 255 255 / .05), 0 0 0 1px rgb(255 255 255 / .07), 0 14px 32px -12px rgb(0 0 0 / .7);
+  --bevel: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 -1px 0 rgb(0 0 0 / .12), 0 1px 2px rgb(0 0 0 / .4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: rgb(var(--paper)); color: rgb(var(--fore)); font: 14px/1.45 Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.app { display: flex; min-height: 100dvh; }
+/* Sidebar del color del lienzo, ítem activo elevado */
+.side { width: 232px; flex: none; padding: 12px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100dvh; }
+.marca { display: flex; gap: 10px; align-items: center; padding: 6px 8px 14px; }
+.logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, rgb(var(--fono-dark)), rgb(var(--fono))); box-shadow: inset 0 1px 0 rgb(255 255 255 / .3); display: grid; place-items: center; color: rgb(var(--onbrand)); font-weight: 800; }
+.marca b { display: block; font-size: 15px; } .marca small { color: rgb(var(--mute)); font-size: 12px; }
+.buscar { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 12px; background: rgb(var(--ink-700)); color: rgb(var(--mute)); margin-bottom: 8px; }
+.nav { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: 10px; color: rgb(var(--mute)); font-weight: 500; transition: background .16s var(--ease); }
+.nav:hover { background: rgb(var(--ink-700)); color: rgb(var(--fore)); }
+.nav[aria-current] { background: rgb(var(--ink)); color: rgb(var(--fore)); box-shadow: var(--e1); font-weight: 600; }
+.nav[aria-current] svg { color: rgb(var(--fono-dark)); }
+html.dark .nav[aria-current] svg { color: rgb(var(--fono)); }
+svg { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.main { flex: 1; min-width: 0; padding: 20px 32px 48px; }
+.top { display: flex; align-items: center; gap: 12px; min-height: 48px; margin-bottom: 4px; }
+h1 { font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -.03em; }
+.top .sp { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: rgb(var(--ink)); box-shadow: var(--e1); font-weight: 500; }
+.icono-btn { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: rgb(var(--mute)); }
+.icono-btn:hover { background: rgb(var(--ink-700)); color: rgb(var(--fore)); }
+.tabs { display: flex; gap: 4px; margin: 4px 0 20px; }
+.tab { min-height: 40px; padding: 0 14px; border-radius: 10px; color: rgb(var(--mute)); font-weight: 500; }
+.tab[aria-selected='true'] { background: rgb(var(--ink)); color: rgb(var(--fore)); box-shadow: var(--e1); font-weight: 600; }
+.card { background: rgb(var(--ink)); border-radius: 16px; box-shadow: var(--e1); }
+.pad { padding: 20px; }
+.saludo { font-size: 28px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; }
+.sub { color: rgb(var(--mute)); }
+.atajos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0 24px; }
+.atajo { display: flex; align-items: center; gap: 14px; min-height: 80px; padding: 16px; text-align: left; border-radius: 16px; background: rgb(var(--ink)); box-shadow: var(--e1); transition: box-shadow .16s var(--ease), transform .16s var(--ease); }
+.atajo:hover { box-shadow: var(--e2); transform: translateY(-1px); }
+.atajo:active { transform: scale(.985); }
+.atajo b { display: block; font-size: 16px; } .atajo small { color: rgb(var(--mute)); }
+.tono { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex: none; background: linear-gradient(140deg, rgb(var(--fono) / .22), rgb(var(--fono) / .08)); color: rgb(var(--fono-text)); }
+.heroe { background: radial-gradient(120% 140% at 100% 0%, rgb(255 255 255 / .22), transparent 55%), linear-gradient(135deg, rgb(var(--fono-dark)), rgb(var(--fono))); color: rgb(var(--onbrand)); box-shadow: 0 14px 30px -14px rgb(var(--fono) / .7), inset 0 1px 0 rgb(255 255 255 / .25); }
+html:not(.dark) .heroe { color: #fff; } html:not(.dark) .heroe small { color: rgb(255 255 255 / .9); }
+.heroe small { color: rgb(var(--onbrand) / .85); } .heroe .tono { background: rgb(255 255 255 / .22); color: inherit; }
+.fila-titulo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.fila-titulo h2 { font-size: 17px; font-weight: 700; letter-spacing: -.015em; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.kpi { padding: 18px 18px 14px; }
+.kpi .et { color: rgb(var(--mute)); font-weight: 500; display: flex; justify-content: space-between; }
+.kpi .v { font-size: 26px; font-weight: 700; letter-spacing: -.035em; margin: 6px 0 2px; }
+.delta { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.up { background: rgb(var(--ok) / .12); color: rgb(var(--ok)); } .down { background: rgb(var(--bad) / .1); color: rgb(var(--bad)); }
+.spark { width: 100%; height: 36px; margin-top: 8px; display: block; }
+.spark path { stroke-width: 2; }
+.dos { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Lista «sin tabla» */
+.lista-cab, .lista-fila { display: grid; grid-template-columns: 92px 84px minmax(0, 1fr) 120px 120px 130px; gap: 12px; align-items: center; padding: 0 20px; }
+.estados { display: contents; }
+.lista-cab { min-height: 44px; color: rgb(var(--mute)); font-size: 12.5px; font-weight: 500; }
+.lista-fila { min-height: 60px; border-top: 1px solid var(--hair); cursor: pointer; transition: background .16s var(--ease), box-shadow .16s var(--ease); }
+.lista-fila:hover { background: rgb(var(--ink-800)); box-shadow: inset 0 0 0 1px var(--hair); }
+.lista-fila:last-child { border-radius: 0 0 16px 16px; }
+.cod { font: 600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: rgb(var(--mute)); }
+.persona { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.avatar { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; flex: none; font-size: 12px; font-weight: 700; color: rgb(var(--fono-text)); background: rgb(var(--fono) / .14); }
+.avatar.b { color: rgb(var(--info)); background: rgb(var(--info) / .13); } .avatar.c { color: rgb(var(--reserved)); background: rgb(var(--reserved) / .13); } .avatar.d { color: rgb(var(--warn)); background: rgb(var(--warn) / .14); }
+.persona b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.persona small { display: block; color: rgb(var(--mute)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.monto { text-align: right; font-weight: 700; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.chip::before { content: ''; width: 6px; height: 6px; border-radius: 99px; background: currentColor; }
+.c-ok { background: rgb(var(--ok) / .12); color: rgb(var(--ok)); } .c-warn { background: rgb(var(--warn) / .13); color: rgb(var(--warn)); }
+.c-info { background: rgb(var(--info) / .12); color: rgb(var(--info)); } .c-mute { background: rgb(var(--ink-700)); color: rgb(var(--mute)); }
+.barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.campo { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: rgb(var(--ink)); box-shadow: inset 0 0 0 1px rgb(116 131 154 / .55); color: rgb(var(--mute)); }
+.seg { display: flex; gap: 2px; padding: 4px; border-radius: 12px; background: rgb(var(--ink-700)); overflow-x: auto; }
+.seg button { min-height: 36px; padding: 0 12px; border-radius: 9px; color: rgb(var(--mute)); font-weight: 500; white-space: nowrap; }
+.seg button[aria-pressed='true'] { background: rgb(var(--ink)); color: rgb(var(--fore)); box-shadow: var(--e1); font-weight: 600; }
+.primario { min-height: 44px; padding: 0 18px; border-radius: 10px; background: rgb(var(--fore)); color: rgb(var(--ink)); font-weight: 600; box-shadow: var(--bevel); background-image: linear-gradient(180deg, rgb(255 255 255 / .1), transparent 60%); }
+.primario:active { transform: scale(.98); }
+.tira { display: flex; gap: 28px; padding: 14px 20px; margin-bottom: 16px; overflow-x: auto; }
+.tira div { white-space: nowrap; color: rgb(var(--mute)); } .tira b { color: rgb(var(--fore)); font-size: 18px; margin-left: 6px; letter-spacing: -.02em; }
+/* Detalle */
+.det-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 20px; }
+.det-cab h1 { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.02em; }
+.secc { padding: 20px; margin-bottom: 16px; }
+.secc h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; }
+.item { display: flex; gap: 14px; align-items: center; }
+.thumb { width: 52px; height: 52px; border-radius: 14px; background: rgb(var(--ink-800)); display: grid; place-items: center; color: rgb(var(--mute)); flex: none; }
+.totales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px; }
+.totales div { background: rgb(var(--ink-800)); border-radius: 12px; padding: 12px 14px; }
+.totales small { color: rgb(var(--mute)); display: block; } .totales b { font-size: 20px; letter-spacing: -.03em; }
+.pasos { display: grid; gap: 2px; }
+.paso { display: flex; align-items: center; gap: 10px; min-height: 40px; color: rgb(var(--mute)); }
+.paso i { width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; background: rgb(var(--ok) / .14); color: rgb(var(--ok)); font-style: normal; font-size: 12px; font-weight: 700; }
+.paso.act { color: rgb(var(--fore)); font-weight: 600; } .paso.act i { background: rgb(var(--fono)); color: rgb(var(--onbrand)); box-shadow: 0 0 0 4px rgb(var(--fono) / .18); }
+/* POS */
+.dos > *, .pos > * { min-width: 0; }
+.pos { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+.prods { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.prod { text-align: left; padding: 14px; border-radius: 16px; background: rgb(var(--ink)); box-shadow: var(--e1); transition: box-shadow .16s var(--ease), transform .16s var(--ease); }
+.prod:hover { box-shadow: var(--e2); transform: translateY(-1px); }
+.prod .img { height: 96px; border-radius: 12px; background: radial-gradient(80% 90% at 50% 30%, rgb(var(--fono) / .14), rgb(var(--ink-800))); display: grid; place-items: center; margin-bottom: 12px; color: rgb(var(--fono-text)); }
+.prod .img svg { width: 34px; height: 34px; }
+.prod b { display: block; font-weight: 600; } .prod small { color: rgb(var(--mute)); }
+.prod .p { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font-weight: 700; }
+.carrito { position: sticky; top: 20px; display: flex; flex-direction: column; min-height: 520px; }
+.linea { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--hair); }
+.cant { display: inline-flex; align-items: center; border-radius: 10px; background: rgb(var(--ink-700)); }
+.cant button { width: 32px; height: 32px; }
+.cobrar { margin-top: auto; min-height: 56px; border-radius: 14px; font-size: 16px; font-weight: 700; color: rgb(var(--onbrand)); background: linear-gradient(135deg, rgb(var(--fono-dark)), rgb(var(--fono))); box-shadow: 0 14px 30px -14px rgb(var(--fono) / .8), inset 0 1px 0 rgb(255 255 255 / .25); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+html:not(.dark) .cobrar { color: #fff; background: linear-gradient(135deg, rgb(3 98 71), rgb(var(--fono-dark))); }
+.vacio { text-align: center; padding: 32px 16px; }
+.vacio .halo { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 20px; display: grid; place-items: center; color: rgb(var(--fono-text)); background: radial-gradient(120% 120% at 30% 20%, rgb(var(--fono) / .24), rgb(var(--fono) / .08)); box-shadow: 0 0 0 8px rgb(var(--fono) / .06); }
+.vacio .halo svg { width: 26px; height: 26px; }
+.esq { height: 12px; border-radius: 8px; background: linear-gradient(90deg, rgb(var(--fore) / 0), rgb(var(--fore) / .07), rgb(var(--fore) / 0)) rgb(var(--ink-700)); background-size: 200% 100%; animation: brillo 1.4s ease-in-out infinite; margin: 8px 0; }
+@keyframes brillo { from { background-position: 120% 0; } to { background-position: -20% 0; } }
+.vista { display: none; animation: aparece .22s var(--ease) both; } .vista.on { display: block; }
+@keyframes aparece { from { opacity: 0; } to { opacity: 1; } }
+.movil-top, .bottom { display: none; }
+:focus-visible { outline: 2px solid rgb(var(--fono-dark)); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+/* ── Móvil (390) ── */
+@media (max-width: 900px) {
+  .side { display: none; }
+  .main { padding: 0 16px 96px; }
+  .movil-top { display: flex; position: sticky; top: 0; z-index: 5; margin: 0 -16px 8px; padding: 8px 12px; align-items: center; gap: 8px; background: rgb(var(--ink) / .78); backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px); border-bottom: 1px solid var(--hair); }
+  .movil-top .sp { flex: 1; }
+  .top .pill, .top .icono-btn { display: none; }
+  h1 { font-size: 22px; line-height: 28px; }
+  .atajos { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .atajo { min-height: 72px; padding: 12px; gap: 10px; }
+  .atajo small { display: none; }
+  .kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { padding: 14px; } .kpi .v { font-size: 20px; }
+  .dos, .pos { grid-template-columns: 1fr; }
+  .lista-cab { display: none; }
+  .lista-fila { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'p m' 's s'; gap: 8px 12px; padding: 14px 16px; }
+  .lista-fila .persona { grid-area: p; } .lista-fila .monto { grid-area: m; } .lista-fila .estados { grid-area: s; display: flex; gap: 6px; padding-left: 48px; }
+  .lista-fila .cod, .lista-fila .fecha { display: none; }
+  .totales { grid-template-columns: 1fr 1fr; }
+  .prods { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .carrito { position: static; min-height: 0; }
+  .bottom { display: flex; position: fixed; inset: auto 0 0 0; z-index: 5; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: rgb(var(--ink) / .78); backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px); border-top: 1px solid var(--hair); }
+  .bottom button { flex: 1; min-height: 52px; display: grid; justify-items: center; align-content: center; gap: 2px; font-size: 11px; color: rgb(var(--mute)); border-radius: 12px; }
+  .bottom button[aria-current] { color: rgb(var(--fore)); font-weight: 600; } .bottom button[aria-current] svg { color: rgb(var(--fono-dark)); }
+  html.dark .bottom button[aria-current] svg { color: rgb(var(--fono)); }
+}
+</style>
+</head>
+<body>
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 20h18M6 16V9m6 7V5m6 11v-4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-rec" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.5-1.5-4.6-3.6-5.5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6m6-6v6M6 8h12v3a6 6 0 0 1-12 0zm6 9v5"/></symbol>
+  <symbol id="i-head" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z"/></symbol>
+</svg>
+<div class="app">
+  <aside class="side" aria-label="Navegación principal">
+    <div class="marca"><div class="logo">M</div><div><b>MobOS</b><small>Aurora Móviles S.A.</small></div></div>
+    <div class="buscar"><svg><use href="#i-search"/></svg>Buscar… <span style="margin-left:auto;font-size:12px">⌘K</span></div>
+    <button class="nav" data-ir="inicio"><svg><use href="#i-home"/></svg>Inicio</button>
+    <button class="nav" data-ir="pos"><svg><use href="#i-plus"/></svg>Vender</button>
+    <button class="nav" data-ir="pedidos"><svg><use href="#i-rec"/></svg>Ventas</button>
+    <button class="nav"><svg><use href="#i-user"/></svg>Clientes</button>
+    <button class="nav"><svg><use href="#i-box"/></svg>Stock</button>
+    <div style="flex:1"></div>
+    <button class="nav"><svg><use href="#i-gear"/></svg>Configuración</button>
+    <div class="nav" style="margin-top:4px"><span class="avatar" style="width:28px;height:28px">HA</span><span><b style="color:rgb(var(--fore))">Hernán Acosta</b><br><small>Dueño</small></span></div>
+  </aside>
+  <div class="main">
+    <div class="movil-top"><div class="logo" style="width:30px;height:30px">M</div><span class="pill" style="box-shadow:none;background:rgb(var(--ink-700))">Casa Central</span><span class="sp"></span><button class="icono-btn" aria-label="Buscar"><svg><use href="#i-search"/></svg></button><button class="icono-btn" aria-label="Avisos"><svg><use href="#i-bell"/></svg></button><button class="icono-btn tema" aria-label="Cambiar tema"><svg><use href="#i-moon"/></svg></button></div>
+
+    <!-- INICIO -->
+    <section class="vista" id="v-inicio">
+      <div class="top"><h1>Inicio</h1><span class="sp"></span><span class="pill">Casa Central</span><button class="icono-btn" aria-label="Avisos"><svg><use href="#i-bell"/></svg></button><button class="icono-btn tema" aria-label="Cambiar tema"><svg><use href="#i-moon"/></svg></button></div>
+      <p class="saludo" style="margin-top:12px">Buenas noches, Hernán</p>
+      <p class="sub">Así va la tienda hoy · Aurora Móviles S.A.</p>
+      <div class="atajos">
+        <button class="atajo heroe" data-ir="pos"><span class="tono"><svg><use href="#i-plus"/></svg></span><span><b>Vender</b><small>Abrir la caja</small></span></button>
+        <button class="atajo" data-ir="pedidos"><span class="tono"><svg><use href="#i-rec"/></svg></span><span><b>Pedidos</b><small>Seguimiento y cobros</small></span></button>
+        <button class="atajo"><span class="tono"><svg><use href="#i-user"/></svg></span><span><b>Clientes</b><small>Fichas y deudas</small></span></button>
+        <button class="atajo"><span class="tono"><svg><use href="#i-phone"/></svg></span><span><b>Stock</b><small>Unidades por IMEI</small></span></button>
+      </div>
+      <div class="fila-titulo"><h2>Hoy</h2><div class="seg"><button aria-pressed="true">Hoy</button><button aria-pressed="false">7 días</button><button aria-pressed="false">Mes</button></div></div>
+      <div class="kpis">
+        <div class="card kpi"><div class="et">Vendido <span class="delta up">↑ 2,5%</span></div><div class="v num">Gs 22.115.000</div><small class="sub">19 ventas</small><svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none"><path d="M0 28 L15 24 L30 26 L45 22 L60 25 L75 18 L90 20 L105 10 L120 8" style="stroke:rgb(var(--fono))"/></svg></div>
+        <div class="card kpi"><div class="et">Cobrado</div><div class="v num">Gs 19.095.000</div><small class="sub">86% del facturado</small><svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none"><path d="M0 30 L20 26 L40 28 L60 22 L80 20 L100 12 L120 10" style="stroke:rgb(var(--info))"/></svg></div>
+        <div class="card kpi"><div class="et">Por cobrar <span class="delta down">6 ventas</span></div><div class="v num">Gs 3.020.000</div><small class="sub">pendientes de cobro</small><svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none"><path d="M0 26 L20 28 L40 22 L60 26 L75 12 L90 26 L105 18 L120 14" style="stroke:rgb(var(--warn))"/></svg></div>
+        <div class="card kpi"><div class="et">Ganancia</div><div class="v num">Gs 5.826.000</div><small class="sub">ventas − costos − gastos</small><svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none"><path d="M0 24 L15 20 L30 26 L45 22 L60 23 L75 21 L90 28 L105 14 L120 12" style="stroke:rgb(var(--fono-dark))"/></svg></div>
+      </div>
+      <div class="dos">
+        <div class="card"><div class="fila-titulo pad" style="margin:0;padding-bottom:8px"><h2>Actividad reciente</h2><button style="color:rgb(var(--fono-text));font-weight:600;min-height:44px" data-ir="pedidos">Ver pedidos</button></div>
+          <div class="lista" id="actividad"></div></div>
+        <div class="card pad"><h2 style="font-size:17px;font-weight:700;letter-spacing:-.015em">Pendientes</h2>
+          <div class="vacio"><div class="halo"><svg><use href="#i-box"/></svg></div><b>Todo al día</b><p class="sub">No hay entregas atrasadas ni cuotas vencidas.</p></div>
+          <div class="esq" style="width:70%"></div><div class="esq" style="width:45%"></div></div>
+      </div>
+    </section>
+
+    <!-- PEDIDOS -->
+    <section class="vista" id="v-pedidos">
+      <div class="top"><h1>Mis pedidos</h1><span class="sp"></span><span class="pill">Casa Central</span><button class="icono-btn tema" aria-label="Cambiar tema"><svg><use href="#i-moon"/></svg></button></div>
+      <div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Pedidos</button><button class="tab" role="tab" aria-selected="false">Cotizaciones</button><button class="tab" role="tab" aria-selected="false">Entregas</button></div>
+      <div class="barra"><div class="campo"><svg><use href="#i-search"/></svg>Pedido, cliente, RUC, producto</div><div class="seg"><button aria-pressed="true">Activos</button><button aria-pressed="false">Con saldo</button><button aria-pressed="false">A crédito</button><button aria-pressed="false">Todos</button></div><button class="primario">Nueva venta</button></div>
+      <div class="card tira"><div>Pedidos<b class="num">19</b></div><div>Artículos<b class="num">22</b></div><div>Preparados<b class="num">14</b></div><div>Entregados<b class="num">13</b></div><div>Devoluciones<b class="num">0</b></div></div>
+      <div class="card">
+        <div class="lista-cab"><span>Pedido</span><span>Fecha</span><span>Cliente</span><span>Pago</span><span>Estado</span><span style="text-align:right">Total</span></div>
+        <div id="pedidos"></div>
+      </div>
+    </section>
+
+    <!-- PEDIDO -->
+    <section class="vista" id="v-pedido">
+      <div class="det-cab"><button class="icono-btn" data-ir="pedidos" aria-label="Volver a pedidos"><svg><use href="#i-back"/></svg></button><h1>AUR-0409</h1><span class="chip c-warn">Parcial</span><span class="chip c-info">Preparando</span><span class="sp" style="flex:1"></span><button class="pill">Imprimir</button><button class="primario">Cobrar saldo</button></div>
+      <div class="dos">
+        <div>
+          <div class="card secc"><h3>Artículos <span class="chip c-mute">1</span></h3>
+            <div class="item"><div class="thumb"><svg><use href="#i-phone"/></svg></div><div style="flex:1;min-width:0"><b>iPhone 14 128GB Medianoche</b><div class="sub">IMEI 35 391811 204718 3 · Semi nuevo · Garantía 6 meses</div></div><div class="monto num">Gs 3.625.000</div></div></div>
+          <div class="card secc"><h3>Pago</h3>
+            <div class="totales"><div><small>Total</small><b class="num">Gs 3.625.000</b></div><div><small>Pagado</small><b class="num" style="color:rgb(var(--ok))">Gs 2.000.000</b></div><div><small>Saldo</small><b class="num" style="color:rgb(var(--warn))">Gs 1.625.000</b></div></div>
+            <div class="linea" style="margin-top:14px"><div class="tono" style="width:36px;height:36px"><svg><use href="#i-rec"/></svg></div><div style="flex:1"><b>Transferencia · Banco Itaú</b><div class="sub">Hoy 22:42 · Hernán</div></div><span class="chip c-ok">Confirmado</span><b class="num">Gs 2.000.000</b></div></div>
+        </div>
+        <div>
+          <div class="card secc"><h3>Cliente</h3><div class="persona"><span class="avatar b">LS</span><div><b>Lorena Servín</b><small>RUC 4.512.877-3 · 0981 442 118</small></div></div></div>
+          <div class="card secc"><h3>Entrega · Delivery</h3><div class="pasos"><div class="paso"><i>✓</i>Pendiente</div><div class="paso act"><i>2</i>Preparando</div><div class="paso"><i style="background:rgb(var(--ink-700));color:rgb(var(--mute))">3</i>En camino</div><div class="paso"><i style="background:rgb(var(--ink-700));color:rgb(var(--mute))">4</i>Entregado</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- POS -->
+    <section class="vista" id="v-pos">
+      <div class="top"><h1>Vender</h1><span class="sp"></span><span class="pill">Casa Central</span><button class="icono-btn tema" aria-label="Cambiar tema"><svg><use href="#i-moon"/></svg></button></div>
+      <div class="pos">
+        <div>
+          <div class="barra"><div class="campo"><svg><use href="#i-search"/></svg>Buscar producto, SKU o IMEI…</div></div>
+          <div class="seg" style="margin-bottom:14px;width:fit-content;max-width:100%"><button aria-pressed="true">Todos</button><button aria-pressed="false">Celulares</button><button aria-pressed="false">Cases</button><button aria-pressed="false">Cargadores</button><button aria-pressed="false">Audio</button></div>
+          <div class="prods" id="prods"></div>
+        </div>
+        <div class="card pad carrito">
+          <div class="fila-titulo"><h2>Venta actual</h2><span class="chip c-mute">2 productos</span></div>
+          <div class="persona" style="padding:12px;border-radius:12px;background:rgb(var(--ink-800));margin-bottom:8px"><span class="avatar">CA</span><div style="flex:1;min-width:0"><b>Camila Arévalo</b><small>24 pedidos · Consumidor final</small></div></div>
+          <div class="linea"><div class="thumb" style="width:44px;height:44px"><svg><use href="#i-plug"/></svg></div><div style="flex:1;min-width:0"><b>Cargador USB-C 20W</b><div class="sub num">Gs 198.000</div></div><span class="cant"><button aria-label="Menos">−</button><b class="num">1</b><button aria-label="Más">+</button></span></div>
+          <div class="linea"><div class="thumb" style="width:44px;height:44px"><svg><use href="#i-head"/></svg></div><div style="flex:1;min-width:0"><b>AirPods Pro 2 USB-C</b><div class="sub num">Gs 1.850.000</div></div><span class="cant"><button aria-label="Menos">−</button><b class="num">1</b><button aria-label="Más">+</button></span></div>
+          <div class="linea" style="justify-content:space-between"><span class="sub">Subtotal</span><b class="num">Gs 2.048.000</b></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 16px"><b style="font-size:16px">Total</b><b class="num" style="font-size:30px;letter-spacing:-.04em">Gs 2.048.000</b></div>
+          <button class="cobrar"><span>Cobrar</span><span class="num">Gs 2.048.000 →</span></button>
+        </div>
+      </div>
+    </section>
+
+    <nav class="bottom" aria-label="Navegación inferior"><button data-ir="inicio"><svg><use href="#i-home"/></svg>Inicio</button><button data-ir="pos"><svg><use href="#i-plus"/></svg>Vender</button><button data-ir="pedidos"><svg><use href="#i-rec"/></svg>Ventas</button><button><svg><use href="#i-box"/></svg>Stock</button><button><svg><use href="#i-more"/></svg>Más</button></nav>
+  </div>
+</div>
+<script>
+const PEDIDOS = [
+  ['AUR-0408', 'Hoy 22:42', 'Camila Arévalo', 'Cargador USB-C 20W', 'Pagado', 'Retirado', 'Gs 220.000', ''],
+  ['AUR-0410', 'Hoy 22:35', 'Derlis Giménez', 'AirPods Pro 2 USB-C', 'Pagado', 'Listo para retirar', 'Gs 1.850.000', 'b'],
+  ['AUR-0500', 'Hoy 22:32', 'María González', 'Cargador USB-C 20W', 'Parcial', 'Preparando', 'Gs 220.000', 'c'],
+  ['AUR-0409', 'Hoy 22:24', 'Lorena Servín', 'iPhone 14 128GB Medianoche', 'Parcial', 'Preparando', 'Gs 3.625.000', 'b'],
+  ['AUR-0510', 'Hoy 22:15', 'Estela Ramírez', 'Cable USB-C a Lightning 1 m', 'Pagado', 'Retirado', 'Gs 90.000', 'd'],
+  ['AUR-0520', 'Hoy 21:58', 'Hugo Benítez', 'Funda Silicona Negra', 'Pagado', 'Retirado', 'Gs 150.000', ''],
+  ['AUR-0530', 'Hoy 21:41', 'Patricia Duarte', 'Power bank 10.000 mAh', 'Parcial', 'Preparando', 'Gs 210.000', 'c'],
+  ['AUR-0540', 'Hoy 21:24', 'Osvaldo Rojas', 'Vidrio templado iPhone 15 Pro', 'Pagado', 'Retirado', 'Gs 90.000', 'd'],
+]
+const ini = (n) => n.split(' ').map((p) => p[0]).join('').slice(0, 2)
+const tonoPago = (p) => (p === 'Pagado' ? 'c-ok' : 'c-warn')
+const tonoEstado = (e) => (e === 'Retirado' ? 'c-mute' : e === 'Preparando' ? 'c-info' : 'c-ok')
+document.getElementById('pedidos').innerHTML = PEDIDOS.map(([cod, fecha, cli, art, pago, est, total, av]) => `
+  <div class="lista-fila" role="button" tabindex="0" data-ir="pedido"><span class="cod">${cod}</span><span class="fecha sub">${fecha}</span>
+  <span class="persona"><span class="avatar ${av}">${ini(cli)}</span><span style="min-width:0"><b>${cli}</b><small>${art}</small></span></span>
+  <span class="estados"><span><span class="chip ${tonoPago(pago)}">${pago}</span></span><span><span class="chip ${tonoEstado(est)}">${est}</span></span></span>
+  <span class="monto num">${total}</span></div>`).join('')
+document.getElementById('actividad').innerHTML = PEDIDOS.slice(0, 5).map(([, fecha, cli, art, , , total, av]) => `
+  <div class="lista-fila" style="grid-template-columns:minmax(0,1fr) auto" data-ir="pedido"><span class="persona"><span class="avatar ${av}">${ini(cli)}</span><span style="min-width:0"><b>${cli}</b><small>${art} · ${fecha}</small></span></span><span class="monto num">${total}</span></div>`).join('')
+const PRODS = [['iPhone 15 Pro 256GB', 'Titanio · 10 en stock', 'Gs 6.850.000', 'i-phone'], ['iPhone 15 128GB', 'Azul · 5 en stock', 'Gs 4.850.000', 'i-phone'], ['iPhone 14 Pro 256GB', 'Plata · 4 en stock', 'Gs 4.950.000', 'i-phone'], ['AirPods Pro 2 USB-C', '3 en stock', 'Gs 1.850.000', 'i-head'], ['Cargador USB-C 20W', '10 en stock', 'Gs 198.000', 'i-plug'], ['Funda MagSafe', 'para iPhone 15 · 23', 'Gs 162.000', 'i-box']]
+document.getElementById('prods').innerHTML = PRODS.map(([n, s, p, i]) => `<button class="prod"><div class="img"><svg><use href="#${i}"/></svg></div><b>${n}</b><small>${s}</small><div class="p"><span class="num">${p}</span><span class="tono" style="width:32px;height:32px;border-radius:10px"><svg style="width:16px;height:16px"><use href="#i-plus"/></svg></span></div></button>`).join('')
+const NAV = { inicio: 'inicio', pos: 'pos', pedidos: 'pedidos', pedido: 'pedidos' }
+function ir(v) {
+  document.querySelectorAll('.vista').forEach((s) => s.classList.toggle('on', s.id === `v-${v}`))
+  document.querySelectorAll('[data-ir]').forEach((b) => { if (b.closest('.side, .bottom')) b.toggleAttribute('aria-current', NAV[v] === b.dataset.ir) })
+  const u = new URL(location); u.searchParams.set('vista', v); history.replaceState(null, '', u)
+}
+document.addEventListener('click', (e) => { const t = e.target.closest('[data-ir]'); if (t) ir(t.dataset.ir); if (e.target.closest('.tema')) { document.documentElement.classList.toggle('dark') } })
+document.addEventListener('keydown', (e) => { const t = e.target.closest?.('[data-ir][role=button]'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); ir(t.dataset.ir) } })
+const q = new URLSearchParams(location.search)
+if (q.get('tema') === 'oscuro' || (!q.get('tema') && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark')
+ir(q.get('vista') || 'inicio')
+</script>
+</body>
+</html>
