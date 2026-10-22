@@ -194,9 +194,15 @@ export default function Autorizaciones() {
   const tab = (() => {
     const pedida = tabValida(tabUrl)
     if (pedida && tabsVisibles.some(([id]) => id === pedida)) return pedida
+    if (tipo) return tabDeTipo(tipo)
     return tabsVisibles.find(([id]) => pendientesPorTab[id] > 0)?.[0] || 'precios'
   })()
   const tiposDeLaTab = TIPOS_POR_TAB[tab] || []
+  // El filtro «Tipo» de otra pestaña se quita en un render aparte (dos cambios de URL
+  // en el mismo instante se pisan entre sí).
+  useEffect(() => {
+    if (tipo && tabDeTipo(tipo) !== tab) setTipo('')
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
   const rowsTab = useMemo(() => rows.filter(row => tabDeTipo(row.kind) === tab), [rows, tab])
 
   function abrirAprobar(row) {
@@ -373,7 +379,7 @@ export default function Autorizaciones() {
               aria-selected={activa}
               aria-controls="autorizaciones-panel"
               data-testid={`autorizaciones-tab-${id}`}
-              onClick={() => { setTabUrl(id); setTipo('') }}
+              onClick={() => setTabUrl(id)}
               className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${activa ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
             >
               {etiqueta}

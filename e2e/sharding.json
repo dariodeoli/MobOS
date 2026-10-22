@@ -7,6 +7,7 @@
       "archivos": [
         "analisis.spec.js",
         "auth.spec.js",
+        "autorizaciones-pagos.spec.js",
         "campanas-recompra.spec.js",
         "cobro-cuotas.spec.js",
         "delivery.spec.js",
@@ -49,10 +50,11 @@
         "qa-593-apple-variant.spec.js",
         "qa-fin-compacto.spec.js",
         "recorte-perfil.spec.js",
-        "responsive.spec.js"
+        "responsive.spec.js",
+        "verificacion-diaria.spec.js"
       ],
-      "tests": 146,
-      "ms": 1202412
+      "tests": 154,
+      "ms": 1292412
     },
     {
       "archivos": [
