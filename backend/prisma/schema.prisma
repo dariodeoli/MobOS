@@ -669,6 +669,14 @@ model Product {
   workshopParts WorkshopPart[]
 }
 
+// Tipo de reserva de una unidad RESERVED: CUSTOMER = apartada para un cliente
+// (desde Stock, hasta 24 h); CART_HOLD = retención corta del carrito del POS
+// (5 min con latido). NULL cuando la unidad no está reservada.
+enum InventoryReservationKind {
+  CUSTOMER
+  CART_HOLD
+}
+
 enum InventoryUnitStatus {
   AVAILABLE
   RESERVED
@@ -827,6 +835,11 @@ model InventoryUnit {
   reservationCustomerId String?
   reservationCustomerRef Customer? @relation("InventoryUnitReservation", fields: [reservationCustomerId], references: [id], onDelete: SetNull)
   reservedById        String?
+  reservationKind     InventoryReservationKind?
+  // Retención del carrito (CART_HOLD): carrito, equipo y arranque de la retención.
+  holdCartId          String?
+  holdDeviceId        String?
+  holdStartedAt       DateTime?
   lastVerifiedAt      DateTime?
   lastVerifiedById    String?
   verificationCount   Int                 @default(0)
@@ -861,6 +874,8 @@ model InventoryUnit {
   @@index([serial(ops: raw("gin_trgm_ops"))], map: "InventoryUnit_serial_trgm_idx", type: Gin)
   @@index([tenantId, branchId, status])
   @@index([tenantId, status, reservedUntil])
+  @@index([tenantId, reservedById, reservationKind])
+  @@index([tenantId, holdCartId])
   // #247: la lista de Unidades ordena por estado y luego por más reciente; este
   // índice evita el orden en memoria (antes usaba reservedUntil y ordenaba).
   @@index([tenantId, status, updatedAt(sort: Desc)])
