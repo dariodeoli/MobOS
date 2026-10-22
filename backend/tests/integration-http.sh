@@ -668,7 +668,7 @@ node "$BACKEND_ROOT/tests/account-delete.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_B
 MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" node "$BACKEND_ROOT/tests/email-events.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/quote-email.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/collections-marketing.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
-MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-installments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-installments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$GERENTE_TOKEN"
 echo "Raster513: payload, aislamiento, idempotencia y cuota atómica..."
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/print513-pg.cjs"
 echo "Conciliación por cuenta/procesadora: lote recibido vs esperado, diferencia y trazabilidad..."
@@ -876,6 +876,12 @@ node "$BACKEND_ROOT/tests/cobro-encomienda-bloqueo.mjs" "$BASE_URL" "$ADMIN_TOKE
 
 echo "Crédito sobre el límite: pendiente de autorización, aprobación del admin/gerente, auditoría y concurrencia..."
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credito-autorizacion.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
+
+echo "Venta a crédito: límite y tolerancia del módulo, plazo, cuotas y días de crédito..."
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credito-tolerancia.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
+
+echo "Verificación de pagos: el servidor decide el estado, nadie aprueba lo propio, entrega bloqueada y verificación diaria..."
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-verification.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"

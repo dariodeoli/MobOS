@@ -6,6 +6,9 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { loadTenantPreferences, PREPARED_FULFILLMENT } from '../../../lib/tenant-preferences'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
+import { parsePaymentVerification } from '../../../lib/payment-verification-policy'
+import { notifyPaymentToVerify, recordPaymentVerificationStart } from '../../../lib/payment-verification'
+import { parseCreditConfig, resolveCreditTerm, type CreditSchedule } from '../../../lib/credit-config'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { moduloActivo } from '../../../lib/modulos-catalogo.mjs'
 import { assertModulo, moduloApagadoMensaje, moduloHabilitado } from '../../../lib/modulos-guard'
@@ -309,6 +312,8 @@ export async function POST(request: Request) {
   if (items.some((item: any) => item && typeof item === 'object' && item.backorder === true)) await assertModulo(tenant, 'venta-sin-stock')
   // Mayoristas: con el módulo apagado el precio mayorista no se aplica aunque el cliente figure como mayorista (los datos se conservan).
   const mayoristasOn = await moduloHabilitado(tenant, 'mayoristas')
+  const paymentPolicy = parsePaymentVerification(limitesEmpresa?.settings)
+  const creditConfig = parseCreditConfig(limitesEmpresa?.settings)
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
   const insurancePct = Math.min(100, Math.max(0, Number(limitesEmpresa?.insurancePct ?? 0)))
   // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
@@ -332,19 +337,22 @@ export async function POST(request: Request) {
   let creditApprovalVia: 'PIN' | 'POS' = 'PIN'
   if (body.creditApprovalPin !== undefined && body.creditApprovalPin !== null && body.creditApprovalPin !== '') {
     creditApprover = await verifyApproverPin({ tenantId: tenant, requesterId: session.user.id, pin: body.creditApprovalPin })
-    assertSelfApprovalAllowed(creditApprover, session.user.id)
+    assertSelfApprovalAllowed(creditApprover, session.user.id, paymentPolicy.selfApproveRoles)
   } else if (body.creditSelfApproval !== undefined) {
     if (body.creditSelfApproval !== true) throw new InputError('creditSelfApproval debe ser verdadero.')
-    // «Autorizo yo»: solo el dueño/administrador (un gerente no se aprueba a sí mismo).
-    if (session.user.role !== 'ADMIN') throw new InputError(isCreditResolverRole(session.user.role) ? 'Un gerente no puede aprobar su propia venta a crédito sobre el límite: pedí que la apruebe otro gerente o el administrador.' : 'Solo administración o gerencia pueden autorizar el crédito.', 403)
+    // «Autorizo yo»: solo un rol que la empresa autorizó a aprobar lo propio (configuración de verificación de pagos).
+    if (!isCreditResolverRole(session.user.role)) throw new InputError('Solo administración o gerencia pueden autorizar el crédito.', 403)
+    if (!paymentPolicy.selfApproveRoles.includes(session.user.role)) throw new InputError('No podés aprobar tu propia venta a crédito sobre el límite: pedí que la apruebe otra persona de administración o gerencia.', 403)
     creditApprover = { id: session.user.id, name: session.user.name, role: session.user.role }
     creditApprovalVia = 'POS'
   }
   // Lo que dejó la transacción (la última, si se reintenta): para avisar a
   // administración recién cuando la venta quedó confirmada.
   let creditHeld: { authorizationId: string; orderId: string; branchId: string | null } | null = null
+    let paymentsToVerify: Array<{ paymentId: string; orderId: string; branchId: string | null }> = []
     const crearPedido = () => prisma.$transaction(async tx => {
       creditHeld = null
+      paymentsToVerify = []
       // #286: sin sucursal asignada la venta opera con la efectiva (última usada → primera creada).
       const branchId = await sucursalEfectiva(session)
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
@@ -654,7 +662,7 @@ export async function POST(request: Request) {
       }
       // Cliente bloqueado (#399): no se le vende a crédito (422). Contado y
       // «paga al recibir» se permiten, pero queda registrado en la auditoría.
-      const aCredito = body.creditDays !== undefined || body.dueAt !== undefined
+      const aCredito = body.creditDays !== undefined || body.dueAt !== undefined || body.credit === true
       let blockedSale: string | null = null
       if (customerId) {
         const estado = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { blocked: true, blockedReason: true } })
@@ -671,25 +679,30 @@ export async function POST(request: Request) {
         if (!direccion) throw new InputError('La dirección de envío no pertenece al cliente.')
         shippingAddress = [direccion.address, direccion.city, direccion.department].filter(Boolean).join(', ').slice(0, 600)
       }
-      // Venta a crédito: plazo del cliente. El límite se controla más abajo,
-      // con la ficha bloqueada, junto con la deuda abierta.
-      let dueAt: Date | null = null; let creditDays: number | null = null
+      // Venta a crédito: se validan acá los datos que pide el vendedor; el plazo
+      // final (días, día del mes o cuotas) se resuelve más abajo con lo que la
+      // venta deja sin cobrar. El límite se controla con la ficha bloqueada.
+      let requestedDays: number | null = null; let requestedDueAt: Date | null = null
+      let customerTerms: { creditDays: number | null; creditLimitPyg: bigint | null; creditTolerancePct: number | null; creditTermMode: string | null; creditDayOfMonth: number | null; creditInstallments: number | null } | null = null
       if (aCredito) {
         if (!customerId) throw new InputError('Elegí un cliente para vender a crédito.')
-        const customerRow = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { creditDays: true } })
-        if (!customerRow) throw new InputError('Cliente no encontrado.', 404)
-        const requestedDays = body.creditDays !== undefined ? Number(body.creditDays) : (customerRow.creditDays ?? undefined)
-        if (requestedDays !== undefined && (!safeInt(requestedDays) || requestedDays > 365)) throw new InputError('El plazo de crédito debe estar entre 0 y 365 días.')
-        creditDays = requestedDays ?? null
-        dueAt = body.dueAt !== undefined && typeof body.dueAt === 'string' && body.dueAt.trim() ? new Date(body.dueAt.trim()) : new Date(Date.now() + (requestedDays ?? 0) * 86400000)
-        if (Number.isNaN(dueAt.getTime())) throw new InputError('Vencimiento de crédito inválido.')
+        customerTerms = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { creditDays: true, creditLimitPyg: true, creditTolerancePct: true, creditTermMode: true, creditDayOfMonth: true, creditInstallments: true } })
+        if (!customerTerms) throw new InputError('Cliente no encontrado.', 404)
+        if (body.creditDays !== undefined) {
+          requestedDays = Number(body.creditDays)
+          if (!safeInt(requestedDays) || requestedDays > 365) throw new InputError('El plazo de crédito debe estar entre 0 y 365 días.')
+        }
+        if (body.dueAt !== undefined && typeof body.dueAt === 'string' && body.dueAt.trim()) {
+          requestedDueAt = new Date(body.dueAt.trim())
+          if (Number.isNaN(requestedDueAt.getTime())) throw new InputError('Vencimiento de crédito inválido.')
+        }
       }
       let confirmed = 0
       const normalizedPayments = []
       for (const payment of payments) {
         if (payment?.method === 'GIFT_CARD') exigirModulo('gift-cards')
         if (payment?.method === 'TRADE_IN') exigirModulo('tradein')
-        const normalizedPayment = await normalizePayment(tx, tenant, payment)
+        const normalizedPayment = await normalizePayment(tx, tenant, payment, undefined, { policy: paymentPolicy, actor: session.user })
         normalizedPayments.push(normalizedPayment)
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
@@ -711,7 +724,28 @@ export async function POST(request: Request) {
       let creditCheck: CreditEvaluation | null = null
       if (aCredito && customerId && total - confirmed > 0) {
         const position = await lockCustomerCredit(tx, tenant, customerId)
-        creditCheck = evaluateCreditSale({ limitPyg: position.limitPyg, debtPyg: position.debtPyg, unpaidPyg: total - confirmed })
+        creditCheck = evaluateCreditSale({ limitPyg: position.limitPyg, debtPyg: position.debtPyg, unpaidPyg: total - confirmed, tolerancePct: position.tolerancePct })
+      }
+      // Plazo de la venta a crédito: días, día del mes o cuotas, desde lo que
+      // pidió el vendedor, la ficha del cliente o el módulo. Un plazo mayor al
+      // máximo del módulo pide autorización «días de crédito» (administración y
+      // gerencia lo pueden dar solas).
+      let dueAt: Date | null = null; let creditDays: number | null = null
+      let installmentPlan: CreditSchedule[] = []
+      let creditDaysAuth: { id: string } | null = null
+      if (aCredito) {
+        const enVerificacion = normalizedPayments.filter(item => item.status === 'PENDING' && item.pendingReason === 'VERIFICACION').reduce((suma, item) => suma + item.amountPyg, 0)
+        const term = resolveCreditTerm({ customer: customerTerms, config: creditConfig, unpaidPyg: Math.max(0, total - confirmed - enVerificacion), requestedDays, requestedDueAt })
+        dueAt = term.dueAt; creditDays = term.creditDays; installmentPlan = body.creditPlan === 'none' ? [] : term.installments
+        if (term.exceedsMaxDays && !isCreditResolverRole(session.user.role)) {
+          const rawAuthorizationId = body.creditDaysAuthorizationId
+          if (rawAuthorizationId === undefined || rawAuthorizationId === null || rawAuthorizationId === '') throw new InputError(`El plazo (${term.creditDays} días) supera el máximo de ${term.maxDays} días. Solicitá autorización de días de crédito a gerencia.`, 403)
+          const authorization = await tx.customerAuthorization.findFirst({ where: { id: textInput(rawAuthorizationId, 'creditDaysAuthorizationId', 200), tenantId: tenant, kind: 'CREDIT_DAYS' } })
+          creditDaysAuth = usableAuthorization(authorization, { userId: session.user.id, kinds: ['CREDIT_DAYS'], label: 'días de crédito' })
+          const valueOf = (value: unknown) => value && typeof value === 'object' && !Array.isArray(value) ? value as { creditDays?: unknown } : {}
+          const authorized = Number(valueOf(authorization?.resolvedValue).creditDays ?? valueOf(authorization?.requestedValue).creditDays)
+          if (!Number.isFinite(authorized) || authorized < term.creditDays) throw new InputError(`La autorización de días de crédito no alcanza para ${term.creditDays} días. Solicitá una nueva.`, 403)
+        }
       }
       // Identificador comercial de la empresa (`PREFIX-#0001`) con el contador
       // transaccional del tenant; un número explícito del cliente manda.
@@ -739,6 +773,13 @@ export async function POST(request: Request) {
           const authorizationId = await createCreditHold(tx, { tenantId: tenant, orderId: order.id, orderNumber: order.orderNumber, customerId, requestedById: session.user.id, evaluation: creditCheck })
           creditHeld = { authorizationId, orderId: order.id, branchId }
         }
+      }
+      if (creditCheck?.toleranceUsed) {
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_TOLERANCE_USED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, customerId, limitPyg: creditCheck.limitPyg, capPyg: creditCheck.capPyg, tolerancePct: creditCheck.tolerancePct, debtPyg: creditCheck.debtPyg, unpaidPyg: creditCheck.unpaidPyg, overLimitPyg: creditCheck.overLimitPyg } } })
+      }
+      if (creditDaysAuth) {
+        await consumeAuthorization(tx, { id: creditDaysAuth.id, tenantId: tenant, kinds: ['CREDIT_DAYS'], userId: session.user.id, label: 'días de crédito', usedByOrderId: order.id })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREDIT_DAYS_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: creditDaysAuth.id, creditDays } } })
       }
       // POS offline: la venta llegó de la cola local. Queda el rastro de lo que
       // se relajó (stock faltante y equipos sin IMEI) para que se revise.
@@ -770,11 +811,20 @@ export async function POST(request: Request) {
       }
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
-      for (const { tradeIn, giftCard, ...paymentData } of normalizedPayments) {
+      for (const { tradeIn, giftCard, selfApproved, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id, userId: session.user.id } })
+        await recordPaymentVerificationStart(tx, { tenantId: tenant, actor: session.user, payment, selfApproved: Boolean(selfApproved) })
+        if (payment.status === 'PENDING' && payment.pendingReason === 'VERIFICACION') paymentsToVerify.push({ paymentId: payment.id, orderId: order.id, branchId })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
         await registrarVuelto(tx, { tenantId: tenant, userId: session.user.id, order, payment })
         if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
+      }
+      // Plan de cuotas del módulo/ficha: cuotas a crédito pendientes con su vencimiento (si el POS no mandó las suyas).
+      if (installmentPlan.length && !normalizedPayments.some(item => item.method === 'CREDIT')) {
+        for (const [index, cuota] of installmentPlan.entries()) {
+          await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: 'CREDIT', status: 'PENDING', pendingReason: 'CUOTA', amountPyg: cuota.amountPyg, reference: `Cuota ${index + 1}/${installmentPlan.length}`, dueAt: cuota.dueAt, createdById: session.user.id, userId: session.user.id } })
+        }
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_PLAN_CREATED', entity: 'Order', entityId: order.id, metadata: { count: installmentPlan.length, totalPyg: installmentPlan.reduce((suma, cuota) => suma + cuota.amountPyg, 0), firstDueAt: installmentPlan[0].dueAt.toISOString(), auto: true } } })
       }
       // Comprobante congelado al emitir: queda guardado con los ítems, los pagos
       // y los datos de las partes tal como estaban en esta venta.
@@ -834,6 +884,7 @@ export async function POST(request: Request) {
     // El enlace de seguimiento viaja en la respuesta de creación (y queda como
     // enlace de nivel rápido del pedido, listable y rotable desde el panel).
     const held = creditHeld as { authorizationId: string; orderId: string; branchId: string | null } | null
+    for (const aviso of paymentsToVerify) await notifyPaymentToVerify({ tenantId: tenant, ...aviso })
     if (held) await notifyCreditHold({ tenantId: tenant, orderId: held.orderId, authorizationId: held.authorizationId, branchId: held.branchId })
     return json({ ...await withCreditAuthorization(prisma, tenant, redactOrderCosts(result, await canSeeCostForSession(session))), publicToken }, { status: 201 })
   } catch (e) {

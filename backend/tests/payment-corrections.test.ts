@@ -89,3 +89,10 @@ test('política: REPARTIDOR y roles desconocidos nunca', () => {
   }
   for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA']) assert.equal(canEverCorrectPayments(role), true, role)
 })
+
+test('correctionBlock: un pago en verificación se resuelve antes de corregir el medio (#393)', () => {
+  const block = correctionBlock({ ...original, method: 'PIX', status: 'PENDING', pendingReason: 'VERIFICACION' }, false)
+  assert.equal(block?.status, 409)
+  assert.match(block?.message || '', /verificación/)
+  assert.match(correctionBlock({ ...original, status: 'PENDING', pendingReason: 'MANUAL' }, false)?.message || '', /Solo se corrigen pagos confirmados/)
+})

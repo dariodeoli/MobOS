@@ -13,7 +13,6 @@ import {
   RECONCILIATION_METHODS,
   accountLabelOf,
   bankOf,
-  confirmReconciledPayment,
   holderOf,
   processorOf,
   summarizeReconciliation,
@@ -22,6 +21,7 @@ import {
   type ReconciliationPayment,
 } from '../../../../lib/reconciliation'
 import { moduloGuard } from '../../../../lib/modulos-guard'
+import { loadPaymentVerificationPolicy, resolvePaymentVerification } from '../../../../lib/payment-verification'
 
 // Conciliación por cuenta, medio y procesadora (#144): ingresos del período,
 // lotes recibidos contra lo esperado, diferencias y trazabilidad pago → pedido.
@@ -251,9 +251,10 @@ export async function POST(request: Request) {
       const rows = await tx.$queryRaw<Array<{
         id: string; orderId: string; status: string; amountPyg: bigint | number; method: string; accountId: string | null
         paidAt: Date | null; createdAt: Date; deliveryUserId: string | null; deliverySettlementId: string | null
+        pendingReason: string | null; createdById: string | null; userId: string | null
       }>>`
-        SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "accountId", "paidAt", "createdAt", "deliveryUserId", "deliverySettlementId"
-        FROM "Payment" WHERE "id" IN (${Prisma.join(paymentIds)}) AND "tenantId" = ${tenantId} FOR UPDATE`
+        SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "accountId", "paidAt", "createdAt", "deliveryUserId", "deliverySettlementId", "pendingReason", "createdById", "userId"
+        FROM "Payment" WHERE "id" IN (${Prisma.join(paymentIds)}) AND "tenantId" = ${tenantId} ORDER BY "id" FOR UPDATE`
       if (rows.length !== paymentIds.length) throw new InputError('Algún pago del lote no existe en la empresa.', 404)
       const corregido = await tx.payment.findFirst({ where: { tenantId, OR: [{ id: { in: paymentIds }, reversalOfId: { not: null } }, { reversalOfId: { in: paymentIds } }] }, select: { id: true } })
       if (corregido) throw new InputError('El lote incluye un pago corregido o su reversión: conciliá el pago nuevo.', 409)
@@ -288,13 +289,12 @@ export async function POST(request: Request) {
       const created = await tx.reconciliationBatch.create({
         data: { tenantId, branchId, accountId, from: fechas[0], to: fechas[fechas.length - 1], expectedPyg, receivedPyg, differencePyg, state: 'VERIFIED', note, createdById: ctx.session.user.id },
       })
+      // Misma regla que el panel: nadie aprueba su propio pago, comprobante exigido, un pago rechazado no se concilia.
+      const policy = await loadPaymentVerificationPolicy(tx, tenantId)
+      const actor = { id: ctx.session.user.id, name: ctx.session.user.name, role: ctx.session.user.role }
       for (const row of rows) {
-        await tx.paymentReconciliation.upsert({
-          where: { paymentId: row.id },
-          create: { tenantId, paymentId: row.id, state: 'VERIFIED', note, verifiedById: ctx.session.user.id, batchId: created.id },
-          update: { state: 'VERIFIED', note, verifiedById: ctx.session.user.id, batchId: created.id },
-        })
-        await confirmReconciledPayment(tx, { tenantId, userId: ctx.session.user.id, row, state: 'VERIFIED', note })
+        await resolvePaymentVerification(tx, { tenantId, actor, row, state: 'VERIFIED', note, policy, batchId: created.id })
+        await tx.paymentReconciliation.update({ where: { paymentId: row.id }, data: { batchId: created.id } })
         await tx.auditLog.create({ data: { tenantId, userId: ctx.session.user.id, action: 'PAYMENT_RECONCILIATION_UPDATED', entity: 'PaymentReconciliation', entityId: `${created.id}:${row.id}`, metadata: { paymentId: row.id, state: 'VERIFIED', note, batchId: created.id } } })
       }
       await tx.auditLog.create({ data: { tenantId, userId: ctx.session.user.id, action: 'RECONCILIATION_BATCH_CREATED', entity: 'ReconciliationBatch', entityId: created.id, metadata: { accountId, expectedPyg, receivedPyg, differencePyg, payments: rows.length, note } } })

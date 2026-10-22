@@ -8,6 +8,7 @@ datasource db {
 
 model Tenant {
   reconciliationDays ReconciliationDay[]
+  paymentVerificationDiscrepancies PaymentVerificationDiscrepancy[]
   deliveryTariffs DeliveryTariff[]
   deliveryTrips DeliveryTrip[]
   deliveryWeeklyCloses DeliveryWeeklyClose[]
@@ -1079,6 +1080,11 @@ model Customer {
   creditLimitPyg BigInt?
   // Plazo de crédito estándar en días para este cliente.
   creditDays Int?
+  // Plazo y tolerancia propios del cliente; null = valor del módulo «Venta a crédito».
+  creditTolerancePct Int?
+  creditTermMode String?
+  creditDayOfMonth Int?
+  creditInstallments Int?
   // Seguro del cliente (#160): con el toggle activo, sus ventas usan su
   // porcentaje o el default de la empresa (FIN #162); impacta el costo real y
   // el margen. `insuranceRatePct` null = hereda el default de la empresa.
@@ -1971,6 +1977,11 @@ model Payment {
   reversal        Payment?         @relation("PaymentReversal")
   createdAt       DateTime         @default(now())
 
+  // Por qué un pago está PENDING: VERIFICACION (PIX/USDT/transferencia que espera
+  // aprobación), CUOTA (plan de crédito), REPARTO (cobro de calle) o MANUAL («queda
+  // pendiente»). Null en un PENDING viejo = MANUAL; nunca VERIFICACION.
+  pendingReason  String?
+
   proofs         PaymentProof[]
   reconciliation PaymentReconciliation?
   storeCreditUse StoreCreditUse?
@@ -1978,6 +1989,7 @@ model Payment {
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
+  @@index([tenantId, pendingReason, status])
   @@index([orderId])
   @@index([deliveryUserId, deliverySettlementId])
   @@index([deliverySettlementId])
@@ -2111,6 +2123,9 @@ model PaymentReconciliation {
   // Lote de conciliación que la incluyó (#144). Null = conciliación individual.
   batchId      String?
   batch        ReconciliationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  // Cómo se resolvió: PANEL (la aprobó otra persona), SELF (rol autorizado a aprobar lo propio) o IMPORT.
+  resolvedVia  String?
+  resolvedAt   DateTime?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
@@ -4405,6 +4420,33 @@ model DeliveryWeeklyAdjustment {
 }
 
 // Declaración diaria independiente de caja/bancos (#451); no crea ni confirma cobros.
+// Discrepancia registrada en la verificación diaria: lo esperado por el sistema
+// contra lo recibido, con motivo y autor. `scope` LINE = un pago, CATEGORY = un
+// medio/cuenta del día. El estado del día se deriva de los pagos y de estas filas.
+model PaymentVerificationDiscrepancy {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  businessDay String @db.VarChar(10)
+  scope String
+  paymentId String?
+  method String
+  accountId String?
+  currency String @default("PYG")
+  expectedPyg BigInt
+  receivedPyg BigInt
+  reason String
+  requestId String?
+  createdById String
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  resolvedById String?
+  resolvedNote String?
+  @@unique([tenantId, requestId])
+  @@index([tenantId, branchId, businessDay])
+}
+
 model ReconciliationDay {
   id String @id @default(cuid())
   tenantId String

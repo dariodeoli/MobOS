@@ -765,4 +765,17 @@ assert.equal(result.payload.fulfillmentStatus, 'DELIVERED')
 assert.equal(Number(result.payload.creditDays), 30, 'La entrega con crédito deja el plazo del cliente.')
 assert.ok(result.payload.dueAt, 'La entrega con crédito deja el vencimiento.')
 
+// La ficha acepta el plazo y la tolerancia propios del cliente (sin crear pedidos: este arnés cuenta los de la empresa).
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: 15 })
+assert.equal(result.response.status, 400, 'La tolerancia solo admite 0, 10, 20 o 30.')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTermMode: 'CUOTAS', creditInstallments: 1 })
+assert.equal(result.response.status, 400, 'Las cuotas van de 2 a 24.')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: 10, creditTermMode: 'DIA_MES', creditDayOfMonth: 5 })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(psql(`SELECT "creditTolerancePct" || '|' || "creditTermMode" || '|' || "creditDayOfMonth" FROM "Customer" WHERE "id" = '${customer.id}'`), '10|DIA_MES|5')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: null, creditTermMode: null, creditDayOfMonth: null })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await sellerRequest(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: 30 })
+assert.ok([403, 404].includes(result.response.status), 'Un vendedor no cambia la tolerancia de crédito.')
+
 console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, autorizaciones genéricas con sujeto — precio bajo lista, ajuste de stock, entrega con saldo y anulación de pedido, con consumo de un solo uso —, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')

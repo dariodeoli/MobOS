@@ -1,5 +1,5 @@
 // Cobro de cuotas de un plan de crédito (#99).
-// Uso: payment-installments.mjs <baseUrl> <adminToken> <databaseUrl>
+// Uso: payment-installments.mjs <baseUrl> <adminToken> <databaseUrl> <gerenteToken>
 //
 // Regresión del flujo real: cobrar una cuota la salda sobre el mismo
 // movimiento (installmentId), baja la deuda del pedido, la saca de Cobranzas
@@ -9,8 +9,8 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
-const [baseUrl, adminToken, databaseUrl] = process.argv.slice(2)
-if (!baseUrl || !adminToken || !databaseUrl) throw new Error('Uso: payment-installments.mjs <baseUrl> <adminToken> <databaseUrl>')
+const [baseUrl, adminToken, databaseUrl, gerenteToken] = process.argv.slice(2)
+if (!baseUrl || !adminToken || !databaseUrl || !gerenteToken) throw new Error('Uso: payment-installments.mjs <baseUrl> <adminToken> <databaseUrl> <gerenteToken>')
 const pgBin = process.env.MOBOS_TEST_PG_BIN || '/opt/homebrew/bin'
 const psql = (sql) => execFileSync(join(pgBin, 'psql'), ['-X', '--no-psqlrc', '-At', '-v', 'ON_ERROR_STOP=1', databaseUrl, '-c', sql], { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim()
 
@@ -107,18 +107,21 @@ assert.ok(!cobranzas.payload.rows.some((fila) => cuotas.some((cuota) => cuota.id
 const pedidoPendiente = await request('/api/orders', 'POST', { orderNumber: `IT-CONCILIA-${ts}`, customerId: credito.payload.id, items: [{ description: 'Venta con transferencia pendiente', quantity: 1, unitPricePyg: 60000 }] })
 const pagoPendiente = await request('/api/payments', 'POST', { orderId: pedidoPendiente.payload.id, method: 'TRANSFER', status: 'PENDING', amountPyg: 60000, reference: 'Transferencia a confirmar' })
 assert.equal(pagoPendiente.response.status, 201, JSON.stringify(pagoPendiente.payload))
-const verificado = await request(`/api/payments/${encodeURIComponent(pagoPendiente.payload.id)}/reconciliation`, 'PATCH', { state: 'VERIFIED', note: 'Acreditada en el banco' })
+// Nadie aprueba su propio pago (tampoco el administrador): lo aprueba otra persona (gerente).
+const propio = await request(`/api/payments/${encodeURIComponent(pagoPendiente.payload.id)}/reconciliation`, 'PATCH', { state: 'VERIFIED', note: 'Acreditada en el banco' })
+assert.equal(propio.response.status, 403, 'El administrador no aprueba el pago que registró.')
+const verificado = await request(`/api/payments/${encodeURIComponent(pagoPendiente.payload.id)}/reconciliation`, 'PATCH', { state: 'VERIFIED', note: 'Acreditada en el banco' }, { token: gerenteToken })
 assert.equal(verificado.response.status, 200, JSON.stringify(verificado.payload))
 assert.equal(psql(`SELECT "status"::text || '|' || ("paidAt" IS NOT NULL)::text FROM "Payment" WHERE "id" = '${pagoPendiente.payload.id}';`), 'CONFIRMED|true', 'Conciliar VERIFIED confirma el pago pendiente.')
 assert.equal(psql(`SELECT "status" FROM "Order" WHERE "id" = '${pedidoPendiente.payload.id}';`), 'COMPLETED', 'El pedido se cierra cuando el cobro pendiente se confirma.')
 assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PAYMENT_CONFIRMED' AND "entityId" = '${pagoPendiente.payload.id}';`), '1', 'La confirmación debe quedar auditada.')
-const reverificado = await request(`/api/payments/${encodeURIComponent(pagoPendiente.payload.id)}/reconciliation`, 'PATCH', { state: 'VERIFIED', note: 'Acreditada en el banco' })
+const reverificado = await request(`/api/payments/${encodeURIComponent(pagoPendiente.payload.id)}/reconciliation`, 'PATCH', { state: 'VERIFIED', note: 'Acreditada en el banco' }, { token: gerenteToken })
 assert.equal(reverificado.response.status, 200)
 assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PAYMENT_CONFIRMED' AND "entityId" = '${pagoPendiente.payload.id}';`), '1', 'Reverificar no vuelve a confirmar ni duplica la auditoría.')
 
 const pedidoRechazo = await request('/api/orders', 'POST', { orderNumber: `IT-CONCILIA-R-${ts}`, customerId: credito.payload.id, items: [{ description: 'Venta con cobro rechazado', quantity: 1, unitPricePyg: 30000 }] })
 const pagoRechazo = await request('/api/payments', 'POST', { orderId: pedidoRechazo.payload.id, method: 'TRANSFER', status: 'PENDING', amountPyg: 30000 })
-const rechazado = await request(`/api/payments/${encodeURIComponent(pagoRechazo.payload.id)}/reconciliation`, 'PATCH', { state: 'REJECTED', note: 'No ingresó' })
+const rechazado = await request(`/api/payments/${encodeURIComponent(pagoRechazo.payload.id)}/reconciliation`, 'PATCH', { state: 'REJECTED', note: 'No ingresó' }, { token: gerenteToken })
 assert.equal(rechazado.response.status, 200, JSON.stringify(rechazado.payload))
 assert.equal(psql(`SELECT "status" FROM "Payment" WHERE "id" = '${pagoRechazo.payload.id}';`), 'REJECTED', 'Conciliar REJECTED rechaza el pago pendiente.')
 assert.equal(psql(`SELECT "status" FROM "Order" WHERE "id" = '${pedidoRechazo.payload.id}';`), 'PENDING', 'Un cobro rechazado no cierra el pedido.')

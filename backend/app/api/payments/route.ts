@@ -6,6 +6,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, matchesPayment, normalizePayment, objectInput, receiveTradeIn, registrarVuelto, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { enforceRateLimit } from '../../../lib/rate-limit'
+import { loadPaymentVerificationPolicy, notifyPaymentToVerify, recordPaymentVerificationStart } from '../../../lib/payment-verification'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 class PaymentScopeError extends Error {
   readonly status = 403
@@ -54,7 +55,11 @@ export async function POST(request: Request) {
     // indicarla, el pago se concilia sobre la cuota existente en vez de crear
     // otro movimiento: la deuda no se duplica y el recordatorio se detiene.
     const installmentId = body.installmentId === undefined || body.installmentId === null || body.installmentId === '' ? null : textInput(body.installmentId, 'installmentId', 200)
+    const actor = { id: session.user.id, name: session.user.name, role: session.user.role }
+    let created: { id: string; orderId: string; branchId: string | null } | null = null
     const result = await prisma.$transaction(async tx => {
+      created = null
+      const policy = await loadPaymentVerificationPolicy(tx, tenant)
       const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: bigint | number; orderNumber: string; customerId: string | null }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg", "orderNumber", "customerId" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = locked[0]
       if (!order) throw new Error('Venta no encontrada.')
@@ -63,13 +68,13 @@ export async function POST(request: Request) {
       if (idempotencyKey) {
         const previous = await tx.payment.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } } })
         if (previous) {
-          const normalized = await normalizePayment(tx, tenant, body, previous).catch(() => { throw new InputError('El identificador ya pertenece a otro pago.', 409) })
+          const normalized = await normalizePayment(tx, tenant, body, previous, { policy, actor }).catch(() => { throw new InputError('El identificador ya pertenece a otro pago.', 409) })
           // Reintento del cobro de una cuota: la cuota ya quedó saldada por el
           // primer intento, así que el reintento devuelve ese mismo movimiento
           // (la cuota conserva su vencimiento) en vez de duplicar el cobro.
           const replayCuota = installmentId !== null && previous.id === installmentId && previous.orderId === order.id
           if (replayCuota) {
-            if (previous.status !== 'CONFIRMED' || !previous.dueAt || normalized.status !== 'CONFIRMED' || previous.method !== normalized.method || numero(previous.amountPyg) !== normalized.amountPyg) throw new Error('El identificador ya pertenece a otro pago.')
+            if (!['CONFIRMED', 'PENDING'].includes(previous.status) || !previous.dueAt || normalized.status !== previous.status || previous.method !== normalized.method || numero(previous.amountPyg) !== normalized.amountPyg) throw new Error('El identificador ya pertenece a otro pago.')
           } else if (!matchesPayment(previous, normalized, order.id)) throw new Error('El identificador ya pertenece a otro pago.')
           if (normalized.tradeIn) {
             const device = await tx.tradeInDevice.findUnique({ where: { paymentId: previous.id } })
@@ -79,14 +84,15 @@ export async function POST(request: Request) {
         }
       }
       if (order.status === 'CANCELLED' || order.status === 'COMPLETED') throw new Error('La venta no admite nuevos pagos.')
-      const { tradeIn, giftCard, ...normalized } = await normalizePayment(tx, tenant, body)
+      const { tradeIn, giftCard, selfApproved, ...normalized } = await normalizePayment(tx, tenant, body, undefined, { policy, actor })
       const amount = normalized.amountPyg; const status = normalized.status
       // Cobro de una cuota del plan de crédito: se salda la cuota misma (mismo
       // movimiento), se confirma con el medio real del cobro, se cierra el
       // pedido si quedó pagado y el recordatorio se detiene. Bajo el FOR UPDATE
       // del pedido y de la cuota, un reintento no descuenta dos veces.
       if (installmentId) {
-        if (status !== 'CONFIRMED') throw new InputError('Una cuota se cobra como pago confirmado.')
+        // Una cuota se cobra confirmada; si el medio pide verificación queda pendiente de aprobación (la cuota sigue abierta).
+        if (status !== 'CONFIRMED' && !(status === 'PENDING' && normalized.pendingReason === 'VERIFICACION')) throw new InputError('Una cuota se cobra como pago confirmado.')
         const rows = await tx.$queryRaw<Array<{ id: string; status: string; amountPyg: bigint; dueAt: Date | null; reference: string | null }>>`
           SELECT "id", "status"::text AS "status", "amountPyg", "dueAt", "reference" FROM "Payment"
           WHERE "id" = ${installmentId} AND "tenantId" = ${tenant} AND "orderId" = ${order.id} FOR UPDATE`
@@ -98,18 +104,26 @@ export async function POST(request: Request) {
         const cobrado = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
         const yaCobrado = numero(cobrado._sum.amountPyg)
         const totalVenta = numero(order.totalPyg)
-        if (!Number.isSafeInteger(totalVenta) || totalVenta < 0 || totalVenta > LIMITE_MONTO_VENTAS || !Number.isSafeInteger(yaCobrado + amount) || yaCobrado + amount > LIMITE_MONTO_VENTAS || yaCobrado + amount > totalVenta) throw new Error('El pago supera el total de la venta.')
+        const enVerificacion = status === 'PENDING' ? numero((await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'PENDING', pendingReason: 'VERIFICACION', id: { not: cuota.id } }, _sum: { amountPyg: true } }))._sum.amountPyg) : 0
+        if (!Number.isSafeInteger(totalVenta) || totalVenta < 0 || totalVenta > LIMITE_MONTO_VENTAS || !Number.isSafeInteger(yaCobrado + amount + enVerificacion) || yaCobrado + amount + enVerificacion > LIMITE_MONTO_VENTAS || yaCobrado + amount + enVerificacion > totalVenta) throw new Error('El pago supera el total de la venta.')
         const payment = await tx.payment.update({ where: { id: cuota.id }, data: { ...normalized, reference: normalized.reference ?? cuota.reference, idempotencyKey, userId: session.user.id, createdById: session.user.id, paidAt: new Date() } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
         await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
         if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
-        if (yaCobrado + amount >= totalVenta) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+        if (status === 'CONFIRMED' && yaCobrado + amount >= totalVenta) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+        await recordPaymentVerificationStart(tx, { tenantId: tenant, actor, payment, selfApproved: Boolean(selfApproved) })
+        if (payment.pendingReason === 'VERIFICACION' && payment.status === 'PENDING') created = { id: payment.id, orderId: order.id, branchId: order.branchId }
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_INSTALLMENT_PAID', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: numero(payment.amountPyg), method: payment.method, dueAt: cuota.dueAt, installment: true } } })
         return payment
       }
       const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
       const confirmed = numero(paid._sum.amountPyg)
       const totalVenta = numero(order.totalPyg)
+      // Un cobro en verificación tampoco puede sumar de más: contra lo ya cobrado y lo que espera aprobación.
+      if (status === 'PENDING' && normalized.pendingReason === 'VERIFICACION') {
+        const esperando = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'PENDING', pendingReason: 'VERIFICACION' }, _sum: { amountPyg: true } })
+        if (confirmed + numero(esperando._sum.amountPyg) + amount > numero(order.totalPyg)) throw new Error('El pago supera el saldo de la venta (hay cobros esperando verificación).')
+      }
       if (!Number.isSafeInteger(totalVenta) || totalVenta < 0 || totalVenta > LIMITE_MONTO_VENTAS || (status === 'CONFIRMED' && (!Number.isSafeInteger(confirmed + amount) || confirmed + amount > LIMITE_MONTO_VENTAS || confirmed + amount > totalVenta))) throw new Error('El pago supera el total de la venta.')
       // El cobro no puede dejar un saldo menor a un centavo de la moneda cobrada (#461).
       if (status === 'CONFIRMED') {
@@ -122,9 +136,13 @@ export async function POST(request: Request) {
       await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
       if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
       if (status === 'CONFIRMED' && confirmed + amount === totalVenta) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+      await recordPaymentVerificationStart(tx, { tenantId: tenant, actor, payment, selfApproved: Boolean(selfApproved) })
+      if (payment.pendingReason === 'VERIFICACION' && payment.status === 'PENDING') created = { id: payment.id, orderId: order.id, branchId: order.branchId }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PAYMENT_RECORDED', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: amount, status: normalized.status, method: normalized.method } } })
       return payment
     })
+    const aviso = created as { id: string; orderId: string; branchId: string | null } | null
+    if (aviso) await notifyPaymentToVerify({ tenantId: tenant, paymentId: aviso.id, orderId: aviso.orderId, branchId: aviso.branchId })
     return json(result, { status: 201 })
   } catch (e) {
     if (e instanceof PaymentScopeError) return error(e.message, e.status)
