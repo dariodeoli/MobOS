@@ -85,7 +85,11 @@ try {
   assert.equal(sinLista.origin, 'RETAIL'); assert.equal(sinLista.unitPricePyg, 100000)
 
   // Cliente mayorista con la lista: el ítem de lista gana sobre el mayorista.
-  const cliente = await req(customers.POST, { method: 'POST', token: 'a-VENDEDOR', body: { name: 'Cliente VIP', pricingTier: 'WHOLESALE', priceListId: lista.id }, status: 201 })
+  // [PERM] El vendedor da de alta la ficha pero se ignoran tipo mayorista, lista y crédito; la fija gerencia/administración.
+  const altaVendedor = await req(customers.POST, { method: 'POST', token: 'a-VENDEDOR', body: { name: 'Cliente de mostrador', pricingTier: 'WHOLESALE', priceListId: lista.id, creditLimitPyg: 9000000, creditDays: 30, creditTolerancePct: 30 }, status: 201 })
+  assert.equal(altaVendedor.pricingTier, 'RETAIL'); assert.equal(altaVendedor.priceListId ?? null, null)
+  assert.ok(!altaVendedor.creditLimitPyg); assert.ok(!altaVendedor.creditDays)
+  const cliente = await req(customers.POST, { method: 'POST', body: { name: 'Cliente VIP', pricingTier: 'WHOLESALE', priceListId: lista.id }, status: 201 })
   assert.equal(cliente.priceListId, lista.id)
   // La administración no expone listas a vendedor; el precio del cliente se
   // resuelve por /api/pricing (con su lista asignada).

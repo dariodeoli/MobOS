@@ -45,13 +45,20 @@ function fakeDb(initial = row()) {
     const vendedor = fakeDb()
     await assert.rejects(() => updateCustomer(vendedor.db, actor, 'customer-a', cambio), (error: unknown) => error instanceof CustomerServiceError && error.code === 'forbidden', `vendedor no puede ${Object.keys(cambio)[0]}`)
     assert.equal(vendedor.calls.update, undefined, 'un 403 no escribe nada')
-    // Alta por POST (ficha nueva): atajo del mostrador, igual que antes; sobre una ficha existente no se reescribe el crédito.
-    if ('creditLimitPyg' in cambio) {
-      const existente = fakeDb(row({ document: '555' }))
-      await assert.rejects(() => createCustomer(existente.db, actor, { name: 'Ana Pérez', document: '555', ...cambio }, { allowExisting: true, allowUnprivilegedCommercial: true }), (error: unknown) => error instanceof CustomerServiceError && error.code === 'forbidden')
-      assert.equal(existente.calls.update, undefined)
-    }
+    // Alta por POST: el vendedor guarda el contacto y los campos comerciales se IGNORAN (ni 403 ni se escriben),
+    // tanto en la ficha nueva como sobre una existente (no se reescribe su crédito).
+    const nueva = fakeDb()
+    await createCustomer(nueva.db, actor, { name: 'Ana Pérez', document: '777', priceListId: 'lista-1', creditLimitPyg: 5000000, creditDays: 30, pricingTier: 'WHOLESALE', creditTolerancePct: 30, creditTermMode: 'CUOTAS', creditInstallments: 6, ...cambio }, { allowExisting: true, ignoreUnprivilegedCommercial: true })
+    for (const key of ['pricingTier', 'creditLimitPyg', 'creditDays', 'creditTolerancePct', 'creditTermMode', 'creditInstallments', 'priceListId']) assert.equal(key in nueva.calls.create, false, `el alta de un vendedor ignora ${key}`)
+    assert.equal(nueva.calls.create.document, '777')
+    const existente = fakeDb(row({ document: '555' }))
+    await createCustomer(existente.db, actor, { name: 'Ana Pérez', document: '555', ...cambio }, { allowExisting: true, ignoreUnprivilegedCommercial: true })
+    for (const key of Object.keys(cambio)) assert.equal(key in existente.calls.update, false, `no reescribe ${key} de una ficha existente`)
   }
+  const gerenteAlta = fakeDb()
+  await createCustomer(gerenteAlta.db, { ...actor, role: 'GERENTE' }, { name: 'Mayorista', document: '888', pricingTier: 'WHOLESALE', creditLimitPyg: 1000000 }, { allowExisting: true, ignoreUnprivilegedCommercial: true })
+  assert.equal(gerenteAlta.calls.create.pricingTier, 'WHOLESALE', 'gerencia sí fija el tipo en el alta')
+  assert.equal(gerenteAlta.calls.create.creditLimitPyg, 1000000)
   const contacto = fakeDb()
   await updateCustomer(contacto.db, actor, 'customer-a', { phone: '0981123456', email: 'ok@example.invalid' })
   assert.equal(contacto.calls.update.phone, '0981123456', 'el vendedor sí edita contacto')
