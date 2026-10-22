@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 import { authRequestMetadata, effectivePermissions, requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
-import { pinValido } from '../../../../lib/pin'
+import { pinValido, PIN_EN_USO_MENSAJE } from '../../../../lib/pin'
+import { pinEnUso } from '../../../../lib/pin-unico'
 import { prisma } from '../../../../lib/prisma'
 import { ensureMembership, MembershipError } from '../../../../lib/membership'
 
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   const now = new Date()
   if (invitation.consumedAt || invitation.revokedAt || invitation.expiresAt <= now) return error(INVALID_MESSAGE, 410)
   if (invitation.email.trim().toLowerCase() !== email) return error(INVALID_MESSAGE, 410)
+  if (await pinEnUso(invitation.tenantId, pin)) return error(PIN_EN_USO_MENSAJE, 409)
   const pinHash = await bcrypt.hash(pin, 12)
   try {
     const created = await prisma.$transaction(async tx => {
