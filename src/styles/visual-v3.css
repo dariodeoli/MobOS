@@ -51,13 +51,13 @@ html.dark .v3-portal {
    shell; menos MAYÚSCULAS (los rótulos de tabla pasan a oración). */
 .shell-nav-v2.shell-nav-v2 { font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01'; }
 .shell-nav-v2.shell-nav-v2 [data-testid='shell-page-title'] {
-  font-size: 1.625rem;
-  line-height: 2rem;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
   font-weight: 700;
   letter-spacing: -.03em;
 }
-@media (max-width: 767px) {
-  .shell-nav-v2 [data-testid='shell-page-title'] { font-size: 1.375rem; line-height: 1.75rem; }
+@media (min-width: 1024px) {
+  .shell-nav-v2.shell-nav-v2 [data-testid='shell-page-title'] { font-size: 1.625rem; }
 }
 .shell-nav-v2.shell-nav-v2 :is(td, [data-money], .tabular-nums, .ventas-f3-money) { font-variant-numeric: tabular-nums; }
 
@@ -122,7 +122,6 @@ html.dark .v3-portal {
 .shell-nav-v2.shell-nav-v2 .cp-tarjeta,
 .shell-nav-v2.shell-nav-v2 .gp-tarjeta,
 .shell-nav-v2.shell-nav-v2 .entregas-f3-order,
-.shell-nav-v2.shell-nav-v2 .pos-f2 :is([data-testid='pos-bloque-productos'], [data-testid='pos-bloque-cliente'], [data-testid='pos-bloque-carrito'], [data-testid='pos-cobro'], [data-testid='resumen-compra']),
 .shell-nav-v2.shell-nav-v2 .gp-lista,
 .shell-nav-v2.shell-nav-v2 .inicio-kpi-stripe {
   border-color: transparent;
@@ -130,7 +129,13 @@ html.dark .v3-portal {
   background-color: rgb(var(--c-ink));
   box-shadow: var(--v3-elev-1);
 }
-/* Caja dentro de caja: la interior se aplana a un relleno tonal. */
+/* Caja dentro de caja: la interior se aplana a un relleno tonal. Los
+   bloques del POS viven dentro del panel de venta: quedan planos (sin
+   sombra) y solo pierden la línea dura. */
+.shell-nav-v2.shell-nav-v2 .pos-f2 :is([data-testid='pos-bloque-productos'], [data-testid='pos-bloque-cliente'], [data-testid='pos-bloque-carrito'], [data-testid='pos-cobro'], [data-testid='resumen-compra']) {
+  border-color: var(--v3-hairline);
+  border-radius: 14px;
+}
 .shell-nav-v2.shell-nav-v2 :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl) :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab'], [role='switch']),
 .shell-nav-v2.shell-nav-v2 [data-ui='card'] [data-ui='card'] {
   box-shadow: none;
