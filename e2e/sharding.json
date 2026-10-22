@@ -127,6 +127,7 @@
         "ia-configuracion.spec.js",
         "inventario-pos-sync.spec.js",
         "inventario-unidades.spec.js",
+        "modulos-stock.spec.js",
         "ocultos-plataforma.spec.js",
         "ops.spec.js",
         "pos-309-orden.spec.js",
@@ -162,8 +163,8 @@
         "servicio-tecnico.spec.js",
         "sesion-bloqueo.spec.js"
       ],
-      "tests": 219,
-      "ms": 1190438
+      "tests": 222,
+      "ms": 1250438
     },
     {
       "archivos": [

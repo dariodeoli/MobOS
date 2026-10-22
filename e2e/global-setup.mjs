@@ -395,10 +395,11 @@ function reponerCreditosImei() {
 }
 
 // El tenant seed arranca siempre con los módulos por defecto del preset
-// Comercio. Algunos E2E prueban activación/desactivación; al persistir la base
+// Comercio (versión 1: todo activo; «Inventario por unidades» y «Venta sin stock»
+// quedan explícitos en activo porque en empresas nuevas nacen apagados). Algunos E2E prueban activación/desactivación; al persistir la base
 // entre corridas o shards, una prueba anterior no debe cambiar el menú de otra.
 function resetModuleStore() {
-  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
+  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true}}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
 }
 
 export default async function globalSetup() {
@@ -496,6 +497,9 @@ async function refreshStorageStates(ctx) {
 async function seedFresh(ctx) {
   const company = await registerOrLogin(ctx)
   const companyToken = company.token
+  // Una empresa registrada nace con «Inventario por unidades» y «Venta sin stock» apagados:
+  // el seed necesita crear unidades, así que arranca con el store legacy (todo activo).
+  resetModuleStore()
 
   // Onboarding sets the admin PIN (idempotent: 409 means already done).
   const onboarding = await ctx.post('/api/auth/onboarding', { headers: bearer(companyToken), data: { pin: SEED.admin.pin } })
