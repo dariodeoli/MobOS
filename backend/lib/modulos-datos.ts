@@ -1,5 +1,7 @@
 // Estado inicial de los módulos que dependen de los datos de la empresa
-// (`porDatos` en el catálogo): «Inventario por unidades» y «Venta sin stock».
+// (`porDatos` en el catálogo): «Inventario por unidades», «Venta sin stock» y «Mayoristas».
+// mayoristas queda activo si la empresa ya tiene clientes mayoristas o una lista de
+// precios con «mayorista» en el nombre.
 //
 // - Empresa existente (sin store o versión 1) y sin valor guardado para el módulo:
 //   inventario-unidades queda activo si ya tiene unidades con IMEI/serie;
@@ -16,6 +18,8 @@ export const MODULOS_POR_DATOS: readonly string[] = MODULE_CATALOG.filter(def =>
 export type ClienteDatosModulos = {
   inventoryUnit: { findFirst(args: { where: { tenantId: string }; select: { id: true } }): Promise<unknown> }
   orderItem: { findFirst(args: { where: { order: { tenantId: string }; OR: Array<Record<string, { gt: number }>> }; select: { id: true } }): Promise<unknown> }
+  customer: { findFirst(args: { where: { tenantId: string; pricingTier: 'WHOLESALE' }; select: { id: true } }): Promise<unknown> }
+  priceList: { findFirst(args: { where: { tenantId: string; name: { contains: string; mode: 'insensitive' } }; select: { id: true } }): Promise<unknown> }
 }
 
 const record = (valor: unknown): Record<string, unknown> => valor && typeof valor === 'object' && !Array.isArray(valor) ? valor as Record<string, unknown> : {}
@@ -32,7 +36,11 @@ export async function decidirModulosPorDatos(db: ClienteDatosModulos, tenantId: 
   const decididos: Record<string, boolean> = {}
   for (const id of pendientes) {
     if (id === 'inventario-unidades') decididos[id] = Boolean(await db.inventoryUnit.findFirst({ where: { tenantId }, select: { id: true } }))
-    else if (id === 'venta-sin-stock') decididos[id] = Boolean(await db.orderItem.findFirst({ where: { order: { tenantId }, OR: [{ stockPending: { gt: 0 } }, { serialsPending: { gt: 0 } }] }, select: { id: true } }))
+    else if (id === 'mayoristas') {
+      // Activo si ya hay clientes mayoristas o una lista de precios «Mayorista».
+      decididos[id] = Boolean(await db.customer.findFirst({ where: { tenantId, pricingTier: 'WHOLESALE' }, select: { id: true } }))
+        || Boolean(await db.priceList.findFirst({ where: { tenantId, name: { contains: 'mayorist', mode: 'insensitive' } }, select: { id: true } }))
+    } else if (id === 'venta-sin-stock') decididos[id] = Boolean(await db.orderItem.findFirst({ where: { order: { tenantId }, OR: [{ stockPending: { gt: 0 } }, { serialsPending: { gt: 0 } }] }, select: { id: true } }))
   }
   return decididos
 }

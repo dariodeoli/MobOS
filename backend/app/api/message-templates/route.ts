@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { tenantModuleEnabled } from '../../../lib/tenant-module-access'
+import { moduloHabilitado } from '../../../lib/modulos-guard'
 import {
   CATEGORIES, CATEGORY_TO_CONTEXT, CONTEXT_TO_CATEGORY, EMAIL_PREFIX, defaultKeys, deletedKeysFrom,
   isCampaignKey, isEmailKey, planSeed, withDeletedKey,
@@ -23,7 +24,14 @@ import {
 async function campanasActivas(tenantId: string) {
   return tenantModuleEnabled(tenantId, 'mensajes')
 }
-const campanasApagadas = () => error('Las plantillas de campañas necesitan el módulo de mensajes activo.', 403)
+// «Precios mayoristas» es del módulo `mayoristas`: apagado, la plantilla se oculta
+// y no se edita (los datos se conservan).
+const esMayorista = (key: string) => key.replace(EMAIL_PREFIX, '') === 'mayorista'
+async function plantillaBloqueada(tenantId: string, key: string) {
+  if (esMayorista(key)) return !await moduloHabilitado(tenantId, 'mayoristas')
+  return isCampaignKey(key) && !await campanasActivas(tenantId)
+}
+const campanasApagadas = () => error('Esa plantilla pertenece a un módulo desactivado (mensajes o mayoristas). Activalo en Configuración › Módulos.', 403)
 
 const slugDe = (value: string) => value
   .normalize('NFD')
@@ -113,20 +121,20 @@ export async function GET(request: Request) {
     where: { tenantId, ...(requested ? { category: requested } : {}), ...(channel === 'all' ? {} : { channel }) },
     orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
   })
-  return json(campanas ? templates : templates.filter(item => !isCampaignKey(item.key)))
+  const mayoristas = await moduloHabilitado(tenantId, 'mayoristas')
+  return json(templates.filter(item => (campanas || !isCampaignKey(item.key)) && (mayoristas || !esMayorista(item.key))))
 }
 
 export async function POST(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
   if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
-  const campanas = await campanasActivas(tenantId)
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const duplicateId = typeof body.duplicateOf === 'string' ? body.duplicateOf : typeof body.duplicate === 'string' ? body.duplicate : ''
   if (duplicateId) {
     const original = await prisma.messageTemplate.findFirst({ where: { id: duplicateId, tenantId } })
     if (!original) return error('Plantilla no encontrada.', 404)
-    if (!campanas && isCampaignKey(original.key)) return campanasApagadas()
+    if (await plantillaBloqueada(tenantId, original.key)) return campanasApagadas()
     const copy = await prisma.$transaction(async tx => {
       const created = await tx.messageTemplate.create({
         data: {
@@ -183,7 +191,7 @@ export async function PATCH(request: Request) {
   if (!id) return error('Plantilla no encontrada.', 404)
   const current = await prisma.messageTemplate.findFirst({ where: { id, tenantId } })
   if (!current) return error('Plantilla no encontrada.', 404)
-  if (isCampaignKey(current.key) && !await campanasActivas(tenantId)) return campanasApagadas()
+  if (await plantillaBloqueada(tenantId, current.key)) return campanasApagadas()
   const data: { name?: string; body?: string; subject?: string | null; category?: string; context?: string; isActive?: boolean } = {}
   if (body.name !== undefined) {
     const name = typeof body.name === 'string' ? body.name.trim() : ''
@@ -233,7 +241,7 @@ export async function DELETE(request: Request) {
   if (!id) return error('Falta la plantilla a eliminar.')
   const current = await prisma.messageTemplate.findFirst({ where: { id, tenantId }, select: { key: true } })
   if (!current) return error('Plantilla no encontrada.', 404)
-  if (isCampaignKey(current.key) && !await campanasActivas(tenantId)) return campanasApagadas()
+  if (await plantillaBloqueada(tenantId, current.key)) return campanasApagadas()
   const deleted = await prisma.$transaction(async tx => {
     const result = await tx.messageTemplate.deleteMany({ where: { id, tenantId } })
     if (result.count) {
