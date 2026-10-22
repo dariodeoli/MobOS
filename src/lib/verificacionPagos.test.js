@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   antiguedadTexto, categoriasDelDia, errorDiscrepancia, estadoVisiblePago, lineaDelDia, minutosDesde, motivoEntregaBloqueada,
-  necesitaRefrescoPagos, resumenResultado, resumenVerificacionPedido, sumarResultados, tabDeTipo, tabValida, hoyParaguay,
+  necesitaRefrescoPagos, numeroPedidoVisible, resumenResultado, resumenVerificacionPedido, sumarResultados, tabDeTipo, tabValida, hoyParaguay,
 } from './verificacionPagos.js'
 
 test('cada tipo de autorización cae en una pestaña y lo desconocido va a Otros', () => {
@@ -62,6 +62,11 @@ test('categorías del día por método con totales completos', () => {
 test('línea del día y resumen de verificación', () => {
   const linea = lineaDelDia({ orderNumber: '04234', amountPyg: 545000, customerName: 'Ana Pérez', collectedByName: 'Diego', at: 'x' }, { formatear: n => `Gs ${n}`, hora: () => '14:32' })
   assert.equal(linea, 'Pedido #04234 · Gs 545000 · Ana Pérez · cobrado por Diego · 14:32')
+  assert.equal(numeroPedidoVisible('MOB-0001'), 'MOB-0001')
+  assert.equal(numeroPedidoVisible('MOB-#0001'), 'MOB-0001')
+  assert.equal(numeroPedidoVisible('04234'), '#04234')
+  assert.equal(numeroPedidoVisible('#04234'), '#04234')
+  assert.equal(lineaDelDia({ orderNumber: 'MOB-0001', amountPyg: 1, at: 'x' }, { formatear: n => `Gs ${n}` }), 'Pedido MOB-0001 · Gs 1 · Consumidor final')
   assert.equal(resumenResultado({ verified: 3, alreadyVerified: 1, skipped: [{}] }), '3 verificados · 1 ya estaba verificado · 1 sin verificar')
   const suma = sumarResultados([{ attempted: 2, verified: 2, alreadyVerified: 0, skipped: [] }, { attempted: 1, verified: 0, alreadyVerified: 1, skipped: [{ code: 'OWN' }] }])
   assert.deepEqual([suma.attempted, suma.verified, suma.alreadyVerified, suma.skipped.length], [3, 2, 1, 1])

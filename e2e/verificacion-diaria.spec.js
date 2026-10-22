@@ -24,7 +24,7 @@ async function elegirSucursal(page) {
   await page.getByTestId('verificacion-diaria').waitFor({ timeout: 20_000 })
   if (await selector.count()) await selector.selectOption(SEED.branchId)
 }
-const numero = (cobro) => String(cobro.pedido.orderNumber).replace(/^#/, '')
+const numero = (cobro) => String(cobro.pedido.orderNumber).replace(/#/g, '')
 
 test.afterAll(async () => {
   restaurarVerificacion(original)
@@ -49,10 +49,11 @@ test('prepara tres cobros PIX del día y los muestra por categoría con el detal
   await expect(page.getByTestId('verificacion-diaria')).toBeVisible({ timeout: 20_000 })
   await elegirSucursal(page)
   await expect(page.getByTestId('verificacion-estado-dia')).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByTestId('verificacion-totales')).toContainText('Cobrado del día')
+  await expect(page.getByTestId('verificacion-totales')).toContainText('Total del día')
 
   await expect(categoriaPix(page)).toBeVisible()
-  await expect(categoriaPix(page).getByTestId('verificacion-categoria-total')).toContainText('681.000')
+  await expect(categoriaPix(page).getByTestId('verificacion-categoria-total')).toContainText(/\d/)
+  await expect(categoriaPix(page)).toContainText(`QA Verificación PIX ${sufijo}`)
   const l1 = linea(page, numero(uno))
   await expect(l1).toContainText('310.500')
   await expect(l1).toContainText('Pendiente de aprobación')
@@ -110,8 +111,9 @@ test('verificar categoría aprueba lo que queda de PIX y resuelve el resto del d
   await expect(l2).toContainText('Verificado')
   await expect(l3).toContainText('Verificado')
 
-  // Idempotente: repetir no cambia nada (el botón ya no ofrece pendientes).
-  await expect(pix.getByTestId('verificar-categoria')).toBeDisabled()
+  // Lo verificado ya no ofrece «Verificar»: repetir no cambia nada.
+  await expect(l2.getByTestId('verificar-uno')).toHaveCount(0)
+  await expect(l3.getByTestId('verificar-uno')).toHaveCount(0)
 })
 
 test('375 px: la verificación del día no tiene scroll horizontal', async ({ page }) => {

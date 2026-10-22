@@ -2,6 +2,7 @@
 // una cuenta propia de la spec (así no cambia el cobro de ninguna otra spec que
 // corra al mismo tiempo), pedidos cobrados por el vendedor y comprobantes.
 import { execFileSync } from 'node:child_process'
+import { request } from '@playwright/test'
 import { SEED } from './seed-data.js'
 import { contextoVendedorApi } from './seller-api.js'
 
@@ -73,5 +74,24 @@ export async function subirComprobante(vendedor, pagoId) {
   if (respuesta.status() !== 201) throw new Error(`comprobante: ${respuesta.status()} ${await respuesta.text()}`)
 }
 
-/** Sesión API del vendedor sembrado (con el origen de la app, como lo hace el navegador). */
-export const vendedorApi = () => contextoVendedorApi({ origen: `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}` })
+/**
+ * Sesión API del vendedor sembrado (con el origen de la app, como lo hace el navegador). Si el
+ * marcador `.seeded` no está (el arnés lo deja sin escribir cuando restaura el snapshot de la base),
+ * el vendedor se busca entre los usuarios que devuelve el login de la empresa.
+ */
+export async function vendedorApi() {
+  const origen = `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}`
+  try {
+    return await contextoVendedorApi({ origen })
+  } catch (cause) {
+    if (cause?.code !== 'ENOENT') throw cause
+  }
+  const ctx = await request.newContext({ baseURL: SEED.api, extraHTTPHeaders: { Origin: origen } })
+  const login = await ctx.post('/api/auth/login', { data: { email: SEED.company.email, password: SEED.company.password, deviceId: `e2e-vendedor-api-${Date.now().toString(36)}` } })
+  if (!login.ok()) throw new Error(`login de empresa: HTTP ${login.status()} ${await login.text()}`)
+  const vendedor = ((await login.json()).sellers || []).find((s) => s.name === SEED.sellers[0].name)
+  if (!vendedor) throw new Error('El vendedor sembrado no está en la empresa.')
+  const pin = await ctx.post('/api/auth/pin', { data: { sellerId: vendedor.id, pin: SEED.sellers[0].pin } })
+  if (!pin.ok()) throw new Error(`PIN del vendedor: HTTP ${pin.status()} ${await pin.text()}`)
+  return ctx
+}

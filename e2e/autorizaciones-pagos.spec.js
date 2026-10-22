@@ -54,10 +54,10 @@ test('prepara los cobros y el pedido bloquea la entrega con el motivo a la vista
   await expect(aviso).toBeVisible()
   await expect(aviso).toContainText('Pago en verificación')
   const select = page.getByLabel('Estado de entrega')
-  // Retiro en tienda: la opción que saca la mercadería es «Retirado»; en delivery, «Entregado».
-  const quienEntrega = select.locator('option[value="PICKED_UP"], option[value="DELIVERED"]')
-  await expect(quienEntrega.first()).toBeDisabled()
+  // Los pasos que sacan la mercadería (Entregado / Retirado) quedan deshabilitados mientras haya un cobro en
+  // verificación; los demás estados se pueden seguir cambiando.
   await expect(select.locator('option[value="PROCESSING"]')).toBeEnabled()
+  for (const entrega of await select.locator('option[value="PICKED_UP"], option[value="DELIVERED"]').all()) await expect(entrega).toBeDisabled()
   if (process.env.MOBOS_CAPTURAS) await page.screenshot({ path: `${process.env.MOBOS_CAPTURAS}/autorizaciones-pedido.png`, fullPage: true })
   // El servidor también lo frena aunque se intente por la API.
   const entrega = await vendedor.patch(`/api/orders/${a.pedido.id}`, { data: { fulfillmentStatus: 'DELIVERED' } })
@@ -66,7 +66,7 @@ test('prepara los cobros y el pedido bloquea la entrega con el motivo a la vista
 
   const subir = page.getByTestId('pago-subir-comprobante')
   await expect(subir).toBeVisible()
-  await expect(subir.getByRole('button', { name: 'Sacar foto' })).toBeVisible()
+  await expect(subir.getByRole('button', { name: 'Sacar foto', exact: true })).toBeVisible()
   await expect(subir.locator('input[type=file][capture="environment"]')).toHaveCount(1)
   await subir.locator('input[type=file]').last().setInputFiles({ name: 'comprobante.png', mimeType: 'image/png', buffer: PNG_1X1 })
   await expect(page.getByTestId('comprobante-miniatura').first()).toBeVisible({ timeout: 15_000 })
@@ -131,7 +131,7 @@ test('el pedido refleja lo resuelto: rechazo con motivo y entrega habilitada tra
   await page.goto(`/pedidos/${pedidos.a.pedido.id}`)
   await expect(page.getByTestId('pago-estado').first()).toHaveText('Aprobado', { timeout: 20_000 })
   await expect(page.getByTestId('entrega-bloqueada')).toHaveCount(0)
-  await expect(page.getByLabel('Estado de entrega').locator('option[value="PICKED_UP"], option[value="DELIVERED"]').first()).toBeEnabled()
+  for (const entrega of await page.getByLabel('Estado de entrega').locator('option[value="PICKED_UP"], option[value="DELIVERED"]').all()) await expect(entrega).toBeEnabled()
 })
 
 test('375 px: sin scroll horizontal y botones de 44 px', async ({ page }) => {

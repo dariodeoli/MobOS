@@ -1,3 +1,5 @@
+import { codigoPedido } from '../utils/pedido.js'
+
 // Verificación de pagos (puro, sin React): textos, estados y agrupaciones que
 // comparten «Autorizaciones › Pagos», el detalle del pedido y Finanzas ›
 // Verificación. El servidor decide quién aprueba y cuándo se entrega; esto solo
@@ -116,11 +118,16 @@ export function categoriasDelDia(groups = []) {
   return [...mapa.values()].sort((a, b) => (b.confirmedPyg + b.pendingPyg) - (a.confirmedPyg + a.pendingPyg) || a.label.localeCompare(b.label))
 }
 
+/** «#04234» para números solo de dígitos; «MOB-0001» y similares ya traen su prefijo. */
+export const numeroPedidoVisible = (numero) => {
+  const texto = codigoPedido(String(numero ?? '').trim().replace(/^#(?=\d)/, ''))
+  return /^\d/.test(texto) ? `#${texto}` : texto
+}
+
 /** Línea de texto de un pago del día: «Pedido #04234 · Gs 545.000 · Cliente · cobrado por Ana · 14:32». */
 export function lineaDelDia(pago, { formatear, hora } = {}) {
-  const numero = String(pago.orderNumber || '').replace(/^#?/, '#')
   return [
-    `Pedido ${numero}`,
+    `Pedido ${numeroPedidoVisible(pago.orderNumber)}`,
     formatear ? formatear(pago.amountPyg) : String(pago.amountPyg),
     pago.customerName || 'Consumidor final',
     pago.collectedByName ? `cobrado por ${pago.collectedByName}` : '',

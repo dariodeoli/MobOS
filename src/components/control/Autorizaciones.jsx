@@ -127,6 +127,7 @@ export default function Autorizaciones() {
   // filas cargadas no los incluyen, pero los contadores de las pestañas sí.
   const [pendientesAparte, setPendientesAparte] = useState(null)
   const [pagosPendientes, setPagosPendientes] = useState(null)
+  const [refrescoPagos, setRefrescoPagos] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [approveTarget, setApproveTarget] = useState(null)
@@ -356,7 +357,7 @@ export default function Autorizaciones() {
         ) : null}
         testId="barra-autorizaciones"
       >
-        <Button type="button" variant="outline" className="px-3 text-xs" onClick={load} disabled={loading}>
+        <Button type="button" variant="outline" className="px-3 text-xs" onClick={() => { setRefrescoPagos(n => n + 1); load() }} disabled={loading}>
           {loading ? 'Cargando…' : 'Actualizar'}
         </Button>
       </BarraModulo>
@@ -391,7 +392,7 @@ export default function Autorizaciones() {
         })}
       </div>
       <div id="autorizaciones-panel" role="tabpanel" aria-labelledby={`autorizaciones-tab-${tab}`} className="space-y-4">
-      {tab === 'pagos' ? <PagosPorVerificar onConteo={setPagosPendientes} /> : (<>
+      {tab === 'pagos' ? <PagosPorVerificar onConteo={setPagosPendientes} refresco={refrescoPagos} /> : (<>
       <Card className="op-rd-barra" data-testid="autorizaciones-barra">
         <div className="op-rd-tabs" role="group" aria-label="Filtrar solicitudes por estado">
           {FILTERS.map(([value, label]) => (

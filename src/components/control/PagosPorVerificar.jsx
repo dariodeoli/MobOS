@@ -7,7 +7,7 @@ import { formatGs } from '@/utils/moneda'
 import { fechaHora } from '@/utils/fecha'
 import { obligatorio } from 'owncoding-ui/utils'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
-import { antiguedadTexto, puedeVerificarPagos } from '@/lib/verificacionPagos'
+import { antiguedadTexto, numeroPedidoVisible, puedeVerificarPagos } from '@/lib/verificacionPagos'
 import { demoPagosPorVerificar, demoResolverPago } from '@/lib/demoVerificacionPagos'
 import Icon from '@/components/shared/Icon'
 import Popup from '@/components/shared/Popup'
@@ -27,7 +27,7 @@ const TONO_ESTADO = { PENDING: ['Pendiente de verificación', 'orange'], CONFIRM
 // alguien confirme que la plata llegó. El servidor decide quién puede aprobar
 // (nadie aprueba su propio cobro salvo configuración) y muestra el error claro
 // si se intenta igual.
-export default function PagosPorVerificar({ onConteo }) {
+export default function PagosPorVerificar({ onConteo, refresco = 0 }) {
   const { usuario, esDemo } = useSesion()
   const toast = useToast()
   const [estado, setEstado] = useUrlState('pago', 'pending')
@@ -59,7 +59,7 @@ export default function PagosPorVerificar({ onConteo }) {
     }
   }, [esDemo, estado, onConteo])
 
-  useEffect(() => { cargar() }, [cargar])
+  useEffect(() => { cargar() }, [cargar, refresco])
   // Al volver a la pestaña del navegador se vuelve a leer: otro verificador pudo resolver mientras tanto.
   useEffect(() => {
     const alVolver = () => { if (document.visibilityState === 'visible') cargar() }
@@ -119,7 +119,6 @@ export default function PagosPorVerificar({ onConteo }) {
         tab={estado}
         onTab={setEstado}
         etiquetaTabs="Filtrar pagos por estado"
-        primary={<Button type="button" variant="outline" className="px-3 text-xs" onClick={cargar} disabled={cargando}>{cargando ? 'Cargando…' : 'Actualizar'}</Button>}
       />
       {esDemo && <Aviso tono="warn">Datos ficticios: los pagos y comprobantes son de ejemplo y aprobar o rechazar queda simulado.</Aviso>}
       {error && <Aviso tono="error">{error}</Aviso>}
@@ -155,7 +154,7 @@ export default function PagosPorVerificar({ onConteo }) {
         onConfirm={confirmarAprobar}
         busy={ocupado}
         title="Aprobar el pago"
-        description={aprobar ? `Confirmás que ${formatGs(aprobar.amountPyg)} (${PAYMENT_METHOD_LABELS[aprobar.method] || aprobar.method}) del pedido ${aprobar.orderNumber} ya llegó a la cuenta. El pedido pasa a contar este cobro.` : ''}
+        description={aprobar ? `Confirmás que ${formatGs(aprobar.amountPyg)} (${PAYMENT_METHOD_LABELS[aprobar.method] || aprobar.method}) del pedido ${numeroPedidoVisible(aprobar.orderNumber)} ya llegó a la cuenta. El pedido pasa a contar este cobro.` : ''}
         confirmLabel="Aprobar pago"
       />
 
@@ -173,7 +172,7 @@ export default function PagosPorVerificar({ onConteo }) {
         {rechazar && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
-              Pedido {rechazar.orderNumber} · {rechazar.customerName || 'Consumidor final'}: <b className="text-fore">{formatGs(rechazar.amountPyg)}</b> por {PAYMENT_METHOD_LABELS[rechazar.method] || rechazar.method}.
+              Pedido {numeroPedidoVisible(rechazar.orderNumber)} · {rechazar.customerName || 'Consumidor final'}: <b className="text-fore">{formatGs(rechazar.amountPyg)}</b> por {PAYMENT_METHOD_LABELS[rechazar.method] || rechazar.method}.
             </p>
             <FormField label="Motivo del rechazo" htmlFor="pago-rechazo-motivo" error={errorDe('motivo')}>
               <Textarea
@@ -221,11 +220,11 @@ function TarjetaPago({ item, verifica, esDemo, onAprobar, onRechazar }) {
             {item.reference && <p className="break-words text-xs text-mute">Referencia: <b className="text-fore">{item.reference}</b></p>}
             <p className="text-xs text-mute">
               Pedido{' '}
-              {esDemo ? <b className="text-fore">{item.orderNumber}</b> : <Link className="font-semibold text-fono-light hover:underline" to={`/pedidos/${item.orderId}`}>{item.orderNumber}</Link>}
+              {esDemo ? <b className="text-fore">{numeroPedidoVisible(item.orderNumber)}</b> : <Link className="font-semibold text-fono-light hover:underline" to={`/pedidos/${item.orderId}`}>{numeroPedidoVisible(item.orderNumber)}</Link>}
               {' · '}{item.customerName || 'Consumidor final'}
             </p>
             <p className="text-xs text-mute">Vendedor: <b className="text-fore">{item.sellerName || '—'}</b>{item.collectedByName && item.collectedByName !== item.sellerName ? <> · cobró <b className="text-fore">{item.collectedByName}</b></> : null}</p>
-            {item.resolution && (
+            {item.resolution && item.status !== 'PENDING' && (
               <p className={`text-xs ${item.status === 'REJECTED' ? 'text-bad' : 'text-ok'}`}>
                 {item.status === 'REJECTED' ? 'Rechazado' : 'Aprobado'}{item.resolution.byName ? ` por ${item.resolution.byName}` : ''}{item.resolution.at ? ` · ${fechaHora(item.resolution.at)}` : ''}
                 {item.resolution.note ? ` · Motivo: ${item.resolution.note}` : ''}

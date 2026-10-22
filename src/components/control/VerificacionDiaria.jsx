@@ -5,7 +5,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { formatGs } from '@/utils/moneda'
 import { fechaHora } from '@/utils/fecha'
 import {
-  ESTADO_DIA, ESTADO_LINEA, MOTIVOS_OMITIDO, categoriasDelDia, errorDiscrepancia, hoyParaguay, lineaDelDia, puedeVerificarPagos, resumenResultado, sumarResultados,
+  ESTADO_DIA, ESTADO_LINEA, MOTIVOS_OMITIDO, categoriasDelDia, errorDiscrepancia, hoyParaguay, lineaDelDia, numeroPedidoVisible, puedeVerificarPagos, resumenResultado, sumarResultados,
 } from '@/lib/verificacionPagos'
 import { demoRegistrarDiscrepancia, demoResolverDiscrepancia, demoVerificarDia, demoVistaDia } from '@/lib/demoVerificacionPagos'
 import Icon from '@/components/shared/Icon'
@@ -208,7 +208,7 @@ export default function VerificacionDiaria() {
 
       {vista && totales && (
         <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="verificacion-totales">
-          <Total titulo="Cobrado del día" valor={formatGs(totales.confirmedPyg)} detalle={`${totales.count} cobro${totales.count === 1 ? '' : 's'}`} />
+          <Total titulo="Total del día" valor={formatGs(totales.confirmedPyg + totales.pendingPyg)} detalle={`${totales.count} cobro${totales.count === 1 ? '' : 's'}`} />
           <Total titulo="Verificado" valor={formatGs(totales.verifiedPyg)} tono="ok" />
           <Total titulo="Por verificar" valor={formatGs(totales.toVerifyPyg + totales.pendingPyg)} tono={sinResolver ? 'warn' : undefined} detalle={sinResolver ? `${sinResolver} pendiente${sinResolver === 1 ? '' : 's'}` : undefined} />
           <Total titulo="Rechazado" valor={formatGs(totales.rejectedPyg)} tono={totales.rejectedPyg ? 'bad' : undefined} />
@@ -310,7 +310,7 @@ export default function VerificacionDiaria() {
           <div className="space-y-4">
             <p className="text-sm text-mute">
               {discrepancia.scope === 'LINE'
-                ? <>Pedido {String(discrepancia.linea.orderNumber).replace(/^#?/, '#')} · {discrepancia.linea.customerName || 'Consumidor final'}</>
+                ? <>Pedido {numeroPedidoVisible(discrepancia.linea.orderNumber)} · {discrepancia.linea.customerName || 'Consumidor final'}</>
                 : <>Categoría {discrepancia.categoria.label} del día</>}
               {' · '}Esperado: <b className="text-fore" data-testid="discrepancia-esperado">{formatGs(discrepancia.esperado)}</b>
             </p>
