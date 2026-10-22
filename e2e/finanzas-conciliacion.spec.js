@@ -2,10 +2,16 @@
 // depósito contra los pagos que cubre, diferencia con observación y
 // trazabilidad hasta el pedido, contra datos reales del arnés.
 import { test, expect } from '@playwright/test'
+import { vendedorApi } from './helpers/pagos-verificar.js'
+import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
-async function crearCuentaYPago(page, { sufijo, kind, processor, amount }) {
+// `vendedor: true` registra el cobro con otra persona (el vendedor sembrado): la
+// aprobación de un cobro propio no está permitida, así que quien concilia el
+// lote tiene que ser distinto de quien lo cobró.
+async function crearCuentaYPago(page, { sufijo, kind, processor, amount, vendedor = false }) {
+  if (vendedor) return crearCuentaYPagoDelVendedor(page, { sufijo, kind, processor, amount })
   return page.evaluate(async ({ api, sufijo, kind, processor, amount }) => {
     const post = async (path, body) => {
       const respuesta = await fetch(`${api}${path}`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -28,12 +34,32 @@ async function crearCuentaYPago(page, { sufijo, kind, processor, amount }) {
   }, { api: API, sufijo, kind, processor, amount })
 }
 
+async function crearCuentaYPagoDelVendedor(page, { sufijo, kind, processor, amount }) {
+  const preparado = await page.evaluate(async ({ api, sufijo, kind, processor, amount, branchId }) => {
+    const post = async (path, body) => {
+      const respuesta = await fetch(`${api}${path}`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      return { status: respuesta.status, data: await respuesta.json().catch(() => null) }
+    }
+    const producto = await post('/api/products', { name: `QA Conciliación ${sufijo}`, sku: `QA-CONC-${sufijo}`, pricePyg: amount, stock: 5, branchId })
+    const cuenta = await post('/api/payment-accounts', { name: `QA Conciliación ${kind} ${sufijo}`, kind, currency: 'PYG', holder: 'Titular QA', ...(processor ? { processor } : {}) })
+    return { producto, cuenta }
+  }, { api: API, sufijo, kind, processor, amount, branchId: SEED.branchId })
+  const vendedor = await vendedorApi()
+  const respuesta = await vendedor.post('/api/orders', {
+    data: {
+      items: [{ productId: preparado.producto.data.id, description: preparado.producto.data.name, quantity: 1, unitPricePyg: amount }],
+      payments: [{ accountId: preparado.cuenta.data.id, originalAmount: String(amount), exchangeRatePyg: '1', amountPyg: amount, method: kind, status: 'CONFIRMED', reference: `CONC-${sufijo}` }],
+    },
+  })
+  return { cuenta: preparado.cuenta.data, orden: await respuesta.json().catch(() => null), status: respuesta.status() }
+}
+
 test.describe('finanzas · conciliación', () => {
   test('ingresos por procesadora y lote con diferencia y trazabilidad', async ({ page }) => {
     // Primero una página de la app: el fetch con cookies sale del mismo origen.
     await page.goto('/resumen')
     const sufijo = Date.now().toString(36).toUpperCase()
-    const pago = await crearCuentaYPago(page, { sufijo, kind: 'CARD', processor: 'Bancard', amount: 250000 })
+    const pago = await crearCuentaYPago(page, { sufijo, kind: 'CARD', processor: 'Bancard', amount: 250000, vendedor: true })
     expect(pago.status).toBe(201)
     const numero = pago.orden.orderNumber.replace('#', '') // #461: se muestra sin «#»
 
