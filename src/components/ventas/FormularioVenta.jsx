@@ -2070,6 +2070,22 @@ export default function FormularioVenta({
     }
   }
 
+  // Paso 2 · Cobrar: Esc vuelve a productos. Va en captura para ver si había una
+  // lista desplegada o una ventana abierta ANTES de que su propio Esc la cierre
+  // (si no, un Esc que solo cierra la lista sacaría también del cobro).
+  useEffect(() => {
+    if (!modoCobro) return undefined
+    const alEscape = event => {
+      if (event.key !== 'Escape' || esMovilRef.current) return
+      const busqueda = document.getElementById('pos-busqueda-producto')
+      if (busqueda && busqueda.closest('[hidden]')) return
+      if (document.querySelector('[role="dialog"]:not([hidden]), [role="alertdialog"]:not([hidden]), [role="listbox"], [role="menu"], [aria-haspopup][aria-expanded="true"]')) return
+      setModoCobro(false)
+    }
+    document.addEventListener('keydown', alEscape, true)
+    return () => document.removeEventListener('keydown', alEscape, true)
+  }, [modoCobro])
+
   // Atajos del POS. Solo actúan mientras esta vista está visible (el panel la
   // mantiene montada con `hidden`) y nunca cuando se escribe en un campo,
   // salvo Escape. Los handlers usan el estado del render actual; el efecto se
@@ -2082,11 +2098,7 @@ export default function FormularioVenta({
       const editable =
         target instanceof HTMLElement &&
         (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      if (event.key === 'Escape') {
-        // Paso 2 · Cobrar: Esc vuelve a productos (si no hay otra ventana abierta).
-        if (modoCobro && !esMovilRef.current && !event.defaultPrevented && !document.querySelector('[role="dialog"]:not([hidden]), [role="alertdialog"]:not([hidden]), [role="listbox"], [aria-expanded="true"]')) setModoCobro(false)
-        return
-      }
+      if (event.key === 'Escape') return
       if (event.key === 'F2') {
         // F2 is the checkout shortcut, even when the search field currently
         // owns focus. Keep dialogs/overlays in control of their own keys.
