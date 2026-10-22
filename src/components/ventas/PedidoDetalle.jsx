@@ -115,10 +115,10 @@ function relativeDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   const hoy = new Date(); const ayer = new Date(Date.now() - 86400000)
-  const hora = date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })
+  const hora = date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
   if (date.toDateString() === hoy.toDateString()) return `Hoy ${hora}`
   if (date.toDateString() === ayer.toDateString()) return `Ayer ${hora}`
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) + ` ${hora}`
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('-', ' ') + ` ${hora}`
 }
 // Quién hizo el movimiento: el usuario real cuando existe; en pagos viejos
 // (sin creador guardado) cae al vendedor del pedido antes que a "Sistema".

@@ -1800,6 +1800,7 @@ export default function FormularioVenta({
           month: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
+          hour12: false,
         })
   }
   // #279 A2: el borrador guardado es compartido; la lista muestra quién lo creó

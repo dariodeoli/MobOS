@@ -34,7 +34,7 @@ const porcentajeTexto = (valor) => (valor == null ? '—' : `${valor}%`)
 const fechaHora = (valor) => {
   if (!valor) return '—'
   const fecha = new Date(valor)
-  return Number.isNaN(fecha.getTime()) ? '—' : fecha.toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return Number.isNaN(fecha.getTime()) ? '—' : fecha.toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 export default function MetricasAbastecimiento() {
@@ -212,7 +212,7 @@ export default function MetricasAbastecimiento() {
           <div className="flex basis-full flex-wrap items-center gap-2 text-xs text-mute">
             <Badge color="blue">{rendimiento.totales?.compras ?? 0} compras</Badge>
             <Badge color="slate">{rendimiento.totales?.envios ?? 0} envíos</Badge>
-            <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
           </div>
         )}
       </div>

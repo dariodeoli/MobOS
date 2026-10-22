@@ -40,7 +40,7 @@ const GRID_TRADEIN = 'grid min-w-[58rem] grid-cols-[minmax(9rem,1.3fr)_minmax(7r
 const fechaTradeIn = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 
 function FilaDevice({ item, abierto, onClick }) {

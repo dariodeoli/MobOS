@@ -30,7 +30,7 @@ const TONO_CHIP = { ok: 'ok', info: 'neutral', warn: 'warn', fono: 'ok', slate: 
 
 function horaDe(fecha) {
   if (!fecha) return ''
-  return new Date(fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })
+  return new Date(fecha).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 export default function TableroOps({

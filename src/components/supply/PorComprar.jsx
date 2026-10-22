@@ -367,7 +367,7 @@ export default function PorComprar() {
           <Stat compact label="Grupos" valor={totales.grupos} />
           <Stat compact label="Unidades" valor={totales.unidades} />
           {contadores?.sinCentro > 0 && <Stat compact label="Sin centro" valor={contadores.sinCentro} valorClassName="text-warn" />}
-          <Stat compact label="Actualizado" valor={new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })} />
+          <Stat compact label="Actualizado" valor={new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })} />
         </StatGrid>
       )}
 
