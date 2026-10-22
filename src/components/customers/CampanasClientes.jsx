@@ -8,6 +8,7 @@ import { fechaDia } from '@/utils/fecha'
 import { montoGs } from '@/utils/moneda'
 import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import { useModulos } from '@/lib/useModulos'
 // Campañas de recompra (#82): segmentos calculados por el backend, selección
 // de destinatarios, vista previa de la plantilla de WhatsApp (categoría
 // CUSTOMERS) y envío de a uno con marca de contacto en la ficha.
@@ -29,6 +30,8 @@ function motivoNoElegible(row) {
 }
 
 export default function CampanasClientes({ templates = [], empresa, sucursal, vendedor, cargarSegmento, marcarContactado: marcarContactadoExterno }) {
+  const mayoristas = useModulos().activo('mayoristas')
+  const segmentos = useMemo(() => SEGMENTOS.filter((item) => mayoristas || item.clave !== 'mayoristasDormidos'), [mayoristas])
   const [segmento, setSegmento] = useState(SEGMENTOS[0].clave)
   const [data, setData] = useState(null)
   const [cargando, setCargando] = useState(true)
@@ -113,7 +116,7 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
     </div>
 
     <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-      {SEGMENTOS.map((item) => <button key={item.clave} type="button" aria-pressed={segmento === item.clave} title={item.descripcion} onClick={() => setSegmento(item.clave)} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${segmento === item.clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{item.nombre}</button>)}
+      {segmentos.map((item) => <button key={item.clave} type="button" aria-pressed={segmento === item.clave} title={item.descripcion} onClick={() => setSegmento(item.clave)} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${segmento === item.clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{item.nombre}</button>)}
     </div>
 
     {cargando && <div role="status" aria-busy="true" className="space-y-2 py-2"><Skeleton className="h-12 w-full rounded-xl bg-ink-700" /><Skeleton className="h-12 w-full rounded-xl bg-ink-700" /></div>}

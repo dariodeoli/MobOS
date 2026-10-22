@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { temaV2Activo } from '@/lib/temaV2'
+import { useModulos } from '@/lib/useModulos'
 import { CeldaMoneda, IconAction, useToast } from '@/components/ui'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { fechaCompacta, fechaLegible } from '@/utils/pedido'
@@ -180,14 +181,15 @@ function MenuAccionesCliente({ row, telefono, templates, deuda, ultima, onPerfil
   )
 }
 
-const chipTipo = (row, v2) => (
+// Mayoristas apagado: sin chip de tipo (queda el hueco para no mover las columnas).
+const chipTipo = (row, v2, mayoristas = true) => !mayoristas ? <span aria-hidden="true" /> : (
   <span className={cn('inline-block w-fit max-w-full shrink-0 truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
     {row.wholesale ? 'Mayorista' : 'Cliente final'}
   </span>
 )
 
 // #313 · móvil: una tarjeta por cliente en lugar de la tabla comprimida.
-function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, onResumen, v2 }) {
+function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, onResumen, v2, mayoristas }) {
   const telefono = row.phones?.[0] || row.phone || ''
   const telefonoMostrado = telefonoVisible(telefono, row.countryCode)
   const deuda = Number(row.stats?.pendingPyg || 0)
@@ -212,7 +214,7 @@ function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, on
                 {telefonoMostrado || 'Sin teléfono'}
               </p>
             </div>
-            {chipTipo(row, v2)}
+            {chipTipo(row, v2, mayoristas)}
           </div>
           <dl className="mt-2 space-y-1 text-sm">
             <div className="flex items-baseline justify-between gap-3">
@@ -237,6 +239,7 @@ function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, on
 }
 
 export default function ClientesTabla({ rows, vacio = null, templates, onPerfil, onResumen, onUnificar }) {
+  const mayoristas = useModulos().activo('mayoristas')
   // Vista previa v2 (#241 lote B): números de consola y chips pill en la fila.
   const v2 = temaV2Activo()
   // #313: en móvil la lista se muestra como tarjetas (no tabla comprimida).
@@ -303,6 +306,7 @@ export default function ClientesTabla({ rows, vacio = null, templates, onPerfil,
         {!filas.length && vacio}
         {filas.map(row => (
           <TarjetaCliente
+            mayoristas={mayoristas}
             key={row.id}
             row={row}
             templates={templates}
@@ -323,7 +327,7 @@ export default function ClientesTabla({ rows, vacio = null, templates, onPerfil,
           <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
         </label>
         {encabezado('cliente', 'Cliente')}
-        {encabezado('tipo', 'Tipo')}
+        {mayoristas ? encabezado('tipo', 'Tipo') : <span aria-hidden="true" />}
         {encabezado('pedidos', 'Pedidos', 'justify-center')}
         {encabezado('total', 'Total gastado', 'justify-end')}
         {encabezado('ultima', 'Última compra')}
@@ -357,7 +361,7 @@ export default function ClientesTabla({ rows, vacio = null, templates, onPerfil,
                   {telefonoMostrado || 'Sin teléfono'}
                 </span>
               </span>
-              {chipTipo(row, v2)}
+              {chipTipo(row, v2, mayoristas)}
               <span className={cn('truncate text-center text-sm font-semibold tabular-nums', v2 && 'v2-numero')}>{row.stats?.orders || 0}</span>
               {/* Los montos van a la derecha y sin pisar los accesos (#313). */}
               <span className="flex min-w-0 justify-end"><CeldaMoneda valor={row.stats?.totalSpentPyg || 0} className={cn('text-sm text-fore', v2 && 'v2-numero')} /></span>
