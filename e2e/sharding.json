@@ -62,6 +62,7 @@
       "archivos": [
         "auditoria.spec.js",
         "cliente-flechas.spec.js",
+        "comprobante-pos.spec.js",
         "demo-completa.spec.js",
         "demo-crm.spec.js",
         "demo-fixtures.spec.js",
@@ -77,6 +78,7 @@
         "perf-247.spec.js",
         "pos-148-s11-sin-stock.spec.js",
         "pos-checkout.spec.js",
+        "pos-cliente-ruc.spec.js",
         "pos-resumen-fijo.spec.js",
         "precios-listas.spec.js",
         "public-quote-transfer.spec.js",
@@ -107,14 +109,13 @@
         "qa-323-plt-modales.spec.js",
         "qa-344-fiscal-pos.spec.js",
         "qa-564-imei-demo.spec.js",
-        "pos-cliente-ruc.spec.js",
         "ruc-demo.spec.js",
         "seguridad-cuenta.spec.js",
         "selector-sucursal.spec.js",
         "traslados-etiquetas-lote.spec.js"
       ],
-      "tests": 161,
-      "ms": 1270350
+      "tests": 165,
+      "ms": 1360350
     },
     {
       "archivos": [
