@@ -66,6 +66,19 @@ test('POS demo: razón social tal cual, y el automático consulta al terminar de
   api.assertClean()
 })
 
+test('POS demo: el automático sin datos del RUC no abre el editor ni borra lo escrito, y no crea la ficha', async ({ page }) => {
+  const api = await mockRucPublic(page, { respond: () => ({ status: 404, json: { message: 'RUC no encontrado' } }) })
+  const buscador = await entrarAlPos(page)
+  await buscador.fill('4123456')
+  await expect.poll(() => api.calls.length, { timeout: 8000 }).toBe(1)
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Completar cliente', exact: true })).toHaveCount(0)
+  await expect(buscador).toHaveValue('4123456')
+  await expect(page.getByTestId('cliente-elegido-nombre')).toHaveCount(0)
+  api.assertClean()
+})
+
 test('POS demo: DV inválido muestra el aviso y no consulta', async ({ page }) => {
   const api = await mockRucPublic(page)
   const buscador = await entrarAlPos(page)
