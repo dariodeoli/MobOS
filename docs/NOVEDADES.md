@@ -25,6 +25,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 - **Portal del cliente:** pedido, cotización, garantía e informe con el estilo del comprobante premium.
 - **Demo:** se entra como Dueño o Vendedor y se cambia de rol con «Ver como»; todas las pantallas tienen datos y funcionan.
 
+## v1.0.241 — 2026-10-22
+
+- **Otros:** Configuración › Módulos: cada negocio activa lo que usa (Taller, Delivery, Mayoristas, Venta a crédito, Inventario por unidades, Venta sin stock, Impresión Pro y más). El menú queda en 7 secciones y Configuración en 9 grupos. Los negocios existentes conservan todo lo que ya usaban.
+- **Otros:** aspecto nuevo en toda la app: tarjetas con sombra suave, listas sin grilla, modo oscuro de verdad; Finanzas, Compras, Análisis, Comisiones y Promociones rediseñadas a fondo.
+- **Ventas:** el POS ocupa toda la pantalla, permite ver el catálogo en lista o cuadrícula, muestra el stock por condición y el cobro se divide con toques (Saldo, Mitad, Recibido). Volver a productos y Nueva venta siempre a la vista.
+- **Finanzas:** verificación de pagos por PIX, USDT y transferencia con comprobante (Autorizaciones › Pagos y Finanzas › Verificación del día, con diferencias). Nadie aprueba su propio cobro y el pedido no se entrega con un pago en verificación. Venta a crédito con tolerancia sobre el límite y fecha de cobro.
+- **Clientes:** consulta de RUC directa sin confirmación; solo gerencia cambia límite de crédito, plazo o tipo mayorista. Mensajes listos por WhatsApp y correo en cada estado e Impresión Pro con galería de diseños.
+- **Otros:** demo completa con historia de 4 meses, datos siempre en hoy/ayer/semana/mes, QR de seguimiento que abre en cualquier celular y entrada como Dueño o Vendedor con «Ver como».
+
 ## v1.0.240 — 2026-10-21
 
 - **Inventario:** un IMEI incompleto o con dígito de control incorrecto muestra un aviso y no devuelve consultas ajenas a ese filtro; la ficha valida antes de buscar el historial.
