@@ -48,7 +48,8 @@ test('Clientes preserves reviewed fiscal profile and unchanged summary/communica
     // Módulo Mayoristas: ficha y resumen ocultan el tipo/solicitud mayorista con el módulo apagado (useModulos).
     // Rediseño página de cliente: solo estructura visual (encabezado, KPI, columna lateral); la lógica no cambió.
     // #498: alta/edición fiscal demo y geometría de teclado revisadas; cubierta por ruc498-identidad frontend y demoBillingIdentities.
-    ['CustomerProfile.jsx', '1397f84a9059489ce1d7ec13fdc77e3979fd7090610782352f531df15ff52e72'],
+    // Historial del cliente: filtros por tipo/período, totales y apertura del pedido desde la cronología.
+    ['CustomerProfile.jsx', '367a8796502c9acdb39e0a05f69dabfded3077040a392abac08d6fe4233301ed'],
     ['ClienteResumenPopup.jsx', 'd8fd0e032ca0542a911b6582621971099fa2cad69fa810b7398d4798e91cc510'],
     [
       'CustomerCommunicationCard.jsx',

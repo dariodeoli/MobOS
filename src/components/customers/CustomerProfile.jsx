@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { qrDataUrl } from '@/lib/qr'
+import { GRUPOS_HISTORIAL, PERIODOS_HISTORIAL, desdePeriodo, filtrarEventos, grupoEvento, resumenCompras } from '@/lib/historialCliente'
 import { api } from '@/lib/api/client'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -35,7 +37,7 @@ import { ajustarDialogoAlTeclado } from '@/lib/nativo/teclado'
 import './identidadFiscal.css'
 import './clientePagina.css'
 import { guardarIdentidadFacturacionDemo } from '@/lib/demoBillingIdentities'
-import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
+import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, buscarClienteDemo, registrarInformeDemo } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { Aviso, Badge, Button, DataTable, EmptyState, FormField, Input, Label, MoneyInput, CeldaMoneda, Select, Skeleton, Textarea, useToast, useValidacionCampos, IconAction } from '@/components/ui'
 import { ConfirmDialog, Modal, SaveActions } from '@/components/shared/popupKit'
@@ -549,6 +551,13 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [timelineRevision, setTimelineRevision] = useState(0)
   const [timelineNext, setTimelineNext] = useState(null)
   const [timelineCargandoMas, setTimelineCargandoMas] = useState(false)
+  // Filtros del historial (grupo y período) y totales del cliente.
+  const [grupoHist, setGrupoHist] = useState('todo')
+  const [periodoHist, setPeriodoHist] = useState('todo')
+  const [resumenHist, setResumenHist] = useState(null)
+  const [demoVisibles, setDemoVisibles] = useState(20)
+  const [pedidoExpandido, setPedidoExpandido] = useState('')
+  const navigate = useNavigate()
   const [authorizations, setAuthorizations] = useState([])
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -657,6 +666,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     setError('')
     setTimeline([])
     setTimelineError('')
+    setGrupoHist('todo')
+    setPeriodoHist('todo')
+    setResumenHist(null)
+    setDemoVisibles(20)
+    setPedidoExpandido('')
     setProfile(null)
     setNewNote('')
     setEditingNote(null)
@@ -667,7 +681,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       const demoPerfil = buildDemoProfile(customer, { empresaId: empresa?.id })
       setProfile(demoPerfil)
       setIdentities(demoPerfil.billingIdentities)
-      setTimeline(buildDemoTimeline(customer))
+      setTimeline(buildDemoTimeline(buscarClienteDemo(customer.id) || customer))
       setAnalitica(buildDemoAnalytics(customer))
       setLoading(false)
       return () => { active = false }
@@ -793,8 +807,17 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     } finally { setCanjeBusy(false) }
   }
 
-  // Cronología del cliente: se pide al abrir su pestaña y al reintentar. En
-  // demo ya viene cargada con datos ficticios (#194): no se consulta el API.
+  // Cronología del cliente: se pide al abrir su pestaña, al reintentar y al
+  // cambiar de filtro. En demo ya viene cargada con datos ficticios (#194): se
+  // filtra en el navegador con la misma lógica y no se consulta el API.
+  const consultaHistorial = (cursor = '') => {
+    const params = new URLSearchParams({ limit: '20' })
+    if (grupoHist !== 'todo') params.set('grupos', grupoHist)
+    const desde = desdePeriodo(periodoHist)
+    if (desde) params.set('desde', new Date(desde).toISOString())
+    if (cursor) params.set('cursor', cursor)
+    return `/api/customers/${customer.id}/timeline?${params.toString()}`
+  }
   useEffect(() => {
     if (!open || !customer?.id || tab !== 'cronologia' || esDemo) return undefined
     let active = true
@@ -802,25 +825,32 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     setTimelineError('')
     setTimelineNext(null)
     api
-      .get(`/api/customers/${customer.id}/timeline?limit=20`)
-      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineNext(data?.nextCursor || null); setTimelineLoading(false) } })
+      .get(consultaHistorial())
+      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineNext(data?.nextCursor || null); if (data?.summary) setResumenHist(data.summary); setTimelineLoading(false) } })
       .catch((cause) => {
         if (active) setTimelineError(cause?.message || 'No se pudo cargar la cronología.')
         if (active) setTimelineLoading(false)
       })
     return () => { active = false }
-  }, [open, customer?.id, tab, timelineRevision, esDemo])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, customer?.id, tab, timelineRevision, esDemo, grupoHist, periodoHist])
 
   async function cargarMasTimeline() {
+    if (esDemo) { setDemoVisibles((n) => n + 20); return }
     if (timelineCargandoMas || !timelineNext || !customer?.id) return
     setTimelineCargandoMas(true)
     try {
-      const data = await api.get(`/api/customers/${customer.id}/timeline?limit=20&cursor=${encodeURIComponent(timelineNext)}`)
+      const data = await api.get(consultaHistorial(timelineNext))
       setTimeline((actual) => [...actual, ...(Array.isArray(data?.events) ? data.events : [])])
       setTimelineNext(data?.nextCursor || null)
     } catch (cause) {
       toast.error('No se pudo cargar más actividad', cause?.message)
     } finally { setTimelineCargandoMas(false) }
+  }
+
+  function abrirReferencia(ref) {
+    if (!ref?.id) return
+    if (ref.kind === 'order') { onClose?.(); navigate(`/pedidos/${encodeURIComponent(ref.id)}`) }
   }
 
   // Listas de precios activas: se piden al abrir la pestaña Datos.
@@ -886,6 +916,14 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const seguroActivo = profile?.customer?.insuranceEnabled === true
   const seguroPct = profile?.customer?.insuranceRatePct !== null && profile?.customer?.insuranceRatePct !== undefined ? formatPercent(profile.customer.insuranceRatePct) : ''
   const ultimasOrdenes = orders.slice(0, 5)
+  // Historial filtrado: en demo se filtra y pagina acá; en la cuenta real el
+  // servidor ya devolvió la página filtrada.
+  const timelineFiltrado = esDemo ? filtrarEventos(timeline, { grupos: grupoHist === 'todo' ? [] : [grupoHist], periodo: periodoHist }) : timeline
+  const timelineVista = esDemo ? timelineFiltrado.slice(0, demoVisibles) : timeline
+  const hayMasHist = esDemo ? timelineFiltrado.length > demoVisibles : Boolean(timelineNext)
+  const resumenVista = esDemo
+    ? { ...resumenCompras(orders), pendientePyg: deuda, saldoFavorPyg: Number(buscarClienteDemo(customer?.id)?.saldoFavorPyg ?? profile?.customer?.saldoFavorPyg ?? customer?.saldoFavorPyg ?? 0) }
+    : resumenHist
   const tabCounts = { pedidos: orders.length, cronologia: timeline.length, datos: notes.length + followUps.length }
 
   async function saveNote(event) {
@@ -2063,9 +2101,29 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
           {tab === 'cronologia' && (
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-mute">Alta, pedidos, entregas, pagos, saldo, comentarios, seguimientos, cambios de datos, solicitudes y autorizaciones comerciales, garantías y facturación.</p>
-                <button type="button" disabled={timelineLoading} onClick={() => setTimelineRevision((value) => value + 1)} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-40">Actualizar</button>
+              {resumenVista && (
+                <ResumenMetricas
+                  testId="perfil-historial-resumen"
+                  items={[
+                    { titulo: 'Gastado', valor: formatGs(resumenVista.gastadoPyg) },
+                    { titulo: 'Ticket promedio', valor: formatGs(resumenVista.ticketPromedioPyg) },
+                    { titulo: 'Última compra', valor: resumenVista.ultimaCompra ? fecha(resumenVista.ultimaCompra) : '—' },
+                    { titulo: 'Frecuencia', valor: resumenVista.frecuenciaDias ? `cada ${resumenVista.frecuenciaDias} d` : '—' },
+                    { titulo: 'Saldo pendiente', valor: formatGs(resumenVista.pendientePyg), tono: resumenVista.pendientePyg > 0 ? 'text-warn' : '' },
+                    { titulo: 'Saldo a favor', valor: formatGs(resumenVista.saldoFavorPyg) },
+                  ]}
+                />
+              )}
+              <div className="flex flex-wrap items-center gap-2" data-testid="perfil-historial-filtros">
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1.5" role="group" aria-label="Filtrar por tipo">
+                  {GRUPOS_HISTORIAL.map((grupo) => (
+                    <button key={grupo.key} type="button" aria-pressed={grupoHist === grupo.key} data-testid={`historial-grupo-${grupo.key}`} onClick={() => setGrupoHist(grupo.key)} className={cn('min-h-9 rounded-full border px-3 text-xs font-semibold transition', grupoHist === grupo.key ? 'border-fono bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>{grupo.label}</button>
+                  ))}
+                </div>
+                <Select aria-label="Período" value={periodoHist} onChange={(event) => setPeriodoHist(event.target.value)} className="w-auto" data-testid="historial-periodo">
+                  {PERIODOS_HISTORIAL.map((periodo) => <option key={periodo.key} value={periodo.key}>{periodo.label}</option>)}
+                </Select>
+                <button type="button" disabled={timelineLoading} onClick={() => setTimelineRevision((value) => value + 1)} className="min-h-9 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-40">Actualizar</button>
               </div>
               {timelineLoading && (
                 <div className="space-y-2" aria-busy="true">
@@ -2083,15 +2141,15 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   action={<Button onClick={() => setTimelineRevision((value) => value + 1)}>Reintentar</Button>}
                 />
               )}
-              {!timelineLoading && !timelineError && !timeline.length && (
-                <EmptyState compact icon="clock" title="Sin actividad" description="Los movimientos de este cliente aparecerán acá." />
+              {!timelineLoading && !timelineError && !timelineVista.length && (
+                <EmptyState compact icon="clock" title="Sin actividad" description={grupoHist !== 'todo' || periodoHist !== 'todo' ? 'No hay movimientos con ese filtro. Probá otro tipo o período.' : 'Los movimientos de este cliente aparecerán acá.'} />
               )}
-              {!timelineLoading && !timelineError && timeline.length > 0 && (
-                <ol className="space-y-2">
-                  {timeline.map((event) => {
+              {!timelineLoading && !timelineError && timelineVista.length > 0 && (
+                <ol className="space-y-2" data-testid="perfil-historial">
+                  {timelineVista.map((event) => {
                     const estilo = EVENTOS[event.type] || { icon: 'clock', tono: 'bg-ink-700 text-mute' }
                     return (
-                      <li key={event.id} className="flex gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
+                      <li key={event.id} data-testid="historial-evento" data-grupo={event.group || grupoEvento(event)} className="flex gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                         <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${estilo.tono}`}>
                           <Icon name={estilo.icon} className="h-4 w-4" />
                         </span>
@@ -2101,6 +2159,20 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                             <p className="text-[11px] text-mute">{fechaHora(event.createdAt)}</p>
                           </div>
                           {event.detail && <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-mute">{conCodigos(event.detail)}</p>}
+                          {(event.items?.length > 0 || event.ref?.kind === 'order') && (
+                            <div className="mt-1 flex flex-wrap items-center gap-x-4">
+                              {event.items?.length > 0 && <button type="button" className="min-h-9 text-xs font-semibold text-fono-light hover:underline" aria-expanded={pedidoExpandido === event.id} data-testid="historial-ver-productos" onClick={() => setPedidoExpandido(pedidoExpandido === event.id ? '' : event.id)}>{pedidoExpandido === event.id ? 'Ocultar productos' : `Ver productos (${event.items.length})`}</button>}
+                              {event.ref?.kind === 'order' && <button type="button" className="min-h-9 text-xs font-semibold text-fono-light hover:underline" data-testid="historial-abrir-pedido" onClick={() => abrirReferencia(event.ref)}>Abrir pedido</button>}
+                            </div>
+                          )}
+                          {event.items?.length > 0 && pedidoExpandido === event.id && (
+                            <ul className="mt-1 space-y-1 rounded-lg border border-ink-600 p-2 text-xs" data-testid="historial-productos">
+                              {event.items.map((linea, i) => (
+                                <li key={i} className="min-w-0 break-words"><span className="font-medium text-fore">{linea.quantity} × {linea.description}</span>{linea.serials?.length ? <span className="block font-mono text-[11px] text-mute">IMEI {linea.serials.join(', ')}</span> : null}</li>
+                              ))}
+                              {event.amounts && <li className="flex flex-wrap gap-x-3 border-t border-ink-600 pt-1 text-mute"><span>Total <b className="text-fore">{formatGs(event.amounts.totalPyg)}</b></span><span>Pagado <b className="text-ok">{formatGs(event.amounts.paidPyg)}</b></span><span>Saldo <b className={event.amounts.balancePyg > 0 ? 'text-warn' : 'text-fore'}>{formatGs(event.amounts.balancePyg)}</b></span>{event.amounts.dueAt ? <span>Vence <b className="text-fore">{fecha(event.amounts.dueAt)}</b></span> : null}</li>}
+                            </ul>
+                          )}
                           <p className="mt-1 text-[11px] text-mute" title={event.user?.name || 'Sistema'}><ActorAvatar user={event.user} hasAvatar={event.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(event.user?.name) || 'Sistema'}</span></p>
                         </div>
                       </li>
@@ -2108,7 +2180,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   })}
                 </ol>
               )}
-              {!timelineLoading && !timelineError && timeline.length > 0 && timelineNext && (
+              {!timelineLoading && !timelineError && timelineVista.length > 0 && hayMasHist && (
                 <div className="flex justify-center pt-1">
                   <button type="button" disabled={timelineCargandoMas} onClick={cargarMasTimeline} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">
                     {timelineCargandoMas ? 'Cargando…' : 'Cargar más'}

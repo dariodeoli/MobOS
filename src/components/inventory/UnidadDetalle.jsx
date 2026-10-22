@@ -36,7 +36,7 @@ import { cn } from '@/lib/utils'
 import { Checkbox, etiquetaEnvio, etiquetaMetodoEnvio, etiquetaNecesidad, etiquetaOrigen } from 'owncoding-ui'
 import { esProductoApple } from '@/lib/appleInventory'
 import { listVentas } from '@/lib/storage'
-import { historiaUnidadDemo } from '@/lib/demo/historiaStock'
+import { historiaUnidadDemo, margenUnidadDemo } from '@/lib/demo/historiaStock'
 
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 // #233: aclaración que acompaña toda conciliación (el panel del proveedor no
@@ -138,6 +138,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // última verificación real del serial alimenta los chips de locks (fuente/hora).
   const [inspeccionOficial, setInspeccionOficial] = useState(unit.inspection || null)
   const [verificacion, setVerificacion] = useState(null)
+  const [margen, setMargen] = useState(null)
   // #278 (F4 de #250): la cadena del Centro de Abastecimiento de esta unidad
   // (necesidad → compra → lote → stock). La API exige `stock:manage`; en demo
   // no aplica y la sección no se muestra.
@@ -178,6 +179,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         ? { events: [...eventosDemo, ...consultasDemo, ...reparacionesDemo].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()) }
         : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
       setEvents(payload?.events || [])
+      setMargen(esDemo ? margenUnidadDemo(unit, { ventas: listVentas() }) : (payload?.margen || null))
       // #241 paso 6: la última consulta IMEI guardada del serial (o la del demo)
       // deja los locks reales con su fuente y hora sin repetir la consulta.
       setVerificacion(esDemo ? (consultasDemoImei(unit.serial)[0] || null) : (payload?.verificacion || null))
@@ -863,6 +865,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
                 </div>
               </form>
               {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
+              {margen && (
+                <dl className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3 text-xs sm:grid-cols-3" data-testid="unidad-margen">
+                  <div><dt className="text-mute">Costo</dt><dd className="font-semibold tabular-nums">{montoTexto(margen.costPyg)}</dd></div>
+                  <div><dt className="text-mute">Vendida{margen.pedido ? ` en ${margen.pedido}` : ''}</dt><dd className="font-semibold tabular-nums">{montoTexto(margen.ventaPyg)}</dd></div>
+                  <div><dt className="text-mute">Margen</dt><dd className={cn('font-semibold tabular-nums', margen.margenPyg < 0 ? 'text-bad' : 'text-ok')}>{montoTexto(margen.margenPyg)}</dd></div>
+                </dl>
+              )}
               {loading && <div className="mt-4 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
               {!loading && <div className="mt-4 space-y-4">
                 {events.map((event, index) => <article key={event.id || index} className="flex gap-3">
