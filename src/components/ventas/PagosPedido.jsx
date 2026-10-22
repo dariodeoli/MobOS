@@ -393,7 +393,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
     {!onVerComprobante && <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)} />}
     <VentanaDetalle open={open && !comprobante} busy={busy} className="pagos-pedido" onClose={() => !busy && onClose()} title={`Pagos · ${codigoPedido(order.codigo || order.orderNumber) || order.cliente || 'Pedido'}`} size="lg">
     <p className="mb-3 text-xs text-mute">Cobrá el saldo en uno o varios pagos. Adjuntar un archivo no confirma una transferencia.</p>
-    {trackingUrlFor(order) && !esDemo && (
+    {trackingUrlFor(order) && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
         {whatsappTrackingLink(order, '', plantillaSeguimiento) ? (
           <a className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black transition hover:brightness-110" href={whatsappTrackingLink(order, '', plantillaSeguimiento)} target="_blank" rel="noopener noreferrer">Enviar seguimiento por WhatsApp</a>

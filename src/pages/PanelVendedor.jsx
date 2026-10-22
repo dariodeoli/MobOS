@@ -1,5 +1,6 @@
 import { crearControlIntentosPin } from '@/lib/nativo/intentosPin'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { TABS_FINANZAS_VERIFICADOR, puedeVerificarPagos } from '@/lib/verificacionPagos'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
@@ -139,6 +140,19 @@ const SELLER_NAV = [
       ['repartos', 'Delivery', 'truck'],
       ['cotizador', 'Trade-In', 'refresh'],
       ['ayuda', 'Ayuda', 'info'],
+    ],
+  },
+]
+
+// Verificadores de pagos (gerente y caja): además de lo del vendedor ven solo
+// Autorizaciones › Pagos y Finanzas › Verificación (el servidor decide quién
+// aprueba; esto no amplía el resto de Finanzas ni de Autorizaciones).
+const VERIFICADOR_NAV = [
+  {
+    titulo: 'Verificación',
+    items: [
+      ['autorizaciones', 'Autorizaciones', 'check'],
+      ['finanzas', 'Finanzas', 'receipt'],
     ],
   },
 ]
@@ -443,14 +457,20 @@ export default function PanelVendedor() {
   // Pestañas de la subpágina: `tabsRutaTodas` valida la URL (un módulo apagado
   // no la vuelve inválida: se avisa y se redirige); `tabsRuta` es lo que se muestra.
   const modulos = useModulos()
-  const tabsRutaTodas = useMemo(() => (subpadre ? tabsDeSubpagina(subpadre, esDemo) : []), [subpadre, esDemo])
+  const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
+  const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
+  const esVerificador = !esOwner && !esTecnico && puedeVerificarPagos(usuario?.role)
+  // Pestañas que el rol puede abrir: gerente y caja ven de Finanzas solo la verificación.
+  const tabsDe = useCallback(slug => {
+    const tabs = tabsDeSubpagina(slug)
+    return esVerificador && slug === 'finanzas' ? tabs.filter(([id]) => TABS_FINANZAS_VERIFICADOR.includes(id)) : tabs
+  }, [esVerificador])
+  const tabsRutaTodas = useMemo(() => (subpadre ? tabsDe(subpadre) : []), [subpadre, tabsDe])
   const tabsRuta = useMemo(
     () => tabsRutaTodas.filter(([id]) => (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)),
     [tabsRutaTodas, modulos],
   )
   const seccionRuta = subpadre && tabsRutaTodas.some(([id]) => id === routeSeccion) ? routeSeccion : null
-  const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
-  const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
   // #247: adelanta los chunks de las secciones más usadas cuando el equipo está
   // ocioso (una sola vez por carga y solo si la conexión lo permite).
   usePrefetchSecciones(esOwner ? 'dueno' : esTecnico ? 'tecnico' : 'vendedor')
@@ -515,11 +535,11 @@ export default function PanelVendedor() {
   // Catálogo del rol sin el filtro de módulos (decide qué rutas son válidas
   // mientras el estado de módulos todavía carga).
   const navDelRol = useMemo(() => {
-    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
+    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : esVerificador ? [...SELLER_NAV, ...VERIFICADOR_NAV] : SELLER_NAV
     return base
       .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id)) }))
       .filter(group => group.items.length)
-  }, [esOwner, esTecnico, puedeCampanas])
+  }, [esOwner, esTecnico, esVerificador, puedeCampanas])
   // Los módulos solo RESTAN a lo que el rol ya ve: nunca amplían permisos. El
   // técnico conserva su Taller (es todo su rol). Hasta que carga el estado, los
   // ítems de módulos no se muestran (evita que aparezcan y desaparezcan).
@@ -578,9 +598,9 @@ export default function PanelVendedor() {
     if (subpadre) return
     const destino = SUBPAGINA_DE_VISTA[routeVista] || SUBPAGINA_DE_TAB[routeVista]
     if (!destino || !accesibles.includes(SUBPAGINAS[destino].vista)) return
-    const primera = tabsDeSubpagina(destino, esDemo)[0][0]
+    const primera = tabsDe(destino)[0][0]
     navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}${busquedaUrl}`, { replace: true })
-  }, [subpadre, routeVista, accesibles, esDemo, navigate, busquedaUrl])
+  }, [subpadre, routeVista, accesibles, tabsDe, navigate, busquedaUrl])
   // #247: las finanzas se hidratan al entrar a su pantalla, a análisis o al
   // resumen (usan los mismos gastos/publicidad) y quedan en los refrescos.
   useEffect(() => {
@@ -652,12 +672,12 @@ export default function PanelVendedor() {
       return
     }
     if (routeVista && SUBPAGINA_DE_VISTA[routeVista]) {
-      const primera = tabsDeSubpagina(SUBPAGINA_DE_VISTA[routeVista], esDemo)[0][0]
+      const primera = tabsDe(SUBPAGINA_DE_VISTA[routeVista])[0][0]
       if (vista !== primera) setVista(primera)
       return
     }
     if (routeVista && routeVista !== vista && accesibles.includes(routeVista)) setVista(routeVista)
-  }, [subpadre, seccionRuta, routeVista, vista, accesibles, esDemo])
+  }, [subpadre, seccionRuta, routeVista, vista, accesibles, tabsDe])
 
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
@@ -698,7 +718,7 @@ export default function PanelVendedor() {
     const sufijo = consulta.length ? `?${consulta.join('&')}` : ''
     const destino = SUBPAGINA_DE_VISTA[id]
     if (destino) {
-      const tabs = tabsDeSubpagina(destino, esDemo)
+      const tabs = tabsDe(destino)
       const primera = opciones.subtab && tabs.some(([key]) => key === opciones.subtab) ? opciones.subtab : tabs[0][0]
       setVista(primera)
       // Celular (#410): entrar a Configuración abre la lista de secciones.
@@ -1074,7 +1094,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}
-          {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
+          {(esOwner || esVerificador) && vista === 'autorizaciones' && <Autorizaciones soloPagos={!esOwner} />}
           {esOwner && opsV2 && vista === 'ops' && <Ops embebido />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (
@@ -1086,7 +1106,7 @@ export default function PanelVendedor() {
               {vista === 'asistente' && <Asistente />}
             </div>
           )}
-          {esOwner && subpadre === 'finanzas' && (
+          {(esOwner || esVerificador) && subpadre === 'finanzas' && (
             <div>
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}

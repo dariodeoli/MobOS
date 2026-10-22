@@ -153,19 +153,27 @@ async function duplicate(db: Db, tenantId: string, fields: ReturnType<typeof ide
   })
 }
 
-export async function createCustomer(db: Db, actor: CustomerServiceActor, input: CustomerServiceInput, options: { allowExisting?: boolean; allowUnprivilegedCommercial?: boolean } = {}) {
+// Campos comerciales (crédito, plazo, tolerancia, tipo mayorista y lista de precios): los fija solo administración
+// o gerencia. En el alta por POST un vendedor puede guardar el contacto, pero estos campos se IGNORAN (no se rechaza
+// el alta: el mostrador no se rompe) y la ficha queda minorista y sin crédito hasta que la autorice gerencia.
+const CAMPOS_COMERCIALES = ['pricingTier', 'creditLimitPyg', 'creditDays', 'creditTolerancePct', 'creditTermMode', 'creditDayOfMonth', 'creditInstallments', 'priceListId'] as const
+
+export async function createCustomer(db: Db, actor: CustomerServiceActor, rawInput: CustomerServiceInput, options: { allowExisting?: boolean; ignoreUnprivilegedCommercial?: boolean } = {}) {
   assertActor(actor)
+  const input: CustomerServiceInput = options.ignoreUnprivilegedCommercial && !privileged(actor)
+    ? Object.fromEntries(Object.entries(rawInput).filter(([key]) => !(CAMPOS_COMERCIALES as readonly string[]).includes(key))) as CustomerServiceInput
+    : rawInput
   if (input.priceListId !== undefined && input.priceListId !== null && input.priceListId !== '') {
     const listId = text(input.priceListId, 128)
     const list = await db.priceList.findFirst({ where: { id: listId, tenantId: actor.tenantId, isActive: true }, select: { id: true } })
     if (!list) throw new CustomerServiceError('not_found', 'Lista de precios no encontrada.')
   }
-  const fields = { ...identityFields(input), ...optionalFields(input, actor, options) }
+  const fields = { ...identityFields(input), ...optionalFields(input, actor) }
   const existing = await duplicate(db, actor.tenantId, fields)
   const addresses = input.addresses === undefined ? undefined : addressesInput(input.addresses)
   if (existing && !options.allowExisting) throw new CustomerServiceError('conflict', 'Ya existe una ficha con esos datos.')
-  // Dar de alta una ficha nueva con crédito/tipo es un atajo del mostrador, pero reescribir el crédito o el tipo
-  // de una ficha YA existente (misma identidad) es cambiar la ficha: solo administración o gerencia.
+  // Sin ignoreUnprivilegedCommercial, reescribir el crédito o el tipo de una ficha YA existente (misma identidad)
+  // es cambiar la ficha: solo administración o gerencia.
   if (existing && !privileged(actor) && ['pricingTier', 'creditLimitPyg', 'creditDays'].some(key => Object.hasOwn(fields, key))) {
     throw new CustomerServiceError('forbidden', 'Solo administración o gerencia pueden cambiar crédito y tipo de cliente.')
   }

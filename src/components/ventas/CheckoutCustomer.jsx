@@ -232,6 +232,11 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         }
       }
       if (!vigente()) return true
+      // Automático (pausa de 1,2 s al escribir): NUNCA crea la ficha y sin datos verificados del RUC no hace nada
+      // (no abre el editor ni borra lo escrito: un número parcial o un teléfono no es un cliente). Con datos solo
+      // prellena el editor para que la persona confirme con «Guardar». Crear la ficha y abrir «Completar cliente»
+      // queda para Enter o el botón «Consultar RUC y crear cliente», que reusan esta misma consulta en memoria.
+      if (auto && !datos) return true
       if (datos) {
         const visible = nombreVisibleDesdeRuc(datos.nameOfficial)
         onChange({ ...applyCheckoutIdentity(base, datos), name: visible, displayName: visible })

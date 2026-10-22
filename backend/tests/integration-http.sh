@@ -159,7 +159,10 @@ INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", 
 UPDATE "Product" SET "costPyg" = 70000 WHERE "id" = 'prod-a-order-it';
 -- Los chequeos de redacción parten con el permiso de costos de vendedores apagado
 -- (el default productivo es encendido; se prueba aparte más abajo).
-UPDATE "Tenant" SET "settings" = '{"permissions":{"sellerSeesCosts":false}}'::jsonb WHERE "id" IN ('tenant-a-it', 'tenant-b-it');
+-- Igual que e2e/global-setup.mjs: los módulos que se deciden por datos nacen apagados en empresas nuevas, así que el
+-- seed los activa de forma explícita (inventario-unidades, venta-sin-stock, mayoristas) y deja la política de cobro en
+-- «auto» (sin verificación) para que los chequeos de pedidos/pagos asuman cobro inmediato.
+UPDATE "Tenant" SET "settings" = '{"permissions":{"sellerSeesCosts":false},"moduleStore":{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true},"mayoristas":{"enabled":true}}},"paymentVerification":{"methods":{"CASH":"auto","CARD":"auto","PIX":"auto","CRYPTO":"auto","TRANSFER":"auto"},"accounts":{},"requireProof":true,"blockDelivery":true,"selfApproveRoles":[]}}'::jsonb WHERE "id" IN ('tenant-a-it', 'tenant-b-it');
 SQL
 
 (

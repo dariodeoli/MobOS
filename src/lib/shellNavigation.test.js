@@ -10,6 +10,7 @@ import {
 } from './shellNavigation.js'
 import { DESTINO_LEGADO, rutaDeVista } from './rutas.js'
 import { MODULE_CATALOG, moduloActivo, moduloDeVista, vistaActiva } from './modulos.js'
+import { TABS_FINANZAS_VERIFICADOR, puedeVerificarPagos } from './verificacionPagos.js'
 import { rutaPadreDeVista } from './modulosAviso.js'
 import { nuevoModuleStore } from '../../backend/lib/modulos-catalogo.mjs'
 
@@ -202,6 +203,33 @@ test('AEX guide and grouped inventory selector remain available at every viewpor
   assert.match(inventory, /data-testid="subtabs-inventario"/)
   assert.match(inventory, /id === 'autorizaciones' && pendientesStock > 0/)
   assert.ok(!inventory.includes('onClick={() => cambiarGrupo'))
+})
+
+test('manager and cashier (verificadores) add only Autorizaciones › Pagos and Finanzas › Verificación', () => {
+  const items = [...catalog('SELLER_NAV')[0].items, ...catalog('VERIFICADOR_NAV')[0].items]
+  const sections = shellNavigation([{ items }])
+  assert.deepEqual(
+    sections.map(section => section.label),
+    ['Vender', 'Pedidos', 'Clientes', 'Stock', 'Finanzas'],
+  )
+  const ids = sections.flatMap(section => section.items).map(([id]) => id)
+  assert.ok(ids.includes('autorizaciones') && ids.includes('finanzas'))
+  // Nada más del dueño: sin resumen, análisis, configuración ni unidades.
+  assert.ok(!ids.some(id => ['resumen', 'equipo', 'unidades', 'compras', 'analisis'].includes(id)))
+  // Con el módulo apagado la entrada se resta; los módulos nunca amplían.
+  const sinFinanzas = shellNavigation([{ items }], { modulos: id => id !== 'finanzas' })
+  assert.ok(!sinFinanzas.some(section => section.id === 'finanzas'))
+  // El vendedor y el técnico no ganan nada, y de Finanzas solo queda la verificación.
+  assert.ok(!catalog('SELLER_NAV')[0].items.some(([id]) => ['autorizaciones', 'finanzas'].includes(id)))
+  assert.deepEqual(TABS_FINANZAS_VERIFICADOR, ['verificacion-dia'])
+  assert.ok(puedeVerificarPagos('GERENTE') && puedeVerificarPagos('CAJERA'))
+  assert.ok(!puedeVerificarPagos('VENDEDOR') && !puedeVerificarPagos('TECNICO'))
+  assert.match(panel, /esVerificador \? \[\.\.\.SELLER_NAV, \.\.\.VERIFICADOR_NAV\]/)
+  assert.match(panel, /<Autorizaciones soloPagos=\{!esOwner\} \/>/)
+  // Orden de declaración (un const usado antes de definirse rompe el panel entero con pantalla en blanco).
+  const orden = ['const esOwner =', 'const esVerificador =', 'const tabsDe =', 'const tabsRutaTodas =', 'const tabsRuta =', 'const seccionRuta ='].map(clave => panel.indexOf(clave))
+  assert.ok(orden.every(indice => indice > 0))
+  assert.deepEqual([...orden].sort((a, b) => a - b), orden)
 })
 
 test('approved presentation groups keep tabs per area and segments only where a group has several views', () => {

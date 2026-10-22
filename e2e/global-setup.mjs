@@ -16,7 +16,7 @@
 
 import { chromium, request as pwRequest } from '@playwright/test'
 import { mkdir, writeFile, readFile, access, rm } from 'node:fs/promises'
-import { existsSync, readdirSync, writeFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
@@ -107,8 +107,19 @@ async function snapshotValido() {
   try {
     const meta = JSON.parse(await readFile(SNAPSHOT_META(), 'utf8'))
     await access(SNAPSHOT())
-    return meta.migraciones === firmaMigraciones()
+    // Un snapshot sin los archivos de siembra (anterior a este arreglo) no sirve: restaurarlo dejaría
+    // e2e/.auth/.seeded sin escribir y los specs que lo leen (contextoVendedorApi) fallarían con ENOENT.
+    return meta.migraciones === firmaMigraciones() && typeof meta.marcador === 'string'
   } catch { return false }
+}
+
+// Al restaurar la base también se reescriben los archivos de siembra que los specs leen
+// (e2e/.auth/.seeded y seed-order.json): sin ellos, contextoVendedorApi falla con ENOENT.
+async function restaurarArchivosDeSiembra() {
+  const meta = JSON.parse(await readFile(SNAPSHOT_META(), 'utf8'))
+  await mkdir(AUTH_DIR, { recursive: true })
+  await writeFile(MARKER, meta.marcador)
+  if (typeof meta.pedidoSemilla === 'string') await writeFile(SEED_ORDER_FILE, meta.pedidoSemilla)
 }
 
 function restaurarSnapshot() {
@@ -121,7 +132,10 @@ function restaurarSnapshot() {
 function guardarSnapshot() {
   try {
     execFileSync(`${PG_BIN}/pg_dump`, ['-h', '127.0.0.1', '-p', PG_PORT(), '-U', 'postgres', '-d', PG_DB(), '-Fc', '-f', SNAPSHOT()], { stdio: 'ignore' })
-    writeFileSync(SNAPSHOT_META(), JSON.stringify({ migraciones: firmaMigraciones(), tomadoEn: new Date().toISOString() }, null, 2))
+    const leer = (archivo) => { try { return readFileSync(archivo, 'utf8') } catch { return null } }
+    const marcador = leer(MARKER)
+    if (marcador === null) throw new Error('falta e2e/.auth/.seeded: el snapshot no se puede restaurar sin él')
+    writeFileSync(SNAPSHOT_META(), JSON.stringify({ migraciones: firmaMigraciones(), tomadoEn: new Date().toISOString(), marcador, pedidoSemilla: leer(SEED_ORDER_FILE) }, null, 2))
   } catch (error) {
     console.warn('[e2e] no se pudo tomar el snapshot:', error?.message || error)
   }
@@ -458,6 +472,7 @@ export default async function globalSetup() {
       console.log('[e2e] Restaurando snapshot post-seed (sin re-sembrar)…')
       restaurarSnapshot()
       try {
+        await restaurarArchivosDeSiembra()
         await refreshStorageStates(ctx)
         resetModuleStore()
         return

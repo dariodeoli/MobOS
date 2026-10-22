@@ -7,6 +7,8 @@ import { codigoPedido } from '../utils/pedido.js'
 
 export const ROLES_VERIFICADORES = ['ADMIN', 'GERENTE', 'CAJERA']
 export const puedeVerificarPagos = (rol) => ROLES_VERIFICADORES.includes(rol)
+// Gerente y caja ven de Finanzas solo esta pestaña (no el resto de la sección).
+export const TABS_FINANZAS_VERIFICADOR = ['verificacion-dia']
 
 // Tabs de Autorizaciones: cada tipo comercial pertenece a una sola pestaña.
 export const TABS_AUTORIZACIONES = [

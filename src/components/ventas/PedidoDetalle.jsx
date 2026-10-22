@@ -24,7 +24,7 @@ import { creditoBloqueaEntrega, preguntaEntregaAplica } from '@/lib/credito'
 import { api, apiFetch } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { metodoEntrega, opcionesDeEntrega, tonoEntrega } from './venta/entrega'
-import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
+import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote, trackingUrlFor } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ClienteDelPedidoModal from './ClienteDelPedidoModal'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -307,7 +307,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     sucursal: order.branch?.name || '',
     vendedor: order.seller?.name || '',
     fecha: order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-PY') : '',
-    seguimiento: order.publicToken ? `${globalThis.location?.origin || ''}/pedido/${order.publicToken}` : '',
+    // Demo: el enlace lleva el resumen del pedido en el fragmento (#d=…), sin backend.
+    seguimiento: esDemo ? trackingUrlFor(order) : order.publicToken ? `${globalThis.location?.origin || ''}/pedido/${order.publicToken}` : '',
     ...variablesDeProducto(order.items, order.createdAt),
   }
   const eventoAviso = plantillaDeEntrega(order.fulfillmentStatus)
