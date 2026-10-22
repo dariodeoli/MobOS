@@ -1,4 +1,5 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { logError } from './log'
 import { prisma } from './prisma'
 import { hashToken, requiresAdminPinSetup } from './auth'
 import { audienceMatches, JwtError, listEnv, verifyJwtSignature } from './jwks'
@@ -22,17 +23,30 @@ export async function companySellers(tenantId: string) {
 // ── Google (cliente iOS) ────────────────────────────────────────────────────
 export function googleIosClientIds() { return listEnv('MOBOS_GOOGLE_IOS_CLIENT_ID') }
 
-/** El claim `nonce` del idToken tiene que ser el nonce emitido por el servidor, que se consume una sola vez. */
-export async function verifyGoogleNativeToken(idToken: unknown, nonce: unknown, purpose: NoncePurpose = 'login'): Promise<GoogleIdentity> {
+/** Clientes web permitidos como `aud` (solo junto con `azp` iOS): con `iOSServerClientId` el SDK de Google emite aud = cliente web. */
+export function googleWebClientIds() { return [...listEnv('MOBOS_GOOGLE_WEB_CLIENT_ID'), ...listEnv('GOOGLE_CLIENT_ID')] }
+
+/** El claim `nonce` puede venir tal cual o como sha256 hex (según la versión del SDK); ambos se atan al nonce emitido. */
+export function googleNonceMatches(claim: unknown, nonce: string) {
+  return typeof claim === 'string' && (claim === nonce || claim === createHash('sha256').update(nonce).digest('hex'))
+}
+
+type GoogleNativeDeps = { consume?: (nonce: string, purpose: NoncePurpose) => Promise<boolean> }
+
+/** El claim `nonce` del idToken tiene que ser el nonce emitido por el servidor, que se consume una sola vez (y solo si todo lo demás valida). */
+export async function verifyGoogleNativeToken(idToken: unknown, nonce: unknown, purpose: NoncePurpose = 'login', deps: GoogleNativeDeps = {}): Promise<GoogleIdentity> {
   const audiences = googleIosClientIds()
   if (!audiences.length) throw new JwtError('not_configured')
   if (typeof nonce !== 'string' || !NONCE_PATTERN.test(nonce)) throw new JwtError('bad_nonce')
   const claims = await verifyJwtSignature(idToken as string, 'https://www.googleapis.com/oauth2/v3/certs')
-  if (!['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) || !audienceMatches(claims.aud, audiences)) throw new JwtError('invalid_claims')
-  if (claims.email_verified !== true && claims.email_verified !== 'true') throw new JwtError('invalid_claims')
-  if (claims.nonce !== nonce) throw new JwtError('bad_nonce')
-  if (typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 255 || typeof claims.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email)) throw new JwtError('invalid_claims')
-  if (!(await consumeAuthNonce(nonce, purpose))) throw new JwtError('bad_nonce')
+  const fail = (reason: string, error: JwtError) => { logError('google_native_invalid', { reason, aud: Array.isArray(claims.aud) ? claims.aud.join(',') : String(claims.aud), azp: String(claims.azp ?? ''), hasNonce: typeof claims.nonce === 'string' }); return error }
+  if (!['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss)) throw fail('iss', new JwtError('invalid_claims'))
+  const audOk = audienceMatches(claims.aud, audiences) || (audienceMatches(claims.aud, googleWebClientIds()) && audienceMatches(claims.azp, audiences))
+  if (!audOk) throw fail('aud', new JwtError('invalid_claims'))
+  if (claims.email_verified !== true && claims.email_verified !== 'true') throw fail('email_verified', new JwtError('invalid_claims'))
+  if (!googleNonceMatches(claims.nonce, nonce)) throw fail(typeof claims.nonce === 'string' ? 'nonce_mismatch' : 'nonce_missing', new JwtError('bad_nonce'))
+  if (typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 255 || typeof claims.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email)) throw fail('sub_email', new JwtError('invalid_claims'))
+  if (!(await (deps.consume ?? consumeAuthNonce)(nonce, purpose))) throw fail('nonce_consumed', new JwtError('bad_nonce'))
   return { sub: claims.sub, email: claims.email.toLowerCase(), name: typeof claims.name === 'string' ? claims.name.slice(0, 100) : '', picture: typeof claims.picture === 'string' && /^https:\/\//.test(claims.picture) && claims.picture.length <= 500 ? claims.picture : '' }
 }
 
