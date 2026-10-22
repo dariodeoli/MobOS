@@ -33,7 +33,9 @@ import { cotizacionUrlFor, estadoCotizacion } from '@/lib/cotizaciones'
 import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion, crearDemoCotizacion } from '@/lib/demoCotizaciones'
 import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-import BarraGestion from '@/components/shared/BarraGestion'
+import Toolbar from '@/components/shared/Toolbar'
+import SearchField from '@/components/shared/SearchField'
+import ChipsFiltro from './ChipsFiltro'
 import StatGrid from '@/components/shared/StatGrid'
 import '@/components/shared/gestionProfundo.css'
 import StatusChip from '@/components/shared/StatusChip'
@@ -423,20 +425,36 @@ export default function SellerQuotes() {
   return (
     <div className="gp ventas-f3" data-testid="ventas-cotizaciones-f3">
       <SellerSection title="Cotizaciones">
-        <BarraGestion
-          etiqueta="Acciones de Cotizaciones"
+        <Toolbar
+          label="Acciones de Cotizaciones"
+          lista
           testId="barra-cotizaciones"
-          buscar={query}
-          onBuscar={setQuery}
-          placeholder="Número, cliente o artículo"
-          ariaBuscar="Buscar cotizaciones"
-          tabs={FILTROS}
-          tabsMas={FILTROS_MAS}
-          tab={filtro}
-          onTab={setFiltro}
-          etiquetaTabs="Estado de las cotizaciones"
-          // #314: crear también en demo: el pipeline completo es local.
-          primary={<Button type="button" onClick={abrirCrear}>+ Nueva cotización</Button>}
+          className="ventas-f3-toolbar"
+          plano
+          search={
+            <SearchField
+              ariaLabel="Buscar cotizaciones"
+              placeholder="Número, cliente o artículo"
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+            />
+          }
+          filters={
+            <ChipsFiltro
+              className="min-w-0"
+              etiqueta="Estado de las cotizaciones"
+              opciones={FILTROS}
+              mas={FILTROS_MAS}
+              valor={filtro}
+              onChange={setFiltro}
+            />
+          }
+          primary={
+            // #314: crear también en demo: el pipeline completo es local.
+            <Button type="button" onClick={abrirCrear}>
+              + Nueva cotización
+            </Button>
+          }
         />
         {!data.loading && !data.error && rows.length > 0 && (
           <StatGrid testId="cotizaciones-resumen" etiqueta="Resumen de cotizaciones">
