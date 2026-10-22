@@ -37,6 +37,8 @@ import { useSesion } from '@/lib/sesion'
 import { codigoPedido, fechaLegible, pagosDelPedido, totalesPedido } from '@/utils/pedido'
 import { getVendedores, listVentas, ventaDesdeApi } from '@/lib/storage'
 import PagosPedido from './PagosPedido'
+import { AvisoEntregaBloqueada, DetallePagoVerificacion, EstadoPagoBadge } from './PagoVerificacion'
+import { motivoEntregaBloqueada, necesitaRefrescoPagos, resumenVerificacionPedido } from '@/lib/verificacionPagos'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
@@ -46,6 +48,8 @@ import { compartirNativo } from '@/lib/nativo/compartir'
 import { eventosPedidoDemo } from '@/lib/demo/historiaPedido'
 
 const FULFILLMENT = FULFILLMENT_LABELS
+// Estados que sacan la mercadería del local: un cobro en verificación los bloquea (el servidor lo exige igual).
+const ESTADOS_QUE_ENTREGAN = ['DELIVERED', 'PICKED_UP', 'PARTIAL']
 // Pasos del flujo de entrega para la vista previa v2 (#241): agrupa los estados
 // reales de `entrega.js` en cuatro pasos visibles por método.
 const PASOS_ENTREGA = (deliveryType) => (metodoEntrega(deliveryType) === 'DELIVERY'
@@ -245,6 +249,11 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     } catch (cause) { setError(cause?.message || 'No se pudo cargar el pedido.') } finally { setLoading(false) }
   }, [row, esDemo])
   useEffect(() => { load() }, [load])
+  // Refresco silencioso de los pagos: sin parpadeo de carga, sin tocar la cronología.
+  const refrescarPagos = useCallback(async () => {
+    if (esDemo || !row?.id) return
+    try { setDetail(await api.get(`/api/orders/${encodeURIComponent(row.id)}`, { cacheMs: 0 })) } catch { /* el próximo intento lo reintenta */ }
+  }, [row?.id, esDemo])
   useEffect(() => {
     if (!esDemo && order?.id) cargarAccesos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -255,6 +264,17 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const nombreCliente = order.customer?.name || (typeof order.customer === 'string' ? order.customer : '') || 'Consumidor final'
   const payments = useMemo(() => pagosDelPedido(order).map(normalizarPago), [order])
   const pagosPorVerificar = payments.filter(pago => pago.status === 'PENDING')
+  // Cobros en verificación (PIX, transferencia…): bloquean la entrega y se revisan solos cada 15 s.
+  const verificacion = useMemo(() => resumenVerificacionPedido(payments), [payments])
+  const hayPagosEnVerificacion = necesitaRefrescoPagos(payments)
+  const motivoBloqueoPago = motivoEntregaBloqueada(verificacion, gs)
+  useEffect(() => {
+    if (esDemo || !hayPagosEnVerificacion) return undefined
+    const intervalo = window.setInterval(() => { if (document.visibilityState === 'visible') refrescarPagos() }, 15000)
+    const alVolver = () => { if (document.visibilityState === 'visible') refrescarPagos() }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => { window.clearInterval(intervalo); document.removeEventListener('visibilitychange', alVolver) }
+  }, [esDemo, hayPagosEnVerificacion, refrescarPagos])
   // Pagado/Saldo: la misma función que el listado, la ficha del cliente y el comprobante (#461).
   const { total, pagado: paid, pendiente } = totalesPedido(order)
   const credito = creditoLocal ?? order.creditAuthorization ?? null
@@ -376,6 +396,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     toast.error('No se pudo imprimir la nota de entrega', resultado.error || 'Revisá la impresora.')
   }
   const cambiarEntrega = (fulfillmentStatus) => {
+    if (motivoBloqueoPago && ESTADOS_QUE_ENTREGAN.includes(fulfillmentStatus)) {
+      setError(motivoBloqueoPago)
+      return
+    }
     if (creditoRetiene && ['DELIVERED', 'PICKED_UP', 'PARTIAL'].includes(fulfillmentStatus)) {
       setError('Pendiente de autorización de crédito: un administrador o gerente debe autorizar la entrega.')
       return
@@ -478,7 +502,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 }}
               />
             )}
-            {preguntaEntrega && !loading && !anulado && preguntaEntregaAplica({ ...order, creditAuthorization: credito }) && (
+            {preguntaEntrega && !loading && !anulado && !motivoBloqueoPago && preguntaEntregaAplica({ ...order, creditAuthorization: credito }) && (
               <EntregaPregunta
                 order={order}
                 esDemo={esDemo}
@@ -559,8 +583,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                           <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-mute">{cuando && <span>{cuando}</span>}{nombrePago(pago, order) && <span className="flex items-center gap-1"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />{nombreActor(nombrePago(pago, order))}</span>}{pago.settlesAt && <span>acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
                         </span>
                       </span>
-                      <Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status || 'Confirmado'}</Badge>
+                      <EstadoPagoBadge pago={pago} />
                       <span className="ml-auto min-w-24 text-right text-sm font-semibold tabular-nums"><Money value={Number(pago.amountPyg || 0)} /></span>
+                      <DetallePagoVerificacion pago={pago} esDemo={esDemo} onSubido={refrescarPagos} />
                     </div>
                   )
                 })}
@@ -765,12 +790,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               })()}
               {row.publicToken && !esDemo && <p className="mt-2 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
+                {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : motivoBloqueoPago || undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value} disabled={Boolean(motivoBloqueoPago) && ESTADOS_QUE_ENTREGAN.includes(value)}>{FULFILLMENT[value] || value}</option>)}</Select>}
                 {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
                 {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" preferKey={eventoAviso} contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
                 <AvisarPorCorreo email={order.customer?.email || order.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} demoCorreo={demoCorreoDePedido(order)} />
                 {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               </div>
+              {!anulado && <AvisoEntregaBloqueada motivo={motivoBloqueoPago} />}
             </section>
 
             {/* Etiquetas */}

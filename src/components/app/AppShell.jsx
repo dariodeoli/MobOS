@@ -13,6 +13,8 @@ import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionTabs from '@/components/app/SectionTabs'
 import { claveBadge, useBadgesPestanas } from '@/lib/badgesPestanas'
+import { usePendientesAprobacion } from '@/hooks/usePendientesAprobacion'
+import { infoBadge } from '@/components/app/sectionTabsBadge'
 import PageHeader from '@/components/app/PageHeader'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import { RecordSlotContext } from '@/components/app/RecordHeader'
@@ -113,6 +115,7 @@ export default function AppShell({
     demo: esDemo && notificacionesActivas,
   })
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
+  usePendientesAprobacion({ rol: usuarioActual?.role, esDemo, activo: Boolean(usuarioActual?.id) })
   const enLinea = useOnlineStatus()
   // A1 (#279): si el dispositivo ya autorizó los avisos, se re-registra la
   // suscripción al arrancar (el endpoint puede cambiar). No pide permiso.
@@ -300,7 +303,7 @@ export default function AppShell({
     ? undefined
     : profileDestinations.find(([id]) => id === 'equipo')
   const helpDestination = profileDestinations.find(([id]) => id === 'ayuda')
-  const sectionButton = (section, { children: label, ...extra } = {}) => (
+  const sectionButton = (section, { children: label, pendientes = 0, ...extra } = {}) => (
     <button
       key={section.id}
       type="button"
@@ -315,6 +318,9 @@ export default function AppShell({
         className={cn('h-[18px] w-[18px] shrink-0', currentId === section.id && 'text-fono-light')}
       />
       {label}
+      {infoBadge({ badge: pendientes }) && (
+        <span data-testid="menu-badge-pendientes" aria-label={infoBadge({ badge: pendientes }).etiqueta} className="ml-auto inline-grid min-w-5 place-items-center rounded-full bg-warn/20 px-1.5 text-[11px] font-bold tabular-nums text-warn">{infoBadge({ badge: pendientes }).texto}</span>
+      )}
     </button>
   )
 
@@ -326,6 +332,7 @@ export default function AppShell({
         currentId === section.id && 'bg-ink-700 font-semibold text-fore',
       ),
       children: !collapsed && section.label,
+      pendientes: section.id === 'pedidos' ? badgesPestanas[claveBadge('pedidos', 'autorizaciones')] : 0,
     })
 
   // Pestañas de contexto (nivel 1) y las de la propia página (Inicio › Reportes

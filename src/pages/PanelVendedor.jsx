@@ -91,6 +91,7 @@ const Auditoria = lazy(() => import('@/components/control/Auditoria'))
 const Caja = lazy(() => import('@/components/control/Caja'))
 const PaymentAccounts = lazy(() => import('@/components/control/PaymentAccounts'))
 const Conciliacion = lazy(() => import('@/components/control/Conciliacion'))
+const VerificacionDiaria = lazy(() => import('@/components/control/VerificacionDiaria'))
 const Creditos = lazy(() => import('@/components/control/Creditos'))
 const Cobranzas = lazy(() => import('@/components/control/Cobranzas'))
 const Comisiones = lazy(() => import('@/components/control/Comisiones'))
@@ -238,6 +239,7 @@ const TABS_FINANZAS = [
   ['gastos', 'Gastos'],
   ['bancos', 'Bancos y cuentas'],
   ['conciliacion', 'Conciliación'],
+  ['verificacion-dia', 'Verificación'],
   ['creditos', 'Créditos'],
   ['cuotas', 'Cuotas'],
   ['comisiones', 'Comisiones'],
@@ -1090,6 +1092,7 @@ export default function PanelVendedor() {
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}
               {vista === 'conciliacion' && <Conciliacion />}
+              {vista === 'verificacion-dia' && <VerificacionDiaria />}
               {vista === 'creditos' && <Creditos />}
               {vista === 'cuotas' && <Cobranzas />}
               {vista === 'comisiones' && <Comisiones />}
