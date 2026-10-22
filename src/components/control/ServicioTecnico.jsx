@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Aviso, Badge, Button, Card, EmptyState, FormField, Input, Label, MenuDesplegable, MoneyInput, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
+import Cronologia from '@/components/shared/Cronologia'
+import { eventosTallerDemo } from '@/lib/demo/historiaTaller'
 import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import Toolbar from '@/components/shared/Toolbar'
@@ -933,6 +935,13 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                   })}
                 </ol>
               </section>
+
+              {esDemo && (
+                <section aria-label="Historial por etapa" data-testid="taller-historial">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-mute">Historial por etapa</p>
+                  <div className="mt-2"><Cronologia eventos={eventosTallerDemo(detalle)} vacio="Sin movimientos" descripcionVacio="Cada etapa de la reparación aparecerá acá." /></div>
+                </section>
+              )}
 
               <section aria-label="Inspección de recepción">
                 <p className="text-xs font-semibold uppercase tracking-wider text-mute">Inspección de recepción ({tipo})</p>
