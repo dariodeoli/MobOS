@@ -44,7 +44,7 @@ assert.equal(porCuenta.accounts['acc-3'], undefined)
 // selfApproveRoles: solo roles conocidos; ese rol queda SELF, el resto pendiente.
 const propio = parsePaymentVerification({ paymentVerification: { methods: { PIX: 'verificar' }, selfApproveRoles: ['ADMIN', 'DIOS', 7] } })
 assert.deepEqual(propio.selfApproveRoles, ['ADMIN'])
-assert.deepEqual(decideInitialPaymentState(propio, { method: 'PIX', role: 'ADMIN', requestedStatus: 'CONFIRMED' }), { status: 'CONFIRMED', pendingReason: null, selfApproved: true })
+assert.deepEqual(decideInitialPaymentState(propio, { method: 'PIX', role: 'ADMIN', requestedStatus: 'CONFIRMED' }), { status: 'CONFIRMED', pendingReason: 'VERIFICACION', selfApproved: true })
 assert.equal(decideInitialPaymentState(propio, { method: 'PIX', role: 'GERENTE' }).status, 'PENDING')
 assert.equal(mayApproveOwnPayment(propio, 'ADMIN'), true)
 assert.equal(mayApproveOwnPayment(propio, 'CAJERA'), false)

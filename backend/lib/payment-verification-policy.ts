@@ -77,6 +77,7 @@ export const mayApproveOwnPayment = (policy: PaymentVerificationPolicy, role: st
 
 export type InitialPaymentState = {
   status: 'CONFIRMED' | 'PENDING'
+  /** En un pago aprobado por SELF queda VERIFICACION: es el origen, para listarlo en «Aprobados». */
   pendingReason: PendingReason | null
   /** Quedó aprobado por el propio rol autorizado (se audita como SELF). */
   selfApproved: boolean
@@ -92,7 +93,7 @@ export function decideInitialPaymentState(policy: PaymentVerificationPolicy, inp
 }): InitialPaymentState {
   const wantsPending = input.requestedStatus === 'PENDING'
   if (requiresVerification(policy, input)) {
-    if (input.role && mayApproveOwnPayment(policy, input.role) && !wantsPending) return { status: 'CONFIRMED', pendingReason: null, selfApproved: true }
+    if (input.role && mayApproveOwnPayment(policy, input.role) && !wantsPending) return { status: 'CONFIRMED', pendingReason: 'VERIFICACION', selfApproved: true }
     return { status: 'PENDING', pendingReason: 'VERIFICACION', selfApproved: false }
   }
   if (wantsPending) return { status: 'PENDING', pendingReason: input.method === 'CREDIT' ? 'CUOTA' : 'MANUAL', selfApproved: false }

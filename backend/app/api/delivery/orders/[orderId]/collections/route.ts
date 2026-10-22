@@ -49,7 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       const preCobrado = numero(totales.find(row => row.status === 'PENDING')?._sum.amountPyg)
       assertCollectionWithinBalance(order.totalPyg, confirmado, preCobrado, amountPyg)
       const created = await tx.payment.create({
-        data: { tenantId: tenant, orderId: order.id, method, status: 'PENDING', amountPyg, reference, deliveryUserId: session.user.id, collectedAt: new Date(), userId: session.user.id, createdById: session.user.id, idempotencyKey },
+        data: { tenantId: tenant, orderId: order.id, method, status: 'PENDING', pendingReason: 'REPARTO', amountPyg, reference, deliveryUserId: session.user.id, collectedAt: new Date(), userId: session.user.id, createdById: session.user.id, idempotencyKey },
       })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'DELIVERY_COLLECTION_RECORDED', entity: 'Payment', entityId: created.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg, method, reference, status: 'PENDING' } } })
       return created

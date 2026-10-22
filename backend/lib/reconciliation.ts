@@ -195,12 +195,15 @@ export type LockedPaymentRow = {
   method: string
   deliveryUserId: string | null
   deliverySettlementId: string | null
+  pendingReason: string | null
+  createdById: string | null
+  userId: string | null
 }
 
 /** Bloquea el pago para conciliarlo sin carreras con otro cobro/rendición. */
 export async function lockPaymentRow(tx: Prisma.TransactionClient, tenantId: string, paymentId: string): Promise<LockedPaymentRow | null> {
   const rows = await tx.$queryRaw<LockedPaymentRow[]>`
-    SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "deliveryUserId", "deliverySettlementId" FROM "Payment"
+    SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "deliveryUserId", "deliverySettlementId", "pendingReason", "createdById", "userId" FROM "Payment"
     WHERE "id" = ${paymentId} AND "tenantId" = ${tenantId} FOR UPDATE`
   return rows[0] ?? null
 }
@@ -212,11 +215,20 @@ export async function lockPaymentRow(tx: Prisma.TransactionClient, tenantId: str
  */
 export async function confirmReconciledPayment(
   tx: Prisma.TransactionClient,
-  { tenantId, userId, row, state, note }: { tenantId: string; userId: string; row: LockedPaymentRow; state: 'VERIFIED' | 'REJECTED'; note: string | null },
+  { tenantId, userId, row, state, note, via }: { tenantId: string; userId: string; row: LockedPaymentRow; state: 'VERIFIED' | 'REJECTED'; note: string | null; via?: string },
 ) {
   if (row.status !== 'PENDING' || row.deliveryUserId || row.deliverySettlementId) return false
   const nextStatus = state === 'VERIFIED' ? 'CONFIRMED' : 'REJECTED'
-  await tx.payment.update({ where: { id: row.id }, data: { status: nextStatus, ...(nextStatus === 'CONFIRMED' ? { paidAt: new Date() } : {}) } })
+  // El cobro cuenta desde que se aprueba: paidAt = fecha de aprobación (decisión de Dario).
+  const approvedAt = new Date()
+  let settlesAt: Date | undefined
+  if (nextStatus === 'CONFIRMED') {
+    // La acreditación estimada (tarjeta, PIX) corre desde la aprobación, no desde el cobro.
+    const snapshot = (await tx.payment.findUnique({ where: { id: row.id }, select: { accountSnapshot: true } }))?.accountSnapshot
+    const days = Number(snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) ? (snapshot as Record<string, unknown>).settlementDays : 0)
+    if (Number.isSafeInteger(days) && days > 0) settlesAt = new Date(approvedAt.getTime() + days * 86400000)
+  }
+  await tx.payment.update({ where: { id: row.id }, data: { status: nextStatus, ...(nextStatus === 'CONFIRMED' ? { paidAt: approvedAt, ...(settlesAt ? { settlesAt } : {}) } : {}) } })
   if (nextStatus === 'CONFIRMED') {
     const pedidos = await tx.$queryRaw<Array<{ id: string; status: string; totalPyg: number }>>`
       SELECT "id", "status"::text AS "status", "totalPyg" FROM "Order"
@@ -227,10 +239,9 @@ export async function confirmReconciledPayment(
       if ((paid._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
     }
   }
-  await tx.auditLog.create({ data: { tenantId, userId, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, amountPyg: row.amountPyg, method: row.method, note } } })
+  await tx.auditLog.create({ data: { tenantId, userId, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, amountPyg: row.amountPyg, method: row.method, note, pendingReason: row.pendingReason, ...(via ? { via } : {}) } } })
   return true
 }
-
 
 export type DailyDeclaration = { method: string; accountId: string | null; currency: string; receivedPyg: number }
 export type DailyPayment = { id: string; method: string; accountId: string | null; currency: string | null; amountPyg: number | bigint; status: string; label?: string }
