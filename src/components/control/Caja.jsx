@@ -861,23 +861,30 @@ export default function Caja() {
         </Card>
       ) : (
         <Card className="space-y-4" data-testid="cierre-caja-tarjeta">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="font-bold">Cerrar caja</h3>
-              <p className="mt-1 text-sm text-mute">
-                El cierre es guiado: contá el efectivo —total rápido o por denominación—, compará
-                con el esperado y confirmá. Los dólares se cuentan aparte; no incluyas transferencias ni tarjetas.
-              </p>
-              <p className="mt-2 text-xs text-mute">
-                Abierto {fechaHora(turno?.openedAt)} · esperado{' '}
-                <b className="text-fore">
-                  <Money value={expected} />
-                </b>
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h3 className="min-w-0 font-bold">Cerrar caja</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {esDemo && cash?.id && (
+                <Button type="button" variant="outline" data-testid="caja-cronologia-demo" onClick={() => setCronologia(true)}>
+                  Cronología de la sesión
+                </Button>
+              )}
+              <Button type="button" onClick={() => { setError(''); setConteoOpen(true) }}>
+                Contar y cerrar
+              </Button>
             </div>
-            <Button type="button" onClick={() => { setError(''); setConteoOpen(true) }}>
-              Contar y cerrar
-            </Button>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm text-mute">
+              El cierre es guiado: contá el efectivo —total rápido o por denominación—, compará
+              con el esperado y confirmá. Los dólares se cuentan aparte; no incluyas transferencias ni tarjetas.
+            </p>
+            <p className="mt-2 text-xs text-mute">
+              Abierto {fechaHora(turno?.openedAt)} · esperado{' '}
+              <b className="text-fore">
+                <Money value={expected} />
+              </b>
+            </p>
           </div>
         </Card>
       )}
@@ -1040,13 +1047,6 @@ export default function Caja() {
               Importar extracto
             </Button>
           </div>
-        </Card>
-      )}
-      {esDemo && cash?.id && (
-        <Card className="space-y-3">
-          <Button type="button" variant="outline" className="w-full" data-testid="caja-cronologia-demo" onClick={() => setCronologia(true)}>
-            Cronología de la sesión
-          </Button>
         </Card>
       )}
       {!esDemo && cash?.id && (
