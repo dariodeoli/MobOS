@@ -39,7 +39,7 @@ export default function PageHeader({ title, subtitle, actions, aviso, backTo, br
           <h1 data-testid="shell-page-title" className={`min-w-0 text-[22px] font-semibold leading-7 tracking-tight ${conPestanas ? 'max-lg:sr-only' : ''}`}>{title}</h1>
         </div>
         {(actions || utilities || aviso) && (
-          <div data-testid="shell-page-header-actions" className="shell-page-header-actions flex min-w-0 items-center gap-2 max-lg:flex-wrap">
+          <div data-testid="shell-page-header-actions" data-solo-escritorio={!actions && !aviso ? '' : undefined} className={`shell-page-header-actions flex min-w-0 items-center gap-2 max-lg:flex-wrap ${!actions && !aviso ? 'max-lg:hidden' : ''}`}>
             {/* En celular «Ver como» (acciones) va a la izquierda del aviso de la demo, en la misma fila. */}
             {aviso && <div className="min-w-0 max-lg:order-2">{aviso}</div>}
             {actions && <div className="flex min-w-0 items-center gap-2 max-lg:order-1">{actions}</div>}

@@ -357,6 +357,8 @@ for (const dark of [false, true]) {
       await page.keyboard.press('Escape')
       await expect(bell).toHaveAttribute('aria-expanded', 'false')
       await expect(page.getByTestId('notificaciones-panel')).toHaveCount(0)
+      // La hoja de notificaciones sale con animación: medir cuando ya no queda ninguna fila suya.
+      await expect(page.locator('[data-testid^="notificaciones-panel"]')).toHaveCount(0)
       await esperarAnimaciones(page)
       const m = await expectLayoutContract(page, `header ${width} ${dark ? 'dark' : 'light'}`)
       for (const kind of ['small', 'lowContrast'])

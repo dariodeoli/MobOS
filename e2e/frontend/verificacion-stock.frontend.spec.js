@@ -37,7 +37,8 @@ for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
     await page.setViewportSize({ width: ancho, height: alto })
     await enterDemo(page)
     await abrirVerificacion(page)
-    await expect(page.getByTestId('verif-historial-fila')).toHaveCount(0)
+    // La demo trae verificaciones previas en el historial: la nueva suma una más.
+    const previas = await page.getByTestId('verif-historial-fila').count()
     await page.getByTestId('verif-iniciar').click()
     await expect(page.getByTestId('verif-sesion')).toBeVisible()
     const contador = page.getByTestId('verif-contador')
@@ -78,6 +79,7 @@ for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
     // 4) Terminar guarda el resumen en el historial.
     await page.getByTestId('verif-terminar').click()
     await page.getByRole('button', { name: 'Terminar y guardar' }).click()
+    await expect(page.getByTestId('verif-historial-fila')).toHaveCount(previas + 1)
     const fila = page.getByTestId('verif-historial-fila').first()
     await expect(fila).toContainText('Terminada')
     await expect(fila).toContainText(`2/${total} verificadas`)

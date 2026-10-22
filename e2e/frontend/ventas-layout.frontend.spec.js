@@ -575,10 +575,15 @@ for (const dark of [false, true]) {
       await page.setViewportSize({ width, height: 900 })
       await openShellDestination(page, 'Configuración')
       const lista = page.getByTestId('config-grupos')
-      await expect(lista.locator('[data-tab-id]')).toHaveCount(7)
+      // Configuración tiene 9 grupos desde la navegación por módulos.
+      await expect(lista.locator('[data-tab-id]')).toHaveCount(9)
       for (const item of await lista.locator('[data-tab-id]').all()) {
         expect((await item.boundingBox()).height).toBeGreaterThanOrEqual(44)
       }
+      // El menú de Configuración no lleva aviso de la demo (ahorra espacio): se mide en Pedidos.
+      await expect(page.getByTestId('demo-aviso')).toHaveCount(0)
+      await openShellDestination(page, 'Pedidos')
+      await esperarAnimaciones(page)
       const aviso = page.getByTestId('demo-aviso')
       const marco = await aviso.boundingBox()
       for (const boton of await aviso.getByRole('button').all()) {

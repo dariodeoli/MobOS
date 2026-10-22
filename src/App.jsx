@@ -119,7 +119,12 @@ function SoloFuera() {
   const { estado } = useSesion()
   const { search } = useLocation()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'dentro') return <Navigate to={volverSeguro(new URLSearchParams(search).get('volver')) || '/'} replace />
+  // `volver` lo arma el redirect de las áreas protegidas; `next` viene de los enlaces públicos
+  // (enlaceLogin). Con la sesión recuperada tarde, Login ya no llega a montarse: se respeta acá.
+  if (estado === 'dentro') {
+    const params = new URLSearchParams(search)
+    return <Navigate to={volverSeguro(params.get('volver')) || rutaInterna(params.get('next')) || '/'} replace />
+  }
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return <Login />
 }

@@ -186,6 +186,7 @@ test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y una sola fr
 test('teléfono: código y número en una sola fila, RUC aparte y por contenido (#389)', async ({ page }) => {
   await enterPos(page, 1440, 900)
   await page.getByTestId('pos-bloque-cliente').getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await expect(page.getByRole('dialog', { name: 'Datos del cliente' })).toBeVisible()
   await expect(page.getByLabel('Teléfono del cliente')).toBeVisible()
   await esperarAnimaciones(page)
   const code = await page.getByRole('combobox', { name: 'Código de país' }).or(page.getByRole('button', { name: /Código de país/ })).first().boundingBox()
@@ -193,11 +194,12 @@ test('teléfono: código y número en una sola fila, RUC aparte y por contenido 
   expect(Math.abs((code.y + code.height / 2) - (num.y + num.height / 2))).toBeLessThan(6)
   expect(num.x).toBeGreaterThanOrEqual(code.x + code.width - 1)
   // #389: los datos cortos ya no ocupan todo el ancho (docs/CAMPOS.md §2.1):
-  // el teléfono con su código mide <= 20rem y el CI/RUC <= 16rem, en su propia fila.
+  // el teléfono con su código mide <= 20rem y el CI/RUC <= 16rem; al ser cortos comparten fila.
   expect(num.x + num.width - code.x).toBeLessThanOrEqual(320 + 1.5)
   const ruc = await page.getByLabel('CI o RUC del cliente', { exact: true }).boundingBox()
   expect(ruc.width).toBeLessThanOrEqual(256 + 1.5)
-  expect(ruc.y + ruc.height).toBeLessThanOrEqual(code.y)
+  // CI/RUC y teléfono van en la misma fila (cortos juntos) o el RUC arriba; nunca se pisan.
+  expect(ruc.x + ruc.width <= code.x + 1 || ruc.y + ruc.height <= code.y).toBe(true)
   await page.screenshot({ path: `${out}/1440-cliente.png` })
 })
 
