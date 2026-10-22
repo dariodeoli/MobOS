@@ -13,6 +13,9 @@ import { InsigniaProveedor } from '@/components/inventory/FichaUnidadBloques'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import Toolbar from '@/components/shared/Toolbar'
+import ChipsFiltro from '@/components/ventas/ChipsFiltro'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import '@/components/stock/stockToque.css'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -483,11 +486,13 @@ export default function Compras() {
     })
   }, [purchases, orden])
   // La demo no consulta el servidor: el filtro del header se aplica en memoria.
+  const [tabEstado, setTabEstado] = useState('todas')
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
-    if (!demo || !q) return ordenadas
-    return ordenadas.filter(purchase => `${purchase.supplierName} ${purchase.supplierReference || ''} ${purchase.id}`.toLowerCase().includes(q))
-  }, [ordenadas, busqueda, demo])
+    const porEstado = ordenadas.filter(purchase => tabEstado === 'todas' || (tabEstado === 'saldo' ? Number(purchase.outstandingPyg || 0) > 0 : purchase.status === tabEstado))
+    if (!demo || !q) return porEstado
+    return porEstado.filter(purchase => `${purchase.supplierName} ${purchase.supplierReference || ''} ${purchase.id}`.toLowerCase().includes(q))
+  }, [ordenadas, busqueda, demo, tabEstado])
 
   // Vista previa v2 (#241): resumen de compras en tiles y el avance de
   // recepción en la fila expandida. Se apaga solo con el flag.
@@ -501,14 +506,16 @@ export default function Compras() {
     }
   }, { pendientes: 0, costo: 0, saldo: 0 }), [filtradas])
 
-  return <div className="space-y-4">
-    {/* #388: una sola barra (buscador · acciones); la descripción explicativa se quitó. */}
+  return <div className="gp ventas-f3 space-y-4" data-testid="compras-pagina">
+    {/* #388: una sola barra (buscador · pestañas de estado · acciones). */}
     <Toolbar
       plano
       lista
       testId="barra-compras"
       label="Compras"
+      className="ventas-f3-toolbar"
       search={<SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" />}
+      filters={<ChipsFiltro className="min-w-0" etiqueta="Estado de las compras" opciones={[['todas', 'Todas'], ['DRAFT', 'Borrador'], ['PARTIAL', 'Parciales'], ['RECEIVED', 'Recibidas'], ['saldo', 'Con saldo']]} valor={tabEstado} onChange={setTabEstado} />}
       more={
         <>
           {!demo && (
@@ -661,8 +668,8 @@ export default function Compras() {
         />
       )}
       {busy && purchases.length === 0 && <div className="space-y-2" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>}
-      {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." />}
-      {!busy && purchases.length > 0 && filtradas.length === 0 && <EmptyState compact icon="search" title="Ninguna compra coincide con la búsqueda." />}
+      {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." action={<Button type="button" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}>Nueva compra</Button>} />}
+      {!busy && purchases.length > 0 && filtradas.length === 0 && <EmptyState compact icon="search" title="Ninguna compra coincide." description="Probá otra búsqueda o cambiá el estado." action={tabEstado !== 'todas' ? <Button type="button" variant="outline" onClick={() => setTabEstado('todas')}>Ver todas</Button> : undefined} />}
       {filtradas.length > 0 && <div className="overflow-x-auto" data-testid="compras-tabla">
         <div className={cn(GRID_COMPRAS, 'px-3.5 pb-2 pt-1')}>
           {encabezado('proveedor', 'Proveedor')}
@@ -689,7 +696,7 @@ export default function Compras() {
                 data-testid="compra-fila"
                 onClick={() => setExpandida(abierta ? null : purchase.id)}
                 onKeyDown={event => { if (event.key === 'Enter') setExpandida(abierta ? null : purchase.id) }}
-                className={cn(GRID_COMPRAS, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierta && 'border-fono/40')}
+                className={cn(GRID_COMPRAS, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40 hover:bg-ink-800', abierta && 'border-fono/40')}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <Icon name={abierta ? 'chevron' : 'chevron'} className={cn('h-3.5 w-3.5 shrink-0 text-mute transition', abierta ? 'rotate-180' : '-rotate-90')} />

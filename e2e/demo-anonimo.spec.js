@@ -399,7 +399,8 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
 
   const codigo = `C${marca.toUpperCase().slice(-6)}`
   await page.goto('/promociones')
-  const formCupon = page.locator('form').filter({ hasText: 'Crear cupón' })
+  await page.getByRole('button', { name: 'Nuevo cupón' }).click()
+  const formCupon = page.getByRole('dialog', { name: 'Crear cupón' })
   await formCupon.getByLabel('Código').fill(codigo)
   await formCupon.getByLabel('Nombre').fill(`Cupón cierre ${marca}`)
   await formCupon.getByLabel('Inicio (hora local)').fill('2026-09-21T00:00')

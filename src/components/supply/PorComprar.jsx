@@ -8,7 +8,12 @@ import { resources } from '@/lib/api'
 import { contextoActual, getProductos } from '@/lib/storage'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
-import { Badge, Button, Card, EmptyState, Input, Money, MoneyInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, Money, MoneyInput, Select, Skeleton, Stat, Subtabs, useToast } from '@/components/ui'
+import Toolbar from '@/components/shared/Toolbar'
+import SearchField from '@/components/shared/SearchField'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
 import Popup from '@/components/shared/Popup'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
@@ -313,26 +318,58 @@ export default function PorComprar() {
 
 
   return (
-    <div className="compras-flujo space-y-4" data-testid="por-comprar">
-      <Card className="px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {totales && (
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-mute">
-              <Badge color="blue">{totales.grupos} grupo{totales.grupos === 1 ? '' : 's'}</Badge>
-              <Badge color="slate">{totales.unidades} unidad{totales.unidades === 1 ? '' : 'es'}</Badge>
-              {contadores?.sinCentro > 0 && <Badge color="orange">{contadores.sinCentro} sin centro</Badge>}
-              <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          )}
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+    <div className="compras-flujo gp ventas-f3 space-y-4" data-testid="por-comprar">
+      <Toolbar
+        plano
+        lista
+        label="Acciones de Por comprar"
+        testId="barra-por-comprar"
+        className="ventas-f3-toolbar"
+        search={(
+          <SearchField
+            ariaLabel="Buscar producto"
+            placeholder="Buscar producto o cliente…"
+            value={busqueda}
+            onChange={(evento) => setBusqueda(evento.target.value)}
+          />
+        )}
+        filters={(
+          <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Subtabs
+              value={vista}
+              onChange={setVista}
+              className="mb-0 w-max min-w-full flex-nowrap"
+              items={ESTADOS.map(([id, label]) => {
+                const conteo = conteoEstado(id)
+                return [id, conteo == null ? label : `${label} (${conteo})`]
+              })}
+            />
+          </div>
+        )}
+        more={(
+          <>
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando} aria-label="Actualizar">
               <Icon name="refresh" className="h-3.5 w-3.5" /><span className="hidden sm:inline">Actualizar</span>
             </Button>
             <Button type="button" variant="outline" onClick={() => setLibre(true)}>+ Compra libre</Button>
-            <Button type="button" onClick={() => setAgregar(true)}>+ Agregar necesidad</Button>
-          </div>
-        </div>
-      </Card>
+          </>
+        )}
+        primary={<Button type="button" onClick={() => setAgregar(true)}>+ Agregar necesidad</Button>}
+      >
+        {movil ? (
+          <Button type="button" variant="outline" aria-expanded={verFiltros} onClick={() => setVerFiltros(true)}>
+            <Icon name="filter" className="h-4 w-4" />Filtros{filtrosActivos > 0 ? ` (${filtrosActivos})` : ''}
+          </Button>
+        ) : camposFiltros}
+      </Toolbar>
+      {totales && (
+        <StatGrid testId="por-comprar-resumen" etiqueta="Resumen de lo que hay que comprar">
+          <Stat compact label="Grupos" valor={totales.grupos} />
+          <Stat compact label="Unidades" valor={totales.unidades} />
+          {contadores?.sinCentro > 0 && <Stat compact label="Sin centro" valor={contadores.sinCentro} valorClassName="text-warn" />}
+          <Stat compact label="Actualizado" valor={new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })} />
+        </StatGrid>
+      )}
 
       {recienComprada && (
         <div role="status" data-testid="por-comprar-comprado" className="flex flex-wrap items-center gap-2 rounded-xl border border-ok/40 bg-ok/10 px-3 py-2 text-sm text-ok">
@@ -342,34 +379,6 @@ export default function PorComprar() {
           <Button type="button" variant="ghost" className="min-h-11 min-w-11" aria-label="Cerrar aviso" onClick={() => setRecienComprada(null)}><Icon name="close" className="h-4 w-4" /></Button>
         </div>
       )}
-
-      <div className="space-y-2">
-        <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Subtabs
-            value={vista}
-            onChange={setVista}
-            className="mb-0 w-max min-w-full flex-nowrap"
-            items={ESTADOS.map(([id, label]) => {
-              const conteo = conteoEstado(id)
-              return [id, conteo == null ? label : `${label} (${conteo})`]
-            })}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {movil ? (
-            <Button type="button" variant="outline" aria-expanded={verFiltros} onClick={() => setVerFiltros(true)}>
-              <Icon name="filter" className="h-4 w-4" />Filtros{filtrosActivos > 0 ? ` (${filtrosActivos})` : ''}
-            </Button>
-          ) : camposFiltros}
-          <Input
-            aria-label="Buscar producto"
-            placeholder="Buscar producto o cliente…"
-            className="min-w-0 flex-1 sm:max-w-xs"
-            value={busqueda}
-            onChange={(evento) => setBusqueda(evento.target.value)}
-          />
-        </div>
-      </div>
 
       {movil && (
         <BottomSheet open={verFiltros} onClose={() => setVerFiltros(false)} title="Filtros de compras"
@@ -396,6 +405,7 @@ export default function PorComprar() {
           icon="box"
           title={filas.length || sinAsignar || vencidas ? 'Sin resultados con ese filtro.' : VACIO_ESTADO[vista]?.[0] || 'No hay nada por comprar.'}
           description={filas.length || sinAsignar || vencidas ? 'Probá con otra prioridad, centro o palabra.' : VACIO_ESTADO[vista]?.[1] || 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'}
+          action={filas.length ? undefined : <Button type="button" onClick={() => setAgregar(true)}>+ Agregar necesidad</Button>}
         />
       ) : (
         <div className="space-y-1.5">

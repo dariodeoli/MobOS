@@ -1,0 +1,187 @@
+/* Rediseño profundo de las vistas de gestión (Finanzas, Análisis, Precios,
+   Compras, Abastecimiento, Recepción, Trade-in). Mismo lenguaje que Pedidos y
+   Clientes: barra única (búsqueda + pestañas + orden + acción primaria), KPI en
+   una línea, filas densas con badge de punto, detalle en columna principal +
+   lateral, vacíos con acción. Solo capa visual, acotada por .gp. */
+
+.gp {
+  --gp-radius: 12px;
+  --gp-line: rgb(var(--c-ink-600));
+  --gp-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---- Barra única: pestañas subrayadas con desplazamiento propio ---------- */
+.gp .ventas-f3-toolbar { gap: 8px 12px; }
+.gp .ventas-f3-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
+}
+.gp .ventas-f3-chips::-webkit-scrollbar { display: none; }
+.gp .ventas-f3-chips > button {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--c-mute));
+  transition: color 0.18s var(--gp-ease), background-color 0.18s var(--gp-ease);
+}
+.gp .ventas-f3-chips > button:hover { background: rgb(var(--c-ink-800)); color: rgb(var(--c-fore)); }
+.gp .ventas-f3-chips > button[aria-pressed='true'] { background: rgb(var(--c-ink-800)); color: rgb(var(--c-fore)); }
+.gp .ventas-f3-chips > button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgb(var(--c-fono));
+  transform-origin: left center;
+  animation: gp-subraya 0.22s var(--gp-ease);
+}
+@media (max-width: 1023.98px) {
+  .gp .ventas-f3-chips > button { min-height: 44px; }
+}
+@media (min-width: 1024px) {
+  .gp [data-slot='search'] { min-width: 11rem; max-width: 16rem; flex-basis: 13rem; }
+}
+
+/* ---- Cabecera de la vista: título + acciones ----------------------------- */
+.gp-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.gp-cabecera h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.005em; }
+.gp-cabecera p { margin-top: 2px; font-size: 13px; color: rgb(var(--c-mute)); }
+
+/* ---- KPI en una línea, sin caja ------------------------------------------ */
+.gp [data-gp-kpi] {
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* ---- Listas densas: contenedor, filas y badge de punto ------------------- */
+.gp-lista {
+  overflow: hidden;
+  border: 1px solid var(--gp-line);
+  border-radius: var(--gp-radius);
+}
+.gp-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--gp-line);
+  transition: background-color 0.15s var(--gp-ease);
+  animation: gp-fila 0.3s var(--gp-ease) both;
+  animation-delay: calc(var(--i, 0) * 20ms);
+}
+.gp-fila:first-child { border-top: 0; }
+.gp-fila:hover { background: rgb(var(--c-ink-800)); }
+.gp-fila:active { background: rgb(var(--c-ink-700)); }
+.gp-fila-main { min-width: 0; flex: 1 1 14rem; }
+.gp-fila-titulo { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.gp-fila-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: rgb(var(--c-mute)); }
+.gp-fila-monto { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gp-fila-lado { display: flex; flex-shrink: 0; align-items: center; gap: 8px; margin-left: auto; }
+
+.gp span.inline-flex.rounded-md.border.px-2.text-xs.font-medium,
+.gp .gp-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 2px 9px 2px 7px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.gp span.inline-flex.rounded-md.border.px-2.text-xs.font-medium::before,
+.gp .gp-estado::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---- Tablas del libro ----------------------------------------------------- */
+.gp table { border-collapse: separate; border-spacing: 0; }
+.gp thead th { background: rgb(var(--c-ink-800)); font-size: 11px; font-weight: 600; }
+.gp tbody tr { transition: background-color 0.15s var(--gp-ease); }
+.gp tbody tr:hover { background: rgb(var(--c-ink-800)); }
+
+/* ---- Detalle / panel: columna principal + lateral derecha ---------------- */
+.gp-dos { display: grid; gap: 16px; align-items: start; }
+@media (min-width: 1280px) {
+  .gp-dos { grid-template-columns: minmax(0, 1fr) 20rem; }
+}
+.gp-principal, .gp-lateral { display: grid; min-width: 0; gap: 16px; }
+.gp-lateral { animation: gp-lado 0.34s var(--gp-ease) both; animation-delay: 60ms; }
+.gp-tarjeta {
+  min-width: 0;
+  border: 1px solid var(--gp-line);
+  border-radius: var(--gp-radius);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  transition: box-shadow 0.2s var(--gp-ease);
+}
+.gp-tarjeta:hover { box-shadow: 0 2px 8px rgb(0 0 0 / 0.07); }
+.gp-tarjeta-titulo { padding: 12px 14px 6px; font-size: 14px; font-weight: 700; }
+.gp-tarjeta-cuerpo { padding: 6px 14px 14px; }
+.gp-datos { display: grid; gap: 8px; margin: 0; }
+.gp-datos > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; font-size: 13px; }
+.gp-datos dt { color: rgb(var(--c-mute)); }
+.gp-datos dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* ---- Interacción ----------------------------------------------------------- */
+.gp button:not(:disabled):active { transform: scale(0.97); }
+.gp button { transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; }
+.gp > * { animation: gp-entra 0.28s var(--gp-ease) both; }
+
+@media (max-width: 639px) {
+  .gp { overflow-x: clip; }
+  .gp-lista { border-left: 0; border-right: 0; border-radius: 0; }
+  .gp-dos, .gp-principal, .gp-lateral { gap: 12px; }
+}
+
+@keyframes gp-fila { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes gp-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes gp-lado { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@keyframes gp-subraya { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .gp, .gp *, .gp *::after { animation: none !important; transition: none !important; }
+  .gp button:active { transform: none !important; }
+}
+
+/* ---- KPI con detalle (Análisis): tira con divisores, sin cajas ------------ */
+.gp-kpis {
+  display: grid;
+  border-bottom: 1px solid var(--gp-line);
+}
+.gp-kpi { min-width: 0; padding: 10px 16px 10px 0; }
+.gp-kpi + .gp-kpi { border-top: 1px solid var(--gp-line); padding-left: 0; }
+.gp-kpi-destacado > div:nth-child(2) { color: rgb(var(--c-fono-light, var(--c-fore))); }
+@media (min-width: 480px) {
+  .gp-kpi + .gp-kpi { border-top: 0; border-left: 1px solid var(--gp-line); padding-left: 16px; }
+}
+
+/* Caja: las cifras con detalle largo parten línea en vez de pisar a la vecina. */
+.gp [data-testid='caja-resumen'] > div { flex: 1 1 9rem; min-width: 9rem; }
+.gp [data-testid='caja-resumen'] > div > span { white-space: normal; overflow-wrap: anywhere; }
+.gp [data-testid='caja-resumen'] > div > span.tabular-nums { white-space: nowrap; }

@@ -28,6 +28,8 @@ test.describe('reglas de comisión en Finanzas', () => {
     await page.getByRole('button', { name: 'Reglas y liquidaciones →' }).click()
     await expect(page).toHaveURL(/\/finanzas\/comisiones$/)
     await expect(page.getByRole('heading', { name: 'Comisiones', level: 2 })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Nueva regla' })).toBeVisible()
+    await page.getByRole('button', { name: 'Nueva regla' }).click()
     await expect(page.getByRole('button', { name: 'Agregar regla' })).toBeVisible()
 
     // Crear una regla para el integrante dedicado (sin colisiones con seeds).
@@ -69,6 +71,7 @@ test.describe('reglas de comisión en Finanzas', () => {
     await page.goto('/finanzas/comisiones')
     await expect(page.getByRole('heading', { name: 'Comisiones', level: 2 })).toBeVisible()
 
+    await page.getByRole('button', { name: 'Nueva liquidación' }).click()
     const buscador = page.getByRole('combobox', { name: 'Vendedor de la liquidación' })
     const usuarios = await page.evaluate(async (api) => (await fetch(`${api}/api/users`, { credentials: 'include' })).json(), API)
     const vendedor = (usuarios || []).find((fila) => String(fila.name || '').startsWith('Administrador'))

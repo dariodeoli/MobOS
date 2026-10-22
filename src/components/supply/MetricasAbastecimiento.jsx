@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { metodoEnvioTexto } from '@/lib/etiquetasLogistica'
 import { resources } from '@/lib/api'
 import { Badge, Button, Card, CeldaMoneda, DataTable, ErrorState, FilaDato, Select, Skeleton, Stat, Subtabs } from '@/components/ui'
+import '@/components/shared/gestionProfundo.css'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
@@ -190,32 +191,31 @@ export default function MetricasAbastecimiento() {
   ]
 
   return (
-    <div className="space-y-4" data-testid="metricas-abastecimiento">
-      <Card className="p-4 md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-mute">
+    <div className="gp space-y-4" data-testid="metricas-abastecimiento">
+      <div className="gp-cabecera">
+        <div className="min-w-0 flex-1 basis-72">
+          <h2>Métricas de proveedores</h2>
+          <p className="max-w-3xl">
               Rendimiento por proveedor con su costo real por unidad (moneda ya convertida), tiempos de
               tránsito —CDE → Asunción incluida— y atrasos del momento. La ventana filtra compras y lotes.
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
             <Select aria-label="Ventana" className="w-auto" value={ventana} onChange={(evento) => setVentana(Number(evento.target.value))}>
               {VENTANAS.map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
             </Select>
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
               <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
             </Button>
-          </div>
         </div>
         {rendimiento && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
+          <div className="flex basis-full flex-wrap items-center gap-2 text-xs text-mute">
             <Badge color="blue">{rendimiento.totales?.compras ?? 0} compras</Badge>
             <Badge color="slate">{rendimiento.totales?.envios ?? 0} envíos</Badge>
             <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         )}
-      </Card>
+      </div>
 
       {error && <ErrorState title="No se pudieron cargar las métricas" description={error} onRetry={cargar} />}
 

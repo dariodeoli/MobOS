@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import ChipsFiltro from '@/components/ventas/ChipsFiltro'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/ventas/ventasF3.css'
+import '@/components/shared/gestionProfundo.css'
+import { Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select, Stat, Textarea } from '@/components/ui'
 import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import { useSesion } from '@/lib/sesion'
@@ -355,7 +359,8 @@ export default function TradeInPipeline() {
     [item.serial, item.model, item.orderId, item.orderNumber, item.customerName, item.sellerName, item.order?.orderNumber, item.order?.customer?.name].some((value) => String(value || '').toLocaleLowerCase().includes(search)))
   const abiertoItem = items.find((item) => item.id === abierto) || null
 
-  return <div className="space-y-4">
+  const cuenta = (estado) => items.filter((item) => item.status === estado).length
+  return <div className="gp ventas-f3 space-y-4" data-testid="tradein-pagina">
     {/* #388: una sola barra (buscador · estado · acciones); el aviso de la demo
         es un chip con tooltip, no una fila ni un párrafo explicativo. */}
     <Toolbar
@@ -364,7 +369,8 @@ export default function TradeInPipeline() {
       testId="barra-tradein"
       label="Equipos recibidos como pago"
       search={<SearchField ariaLabel="Buscar equipos" placeholder="Serial, modelo, venta o referencia…" value={query} onChange={(event) => setQuery(event.target.value)} />}
-      filters={<Select aria-label="Filtrar estado" className="w-auto" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">Todos los estados ({items.length})</option>{Object.entries(TRADE_IN_STATUSES).map(([value, text]) => <option key={value} value={value}>{text} ({items.filter((item) => item.status === value).length})</option>)}</Select>}
+      className="ventas-f3-toolbar"
+      filters={<ChipsFiltro className="min-w-0" etiqueta="Filtrar estado" opciones={[['todos', `Todos (${items.length})`], ['RECEIVED', TRADE_IN_STATUSES.RECEIVED], ['REVIEW', TRADE_IN_STATUSES.REVIEW], ['REPAIR', TRADE_IN_STATUSES.REPAIR], ['READY', TRADE_IN_STATUSES.READY]]} mas={[['STOCK', TRADE_IN_STATUSES.STOCK], ['SOLD_EXTERNAL', TRADE_IN_STATUSES.SOLD_EXTERNAL]]} etiquetaMas="Más estados" valor={filter || 'todos'} onChange={(valor) => setFilter(valor === 'todos' ? '' : valor)} />}
       more={
         <>
           {esDemo && <span data-testid="tradein-demo" title="Demo local: registrá equipos sintéticos desde una venta demo. La recepción no suma stock ni crea clientes reales." className="inline-flex min-h-7 items-center rounded-full border border-ink-600 bg-ink-800 px-2.5 text-xs text-mute max-sm:hidden">Demo local</span>}
@@ -372,11 +378,19 @@ export default function TradeInPipeline() {
         </>
       }
     />
+    {items.length > 0 && (
+      <StatGrid testId="tradein-resumen" etiqueta="Resumen de equipos recibidos">
+        <Stat compact label="Equipos" valor={items.length} />
+        <Stat compact label="En reparación" valor={cuenta('REPAIR')} valorClassName={cuenta('REPAIR') > 0 ? 'text-warn' : ''} />
+        <Stat compact label="Listos" valor={cuenta('READY')} />
+        <Stat compact label="En stock" valor={cuenta('STOCK')} valorClassName="text-ok" />
+      </StatGrid>
+    )}
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {uncertain && <p className="text-sm text-mute">Actualizá la lista para verificar el estado antes de otro movimiento.</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {busy && <p role="status" className="text-sm text-mute">Procesando…</p>}
-    {!busy && !error && !visible.length && <Card>No hay equipos que coincidan. Los equipos aparecen después de registrarlos como pago de una venta.</Card>}
+    {!busy && !error && !visible.length && <EmptyState compact icon="refresh" title="No hay equipos que coincidan." description="Los equipos aparecen después de registrarlos como pago de una venta." action={<Button type="button" variant="outline" onClick={load}>Actualizar</Button>} />}
     {visible.length > 0 && <div className="overflow-x-auto" data-testid="tradein-tabla">
       <div className={cn(GRID_TRADEIN, 'px-3.5 pb-2 pt-1')}>
         <span className={CELDA_ENCABEZADO}>Equipo</span>

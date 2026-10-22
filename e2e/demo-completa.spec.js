@@ -198,6 +198,7 @@ test.describe('demo completa · acciones', () => {
     // Cobra el borrador sembrado y cierra la liquidación del mes de un vendedor.
     await page.getByRole('button', { name: 'Marcar como pagada' }).first().click()
     await expect(page.getByTestId('comisiones-por-pagar')).toContainText('Gs 0')
+    await page.getByRole('button', { name: 'Nueva liquidación' }).click()
     await page.getByLabel('Vendedor de la liquidación').fill('Diego')
     await page.getByRole('option', { name: /Diego López/ }).first().click()
     await page.getByRole('button', { name: 'Cerrar liquidación' }).click()

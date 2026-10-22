@@ -7,13 +7,12 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Button, DocumentoImpresion, EmptyState, FormField, Input, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
+import { Aviso, Button, DocumentoImpresion, EmptyState, FormField, Input, MoneyInput, Stat, Textarea, MenuDesplegable } from '@/components/ui'
 import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
-import SearchField from '@/components/shared/SearchField'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
 import { buildProformaHtml, printProformaReceipt, printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
@@ -37,9 +36,12 @@ import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion
 import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import Toolbar from '@/components/shared/Toolbar'
+import SearchField from '@/components/shared/SearchField'
+import ChipsFiltro from './ChipsFiltro'
+import StatGrid from '@/components/shared/StatGrid'
+import '@/components/shared/gestionProfundo.css'
 import StatusChip from '@/components/shared/StatusChip'
 import SelectorResultadoCompacto from '@/components/shared/SelectorResultadoCompacto'
-import ChipsFiltro from './ChipsFiltro'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import { quoteActions } from '@/lib/ventasF3'
@@ -423,7 +425,7 @@ export default function SellerQuotes() {
   }
 
   return (
-    <div className="ventas-f3" data-testid="ventas-cotizaciones-f3">
+    <div className="gp ventas-f3" data-testid="ventas-cotizaciones-f3">
       <SellerSection title="Cotizaciones">
         <Toolbar
           label="Acciones de Cotizaciones"
@@ -456,6 +458,13 @@ export default function SellerQuotes() {
             </Button>
           }
         />
+        {!data.loading && !data.error && rows.length > 0 && (
+          <StatGrid testId="cotizaciones-resumen" etiqueta="Resumen de cotizaciones">
+            <Stat compact label="En esta vista" valor={rows.length} />
+            <Stat compact label="Total cotizado" valor={gs(rows.reduce((suma, row) => suma + Number(row.totalPyg || 0), 0))} />
+            <Stat compact label="Vencen en 2 días o menos" valor={rows.filter(row => vencimiento(row).urgente).length} valorClassName={rows.some(row => vencimiento(row).urgente) ? 'text-warn' : 'text-mute'} />
+          </StatGrid>
+        )}
         {notice && <Aviso tono="ok">{notice}</Aviso>}
         {error && <Aviso tono="error">{error}</Aviso>}
         <SellerFeedback {...data} empty={false} />
