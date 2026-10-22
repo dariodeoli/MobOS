@@ -56,3 +56,12 @@ test('los ids son únicos y cada entrada tiene roles', () => {
   assert.equal(new Set(INDICE_CONFIG.map(e => e.id)).size, INDICE_CONFIG.length)
   for (const e of INDICE_CONFIG) assert.ok(e.roles.length > 0)
 })
+
+test('un ajuste de un módulo apagado no se ofrece en la búsqueda', () => {
+  const con = buscarAjustes('portal', { esOwner: true, modulos: () => true }).map(e => e.id)
+  assert.ok(con.includes('portal-url'))
+  const sin = buscarAjustes('portal', { esOwner: true, modulos: id => id !== 'portal-clientes' }).map(e => e.id)
+  assert.ok(!sin.includes('portal-url') && !sin.includes('portal-saldo'))
+  // El núcleo sigue apareciendo aunque se apaguen todos los módulos.
+  assert.ok(buscarAjustes('impresora', { esOwner: true, modulos: () => false }).some(e => e.id === 'impresoras'))
+})

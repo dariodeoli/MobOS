@@ -67,7 +67,7 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
 
 // #299 · Organización en secciones por tarea: cada una se abre con su tarea
 // clara y no se mezcla con el resto. El orden es el del uso cotidiano.
-const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', peligro: 'alert' }
+const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', plan: 'card', peligro: 'alert' }
 const ORG_SECCIONES = [
   ['datos', 'Datos generales'],
   ['identidad', 'Identidad visual'],
@@ -76,6 +76,7 @@ const ORG_SECCIONES = [
   ['numeracion', 'Numeración'],
   ['politicas', 'Políticas'],
   ['portal', 'Portal de clientes'],
+  ['plan', 'Plan y facturación'],
   ['peligro', 'Zona de peligro'],
 ]
 

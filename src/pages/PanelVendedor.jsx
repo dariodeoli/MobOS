@@ -549,10 +549,20 @@ export default function PanelVendedor() {
   function volverPorModuloApagado(id) {
     const moduloId = moduloDeVista(id)
     const ruta = rutaPadreDeVista(id)
-    const slug = ruta.split('/')[1]
-    const vistaPadre = SUBPAGINAS[slug]?.vista || vistaDeRuta(slug, { esOwner })
-    const destino = vistaPadre && accesibles.includes(vistaPadre) ? ruta : (rutaDeVista(accesibles[0]) || '/pos')
-    navigate(destino, { replace: true, state: { moduloApagado: moduloId } })
+    const [, slug, tab] = ruta.split('/')
+    const sub = SUBPAGINAS[slug]
+    const vistaPadre = sub ? (tab || sub.tabs[0][0]) : vistaDeRuta(slug, { esOwner })
+    const idAcceso = sub ? sub.vista : vistaPadre
+    // La vista se sincroniza acá: si no, el efecto de «fuera de alcance» ve la
+    // vista vieja y manda al primer destino del rol, perdiendo el aviso.
+    if (idAcceso && accesibles.includes(idAcceso)) {
+      setVista(vistaPadre)
+      navigate(ruta, { replace: true, state: { moduloApagado: moduloId } })
+      return
+    }
+    const primera = accesibles[0] || 'cargar'
+    setVista(primera)
+    navigate(rutaDeVista(primera) || '/pos', { replace: true, state: { moduloApagado: moduloId } })
   }
   useEffect(() => {
     if (moduloApagado) volverPorModuloApagado(idEnUrl)

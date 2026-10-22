@@ -327,16 +327,10 @@ export default function AppShell({
       children: !collapsed && section.label,
     })
 
-  const groupTabs = pageTabs ? null : contextGroups.length > 1 ? contextGroups : null
-  const tabsNode = pageTabs ? (
-    <SectionTabs
-      testId="shell-pestanas"
-      label={pageTabs.label}
-      items={pageTabs.items}
-      value={pageTabs.value}
-      onChange={pageTabs.onChange}
-    />
-  ) : groupTabs ? (
+  // Pestañas de contexto (nivel 1) y, si la página las trae, sus secciones propias
+  // (Inicio › Reportes tiene las suyas): cuando hay las dos van apiladas.
+  const groupTabs = contextGroups.length > 1 ? contextGroups : null
+  const contextNode = groupTabs ? (
     <SectionTabs
       testId="shell-contexto"
       label={`Secciones de ${currentSection.label}`}
@@ -345,6 +339,16 @@ export default function AppShell({
       onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
     />
   ) : null
+  const pageTabsNode = pageTabs ? (
+    <SectionTabs
+      testId="shell-pestanas"
+      label={pageTabs.label}
+      items={pageTabs.items}
+      value={pageTabs.value}
+      onChange={pageTabs.onChange}
+    />
+  ) : null
+  const tabsNode = contextNode || pageTabsNode ? <>{contextNode}{pageTabsNode}</> : null
   const enToolbar = segmentosEnToolbar(currentGroup)
   const segmentsNode =
     segments.length > 1 ? (

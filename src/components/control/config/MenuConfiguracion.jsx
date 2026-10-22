@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import { buscarAjustes, migasAjuste } from '@/lib/configIndice'
+import { useModulos } from '@/lib/useModulos'
 import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { grupoConfig } from './gruposConfig'
 
@@ -34,7 +35,8 @@ function ItemSeccion({ id, label, activo, onChange }) {
 export default function MenuConfiguracion({ items = [], value, onChange, onBack, onElegirAjuste, empresa, logo, esOwner = true }) {
   const [consulta, setConsulta] = useState('')
   const resultadosRef = useRef(null)
-  const resultados = useMemo(() => buscarAjustes(consulta, { esOwner, limite: 6 }), [consulta, esOwner])
+  const modulos = useModulos()
+  const resultados = useMemo(() => buscarAjustes(consulta, { esOwner, limite: 6, modulos: modulos.activo }), [consulta, esOwner, modulos.activo])
   const buscando = consulta.trim().length > 0
   const nombre = empresa?.nombre || 'Tu empresa'
 

@@ -109,13 +109,19 @@ export default function Modulos() {
       window.dispatchEvent(new CustomEvent('mobos:module-store-updated', { detail: resultado.state }))
       toast.success(enabled ? `${def.name} activado` : `${def.name} desactivado`)
     } catch (causa) {
-      setError({ titulo: `No se pudo ${enabled ? 'activar' : 'desactivar'} ${def.name}.`, mensaje: causa?.message || 'Probá de nuevo.', saldos: causa?.details?.saldos || [] })
+      const saldos = Array.isArray(causa?.details?.saldos) ? causa.details.saldos : []
+      setError({
+        titulo: `No se pudo ${enabled ? 'activar' : 'desactivar'} ${def.name}.`,
+        mensaje: saldos.length ? 'Todavía hay saldos o trámites abiertos. Resolvelos primero:' : causa?.message || 'Probá de nuevo.',
+        saldos,
+      })
     } finally { setOcupado(false) }
   }
 
   function pedirCambio(def, enabled) {
     setError(null)
-    if (enabled) aplicar(def, true)
+    if (esDemo) aplicar(def, enabled)
+    else if (enabled) aplicar(def, true)
     else setAApagar(def)
   }
 
