@@ -68,7 +68,7 @@ html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input::placeh
 @media (min-width: 1280px) {
   .pos-f2 .pos-layout { gap: 20px; }
   .pos-f2 .pos-product-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
-  .pos-f2 .pos-product-card { min-height: 154px; padding: 12px; gap: 6px; }
+  .pos-f2 .pos-product-card { min-height: 44px; padding: 12px; gap: 6px; }
   .pos-f2 .pos-product-card > span:first-child { grid-template-columns: 64px minmax(0, 1fr); }
   .pos-f2 .pos-product-card [data-testid='foto-producto'] { width: 64px !important; height: 64px !important; }
 }

@@ -54,6 +54,7 @@ import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
 import { Aviso, Button, Card, EmptyState, Input, Label, Nota, useToast } from '@/components/ui'
 import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
+import Popup from '@/components/shared/Popup'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -73,6 +74,7 @@ import { categoriaAccesorioDe } from '@/lib/categoriasAccesorio'
 import { subirFotosPendientes } from '@/components/productos/GaleriaFotosProducto'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
+import LineasSoloLectura from './venta/LineasSoloLectura'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
@@ -530,6 +532,8 @@ export default function FormularioVenta({
   const [avisoEnlaceDemo, setAvisoEnlaceDemo] = useState(null)
   // Gift cards (#280): emisión/consulta desde el POS y canje dentro del cobro.
   const [giftCardsOpen, setGiftCardsOpen] = useState(false)
+  const [detallesAbierto, setDetallesAbierto] = useState(false)
+  const [confirmarNueva, setConfirmarNueva] = useState(false)
 
   // Un pago que entra por otro camino (canje borrador, venta recuperada) apaga
   // «Paga al recibir»: nunca quedan pagos ocultos.
@@ -1796,6 +1800,18 @@ export default function FormularioVenta({
       it.descuento || it.descuentoPct ? { ...it, descuento: '', descuentoPct: '' } : it,
     ))
   }
+  // «Nueva venta»: vacía carrito, cliente y pagos y vuelve al paso de productos.
+  // Con datos cargados pide confirmar antes de perderlos.
+  function empezarVentaNueva() {
+    limpiarCarrito()
+    setModoCobro(false)
+    setHoja(null)
+    setConfirmarNueva(false)
+  }
+  function pedirNuevaVenta() {
+    if (carritoConDatos || pagos.some(p => p.tradeIn || Number(p.monto) > 0)) setConfirmarNueva(true)
+    else empezarVentaNueva()
+  }
   // Cambiar o quitar el cliente apaga «Vender a crédito»: el crédito es de la ficha anterior.
   function cambiarCliente(siguiente) {
     if ((siguiente?.id ?? null) !== (customer?.id ?? null)) setVenderACredito(false)
@@ -2066,7 +2082,11 @@ export default function FormularioVenta({
       const editable =
         target instanceof HTMLElement &&
         (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      if (event.key === 'Escape') return
+      if (event.key === 'Escape') {
+        // Paso 2 · Cobrar: Esc vuelve a productos (si no hay otra ventana abierta).
+        if (modoCobro && !esMovilRef.current && !event.defaultPrevented && !document.querySelector('[role="dialog"]:not([hidden]), [role="alertdialog"]:not([hidden]), [role="listbox"], [aria-expanded="true"]')) setModoCobro(false)
+        return
+      }
       if (event.key === 'F2') {
         // F2 is the checkout shortcut, even when the search field currently
         // owns focus. Keep dialogs/overlays in control of their own keys.
@@ -2117,6 +2137,9 @@ export default function FormularioVenta({
         )}
         <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-suspendidas" onClick={abrirSuspendidas} title="Ventas suspendidas" aria-label="Ventas suspendidas">
           <Icon name="clock" className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-detalles" onClick={() => setDetallesAbierto(true)} title="Detalles de la venta y atajos de teclado" aria-label="Detalles de la venta y del día" aria-haspopup="dialog">
+          <Icon name="info" className="h-4 w-4" />
         </Button>
         <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)} title="Gift cards" aria-label="Gift cards">
           <Icon name="card" className="h-4 w-4" />
@@ -2307,23 +2330,36 @@ export default function FormularioVenta({
           </div>
         )}
 
-        {/* Resumen fijo: cruza las dos columnas en desktop y queda al pie en
-            pantallas angostas (ahí la barra superior es el acceso rápido). */}
-        <div
-          data-testid="resumen-columna"
-          className={esMovil ? 'order-last hidden' : 'order-last'}
-        >
-          <details className="inicio-disclosure"><summary>Detalles de la venta y del día</summary>
-          <p className="mb-2 text-xs text-mute">Fecha: {fechaClave().split('-').reverse().join('/')}</p>
-          <ResumenVenta
-            items={items}
-            unidades={cantTotal}
-            montoDescuento={gsNum(descuento)}
-            montoDelivery={montoDeliveryEfectivo}
-            dia={resumenDia}
-          />
-          </details>
-        </div>
+        {/* Detalles de la venta y del día + atajos: viven en un popup que abre el
+            ícono de la cabecera de Productos, para que el catálogo y el ticket
+            ocupen todo el alto de la pantalla (sin franjas debajo). */}
+        {!esMovil && (
+          <Popup
+            open={detallesAbierto}
+            onClose={() => setDetallesAbierto(false)}
+            tipo="detalle"
+            tamano="md"
+            title="Detalles de la venta y del día"
+            testId="pos-detalles-popup"
+          >
+            <div data-testid="resumen-columna" className="space-y-4">
+              <p className="text-xs text-mute">Fecha: {fechaClave().split('-').reverse().join('/')}</p>
+              <ResumenVenta
+                items={items}
+                unidades={cantTotal}
+                montoDescuento={gsNum(descuento)}
+                montoDelivery={montoDeliveryEfectivo}
+                dia={resumenDia}
+              />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-mute" data-testid="pos-atajos">
+                <span className="font-semibold uppercase tracking-wider">Atajos</span>
+                <Atajo k="F2" label="Cobrar" />
+                <Atajo k="Ctrl+S" label="Guardar venta" />
+                <Atajo k="Esc" label="Cerrar ventana" />
+              </div>
+            </div>
+          </Popup>
+        )}
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
         <div
@@ -2394,14 +2430,6 @@ export default function FormularioVenta({
               onCobrar={irACobrarRapido}
               acciones={barraPos}
             />)}
-
-            {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
-            <div className="hidden items-center gap-x-4 gap-y-1.5 text-xs text-mute md:flex">
-              <span className="font-semibold uppercase tracking-wider text-mute">Atajos</span>
-              <Atajo k="F2" label="Cobrar" />
-              <Atajo k="Ctrl+S" label="Guardar venta" />
-              <Atajo k="Esc" label="Cerrar ventana" />
-            </div>
           </div>
 
           {/* Columna de la venta (carrito + cobro y entrega): pegada como un solo
@@ -2498,6 +2526,8 @@ export default function FormularioVenta({
               pendientes={pendientesVenta}
               ventaSinStock={ventaSinStock}
               onIrAlCarrito={irAlCarrito}
+              onVolver={esMovil ? () => setHoja(null) : () => setModoCobro(false)}
+              onNuevaVenta={pedirNuevaVenta}
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
               onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
@@ -2544,6 +2574,8 @@ export default function FormularioVenta({
               <CobroMovil
                 open
                 onClose={() => setHoja(null)}
+                onNuevaVenta={pedirNuevaVenta}
+                lineas={<LineasSoloLectura items={items} productos={productos} />}
                 cuentas={cuentas}
                 usaCuentas={usaCuentas}
                 errorCuentas={errorCuentas}
@@ -2917,6 +2949,17 @@ export default function FormularioVenta({
         confirmLabel="Descartar"
         variant="danger"
         busy={descartando}
+      />
+
+      <ConfirmDialog
+        open={confirmarNueva}
+        onCancel={() => setConfirmarNueva(false)}
+        onConfirm={empezarVentaNueva}
+        title="¿Empezar una venta nueva?"
+        description="Se vacían el carrito, el cliente y los pagos de esta venta. No se puede deshacer."
+        confirmLabel="Vaciar y empezar"
+        cancelLabel="Seguir con esta venta"
+        variant="danger"
       />
 
       <GiftCardsPos
