@@ -24,3 +24,20 @@ export function aplicarTecla(valor, tecla, largo = PIN_LARGO_MIN) {
 export function pinCompleto(valor, largo = PIN_LARGO_MIN) {
   return String(valor ?? '').replace(/\D/g, '').length === largoPin(largo)
 }
+
+// Estado visual/hablado del PIN: vacío → parcial → validando (completo y
+// bloqueado, esperando al servidor) → error | éxito. Fuente única para las
+// animaciones (data-*) y para el aviso accesible.
+export function estadoPin({ largo = 0, total = PIN_LARGO_MIN, invalido = false, exito = false, disabled = false } = {}) {
+  if (exito) return 'exito'
+  if (invalido) return 'error'
+  if (largo >= total) return disabled ? 'validando' : 'lleno'
+  return largo > 0 ? 'parcial' : 'vacio'
+}
+
+export function textoEstadoPin(estado, largo, total) {
+  if (estado === 'exito') return 'PIN correcto'
+  if (estado === 'validando') return 'Validando PIN'
+  if (estado === 'parcial' || estado === 'lleno') return `${largo} de ${total} dígitos ingresados`
+  return ''
+}

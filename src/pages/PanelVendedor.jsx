@@ -21,7 +21,6 @@ import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import PinSegmentado from '@/components/shared/PinSegmentado'
-import { vibrar } from '@/lib/nativo/haptics'
 import { isNativeIOS } from '@/lib/plataforma'
 import { alPasarASegundoPlano, marcarPinVigente, pinVigente } from '@/lib/nativo/bloqueo'
 import { faceIdAlAbrir, tipoBiometria, verificarBiometria } from '@/lib/nativo/biometria'
@@ -433,6 +432,7 @@ export default function PanelVendedor() {
     usuario,
     vendedores,
     cambiarVendedor,
+    activarVendedor,
     entrarDemo,
     esDemo,
     salir,
@@ -511,6 +511,9 @@ export default function PanelVendedor() {
   const [lockPin, setLockPin] = useState('')
   const [lockError, setLockError] = useState('')
   const [lockBusy, setLockBusy] = useState(false)
+  // Vendedor que el PIN identificó: se muestra «Hola, <Nombre>» antes de entrar.
+  const [lockIdentificado, setLockIdentificado] = useState(null)
+  const timerEntrada = useRef(null)
   const [salirAbierto, setSalirAbierto] = useState(false)
   const [saliendo, setSaliendo] = useState(false)
   const [ayudaAbierto, setAyudaAbierto] = useState(false)
@@ -769,24 +772,40 @@ export default function PanelVendedor() {
 
   const intentarDesbloqueo = useCallback(
     async (pinIntento) => {
+      let identificado = null
       await controlPin.current.ejecutar(async signal => {
         if (esDemo) {
           const esperado = usuario?.pin || (esOwner ? '3001' : '2001')
           if (pinIntento !== esperado) throw new Error('PIN inválido. Probá de nuevo.')
         } else {
-          await sessionApi.unlockSeller(pinIntento, usuario, { signal })
+          // El PIN identifica al vendedor (correo compartido): entra quien
+          // corresponda al código, sea o no el último usuario. Una sesión sin
+          // empresa (invitación) conserva el desbloqueo del mismo operador.
+          try {
+            identificado = await sessionApi.loginSeller({ pin: pinIntento, desbloqueo: true }, { signal })
+          } catch (err) {
+            if (err?.code !== 'COMPANY_SESSION_REQUIRED') throw err
+            await sessionApi.unlockSeller(pinIntento, usuario, { signal })
+          }
         }
       }, {
         alIniciar: () => { setLockBusy(true); setLockError('') },
         alConfirmar: () => {
-          setLocked(false); setLockPin(''); marcarBloqueo(false)
-          vibrar('exito'); marcarPinVigente(true)
+          const terminar = () => { setLocked(false); setLockPin(''); setLockIdentificado(null); marcarBloqueo(false); marcarPinVigente(true); setLockBusy(false) }
+          if (!identificado) { terminar(); return }
+          const nombre = identificado.user?.name || identificado.user?.nombre || ''
+          setLockIdentificado({ id: identificado.user?.id, name: nombre, hasAvatar: identificado.user?.hasAvatar })
+          // Pausa corta para ver el saludo; luego se activa ese vendedor.
+          timerEntrada.current = setTimeout(async () => {
+            try { await activarVendedor(identificado); terminar() }
+            catch (err) { setLockIdentificado(null); setLockError(err?.message || 'No se pudo abrir la sesión.'); setLockPin(''); setLockBusy(false) }
+          }, 750)
         },
         alFallar: err => { setLockError(err?.message || 'PIN inválido. Probá de nuevo.'); setLockPin('') },
-        alTerminar: () => setLockBusy(false),
+        alTerminar: () => { if (!identificado) setLockBusy(false) },
       })
     },
-    [esDemo, esOwner, usuario],
+    [esDemo, esOwner, usuario, activarVendedor],
   )
 
   // Face ID opcional (Configuración, solo dueño/admin): se pide ANTES del PIN,
@@ -807,8 +826,8 @@ export default function PanelVendedor() {
 
   useEffect(() => {
     const control = controlPin.current
-    control.invalidar(); setLockBusy(false); setLockPin(''); setLockError('')
-    return () => control.invalidar()
+    control.invalidar(); clearTimeout(timerEntrada.current); setLockBusy(false); setLockPin(''); setLockError('')
+    return () => { control.invalidar(); clearTimeout(timerEntrada.current) }
   }, [identidad])
 
   // App de iPhone: al pasar a segundo plano se bloquea; al volver pide el PIN.
@@ -1224,6 +1243,7 @@ export default function PanelVendedor() {
         onPinChange={setLockPin}
         busy={lockBusy}
         error={lockError}
+        identificado={lockIdentificado}
         esDemo={esDemo}
         onCambiarUsuario={() => {
           setCambiarAbierto(true)
