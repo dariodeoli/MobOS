@@ -41,7 +41,8 @@ test.describe('bloqueo de sesión', () => {
     const bloqueo = page.getByTestId('pantalla-bloqueada')
     await expect(bloqueo).toBeVisible()
     await expect(bloqueo.getByText('Pantalla bloqueada')).toBeVisible()
-    await expect(bloqueo.getByText(`Ingresá tu PIN de ${SEED.sellers[0].pin.length} dígitos`)).toBeVisible()
+    // El PIN identifica al vendedor: no hay usuario preseleccionado.
+    await expect(bloqueo.getByTestId('lock-ingresa')).toHaveText('Ingresá tu código')
 
     // El PIN valida solo al completarlo: no hay Enter ni botón.
     await page.locator('#lock-pin').pressSequentially(SEED.sellers[0].pin)
@@ -91,7 +92,7 @@ test.describe('bloqueo de sesión', () => {
     await expect(page.getByTestId('pantalla-bloqueada')).toHaveCount(0)
   })
 
-  test('la pantalla bloqueada muestra la foto y los logos en tema claro (#210)', async ({ page }) => {
+  test('la pantalla bloqueada muestra los logos en tema claro y no preselecciona usuario (#210)', async ({ page }) => {
     const variantes = []
     await simularImagenes(page, variantes)
     await page.goto('/ventas')
@@ -100,7 +101,9 @@ test.describe('bloqueo de sesión', () => {
     const bloqueo = await bloquear(page)
     await expect(bloqueo.locator('img[alt="MobOS"]')).toHaveAttribute('src', /\/logo\.svg$/)
     await expect(bloqueo.getByTestId('lock-logo-empresa')).toBeVisible()
-    await expect(bloqueo.locator(`img[alt="Foto de ${SEED.sellers[0].name}"]`)).toBeVisible()
+    // Sin usuario preseleccionado no se pinta la foto de nadie antes de validar el PIN.
+    await expect(bloqueo.getByTestId('lock-ingresa')).toBeVisible()
+    await expect(bloqueo.locator('img[alt^="Foto de"]')).toHaveCount(0)
     expect(variantes).toContain('light')
 
     // El PIN se sigue auto-validando al completarlo.
@@ -119,7 +122,9 @@ test.describe('bloqueo de sesión', () => {
     const bloqueo = await bloquear(page)
     await expect(bloqueo.locator('img[alt="MobOS"]')).toHaveAttribute('src', /\/logo-dark\.svg$/)
     await expect(bloqueo.getByTestId('lock-logo-empresa')).toBeVisible()
-    await expect(bloqueo.locator(`img[alt="Foto de ${SEED.sellers[0].name}"]`)).toBeVisible()
+    // Sin usuario preseleccionado no se pinta la foto de nadie antes de validar el PIN.
+    await expect(bloqueo.getByTestId('lock-ingresa')).toBeVisible()
+    await expect(bloqueo.locator('img[alt^="Foto de"]')).toHaveCount(0)
     await expect(page.locator('#lock-pin')).toBeVisible()
     expect(variantes).toContain('dark')
 
