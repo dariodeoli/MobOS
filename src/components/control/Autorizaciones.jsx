@@ -116,7 +116,8 @@ function resumenValor(kind, value) {
 // Autorizaciones comerciales: el vendedor pide cambios de condición para un
 // cliente y gerencia/dueño aprueba (ajustando lo autorizado) o rechaza con
 // motivo. Todo queda auditado en la cronología del cliente.
-export default function Autorizaciones() {
+// `soloPagos`: gerente y caja entran únicamente a la pestaña «Pagos» (verificación).
+export default function Autorizaciones({ soloPagos = false } = {}) {
   const { usuario, esDemo } = useSesion()
   const toast = useToast()
   const [filtro, setFiltro] = useUrlState('estado', '')
@@ -150,6 +151,12 @@ export default function Autorizaciones() {
       setRows([...credito, ...demoAutorizacionesFiltradas(filtro, tipo)])
       setPendientesAparte([...autorizacionesCreditoDemo(), ...demoAutorizacionesFiltradas('PENDING', '')].filter(fila => fila.status === 'PENDING'))
       setPagosPendientes(demoCantidadPagosPendientes())
+      return
+    }
+    if (soloPagos) {
+      if (puedeVerificarPagos(usuario?.role)) {
+        api.get('/api/payments/verification?state=pending&limit=1', { cacheMs: 0 }).then(datos => setPagosPendientes(datos?.counts?.pending?.count ?? 0)).catch(() => {})
+      }
       return
     }
     setLoading(true)
@@ -190,11 +197,12 @@ export default function Autorizaciones() {
   useEffect(() => {
     if (contadoresListos) publicarBadgePestana(CLAVE_BADGE_AUTORIZACIONES, pendientes)
   }, [contadoresListos, pendientes])
-  const tabsVisibles = TABS_AUTORIZACIONES.filter(([id]) => id !== 'pagos' || verificaPagos)
+  const tabsVisibles = TABS_AUTORIZACIONES.filter(([id]) => (soloPagos ? id === 'pagos' : id !== 'pagos' || verificaPagos))
   // Sin pestaña en la URL abre la primera que tenga algo pendiente (si no, Precios).
   const tab = (() => {
     const pedida = tabValida(tabUrl)
     if (pedida && tabsVisibles.some(([id]) => id === pedida)) return pedida
+    if (soloPagos) return 'pagos'
     if (tipo) return tabDeTipo(tipo)
     return tabsVisibles.find(([id]) => pendientesPorTab[id] > 0)?.[0] || 'precios'
   })()
