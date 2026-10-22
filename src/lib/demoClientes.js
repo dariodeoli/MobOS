@@ -8,6 +8,7 @@ import { pedidosDemoDeCliente } from './demo/ventas.js'
 import { eventosClienteDemo } from './demo/historiaCliente.js'
 import { ORDENES_TALLER_DEMO } from './demo/taller.js'
 import { analiticaDePedidos } from './customerAggregates.js'
+import { diaDemo } from './demo/reloj.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
 // del navegador: los seeds se combinan con lo creado o editado en
 // memoria contextual de la pestaña. Al recargar/resetear vuelve el seed.
@@ -866,6 +867,17 @@ export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'n
   return evento
 }
 
+/**
+ * La venta del POS trae el día como clave (AAAA-MM-DD): la ficha necesita un
+ * instante. Hoy es «ahora» (la venta queda la más reciente del cliente); otro
+ * día, mediodía de Paraguay.
+ */
+function instanteDeVenta(fecha) {
+  if (!fecha) return new Date().toISOString()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha))) return fecha
+  return fecha === diaDemo(0) ? new Date().toISOString() : `${fecha}T15:00:00.000Z`
+}
+
 /** Forma canónica de un pedido demo (misma que los seeds). */
 function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [], vendedor = '', sucursal = '', estado, credito = null, creditDays = null } = {}) {
   const totalPyg = Math.max(0, Math.round(Number(total) || 0))
@@ -885,7 +897,7 @@ function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [
     totalPyg,
     collectedPyg,
     pendingPyg,
-    createdAt: fecha || new Date().toISOString(),
+    createdAt: instanteDeVenta(fecha),
     status: estado || (pendingPyg > 0 ? 'PENDING' : 'COMPLETED'),
     // Una venta del mostrador queda «En preparación» hasta que el vendedor
     // confirma que el cliente ya se llevó el producto (nunca se marca sola).
