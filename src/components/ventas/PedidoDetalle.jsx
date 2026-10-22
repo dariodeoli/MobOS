@@ -43,6 +43,7 @@ import { temaV2Activo } from '@/lib/temaV2'
 import './ventasF3.css'
 import { isNativeIOS } from '@/lib/plataforma'
 import { compartirNativo } from '@/lib/nativo/compartir'
+import { eventosPedidoDemo } from '@/lib/demo/historiaPedido'
 
 const FULFILLMENT = FULFILLMENT_LABELS
 // Pasos del flujo de entrega para la vista previa v2 (#241): agrupa los estados
@@ -228,7 +229,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       // Demo: el cobro de saldo y las correcciones escriben en la venta local; el detalle
       // vuelve a leerla para que Pagado/Saldo no queden con la foto vieja de la fila.
       const viva = listVentas().find(venta => venta.id === row.id)
-      setDetail(viva ? { ...row, payments: viva.pagos, pagos: viva.pagos, totalPagado: viva.totalPagado, totalPendiente: viva.totalPendiente, estadoPago: viva.estadoPago } : row)
+      const detalleDemo = viva ? { ...row, payments: viva.pagos, pagos: viva.pagos, totalPagado: viva.totalPagado, totalPendiente: viva.totalPendiente, estadoPago: viva.estadoPago } : row
+      setDetail(detalleDemo)
+      // Cronología derivada de la propia venta (pagos, entrega, anulación): sin API.
+      setEvents(eventosPedidoDemo(detalleDemo))
       setLoading(false); return
     }
     setLoading(true); setError('')
@@ -587,10 +591,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
             {/* Cronología */}
             <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>
-              {esDemo && <p className="text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
-              {!esDemo && (
+              {esDemo && <p className="text-xs text-mute">Comentar y adjuntar fotos está disponible con una cuenta real.</p>}
+              {(
                 <>
-                  <form onSubmit={enviarComentario} className="mt-3 space-y-2">
+                  {!esDemo && <form onSubmit={enviarComentario} className="mt-3 space-y-2">
                     <Textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo… Usá @ para mencionar" className="rounded-xl px-3 py-2 text-sm" />
                     {sugerenciasMencion.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -615,9 +619,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                       <Button type="submit" disabled={subiendo || (!comentario.trim() && !adjunto)}>{subiendo ? 'Enviando…' : 'Comentar'}</Button>
                       <span className="text-[10px] text-mute">Solo tú y otros empleados pueden ver los comentarios.</span>
                     </div>
-                  </form>
+                  </form>}
                   <div className="mt-3 space-y-3">
-                    {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
+                    {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3" data-testid="pedido-evento">
                       <PersonaChip user={event.user || { name: 'Sistema' }} picture={event.user?.picture} size="sm" nombreCorto textoClassName="text-xs" title={event.user?.name || 'Sistema'}>
                         · {relativeDate(event.at)}
                       </PersonaChip>

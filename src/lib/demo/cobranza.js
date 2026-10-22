@@ -7,6 +7,7 @@ import { listarClientesDemo } from '@/lib/demoClientes'
 import { totalesPedido } from '@/utils/pedido'
 import { whatsappUrl } from '@/utils/telefono'
 import { calcularRecargoPyg, diasDeAtraso, DIA_MS } from '@/lib/cobranzas'
+import { eventosCuotaDemo } from '@/lib/demo/historiaCuota'
 
 const MORA_BP_POR_DIA = 50 // 0,5 % por día, tope 20 % (misma regla que el servidor).
 const avisadas = new Map()
@@ -102,4 +103,9 @@ export function cuotasDemo(ahora = new Date()) {
 export function marcarAvisoDemo(id) {
   avisadas.set(id, new Date().toISOString())
   return { ok: true }
+}
+
+/** Historial de una cuota (pagos, mora y avisos) con las ventas vivas de la pestaña. */
+export function historialCuotaDemo(row, ahora = new Date()) {
+  return eventosCuotaDemo(row, listVentas().find((item) => item.id === row?.orderId), ahora)
 }

@@ -40,3 +40,23 @@ El recorrido es automático y queda como regresión: `e2e/demo-completa.spec.js`
 
 - Un test por rol recorre todas las vistas de su menú: falla si una queda vacía (menos de 120 caracteres o con un estado vacío en la carga inicial), si redirige, si hay errores de consola o de página, o si se llama a `/api/*` salvo la medición anónima.
 - Portal del cliente, 375 px sin scroll horizontal y siete flujos de acciones (gastos, campañas, créditos y cuotas, comisiones, delivery, trade-in, traslados/verificaciones/bajas).
+
+## Historia y cronologías (rama `codex/demo-historial`)
+
+La demo cuenta una historia completa y coherente de ~4 meses, relativa a «hoy» y al momento de carga (hay datos de hace minutos, de hoy, de ayer, de la semana, del mes y de meses anteriores sin importar el día ni la hora). Todo se **deriva** de las mismas ventas, compras, gastos y unidades, así los totales, saldos y stock no se contradicen. Sin llamadas externas.
+
+| Dónde | Qué se ve | Fuente |
+|---|---|---|
+| Pedido → Cronología | Creación, nota, IMEI vendidos, crédito autorizado, pagos (seña, cuotas), preparación → listo/enviado/en camino → retirado/entregado, avisos por WhatsApp y anulación; ≥3 eventos en todos los estados | `src/lib/demo/historiaPedido.js` |
+| Cliente → Cronología | Alta, pedidos, pagos, entregas, cuotas vencidas con mora y aviso, mensajes, garantías, taller por etapa, notas y seguimientos | `historiaCliente.js` |
+| Finanzas → Bancos y cuentas → «Movimientos» | Caja (Gs y USD), Itaú, Continental, Ueno ahorro, GNB del dueño, tarjetas (Ueno, Dinelco con comisión y acreditación), Pix, USDT y Canje: día por día con saldo corrido y filtros Hoy, Ayer, 7 días, Mes, Mes anterior | `historiaCuentas.js` + `ventasCobertura.js` |
+| Finanzas → Caja → Cronología de la sesión; Ventas por caja | Turnos diarios de 4 meses: apertura, cobros en efectivo, gastos chicos, aportes, depósito del día al banco, arqueo y diferencia; la apertura de cada día es lo contado el anterior | `historiaCuentas.js` |
+| Producto → Kardex / Compras; IMEI → Cronología | Compras con proveedor y costo, ventas con su pedido real, ajustes de conteo, traslados, bajas, reservas, devoluciones y cambios por garantía; el saldo cierra contra el stock | `historiaStock.js` |
+| Taller → orden → «Historial por etapa» | Recepción, checklist, aviso, diagnóstico, presupuesto, con técnico, repuesto, reparado, listo, entregado | `historiaTaller.js` |
+| Finanzas → Cuotas → «Historial» | Plan de crédito, entrega inicial y pagos parciales, vencimiento, mora con recargo y avisos | `historiaCuota.js` |
+
+**Asistencias y turnos del equipo:** la app no tiene esa vista (no hay modelo ni pantalla de asistencia, entradas/salidas ni tardanzas; «turnos» son los turnos de caja). No se inventó: si se agrega el módulo, la demo debe sembrarla con este mismo criterio.
+
+**Auditoría/actividad:** la cronología de cada pedido, cliente, caja, taller y cuota incluye las acciones del equipo (quién y cuándo). La auditoría de medios y efectivo (`demoAuditoria.js`) ya sale de las mismas ventas.
+
+Coherencia verificada en `src/lib/demo/historiaCompleta.test.js` (saldos de caja y bancos, turnos encadenados, transferencias que se anulan, kardex contra stock, períodos no vacíos en 21 instantes de carga) y en `e2e/demo-completa.spec.js` («historia y cronologías»).

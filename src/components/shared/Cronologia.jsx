@@ -22,6 +22,13 @@ const EVENTOS = {
   user: { icono: 'user', tono: 'info' },
   attachment: { icono: 'upload', tono: 'mute' },
   audit: { icono: 'edit', tono: 'mute' },
+  service: { icono: 'box', tono: 'warn' },
+  notice: { icono: 'report', tono: 'info' },
+  order: { icono: 'cart', tono: 'ok' },
+  customer: { icono: 'user', tono: 'info' },
+  warranty: { icono: 'box', tono: 'info' },
+  imei: { icono: 'box', tono: 'mute' },
+  repair: { icono: 'box', tono: 'warn' },
 }
 const ICONOS = Object.fromEntries(Object.entries(EVENTOS).map(([tipo, valor]) => [tipo, valor.icono]))
 const TONOS = Object.fromEntries(Object.entries(EVENTOS).map(([tipo, valor]) => [tipo, valor.tono]))

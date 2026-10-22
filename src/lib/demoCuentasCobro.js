@@ -8,6 +8,7 @@ export const CUENTAS_DEMO = [
   { id: 'demo-cash-usd', name: 'Caja · Dólares', kind: 'CASH', currency: 'USD', reference: 'Caja chica dólares' },
   { id: 'demo-transfer-itau', name: 'Itaú · Cuenta corriente', kind: 'TRANSFER', currency: 'PYG', bank: 'Itaú', holder: 'Aurora Móviles', accountNumber: '001-2456789', document: '80012345-0', aliasType: 'RUC', aliasValue: '80012345-0', reference: 'Depósitos y transferencias' },
   { id: 'demo-transfer-continental', name: 'Continental · Cuenta corriente', kind: 'TRANSFER', currency: 'PYG', bank: 'Continental', holder: 'Aurora Móviles', accountNumber: '002-9876543', document: '80012345-0' },
+  { id: 'demo-transfer-ueno-ahorro', name: 'Ueno · Caja de ahorro', kind: 'TRANSFER', currency: 'PYG', bank: 'Ueno', holder: 'Aurora Móviles', accountNumber: '005-1122334', document: '80012345-0', reference: 'Cobros digitales y ahorro' },
   { id: 'demo-transfer-gnb-owner', name: 'GNB · Cuenta del dueño', kind: 'TRANSFER', currency: 'USD', bank: 'GNB', holder: 'Hernán Acosta', accountNumber: '003-4567890', document: '5215244-8', aliasType: 'EMAIL', aliasValue: 'dueno@aurora.ejemplo', reference: 'Transferencias autorizadas por el dueño', isActive: true },
   { id: 'demo-transfer-sudameris-legacy', name: 'Sudameris · Cuenta histórica', kind: 'TRANSFER', currency: 'PYG', bank: 'Sudameris', holder: 'Aurora Móviles', accountNumber: '004-7654321', document: '80012345-0', isActive: false, reference: 'Cuenta histórica · no disponible para cobrar' },
   { id: 'demo-card-ueno', name: 'Ueno · Tarjeta', kind: 'CARD', currency: 'PYG', bank: 'Ueno', processor: 'UPay', holder: 'Aurora Móviles', feePercent: 3, settlementDays: 2 },
@@ -21,7 +22,7 @@ export const CUENTAS_DEMO = [
 // ninguno lleve la palabra «demo».
 export const CAMPOS_VISIBLES_CUENTA = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'aliasValue', 'reference', 'currencyLabel']
 
-export const CUENTAS_DEMO_V2_IDS = new Set(['demo-transfer-gnb-owner', 'demo-transfer-sudameris-legacy'])
+export const CUENTAS_DEMO_V2_IDS = new Set(['demo-transfer-gnb-owner', 'demo-transfer-sudameris-legacy', 'demo-transfer-ueno-ahorro'])
 
 // Migración aditiva del escenario financiero: conserva cada registro anterior
 // (incluidas ediciones, cuentas propias y bajas) y agrega únicamente los IDs

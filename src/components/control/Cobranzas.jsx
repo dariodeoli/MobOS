@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { codigoPedido } from '@/utils/pedido'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { cuotasDemo, marcarAvisoDemo } from '@/lib/demo/cobranza'
+import { cuotasDemo, historialCuotaDemo, marcarAvisoDemo } from '@/lib/demo/cobranza'
+import Cronologia from '@/components/shared/Cronologia'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
@@ -35,6 +36,7 @@ export default function Cobranzas() {
   const [enviando, setEnviando] = useState('')
   const [pedido, setPedido] = useState(null)
   const [detalle, setDetalle] = useState(null)
+  const [historialDe, setHistorialDe] = useState(null)
 
   const cargar = useCallback(async () => {
     setError('')
@@ -89,6 +91,7 @@ export default function Cobranzas() {
         <div className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
           <b className="mr-auto text-[13px] tabular-nums sm:mr-0 text-fore" data-testid="cuota-saldo">{gs(row.saldoPendientePyg)}</b>
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => setDetalle(row)}>Ver mensaje</Button>
+          {esDemo && <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" data-testid="cuota-historial-abrir" onClick={() => setHistorialDe(row)}>Historial</Button>}
           {row.whatsappUrl
             ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('min-h-11 rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-on-ok transition disabled:opacity-50 lg:min-h-0')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
             : <span className="text-xs text-mute">Sin WhatsApp</span>}
@@ -157,6 +160,11 @@ export default function Cobranzas() {
             {detalle.whatsappUrl && <button type="button" className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(detalle.whatsappUrl)) toast.success('Enlace copiado.'); else toast.error('No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>}
             <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setDetalle(null)}>Cerrar</Button><Button type="button" disabled={!detalle.whatsappUrl || Boolean(enviando)} onClick={() => { const row = detalle; setDetalle(null); recordar(row) }}>Abrir WhatsApp</Button></div>
           </div>
+        </Popup>
+      )}
+      {historialDe && (
+        <Popup open onClose={() => setHistorialDe(null)} title={`Historial · ${historialDe.reference || 'Cuota'} · ${codigoPedido(historialDe.orderNumber)}`} tamano="md" acciones={{ secundaria: { label: 'Cerrar', onClick: () => setHistorialDe(null) } }}>
+          <div data-testid="cuota-historial"><Cronologia eventos={historialCuotaDemo(historialDe)} vacio="Sin movimientos" descripcionVacio="Los pagos y avisos de esta cuota aparecerán acá." /></div>
         </Popup>
       )}
       {pedido && <PagosPedido venta={pedido} onClose={() => setPedido(null)} />}
