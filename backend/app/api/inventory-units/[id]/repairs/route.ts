@@ -1,4 +1,5 @@
 import { prisma } from '../../../../../lib/prisma'
+import { moduloGuard } from '../../../../../lib/modulos-guard'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { serialKey } from '../../../../../lib/validation'
@@ -15,6 +16,7 @@ import { INVENTORY_REPAIR_APPLIED } from '../../../../../lib/inventory'
 const canManageBranch = (role: string, assigned: string | null, branchId: string | null) => role === 'ADMIN' || (role === 'GERENTE' && (!branchId || assigned === branchId))
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
   const { id } = await context.params
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)

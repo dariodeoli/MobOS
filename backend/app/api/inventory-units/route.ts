@@ -1,4 +1,5 @@
 import { isAppleDeviceProduct } from '../../../lib/apple-device.mjs'
+import { moduloGuard } from '../../../lib/modulos-guard'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
@@ -178,6 +179,7 @@ export async function GET(request: Request) {
 // cantidad. `serial` conserva el flujo individual; `serials` admite lotes de
 // hasta 100 unidades con la misma ficha de recepción.
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
@@ -221,6 +223,7 @@ export async function POST(request: Request) {
 // autorización STOCK_ADJUST aprobada para esa unidad; gerencia y administración
 // siguen operando sin autorización.
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'inventario-unidades'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }

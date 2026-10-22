@@ -3,6 +3,7 @@ import { requireAccountContext, requireSession, type SessionContext } from './au
 import { error } from './http'
 import { InputError } from './payment-input'
 import { moduloActivo, moduloDef } from './modulos-catalogo.mjs'
+import { MODULOS_POR_DATOS, asegurarModulosPorDatos, type DbAsegurar } from './modulos-datos'
 
 /** Mensaje claro para el usuario cuando el módulo está apagado. */
 export function moduloApagadoMensaje(id: string) {
@@ -16,7 +17,9 @@ export async function moduloHabilitado(tenantId: string, id: string): Promise<bo
   if (def?.nucleo) return true
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } })
   if (!tenant) return false
-  return moduloActivo({ settings: tenant.settings }, id)
+  // Empresa existente sin decisión guardada: se decide por sus datos (una sola vez).
+  const settings = MODULOS_POR_DATOS.includes(id) ? await asegurarModulosPorDatos(prisma as unknown as DbAsegurar, tenantId, tenant.settings) : tenant.settings
+  return moduloActivo({ settings }, id)
 }
 
 /** Lanza 403 si el módulo está apagado. Para las escrituras de cada apiPrefix. */

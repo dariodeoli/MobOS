@@ -58,7 +58,7 @@ export function updateModuleStore(settings: unknown, change: NonNullable<ReturnT
   if (change.preset) {
     const included = presetModules(change.preset)
     for (const module of MODULE_CATALOG) {
-      if (!module.changeable) continue
+      if (!module.changeable || module.porDatos) continue
       modules[module.id] = { enabled: included.has(module.id), manuallySelected: false, source: 'preset', updatedAt: now }
     }
     return { version: MODULE_STORE_VERSION, preset: change.preset, modules }

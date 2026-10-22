@@ -23,6 +23,8 @@ export type ModuleDefinition = {
   readonly defaultLegacy: boolean
   readonly defaultNuevo: boolean
   readonly legacyFrom?: string
+  readonly porDatos?: boolean
+  readonly implicadoPor?: readonly string[]
   readonly configureHref?: string
   readonly capabilities: readonly string[]
   readonly packs?: readonly { id: string; name: string; status: string; includes: readonly string[] }[]

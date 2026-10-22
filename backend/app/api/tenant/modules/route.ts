@@ -4,6 +4,7 @@ import { requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { MODULE_CATALOG, MODULE_PRESETS, mergeModuleStoreSettings, moduleStoreFrom, parseModuleChange, updateModuleStore } from '../../../../lib/module-store'
 import { esDuenoReal } from '../../../../lib/modulos-guard'
+import { asegurarModulosPorDatos, type DbAsegurar } from '../../../../lib/modulos-datos'
 import { mensajeSaldos, saldosAbiertos, type SaldoAbierto } from '../../../../lib/modulos-saldos'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,10 @@ export async function GET(request: Request) {
   if (!session) return error('Falta sesión.', 401)
   const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { settings: true } })
   if (!tenant) return error('Empresa no encontrada.', 404)
+  // Empresa existente: «Inventario por unidades» y «Venta sin stock» se deciden por sus datos (una sola vez).
+  const settings = await asegurarModulosPorDatos(prisma as unknown as DbAsegurar, session.user.tenantId, tenant.settings)
   // canManage: solo el dueño real de la empresa puede cambiar módulos (no cualquier ADMIN).
-  return json({ catalogVersion: 2, catalog: MODULE_CATALOG, presets: MODULE_PRESETS, state: moduleStoreFrom(tenant.settings), canManage: await esDuenoReal(request, session) }, { headers: { 'Cache-Control': 'no-store' } })
+  return json({ catalogVersion: 2, catalog: MODULE_CATALOG, presets: MODULE_PRESETS, state: moduleStoreFrom(settings), canManage: await esDuenoReal(request, session) }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function PUT(request: Request) {
@@ -28,6 +31,8 @@ export async function PUT(request: Request) {
   const change = parseModuleChange(await request.json().catch(() => null))
   if (!change) return error('Cambio de módulo inválido.', 400)
   try {
+    // Antes de guardar, lo que se decide por datos queda explícito: un cambio ajeno no lo pisa.
+    await asegurarModulosPorDatos(prisma as unknown as DbAsegurar, session.user.tenantId)
     const state = await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT "id" FROM "Tenant" WHERE "id" = ${session.user.tenantId} FOR UPDATE`
       const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: session.user.tenantId }, select: { settings: true } })

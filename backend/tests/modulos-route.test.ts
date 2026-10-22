@@ -45,6 +45,8 @@ const dependencias: Record<string, unknown> = {
   '../../../../lib/module-store': real.moduleStore,
   '../../../../lib/modulos-guard': { esDuenoReal: async () => duenoReal },
   '../../../../lib/modulos-saldos': real.saldos,
+  // La decisión por datos tiene sus pruebas en modulos-datos.test.ts.
+  '../../../../lib/modulos-datos': { asegurarModulosPorDatos: async (_db: unknown, _tenantId: string, actuales?: unknown) => actuales === undefined ? settings : actuales },
 }
 const routePath = path.resolve(__dirname, '../app/api/tenant/modules/route.ts')
 const routeExports: Record<string, unknown> = {}
