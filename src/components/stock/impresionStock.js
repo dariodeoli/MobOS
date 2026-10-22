@@ -29,7 +29,7 @@ export async function printLocationLabel(location) {
   const { ancho } = configImpresora()
   const code = `MOBOS:UBI:${location.id}`
   let qr = ''
-  try { qr = await qrDataUrl(code, { margen: 0, ancho: 190 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
+  try { qr = await qrDataUrl(code, { margen: 0, ancho: 190, mm: 26 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
   const barcode = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   JsBarcode(barcode, code, { format: 'CODE128', displayValue: false, width: 1.4, height: 38, margin: 0 })
   const barras = barcode.outerHTML
