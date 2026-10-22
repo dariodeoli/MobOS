@@ -76,6 +76,8 @@ function BotonMedio({ icono, titulo, detalle, onClick, disabled, testId }) {
 export default function CobroMovil({
   open,
   onClose,
+  onNuevaVenta = null,
+  lineas = null,
   cuentas,
   usaCuentas,
   errorCuentas,
@@ -232,6 +234,28 @@ export default function CobroMovil({
           <Aviso tono="error" className="rounded-xl text-sm">
             {errorVenta}
           </Aviso>
+        )}
+
+        {(paso === 'medios' || paso === 'confirmar') && (
+          <div className="flex items-center justify-between gap-2" data-testid="cobro-movil-cabecera">
+            <Button type="button" variant="outline" data-testid="cobro-volver" className="min-h-11" disabled={guardando} onClick={onClose}>
+              <Icon name="arrowLeft" className="mr-1.5 h-4 w-4" />
+              Volver a productos
+            </Button>
+            {onNuevaVenta && (
+              <Button type="button" variant="outline" data-testid="cobro-nueva-venta" className="min-h-11" disabled={guardando} onClick={onNuevaVenta}>
+                <Icon name="plus" className="mr-1.5 h-4 w-4" />
+                Nueva venta
+              </Button>
+            )}
+          </div>
+        )}
+
+        {(paso === 'medios' || paso === 'confirmar') && lineas && (
+          <section data-testid="cobro-movil-lineas" className="overflow-clip rounded-2xl border border-ok/35 bg-ok/[.04]">
+            <h3 className="border-b border-ok/20 bg-ok/[.06] px-3 py-2 text-sm font-bold text-ok">Productos de esta venta</h3>
+            {lineas}
+          </section>
         )}
 
         {paso === 'medios' && (

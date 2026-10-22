@@ -71,7 +71,7 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   // The inventory oracle counts the whole family. Sum its displayed branch
   // rows rather than assuming every available unit belongs to Casa Central.
   const totalVisiblePorSucursal = async () => {
-    const rows = (await stockPorSucursal().locator(':scope > span').allTextContents()).slice(1)
+    const rows = await stockPorSucursal().locator(':scope > span').allTextContents()
     const counts = rows.map(row => row.match(/: (\d+|Agotado)$/)?.[1])
     if (!rows.length || counts.some(value => value === undefined)) return -1
     return counts.reduce((sum, value) => sum + (value === 'Agotado' ? 0 : Number(value)), 0)
@@ -90,7 +90,8 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await buscador().fill('iPhone 12 128GB')
   const antes = await disponiblesDeLaFamilia()
   expect(antes.length).toBeGreaterThan(0)
-  await expect(stockPorSucursal().getByText('Stock por sucursal', { exact: true })).toBeVisible()
+  await expect(stockPorSucursal()).toBeVisible()
+  await expect(tarjeta().getByTestId('pos-stock-condicion')).toContainText('Nuevo')
   await expect.poll(totalVisiblePorSucursal, { timeout: 20_000 }).toBe(antes.length)
 
   // Se recibe una unidad desde Inventario (misma sesión, sin recargar el POS).
