@@ -111,7 +111,8 @@ async function medir(page) {
       const rect = el.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
       const area = areaTactil(el)
-      if (area.alto < 44 || area.ancho < 44) {
+      // Medio píxel de tolerancia por redondeo subpíxel (zoom/transform): 43,9 se dibuja como 44.
+      if (area.alto < 43.5 || area.ancho < 43.5) {
         chicos.push({
           que: el.tagName.toLowerCase(),
           texto: (el.textContent || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().replace(/\s+/g, ' ').slice(0, 34),
