@@ -620,7 +620,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await expect(vendedor.getByText('Solicitud enviada', { exact: false })).toBeVisible()
   await contextoVendedor.close()
 
-  await page.goto('/autorizaciones')
+  await page.goto('/autorizaciones?tab=precios')
   await expect(page.getByRole('region', { name: 'Autorizaciones comerciales' })).toBeVisible()
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toBeVisible()
@@ -670,7 +670,7 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
   await page.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(page.getByText('Solicitud enviada', { exact: false })).toBeVisible()
 
-  await page.goto('/autorizaciones')
+  await page.goto('/autorizaciones?tab=precios')
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toContainText('Tu solicitud')
   await fila.getByRole('button', { name: 'Aprobar' }).click()

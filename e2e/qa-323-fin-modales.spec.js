@@ -38,7 +38,7 @@ async function crearSolicitud(page, nombreCliente) {
 }
 
 async function abrirRechazo(page, nombreCliente) {
-  await page.goto('/autorizaciones')
+  await page.goto('/autorizaciones?tab=precios')
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombreCliente }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.getByRole('button', { name: 'Rechazar' }).click()

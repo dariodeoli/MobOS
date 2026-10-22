@@ -77,6 +77,7 @@ const protectedSections = {
   '/finanzas/gastos': 'Gastos',
   '/finanzas/bancos': 'Bancos y cuentas',
   '/finanzas/conciliacion': 'Conciliación',
+  '/finanzas/verificacion-dia': 'Verificación',
   '/finanzas/creditos': 'Créditos',
   '/finanzas/cuotas': 'Cuotas',
   '/finanzas/comisiones': 'Comisiones',

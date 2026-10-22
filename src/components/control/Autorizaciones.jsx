@@ -27,6 +27,11 @@ import {
 import { cn } from '@/lib/utils'
 import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
 import { autorizacionesCreditoDemo } from '@/lib/demoCreditoStore'
+import { demoCantidadPagosPendientes } from '@/lib/demoVerificacionPagos'
+import { TABS_AUTORIZACIONES, TIPOS_POR_TAB, puedeVerificarPagos, tabDeTipo, tabValida } from '@/lib/verificacionPagos'
+import PagosPorVerificar from '@/components/control/PagosPorVerificar'
+import { publicarBadgePestana } from '@/lib/badgesPestanas'
+import { CLAVE_BADGE_AUTORIZACIONES } from '@/hooks/usePendientesAprobacion'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
@@ -116,7 +121,13 @@ export default function Autorizaciones() {
   const toast = useToast()
   const [filtro, setFiltro] = useUrlState('estado', '')
   const [tipo, setTipo] = useUrlState('tipo', '')
+  const [tabUrl, setTabUrl] = useUrlState('tab', '')
   const [rows, setRows] = useState([])
+  // Pendientes aparte: con el filtro de estado en «Aprobadas» o «Rechazadas» las
+  // filas cargadas no los incluyen, pero los contadores de las pestañas sí.
+  const [pendientesAparte, setPendientesAparte] = useState(null)
+  const [pagosPendientes, setPagosPendientes] = useState(null)
+  const [refrescoPagos, setRefrescoPagos] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [approveTarget, setApproveTarget] = useState(null)
@@ -137,6 +148,8 @@ export default function Autorizaciones() {
       // Las ventas demo que superaron el crédito del cliente aparecen arriba, como en la cuenta real.
       const credito = autorizacionesCreditoDemo().filter((fila) => (!filtro || fila.status === filtro) && (!tipo || fila.kind === tipo))
       setRows([...credito, ...demoAutorizacionesFiltradas(filtro, tipo)])
+      setPendientesAparte([...autorizacionesCreditoDemo(), ...demoAutorizacionesFiltradas('PENDING', '')].filter(fila => fila.status === 'PENDING'))
+      setPagosPendientes(demoCantidadPagosPendientes())
       return
     }
     setLoading(true)
@@ -147,6 +160,11 @@ export default function Autorizaciones() {
       if (tipo) params.set('kind', tipo)
       const query = params.toString() ? `?${params.toString()}` : ''
       setRows(await api.get(`/api/authorizations${query}`))
+      if (filtro && filtro !== 'PENDING') api.get('/api/authorizations?status=PENDING').then(setPendientesAparte).catch(() => setPendientesAparte(null))
+      else setPendientesAparte(null)
+      if (puedeVerificarPagos(usuario?.role)) {
+        api.get('/api/payments/verification?state=pending&limit=1', { cacheMs: 0 }).then(datos => setPagosPendientes(datos?.counts?.pending?.count ?? 0)).catch(() => {})
+      }
     } catch (cause) {
       setError(cause?.message || 'No se pudieron cargar las solicitudes.')
     } finally {
@@ -158,7 +176,35 @@ export default function Autorizaciones() {
     load()
   }, [esDemo, filtro, tipo]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pendientes = useMemo(() => rows.filter(row => row.status === 'PENDING').length, [rows])
+  // Pendientes por pestaña (comerciales + pagos): alimentan los contadores y el aviso de la barra.
+  const pendientesPorTab = useMemo(() => {
+    const base = !filtro || filtro === 'PENDING' ? rows : pendientesAparte || []
+    const cuenta = { precios: 0, credito: 0, otros: 0, pagos: pagosPendientes || 0 }
+    for (const fila of base) if (fila.status === 'PENDING') cuenta[tabDeTipo(fila.kind)]++
+    return cuenta
+  }, [rows, pendientesAparte, filtro, pagosPendientes])
+  const pendientes = pendientesPorTab.precios + pendientesPorTab.credito + pendientesPorTab.otros + pendientesPorTab.pagos
+  const verificaPagos = puedeVerificarPagos(usuario?.role)
+  // El contador del menú se pone al día apenas cambia lo que esta pantalla ya sabe.
+  const contadoresListos = !loading && (!puedeVerificarPagos(usuario?.role) || pagosPendientes !== null) && (!filtro || filtro === 'PENDING' || pendientesAparte !== null)
+  useEffect(() => {
+    if (contadoresListos) publicarBadgePestana(CLAVE_BADGE_AUTORIZACIONES, pendientes)
+  }, [contadoresListos, pendientes])
+  const tabsVisibles = TABS_AUTORIZACIONES.filter(([id]) => id !== 'pagos' || verificaPagos)
+  // Sin pestaña en la URL abre la primera que tenga algo pendiente (si no, Precios).
+  const tab = (() => {
+    const pedida = tabValida(tabUrl)
+    if (pedida && tabsVisibles.some(([id]) => id === pedida)) return pedida
+    if (tipo) return tabDeTipo(tipo)
+    return tabsVisibles.find(([id]) => pendientesPorTab[id] > 0)?.[0] || 'precios'
+  })()
+  const tiposDeLaTab = TIPOS_POR_TAB[tab] || []
+  // El filtro «Tipo» de otra pestaña se quita en un render aparte (dos cambios de URL
+  // en el mismo instante se pisan entre sí).
+  useEffect(() => {
+    if (tipo && tabDeTipo(tipo) !== tab) setTipo('')
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rowsTab = useMemo(() => rows.filter(row => tabDeTipo(row.kind) === tab), [rows, tab])
 
   function abrirAprobar(row) {
     const value =
@@ -311,7 +357,7 @@ export default function Autorizaciones() {
         ) : null}
         testId="barra-autorizaciones"
       >
-        <Button type="button" variant="outline" className="px-3 text-xs" onClick={load} disabled={loading}>
+        <Button type="button" variant="outline" className="px-3 text-xs" onClick={() => { setRefrescoPagos(n => n + 1); load() }} disabled={loading}>
           {loading ? 'Cargando…' : 'Actualizar'}
         </Button>
       </BarraModulo>
@@ -321,6 +367,32 @@ export default function Autorizaciones() {
           (no cambia condiciones reales).
         </Aviso>
       )}
+      <div className="op-rd-tabs flex flex-wrap gap-1" role="tablist" aria-label="Tipo de autorización" data-testid="autorizaciones-tabs">
+        {tabsVisibles.map(([id, etiqueta]) => {
+          const cuenta = pendientesPorTab[id] || 0
+          const activa = tab === id
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`autorizaciones-tab-${id}`}
+              aria-selected={activa}
+              aria-controls="autorizaciones-panel"
+              data-testid={`autorizaciones-tab-${id}`}
+              onClick={() => setTabUrl(id)}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${activa ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
+            >
+              {etiqueta}
+              {cuenta > 0 && (
+                <span className="inline-grid min-w-5 place-items-center rounded-full bg-warn/20 px-1.5 text-[11px] font-bold tabular-nums text-warn" aria-label={`${cuenta} pendiente${cuenta === 1 ? '' : 's'}`}>{cuenta > 99 ? '99+' : cuenta}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div id="autorizaciones-panel" role="tabpanel" aria-labelledby={`autorizaciones-tab-${tab}`} className="space-y-4">
+      {tab === 'pagos' ? <PagosPorVerificar onConteo={setPagosPendientes} refresco={refrescoPagos} /> : (<>
       <Card className="op-rd-barra" data-testid="autorizaciones-barra">
         <div className="op-rd-tabs" role="group" aria-label="Filtrar solicitudes por estado">
           {FILTERS.map(([value, label]) => (
@@ -339,7 +411,7 @@ export default function Autorizaciones() {
           <label htmlFor="filtro-tipo" className={ROTULO_SECCION}>Tipo</label>
           <Select id="filtro-tipo" className="w-56" value={tipo} onChange={event => setTipo(event.target.value)}>
             <option value="">Todos los tipos</option>
-            {Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {Object.entries(KINDS).filter(([value]) => tiposDeLaTab.length ? tiposDeLaTab.includes(value) : tabDeTipo(value) === tab).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </Select>
           {tipo && <button type="button" className="text-xs font-semibold text-mute hover:text-fore" onClick={() => setTipo('')}>Quitar filtro</button>}
         </div>
@@ -351,13 +423,13 @@ export default function Autorizaciones() {
       </Card>
 
       <Card>
-        {loading && !rows.length && (
+        {loading && !rowsTab.length && (
           <div className="space-y-2" aria-busy="true">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
           </div>
         )}
-        {!loading && !error && !rows.length && (
+        {!loading && !error && !rowsTab.length && (
           <EmptyState
             compact
             icon="check"
@@ -376,7 +448,7 @@ export default function Autorizaciones() {
             <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
           </div>
           <div className="space-y-1">
-            {rows.map(row => {
+            {rowsTab.map(row => {
               const estado = STATUS[row.status] || { label: row.status, color: 'slate' }
               const propia = row.requestedById === usuario?.id
               // El dueño resuelve también lo que pidió él (trabaja solo); un
@@ -490,6 +562,8 @@ export default function Autorizaciones() {
           </div>
         </div>
       </Card>
+      </>)}
+      </div>
 
       <Popup
         open={Boolean(approveTarget)}

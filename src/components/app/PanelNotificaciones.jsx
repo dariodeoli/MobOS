@@ -11,6 +11,10 @@ const ICONO = {
   COBRO: 'money',
   PEDIDO: 'box',
   APROBACION: 'shield',
+  // Verificación de pagos: PIX, USDT y transferencias que esperan aprobación.
+  PAGO_POR_VERIFICAR: 'bank',
+  PAGO_APROBADO: 'check',
+  PAGO_RECHAZADO: 'alert',
   APROBADA: 'check',
   RECHAZADA: 'alert',
   MENCION: 'megaphone',
