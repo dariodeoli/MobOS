@@ -189,10 +189,22 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }, take: 20,
       select: { id: true, status: true, method: true, amountPyg: true, createdAt: true, order: { select: { id: true, orderNumber: true } }, reconciliation: { select: { note: true, resolvedAt: true } } },
     })
+    // Un rechazo sobre una cuota del plan de crédito la deja pendiente de nuevo (con su vencimiento): el aviso lo dice.
+    const rechazados = resueltos.filter(pago => pago.status === 'REJECTED').map(pago => pago.id)
+    const cuotasRestauradas = new Map<string, string>()
+    if (rechazados.length) {
+      const restauradas = await prisma.auditLog.findMany({ where: { tenantId: user.tenantId, action: 'CREDIT_INSTALLMENT_RESTORED', entity: 'Payment', entityId: { in: rechazados } }, select: { entityId: true, metadata: true } })
+      for (const fila of restauradas) {
+        if (!fila.entityId) continue
+        const vence = fila.metadata && typeof fila.metadata === 'object' && !Array.isArray(fila.metadata) ? (fila.metadata as Record<string, unknown>).dueAt : null
+        const fecha = typeof vence === 'string' ? new Date(vence) : null
+        cuotasRestauradas.set(fila.entityId, fecha && Number.isFinite(fecha.getTime()) ? ` · la cuota volvió a quedar pendiente (vence ${fecha.toLocaleDateString('es-PY', { timeZone: 'America/Asuncion' })})` : ' · la cuota volvió a quedar pendiente')
+      }
+    }
     for (const pago of resueltos) {
       const aprobado = pago.status === 'CONFIRMED'
       const codigo = pago.order.orderNumber || pago.order.id
-      items.push({ id: `pago-resuelto-${pago.id}`, kind: aprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO', title: aprobado ? 'Pago aprobado' : 'Pago rechazado', detail: `${codigo} · ${gs(pago.amountPyg)} · ${METHOD_LABELS[pago.method] || pago.method}${!aprobado && pago.reconciliation?.note ? ` · ${recorte(pago.reconciliation.note, 80)}` : ''}`, at: pago.reconciliation?.resolvedAt || pago.createdAt, href: `/pedidos/${pago.order.id}` })
+      items.push({ id: `pago-resuelto-${pago.id}`, kind: aprobado ? 'PAGO_APROBADO' : 'PAGO_RECHAZADO', title: aprobado ? 'Pago aprobado' : 'Pago rechazado', detail: `${codigo} · ${gs(pago.amountPyg)} · ${METHOD_LABELS[pago.method] || pago.method}${!aprobado && pago.reconciliation?.note ? ` · ${recorte(pago.reconciliation.note, 80)}` : ''}${!aprobado ? cuotasRestauradas.get(pago.id) || '' : ''}`, at: pago.reconciliation?.resolvedAt || pago.createdAt, href: `/pedidos/${pago.order.id}` })
     }
     const tenantRow = await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { settings: true } })
     const diasAviso = parseCreditConfig(tenantRow?.settings).avisos.internosDiasAntes

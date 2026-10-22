@@ -24,6 +24,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   ORDER_DISCOUNT_APPROVED: 'Descuento aprobado',
   PAYMENT_RECORDED: 'Cobro registrado',
   CREDIT_INSTALLMENT_PAID: 'Cuota cobrada',
+  CREDIT_INSTALLMENT_RESTORED: 'Cuota vuelta a pendiente',
   PAYMENT_CONFIRMED: 'Cobro confirmado',
   PAYMENT_REJECTED: 'Cobro rechazado',
   ORDER_PAYMENT_CORRECTED: 'Medio de pago corregido',

@@ -251,9 +251,9 @@ export async function POST(request: Request) {
       const rows = await tx.$queryRaw<Array<{
         id: string; orderId: string; status: string; amountPyg: bigint | number; method: string; accountId: string | null
         paidAt: Date | null; createdAt: Date; deliveryUserId: string | null; deliverySettlementId: string | null
-        pendingReason: string | null; createdById: string | null; userId: string | null
+        pendingReason: string | null; createdById: string | null; userId: string | null; dueAt: Date | null
       }>>`
-        SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "accountId", "paidAt", "createdAt", "deliveryUserId", "deliverySettlementId", "pendingReason", "createdById", "userId"
+        SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "accountId", "paidAt", "createdAt", "deliveryUserId", "deliverySettlementId", "pendingReason", "createdById", "userId", "dueAt"
         FROM "Payment" WHERE "id" IN (${Prisma.join(paymentIds)}) AND "tenantId" = ${tenantId} ORDER BY "id" FOR UPDATE`
       if (rows.length !== paymentIds.length) throw new InputError('Algún pago del lote no existe en la empresa.', 404)
       const corregido = await tx.payment.findFirst({ where: { tenantId, OR: [{ id: { in: paymentIds }, reversalOfId: { not: null } }, { reversalOfId: { in: paymentIds } }] }, select: { id: true } })
