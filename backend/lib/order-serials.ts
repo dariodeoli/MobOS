@@ -52,7 +52,7 @@ export async function attachSerialsToOrderItem(tx: Prisma.TransactionClient, inp
     const unit = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial, productId: item.productId } })
     if (unit) {
       if (!['AVAILABLE', 'RESERVED'].includes(unit.status)) throw new InputError(`El IMEI ${serial} no está disponible para esta entrega.`, 409)
-      await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'SOLD', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
+      await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'SOLD', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null } })
       if (unit.status === 'AVAILABLE') await changeStock(tx, { tenantId: tenant, productId: item.productId, delta: -1, message: 'El stock cambió mientras se entregaba el equipo.' })
     } else {
       // Sobre pedido entregado: la unidad no existía en stock; se crea

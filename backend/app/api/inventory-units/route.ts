@@ -5,7 +5,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
-import { INVENTORY_REMOVED, INVENTORY_RESTORED, removalFields, restoreFields } from '../../../lib/inventory'
+import { INVENTORY_REMOVED, INVENTORY_RESTORED, liberarReservasVencidas, removalFields, restoreFields } from '../../../lib/inventory'
 import { normalizarCosto } from '../../../lib/costs'
 import { itemsLista, normalizarInspectionItems, resumenInspection } from '../../../lib/inspection'
 import { LIMITE_MONTO_GENERAL, numeroOpcional } from '../../../lib/montos'
@@ -104,6 +104,9 @@ export async function GET(request: Request) {
     : view === 'active'
       ? { removedAt: null }
       : {}
+  // El selector del POS pide las unidades de un producto: las retenciones de
+  // carrito (y reservas) vencidas se sueltan al leer, con el reloj de Postgres.
+  if (productId) await prisma.$transaction(tx => liberarReservasVencidas(tx, tenant, { productId }))
   const units = await prisma.inventoryUnit.findMany({
     // El `q` normalizado (serialKey) sirve para escanear IMEI/serial, pero borra
     // guiones: un SKU como «E2E-IPHONE15» no matcheaba por `sku`. Se conserva el
@@ -159,6 +162,11 @@ export async function GET(request: Request) {
     }
   }
 
+  // Quién retiene cada unidad reservada y el reloj del servidor (el contador del
+  // POS se calcula con este desfase, no con el reloj del celular).
+  const holderIds = [...new Set(units.filter(unit => unit.status === 'RESERVED' && unit.reservedById).map(unit => unit.reservedById as string))]
+  const holders = holderIds.length ? new Map((await prisma.user.findMany({ where: { tenantId: tenant, id: { in: holderIds } }, select: { id: true, name: true } })).map(user => [user.id, user.name])) : new Map<string, string>()
+  const serverNow = (await prisma.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`)[0].now
   const canSeeCost = await canSeeCostForSession(session)
   // Código interno: solo en la ficha/info interna (nunca en lista de Stock ni etiquetas).
   const unitCodePrefix = resolveUnitCodePrefix(await prisma.tenant.findUnique({ where: { id: tenant }, select: { unitCodePrefix: true, orderPrefix: true, name: true } }))
@@ -170,7 +178,7 @@ export async function GET(request: Request) {
     // #279 (A4): una sola asignación viva por unidad, ya aplanada.
     const { transitAssignments, ...resto } = conVerificacion as typeof conVerificacion & { transitAssignments?: Array<Record<string, unknown>> }
     // Costos, proveedor y monto de consignación solo para administración y gerencia.
-    return redactUnitCosts({ ...resto, internalCode: formatUnitCode(unitCodePrefix, unit.internalSeq), transitAssignment: transitAssignments?.[0] || null }, canSeeCost, canSeeSupplier)
+    return redactUnitCosts({ ...resto, serverNow, reservedBy: unit.status === 'RESERVED' && unit.reservedById ? { id: unit.reservedById, name: holders.get(unit.reservedById) ?? null } : null, internalCode: formatUnitCode(unitCodePrefix, unit.internalSeq), transitAssignment: transitAssignments?.[0] || null }, canSeeCost, canSeeSupplier)
   }))
 }
 
@@ -341,7 +349,7 @@ export async function PATCH(request: Request) {
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: -1, message: 'El stock cambió mientras se eliminaba la unidad.' })
         // #250 F1: la baja puede dejar el producto bajo el mínimo: se pide solo.
         await revisarMinimoDeStock(tx, { tenantId: tenant, userId: session.user.id, productId: before.productId, branchId: before.branchId })
-        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null, ...removalFields(session.user.id, adjustmentReason) } })
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null, ...removalFields(session.user.id, adjustmentReason) } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId, ...(stockAuthorization ? { authorizationId: stockAuthorization.id } : {}) } } })
         await consumirAutorizacion({ statusAfter: data.status })
         return data
@@ -350,7 +358,7 @@ export async function PATCH(request: Request) {
         if (session.user.role !== 'ADMIN') throw new Error('Solo un administrador general puede restaurar inventario eliminado.')
         if (!removed) throw new Error('La unidad no está en eliminados recuperables.')
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: 1, message: 'No se pudo restaurar el stock de la unidad.' })
-        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null, ...restoreFields() } })
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null, ...restoreFields() } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_RESTORED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, restoredTo: 'AVAILABLE', locationId: before.locationId } } })
         return data
       }
@@ -376,7 +384,7 @@ export async function PATCH(request: Request) {
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: before.branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const requestedStatus = body.status === undefined ? undefined : Object.values(InventoryUnitStatus).includes(body.status) ? body.status : null
       if (requestedStatus === null || requestedStatus === 'RESERVED' || requestedStatus === 'SOLD' || (before.status === 'RESERVED' && requestedStatus !== undefined)) throw new Error('Ese estado se gestiona desde reserva o venta.')
-      const data = await tx.inventoryUnit.update({ where: { id }, data: { ...unitData(body), ...(locationId !== undefined ? { locationId } : {}), ...(requestedStatus !== undefined ? { status: requestedStatus, ...(requestedStatus === 'AVAILABLE' ? { reservedUntil: null, reservationCustomer: null, reservedById: null } : {}) } : {}) } })
+      const data = await tx.inventoryUnit.update({ where: { id }, data: { ...unitData(body), ...(locationId !== undefined ? { locationId } : {}), ...(requestedStatus !== undefined ? { status: requestedStatus, ...(requestedStatus === 'AVAILABLE' ? { reservedUntil: null, reservationCustomer: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null } : {}) } : {}) } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_ADJUSTED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, before: { locationId: before.locationId, status: before.status }, after: { locationId: data.locationId, status: data.status }, ...(stockAuthorization ? { authorizationId: stockAuthorization.id } : {}) } } })
       await consumirAutorizacion({ statusAfter: data.status })
       return data

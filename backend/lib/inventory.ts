@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 
 export const INVENTORY_REMOVED = 'INVENTORY_UNIT_REMOVED'
 export const INVENTORY_RESTORED = 'INVENTORY_UNIT_RESTORED'
@@ -18,29 +18,38 @@ export const INVENTORY_REPAIR_APPLIED = 'INVENTORY_REPAIR_APPLIED'
  * Libera las reservas vencidas dejando rastro por unidad: la cronología de
  * cada equipo muestra que la reserva venció (con el cliente que la tenía) y no
  * solo que volvió a estar disponible. El barrido corre al listar inventario o
- * reservas; si no hay vencidas no escribe nada.
+ * reservas; si no hay vencidas no escribe nada. El vencimiento se compara con
+ * el reloj de Postgres (no el de la app). Las retenciones del carrito
+ * (CART_HOLD) también se sueltan, sin rastro por unidad: son de 5 minutos.
+ * Con `productId` el barrido se acota a ese producto (lecturas del POS).
  */
-export async function liberarReservasVencidas(tx: Prisma.TransactionClient, tenantId: string, ahora = new Date()) {
-  const vencidas = await tx.inventoryUnit.findMany({
-    where: { tenantId, status: 'RESERVED', reservedUntil: { lte: ahora } },
-    select: { id: true, serial: true, reservationCustomer: true, reservedUntil: true },
-    take: 200,
-  })
+export async function liberarReservasVencidas(tx: Prisma.TransactionClient, tenantId: string, opciones: { productId?: string } = {}) {
+  const { productId } = opciones
+  const vencidas = await tx.$queryRaw<Array<{ id: string; serial: string; reservationCustomer: string | null; reservedUntil: Date | null; reservationKind: string | null }>>`
+    SELECT "id", "serial", "reservationCustomer", "reservedUntil", "reservationKind"::text AS "reservationKind" FROM "InventoryUnit"
+    WHERE "tenantId" = ${tenantId} AND "status" = 'RESERVED' AND "reservedUntil" <= (now() AT TIME ZONE 'UTC')
+      ${productId ? Prisma.sql`AND "productId" = ${productId}` : Prisma.empty}
+    LIMIT 200`
   if (!vencidas.length) return 0
-  await tx.inventoryUnit.updateMany({
-    where: { id: { in: vencidas.map(unit => unit.id) }, tenantId, status: 'RESERVED' },
-    data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null },
-  })
-  await tx.auditLog.createMany({
-    data: vencidas.map(unit => ({
-      tenantId,
-      action: INVENTORY_RESERVATION_EXPIRED,
-      entity: 'InventoryUnit',
-      entityId: unit.id,
-      metadata: { serial: unit.serial, customer: unit.reservationCustomer, reservedUntil: unit.reservedUntil?.toISOString() ?? null },
-    })),
-  })
-  return vencidas.length
+  const liberadas = await tx.$queryRaw<Array<{ id: string }>>`
+    UPDATE "InventoryUnit" SET "status" = 'AVAILABLE', "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservationCustomerId" = NULL, "reservedById" = NULL,
+      "reservationKind" = NULL, "holdCartId" = NULL, "holdDeviceId" = NULL, "holdStartedAt" = NULL, "updatedAt" = (now() AT TIME ZONE 'UTC')
+    WHERE "id" IN (${Prisma.join(vencidas.map(unit => unit.id))}) AND "tenantId" = ${tenantId} AND "status" = 'RESERVED' AND "reservedUntil" <= (now() AT TIME ZONE 'UTC')
+    RETURNING "id"`
+  const ids = new Set(liberadas.map(unit => unit.id))
+  const conRastro = vencidas.filter(unit => ids.has(unit.id) && unit.reservationKind !== 'CART_HOLD')
+  if (conRastro.length) {
+    await tx.auditLog.createMany({
+      data: conRastro.map(unit => ({
+        tenantId,
+        action: INVENTORY_RESERVATION_EXPIRED,
+        entity: 'InventoryUnit',
+        entityId: unit.id,
+        metadata: { serial: unit.serial, customer: unit.reservationCustomer, reservedUntil: unit.reservedUntil?.toISOString() ?? null },
+      })),
+    })
+  }
+  return liberadas.length
 }
 
 /**

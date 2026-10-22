@@ -30,6 +30,8 @@ import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
 import { LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
+import { liberarReservasVencidas } from '../../../lib/inventory'
+import { INVENTORY_CART_HOLD_CONVERTED, NOW_UTC, conflictMessage, conflictsFor } from '../../../lib/cart-holds'
 import { canSeeCostForSession, redactOrderCosts } from '../../../lib/cost-visibility'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
@@ -602,12 +604,29 @@ export async function POST(request: Request) {
             }
           }
           if (serials.length) {
-            const now = new Date()
-            await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: product.id, status: 'RESERVED', reservedUntil: { lte: now } }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
-            const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: product.id, branchId, serial: { in: serials }, OR: [{ status: 'AVAILABLE' }, { status: 'RESERVED', reservedById: session.user.id, reservedUntil: { gt: now } }] }, select: { id: true, serial: true } })
-            if (units.length !== serials.length) throw new InputError('Uno o más IMEI/seriales ya no están disponibles para esta venta.', 409)
-            const changed = await tx.inventoryUnit.updateMany({ where: { id: { in: units.map(unit => unit.id) }, tenantId: tenant, productId: product.id, OR: [{ status: 'AVAILABLE' }, { status: 'RESERVED', reservedById: session.user.id, reservedUntil: { gt: now } }] }, data: { status: 'SOLD', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
-            if (changed.count !== units.length) throw new InputError('Uno o más IMEI/seriales cambiaron de estado. Intentá de nuevo.', 409)
+            // Vencimientos con el reloj de Postgres y con rastro (antes se soltaban
+            // con el reloj de la app y sin auditoría). Las retenciones de carrito
+            // vencidas también vuelven a disponible: nadie las tomó todavía.
+            await liberarReservasVencidas(tx, tenant, { productId: product.id })
+            const vendible = Prisma.sql`("status" = 'AVAILABLE' OR ("status" = 'RESERVED' AND "reservedById" = ${session.user.id} AND "reservedUntil" > ${NOW_UTC}))`
+            const sucursalSql = branchId ? Prisma.sql`"branchId" = ${branchId}` : Prisma.sql`"branchId" IS NULL`
+            const units = await tx.$queryRaw<Array<{ id: string; serial: string; reservationKind: string | null }>>`
+              SELECT "id", "serial", "reservationKind"::text AS "reservationKind" FROM "InventoryUnit"
+              WHERE "tenantId" = ${tenant} AND "productId" = ${product.id} AND ${sucursalSql} AND "serial" IN (${Prisma.join(serials)}) AND ${vendible}`
+            if (units.length !== serials.length) {
+              // Si otro vendedor la tiene en su carrito, se dice quién y cuánto le queda.
+              const faltan = serials.filter(serial => !units.some(unit => unit.serial === serial))
+              const ajenas = (await conflictsFor(tx, tenant, branchId ?? '', session.user.id, faltan)).filter(conflict => conflict.reason === 'HELD' && !conflict.mine)
+              throw new InputError(ajenas[0] ? `${conflictMessage(ajenas[0])}. Esperá a que la libere o elegí otro equipo.` : 'Uno o más IMEI/seriales ya no están disponibles para esta venta.', 409)
+            }
+            const changed = await tx.$queryRaw<Array<{ id: string }>>`
+              UPDATE "InventoryUnit" SET "status" = 'SOLD', "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservationCustomerId" = NULL, "reservedById" = NULL,
+                "reservationKind" = NULL, "holdCartId" = NULL, "holdDeviceId" = NULL, "holdStartedAt" = NULL, "updatedAt" = ${NOW_UTC}
+              WHERE "id" IN (${Prisma.join(units.map(unit => unit.id))}) AND "tenantId" = ${tenant} AND "productId" = ${product.id} AND ${vendible}
+              RETURNING "id"`
+            if (changed.length !== units.length) throw new InputError('Uno o más IMEI/seriales cambiaron de estado. Intentá de nuevo.', 409)
+            const convertidas = units.filter(unit => unit.reservationKind === 'CART_HOLD')
+            if (convertidas.length) await tx.auditLog.createMany({ data: convertidas.map(unit => ({ tenantId: tenant, userId: session.user.id, action: INVENTORY_CART_HOLD_CONVERTED, entity: 'InventoryUnit', entityId: unit.id, metadata: { serial: unit.serial } })) })
             soldUnits.push(...units.map(unit => ({ ...unit, productId: product.id })))
           }
           // Solo los equipos realmente entregados descuentan stock; el tramo

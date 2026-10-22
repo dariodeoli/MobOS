@@ -50,7 +50,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: item.productId, serial: { in: serials } }, select: { id: true, branchId: true, status: true } })
           for (const unit of units) {
             if (unit.status !== 'SOLD') continue
-            await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null, ...UNLINK_SOLD } })
+            await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null, ...UNLINK_SOLD } })
             await changeStock(tx, { tenantId: tenant, productId: item.productId, delta: 1, branchId: unit.branchId, includeBranchless: true, message: 'No se pudo reponer el stock de la unidad anulada.' })
             restoredUnits += 1
           }
