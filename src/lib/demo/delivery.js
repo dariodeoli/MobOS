@@ -11,10 +11,10 @@ const BRANCH = 'mobos-demo-central'
 
 const hace = (horas) => new Date(Date.now() - horas * 3600000).toISOString()
 
-const pedido = ({ id, numero, cliente, telefono, direccion, items, total, confirmado, cobrado = 0, pendiente, fulfillment, assignedTo = REPARTIDOR, paymentId = null, paymentMethod = 'CASH', paymentReference = '' }) => ({
+const pedido = ({ id, numero, cliente, telefono, direccion, items, total, confirmado, cobrado = 0, pendiente, fulfillment, assignedTo = REPARTIDOR, paymentId = null, paymentMethod = 'CASH', paymentReference = '', horas = 30 }) => ({
   id,
   orderNumber: numero,
-  createdAt: hace(30),
+  createdAt: hace(horas),
   customer: { name: cliente, phone: telefono, countryCode: '+595', addresses: [{ address: direccion, city: 'Asunción', department: 'Capital', label: 'Casa' }] },
   items: items.map(([quantity, description]) => ({ quantity, description })),
   totalPyg: total,
@@ -30,11 +30,13 @@ const pedido = ({ id, numero, cliente, telefono, direccion, items, total, confir
 
 const seed = () => ({
   orders: [
-    pedido({ id: 'demo-entrega-1', numero: 'AUR-0005', cliente: 'Juan Pereira', telefono: '0981222333', direccion: 'Av. Mcal. López 1234', items: [[1, 'iPhone 15 128GB Azul']], total: 4880000, confirmado: 2000000, pendiente: 2880000, fulfillment: 'IN_TRANSIT' }),
-    pedido({ id: 'demo-entrega-2', numero: 'AUR-0008', cliente: 'Estela Ramírez', telefono: '0987999111', direccion: 'Calle Estela 112', items: [[1, 'iPhone 15 256GB Rosa']], total: 5430000, confirmado: 2000000, cobrado: 3430000, pendiente: 0, fulfillment: 'IN_TRANSIT', paymentId: 'demo-cobro-calle-1', paymentMethod: 'TRANSFER', paymentReference: 'Continental · 8871' }),
-    pedido({ id: 'demo-entrega-3', numero: 'AUR-0011', cliente: 'Fernando Ortellado', telefono: '0973111444', direccion: 'Calle Fernando 132', items: [[1, 'iPhone 15 Pro 256GB Negro']], total: 6780000, confirmado: 6780000, pendiente: 0, fulfillment: 'DELIVERED' }),
-    pedido({ id: 'demo-entrega-4', numero: 'AUR-0003', cliente: 'Lucía Franco', telefono: '0983666777', direccion: 'Calle Lucía 145', items: [[1, 'AirPods Pro 2 USB-C']], total: 1880000, confirmado: 0, pendiente: 1880000, fulfillment: 'PROCESSING', assignedTo: null }),
-    pedido({ id: 'demo-entrega-5', numero: 'AUR-0012', cliente: 'Hugo Benítez', telefono: '0986555222', direccion: 'Calle Hugo 149', items: [[1, 'iPhone 12 128GB Verde']], total: 2350000, confirmado: 0, pendiente: 2350000, fulfillment: 'PROCESSING', assignedTo: null }),
+    pedido({ id: 'demo-entrega-1', numero: 'AUR-0005', cliente: 'Juan Pereira', telefono: '0981222333', direccion: 'Av. Mcal. López 1234', items: [[1, 'iPhone 15 128GB Azul']], total: 4880000, confirmado: 2000000, pendiente: 2880000, fulfillment: 'IN_TRANSIT', horas: 1.5 }),
+    pedido({ id: 'demo-entrega-2', numero: 'AUR-0008', cliente: 'Estela Ramírez', telefono: '0987999111', direccion: 'Calle Estela 112', items: [[1, 'iPhone 15 256GB Rosa']], total: 5430000, confirmado: 2000000, cobrado: 3430000, pendiente: 0, fulfillment: 'IN_TRANSIT', paymentId: 'demo-cobro-calle-1', paymentMethod: 'TRANSFER', paymentReference: 'Continental · 8871', horas: 5 }),
+    pedido({ id: 'demo-entrega-3', numero: 'AUR-0011', cliente: 'Fernando Ortellado', telefono: '0973111444', direccion: 'Calle Fernando 132', items: [[1, 'iPhone 15 Pro 256GB Negro']], total: 6780000, confirmado: 6780000, pendiente: 0, fulfillment: 'DELIVERED', horas: 27 }),
+    pedido({ id: 'demo-entrega-4', numero: 'AUR-0003', cliente: 'Lucía Franco', telefono: '0983666777', direccion: 'Calle Lucía 145', items: [[1, 'AirPods Pro 2 USB-C']], total: 1880000, confirmado: 0, pendiente: 1880000, fulfillment: 'PROCESSING', assignedTo: null, horas: 52 }),
+    pedido({ id: 'demo-entrega-5', numero: 'AUR-0012', cliente: 'Hugo Benítez', telefono: '0986555222', direccion: 'Calle Hugo 149', items: [[1, 'iPhone 12 128GB Verde']], total: 2350000, confirmado: 0, pendiente: 2350000, fulfillment: 'PROCESSING', assignedTo: null, horas: 100 }),
+    pedido({ id: 'demo-entrega-6', numero: 'AUR-0409', cliente: 'Lorena Servín', telefono: '0974300123', direccion: 'Calle Lorena 120', items: [[1, 'iPhone 14 128GB Medianoche']], total: 3625000, confirmado: 1000000, pendiente: 2625000, fulfillment: 'PROCESSING', assignedTo: null, horas: 0.35 }),
+    pedido({ id: 'demo-entrega-7', numero: 'AUR-0015', cliente: 'Ana Villalba', telefono: '0972555888', direccion: 'Calle Ana 111', items: [[1, 'Funda MagSafe Transparente']], total: 200000, confirmado: 200000, pendiente: 0, fulfillment: 'DELIVERED', horas: 40 }),
   ],
   settlements: [
     {
