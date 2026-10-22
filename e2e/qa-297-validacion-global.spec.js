@@ -214,7 +214,7 @@ test('#297 · POS: con total Gs 0 no se canjean gift cards ni se cargan pagos', 
   await ensureCobro(page)
 
   const pagar = page.getByRole('button', { name: '+ Agregar pago' })
-  const canjear = page.getByRole('button', { name: '+ Canjear gift card' })
+  const canjear = page.getByRole('button', { name: 'Gift card', exact: true })
   await expect(page.getByTestId('cobro-total-cero')).toContainText('Cargá un producto con precio')
   await expect(pagar).toBeDisabled()
   await expect(canjear).toBeDisabled()

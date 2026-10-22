@@ -283,7 +283,7 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     const chip = filaDos.getByRole('button', { name: 'Pagado' })
     await expect(chip).toHaveAttribute('aria-pressed', 'true')
     await chip.click()
-    await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible()
+    await expect(filaDos.getByRole('button', { name: 'Pendiente' })).toBeVisible()
     await expect(page.getByTestId('cobro-pendiente')).toContainText('Gs 60.000')
     await expect(page.getByTestId('cobro-pagado')).toContainText('Gs 40.000')
     // #355: Pagado/Pendiente viven una sola vez (tiles del cobro); el pie del carrito solo tiene el Total.

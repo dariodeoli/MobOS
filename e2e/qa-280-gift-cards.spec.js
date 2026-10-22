@@ -68,7 +68,7 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await abrirCobro(page)
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
-  await page.getByRole('button', { name: '+ Canjear gift card' }).click()
+  await page.getByRole('button', { name: 'Gift card', exact: true }).click()
   // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
   await page.getByTestId('codigo-celda-0').fill(codigo)
   const consultarSaldo = page.getByRole('button', { name: 'Consultar saldo' })
@@ -145,7 +145,7 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   await page.getByRole('button', { name: new RegExp(productoDemo) }).first().click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
   await abrirCobro(page)
-  await page.getByRole('button', { name: '+ Canjear gift card' }).click()
+  await page.getByRole('button', { name: 'Gift card', exact: true }).click()
   // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
   await page.getByTestId('codigo-celda-0').fill(codigo)
   await page.getByRole('button', { name: 'Consultar saldo' }).click()

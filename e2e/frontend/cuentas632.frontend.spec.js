@@ -55,13 +55,15 @@ for (const width of [360, 390, 768, 1440]) for (const dark of [false, true]) {
     const clean = await enter(page, width, dark)
     const cards = page.getByTestId('cuenta-capsula')
     await expect(cards).toHaveCount(3)
+    if (process.env.DBG632) { await mkdir(process.env.DBG632, { recursive: true }); await cards.first().scrollIntoViewIfNeeded(); await page.screenshot({ path: `${process.env.DBG632}/${width}.png` }) }
     for (let i = 0; i < 3; i++) {
       const card = cards.nth(i)
       await card.scrollIntoViewIfNeeded()
       await expect(card.getByTestId('cuenta-capsula-nombre')).toHaveText(names[i])
       const geometry = await card.evaluate(el => {
         const rect = node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, width: r.width, height: r.height } }
-        const elements = ['[data-testid="cuenta-capsula-nombre"]', '[data-testid="cuenta-cambiar"]', '[data-testid="cuenta-tipo"]', '[aria-pressed]', '[aria-label^="Eliminar pago"]'].map(s => el.querySelector(s) || (s.includes('cuenta-tipo') ? [...el.querySelectorAll('span')].find(node => /^(Gs|US\$) · /.test(node.textContent)) : null))
+        // Una fila: nombre, ⋯ (acciones), «Medio · Moneda» y el chip de estado.
+        const elements = ['[data-testid="cuenta-capsula-nombre"]', 'button[aria-haspopup="menu"]', '[data-testid="cuenta-tipo"]', '[aria-pressed]'].map(s => el.querySelector(s))
         return { outer: rect(el), elements: elements.map(rect), text: { client: elements[0].clientWidth, scroll: elements[0].scrollWidth }, overflow: getComputedStyle(el).overflowY }
       })
       for (const box of geometry.elements) {
@@ -72,10 +74,16 @@ for (const width of [360, 390, 768, 1440]) for (const dark of [false, true]) {
         const one = geometry.elements[a], two = geometry.elements[b]
         expect(one.x < two.right && two.x < one.right && one.y < two.bottom && two.y < one.bottom, `overlap ${a}/${b}`).toBe(false)
       }
-      for (const index of [1, 3, 4]) {
-        expect(geometry.elements[index].width).toBeGreaterThanOrEqual(44)
-        expect(geometry.elements[index].height).toBeGreaterThanOrEqual(44)
+      // Táctil: 44 px. En escritorio (≥1024) la fila compacta admite 32 px.
+      const minimo = width >= 1024 ? 32 : 44
+      for (const index of [1, 3]) {
+        expect(geometry.elements[index].width).toBeGreaterThanOrEqual(minimo)
+        expect(geometry.elements[index].height).toBeGreaterThanOrEqual(minimo)
       }
+      // Estas cuentas tienen nombres larguísimos a propósito (legibilidad): crecen a lo alto sin
+      // recortar. La forma compacta (una fila / dos en celular) la mide cobro-simple.frontend.spec.js.
+      if (width >= 1280) expect(geometry.outer.height, 'una o dos filas por pago').toBeLessThanOrEqual(150)
+      if (width < 768) expect(geometry.outer.height, 'dos filas como máximo en móvil').toBeLessThanOrEqual(300)
       expect(geometry.text.scroll).toBeLessThanOrEqual(geometry.text.client + 1)
       expect(['auto', 'scroll']).not.toContain(geometry.overflow)
     }
@@ -83,14 +91,16 @@ for (const width of [360, 390, 768, 1440]) for (const dark of [false, true]) {
     const first = cards.first()
     const amount = first.getByLabel('Monto original')
     await expect(amount).toHaveValue('20.000')
-    const status = first.getByRole('button', { name: 'Pagado', exact: true })
+    const status = first.getByTestId('pago-estado')
     await status.focus()
     await page.keyboard.press('Space')
-    await expect(first.getByRole('button', { name: 'No pagado', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await expect(first.getByRole('button', { name: 'Pendiente', exact: true })).toHaveAttribute('aria-pressed', 'false')
     await expect(amount).toHaveValue('20.000')
     await page.keyboard.press('Space')
     await expect(status).toHaveAttribute('aria-pressed', 'true')
-    await first.getByTestId('cuenta-cambiar').focus()
+    await first.getByRole('button', { name: 'Más acciones del pago 1' }).focus()
+    await page.keyboard.press('Enter')
+    await page.getByTestId('cuenta-cambiar').focus()
     await page.keyboard.press('Enter')
     await expect(page.getByTestId('pago-fila-0').getByRole('combobox', { name: 'Cuenta de cobro' })).toBeVisible()
     await page.getByTestId('pago-fila-0').getByRole('combobox', { name: 'Cuenta de cobro' }).click()

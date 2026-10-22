@@ -105,7 +105,7 @@ for (const width of [360, 390]) {
     expect(await medios.count()).toBeGreaterThanOrEqual(3)
     const m0 = await medios.first().boundingBox()
     expect(m0.height).toBeGreaterThanOrEqual(44)
-    expect(m0.width).toBeGreaterThan(width * 0.8)
+    expect(m0.width, 'los medios son tarjetas de dos columnas').toBeGreaterThan(width * 0.38)
     if (width === 390) await captura(page, `${out}/${width}-cobro.png`)
 
     // Pago dividido: primero 40 % por transferencia con el teclado propio.

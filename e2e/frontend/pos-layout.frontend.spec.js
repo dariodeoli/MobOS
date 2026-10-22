@@ -75,7 +75,7 @@ async function assertNoOverlap(page, label) {
       monto: await caja(page.locator('#monto-entrega')),
       pagos: await caja(page.getByTestId('pos-bloque-pagos')),
       agregar: await caja(page.getByRole('button', { name: '+ Agregar pago' })),
-      gift: await caja(page.getByRole('button', { name: '+ Canjear gift card' })),
+      gift: await caja(page.getByRole('button', { name: 'Gift card', exact: true })),
       total: await page.getByTestId('carrito-total').boundingBox(),
       tiles: await caja(page.getByTestId('pos-tiles-resumen')),
     }
@@ -343,7 +343,7 @@ test('pagos: sin «Equivalente» en cuentas en guaraníes y «Paga al recibir» 
   await page.getByRole('listbox', { name: 'Cuentas de cobro' }).getByRole('option').first().click()
   await expect(fila.getByTestId('cuenta-capsula')).toBeVisible()
   await expect(fila.getByText(/^Equivalente/)).toHaveCount(0)
-  await expect(fila.getByTestId('cuenta-cambiar')).toBeVisible()
+  await expect(fila.getByRole('button', { name: 'Más acciones del pago 1' })).toBeVisible()
   // Con un pago cargado, «Paga al recibir» pide confirmación antes de descartarlo.
   await cobro.getByTestId('pos-paga-al-recibir').click()
   const dialogo = page.getByRole('alertdialog', { name: /Descartar los pagos cargados/ })
