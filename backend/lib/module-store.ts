@@ -1,37 +1,25 @@
 import type { Prisma } from '@prisma/client'
 
-export const MODULE_KINDS = ['core', 'configurable', 'catalogOnly', 'integration', 'sensitive', 'specialized'] as const
+import { MODULE_CATALOG as CATALOGO, MODULE_KINDS as KINDS, MODULE_PRESETS as PRESETS, MODULE_STORE_VERSION, estadoDeModulo, leerModuleStore, nuevoModuleStore as nuevoStore, type ModuleDefinition, type ModulePreset as ModulePresetType } from './modulos-catalogo.mjs'
+
+// El catálogo vive en modulos-catalogo.mjs (compartido con el front). Se vuelve
+// a exportar acá para que los imports existentes sigan funcionando.
+export const MODULE_KINDS = KINDS
 export type ModuleKind = typeof MODULE_KINDS[number]
-
-export const MODULE_CATALOG = [
-  { id: 'agenda', name: 'Agenda', description: 'Turnos y tareas del equipo.', category: 'Operación', icon: 'calendar', recommendedFor: ['servicios', 'salud'], tier: 'included', kind: 'core', core: true, changeable: false, dependencies: [], preview: 'Agenda de ejemplo', demo: 'Vista previa sin guardar turnos.', status: 'available', navIds: [] },
-  { id: 'clientes', name: 'Clientes', description: 'Contactos, historial y seguimiento.', category: 'Clientes', icon: 'users', recommendedFor: ['comercio', 'servicios', 'salud'], tier: 'included', kind: 'core', core: true, changeable: false, dependencies: [], preview: 'Clientes de ejemplo', demo: 'Vista previa con datos ficticios.', status: 'available', navIds: ['clientes'] },
-  { id: 'servicios', name: 'Taller y servicios', description: 'Órdenes de servicio, garantías y reparaciones en el flujo existente.', category: 'Operación', icon: 'tool', recommendedFor: ['servicios', 'salud'], tier: 'included', kind: 'specialized', core: true, changeable: false, dependencies: ['clientes'], preview: 'Orden de servicio de ejemplo', demo: 'Vista previa sin crear órdenes.', benefits: ['Reutiliza el taller, las órdenes y garantías existentes'], status: 'available', navIds: ['servicio', 'garantias'], capabilities: ['Recepción y seguimiento', 'Reparaciones', 'Garantía', 'Asistencia técnica'] },
-  { id: 'equipo', name: 'Equipo', description: 'Accesos y tareas para las personas de la empresa.', category: 'Configuración', icon: 'users', recommendedFor: ['comercio', 'servicios', 'salud'], tier: 'included', kind: 'core', core: true, changeable: false, dependencies: [], preview: 'Equipo de ejemplo', demo: 'Vista previa sin modificar permisos.', status: 'available', navIds: ['equipo'] },
-  { id: 'ventas', name: 'Ventas y tienda', description: 'Punto de venta, pedidos, cotizaciones y promociones; el canal de tienda se mantiene en el flujo comercial existente.', category: 'Operación', icon: 'receipt', recommendedFor: ['comercio'], tier: 'included', kind: 'catalogOnly', core: false, changeable: false, dependencies: ['clientes'], preview: 'Venta de ejemplo', demo: 'Vista previa sin registrar ventas.', status: 'available', navIds: ['cargar', 'pedidos', 'cotizaciones', 'promociones'], capabilities: ['POS', 'Pedidos y cotizaciones', 'Canal tienda · configuración futura'] },
-  { id: 'inventario', name: 'Stock e inventario', description: 'Un solo motor de productos, variantes/SKU, compras, stock y unidades serializadas.', category: 'Operación', icon: 'box', recommendedFor: ['comercio'], tier: 'pro', kind: 'specialized', core: false, changeable: false, dependencies: ['ventas'], preview: 'Inventario de ejemplo', demo: 'Vista previa sin cambiar existencias.', status: 'available', navIds: ['unidades', 'productos', 'compras', 'traslados', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion', 'metricas', 'precios', 'celulares', 'comparador', 'centro-control'], capabilities: ['Modo general: variantes y SKU', 'Apple/iPhone: modelo, capacidad, color, IMEI, condición y garantía'] },
-  { id: 'finanzas', name: 'Finanzas', description: 'Caja, pagos, gastos y márgenes.', category: 'Finanzas', icon: 'wallet', recommendedFor: ['comercio'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: ['ventas'], preview: 'Resumen financiero de ejemplo', demo: 'Vista previa con importes ficticios.', status: 'available', navIds: ['finanzas', 'caja'] },
-  { id: 'mensajes', name: 'Mensajes y plantillas', description: 'Plantillas de WhatsApp y seguimiento de clientes.', category: 'Mensajes', icon: 'send', recommendedFor: ['comercio'], tier: 'pro', kind: 'configurable', core: false, changeable: true, dependencies: ['clientes'], preview: 'Plantilla de ejemplo', demo: 'Vista previa; no envía mensajes.', benefits: ['Respuestas coherentes por contexto', 'Seguimiento de pedidos y clientes'], status: 'available', navIds: ['plantillas', 'campanas'], configureHref: '/plantillas', capabilities: ['WhatsApp', 'Correo · próxima fase', 'Pedido', 'Seguimiento', 'Pago pendiente', 'Entrega', 'Garantía', 'Asistencia técnica'], packs: [{ id: 'comercio', name: 'Comercio', status: 'preview', includes: ['Pedido', 'Pago pendiente', 'Entrega'] }, { id: 'servicios', name: 'Servicios', status: 'preview', includes: ['Seguimiento', 'Garantía', 'Asistencia técnica'] }] },
-  { id: 'portal-clientes', name: 'Portal de clientes', description: 'Enlaces públicos, seguimiento de pedidos, garantías y documentos para cada cliente.', category: 'Clientes', icon: 'globe', recommendedFor: ['comercio', 'servicios'], tier: 'included', kind: 'configurable', core: false, changeable: false, dependencies: ['clientes'], preview: 'Portal de ejemplo', demo: 'Vista previa con datos ficticios; no publica cambios ni comparte datos reales.', benefits: ['Seguimiento desde un enlace seguro', 'Garantías y comprobantes con identidad de la empresa'], status: 'available', navIds: [], configureHref: '/configuracion/organizacion', capabilities: ['Seguimiento de pedidos', 'Portal de garantías', 'Políticas públicas', 'Enlaces con permisos'] },
-  { id: 'delivery', name: 'Delivery externo', description: 'Repartos, cobros en calle, rendiciones y cierres diarios o semanales.', category: 'Operación', icon: 'truck', recommendedFor: ['comercio', 'servicios'], tier: 'pro', kind: 'specialized', core: false, changeable: true, dependencies: ['clientes', 'ventas'], preview: 'Cierre de reparto de ejemplo', demo: 'Vista previa con repartos ficticios; no crea viajes ni cobros.', benefits: ['Asignación y seguimiento de pedidos', 'Rendición diaria auditable por repartidor', 'Cierre diario y semanal con zona horaria America/Asuncion'], status: 'available', navIds: ['repartos'], configureHref: '/delivery', capabilities: ['Asignación de repartidor y ruta', 'Repartidores y permisos', 'Estado del envío y seguimiento', 'Tarifas por distancia', 'Cobro contra entrega', 'Rendiciones', 'Rendición diaria por repartidor', 'Cierre diario', 'Cierre semanal', 'Cierre semanal por sucursal', 'Diferencias y pendientes auditados', 'Ajustes auditados'], packs: [{ id: 'comercio', name: 'Comercio', status: 'preview', includes: ['Asignación', 'Rendición', 'Cierre diario'] }, { id: 'servicios', name: 'Servicios', status: 'preview', includes: ['Rutas', 'Honorarios', 'Cierre semanal'] }] },
-  { id: 'impresion', name: 'Impresión y comprobantes', description: 'Tickets, comprobantes, etiquetas de stock, IMEI y garantías.', category: 'Configuración', icon: 'printer', recommendedFor: ['comercio', 'servicios'], tier: 'included', kind: 'integration', core: false, changeable: false, dependencies: [], preview: 'Ticket y etiqueta de ejemplo', demo: 'Vista previa con datos ficticios; no imprime ni cambia la configuración.', benefits: ['Un lugar para los formatos de papel', 'Reutiliza el logo y los ruteos existentes'], status: 'available', navIds: [], configureHref: '/configuracion/dispositivos', capabilities: ['Tickets y comprobantes', 'Térmica 58/80 mm y A4', 'Orientación vertical y horizontal', 'Tamaño, márgenes y QR', 'Logo y datos de empresa', 'Etiquetas de stock, producto, IMEI y garantía', 'Enrutamiento por tipo de documento'], packs: [{ id: 'comercio', name: 'Comercio', status: 'preview', includes: ['Ticket', 'Comprobante', 'Etiqueta de stock'] }, { id: 'servicios', name: 'Servicios', status: 'preview', includes: ['Orden', 'Etiqueta IMEI', 'Garantía'] }] },
-  { id: 'verificacion-imei', name: 'Verificación de IMEI', description: 'Consulta y conserva el último resultado normalizado de la unidad.', category: 'IMEI', icon: 'shield', recommendedFor: ['comercio'], tier: 'pro', kind: 'integration', core: false, changeable: true, dependencies: ['inventario'], preview: 'Resultado de ejemplo', demo: 'Preview ficticio: no consulta proveedor ni consume créditos. Un resultado no acredita propiedad ni autenticidad.', benefits: ['Historial por empresa con IMEI enmascarado', 'Roles, créditos e idempotencia verificados en servidor'], status: 'available', navIds: [], configureHref: '/stock/unidades', capabilities: ['IMEIcheck.net · actual', 'IMEI.info · próximamente / no configurado', 'Créditos por empresa; saldo y consulta en API', 'Roles: stock, productos y recepción de trade-in', 'Consulta reciente visible por 24 h', 'Auditoría de consultas y rechazos'] },
-  { id: 'reportes', name: 'Reportes', description: 'Indicadores y reportes del negocio.', category: 'Reportes', icon: 'chart', recommendedFor: ['comercio', 'servicios', 'salud'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: [], preview: 'Reporte de ejemplo', demo: 'Vista previa con datos ficticios.', status: 'available', navIds: ['resumen', 'analisis', 'metricas'] },
-  { id: 'publicidad', name: 'Publicidad', description: 'Campañas y medición de adquisición por negocio.', category: 'Comercial', icon: 'chart', recommendedFor: ['comercio'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: ['mensajes'], preview: 'Campaña de ejemplo', demo: 'Vista previa ficticia: no crea campañas ni conecta cuentas publicitarias.', status: 'coming-soon', navIds: [], capabilities: ['Campañas', 'Medición', 'Permisos y auditoría por definir'] },
-  { id: 'asistentes', name: 'Asistentes', description: 'Ayuda guiada para tareas repetitivas de la empresa.', category: 'Automatización', icon: 'tool', recommendedFor: ['comercio', 'servicios'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: [], preview: 'Asistente de ejemplo', demo: 'Vista previa ficticia: no ejecuta acciones ni accede a datos reales.', status: 'coming-soon', navIds: [], capabilities: ['Flujos sugeridos por rubro', 'Acciones y permisos pendientes de definir'] },
-  { id: 'facturacion', name: 'Facturación por API', description: 'Conexiones directas con proveedores compatibles para preparar documentos fiscales.', category: 'Facturación', icon: 'receipt', recommendedFor: ['comercio'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: ['ventas'], preview: 'Comprobante de ejemplo', demo: 'Vista previa ficticia: no emite ni envía datos fiscales. Integración y sandbox pendientes.', status: 'coming-soon', navIds: [], capabilities: ['KudeExpress y futuros adaptadores', 'Payload, webhook, idempotencia y conciliación', 'Estados, permisos y auditoría por definir', 'Secretos solo server-side'] },
-  { id: 'autofacturacion', name: 'Autofacturación', description: 'Flujo de autofacturación para emitir documentos desde la operación de la tienda.', category: 'Facturación', icon: 'receipt', recommendedFor: ['comercio'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: ['ventas'], preview: 'Autofacturación de ejemplo', demo: 'Vista previa ficticia: no crea documentos ni envía datos fiscales.', status: 'coming-soon', navIds: [], capabilities: ['Datos fiscales del cliente', 'Envío de productos, cantidades y precios', 'Estados y reintentos idempotentes', 'Correo al cliente · pendiente de proveedor'] },
-  { id: 'facturacion-electronica', name: 'Facturación electrónica', description: 'Preparación para emisión electrónica y conciliación con SIFEN/DNIT.', category: 'Facturación', icon: 'receipt', recommendedFor: ['comercio'], tier: 'pro', kind: 'catalogOnly', core: false, changeable: false, dependencies: ['ventas'], preview: 'Factura electrónica de ejemplo', demo: 'Vista previa ficticia: no firma, envía ni valida documentos en producción.', status: 'coming-soon', navIds: [], capabilities: ['SIFEN y KuDE', 'CDC, XML y estados fiscales', 'Certificado y timbrado · configuración pendiente', 'Firma, envío y consulta · Fase futura'] },
-  { id: 'salud', name: 'Datos de salud', description: 'Preparación para flujos con datos sensibles de salud.', category: 'Salud', icon: 'heart', recommendedFor: ['salud'], tier: 'pro', kind: 'sensitive', core: false, changeable: false, dependencies: ['clientes'], preview: 'Ficha ficticia', demo: 'Vista previa sin datos personales.', status: 'coming-soon', navIds: [] },
-] as const
-
-export const MODULE_PRESETS = ['comercio', 'servicios', 'salud'] as const
-export type ModulePreset = typeof MODULE_PRESETS[number]
+export const MODULE_CATALOG = CATALOGO
+export type { ModuleDefinition }
+export const MODULE_PRESETS = PRESETS
+export type ModulePreset = ModulePresetType
 export type ModuleSetting = { enabled: boolean; manuallySelected: boolean; source: 'preset' | 'manual'; updatedAt: string }
-export type ModuleStoreState = { version: 1; preset: ModulePreset; modules: Record<string, ModuleSetting> }
+export type ModuleStoreState = { version: 2; preset: ModulePreset; modules: Record<string, ModuleSetting> }
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
-const presetModules = (preset: ModulePreset) => new Set(MODULE_CATALOG.filter(module => module.core || module.status === 'available' && (module.changeable === false || module.recommendedFor.some(rubro => rubro === preset))).map(module => module.id))
+const presetModules = (preset: ModulePreset) => new Set(MODULE_CATALOG.filter(module => module.nucleo || module.status === 'available' && module.recommendedFor.some(rubro => rubro === preset)).map(module => module.id))
+
+/** Estado de una empresa nueva (register, google-company, tenant-switch): núcleo + defaultNuevo. */
+export function newCompanyModuleStore(now = new Date().toISOString()): ModuleStoreState {
+  return nuevoStore(now) as ModuleStoreState
+}
 
 export function dependenciesEnabled(dependencies: readonly string[], modules: Record<string, { enabled: boolean }>) {
   return dependencies.every(id => modules[id]?.enabled === true)
@@ -42,23 +30,19 @@ export function hasEnabledDependents(moduleId: string, catalog: readonly { id: s
 }
 
 export function moduleStoreFrom(settings: unknown, now = new Date().toISOString()): ModuleStoreState {
-  const root = record(settings)
-  const stored = record(root.moduleStore)
-  const preset = MODULE_PRESETS.includes(stored.preset as ModulePreset) ? stored.preset as ModulePreset : 'comercio'
-  const oldModules = record(stored.modules)
-  const defaults = presetModules(preset)
+  const stored = leerModuleStore({ settings })
+  const oldModules = record(stored?.modules)
   const modules: Record<string, ModuleSetting> = {}
   for (const module of MODULE_CATALOG) {
     const saved = record(oldModules[module.id])
-    const isSaved = typeof saved.enabled === 'boolean'
     modules[module.id] = {
-      enabled: module.core || (isSaved ? saved.enabled as boolean : defaults.has(module.id)),
-      manuallySelected: !module.core && saved.manuallySelected === true,
-      source: module.core ? 'preset' : saved.source === 'manual' ? 'manual' : 'preset',
+      enabled: estadoDeModulo(module, stored),
+      manuallySelected: !module.nucleo && saved.manuallySelected === true,
+      source: module.nucleo ? 'preset' : saved.source === 'manual' ? 'manual' : 'preset',
       updatedAt: typeof saved.updatedAt === 'string' ? saved.updatedAt : now,
     }
   }
-  return { version: 1, preset, modules }
+  return { version: MODULE_STORE_VERSION, preset: stored?.preset ?? 'comercio', modules }
 }
 
 export function parseModuleChange(body: unknown): { preset?: ModulePreset; moduleId?: string; enabled?: boolean } | null {
@@ -74,13 +58,13 @@ export function updateModuleStore(settings: unknown, change: NonNullable<ReturnT
   if (change.preset) {
     const included = presetModules(change.preset)
     for (const module of MODULE_CATALOG) {
-      if (module.core || module.changeable === false) continue
+      if (!module.changeable) continue
       modules[module.id] = { enabled: included.has(module.id), manuallySelected: false, source: 'preset', updatedAt: now }
     }
-    return { version: 1 as const, preset: change.preset, modules }
+    return { version: MODULE_STORE_VERSION, preset: change.preset, modules }
   }
   const definition = MODULE_CATALOG.find(module => module.id === change.moduleId)
-  if (!definition || definition.core || definition.changeable !== true || definition.status !== 'available') {
+  if (!definition || !definition.changeable) {
     throw new Error('MODULE_CHANGE_NOT_ALLOWED')
   }
   if (change.enabled === false && hasEnabledDependents(definition.id, MODULE_CATALOG, modules)) throw new Error('MODULE_HAS_ENABLED_DEPENDENTS')
@@ -91,4 +75,9 @@ export function updateModuleStore(settings: unknown, change: NonNullable<ReturnT
 
 export function mergeModuleStoreSettings(settings: unknown, state: ModuleStoreState) {
   return { ...record(settings), moduleStore: state } as Prisma.InputJsonObject
+}
+
+/** Settings de una empresa nueva: sus ajustes iniciales más el store de módulos en versión 2. */
+export function newCompanySettings(settings: Record<string, unknown> = {}, now = new Date().toISOString()) {
+  return mergeModuleStoreSettings(settings, newCompanyModuleStore(now))
 }

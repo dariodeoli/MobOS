@@ -2,6 +2,7 @@ import { prisma } from '../../../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../../lib/payment-input'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 // A5 (#279) · Variante agotada: el **comprador propone** alternativas (no
 // decide). Cada propuesta es una versión nueva; la necesidad pasa a
@@ -25,6 +26,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {

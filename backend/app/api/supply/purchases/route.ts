@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { coberturaDeCompra, codigoCompra, compararModelo, costoPorUnidad, cuadrarSeriales, normalizarCierreDeCostos, normalizarCompra, normalizarLineasCompra, resumenPreparacion, estadoSerialCompra, validarQuitarSerial } from '../../../../lib/supply'
 import { numero, numeroOpcional } from '../../../../lib/montos'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -208,6 +209,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)
@@ -355,6 +357,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)

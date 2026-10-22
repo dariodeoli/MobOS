@@ -7,6 +7,7 @@ import { canUseDelivery, deliveryBalance } from '../../../../../../lib/delivery'
 import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { consumeAuthorization, usableAuthorization } from '../../../../../../lib/authorizations'
 import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../../../../lib/credit-authorization'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 // Estado de entrega del repartidor: a entregar → en camino → entregado. Solo
 // sobre sus pedidos asignados y sin saltarse las reglas de la tienda: entregar
@@ -17,9 +18,10 @@ import { assertCreditAvailableForDelivery, assertCreditCleared } from '../../../
 // registró: si cobró el total en la calle, no queda saldo abierto y la entrega
 // procede aunque la rendición todavía no esté verificada.
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
+  if (request.method !== 'GET' && !await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canUseDelivery(session.user)) return error('No autorizado.', 403)
   try {
     const { orderId } = await context.params

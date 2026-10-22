@@ -5,6 +5,7 @@ import { internationalPhone } from '../../../../lib/validation'
 import { formatearGs, renderPlantilla } from '../../../../lib/collections'
 import { consultarClientes } from '../../../../lib/customer-segments'
 import { SEGMENTOS, clasificarCliente, motivoNoElegible, opcionesSegmento, puedeGestionarMarketing, type SegmentoKey } from '../../../../lib/segments'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // Campañas de recompra: se elige un segmento y una plantilla de clientes, y el
 // servidor arma el enlace wa.me de cada destinatario. El envío real lo hace una
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'campanas-recompra'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!puedeGestionarMarketing(session.user.role)) return error('No autorizado.', 403)

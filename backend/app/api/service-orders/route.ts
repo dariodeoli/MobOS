@@ -8,6 +8,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { LIMITE_MONTO_GENERAL, numeroOpcional } from '../../../lib/montos'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 // Pipeline del taller: el estado avanza en este orden y ENTREGADO cierra la orden.
 const STATUS = ['RECIBIDO', 'DIAGNOSTICO', 'CON_TECNICO', 'ESPERANDO_REPUESTO', 'REPARADO', 'LISTO', 'ENTREGADO', 'CANCELADO']
@@ -101,6 +102,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'servicios'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!puedeOperar(session.user)) return error('No autorizado.', 403)
@@ -175,6 +177,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'servicios'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!puedeOperar(session.user)) return error('No autorizado.', 403)

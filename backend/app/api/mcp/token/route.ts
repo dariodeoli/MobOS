@@ -1,3 +1,4 @@
+// modulo-guard-exento: canje de código OAuth del conector (sin sesión web)
 import { assertMcpEnabled } from '../../../../lib/mcp/oauth'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'

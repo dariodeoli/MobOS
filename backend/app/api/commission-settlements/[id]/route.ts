@@ -4,6 +4,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { canAccessAny, hashToken, requireSession } from '../../../../lib/auth'
 import { numero } from '../../../../lib/montos'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // Detalle y ciclo de vida de una liquidación de comisiones. El comprobante
 // impreso sale de `linesJson`, que quedó congelado al cerrar el período.
@@ -101,6 +102,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'comisiones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   const { id: rawId } = await context.params

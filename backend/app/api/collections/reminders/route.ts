@@ -14,6 +14,7 @@ import {
   variablesDeCuota,
 } from '../../../../lib/collections'
 import { numero } from '../../../../lib/montos'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // Cobranzas por WhatsApp: cuotas a crédito vencidas y próximas, con mora
 // explícita y un enlace wa.me por cuota. El aviso es una acción humana (abrir
@@ -146,6 +147,7 @@ export async function GET(request: Request) {
 // Marca el aviso de una cuota (idempotente: la segunda vez responde 409 salvo
 // `force`). `kind` lo define el servidor según el vencimiento real.
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'cuotas'); if (moduloApagado) return moduloApagado
   const { session, error: denied } = await contexto(request)
   if (denied || !session) return denied
   const tenantId = session.user.tenantId

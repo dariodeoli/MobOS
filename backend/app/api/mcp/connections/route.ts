@@ -1,3 +1,4 @@
+// modulo-guard-exento: desconectar un conector reduce acceso: nunca se bloquea
 import { readBoundedBody } from '../../../../lib/mcp/request-body'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'

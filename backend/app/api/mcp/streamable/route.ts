@@ -1,8 +1,10 @@
+// modulo-guard-exento: guarda propia con la empresa del token MCP (ver ia-conectores en el handler)
 import { mcpOriginAllowed, mcpJsonRequest } from '../../../../lib/mcp/transport'
 import { mcpAccessFailure } from '../../../../lib/mcp/rate-limit'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
 import { moduleStoreFrom } from '../../../../lib/module-store'
+import { moduloApagadoMensaje } from '../../../../lib/modulos-guard'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { MCP_CATALOG, IMPLEMENTED_MCP_ACTIONS } from '../../../../lib/mcp/catalog'
 import { requireMcpAccessToken, mcpResource } from '../../../../lib/mcp/oauth'
@@ -57,6 +59,8 @@ export async function POST(request: Request) {
   const args = (rawArgs ?? {}) as Record<string, unknown>
   const argumentError = invalidToolArguments(name, args)
   if (argumentError) return error(id, -32602, argumentError)
+  // Con el módulo apagado el conector solo lee: las herramientas que escriben dan 403.
+  if (modules['ia-conectores']?.enabled !== true && MCP_CATALOG.find(entry => entry.action === name)?.mutating) return error(id, -32003, moduloApagadoMensaje('ia-conectores'), { code: 'MODULE_DISABLED' })
   const decision = authorizeMcpAction(name, { tenantId: auth.tenantId, user: auth.user, enabledModules: modules, grantedScopes: auth.scopes, requestedBranchId: typeof args.branchId === 'string' ? args.branchId : null })
   if (!decision.allowed) return error(id, -32003, decision.reason, { code: decision.code })
   if (name === 'company.create') {

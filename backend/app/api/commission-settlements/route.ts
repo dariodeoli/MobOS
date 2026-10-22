@@ -14,6 +14,7 @@ import {
   type OrderLike,
 } from '../../../lib/reporting'
 import { numero } from '../../../lib/montos'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 // Liquidaciones de comisiones por vendedor: cerrar un período, congelar el
 // detalle por venta y emitir el comprobante con token de verificación. El
@@ -111,6 +112,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'comisiones'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, PERMISSIONS)) return error('No autorizado.', 403)

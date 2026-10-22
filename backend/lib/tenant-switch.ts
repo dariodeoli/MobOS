@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { newCompanySettings } from './module-store'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import {
@@ -124,7 +125,7 @@ export async function createCompany(request: Request, ctx: AccountContext, compa
   return prisma.$transaction(async tx => {
     // Como el alta con Google: empresa sin correo propio, ADMIN con PIN
     // inutilizable y alta de PIN pendiente (adminPinPending).
-    const tenant = await tx.tenant.create({ data: { name: companyName, email: null, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true, source: 'account' } } } })
+    const tenant = await tx.tenant.create({ data: { name: companyName, email: null, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: newCompanySettings({ onboarding: { adminPinPending: true, source: 'account' } }) } })
     const admin = await tx.user.create({ data: { tenantId: tenant.id, name: current.user?.name?.slice(0, 100) || 'Administrador', email: account.email ?? current.user?.email ?? null, pinHash, role: 'ADMIN' } })
     const membership = await ensureMembership(tx, { accountId: ctx.accountId, tenantId: tenant.id, userId: admin.id, role: 'OWNER' })
     await tx.auditLog.create({ data: { tenantId: tenant.id, userId: admin.id, action: 'TENANT_COMPANY_CREATED', entity: 'Tenant', entityId: tenant.id, metadata: { fromTenantId: ctx.tenantId, ...authRequestMetadata(request) } } })

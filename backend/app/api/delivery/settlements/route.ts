@@ -6,6 +6,7 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 import { canManageDelivery, canUseDelivery } from '../../../../lib/delivery'
 import { deliveryModuleEnabled } from '../../../../lib/delivery-access'
 import { numero } from '../../../../lib/montos'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // Rendición del reparto: el repartidor entrega en la tienda el efectivo y las
 // transferencias que cobró en la calle, junto con el saldo que quedó pendiente
@@ -28,7 +29,7 @@ const settlementInclude = Prisma.validator<Prisma.DeliverySettlementInclude>()({
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
+  if (request.method !== 'GET' && !await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   const esRepartidor = canUseDelivery(session.user)
   const esGestor = canManageDelivery(session.user)
   if (!esRepartidor && !esGestor) return error('No autorizado.', 403)
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canUseDelivery(session.user)) return error('Solo el repartidor rinde sus cobros.', 403)

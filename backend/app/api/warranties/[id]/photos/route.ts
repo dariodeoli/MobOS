@@ -3,6 +3,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
 import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../../payments/_lib'
+import { moduloGuard } from '../../../../../lib/modulos-guard'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -51,6 +52,7 @@ export async function GET(request: Request, props: RouteContext) {
 }
 
 export async function POST(request: Request, props: RouteContext) {
+  const moduloApagado = await moduloGuard(request, 'servicios'); if (moduloApagado) return moduloApagado
   const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)

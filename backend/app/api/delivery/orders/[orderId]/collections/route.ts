@@ -5,15 +5,17 @@ import { InputError, objectInput, textInput } from '../../../../../../lib/paymen
 import { assertCollectionWithinBalance, canUseDelivery, deliveryMethod } from '../../../../../../lib/delivery'
 import { deliveryModuleEnabled } from '../../../../../../lib/delivery-access'
 import { numero } from '../../../../../../lib/montos'
+import { moduloGuard } from '../../../../../../lib/modulos-guard'
 
 // Pre-cobro del repartidor en la calle: parcial o total, efectivo o
 // transferencia. Nace PENDING (no entra a caja ni cierra el pedido) y viaja en
 // la rendición. Nunca se cobra por encima del saldo: la cuenta incluye los
 // otros pre-cobros del pedido para que un reintento no duplique el cobro.
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
+  if (request.method !== 'GET' && !await deliveryModuleEnabled(tenant)) return error('El módulo Delivery está desactivado para esta empresa.', 403)
   if (!canUseDelivery(session.user)) return error('No autorizado.', 403)
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
   if (idempotencyKey && !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotencyKey)) return error('Identificador de operación inválido.')

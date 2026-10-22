@@ -1,3 +1,4 @@
+// modulo-guard-exento: recepción pública por token (sin sesión); la empresa se resuelve por el token
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'

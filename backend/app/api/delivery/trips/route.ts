@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { branchScope, deliveryAccess, deliveryBody, deliveryFailure } from '../../../../lib/delivery-access'
 import { createTrip, tripInclude } from '../../../../lib/delivery-operations-store'
 import { json } from '../../../../lib/http'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 export async function GET(request: Request) {
   try {
     const actor = await deliveryAccess(request), params = new URL(request.url).searchParams
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
   } catch (cause) { return deliveryFailure(cause) }
 }
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'delivery'); if (moduloApagado) return moduloApagado
   try { return json(await createTrip(await deliveryAccess(request), await deliveryBody(request)), { status: 201 }) }
   catch (cause) { return deliveryFailure(cause) }
 }

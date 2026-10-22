@@ -8,6 +8,7 @@ import { serialKey } from '../../../../lib/validation'
 import { INVENTORY_PHYSICALLY_VERIFIED } from '../../../../lib/inventory'
 import { classifyScan, summarizeVerification } from '../../../../lib/stock-verification'
 import { expectedUnits, verificationDetail } from '../../../../lib/stock-verification-db'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // Todo rol con sucursal asignada queda limitado a ella; solo administración/gerencia opera entre sucursales.
 const sinAcceso = (session: NonNullable<Awaited<ReturnType<typeof requireSession>>>, branchId: string) => !['ADMIN', 'GERENTE'].includes(session.user.role) && Boolean(session.user.branchId) && session.user.branchId !== branchId
@@ -31,6 +32,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
 // Acciones: scan (escanear o tildar una fila), finish (guardar el resumen) y cancel.
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {

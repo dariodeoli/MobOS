@@ -5,6 +5,7 @@ import { InputError, objectInput } from '../../../../lib/payment-input'
 import { PricingError } from '../../../../lib/pricing'
 import { PriceListInputError } from '../../../../lib/price-lists'
 import { updatePriceList, deactivatePriceList, PriceListServiceError, readPriceList } from '../../../../lib/price-list-service'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -24,6 +25,7 @@ export async function GET(request: Request, props: RouteContext) {
 }
 
 export async function PATCH(request: Request, props: RouteContext) {
+  const moduloApagado = await moduloGuard(request, 'listas-precios'); if (moduloApagado) return moduloApagado
   const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
@@ -44,6 +46,7 @@ export async function PATCH(request: Request, props: RouteContext) {
 // Baja lógica: la lista deja de aplicarse, pero se conserva para auditoría y
 // para los clientes que la tengan asignada (pasan al precio de su ficha).
 export async function DELETE(request: Request, props: RouteContext) {
+  const moduloApagado = await moduloGuard(request, 'listas-precios'); if (moduloApagado) return moduloApagado
   const params = await props.params;
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)

@@ -8,7 +8,7 @@ import { validarImei } from '../lib/imeicheck'
 // Synthetic repeating digits only. Never invokes a provider or a real database.
 const VALID = '111111111111119'
 const INVALID = '111111111111111'
-function fixture({ authenticated = true, enabled = true, permitted = true } = {}) {
+function fixture({ authenticated = true, permitted = true } = {}) {
   const calls: Array<{ where: Record<string, unknown>; take: number }> = []
   let balanceReads = 0
   const session = { user: { id: 'fixture-user', tenantId: 'fixture-tenant', role: 'ADMIN' } }
@@ -18,7 +18,7 @@ function fixture({ authenticated = true, enabled = true, permitted = true } = {}
     '../../../lib/auth': { requireSession: async () => authenticated ? session : null, canAccessAny: () => permitted },
     '../../../lib/imei-credits': { estadoCreditos: async () => { balanceReads++; return { saldo: 0, enforce: true } }, reservarConsulta: () => { throw new Error('Quota reservation forbidden in history tests') } },
     '../../../lib/imeicheck': { validarImei, SERVICIOS: {}, modoImeicheck: () => ({ modo: 'simulado' }), consultarImei: () => { throw new Error('Provider access forbidden in history tests') } },
-    '../../../lib/tenant-module-access': { tenantModuleEnabled: async () => enabled },
+    '../../../lib/modulos-guard': { moduloGuard: async () => null },
     '../../../lib/imei-providers': { publicImeiProviders: () => [] },
   }
   const exports: Record<string, any> = {}
@@ -48,8 +48,8 @@ test('IMEI valid normalized filter preserves tenant and pagination bounds', asyn
   assert.equal(f.calls[0].where.tenantId, 'fixture-tenant')
   assert.equal(f.calls[0].take, 50)
 })
-test('IMEI history preserves session, module and permission gates before validation', async () => {
-  for (const [options, status] of [[{ authenticated: false }, 401], [{ enabled: false }, 403], [{ permitted: false }, 403]] as const) {
+test('IMEI history preserves session and permission gates before validation (módulo apagado: la lectura no se bloquea, ver modulos-guard.test.ts)', async () => {
+  for (const [options, status] of [[{ authenticated: false }, 401], [{ permitted: false }, 403]] as const) {
     const f = fixture(options)
     assert.equal((await f.get('?imei=123')).status, status)
     assert.equal(f.calls.length, 0)

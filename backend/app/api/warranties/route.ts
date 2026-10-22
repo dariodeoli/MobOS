@@ -6,6 +6,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 import { error, json, tenantId } from '../../../lib/http'
 import { notifyWarrantyStatusChanged } from '../../../lib/email-notifications'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const STATUSES = ['RECEIVED', 'DIAGNOSIS', 'READY', 'DELIVERED'] as const
 const STATUS_LABELS: Record<(typeof STATUSES)[number], string> = {
@@ -67,6 +68,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'servicios'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canManage(session.user)) return error('No autorizado.', 403)
@@ -122,6 +124,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'servicios'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canManage(session.user)) return error('No autorizado.', 403)

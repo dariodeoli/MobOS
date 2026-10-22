@@ -600,6 +600,7 @@ node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "
 # porque vive en AuthAttempt de la base, no en memoria del proceso.
 node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" branch-a-it "$RUC_PILOT_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/modulos-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 node "$BACKEND_ROOT/tests/inventory-apple-variant.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Lib de traslado y de seriales en pedidos dentro de una transacción (#408)..."

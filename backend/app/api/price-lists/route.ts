@@ -4,6 +4,7 @@ import { error, json } from '../../../lib/http'
 import { InputError, objectInput } from '../../../lib/payment-input'
 import { PriceListInputError } from '../../../lib/price-lists'
 import { createPriceList, PriceListServiceError } from '../../../lib/price-list-service'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const priceListInclude = {
   items: { include: { tiers: { orderBy: { minQty: 'asc' as const } } } },
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'listas-precios'); if (moduloApagado) return moduloApagado
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan listas de precios.', 403)

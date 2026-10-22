@@ -1,9 +1,11 @@
+// modulo-guard-exento: guarda propia con la sesión web (ver ia-conectores en el handler)
 import { assertMcpEnabled } from '../../../../lib/mcp/oauth'
 import { NextResponse } from 'next/server'
 import { requireSession } from '../../../../lib/auth'
 import { sameOriginForMcp } from '../../../../lib/google-oauth'
 import { prisma } from '../../../../lib/prisma'
 import { moduleStoreFrom } from '../../../../lib/module-store'
+import { moduloApagadoMensaje } from '../../../../lib/modulos-guard'
 import { actionForScope, catalogEntry } from '../../../../lib/mcp/catalog'
 import { authorizeMcpAction } from '../../../../lib/mcp/authorization'
 import { assertScopeActions, dbNow, issueMcpAuthorizationCode, findMcpClient, normalizeMcpScopes, McpOAuthError, mcpIssuer, mcpResource } from '../../../../lib/mcp/oauth'
@@ -65,6 +67,7 @@ export async function POST(request: Request) {
     const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { settings: true, archivedAt: true } })
     if (!tenant || tenant.archivedAt) throw new McpOAuthError('access_denied', 'La empresa no está disponible.', 403)
     const enabledModules = moduleStoreFrom(tenant.settings).modules
+    if (enabledModules['ia-conectores']?.enabled !== true) throw new McpOAuthError('access_denied', moduloApagadoMensaje('ia-conectores'), 403)
     for (const scope of scopes) {
       const action = actionForScope(scope)
       if (!action || !authorizeMcpAction(action, { tenantId: session.user.tenantId, user: session.user, enabledModules, grantedScopes: scopes }).allowed) throw new McpOAuthError('access_denied', `No tenés permiso para autorizar ${scope}.`, 403)

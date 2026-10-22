@@ -4,6 +4,7 @@ import { requireSession } from '../../../lib/auth'
 import { serialKey } from '../../../lib/validation'
 import { INVENTORY_RESERVED, INVENTORY_RESERVATION_RELEASED, liberarReservasVencidas } from '../../../lib/inventory'
 import { crearDemandas, demandaDeReserva } from '../../../lib/supply-demand'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const MAX_MINUTES = 24 * 60
 
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }

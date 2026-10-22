@@ -4,6 +4,7 @@ import { requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { expectedUnits } from '../../../lib/stock-verification-db'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 
 // Verificación de stock («¿está físicamente?»): la puede usar cualquier usuario
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'stock-avanzado'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {

@@ -3,6 +3,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 // Saldo a favor del cliente (nota de crédito interna): consulta y emisión
 // manual. Las devoluciones también lo emiten; acá además gerencia puede
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'cuotas'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['orders:manage'])) return error('Solo administración o gerencia emiten saldo a favor.', 403)

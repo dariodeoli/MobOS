@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { reposicionSugerida } from '../../../../lib/supply-forecast'
+import { moduloGuard } from '../../../../lib/modulos-guard'
 
 // #250 Fase 6: reposición sugerida. Cruza stock, punto de pedido (o el stock de
 // seguridad de la política), lo que ya viene en camino, lo pedido y el consumo
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const moduloApagado = await moduloGuard(request, 'abastecimiento'); if (moduloApagado) return moduloApagado
   const tenant = await tenantId(request)
   if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request)
