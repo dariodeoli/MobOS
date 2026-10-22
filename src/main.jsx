@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 import { installErrorTracking } from './lib/errorTracking'
+import './lib/qrLogoFuente'
 import { isNativeIOS } from './lib/plataforma'
 import { mostrarApp, prepararNativo } from './lib/nativo/arranque'
 

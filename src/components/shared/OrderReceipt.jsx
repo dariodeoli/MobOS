@@ -146,7 +146,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
     const contexto = contextoEtiquetaUnidad(datos)
     let qr = ''
     try {
-      if (datos.enlace) qr = await qrDataUrl(datos.enlace, { margen: 4 })
+      if (datos.enlace) qr = await qrDataUrl(datos.enlace, { margen: 4, mm: anchoMm === 80 ? 30 : 26 })
     } catch { /* sin QR queda el código de barras y el código de unidad como texto */ }
     let barras = ''
     if (datos.codigo) {
