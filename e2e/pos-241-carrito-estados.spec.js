@@ -99,5 +99,5 @@ test('los bloques de cobro muestran su estado (pagado / no pagado) (#241)', asyn
   // Marcar el bloque como no pagado cambia su estado (y su chip).
   await filaDos.getByRole('button', { name: 'Pagado' }).click()
   await expect(filaDos).toHaveAttribute('data-estado', 'no-pagado')
-  await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible()
+  await expect(filaDos.getByRole('button', { name: 'Pendiente' })).toBeVisible()
 })

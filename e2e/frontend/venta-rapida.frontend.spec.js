@@ -156,7 +156,7 @@ test('cobro: título y acciones de pagos mantienen separación en desktop', asyn
   await expect(cobro).toBeVisible()
   const titulo = cobro.getByText('Pagos de esta venta', { exact: true })
   const agregar = cobro.getByRole('button', { name: '+ Agregar pago', exact: true })
-  const gift = cobro.getByRole('button', { name: '+ Canjear gift card', exact: true })
+  const gift = cobro.getByRole('button', { name: 'Gift card', exact: true })
   const [t, a, g] = await Promise.all([titulo.boundingBox(), agregar.boundingBox(), gift.boundingBox()])
   const overlap = (one, two) => one.x < two.x + two.width && two.x < one.x + one.width && one.y < two.y + two.height && two.y < one.y + one.height
   expect(overlap(t, a)).toBe(false)

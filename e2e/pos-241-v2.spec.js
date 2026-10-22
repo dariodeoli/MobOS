@@ -131,7 +131,7 @@ async function armarCobro(page, sufijo) {
   await expect(async () => {
     const chip = filaDos.getByRole('button', { name: 'Pagado' })
     if (await chip.count()) await chip.click()
-    await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible({ timeout: 2500 })
+    await expect(filaDos.getByRole('button', { name: 'Pendiente' })).toBeVisible({ timeout: 2500 })
   }).toPass({ timeout: 20_000 })
   await page.getByTestId('pos-cobro').scrollIntoViewIfNeeded()
 }
@@ -173,7 +173,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         // Pago completo: el botón «Confirmar venta» (variante success) también
         // tiene que cumplir AA en los dos temas.
         await expect(async () => {
-          const chip = page.getByTestId('pago-fila-1').getByRole('button', { name: 'No pagado' })
+          const chip = page.getByTestId('pago-fila-1').getByRole('button', { name: 'Pendiente' })
           if (await chip.count()) await chip.click()
           await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible({ timeout: 2500 })
         }).toPass({ timeout: 20_000 })

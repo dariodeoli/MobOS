@@ -59,7 +59,7 @@ import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
-import { accountPayment, pagosSinVuelto, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
+import { accountPayment, cambiarCuentaPago, pagosSinVuelto, updateAccountPayment, vueltoEfectivoExtranjero } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import GiftCardsPos from './venta/GiftCardsPos'
@@ -83,6 +83,7 @@ import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
 import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
 import CobroMovil from './movil/CobroMovil'
 import { pagoDeMedio, vueltoDePagos } from './movil/posMovil'
+import { recordarCuentaReciente } from '@/utils/cobroMedios'
 import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 import { isNativeIOS } from '@/lib/plataforma'
 import { compartirNativo } from '@/lib/nativo/compartir'
@@ -1711,6 +1712,22 @@ export default function FormularioVenta({
     ])
   }
 
+  // Tarjetas de medio del cobro («Efectivo», «Transferencia»…): un toque agrega
+  // un pago por lo que falta. Con la cuenta ya elegida (una sola del medio) la
+  // fila sale completa con la misma regla de `cambiarCuentaPago` que usa el
+  // selector; si el medio tiene varias cuentas, la fila pide la cuenta.
+  function agregarPagoDeMedio({ cuenta = null, medio = '' } = {}) {
+    if (!cuentas || !usaCuentas || totalGeneral <= 0) return
+    const base = { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
+    if (!cuenta) {
+      setPagos(arr => [...arr, { ...base, medioSugerido: medio }])
+      return
+    }
+    recordarCuentaReciente(cuenta.id)
+    const { cambio } = cambiarCuentaPago(base, cuentas, cuenta.id, pendiente)
+    setPagos(arr => [...arr, updateAccountPayment({ ...base, ...cambio }, {}, cuentas)])
+  }
+
   // Gift card (#280): fila de cobro propia. El código se consulta contra el
   // saldo y el monto se propone con lo que falta pagar (nunca más que el saldo).
   function agregarGiftCard() {
@@ -2515,6 +2532,7 @@ export default function FormularioVenta({
               pagos={pagos}
               setPagos={setPagos}
               onAgregarPago={agregarPago}
+              onAgregarMedio={agregarPagoDeMedio}
               onAgregarGiftCard={agregarGiftCard}
               onConsultarGiftCard={consultarGiftCard}
               guardando={guardando}
@@ -2527,7 +2545,7 @@ export default function FormularioVenta({
               totalGeneral={totalGeneral}
               totalPagado={totalPagado}
               pendiente={pendiente}
-              vuelto={vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0}
+              vuelto={(vueltoExtranjero.permitido ? vueltoExtranjero.vuelto : 0) + vueltoDePagos(pagos)}
               f={f}
               setF={setF}
               set={set}
