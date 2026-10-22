@@ -197,8 +197,9 @@ function AreaProtegida({ owner = false, children }) {
 // ruta interna /pedidos/:orderId.
 function RedirigirPedidoPublico({ externo = false, mismo = false }) {
   const { token } = useParams()
-  const { search } = useLocation()
-  const destino = `/pedidos/${encodeURIComponent(token || '')}${search || ''}`
+  const { search, hash } = useLocation()
+  // El fragmento viaja con el enlace: el seguimiento de la demo (#d=…) lo necesita.
+  const destino = `/pedidos/${encodeURIComponent(token || '')}${search || ''}${hash || ''}`
   if (externo) return <Navigate to={`${publicUrls.clientPortal}${destino}`} replace />
   if (mismo) return <Navigate to={destino} replace />
   // Dev, localhost y e2e: la página se abre en el mismo origen (sin canónica).

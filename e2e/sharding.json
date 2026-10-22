@@ -12,6 +12,7 @@
         "delivery.spec.js",
         "demo-autorizaciones.spec.js",
         "demo-correo.spec.js",
+        "demo-seguimiento-qr.spec.js",
         "equipo-integrantes.spec.js",
         "finanzas-conciliacion.spec.js",
         "fotos-producto.spec.js",
