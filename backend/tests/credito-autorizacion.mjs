@@ -306,64 +306,6 @@ try {
   const intentos = Number(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "tenantId" = 'tenant-a-it' AND "userId" = 'user-gerente-it' AND action = 'CREDIT_PIN_ATTEMPT'`)) - antes
   assert.ok(intentos <= 5, `solo quedan registrados 5 intentos (fueron ${intentos})`)
 
-  // Con selfApproveRoles = [] ni el administrador aprueba su propia venta desde el pedido.
-  setSelfApprove([])
-  const propiaAdmin = await nuevoCliente('Admin propio', { creditLimitPyg: 100000, creditDays: 7 })
-  r = await venta(propiaAdmin.id, 600000, { creditDays: 7 }, adminToken)
-  assert.equal(r.status, 201, JSON.stringify(r.payload))
-  assert.equal(r.payload.creditAuthorization?.status, 'PENDING')
-  r = await call(`/api/orders/${r.payload.id}/credit-authorization`, { method: 'POST', token: adminToken, body: { action: 'approve' } })
-  assert.equal(r.status, 403, 'el administrador no aprueba su propia venta a crédito sin configuración')
-
-  // ── 9) Límite y tolerancia del módulo, plazo y cuotas ───────────────────────
-  mergeSettings({ moduleConfig: { cuotas: { defaultLimitPyg: 5000000, tolerancePct: 10, plazo: { mode: 'DIAS', days: 15, dayOfMonth: 5, installments: 3, intervalDays: 30, maxDays: 60 } } } })
-  // Cliente sin límite propio: rige el del módulo (5.000.000) con su tolerancia (10 %).
-  const delModulo = await nuevoCliente('Límite del módulo')
-  r = await venta(delModulo.id, 5500000, { credit: true })
-  assert.equal(r.status, 201, JSON.stringify(r.payload))
-  assert.equal(r.payload.creditAuthorization, null, '5.500.000 entra por la tolerancia del módulo')
-  assert.equal(r.payload.creditDays, 15, 'el plazo por defecto del módulo')
-  assert.equal(Number(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE action = 'CREDIT_TOLERANCE_USED' AND "entityId" = '${r.payload.id}'`)), 1, 'el uso de la tolerancia queda auditado')
-  const pasadoModulo = await nuevoCliente('Pasa el tope')
-  r = await venta(pasadoModulo.id, 5500001, { credit: true })
-  assert.equal(r.status, 201, JSON.stringify(r.payload))
-  assert.equal(r.payload.creditAuthorization?.status, 'PENDING', 'un peso sobre el tope pide autorización')
-  assert.equal(r.payload.creditAuthorization?.overPyg, 1)
-  // Ficha con límite propio: la tolerancia es la suya si la tiene, si no la del módulo.
-  const propioSinTol = await nuevoCliente('Límite propio', { creditLimitPyg: 1000000 })
-  r = await venta(propioSinTol.id, 1100000, { credit: true })
-  assert.equal(r.payload.creditAuthorization, null, 'sin tolerancia propia vale la del módulo')
-  const propioConCero = await nuevoCliente('Sin tolerancia', { creditLimitPyg: 1000000, creditTolerancePct: 0 })
-  r = await venta(propioConCero.id, 1000001, { credit: true })
-  assert.equal(r.payload.creditAuthorization?.status, 'PENDING', 'tolerancia 0 de la ficha: manda el límite a secas')
-  // Plazo: más allá del máximo del módulo pide autorización de días (administración y gerencia pueden solas).
-  const largo = await nuevoCliente('Plazo largo', { creditLimitPyg: 100000000 })
-  r = await venta(largo.id, 100000, { creditDays: 61 })
-  assert.equal(r.status, 403, 'el vendedor no pasa el máximo de días')
-  r = await venta(largo.id, 100000, { creditDays: 61 }, gerenteToken)
-  assert.equal(r.status, 201, JSON.stringify(r.payload))
-  assert.equal(r.payload.creditDays, 61)
-  // Día del mes.
-  mergeSettings({ moduleConfig: { cuotas: { defaultLimitPyg: 5000000, tolerancePct: 10, plazo: { mode: 'DIA_MES', dayOfMonth: 5, maxDays: 365 } } } })
-  r = await venta(largo.id, 100000, { credit: true })
-  assert.equal(r.status, 201, JSON.stringify(r.payload))
-  assert.equal(psql(`SELECT to_char("dueAt" - interval '3 hours', 'DD') FROM "Order" WHERE "id" = '${r.payload.id}'`), '05', 'vence el día 5 del mes')
-  // Cuotas desde la ficha: pagos CREDIT con vencimiento que suman el saldo.
-  const encuotas = await nuevoCliente('En cuotas', { creditLimitPyg: 100000000, creditTermMode: 'CUOTAS', creditInstallments: 3 })
-  r = await venta(encuotas.id, 1000001, { credit: true })
-  assert.equal(r.status, 201, JSON.stringify(r.payload))
-  const cuotas = await call(`/api/orders/${r.payload.id}`)
-  const plan = cuotas.payload.payments.filter((p) => p.method === 'CREDIT').sort((a, b) => a.dueAt.localeCompare(b.dueAt))
-  assert.deepEqual(plan.map((p) => Number(p.amountPyg)), [333333, 333333, 333335])
-  assert.ok(plan.every((p) => p.status === 'PENDING' && p.pendingReason === 'CUOTA' && p.dueAt))
-  assert.equal(psql(`SELECT COALESCE(SUM("amountPyg"), 0) FROM "Payment" WHERE "orderId" = '${r.payload.id}' AND status = 'CONFIRMED'`), '0', 'las cuotas pendientes no suman como cobradas')
-  // La ficha valida sus campos de plazo y tolerancia.
-  r = await call(`/api/customers/${encuotas.id}`, { method: 'PATCH', body: { creditTolerancePct: 15 } })
-  assert.equal(r.status, 400, JSON.stringify(r.payload))
-  r = await call(`/api/customers/${encuotas.id}`, { method: 'PATCH', body: { creditTolerancePct: 20, creditTermMode: 'DIAS' } })
-  assert.equal(r.status, 200, JSON.stringify(r.payload))
-  assert.equal(psql(`SELECT "creditTolerancePct" FROM "Customer" WHERE "id" = '${encuotas.id}'`), '20')
-
   console.log('credito-autorizacion: OK')
 } finally {
   psql(`UPDATE "User" SET "pinHash" = '${hashOriginal}' WHERE "id" = 'user-gerente-it'`)

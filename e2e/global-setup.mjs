@@ -400,6 +400,10 @@ function reponerCreditosImei() {
 // entre corridas o shards, una prueba anterior no debe cambiar el menú de otra.
 function resetModuleStore() {
   psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{moduleStore}', '{"version":1,"preset":"comercio","modules":{"inventario-unidades":{"enabled":true},"venta-sin-stock":{"enabled":true}}}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
+  // Las empresas nuevas arrancan con PIX, USDT y transferencia en «verificar» (el cobro queda pendiente
+  // hasta que alguien lo aprueba). Los E2E de POS y pedidos asumen cobro inmediato: el seed lo deja en
+  // automático, y los E2E de verificación de pagos activan la política que necesiten.
+  psql(`UPDATE "Tenant" SET "settings" = jsonb_set(COALESCE("settings", '{}'::jsonb), '{paymentVerification}', '{"methods":{"CASH":"auto","CARD":"auto","PIX":"auto","CRYPTO":"auto","TRANSFER":"auto"},"accounts":{},"requireProof":true,"blockDelivery":true,"selfApproveRoles":[]}'::jsonb, true) WHERE "email" = '${SEED.company.email}';`)
 }
 
 export default async function globalSetup() {

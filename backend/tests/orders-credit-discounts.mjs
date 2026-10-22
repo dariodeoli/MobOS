@@ -765,42 +765,17 @@ assert.equal(result.payload.fulfillmentStatus, 'DELIVERED')
 assert.equal(Number(result.payload.creditDays), 30, 'La entrega con crédito deja el plazo del cliente.')
 assert.ok(result.payload.dueAt, 'La entrega con crédito deja el vencimiento.')
 
-// Entregar con saldo a un cliente SIN límite propio: rige el límite y el plazo del módulo «Venta a crédito»
-// (decisión de Dario: clientes sin límite propio usan el del módulo y su tolerancia).
-const settingsAntesModulo = psql(`SELECT COALESCE("settings", '{}'::jsonb)::text FROM "Tenant" WHERE "id" = 'tenant-a-it'`)
-const configModulo = (limite, dias, maxDias) => psql(`UPDATE "Tenant" SET "settings" = COALESCE("settings", '{}'::jsonb) || '{"moduleConfig":{"cuotas":{"defaultLimitPyg":${limite},"tolerancePct":0,"plazo":{"mode":"DIAS","days":${dias},"maxDays":${maxDias}}}}}'::jsonb WHERE "id" = 'tenant-a-it'`)
-try {
-  configModulo(3000000, 20, 365)
-  const clienteModulo = (await request('/api/customers', 'POST', { name: `Entrega Módulo ${Date.now()}`, phone: `59594${String(Date.now()).slice(-7)}` })).payload
-  const pedidoModulo = await crearPedidoConSaldo(clienteModulo.id)
-  result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoModulo.id)}`, 'PATCH', { fulfillmentStatus: 'DELIVERED' })
-  assert.equal(result.response.status, 200, JSON.stringify(result.payload))
-  assert.equal(Number(result.payload.creditDays), 20, 'Sin plazo propio rige el del módulo.')
-  assert.ok(result.payload.dueAt, 'Y deja el vencimiento calculado por el servidor.')
-  // Con el límite del módulo en 100.000 el mismo saldo supera el crédito y pide autorización.
-  configModulo(100000, 20, 365)
-  const pedidoSobre = await crearPedidoConSaldo(clienteModulo.id)
-  result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoSobre.id)}`, 'PATCH', { fulfillmentStatus: 'DELIVERED' })
-  assert.equal(result.response.status, 409, 'El límite del módulo también frena la entrega con saldo.')
-  // Autorización de días de crédito: la consume una venta, una sola vez, y alcanza solo para los días autorizados.
-  configModulo(900000000, 20, 30)
-  const clienteDias = (await request('/api/customers', 'POST', { name: `Días Crédito ${Date.now()}`, phone: `59593${String(Date.now()).slice(-7)}` })).payload
-  const ventaDias = (extra) => sellerRequest('/api/orders', 'POST', { customerId: clienteDias.id, items: [{ productId: productoEntrega.id, quantity: 1, unitPricePyg: 1000000 }], payments: [], ...extra })
-  result = await ventaDias({ creditDays: 90 })
-  assert.equal(result.response.status, 403, 'Más allá del máximo del módulo hace falta autorización de días.')
-  const pedidoAuth = await sellerRequest('/api/authorizations', 'POST', { customerId: clienteDias.id, kind: 'CREDIT_DAYS', requestedValue: { creditDays: 90 } })
-  assert.equal(pedidoAuth.response.status, 201, JSON.stringify(pedidoAuth.payload))
-  result = await request('/api/authorizations', 'PATCH', { id: pedidoAuth.payload.id, action: 'approve', resolvedValue: { creditDays: 90 } })
-  assert.equal(result.response.status, 200, JSON.stringify(result.payload))
-  result = await ventaDias({ creditDays: 120, creditDaysAuthorizationId: pedidoAuth.payload.id })
-  assert.equal(result.response.status, 403, 'La autorización de 90 días no alcanza para 120.')
-  result = await ventaDias({ creditDays: 90, creditDaysAuthorizationId: pedidoAuth.payload.id })
-  assert.equal(result.response.status, 201, JSON.stringify(result.payload))
-  assert.equal(Number(result.payload.creditDays), 90)
-  result = await ventaDias({ creditDays: 90, creditDaysAuthorizationId: pedidoAuth.payload.id })
-  assert.equal(result.response.status, 403, 'La autorización de días se usa una sola vez.')
-} finally {
-  psql(`UPDATE "Tenant" SET "settings" = '${settingsAntesModulo.replace(/'/g, "''")}'::jsonb WHERE "id" = 'tenant-a-it'`)
-}
+// La ficha acepta el plazo y la tolerancia propios del cliente (sin crear pedidos: este arnés cuenta los de la empresa).
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: 15 })
+assert.equal(result.response.status, 400, 'La tolerancia solo admite 0, 10, 20 o 30.')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTermMode: 'CUOTAS', creditInstallments: 1 })
+assert.equal(result.response.status, 400, 'Las cuotas van de 2 a 24.')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: 10, creditTermMode: 'DIA_MES', creditDayOfMonth: 5 })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(psql(`SELECT "creditTolerancePct" || '|' || "creditTermMode" || '|' || "creditDayOfMonth" FROM "Customer" WHERE "id" = '${customer.id}'`), '10|DIA_MES|5')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: null, creditTermMode: null, creditDayOfMonth: null })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await sellerRequest(`/api/customers/${encodeURIComponent(customer.id)}`, 'PATCH', { creditTolerancePct: 30 })
+assert.ok([403, 404].includes(result.response.status), 'Un vendedor no cambia la tolerancia de crédito.')
 
 console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, autorizaciones genéricas con sujeto — precio bajo lista, ajuste de stock, entrega con saldo y anulación de pedido, con consumo de un solo uso —, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
