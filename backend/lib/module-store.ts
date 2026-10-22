@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { defaultPaymentVerificationSettings } from './payment-verification-policy'
 
 import { MODULE_CATALOG as CATALOGO, MODULE_KINDS as KINDS, MODULE_PRESETS as PRESETS, MODULE_STORE_VERSION, estadoDeModulo, leerModuleStore, nuevoModuleStore as nuevoStore, type ModuleDefinition, type ModulePreset as ModulePresetType } from './modulos-catalogo.mjs'
 
@@ -79,5 +80,6 @@ export function mergeModuleStoreSettings(settings: unknown, state: ModuleStoreSt
 
 /** Settings de una empresa nueva: sus ajustes iniciales más el store de módulos en versión 2. */
 export function newCompanySettings(settings: Record<string, unknown> = {}, now = new Date().toISOString()) {
-  return mergeModuleStoreSettings(settings, newCompanyModuleStore(now))
+  // Empresa nueva: PIX, USDT y transferencia arrancan en «verificar» (las existentes quedan en automático).
+  return mergeModuleStoreSettings({ paymentVerification: defaultPaymentVerificationSettings(), ...settings }, newCompanyModuleStore(now))
 }

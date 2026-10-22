@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { creditoBloqueaEntrega, evaluarCredito, preguntaEntregaAplica } from './credito.js'
+import { creditoBloqueaEntrega, evaluarCredito, preguntaEntregaAplica, topeCredito } from './credito.js'
 
 test('caso reportado: límite con deuda 1.500.000 y solo 500.000 disponibles pide autorización', () => {
   const evaluacion = evaluarCredito({ limite: 2000000, deuda: 1500000, saldo: 4850000 })
@@ -46,4 +46,18 @@ test('«¿ya se llevó el producto?» solo se pregunta en retiro de mostrador, s
   assert.equal(preguntaEntregaAplica({ ...base, creditAuthorization: { status: 'PENDING' } }), false)
   assert.equal(preguntaEntregaAplica({ ...base, creditAuthorization: { status: 'APPROVED' } }), true)
   assert.equal(preguntaEntregaAplica(null), false)
+})
+
+test('tolerancia: 100M + 10% pasa con 110M y pide autorización con 110.000.001', () => {
+  const justo = evaluarCredito({ limite: 100000000, deuda: 0, saldo: 110000000, tolerancia: 10 })
+  assert.equal(justo.requiereAutorizacion, false)
+  assert.equal(justo.usaTolerancia, true)
+  assert.equal(justo.tope, 110000000)
+  const pasado = evaluarCredito({ limite: 100000000, deuda: 0, saldo: 110000001, tolerancia: 10 })
+  assert.equal(pasado.requiereAutorizacion, true)
+  assert.equal(pasado.exceso, 1)
+  // Sin tolerancia (o valor inválido) rige el límite a secas.
+  assert.equal(evaluarCredito({ limite: 100000000, deuda: 0, saldo: 100000001 }).requiereAutorizacion, true)
+  assert.equal(evaluarCredito({ limite: 100000000, deuda: 0, saldo: 100000001, tolerancia: 15 }).requiereAutorizacion, true)
+  assert.equal(topeCredito(1000005, 10), 1100005)
 })
