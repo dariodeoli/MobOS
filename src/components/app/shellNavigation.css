@@ -102,13 +102,19 @@
   height: 44px;
   min-height: 44px;
 }
-/* Primary action colors only; semantic green statuses and the logo stay intact. */
+/* Pulido: el botón primario es siempre el verde de marca (--c-fono) con la tinta
+   `onbrand` (AA en claro y oscuro). Antes quedaba negro en el shell y convivía
+   con el verde de «Vender»: una sola jerarquía visual para la acción principal. */
 .shell-nav-v2 button.bg-fono:not([role='switch']) {
-  background: rgb(var(--c-fore));
-  color: rgb(var(--c-ink));
+  background-color: rgb(var(--c-fono));
+  color: rgb(var(--c-onbrand));
 }
-.shell-nav-v2 button.bg-fono:not([role='switch']):hover {
-  opacity: 0.9;
+.shell-nav-v2 button.bg-fono:not([role='switch']):hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.shell-nav-v2 button.bg-fono:not([role='switch']):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 @media (min-width: 1024px) {
   .shell-nav-v2 .shell-body {
