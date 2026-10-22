@@ -600,7 +600,7 @@ export default function PanelVendedor() {
     if (!destino || !accesibles.includes(SUBPAGINAS[destino].vista)) return
     const primera = tabsDe(destino)[0][0]
     navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}${busquedaUrl}`, { replace: true })
-  }, [subpadre, routeVista, accesibles, esDemo, navigate, busquedaUrl])
+  }, [subpadre, routeVista, accesibles, tabsDe, navigate, busquedaUrl])
   // #247: las finanzas se hidratan al entrar a su pantalla, a análisis o al
   // resumen (usan los mismos gastos/publicidad) y quedan en los refrescos.
   useEffect(() => {
@@ -677,7 +677,7 @@ export default function PanelVendedor() {
       return
     }
     if (routeVista && routeVista !== vista && accesibles.includes(routeVista)) setVista(routeVista)
-  }, [subpadre, seccionRuta, routeVista, vista, accesibles, esDemo])
+  }, [subpadre, seccionRuta, routeVista, vista, accesibles, tabsDe])
 
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
