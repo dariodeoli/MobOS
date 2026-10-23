@@ -1,3 +1,4 @@
+import { actualizarProductoDemo, desactivarProductoDemo } from '@/lib/demo/productos'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useModulos } from '@/lib/useModulos'
 import { Link } from 'react-router-dom'
@@ -230,7 +231,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         accessoryCategory: form.accesorio || null,
         compatibleModels: parseModelosCompatibles(form.compatibles),
       }
-      const updated = await api.patch('/api/products', payload)
+      const updated = esDemo ? actualizarProductoDemo(current, payload) : await api.patch('/api/products', payload)
       setCurrent(updated)
       setEditando(false)
       toast.success('Producto actualizado.')
@@ -241,7 +242,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     if (busy || !current?.id) return
     setBusy(true); setError('')
     try {
-      await api.delete(`/api/products?id=${encodeURIComponent(current.id)}`)
+      if (esDemo) desactivarProductoDemo(current.id)
+      else await api.delete(`/api/products?id=${encodeURIComponent(current.id)}`)
       toast.success('Producto desactivado.')
       onChanged?.()
       onClose?.()
@@ -302,8 +304,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <div className="mt-4 flex flex-wrap gap-2">
               <Button disabled={busy} onClick={() => onSell?.(current)}>Vender</Button>
               <Button variant="outline" disabled={busy} onClick={() => setEtiquetasOpen(true)}>Etiqueta de precio</Button>
-              {canManage && !esDemo && <Button variant="outline" disabled={busy} onClick={() => { if (!editando) irASeccion('precios'); setEditando(value => !value) }}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
-              {canManage && !esDemo && <MenuSecundario direccion="abajo" acciones={[{ icon: 'trash', label: 'Desactivar', disabled: busy, onClick: desactivar }]} />}
+              {canManage && <Button variant="outline" disabled={busy} onClick={() => { if (!editando) irASeccion('precios'); setEditando(value => !value) }}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
+              {canManage && <MenuSecundario direccion="abajo" acciones={[{ icon: 'trash', label: 'Desactivar', disabled: busy, onClick: desactivar }]} />}
             </div>
             {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
           </div>

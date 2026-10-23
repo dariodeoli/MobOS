@@ -8,6 +8,7 @@ import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, prici
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
 import { completeDemoArrivalSerial, confirmDemoArrival, createDemoArrival, getDemoArrival, listDemoArrivals, parseDemoArrival, patchDemoArrivalLine } from '@/lib/demo/llegada.js'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones.js'
+import { actualizarComboDemo, crearComboDemo, listarCombosDemo } from '@/lib/demo/combos.js'
 import { liberarDemo, renovarDemo, retenerDemo } from '@/lib/demo/retenciones.js'
 import { anularGiftCardDemo, buscarGiftCardDemo, detalleGiftCardDemo, emitirGiftCardDemo, listarGiftCardsDemo } from '@/lib/giftCards'
 // El módulo de Inventario funciona igual en demo (#213): cuando hay sesión demo
@@ -39,7 +40,7 @@ export const resources = {
   sharedStock: { list: demo(() => api.get('/api/shared-stock'), () => []), mine: demo(() => api.get('/api/shared-stock?mine=true'), () => listDemoSharedGrants()), setGrant: demo(data => api.post('/api/shared-stock', data), data => setDemoSharedGrant(data)) },
   tenants: { search: demo((q = '') => api.get(`/api/tenants?q=${encodeURIComponent(q)}`), (q = '') => searchDemoTenants(q)) },
   transfers: { list: demo(() => api.get('/api/transfers'), () => listDemoTransfers()), create: demo(data => api.post('/api/transfers', data), data => createDemoTransfer(data)), update: demo(data => api.patch('/api/transfers', data), data => updateDemoTransfer(data)), accessToken: demo((id, regenerate = false) => api.post(`/api/transfers/${encodeURIComponent(id)}/access-token`, { regenerate }), () => ({ publicToken: 'demo-remito' })) },
-  combos: { list: (all = false) => api.get('/api/combos' + (all ? '?all=1' : '')), create: data => api.post('/api/combos', data), update: data => api.patch('/api/combos', data) },
+  combos: { list: demo((all = false) => api.get('/api/combos' + (all ? '?all=1' : '')), (all = false) => listarCombosDemo(all)), create: demo(data => api.post('/api/combos', data), data => crearComboDemo(data)), update: demo(data => api.patch('/api/combos', data), data => actualizarComboDemo(data)) },
   priceLists: {
     list: demo(() => api.get('/api/price-lists'), () => listDemoPriceLists()),
     create: demo(data => api.post('/api/price-lists', data), data => createDemoPriceList(data)),

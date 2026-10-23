@@ -697,7 +697,6 @@ export default function FormularioVenta({
   }, [items.length])
   // Combos activos de la tienda para agregarlos como varias líneas de una vez.
   useEffect(() => {
-    if (esDemo) { setCombos([]); return }
     resources.combos.list().then(setCombos).catch(() => setCombos([]))
   }, [esDemo])
 
