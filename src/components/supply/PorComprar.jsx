@@ -360,13 +360,13 @@ export default function PorComprar() {
         )}
         primary={<Button type="button" onClick={() => setAgregar(true)}>+ Agregar necesidad</Button>}
       >
-        {movil ? (
+        {vista === 'ventas' ? null : movil ? (
           <Button type="button" variant="outline" aria-expanded={verFiltros} onClick={() => setVerFiltros(true)}>
             <Icon name="filter" className="h-4 w-4" />Filtros{filtrosActivos > 0 ? ` (${filtrosActivos})` : ''}
           </Button>
         ) : camposFiltros}
       </Toolbar>
-      {vista === 'ventas' ? <VentasSinStock onCambio={cargar} /> : (
+      {vista === 'ventas' ? <VentasSinStock onCambio={cargar} busqueda={busqueda} /> : (
         <>
       {totales && (
         <StatGrid testId="por-comprar-resumen" etiqueta="Resumen de lo que hay que comprar">

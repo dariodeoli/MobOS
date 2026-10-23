@@ -115,7 +115,7 @@ export function redactProductCosts<T extends Record<string, unknown>>(product: T
 export function redactOrderItemCosts<T extends Record<string, unknown>>(item: T, canSee: boolean): T {
   if (canSee) return item
   const copy: Record<string, unknown> = { ...item }
-  for (const field of ['unitCostPyg', 'baseUnitCostPyg']) if (field in copy) copy[field] = null
+  for (const field of ['unitCostPyg', 'baseUnitCostPyg', 'costSource']) if (field in copy) copy[field] = null
   return copy as T
 }
 

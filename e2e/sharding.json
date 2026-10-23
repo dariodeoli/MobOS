@@ -175,10 +175,11 @@
         "ruc-demo.spec.js",
         "ruc-extraccion.spec.js",
         "tradein-catalogo-demo.spec.js",
-        "vendidos-comprobante-rapido.spec.js"
+        "vendidos-comprobante-rapido.spec.js",
+        "venta-sin-stock-compra.spec.js"
       ],
-      "tests": 265,
-      "ms": 1358477
+      "tests": 266,
+      "ms": 1388477
     },
     {
       "archivos": [

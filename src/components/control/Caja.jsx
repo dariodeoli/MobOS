@@ -995,7 +995,7 @@ export default function Caja() {
                 {finance.supplyPaymentsNoAccount.rows.map(fila => (
                   <li key={fila.id} data-testid={`pago-sin-cuenta-${fila.id}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-ink-600 px-3 py-2">
                     <div className="min-w-0 flex-1 basis-48">
-                      <p className="truncate text-sm font-semibold">{fila.supplierName || 'Proveedor'}</p>
+                      <p className={cn(CELDA_IDENTIDAD, 'max-w-full')}>{fila.supplierName || 'Proveedor'}</p>
                       <p className="text-xs text-mute">Compra {fila.code}{fila.paidAt ? ` · marcada pagada ${new Date(fila.paidAt).toLocaleDateString('es-PY')}` : ''}</p>
                     </div>
                     <strong className="tabular-nums"><Money value={fila.amountPyg} /></strong>

@@ -11,8 +11,9 @@ import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/prove
 import { Badge, Button, EmptyState, Input, Money, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
 import Popup from '@/components/shared/Popup'
 import Icon from '@/components/shared/Icon'
-import SearchField from '@/components/shared/SearchField'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { ESTADO_LABEL, ESTADO_TONO, FILTROS_VENTAS, PASO_LABEL, contarVentas, filtrarVentas, plazoPrometido } from '@/lib/ventaSinStock'
 
@@ -32,14 +33,13 @@ function puedeFinanzasUI() {
   return ['dueno', 'ADMIN', 'GERENTE'].includes(rol)
 }
 
-export default function VentasSinStock({ onCambio }) {
+export default function VentasSinStock({ onCambio, busqueda = '' }) {
   const navigate = useNavigate()
   const toast = useToast()
   const [lineas, setLineas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [filtro, setFiltro] = useState('todos')
-  const [busqueda, setBusqueda] = useState('')
   const [hoja, setHoja] = useState(null) // { tipo, linea }
   const [busy, setBusy] = useState(false)
   const [cuentas, setCuentas] = useState([])
@@ -112,9 +112,6 @@ export default function VentasSinStock({ onCambio }) {
   return (
     <section className="space-y-3" data-testid="ventas-sin-stock">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-0 flex-1 basis-56">
-          <SearchField ariaLabel="Buscar venta sin stock" placeholder="Producto, cliente o pedido…" value={busqueda} onChange={(evento) => setBusqueda(evento.target.value)} />
-        </div>
         <div role="group" aria-label="Filtrar por estado" className="flex min-w-0 max-w-full gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {FILTROS_VENTAS.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={filtro === id} data-testid={`filtro-${id}`} onClick={() => setFiltro(id)}
@@ -141,7 +138,7 @@ export default function VentasSinStock({ onCambio }) {
                 className="grid items-center gap-x-3 gap-y-2 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto]">
                 <div className="min-w-0">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="min-w-0 max-w-full truncate text-sm font-semibold" title={linea.producto}>{linea.producto || 'Producto'}</p>
+                    <p className={cn(CELDA_IDENTIDAD, 'max-w-full')} title={linea.producto}>{linea.producto || 'Producto'}</p>
                     <Badge color="slate">{CONDICION[linea.condicion] || linea.condicion}</Badge>
                     {linea.estado && <Badge color={ESTADO_TONO[linea.estado] || 'slate'} data-testid="venta-sin-stock-estado">{ESTADO_LABEL[linea.estado]}</Badge>}
                   </div>
@@ -268,13 +265,13 @@ function HojaComprar({ hoja, busy, finanzas, cuentas, proveedores, recientes, on
           <SupplierCombobox id="compra-proveedor" ariaLabel="Proveedor de la compra" proveedores={proveedores} value={proveedor} recientes={recientes}
             onSelect={(elegido) => { setProveedor(elegido.name || elegido.nombre || ''); onProveedorUsado?.(elegido) }} onLibre={(texto) => setProveedor(texto)} confirmarAlTipear placeholder="Elegí uno o escribí el nombre" />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block space-y-1 text-sm"><span className="font-semibold">Cantidad</span>
             <Input inputMode="numeric" aria-label="Cantidad a comprar" value={cantidad} onChange={(evento) => setCantidad(digitos(evento.target.value).slice(0, 4))} /></label>
           <label className="block space-y-1 text-sm"><span className="font-semibold">Costo unitario (Gs., opcional)</span>
             <MoneyInput aria-label="Costo unitario" value={costo} onValueChange={(valor) => setCosto(valor === '' ? '' : String(valor))} placeholder="Podés cargarlo después" /></label>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block space-y-1 text-sm"><span className="font-semibold">Pago</span>
             <Select aria-label="Condición de pago" value={condicion} onChange={(evento) => { setCondicion(evento.target.value); if (evento.target.value !== 'CONTADO') setYaPagado(false) }}>
               <option value="CONTADO">Contado</option><option value="CREDITO">Crédito</option>
