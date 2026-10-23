@@ -8,6 +8,7 @@ import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 import { displayOrderNumber } from '../../../../../lib/order-number'
 import { estadoSobrePedidoDeOrden } from '../../../../../lib/backorder-order'
 import { fechaCorta } from '../../../../../lib/backorder-status'
+import { DEFAULTS } from '../../../../../lib/message-templates'
 
 // Plantilla sugerida según el estado de entrega del pedido.
 const TEMPLATE_BY_STATUS: Record<string, string> = {
@@ -118,7 +119,10 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
   if (!order.customer?.phone) return error('El cliente no tiene teléfono cargado.', 409)
-  const template = await prisma.messageTemplate.findUnique({ where: { tenantId_key: { tenantId: tenant, key: templateKey } } })
+  const guardada = await prisma.messageTemplate.findUnique({ where: { tenantId_key: { tenantId: tenant, key: templateKey } } })
+  // Las plantillas de fábrica (p. ej. backorder_llego) funcionan aunque la empresa todavía no haya sembrado las suyas.
+  const defecto = guardada ? null : DEFAULTS.ORDERS.find((item) => item.key === templateKey && item.channel === 'whatsapp')
+  const template = guardada ?? (defecto ? { body: defecto.body, isActive: true, category: 'ORDERS' } : null)
   if (!template || template.category !== 'ORDERS') return error('Plantilla de pedidos no encontrada.', 404)
   // Venta sin stock: las plantillas backorder_* llevan el producto y la fecha estimada de la
   // línea sobre pedido, y «Llegó» deja constancia de que el cliente fue avisado (lo manda la persona).

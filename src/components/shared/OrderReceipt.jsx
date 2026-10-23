@@ -426,6 +426,7 @@ export const recordarPreferencia = (nivel, formato) => {
 // revoca al regenerar enlaces: el papel sigue funcionando.
 import { isDemoRuntime } from '@/lib/demoMode'
 import { tokenDeNivelDemo } from '@/lib/printing/demo'
+import { tituloParaCliente } from '@/lib/ventaSinStock'
 
 export async function tokenDeNivel(orderId, level) {
   if (!orderId) return ''
@@ -503,7 +504,11 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   ].filter(Boolean)
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${lineasCliente.map(linea => `<br>${escapeHtml(linea)}`).join('')}</div></div>`
   const estadoPedido = etiquetaEntrega(order.fulfillmentStatus) || etiquetaEntrega(order.deliveryType) || etiquetaEntrega(order.entrega) || 'En preparación'
+  // Venta sin stock: el estado se lee en vivo del pedido (no del comprobante congelado).
+  const sobrePedido = ordenViva?.sobrePedido
+  const textoSobrePedido = sobrePedido?.estado ? tituloParaCliente(sobrePedido.estado, { fechaPrometida: sobrePedido.prometidaEl, entregaADomicilio: /env[ií]o|domicilio|delivery/i.test(String(order.deliveryType || '')) && !/retiro/i.test(String(order.deliveryType || '')) }) : ''
   const lineasPedido = [
+    textoSobrePedido ? `Estado de tu pedido: ${textoSobrePedido}` : '',
     order.billingName ? `Factura a: ${order.billingName}${order.billingDocument ? ` · RUC ${order.billingDocument}` : ''}` : '',
     modelo.pagos && order.seller?.name ? `Atendido por ${order.seller.name}` : '',
     modelo.pagos && (order.deliveryType || order.deliveryNotes) ? `Entrega: ${etiquetaEntrega(order.deliveryType) || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}` : '',

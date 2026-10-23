@@ -21,6 +21,26 @@ import '@/components/publico/publicoRediseno.css'
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
 
+// «Estado de tu pedido»: lo que pasa hoy con lo que se vendió sobre pedido. Solo
+// texto para el cliente: sin costos ni proveedores.
+export function FranjaEstadoPedido({ franja }) {
+  const tono = franja.estado === 'LLEGO' ? 'border-ok/40 bg-ok/10' : franja.estado === 'ENTREGADO' ? 'border-ink-600 bg-ink-900' : 'border-fono/40 bg-fono/10'
+  return (
+    <section data-testid="estado-de-tu-pedido" aria-label="Estado de tu pedido" className={cn('rounded-2xl border p-4', tono)}>
+      <h2 className={ROTULO_SECCION}>Estado de tu pedido</h2>
+      <p data-testid="estado-de-tu-pedido-titulo" className="mt-1 text-lg font-bold">{franja.titulo}</p>
+      {franja.detalle && <p className="mt-0.5 text-sm text-mute">{franja.detalle}</p>}
+      {franja.lineas?.length > 1 && (
+        <ul className="mt-2 space-y-1 border-t border-ink-600/70 pt-2 text-sm">
+          {franja.lineas.map((linea, indice) => (
+            <li key={`${linea.descripcion}-${indice}`} className="flex items-center justify-between gap-3"><span className="min-w-0 truncate">{linea.descripcion}</span><b className="shrink-0">{linea.titulo}</b></li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 export default function PedidoPublico() {
   const { token } = useParams()
   const [order, setOrder] = useState(null)
@@ -104,6 +124,9 @@ export default function PedidoPublico() {
                 </p>
               </div>
             </CabeceraTienda>
+
+            {/* Venta sin stock: franja en vivo (no forma parte del comprobante congelado). */}
+            {order.estadoPedido && <FranjaEstadoPedido franja={order.estadoPedido} />}
 
             {/* Estado: línea de tiempo del seguimiento y totales. */}
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-4">

@@ -25,6 +25,7 @@ import { useStockDisplay } from '@/hooks/useStockDisplay'
 import { estiloCondicion } from '@/lib/stockDisplay'
 import { familiaCondicion } from '@/lib/planilla'
 import '@/components/stock/planilla.css'
+import VentasSinStock from './VentasSinStock'
 
 // Abastecimiento · F1 (#250/#254): panel móvil «Por comprar».
 // Consume la API de necesidades de INV: consolidado por producto + condición +
@@ -50,6 +51,7 @@ const DESTINO = { PEDIDO: 'Pedido', RESERVA: 'Reserva', STOCK: 'Stock' }
 // asignar + asignado), tal como define la API de INV.
 const ESTADOS = [
   ['pendientes', 'Por comprar'],
+  ['ventas', 'Ventas sin stock'],
   ['asignadas', 'Asignadas'],
   ['compradas', 'Compradas'],
   ['recibidas', 'Recibidas'],
@@ -57,6 +59,7 @@ const ESTADOS = [
 ]
 const PARAMS_ESTADO = {
   pendientes: {},
+  ventas: {},
   asignadas: { status: 'ASIGNADA' },
   compradas: { status: 'COMPRADA' },
   recibidas: { status: 'RECIBIDA' },
@@ -283,6 +286,7 @@ export default function PorComprar() {
   const conteoEstado = (id) => {
     if (!contadores) return null
     if (id === 'pendientes') return contadores.pendientes
+    if (id === 'ventas') return null
     return contadores.porEstado?.[PARAMS_ESTADO[id].status] ?? 0
   }
   const chipsCola = [
@@ -362,6 +366,8 @@ export default function PorComprar() {
           </Button>
         ) : camposFiltros}
       </Toolbar>
+      {vista === 'ventas' ? <VentasSinStock onCambio={cargar} /> : (
+        <>
       {totales && (
         <StatGrid testId="por-comprar-resumen" etiqueta="Resumen de lo que hay que comprar">
           <Stat compact label="Grupos" valor={totales.grupos} />
@@ -481,6 +487,8 @@ export default function PorComprar() {
             )
           })}
         </div>
+      )}
+        </>
       )}
 
       <Popup open={Boolean(asignar)} onClose={() => !busy && setAsignar(null)} title="Asignar compra" tamano="sm">
