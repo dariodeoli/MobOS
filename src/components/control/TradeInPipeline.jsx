@@ -361,6 +361,8 @@ export default function TradeInPipeline() {
 
   const cuenta = (estado) => items.filter((item) => item.status === estado).length
   return <div className="gp ventas-f3 space-y-4" data-testid="tradein-pagina">
+    {/* Los valores de toma van primero: sin ellos el POS no sugiere nada al recibir un equipo. */}
+    <Valuaciones esDemo={esDemo} />
     {/* #388: una sola barra (buscador · estado · acciones); el aviso de la demo
         es un chip con tooltip, no una fila ni un párrafo explicativo. */}
     <Toolbar
@@ -390,7 +392,7 @@ export default function TradeInPipeline() {
     {uncertain && <p className="text-sm text-mute">Actualizá la lista para verificar el estado antes de otro movimiento.</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {busy && <p role="status" className="text-sm text-mute">Procesando…</p>}
-    {!busy && !error && !visible.length && <EmptyState compact icon="refresh" title="No hay equipos que coincidan." description="Los equipos aparecen después de registrarlos como pago de una venta." action={<Button type="button" variant="outline" onClick={load}>Actualizar</Button>} />}
+    {!busy && !error && !visible.length && <EmptyState compact icon="refresh" title="No hay equipos que coincidan." description="Los equipos aparecen después de registrarlos como pago de una venta." />}
     {visible.length > 0 && <div className="overflow-x-auto" data-testid="tradein-tabla">
       <div className={cn(GRID_TRADEIN, 'px-3.5 pb-2 pt-1')}>
         <span className={CELDA_ENCABEZADO}>Equipo</span>
@@ -410,6 +412,5 @@ export default function TradeInPipeline() {
     <Popup open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo">
       {abiertoItem && <Device item={abiertoItem} busy={busy || uncertain} onSave={save} />}
     </Popup>
-    <Valuaciones esDemo={esDemo} />
   </div>
 }
