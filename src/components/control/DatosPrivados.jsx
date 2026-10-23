@@ -119,7 +119,7 @@ export default function DatosPrivados() {
                 const antes = empresa
                 setEmpresa((actual) => ({
                   ...actual,
-                  ...(datos.name ? { legalName: datos.name } : {}),
+                  ...(datos.razonSocial || datos.name ? { legalName: datos.razonSocial || datos.name } : {}),
                   ...(datos.fullRuc ? { ruc: datos.fullRuc } : {}),
                   ...(direccionLegalDelProveedor(datos) ? { legalAddress: direccionLegalDelProveedor(datos) } : {}),
                 }))

@@ -1,3 +1,5 @@
+import { nombreDesdeRuc } from './nombreDesdeRuc.js'
+
 // Nombres y búsqueda de titulares/empresas (#143). Funciones puras, sin API:
 // el orden de composición es 1º nombre → 2º → 3º → 1º apellido → 2º apellido.
 
@@ -87,13 +89,26 @@ export function nombreSugeridoDeCuenta(valores = {}) {
   return partes.filter(Boolean).join(' - ')
 }
 
-// El extractor no acredita PERSON ni separa nombres. Aplicar exige revisar
-// todos los campos, sin conservar fragmentos del titular anterior.
+// El extractor no acredita PERSON: aplicar exige revisar los nombres. Si la
+// consulta es de una persona con apellidos y nombres separados, se sugieren
+// «Nombres Apellidos» ya partidos (regla única nombreDesdeRuc); si no, los
+// campos quedan vacíos. Nunca se conservan fragmentos del titular anterior.
 export function aplicarIdentidadTitular(current, result) {
   const official = result?.nameOfficial ?? result?.name
   if (typeof official !== 'string' || !official.trim()) return current
-  return { ...current, firstName: '', middleName: '', otherName: '', lastName: '', secondLastName: '',
+  const nombre = nombreDesdeRuc(result)
+  const sugerido = nombre.tipo === 'persona' && nombre.apellidos ? sugerirPartes(nombre) : {}
+  return { ...current, firstName: '', middleName: '', otherName: '', lastName: '', secondLastName: '', ...sugerido,
     document: result.fullRuc || current.document, nameOfficial: official, personConfirmed: false }
+}
+function sugerirPartes({ nombres, apellidos }) {
+  const n = nombres.split(' ').filter(Boolean)
+  const a = apellidos.split(' ').filter(Boolean)
+  return {
+    firstName: n[0] || '', middleName: n[1] || '', otherName: n.slice(2).join(' '),
+    // «De Oliveira Ortigoza»: el último apellido es el segundo; lo anterior, el primero.
+    lastName: a.length > 1 ? a.slice(0, -1).join(' ') : a[0] || '', secondLastName: a.length > 1 ? a[a.length - 1] : '',
+  }
 }
 export function validarRevisionTitular(data) {
   if (data.nameOfficial === undefined) return

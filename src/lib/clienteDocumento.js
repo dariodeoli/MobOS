@@ -1,7 +1,7 @@
 // Alta de cliente desde el buscador del POS: detecta si lo escrito es una
 // cédula/RUC, lo valida con el mismo DV que RucField y arma el nombre visible.
 import { parseRucInput } from '../components/shared/rucLookup.js'
-import { esRazonSocial, normalizarNombre } from '../utils/nombre.js'
+import { nombreDesdeRuc } from './nombreDesdeRuc.js'
 
 export const MENSAJE_DOCUMENTO_INVALIDO = 'Ingresá un RUC de 1 a 9 dígitos y, si incluís el guion, un dígito verificador válido. Podés completar los datos manualmente.'
 
@@ -28,14 +28,12 @@ export function detectarDocumento(texto) {
 }
 
 /**
- * La API devuelve las personas como «APELLIDOS, NOMBRES»: el nombre visible es
- * «Nombres Apellidos» sin coma. Las razones sociales van tal cual.
+ * Nombre visible de una consulta de RUC/CI. Acepta la consulta completa
+ * ({ nameOfficial, fullRuc… }) o solo el nombre oficial. La regla vive en
+ * nombreDesdeRuc: personas «Nombres Apellidos» sin coma; empresas tal cual.
  */
-export function nombreVisibleDesdeRuc(nombreOficial) {
-  const limpio = String(nombreOficial ?? '').replace(/\s+/g, ' ').trim()
-  if (!limpio) return ''
-  if (esRazonSocial(limpio) || !limpio.includes(',')) return limpio
-  return normalizarNombre(limpio)
+export function nombreVisibleDesdeRuc(consulta) {
+  return nombreDesdeRuc(typeof consulta === 'string' || consulta == null ? { nameOfficial: consulta } : consulta).nombreCompleto
 }
 
 // ¿La ficha ya tiene este documento? Compara la base, con o sin DV.

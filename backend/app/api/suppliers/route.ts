@@ -14,7 +14,7 @@ const text = (value: unknown, max: number, required = false) => {
 const laxPhone = (value: string) => /^[0-9+()\-.\s]{5,40}$/.test(value)
 const laxEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
 
-const SUPPLIER_FIELDS = { name: 160, code: 32, document: 48, phone: 40, address: 200, city: 120, department: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
+const SUPPLIER_FIELDS = { name: 160, tradeName: 160, code: 32, document: 48, phone: 40, address: 200, city: 120, department: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
 
 // Identidad visual del proveedor (ícono, color, modo de visualización): se valida
 // aparte de los textos libres. Devuelve null si algún valor es inválido.
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     where: {
       tenantId: auth.tenant,
       isActive: true,
-      ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { code: { contains: q, mode: 'insensitive' } }] } : {}),
+      ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { tradeName: { contains: q, mode: 'insensitive' } }, { code: { contains: q, mode: 'insensitive' } }] } : {}),
     },
     orderBy: { name: 'asc' },
     take: 250,

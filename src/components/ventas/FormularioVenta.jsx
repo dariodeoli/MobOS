@@ -1550,7 +1550,7 @@ export default function FormularioVenta({
               c =>
                 String(c.name || '').toLowerCase() === String(customer.name || '').trim().toLowerCase() &&
                 (!customer.phone || c.phone === customer.phone),
-            ) || { ...customer, name: typeof customer.nameOfficial === 'string' ? customer.nameOfficial : customer.name.trim(), id: crypto.randomUUID() }
+            ) || { ...customer, name: typeof customer.nameOfficial === 'string' && customer.tipoRuc !== 'persona' ? customer.nameOfficial : customer.name.trim(), id: crypto.randomUUID() }
         // Gift cards demo (#280): se valida el saldo antes de crear la venta y
         // el canje se aplica al store local con la misma forma que el backend.
         const canjesGiftCard = payments.filter(p => p.method === 'GIFT_CARD')
