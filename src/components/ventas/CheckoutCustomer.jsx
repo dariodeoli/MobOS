@@ -202,7 +202,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       if (!vigente()) return true
       const base = clearCheckoutIdentity(valueRef.current)
       if (datos && !auto && (esDemo || empresaId)) {
-        const visible = nombreVisibleDesdeRuc(datos.nameOfficial)
+        const visible = nombreVisibleDesdeRuc(datos)
         const siguiente = { ...applyCheckoutIdentity(base, datos), name: visible, displayName: visible }
         try {
           let guardado
@@ -238,7 +238,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       // queda para Enter o el botón «Consultar RUC y crear cliente», que reusan esta misma consulta en memoria.
       if (auto && !datos) return true
       if (datos) {
-        const visible = nombreVisibleDesdeRuc(datos.nameOfficial)
+        const visible = nombreVisibleDesdeRuc(datos)
         onChange({ ...applyCheckoutIdentity(base, datos), name: visible, displayName: visible })
         setFeedbackFichaTipo('status')
         setFeedbackFicha('Datos del RUC cargados. Completá teléfono y correo y confirmá el cliente.')

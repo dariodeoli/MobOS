@@ -5,7 +5,7 @@ import { consultarRucDemoReal } from '@/lib/rucDemoRequest'
 import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
 import { cn } from '@/lib/utils'
 import { ANCHO_CAMPO } from './anchoCampos'
-import { admitRucResponse, createRucRequestGuard, formatRucInput, parseRucInput } from './rucLookup.js'
+import { admitRucResponse, conNombreDesdeRuc, createRucRequestGuard, formatRucInput, parseRucInput } from './rucLookup.js'
 
 // Consulta para el buscador de cliente del POS (sin el campo en pantalla): mismo
 // transporte y misma admisión que el extractor del campo, sin cuota nueva.
@@ -15,7 +15,7 @@ export async function consultarRucAdmitido(identity, { demo = false, signal } = 
     : await api.get(`/api/ruc?ruc=${encodeURIComponent(identity.query)}`, { signal, cacheMs: 0, cache: 'no-store' })
   const admitido = admitRucResponse(respuesta, identity, demo && Boolean(respuesta?.demoFixture))
   if (!admitido) throw new Error('No se recibieron datos verificables para ese RUC.')
-  return admitido
+  return conNombreDesdeRuc(admitido)
 }
 
 // Cuentas sin acceso a la consulta (fuera del piloto o sin configurar): el
@@ -70,7 +70,7 @@ export default function RucField({
     const result = admitRucResponse(payload, identity, demo && Boolean(payload?.demoFixture))
     if (!request.isCurrent(scope.current)) return null
     if (!result) throw new Error('No se recibieron datos verificables para ese RUC.')
-    return { datos: result, request }
+    return { datos: conNombreDesdeRuc(result), request }
   }, [demo])
 
   async function extraer() {

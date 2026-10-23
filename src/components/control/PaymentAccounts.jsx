@@ -360,7 +360,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
               onAplicar={(datos) => {
                 const antes = form
                 if (datos.fullRuc) change('document', datos.fullRuc)
-                if (datos.name) change('holder', datos.name)
+                if (datos.nombreCompleto || datos.name) change('holder', datos.nombreCompleto || datos.name)
                 return () => setForm(antes)
               }}
             />

@@ -236,7 +236,7 @@ export default function SellerCustomers() {
     // primer y segundo nombre.
     const firstName = form.firstName.trim()
     const secondName = form.secondName.trim()
-    const nombre = [firstName, secondName].filter(Boolean).join(' ') || form.nameOfficial || ''
+    const nombre = [firstName, secondName].filter(Boolean).join(' ') || form.nombreRuc || form.nameOfficial || ''
     if (savingRef.current || !nombre) return
     // #323: el teléfono inválido frena el alta; el campo lo avisa al salir
     // (PhoneField) y la ficha no cae al error general del modal.
@@ -497,8 +497,8 @@ export default function SellerCustomers() {
           <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required={!form.nameOfficial} autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
           <label className="block space-y-2"><span>Segundo nombre <small className="text-mute">(opcional)</small></span><Input maxLength={120} disabled={saving} value={form.secondName} onChange={(event) => setForm({ ...form, secondName: event.target.value })} /></label>
         </div>
-        <fieldset className="space-y-2"><legend className={ROTULO_SECCION}>Identidad</legend><GrillaCampos><Campo como="div" rotulo={<>RUC o CI <small className="text-mute">(opcional)</small></>}><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => { const antes = form; setForm((actual) => acceptedCustomerIdentity(actual, datos)); return () => setForm(antes) }} esDemo={esDemo} /></Campo></GrillaCampos></fieldset>
-        {form.nameOfficial !== undefined && <p className="whitespace-pre-wrap rounded-xl border border-fore/10 p-3 text-sm"><b>Nombre fiscal aceptado:</b> {form.nameOfficial}</p>}
+        <fieldset className="space-y-2"><legend className={ROTULO_SECCION}>Identidad</legend><GrillaCampos><Campo como="div" rotulo={<>RUC o CI <small className="text-mute">(opcional)</small></>}><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, nombreRuc: undefined, tipoRuc: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => { const antes = form; setForm((actual) => acceptedCustomerIdentity(actual, datos)); return () => setForm(antes) }} esDemo={esDemo} /></Campo></GrillaCampos></fieldset>
+        {form.nameOfficial !== undefined && <p className="whitespace-pre-wrap rounded-xl border border-fore/10 p-3 text-sm"><b>Nombre fiscal aceptado:</b> {form.nameOfficial}{form.nombreRuc && form.nombreRuc !== form.nameOfficial && <><br /><b>Se guarda como:</b> <span data-testid="cliente-nombre-ruc">{form.nombreRuc}</span></>}</p>}
         <label className="block space-y-2"><span>Tipo de identidad (revisión manual)</span><Select disabled={saving} value={form.identityKind} onChange={(event) => setForm({ ...form, identityKind: event.target.value, givenNames: '', surnames: '', personConfirmed: false })}><option value="">Sin confirmar</option><option value="COMPANY">Empresa</option><option value="PERSON">Persona: revisar nombres y apellidos</option></Select></label>
         {form.identityKind === 'PERSON' && <fieldset className="space-y-3 rounded-xl border border-fore/10 p-3">
           <legend>Nombres y apellidos revisados</legend>

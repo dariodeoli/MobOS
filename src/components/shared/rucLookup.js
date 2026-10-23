@@ -1,4 +1,12 @@
 import { digitoVerificadorRuc } from '../../lib/demoRuc.js'
+import { nombreDesdeRuc } from '../../lib/nombreDesdeRuc.js'
+
+// Suma a la consulta admitida el nombre ya resuelto por la regla única
+// (nombreDesdeRuc): tipo, nombres, apellidos, nombreCompleto y razonSocial.
+// nameOfficial/name quedan exactos: son el dato fiscal.
+export function conNombreDesdeRuc(datos) {
+  return datos ? { ...datos, ...nombreDesdeRuc(datos) } : datos
+}
 
 // A DV is explicit only after a hyphen; the ninth digit is still part of the base.
 export function formatRucInput(value) {

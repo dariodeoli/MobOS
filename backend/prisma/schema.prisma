@@ -3366,6 +3366,8 @@ model Supplier {
   tenantId     String
   tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name         String
+  // Nombre de fantasía (nombre comercial); `name` es la razón social/nombre fiscal.
+  tradeName    String?
   // Abreviatura visible para vendedores en stock; el nombre real solo lo ve administración.
   code         String?
   // Reconocimiento rápido: ícono de un set fijo, color y cómo se muestra

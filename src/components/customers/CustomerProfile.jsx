@@ -2420,7 +2420,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 id="profile-identity-document"
                 value={identityForm.document}
                 onChange={(document) => setIdentityForm((form) => ({ ...form, document }))}
-                onAplicar={(datos) => { const antes = identityForm; setIdentityForm((form) => form ? ({ ...form, name: datos.nameOfficial ?? datos.name ?? form.name, document: datos.fullRuc || form.document }) : null); return () => setIdentityForm(antes) }}
+                onAplicar={(datos) => { const antes = identityForm; setIdentityForm((form) => form ? ({ ...form, name: datos.nombreCompleto ?? datos.nameOfficial ?? datos.name ?? form.name, document: datos.fullRuc || form.document }) : null); return () => setIdentityForm(antes) }}
                 esDemo={esDemo}
               />
             </FormField>

@@ -1,3 +1,4 @@
+import { nombreDesdeRuc } from './nombreDesdeRuc.js'
 // Datos de la tienda (#298): una sola fuente de verdad para la tarjeta
 // editable de Configuración → Organización.
 //
@@ -63,4 +64,15 @@ export function cambiosIdentidad(form, { empresa, tenant } = {}) {
 /** ¿La tarjeta tiene cambios sin guardar? */
 export function hayCambiosIdentidad(form, guardado) {
   return Object.keys(cambiosIdentidad(form, guardado)).length > 0
+}
+
+/**
+ * Nombre de la tienda al aplicar un RUC: persona -> «Nombres Apellidos»; empresa
+ * -> se conserva el nombre de fantasía ya cargado y, si no hay, la razón social.
+ * El nombre fiscal exacto va aparte (nameOfficial).
+ */
+export function nombreParaNegocio(datos, actual = '') {
+  const nombre = nombreDesdeRuc(datos)
+  if (nombre.tipo === 'empresa') return String(actual || '').trim() ? actual : nombre.razonSocial
+  return nombre.nombreCompleto || actual
 }
