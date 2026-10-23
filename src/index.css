@@ -1,4 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+/* Fuentes propias (sin red): la app de iPhone y la web cargan exactamente las mismas, también sin conexión. */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-ext-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-ext-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-ext-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/inter/latin-ext-700.css';
+@import '@fontsource/space-grotesk/latin-500.css';
+@import '@fontsource/space-grotesk/latin-ext-500.css';
+@import '@fontsource/space-grotesk/latin-600.css';
+@import '@fontsource/space-grotesk/latin-ext-600.css';
+@import '@fontsource/space-grotesk/latin-700.css';
+@import '@fontsource/space-grotesk/latin-ext-700.css';
 
 /* Biblioteca compartida (owncoding-ui): tokens v2 globales + base + reglas de
    navegación. Vite exige que los @import precedan al resto (spec CSS), así que
@@ -346,8 +360,8 @@ header button::after {
    La WebView ocupa toda la pantalla (viewport-fit=cover, contentInset never),
    así que los elementos fijos respetan el notch, la isla dinámica y la barra
    de inicio con env(safe-area-inset-*). */
+html { -webkit-tap-highlight-color: transparent; }
 html.app-ios {
-  -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   overscroll-behavior-y: none;
 }
@@ -370,11 +384,10 @@ html.app-ios .fixed.inset-0.z-\[70\] {
 html.app-ios .fixed[class*='z-[60]'] {
   bottom: calc(56px + 1rem + env(safe-area-inset-bottom));
 }
-/* Campos a 16px: iOS no hace zoom automático al enfocar un input. */
-html.app-ios input,
-html.app-ios select,
-html.app-ios textarea {
-  font-size: max(16px, 1em);
+/* Campos a 16px en pantallas angostas (web móvil y app): iOS no hace zoom
+   automático al enfocar un input. Misma regla en ambas plataformas. */
+@media (max-width: 767px) {
+  html:root input, html:root select, html:root textarea { font-size: max(16px, 1em); }
 }
 
 /* El ingreso usa las mismas medidas que la web (paridad con la web): solo cambian
