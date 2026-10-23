@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { desplazamientoParaMitadSuperior } from './enfoque'
+import { desplazamientoParaMitadSuperior } from './enfoque.js'
 
 describe('desplazamientoParaMitadSuperior', () => {
   const base = { visibleTop: 0, visibleHeight: 508 }

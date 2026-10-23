@@ -109,10 +109,12 @@
         "recorte-perfil.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
+        "filas-alineadas.spec.js",
+        "foco-teclado.spec.js",
         "sin-recortes.spec.js",
         "verificacion-diaria.spec.js"
       ],
-      "tests": 231,
+      "tests": 240,
       "ms": 1322522
     },
     {
