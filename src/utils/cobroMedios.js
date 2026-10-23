@@ -83,7 +83,9 @@ export function anchoMonto(valor, decimales = false) {
   const digitos = String(valor ?? '').replace(/[^\d.,]/g, '').length
   const miles = decimales ? 0 : Math.floor(Math.max(0, digitos - 1) / 3)
   const largo = digitos + miles + (decimales ? 3 : 0)
-  return `${Math.min(26, Math.max(14, largo + 7))}ch`
+  // Inter real con cifras tabulares: cada carácter pesa más que el «0» de `ch`
+  // y el prefijo «Gs.» come ~48px; por eso 1,15ch por carácter + 9ch de reserva.
+  return `${Math.min(32, Math.max(14, Math.ceil(largo * 1.15) + 9))}ch`
 }
 
 /**

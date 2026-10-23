@@ -172,9 +172,9 @@ test('el botón principal crece, ordena etiqueta/importe y mantiene un color neu
   const colorBoton = (b) => b.evaluate((el) => getComputedStyle(el).backgroundColor)
   const boton = page.getByRole('button', { name: /^Crear pedido/ })
   await expect(boton).toBeVisible()
-  const caja = await boton.boundingBox()
   // Cobro de una sola pantalla: en escritorio el botón es de 48 px con etiqueta e importe en un renglón.
-  expect(Math.round(caja.height)).toBeGreaterThanOrEqual(48)
+  // (poll: el resumen se re-pinta al cargar la fuente y la caja puede ser null un instante)
+  await expect.poll(async () => Math.round((await boton.boundingBox())?.height ?? 0)).toBeGreaterThanOrEqual(48)
   const neutro = await colorBoton(boton)
   for (const variable of ['--c-warn', '--c-ok', '--c-bad']) {
     expect(neutro, `el parcial no usa ${variable}`).not.toBe(`rgb(${await colorTema(page, variable)})`)
@@ -185,10 +185,12 @@ test('el botón principal crece, ordena etiqueta/importe y mantiene un color neu
   await expect(etiquetaBoton).toHaveText('Crear pedido')
   await expect(detalleBoton).toContainText('2 productos')
   await expect(detalleBoton).toContainText(/Gs 125\.000/)
-  const cajaEtiqueta = await etiquetaBoton.boundingBox()
-  const cajaDetalle = await detalleBoton.boundingBox()
   // La etiqueta va primero (arriba en celular, a la izquierda en escritorio).
-  expect(cajaEtiqueta.y < cajaDetalle.y || cajaEtiqueta.x < cajaDetalle.x).toBe(true)
+  await expect.poll(async () => {
+    const cajaEtiqueta = await etiquetaBoton.boundingBox()
+    const cajaDetalle = await detalleBoton.boundingBox()
+    return Boolean(cajaEtiqueta && cajaDetalle && (cajaEtiqueta.y < cajaDetalle.y || cajaEtiqueta.x < cajaDetalle.x))
+  }).toBe(true)
 
   // Completo: mismo color neutro, ahora con la etiqueta «Confirmar venta».
   await fila.getByLabel('Monto original').fill('125000')

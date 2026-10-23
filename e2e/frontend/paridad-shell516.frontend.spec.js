@@ -125,7 +125,7 @@ test('#516 el shell móvil recupera el espacio inferior al abrir y cerrar el tec
    await expect(nav).toBeHidden()
    await expect.poll(()=>body.evaluate(el=>getComputedStyle(el).paddingBottom)).toBe('0px')
    const fontSize=await search.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))
-   expect(fontSize,'los campos en iOS evitan zoom al abrir teclado').toBeGreaterThanOrEqual(ios?16:12)
+   expect(fontSize,'los campos (web móvil y app) evitan zoom al abrir teclado').toBeGreaterThanOrEqual(16)
    await search.blur()
    await expect(nav).toBeVisible()
    await expect.poll(()=>body.evaluate(el=>getComputedStyle(el).paddingBottom)).toBe('56px')
@@ -262,4 +262,62 @@ for(const width of [360,390,1440])for(const dark of [false,true])test(`#516 Clie
   expect(pairs[1].config.pagina.width).toBe(pairs[0].config.pagina.width)
   console.log('PARIDAD516_CLIENTES_CONFIG',JSON.stringify({width,dark,clientes:pairs[0].clientes,config:pairs[0].config}))
  }finally{for(const f of pairs)await f.context.close()}
+})
+
+// ── Paridad iOS (app) vs web móvil en TODAS las pantallas (ios-igual-web) ───────
+// Misma fuente, mismo layout: cabecera, primer bloque, barra inferior, hoja/popup y
+// ausencia de overflow coinciden al píxel entre la web móvil y la app simulada.
+// Las únicas diferencias admitidas son las nativas (zonas seguras, bloque iPhone en
+// Mi cuenta) y las de Apple (sin alta de tienda ni planes): no se miden acá.
+async function medirPantalla516(page){
+ await esperarAnimaciones(page)
+ return page.evaluate(()=>{
+  const box=el=>{if(!el)return null;const r=el.getBoundingClientRect();return {x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}}
+  const visible=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0}
+  const q=s=>[...document.querySelectorAll(s)].find(visible)||null
+  const dialogo=q('[role="dialog"]:not([hidden])')
+  const campos=[...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]),select,textarea')].filter(visible).map(el=>parseFloat(getComputedStyle(el).fontSize))
+  return {
+   overflow:document.documentElement.scrollWidth>innerWidth,
+   header:box(q('[data-testid="shell-mobile-header"]')),
+   nav:box(q('[data-testid="shell-bottom-nav"]')),
+   primero:box(q('.shell-body > :first-child')),
+   dialogo:box(dialogo),
+   minCampo:campos.length?Math.min(...campos):null,
+   titulo:(q('h1')||{}).textContent||null,
+  }
+ })
+}
+const PANTALLAS516=[
+ ['inicio','/resumen'],['vender','/pos'],['pedidos','/pedidos'],['clientes','/clientes'],['stock','/stock'],
+ ['finanzas','/finanzas'],['configuracion','/configuracion'],['modulos','/configuracion/modulos'],
+]
+for(const width of [360,390])test(`#paridad todas las pantallas ${width}px: web móvil = app iPhone simulada`,async({browser,baseURL})=>{
+ const web=await preparar(browser,baseURL,{width,dark:false,ios:false}),ios=await preparar(browser,baseURL,{width,dark:false,ios:true})
+ try{
+  const comparar=async(nombre)=>{
+   const a=await medirPantalla516(web.page),b=await medirPantalla516(ios.page)
+   expect(a.overflow,`${nombre}: web sin overflow`).toBe(false);expect(b.overflow,`${nombre}: iOS sin overflow`).toBe(false)
+   expect(b.header,`${nombre}: cabecera`).toEqual(a.header)
+   expect(b.nav,`${nombre}: barra inferior`).toEqual(a.nav)
+   expect(b.primero,`${nombre}: primer bloque`).toEqual(a.primero)
+   expect(b.dialogo,`${nombre}: hoja/popup`).toEqual(a.dialogo)
+   expect(b.titulo,`${nombre}: título`).toEqual(a.titulo)
+   if(a.minCampo!==null)expect(a.minCampo,`${nombre}: campos ≥16px (sin zoom de iOS) también en web`).toBeGreaterThanOrEqual(16)
+   if(b.minCampo!==null)expect(b.minCampo,`${nombre}: campos ≥16px en la app`).toBeGreaterThanOrEqual(16)
+  }
+  for(const [nombre,ruta] of PANTALLAS516){
+   for(const f of [web,ios]){await f.page.evaluate(path=>{history.pushState(null,'',path);dispatchEvent(new PopStateEvent('popstate'))},ruta);await expect.poll(()=>f.page.evaluate(()=>location.pathname),{message:`ruta ${ruta}`}).toMatch(new RegExp('^'+ruta.replace('/','\\/')));await expect(f.page.getByTestId('shell')).toBeVisible();await f.page.waitForTimeout(500)}
+   await comparar(nombre)
+  }
+  // Detalle de pedido (abrir un detalle no debe abrir el teclado).
+  for(const f of [web,ios]){await irRuta516(f.page,'/pedidos');await f.page.getByTestId('pedido-fila').first().click();await expect(f.page.getByText('Cronología',{exact:true}).first()).toBeVisible()}
+  await comparar('pedido-detalle')
+  for(const f of [web,ios])expect(await f.page.evaluate(()=>{const a=document.activeElement;return !a||a===document.body||!a.matches('input,textarea,select')}),'abrir un pedido no enfoca ningún campo').toBe(true)
+  // Popup de datos del cliente (Vender → Agregar cliente) y menú «Más».
+  for(const f of [web,ios]){await irRuta516(f.page,'/pos');await f.page.getByRole('button',{name:'Agregar cliente',exact:true}).click();await expect(f.page.getByRole('dialog')).toBeVisible()}
+  await comparar('popup-cliente')
+  for(const f of [web,ios]){await f.page.getByRole('dialog').getByRole('button',{name:/Cerrar/}).first().click();await expect(f.page.getByRole('dialog')).toHaveCount(0);await f.page.getByTestId('shell-bottom-nav').getByRole('button',{name:'Más',exact:true}).click();await expect(f.page.getByRole('dialog')).toBeVisible()}
+  await comparar('menu-mas')
+ }finally{await web.context.close();await ios.context.close()}
 })

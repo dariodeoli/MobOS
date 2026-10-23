@@ -119,9 +119,13 @@ function MenuAccionesCliente({ row, telefono, templates, deuda, ultima, onPerfil
         }}
         className="grid h-11 w-11 place-items-center rounded-lg border border-ink-500 text-base font-bold leading-none text-mute transition hover:border-fono hover:text-fore"
       >
-        <span aria-hidden="true" className="-mt-1.5">
-          …
-        </span>
+        {/* Tres puntos dibujados: centrados en la caja con cualquier fuente
+            (el glifo «…» cae sobre la línea base y se veía 3px más abajo). */}
+        <svg aria-hidden="true" viewBox="0 0 16 4" className="h-1 w-4 fill-current">
+          <circle cx="2" cy="2" r="1.6" />
+          <circle cx="8" cy="2" r="1.6" />
+          <circle cx="14" cy="2" r="1.6" />
+        </svg>
       </button>
       {abierto && (
         <div

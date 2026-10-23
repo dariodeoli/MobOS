@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
 import { leerRaster } from '../helpers/raster-qr.js'
+// El fixture arranca la app (sesión 401, fuentes propias): se espera a que
+// termine de cargar para que ese arranque no cambie el contexto de impresión
+// en medio de la prueba.
+const fixtureListo = page => page.waitForLoadState('networkidle')
+
 test('513 comprobante y unidad HTML premium generan raster real sin QR nativo ni sufijos', async ({
   page,
 }) => {
@@ -11,6 +16,7 @@ test('513 comprobante y unidad HTML premium generan raster real sin QR nativo ni
   )
   await page.route('https://**', route => route.abort())
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const result = await page.evaluate(async () => {
     const { buildOrderReceiptHtml, buildUnitLabelsHtml } =
       await import('/src/components/shared/OrderReceipt.jsx')
@@ -87,6 +93,7 @@ test('513 dispatcher local envía el raster del HTML confirmado y conserva copia
     })
   })
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const result = await page.evaluate(async () => {
     const { imprimirDocumento, usarTenantImpresoras } = await import('/src/lib/printing/agent.js')
     const { ticketsDesdeHtml } = await import('/src/lib/printing/htmlEscpos.js')
@@ -152,6 +159,7 @@ for (const volver of [false, true])
       })
     })
     await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
     const result = await page.evaluate(async volver => {
       const { imprimirDocumento, usarTenantImpresoras } = await import('/src/lib/printing/agent.js')
       const { crearTicket } = await import('/src/lib/printing/escpos.js')
@@ -201,6 +209,7 @@ test('513 rechazo de modelo/papel/límite nunca vuelve a bytes antiguos; PDF con
     })
   })
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const result = await page.evaluate(async () => {
     const { imprimirDocumento } = await import('/src/lib/printing/agent.js')
     const { ticketsDesdeHtml } = await import('/src/lib/printing/htmlEscpos.js')
@@ -253,6 +262,7 @@ for (const volver of [false, true]) test(`513 consumidor Stock no adopta context
     return route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: true } })
   })
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const result = await page.evaluate(async volver => {
     const agent = await import('/src/lib/printing/agent.js')
     const { printLabel } = await import('/src/components/stock/impresionStock.js')
@@ -296,6 +306,7 @@ test('513 rechazo local tardío no encola en la empresa siguiente', async ({ pag
     return route.fulfill({ status: 400, headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: false, error: 'Rechazo antes de aceptar' } })
   })
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const pending = page.evaluate(async () => {
     const agent = await import('/src/lib/printing/agent.js')
     const { crearTicket } = await import('/src/lib/printing/escpos.js')
@@ -322,6 +333,7 @@ test('513 sin impresora conserva respaldo del mismo HTML y no intenta raster ni 
   })
   await page.route('http://127.0.0.1:17890/**', route => route.abort())
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const result = await page.evaluate(async () => {
     const { usarTenantImpresoras, imprimirDocumento } = await import('/src/lib/printing/agent.js')
     const { printLabels } = await import('/src/components/stock/impresionStock.js')
@@ -353,6 +365,7 @@ test('513 cambio de contexto durante búsqueda sin impresora no abre respaldo ni
   })
   await page.route('http://127.0.0.1:17890/**', route => route.abort())
   await page.goto('/e2e/fixtures/plantillas507.html')
+  await fixtureListo(page)
   const pending = page.evaluate(async () => {
     const agent = await import('/src/lib/printing/agent.js')
     const { printLabels } = await import('/src/components/stock/impresionStock.js')

@@ -14,6 +14,21 @@ test('prioridadPorPromesa ordena la urgencia de la fecha comprometida', () => {
   assert.equal(prioridadPorPromesa('2026-10-10T12:00:00.000Z', ahora), 'NORMAL')
 })
 
+test('dos líneas del mismo producto sin stock generan una necesidad por línea, idempotente', () => {
+  const items = [
+    { productId: 'prod-1', condition: 'NEW', quantity: 1, stockPending: 1, orderItemId: 'li-1' },
+    { productId: 'prod-1', condition: 'NEW', quantity: 2, stockPending: 2, orderItemId: 'li-2' },
+  ]
+  const a = demandasDePedido({ orderId: 'order-9', items })
+  const b = demandasDePedido({ orderId: 'order-9', items })
+  assert.equal(a.length, 2)
+  assert.equal(new Set(a.map(d => d.dedupeKey)).size, 2)
+  assert.deepEqual(a.map(d => d.orderItemId), ['li-1', 'li-2'])
+  assert.deepEqual(a.map(d => d.dedupeKey), b.map(d => d.dedupeKey))
+  const sinId = demandasDePedido({ orderId: 'order-9', items: items.map(({ orderItemId, ...r }) => r) })
+  assert.equal(new Set(sinId.map(d => d.dedupeKey)).size, 2)
+})
+
 test('una venta sobre pedido sin stock genera SALE_NO_STOCK con el vínculo al pedido', () => {
   const demandas = demandasDePedido({
     orderId: 'order-1',

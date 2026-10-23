@@ -116,6 +116,9 @@ export function demandasDePedido({ orderId, items = [], promisedAt = null, custo
   const prometidaValida = promesa && !Number.isNaN(promesa.getTime()) ? promesa : null
   const prioridadPromesa = prioridadPorPromesa(prometidaValida, ahora)
   const demandas: DemandaNecesidad[] = []
+  // Dos líneas del mismo producto son dos necesidades: la clave lleva la línea
+  // (orderItemId); sin ella, un contador por producto evita que se pisen.
+  const repeticiones = new Map<string, number>()
   for (const item of items) {
     if (!item?.productId) continue
     const faltanteOffline = Math.max(0, Math.round(Number(item.stockFaltante) || 0))
@@ -123,6 +126,12 @@ export function demandasDePedido({ orderId, items = [], promisedAt = null, custo
     const cantidad = faltanteOffline + pendienteSobrePedido
     if (cantidad < 1) continue
     const condition = String(item.condition || 'NEW').toUpperCase()
+    const claveProducto = `${item.productId}:${condition}`
+    const repeticion = repeticiones.get(claveProducto) || 0
+    repeticiones.set(claveProducto, repeticion + 1)
+    const dedupeKey = item.orderItemId
+      ? `PEDIDO:${orderId}:${claveProducto}:${item.orderItemId}`
+      : repeticion === 0 ? `PEDIDO:${orderId}:${claveProducto}` : `PEDIDO:${orderId}:${claveProducto}:L${repeticion + 1}`
     const soloFaltanteOffline = faltanteOffline > 0 && pendienteSobrePedido === 0
     const source: NecesidadOrigen = soloFaltanteOffline ? 'QUANTITY_OVER_STOCK' : prometidaValida ? 'ORDER_COMMITTED' : 'SALE_NO_STOCK'
     const margenPyg = margenEstimadoDeNecesidad({ precioUnitarioPyg: item.unitPricePyg, costoUnitarioPyg: item.costPyg, cantidad })
@@ -139,7 +148,7 @@ export function demandasDePedido({ orderId, items = [], promisedAt = null, custo
       orderItemId: item.orderItemId || null,
       customerId: customerId || null,
       notes: soloFaltanteOffline ? 'La venta superó el stock disponible (venta offline).' : null,
-      dedupeKey: `PEDIDO:${orderId}:${item.productId}:${condition}`,
+      dedupeKey,
       origin: origen,
     })
   }
