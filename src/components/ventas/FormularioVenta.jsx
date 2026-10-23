@@ -70,6 +70,7 @@ import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
+import { RetencionContext, usePosRetencion } from './usePosRetencion'
 import PasoProductos, { PosCustomer } from './venta/PasoProductos'
 import { usePosCatalogoServidor } from '@/hooks/usePosCatalogoServidor'
 import { categoriaAccesorioDe } from '@/lib/categoriasAccesorio'
@@ -522,6 +523,22 @@ export default function FormularioVenta({
   const toast = useToast()
   // Medios que la empresa marca «verificar»: piden el comprobante en el mismo cobro.
   const politicaVerificacion = usePoliticaVerificacion()
+  // Retención de IMEI del carrito (apartado de 5 min con latido): vive mientras la línea tiene un
+  // IMEI elegido; se libera al quitar/vaciar/suspender/cambiar de sucursal y se convierte al vender.
+  const retencion = usePosRetencion({
+    items,
+    empresaId: contextoActual().empresaId,
+    sucursalId: contextoActual().sucursalId,
+    usuarioId: contextoActual().userId,
+    esDemo,
+    // Al retomar una venta (o abrir el POS con un carrito guardado) el IMEI pudo ocuparlo otro vendedor.
+    onConflicto: (serial, mensaje) => {
+      setItems(arr => arr.map(it => ((it.serials || []).includes(serial) ? { ...it, serials: it.serials.filter(value => value !== serial), reservado: false } : it)))
+      toast.info('Ese IMEI ya no está disponible, elegí otro', mensaje)
+    },
+    onVencio: () => toast.info('El apartado venció', 'Tocá «Renovar» en la línea para volver a apartar el equipo.'),
+  })
+  const puedeLiberarAjenas = !esDemo && (Boolean(sesion?.esPropietario) || ['ADMIN', 'GERENTE', 'dueno'].includes(sesion?.rol))
   // Delivery propio (#461): repartidores asignables; solo se piden con «Delivery» elegido.
   const repartidores = useRepartidores({ activo: f.entrega === 'Delivery', esDemo })
   // #308: familia con más de una variante esperando elección explícita.
@@ -1659,6 +1676,8 @@ export default function FormularioVenta({
       // La ficha ya existe (o la creó la venta): el borrador del RUC sobra.
       if (customer.document) descartarPreCliente(empresaId, customer.document)
       borrarCarrito(empresaId, sucursalId, userId)
+      // El servidor ya convirtió los IMEI apartados en la venta: solo se olvida el carrito.
+      retencion.olvidar()
       setCustomer({ ...CLIENTE_VACIO })
       setItems([])
       setDescuento('')
@@ -1710,6 +1729,8 @@ export default function FormularioVenta({
           idempotencyKeyRef.current = null
           const { empresaId, sucursalId, userId } = contextoActual()
           borrarCarrito(empresaId, sucursalId, userId)
+          // Venta en cola sin conexión: los IMEI no se sueltan (la venta de este mismo vendedor los convierte al sincronizar).
+          retencion.olvidar()
           setCustomer({ ...CLIENTE_VACIO })
           setItems([])
           setDescuento('')
@@ -1893,6 +1914,8 @@ export default function FormularioVenta({
   }
   function limpiarCarrito() {
     const { empresaId, sucursalId, userId } = contextoActual()
+    // Vaciar o suspender suelta los IMEI apartados (retomar los vuelve a apartar).
+    void retencion.liberarTodo()
     borrarCarrito(empresaId, sucursalId, userId)
     setItems([])
     setDescuento('')
@@ -2294,6 +2317,7 @@ export default function FormularioVenta({
   }, [lastOrder])
 
   return (
+    <RetencionContext.Provider value={retencion}>
     <Card className="p-3 md:p-4">
       {accesoStockInvalidado && (
         <Aviso tono="error" como="div" role="alert" className="mb-4" data-testid="pos-acceso-stock-invalidado">
@@ -2745,9 +2769,10 @@ export default function FormularioVenta({
                 sobrePedido={ventaSinStock}
                 product={productoFila}
                 branchId={sucursal?.id || ''}
-                customerName={customer.name || f.cliente}
+                usuarioId={contextoActual().userId}
+                puedeLiberarAjenas={puedeLiberarAjenas}
                 selectedSerials={fila.serials || []}
-                // Elegir unidad en el picker crea la reserva: la línea lo muestra.
+                // Elegir la unidad la aparta 5 min para este carrito (sin pedir cliente): la línea muestra el contador.
                 onChange={serials => editarItem(fila.key, { serials, reservado: serials.length > 0 })}
                 onRequiresSerial={(requiere, unidades) => {
                   // #263: la marca sigue el estado real del selector (antes solo
@@ -3100,5 +3125,6 @@ export default function FormularioVenta({
 
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>
+    </RetencionContext.Provider>
   )
 }

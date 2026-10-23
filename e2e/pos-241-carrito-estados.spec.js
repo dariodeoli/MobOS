@@ -51,7 +51,7 @@ test('la linea del carrito muestra su estado y sus chips (#241)', async ({ page 
   // Al elegir la unidad la línea queda reservada (chip azul con el serial).
   await filaIphone.getByRole('button', { name: /^Elegir IMEI de / }).click()
   const dialogo = page.getByRole('dialog', { name: /Elegir IMEI/ })
-  await dialogo.getByRole('button', { name: 'Reservar este' }).first().click()
+  await dialogo.getByRole('button', { name: 'Elegir' }).first().click()
   await dialogo.getByRole('button', { name: 'Listo' }).click()
   await expect(filaIphone).toHaveAttribute('data-estado', 'reservado')
   await expect(filaIphone.getByRole('button', { name: /^Cambiar IMEI de / })).toContainText('IMEI •')

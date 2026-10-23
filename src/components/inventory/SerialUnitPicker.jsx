@@ -3,7 +3,8 @@ import { resources } from '@/lib/api'
 import { Badge, Button, Input, Skeleton } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
 import Icon from '@/components/shared/Icon'
-import { RESERVA_HORAS_DEFECTO } from '@/utils/reserva'
+import { useRetencion } from '@/components/ventas/usePosRetencion'
+import { retenidaPorOtro, textoRetenida } from '@/lib/posRetencion'
 import SerialTexto from '@/components/shared/SerialTexto'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { serialEnmascarado } from '@/utils/serial'
@@ -20,10 +21,13 @@ const mensajeDeCarga = (cause, sobrePedido = true) => {
   return `${detalle || 'No se pudieron cargar los IMEI de este modelo.'} Probá de nuevo.${sobrePedido ? ' Si persiste, vendé «sobre pedido» y asigná el IMEI al entregar.' : ''}`
 }
 
-// Selector para una línea de venta. La reserva se hace antes del checkout para
-// evitar que dos vendedores elijan el mismo equipo; el backend mantiene la
-// autoridad sobre disponibilidad y vencimiento.
-export default function SerialUnitPicker({ product, branchId = '', customerName, selectedSerials = [], onChange, onRequiresSerial, disabled = false, sobrePedido = true }) {
+// Selector para una línea de venta. Elegir la unidad la APARTA 5 minutos para el
+// carrito (sin pedir cliente) y evita que dos vendedores elijan el mismo equipo;
+// el backend mantiene la autoridad sobre disponibilidad y vencimiento (reloj de
+// Postgres). La reserva de 2 h para un cliente se hace desde Stock.
+export default function SerialUnitPicker({ product, branchId = '', usuarioId = '', puedeLiberarAjenas = false, selectedSerials = [], onChange, onRequiresSerial, disabled = false, sobrePedido = true }) {
+  const retencion = useRetencion()
+  const [ahora, setAhora] = useState(() => Date.now())
   const [units, setUnits] = useState([])
   const [loading, setLoading] = useState(false)
   const [busySerial, setBusySerial] = useState('')
@@ -35,9 +39,9 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   const seleccionadosRef = useRef(selectedSerials)
   useEffect(() => { seleccionadosRef.current = selectedSerials }, [selectedSerials])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silencioso = false } = {}) => {
     if (!product?.id) { setUnits([]); onRequiresSerial?.(false, 0); return }
-    setLoading(true); setError(''); setSinSucursal(false)
+    if (!silencioso) { setLoading(true); setError(''); setSinSucursal(false) }
     try {
       // #286: sin sucursal en la venta no se inventa stock ni se listan unidades
       // de otras sucursales: se explica que falta la sucursal (la venta tampoco
@@ -52,9 +56,10 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
       const rows = await resources.inventoryUnits.list('', 'active', { productId: product.id, branchId })
       const matched = unidadesElegibles(rows, { productId: product.id, seleccionados: seleccionadosRef.current })
       setUnits(matched)
+      setAhora(Date.now())
       // Segundo argumento: cuántas unidades hay (guía inline del POS).
       onRequiresSerial?.(matched.length > 0, matched.length)
-    } catch (cause) { setError(mensajeDeCarga(cause, sobrePedido)) } finally { setLoading(false) }
+    } catch (cause) { if (!silencioso) setError(mensajeDeCarga(cause, sobrePedido)) } finally { if (!silencioso) setLoading(false) }
   }, [product, branchId, onRequiresSerial, sobrePedido])
 
   // El efecto inicial carga solo cuando cambia el producto o la sucursal; el ref
@@ -63,25 +68,46 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   useEffect(() => { loadRef.current = load }, [load])
   useEffect(() => { loadRef.current() }, [product?.id, branchId])
 
+  // Contador de «Retenida por Ana · 3:42» y refresco de la lista mientras el selector está abierto
+  // (lo que otro vendedor libera o vence aparece disponible sin cerrar el modal).
+  const hayAjenas = units.some(unit => retenidaPorOtro(unit, usuarioId))
+  useEffect(() => {
+    if (!hayAjenas) return undefined
+    const tick = setInterval(() => setAhora(Date.now()), 1000)
+    const refresco = setInterval(() => loadRef.current({ silencioso: true }), 20_000)
+    return () => { clearInterval(tick); clearInterval(refresco) }
+  }, [hayAjenas])
+
   async function toggle(unit) {
     const serial = normalize(unit.serial)
     if (!serial || disabled || busySerial) return
     setBusySerial(serial); setError('')
     try {
       if (selectedSerials.includes(serial)) {
-        await resources.inventoryReservations.release([serial])
+        if (retencion) await retencion.liberar([serial])
         onChange(selectedSerials.filter(value => value !== serial))
       } else {
-        if (!customerName?.trim()) throw new Error('Indicá primero el cliente para reservar este equipo.')
         if (unit.status !== 'AVAILABLE') throw new Error('Ese equipo ya no está disponible.')
-        // `minutes` manda en el API real; `hours` lo usa el store de la demo.
-        // La misma duración que la reserva desde Stock (RESERVA_HORAS_DEFECTO).
-        await resources.inventoryReservations.create({ customerName: customerName.trim(), minutes: RESERVA_HORAS_DEFECTO * 60, hours: RESERVA_HORAS_DEFECTO, serials: [serial] })
+        // Sin conexión no se puede apartar: la elección sigue (el chip avisa que no queda retenido).
+        if (retencion) await retencion.retener(serial)
         // Una línea representa una unidad; para vender otra, agregala como nueva línea.
         onChange([serial])
       }
-      await load()
-    } catch (cause) { setError(cause?.message || 'No se pudo actualizar la reserva.') } finally { setBusySerial('') }
+      await load({ silencioso: true })
+    } catch (cause) {
+      setError(cause?.message || 'No se pudo apartar el equipo.')
+      await load({ silencioso: true })
+    } finally { setBusySerial('') }
+  }
+
+  // Gerencia puede soltar la retención de otro vendedor (queda en la auditoría).
+  async function liberarAjena(unit) {
+    const serial = normalize(unit.serial)
+    setBusySerial(serial); setError('')
+    try {
+      await retencion?.liberarAjena(serial)
+      await load({ silencioso: true })
+    } catch (cause) { setError(cause?.message || 'No se pudo liberar el equipo.') } finally { setBusySerial('') }
   }
 
   if (!product?.id) return null
@@ -97,7 +123,7 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   const visibles = consulta ? units.filter(unit => normalize(unit.serial).includes(consulta) || String(unit.supplierName || '').toLowerCase().includes(busqueda.trim().toLowerCase())) : units
   return <section className="mt-3 rounded-2xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí y reservá la unidad exacta. La reserva dura {RESERVA_HORAS_DEFECTO} horas, igual que desde Stock.</p></div>
+      <div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí la unidad exacta: queda apartada 5 minutos para esta venta, sin necesidad de elegir cliente.</p></div>
       <Badge color={selectedSerials.length ? 'green' : 'orange'}>{selectedSerials.length ? `IMEI ${serialEnmascarado(selectedSerials[0])}` : 'Requerido'}</Badge>
     </div>
     {units.length > 1 && (
@@ -110,8 +136,10 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
     {consulta && !visibles.length && <p className="mt-2 text-xs text-mute" role="status">Ninguna unidad coincide con «{busqueda.trim()}». Revisá el IMEI o borrá la búsqueda.</p>}
     <div className="mt-3 space-y-1.5">{visibles.map(unit => {
       const selected = selectedSerials.includes(normalize(unit.serial))
-      const available = unit.status === 'AVAILABLE' || selected
-      return <div key={unit.id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition ${selected ? 'border-ok/40 bg-ok/10' : 'border-ink-600 hover:border-fono/30'}`}>
+      const ajena = retenidaPorOtro(unit, usuarioId)
+      const apartadaPropia = !selected && unit.status === 'RESERVED' && unit.reservationKind === 'CART_HOLD' && !ajena
+      const available = (unit.status === 'AVAILABLE' && !ajena) || selected
+      return <div key={unit.id} data-testid={ajena ? 'picker-unidad-retenida' : 'picker-unidad'} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition ${selected ? 'border-ok/40 bg-ok/10' : ajena ? 'border-warn/30 bg-warn/5' : 'border-ink-600 hover:border-fono/30'}`}>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-baseline gap-1 text-[12px]"><span className="shrink-0">IMEI</span><SerialTexto serial={unit.serial} className="truncate text-mute" tonoCola="font-bold text-fono-light" /></span>
           <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-mute">
@@ -119,11 +147,14 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
             {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}
             {unit.location?.name ? <span>· {unit.location.name}</span> : null}
             {unit.supplierName ? <span data-testid="picker-proveedor" title="Proveedor">· {unit.supplierName}</span> : null}
-            {!available && !selected ? <span className="font-semibold text-bad">No disponible</span> : null}
+            {ajena ? <span className="font-semibold tabular-nums text-warn" data-testid="picker-retenida-por">{textoRetenida(unit, ahora)}</span> : null}
+            {apartadaPropia ? <span className="font-semibold text-warn">Apartada en otro carrito tuyo</span> : null}
+            {!available && !ajena && !apartadaPropia ? <span className="font-semibold text-bad">No disponible</span> : null}
           </span>
         </span>
+        {ajena && puedeLiberarAjenas ? <Button type="button" variant="outline" className="h-8 shrink-0 px-2.5 text-xs" disabled={disabled || Boolean(busySerial)} onClick={() => liberarAjena(unit)}>Liberar</Button> : null}
         <Button type="button" variant={selected ? 'outline' : 'primary'} className="h-8 shrink-0 px-2.5 text-xs" disabled={!available || disabled || Boolean(busySerial)} onClick={() => toggle(unit)}>
-          {busySerial === normalize(unit.serial) ? 'Actualizando…' : selected ? 'Liberar' : available ? 'Reservar este' : 'No disponible'}
+          {busySerial === normalize(unit.serial) ? 'Actualizando…' : selected ? 'Liberar' : available ? 'Elegir' : ajena ? 'Retenida' : 'No disponible'}
         </Button>
       </div>
     })}</div>

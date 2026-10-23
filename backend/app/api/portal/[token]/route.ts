@@ -92,7 +92,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   // Reservas (#240 → portal): los equipos guardados a nombre del cliente, con
   // su vencimiento (si no los retira, se liberan solos).
   const reservas = await prisma.inventoryUnit.findMany({
-    where: { tenantId: portal.tenantId, reservationCustomerId: portal.customerId, status: 'RESERVED' },
+    where: { tenantId: portal.tenantId, reservationCustomerId: portal.customerId, status: 'RESERVED', OR: [{ reservationKind: 'CUSTOMER' }, { reservationKind: null }] },
     select: { serial: true, reservedUntil: true, product: { select: { name: true, capacity: true } }, branch: { select: { name: true } } },
     orderBy: { reservedUntil: 'asc' },
     take: 5,

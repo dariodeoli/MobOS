@@ -105,7 +105,7 @@ test('el selector de IMEI no cierra sin elegir la unidad exacta (#308)', async (
     await expect(dialogo.getByTestId('imei-falta-eleccion')).toBeVisible()
     await expect(dialogo.getByText(/Con stock no se vende sin IMEI/)).toBeVisible()
 
-    await dialogo.getByRole('button', { name: 'Reservar este' }).first().click()
+    await dialogo.getByRole('button', { name: 'Elegir' }).first().click()
     await expect(listo).toBeEnabled()
     await listo.click()
     await expect(fila).toHaveAttribute('data-estado', 'reservado')

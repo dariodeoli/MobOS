@@ -188,7 +188,7 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
   const t = scope.tenantId
   const sortKey = sortKeyFor(filters, Prisma.sql`u."createdAt"`)
   const unitStockKind = Prisma.sql`COALESCE(p."stockKind"::text, 'EQUIPO')`
-  const statusExpr = Prisma.sql`CASE WHEN u."removedAt" IS NOT NULL THEN 'eliminado' WHEN u."status" = 'AVAILABLE' THEN 'disponible' WHEN u."status" = 'RESERVED' THEN 'reservado' WHEN u."status" = 'SOLD' THEN 'vendido' WHEN u."status" = 'DEFECTIVE' THEN 'defectuoso' WHEN u."status" = 'IN_TRANSIT' THEN 'en_transito' ELSE u."status"::text END`
+  const statusExpr = Prisma.sql`CASE WHEN u."removedAt" IS NOT NULL THEN 'eliminado' WHEN u."status" = 'AVAILABLE' THEN 'disponible' WHEN u."status" = 'RESERVED' AND u."reservationKind" = 'CART_HOLD' THEN 'disponible' WHEN u."status" = 'RESERVED' THEN 'reservado' WHEN u."status" = 'SOLD' THEN 'vendido' WHEN u."status" = 'DEFECTIVE' THEN 'defectuoso' WHEN u."status" = 'IN_TRANSIT' THEN 'en_transito' ELSE u."status"::text END`
   const where: Prisma.Sql[] = [Prisma.sql`u."tenantId" = ${t}`, Prisma.sql`p."tenantId" = ${t}`]
   // Estado: sobre columnas crudas para aprovechar los índices.
   if (filters.status === 'eliminado') {
@@ -196,7 +196,13 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     where.push(Prisma.sql`u."removedAt" IS NOT NULL`)
   } else {
     where.push(Prisma.sql`u."removedAt" IS NULL`)
-    if (filters.status) where.push(Prisma.sql`u."status"::text = ${STATUS_TO_UNIT[filters.status]}`)
+    if (filters.status) {
+      // Una retención de carrito (CART_HOLD) no es una reserva de cliente: para Stock la unidad sigue «disponible».
+      const retenida = Prisma.sql`u."reservationKind" = 'CART_HOLD'`
+      if (STATUS_TO_UNIT[filters.status] === 'RESERVED') where.push(Prisma.sql`(u."status"::text = 'RESERVED' AND (u."reservationKind" IS NULL OR NOT ${retenida}))`)
+      else if (STATUS_TO_UNIT[filters.status] === 'AVAILABLE') where.push(Prisma.sql`(u."status"::text = 'AVAILABLE' OR (u."status"::text = 'RESERVED' AND ${retenida}))`)
+      else where.push(Prisma.sql`u."status"::text = ${STATUS_TO_UNIT[filters.status]}`)
+    }
     // Sin estado elegido (#466): lo vendido sale solo el día de la venta (día de la tienda, Asunción);
     // al día siguiente queda únicamente en la vista «Vendidos».
     else where.push(Prisma.sql`(u."status"::text <> 'SOLD' OR ${soldVisibleOnBusinessDaySql(Prisma.sql`u."soldAt"`)})`)

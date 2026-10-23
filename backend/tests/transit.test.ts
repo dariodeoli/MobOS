@@ -10,15 +10,15 @@ test('los estados de la asignación futura son los tres del ciclo', () => {
 })
 
 test('una asignación deja la unidad reservada a nombre de quien la apartó', () => {
-  assert.deepEqual(reservaDeAsignacion(null), { status: 'AVAILABLE', reservationCustomer: null, reservationCustomerId: null, reservedById: null })
+  assert.deepEqual(reservaDeAsignacion(null), { status: 'AVAILABLE', reservationCustomer: null, reservationCustomerId: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null })
   assert.deepEqual(
     reservaDeAsignacion({ customerId: 'cli-1', customerName: 'Ana', sellerId: 'user-1' }),
-    { status: 'RESERVED', reservationCustomer: 'Ana', reservationCustomerId: 'cli-1', reservedById: 'user-1' },
+    { status: 'RESERVED', reservationCustomer: 'Ana', reservationCustomerId: 'cli-1', reservedById: 'user-1', reservationKind: 'CUSTOMER' },
   )
   // Apartada sin ficha: queda reservada igual (no se le ofrece a otro vendedor).
   assert.deepEqual(
     reservaDeAsignacion({ customerId: null, customerName: null, sellerId: 'user-2' }),
-    { status: 'RESERVED', reservationCustomer: null, reservationCustomerId: null, reservedById: 'user-2' },
+    { status: 'RESERVED', reservationCustomer: null, reservationCustomerId: null, reservedById: 'user-2', reservationKind: 'CUSTOMER' },
   )
 })
 

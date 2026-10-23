@@ -69,7 +69,7 @@ export async function vincularAsignacionAlRecibir(
 
 /** Datos de la reserva que deja una asignación al llegar (para la unidad). */
 export function reservaDeAsignacion(asignacion: { customerId?: string | null; customerName?: string | null; sellerId: string } | null) {
-  if (!asignacion) return { status: 'AVAILABLE' as const, reservationCustomer: null, reservationCustomerId: null, reservedById: null }
+  if (!asignacion) return { status: 'AVAILABLE' as const, reservationCustomer: null, reservationCustomerId: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null }
   return {
     // Queda reservada a nombre de quien la apartó: no se ofrece a otro vendedor
     // hasta que la venta la use o alguien la libere.
@@ -77,5 +77,6 @@ export function reservaDeAsignacion(asignacion: { customerId?: string | null; cu
     reservationCustomer: asignacion.customerName || null,
     reservationCustomerId: asignacion.customerId || null,
     reservedById: asignacion.sellerId,
+    reservationKind: 'CUSTOMER' as const,
   }
 }

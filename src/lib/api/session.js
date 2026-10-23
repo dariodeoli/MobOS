@@ -1,3 +1,4 @@
+import { liberarRetencionesAlCerrarSesion } from '../posRetencionRegistro'
 import { api, API_URL, invalidarConsultas } from './client'
 import { limpiarTokens, cabecerasNativas } from './nativo'
 import { isNativeIOS } from '../plataforma'
@@ -190,6 +191,8 @@ export const sessionApi = {
     return getCompanyContext()?.cookieSession ? api.post('/api/auth/logout') : Promise.resolve({ ok: true })
   },
   logout: async () => {
+    // Cerrar sesión suelta los IMEI apartados en el carrito del POS (antes de borrar las credenciales).
+    liberarRetencionesAlCerrarSesion()
     // Retirar datos privados al solicitar la salida, sin esperar a la red.
     void invalidarSnapshotsPrivados()
     if (isNativeIOS()) {
