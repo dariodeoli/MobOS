@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { gs } from '@/utils/calculos'
-import { Button, Input, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Button, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { getProductos } from '@/lib/storage'
+import { listarValuacionesDemo } from '@/lib/demo/valuaciones'
+import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
+import CamposEquipoRecibido from './CamposEquipoRecibido'
+import { CONDICIONES_TOMA, rangosPorCapacidad } from '@/lib/valoresToma'
+import { modeloApple } from '../../../backend/lib/catalogo-apple.mjs'
 import { LIMITE_MONTO_GENERAL } from '@/utils/moneda'
-import { normalizarModelo, valorSugerido, valorSugeridoDeCatalogo } from '@/utils/tradeInCheckout'
+import { datosEquipoRecibido, normalizarModelo, valorSugerido } from '@/utils/tradeInCheckout'
 import { GRADOS_TOMA, HALLAZGOS_TOMA, gradoSugerido, valuarToma } from '@/lib/tradeInValuation'
 import { SellerSection } from './SellerData'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -15,87 +19,132 @@ import SellerPromotions from './SellerPromotions'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
 
-const CONDICIONES = [['USED', 'Seminuevo'], ['NEW', 'Nuevo'], ['REFURBISHED', 'Reacondicionado']]
+const CONDICIONES = CONDICIONES_TOMA
+const promedio = (rango) => (rango?.max && rango.max !== rango.base ? Math.round((rango.base + rango.max) / 2) : null)
 
 export default function SellerTools({ vista, onCargarVenta }) {
   const [model, setModel] = useState('')
+  const [storage, setStorage] = useState('')
   const [imei, setImei] = useState('')
   const [value, setValue] = useState('')
   const [condition, setCondition] = useState('USED')
   const [conditionNotes, setConditionNotes] = useState('')
-  const [sugerencia, setSugerencia] = useState(null)
-  const [sugerenciaEstado, setSugerenciaEstado] = useState('idle')
+  const [extras, setExtras] = useState({ color: '', batteryPct: '', faultsNote: '', accessories: [] })
+  const [valores, setValores] = useState([])
+  const [valoresEstado, setValoresEstado] = useState('idle')
   // Inspección de la toma (#240 ítem 7): hallazgos + grado alimentan el valor.
   const [hallazgos, setHallazgos] = useState([])
   const [grado, setGrado] = useState('')
+  const catalogo = modeloApple(model)
+  const nombreModelo = (catalogo?.nombre || model).trim()
+  const necesitaCapacidad = Boolean(catalogo?.capacidades.length)
+  // El valor sugerido sale de la tabla de valores del modelo, capacidad y condición: nunca se inventa.
+  const sugerencia = valorSugerido(valores, nombreModelo, condition, storage)
+  const sugerenciaEstado = valoresEstado === 'listo' ? (sugerencia ? 'listo' : 'sin') : valoresEstado
   const gradoAuto = gradoSugerido(hallazgos)
   const gradoElegido = grado || gradoAuto
   const valuacion = sugerencia?.baseValuePyg
     ? valuarToma({ baseValuePyg: sugerencia.baseValuePyg, grado: gradoElegido, hallazgos })
     : null
   const alternarHallazgo = (clave) => setHallazgos((actuales) => actuales.includes(clave) ? actuales.filter((item) => item !== clave) : [...actuales, clave])
-  const valid = Boolean(model.trim() && imei.trim() && conditionNotes.trim() && String(value ?? '').trim() && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= LIMITE_MONTO_GENERAL)
+  const rangos = useMemo(() => (catalogo ? rangosPorCapacidad(valores, catalogo.nombre) : []), [catalogo, valores])
+  const valid = Boolean(model.trim() && imei.trim() && conditionNotes.trim() && (!necesitaCapacidad || storage) && String(value ?? '').trim() && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= LIMITE_MONTO_GENERAL)
 
-  // El valor sugerido se consulta con retraso mientras se escribe: es una
+  function cambiarModelo(texto) {
+    setModel(texto)
+    // La capacidad depende del modelo: al cambiar de modelo se vuelve a elegir (salvo que tenga una sola).
+    const nuevo = modeloApple(texto)
+    setStorage(nuevo?.capacidades.length === 1 ? nuevo.capacidades[0] : '')
+    setExtras((actual) => ({ ...actual, color: '' }))
+  }
+
+  // Los valores del modelo se consultan con retraso mientras se escribe: es una
   // referencia para el vendedor, nunca un dato que bloquee la carga.
   useEffect(() => {
+    const clave = normalizarModelo(nombreModelo)
+    if (clave.length < 2) { setValores([]); setValoresEstado('idle'); return }
     if (isDemoRuntime) {
-      // Demo (#240): la base sale del catálogo ficticio, sin tocar el API.
-      const base = valorSugeridoDeCatalogo(getProductos(), model, condition)
-      setSugerencia(base)
-      setSugerenciaEstado(base ? 'listo' : normalizarModelo(model).length < 2 ? 'idle' : 'sin')
-      return
-    }
-    if (normalizarModelo(model).length < 2) {
-      setSugerencia(null)
-      setSugerenciaEstado('idle')
+      // Demo: la misma tabla de valores en memoria que ve el administrador.
+      setValores(listarValuacionesDemo().filter((fila) => fila.modelKey.includes(clave)))
+      setValoresEstado('listo')
       return
     }
     const controller = new AbortController()
-    setSugerenciaEstado('buscando')
+    setValoresEstado('buscando')
     const timer = setTimeout(() => {
-      api.get(`/api/device-valuations?${new URLSearchParams({ model: model.trim(), condition })}`, { signal: controller.signal })
-        .then(rows => {
-          const encontrada = valorSugerido(rows, model, condition)
-          setSugerencia(encontrada)
-          setSugerenciaEstado(encontrada ? 'listo' : 'sin')
-        })
+      api.get(`/api/device-valuations?${new URLSearchParams({ model: nombreModelo })}`, { signal: controller.signal })
+        .then(rows => { setValores(Array.isArray(rows) ? rows : []); setValoresEstado('listo') })
         .catch(error => {
           if (error?.code === 'REQUEST_ABORTED') return
-          setSugerencia(null)
-          setSugerenciaEstado('error')
+          setValores([]); setValoresEstado('error')
         })
     }, 350)
     return () => { controller.abort(); clearTimeout(timer) }
-  }, [model, condition])
+  }, [nombreModelo])
+
+  function enviar(event) {
+    event.preventDefault()
+    if (!valid) return
+    const notas = [conditionNotes.trim(), valuacion?.resumen].filter(Boolean).join(' · ')
+    const faults = HALLAZGOS_TOMA.filter(([clave]) => hallazgos.includes(clave)).map(([, etiqueta]) => etiqueta)
+    onCargarVenta?.({ model: nombreModelo, imei: imei.trim(), condition, conditionNotes: notas, value: Number(value), ...datosEquipoRecibido({ ...extras, storage, faults }) })
+    setModel(''); setStorage(''); setImei(''); setValue(''); setCondition('USED'); setConditionNotes(''); setHallazgos([]); setGrado('')
+    setExtras({ color: '', batteryPct: '', faultsNote: '', accessories: [] })
+  }
 
   if (vista === 'promociones') return <SellerPromotions />
   return <SellerSection title="Cotizar equipo">
     <BarraModulo
       icono="refresh"
       titulo="Cotizar equipo"
-      descripcion="Prepará los datos del equipo y el valor de toma ya acordado para cargarlo como parte de pago."
+      descripcion="Buscá el modelo, mirá a cuánto se toma cada capacidad y cargá el valor ya acordado para recibirlo como parte de pago."
       testId="barra-tradein"
     />
-    <form className="space-y-4 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.06] to-transparent p-5" onSubmit={(event) => { event.preventDefault(); if (valid) { const notas = [conditionNotes.trim(), valuacion?.resumen].filter(Boolean).join(' · '); onCargarVenta?.({ model: model.trim(), imei: imei.trim(), condition, conditionNotes: notas, value: Number(value) }); setModel(''); setImei(''); setValue(''); setCondition('USED'); setConditionNotes(''); setHallazgos([]); setGrado('') } }}>
+    <form className="space-y-4 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.06] to-transparent p-5" onSubmit={enviar}>
       <div className="flex items-center gap-2">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-fono/15 text-fono-light"><Icon name="refresh" className="h-4 w-4" /></span>
         <div><p className="text-sm font-bold">Canje como parte de pago</p><p className="text-[11px] text-mute">El valor sugerido es una referencia editable; vale el valor acordado con el cliente.</p></div>
       </div>
       <div className={GRILLA_DOS_COLUMNAS}>
-        <label className="block space-y-1.5 text-xs text-mute">Modelo y capacidad<Input required maxLength={150} value={model} onChange={(event) => setModel(event.target.value)} placeholder="Ej. iPhone 13 128GB" /></label>
+        <div className="space-y-1.5">
+          <Label htmlFor="cotizador-modelo">Modelo</Label>
+          <ModeloCatalogoField id="cotizador-modelo" value={model} onChange={cambiarModelo} />
+        </div>
         <label className="block space-y-1.5 text-xs text-mute">IMEI / serial<SerialField required value={imei} onChange={setImei} placeholder="35…" /></label>
       </div>
+      {catalogo && necesitaCapacidad && <div className="space-y-1.5" data-testid="cotizador-capacidades">
+        <p className="text-xs font-semibold text-mute">Capacidad y valor de toma {valoresEstado === 'buscando' && <span role="status" className="font-normal">· buscando valores…</span>}</p>
+        <div className="divide-y divide-ink-700 rounded-xl border border-ink-600">
+          {rangos.map((fila) => <div key={fila.storage} data-testid="cotizador-capacidad" data-capacidad={fila.storage} className="grid gap-1.5 px-3 py-2 sm:grid-cols-[5rem_repeat(3,minmax(0,1fr))] sm:items-stretch sm:gap-2">
+            <span className="text-sm font-semibold text-fore sm:self-center">{fila.storage}</span>
+            {CONDICIONES.map(([clave, etiqueta]) => {
+              const rango = fila.condiciones[clave]
+              const elegido = storage === fila.storage && condition === clave
+              const medio = promedio(rango)
+              return <button key={clave} type="button" disabled={!rango} aria-pressed={elegido} aria-label={`${fila.storage} ${etiqueta}: ${rango ? (rango.max && rango.max !== rango.base ? `de ${gs(rango.base)} a ${gs(rango.max)}` : gs(rango.base)) : 'sin valor cargado'}`}
+                onClick={() => { setStorage(fila.storage); setCondition(clave) }}
+                className={cn('flex min-h-11 min-w-0 flex-col justify-center rounded-lg border px-2.5 py-1 text-left transition', elegido ? 'border-fono bg-fono/10' : 'border-ink-600 hover:border-fono/50', !rango && 'cursor-not-allowed opacity-50')}>
+                <span className="text-[10px] uppercase tracking-wide text-mute">{etiqueta}</span>
+                <span className="text-xs tabular-nums text-fore">{rango ? <>{gs(rango.base)}{rango.max && rango.max !== rango.base ? <span className="text-mute"> – {gs(rango.max)}</span> : null}</> : 'Sin valor'}</span>
+                {medio ? <span className="text-[10px] tabular-nums text-mute">promedio {gs(medio)}</span> : null}
+              </button>
+            })}
+          </div>)}
+        </div>
+      </div>}
+      {!catalogo && model.trim().length >= 2 && <div className={GRILLA_DOS_COLUMNAS}>
+        <label className="block space-y-1.5 text-xs text-mute">Capacidad (opcional)<Input maxLength={60} value={storage} onChange={(event) => setStorage(event.target.value)} placeholder="Ej. 128GB" /></label>
+      </div>}
       <div className={GRILLA_DOS_COLUMNAS}>
         <label className="block space-y-1.5 text-xs text-mute">Condición<Select value={condition} onChange={(event) => setCondition(event.target.value)}>{CONDICIONES.map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}</Select></label>
         <div className="self-end text-xs text-mute">
-          {sugerenciaEstado === 'buscando' && <p role="status">Buscando valor sugerido…</p>}
+          {sugerenciaEstado === 'buscando' && !catalogo && <p role="status">Buscando valor sugerido…</p>}
           {sugerenciaEstado === 'listo' && sugerencia && <p className="rounded-xl border border-fono/25 bg-fono/10 px-3 py-2 text-sm text-fore">
             Valor sugerido: <b className="tabular-nums text-fono-light">{gs(sugerencia.baseValuePyg)}</b>
             {sugerencia.maxValuePyg ? <span className="text-mute"> · hasta {gs(sugerencia.maxValuePyg)}</span> : null}
             <button type="button" className="ml-2 underline" onClick={() => setValue(String(sugerencia.baseValuePyg))}>Usar</button>
           </p>}
-          {sugerenciaEstado === 'sin' && <p>Sin valor cargado para ese modelo y condición.</p>}
+          {sugerenciaEstado === 'sin' && <p>{necesitaCapacidad && !storage ? 'Elegí la capacidad para ver el valor sugerido.' : `Sin valor cargado para ese modelo${necesitaCapacidad ? ', capacidad' : ''} y condición.`}</p>}
           {sugerenciaEstado === 'error' && <p>No se pudo consultar el valor sugerido; cargá el valor acordado.</p>}
         </div>
       </div>
@@ -136,6 +185,7 @@ export default function SellerTools({ vista, onCargarVenta }) {
           </ul>
         )}
       </fieldset>
+      <CamposEquipoRecibido idPrefix="cotizador" sinFallas model={nombreModelo} value={extras} onChange={(patch) => setExtras((actual) => ({ ...actual, ...patch }))} />
       <label className="block space-y-1.5 text-xs text-mute">Detalle de la condición<Textarea required maxLength={2000} value={conditionNotes} onChange={(event) => setConditionNotes(event.target.value)} placeholder="Estado, accesorios y reparaciones pendientes" /></label>
       <div className={cn('sm:items-end', GRILLA_DOS_COLUMNAS)}>
         <label className="block space-y-1.5 text-xs text-mute">Valor de toma acordado (Gs)<MoneyInput required value={value} onValueChange={setValue} placeholder="0" /></label>

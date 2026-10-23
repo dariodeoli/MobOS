@@ -54,7 +54,7 @@ function FilaDevice({ item, abierto, onClick }) {
       className={cn(GRID_TRADEIN, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
     >
       <span className="min-w-0">
-        <b className={cn('block', CELDA_IDENTIDAD)} title={item.model}>{item.model || 'Equipo'}</b>
+        <b className={cn('block', CELDA_IDENTIDAD)} title={item.model}>{[item.model || 'Equipo', item.storage].filter(Boolean).join(' ')}</b>
         <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={item.serial}>{item.serial || 'Sin serial'}</span>
       </span>
       <span className={CELDA_DATO} title={item.customerName || item.order?.customer?.name || undefined}>{item.customerName || item.order?.customer?.name || 'Sin cliente'}</span>
@@ -112,6 +112,10 @@ function Device({ item, busy, onSave }) {
       <div><dt className="text-mute">Total invertido</dt><dd>{gs(tradeInValuePyg(item) + Number(item.repairCostPyg || 0))}</dd></div>
       {price != null && <div><dt className="text-mute">Precio publicado</dt><dd>{gs(price)}</dd></div>}
       {publishedDestination && <div><dt className="text-mute">Destino</dt><dd>{TRADE_IN_DESTINATIONS[publishedDestination] || publishedDestination}</dd></div>}
+      {item.storage && <div><dt className="text-mute">Capacidad</dt><dd>{item.storage}</dd></div>}
+      {item.color && <div><dt className="text-mute">Color</dt><dd>{item.color}</dd></div>}
+      {item.batteryPct != null && <div><dt className="text-mute">Batería</dt><dd>{item.batteryPct}%</dd></div>}
+      {(item.faults?.length > 0 || item.faultsNote) && <div className="col-span-2 sm:col-span-3"><dt className="text-mute">Fallas</dt><dd>{[...(item.faults || []), item.faultsNote].filter(Boolean).join(' · ')}</dd></div>}
     </dl>
     {(item.diagnosis || item.technicianName || item.accessories?.length || item.photos?.length) && <section className="rounded-lg border border-ink-600 p-3 text-sm">
       <h4 className="font-medium">Diagnóstico y recepción</h4>
