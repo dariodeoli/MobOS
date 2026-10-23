@@ -29,7 +29,7 @@ async function abrirAltaCliente(page) {
   await page.getByRole('button', { name: '+ Crear cliente' }).first().click()
   const modal = page.getByRole('dialog', { name: 'Crear cliente' })
   await expect(modal).toBeVisible()
-  await modal.getByRole('button', { name: '+ Agregar dirección' }).scrollIntoViewIfNeeded()
+  await modal.getByRole('button', { name: '+ Añadir dirección' }).scrollIntoViewIfNeeded()
   return modal
 }
 

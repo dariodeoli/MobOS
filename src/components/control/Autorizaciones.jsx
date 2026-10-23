@@ -36,7 +36,7 @@ import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } 
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
 const GRID_AUTORIZACIONES =
-  'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_7rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem] items-center gap-x-2'
+  'grid grid-cols-2 items-center gap-x-2 gap-y-1 md:min-w-[54rem] md:grid-cols-[minmax(8rem,1.2fr)_7rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem]'
 
 const KINDS = {
   WHOLESALE: 'Mayorista',
@@ -446,7 +446,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
           />
         )}
         <div className="overflow-x-auto" data-testid="autorizaciones-tabla">
-          <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1')}>
+          <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1 max-md:hidden')}>
             <span className={CELDA_ENCABEZADO}>Cliente</span>
             <span className={CELDA_ENCABEZADO}>Tipo</span>
             <span className={CELDA_ENCABEZADO}>Pedido</span>
@@ -492,7 +492,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
                       : 'border-ink-600 bg-ink-800/40',
                   )}
                 >
-                  <span className={CELDA_IDENTIDAD_GRANDE} title={detalle}>
+                  <span className={cn(CELDA_IDENTIDAD_GRANDE, 'col-span-2 md:col-span-1')} title={detalle}>
                     {row.customer?.name ||
                       sujetoDe(row) ||
                       (row.kind === 'DISCOUNT' || row.kind === 'BELOW_LIST_PRICE'
@@ -539,7 +539,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
                       <span className="truncate text-[10px] text-mute">Tu solicitud</span>
                     )}
                   </span>
-                  <span className="flex items-center justify-end gap-1">
+                  <span className="col-span-2 flex items-center justify-end gap-1 md:col-span-1">
                     {puedeResolverEsta && row.status === 'PENDING' && (
                       <>
                         <Button
