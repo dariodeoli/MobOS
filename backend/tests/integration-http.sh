@@ -975,6 +975,8 @@ PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/public-pages403-pg.mjs"
 
 # Keep this fixture at the end: it creates five orders and one product, while
 # backup-restore intentionally compares the full tenant count before it runs.
+echo "Pedidos: saldo a favor aplicado bloquea cambiar o quitar el cliente..."
+node "$BACKEND_ROOT/tests/orders-customer-credit.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Pedidos: identidad fiscal exacta en cliente inline (#344)..."
 node "$BACKEND_ROOT/tests/orders-inline-fiscal-identity.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 

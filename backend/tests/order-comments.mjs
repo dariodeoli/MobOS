@@ -36,7 +36,8 @@ await req(ruta, { method: 'POST', form: comentario(''), expected: 400 })
 // Cronología y auditoría.
 const historia = await req(`/api/orders/${encodeURIComponent(pedido.id)}/history`)
 assert.ok(historia.events.some((evento) => evento.type === 'comment' && evento.id === creado.id), 'el comentario sale en la cronología')
-assert.ok(historia.events.some((evento) => evento.action === 'ORDER_COMMENTED'), 'el comentario queda auditado')
+const auditoria = await req('/api/audit?q=ORDER_COMMENTED&limit=100')
+assert.ok(auditoria.some((fila) => fila.action === 'ORDER_COMMENTED' && fila.entityId === pedido.id), 'el comentario queda auditado')
 
 // Tenencia: otra empresa no lee ni escribe.
 await req(ruta, { token: otraEmpresa, expected: 404 })

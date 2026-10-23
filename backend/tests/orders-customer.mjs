@@ -77,16 +77,6 @@ await req(`/api/orders/${encodeURIComponent(pedidoCredito.id)}`, 'PATCH', { note
 const auditoriaNota = await req('/api/audit?q=ORDER_BILLING_UPDATED&limit=100')
 assert.ok(auditoriaNota.some((fila) => fila.entityId === pedidoCredito.id), 'la edición de nota queda auditada')
 
-// 7) Saldo a favor aplicado: el cliente del pedido no se cambia ni se quita (409).
-const clienteFavor = await req('/api/customers', 'POST', { name: `Favor ${sufijo}`, phone: `59597${String(Date.now()).slice(-7)}` }, 201)
-await req('/api/store-credits', 'POST', { customerId: clienteFavor.id, amountPyg: 40000, note: 'Cortesía de prueba' }, 201)
-const productoFavor = await req('/api/products', 'POST', { sku: `FAV-${sufijo}`, name: 'Producto con saldo a favor', pricePyg: 40000, stock: 5, branchId: 'branch-a-it' }, 201)
-const pedidoFavor = await req('/api/orders', 'POST', { orderNumber: `FAV-${sufijo}`, customerId: clienteFavor.id, items: [{ productId: productoFavor.id, quantity: 1, unitPricePyg: 40000 }], payments: [{ method: 'STORE_CREDIT', amountPyg: 40000 }] }, 201)
-await req(`/api/orders/${encodeURIComponent(pedidoFavor.id)}`, 'PATCH', { action: 'setCustomer', customerId: otraFicha.id }, 409)
-await req(`/api/orders/${encodeURIComponent(pedidoFavor.id)}`, 'PATCH', { action: 'setCustomer', customerId: null }, 409)
-const sigue = await req(`/api/orders/${encodeURIComponent(pedidoFavor.id)}`)
-assert.equal(sigue.customer?.id, clienteFavor.id, 'el cliente sigue siendo el del saldo a favor')
-
 // 8) Pedido anulado: tampoco admite cambiar el cliente (409).
 await req(`/api/orders/${encodeURIComponent(otra.id)}/void`, 'POST', { reason: 'Prueba de cliente en pedido anulado' })
 await req(`/api/orders/${encodeURIComponent(otra.id)}`, 'PATCH', { action: 'setCustomer', customerId: otraFicha.id }, 409)
