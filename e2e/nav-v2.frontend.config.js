@@ -59,6 +59,7 @@ export default defineConfig({
     'ruc-mobile.frontend.spec.js',
     'mcp-oauth-bridge.frontend.spec.js',
     'modulos.frontend.spec.js',
+    'pedido-shopify.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

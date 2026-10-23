@@ -761,3 +761,18 @@ El **modo taller** imprime sus documentos en serie desde «Imprimir en serie…�
 - Ejemplos imprimibles: `docs/taller-impresos-ejemplo/`
   (`hoja-estacion-serie.pdf`, `certificados-serie.pdf` y
   `scripts/ejemplo-taller-impresos.mjs`).
+
+## 18. «Imprimir» del detalle del pedido: último formato por usuario
+
+- El botón **Imprimir** del pedido (estilo Shopify) imprime con el **último formato que usó esa persona**
+  para pedidos: `a4` (comprobante A4), `ticket-80` (ticket 80 mm), `nota-entrega` y `pagina` (página del
+  pedido, nivel detallado). El ▾ elige otro; el elegido imprime y pasa a ser el último.
+- Memoria **por usuario** (`mobos:pedido:impresion:<userId>` en localStorage, con try/catch): dos cajeros en la
+  misma computadora no se pisan. Sin historial vale el predeterminado de la empresa (impresora térmica de 80 mm
+  configurada o el formato preferido del equipo; si no, A4). Código: `src/lib/printing/ultimoFormatoPedido.js`
+  y `src/components/ventas/pedido/useImprimirPedido.js`.
+- Ticket 80 mm sale por el camino térmico común (`imprimirHtmlComun`, §1); A4 y página abren el diálogo del
+  navegador; la nota de entrega sigue el flujo no fiscal (agente → diálogo de respaldo).
+- **Demo:** todo sale por la vista de impresión del navegador con datos ficticios y una banda «Demo»
+  (`src/lib/printing/bandaDemo.js`); nunca toca el agente ni la cola.
+- «Vista previa y opciones…» (en el ▾) abre el comprobante completo (niveles, recibo de regalo, impresión directa).
