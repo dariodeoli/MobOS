@@ -232,3 +232,149 @@ Después de subir, Apple procesa la compilación en unos 10 a 30 minutos y apare
 - [ ] Capturas de 6,9″ (y de iPad si corresponde).
 - [ ] Información de revisión: demo o cuenta de prueba, notas y contacto.
 - [ ] OK del dueño, y recién ahí «Enviar a revisión».
+
+---
+
+# Apéndice A — Apps con Expo: la receta de Agendese
+
+Esta receta se escribió el 15/10/2026, después de enviar Agendese iOS 1.0.0 a revisión, y se actualizó el 23/10/2026 con el build local. **No lleva secretos:** las contraseñas, las claves `.p8` y los valores privados los carga el dueño a mano. Nunca se pegan en un chat, en el repo ni en este archivo.
+
+## A.0 Datos fijos de la cuenta
+| Dato | Valor |
+|---|---|
+| Apple ID dueño de las apps | `owncodingdev@gmail.com` (con 2FA: el código llega al teléfono del dueño) |
+| Team ID | `F65VS7VHB9`, «Dario De Oliveira (Individual)» |
+| Proveedor de App Store Connect | `129494413` (en las URLs, `cc2ee609-347d-4164-9d65-081e1bee07b8`) |
+| Cuenta de Expo | `dariodeoli` |
+| Proyecto de Google Cloud | `weem-db` («WEEM»), donde están todos los clientes OAuth |
+| Datos legales | DADOO CAPITAL LLC (Wyoming, n.º 2025-001826940). Copyright: «2026 DADOO CAPITAL LLC» |
+
+**Cuidado con el equipo equivocado.** `dariodeoli@gmail.com` es otro equipo (`38ZPZZXNK6`). Si EAS responde «bundle identifier is not available to team 38ZPZZXNK6», entraste con esa cuenta: volvé a entrar con `owncodingdev@gmail.com`.
+
+## A.1 Requisitos de Apple ya resueltos en Agendese (copiarlos)
+- **5.1.1(v) Borrar la cuenta:** Cuenta › Eliminar mi cuenta. Pide la contraseña y escribir el nombre de la empresa. Si es el único dueño, la empresa se cierra y se purga a los 30 días.
+- **4.8 Iniciar sesión con Apple:** `expo-apple-authentication` más `POST /auth/apple`. Apple y Google solo entran a cuentas que ya existen; no crean usuarios nuevos.
+- **3.1.3 App B2B gratis:** sin precios, planes ni compras dentro de la app; se contrata en la web. En las notas: «free B2B tool, no in-app purchases».
+- **4.2 No es una web envuelta:** es nativa (React Native/Expo).
+- **Privacy Manifest:** `ios.privacyManifests` en `app.config.ts`, con `NSPrivacyTracking: false`, los motivos de las API de Expo y RN, y los datos que se recolectan. Tienen que coincidir con el cuestionario de privacidad.
+- **Cifrado:** `ITSAppUsesNonExemptEncryption: false` en `infoPlist`.
+- **UIScene (SDK de iOS 27):**
+  - Sin UIScene la app no abre.
+  - Hay un plugin propio, `mobile/plugins/with-scene-delegate.js`; copialo tal cual.
+  - `UISceneDelegateClassName` = `"SceneDelegate"` a secas. Con `$(PRODUCT_MODULE_NAME).` delante, la app abre en negro.
+- **Arranque:** la splash nativa queda visible (`preventAutoHideAsync`) hasta resolver la sesión guardada. Sin red, entra con la sesión guardada.
+- **Solo iPhone:** `supportsTablet: false`, así no hacen falta capturas de iPad.
+- **Versiones:**
+  - La `version` de `app.config.ts` tiene que ser exactamente la versión de App Store Connect.
+  - En cada build se sube `ios.buildNumber` (`appVersionSource: local`).
+- **Servidor:** `MOBILE_API_ENABLED=true` en Coolify. Sin eso el revisor no puede entrar.
+
+## A.2 Ficha de App Store Connect (con Chrome)
+1. **Información de la app:**
+   - nombre y subtítulo;
+   - categorías: Economía y empresa, y Productividad;
+   - derechos: «No contiene contenido de terceros»;
+   - clasificación por edad: 7 pasos con «No / Ninguno», queda 4+ (o la nueva escala de 2025).
+2. **Precio:** EE. UU. $0.00, lo que lo deja gratis en 175 países.
+3. **Privacidad:**
+   - la URL de la política;
+   - «Sí, recopilamos datos», con los mismos tipos del Privacy Manifest, todos para funcionalidad, vinculados a la identidad y sin seguimiento;
+   - el clic final de «Publicar» es una declaración legal y **lo confirma el dueño**.
+4. **Versión:**
+   - texto promocional, descripción y palabras clave;
+   - URLs de soporte y de marketing;
+   - copyright;
+   - **publicar manualmente**;
+   - capturas;
+   - información para la revisión: cuenta demo, contacto, notas en inglés y video.
+
+## A.3 Capturas y video sin iPhone (simulador)
+- **Backend local:** con datos demo, `next dev` y `MOBILE_API_ENABLED=true`. Un build Release exige HTTPS: certificado propio y su CA en el llavero **del simulador**.
+- **Build de simulador sin firmar:**
+  1. `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo prebuild --platform ios`
+  2. `pod install`, con las mismas variables `LANG` y `LC_ALL`; si faltan, falla con un error Unicode.
+  3. `xcodebuild … -configuration Release -sdk iphonesimulator CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=NO build`
+
+  `expo run:ios --device` falla por los certificados, y el error -34018 se resuelve con `CODE_SIGN_IDENTITY=-`.
+- **Barra de estado limpia y captura:**
+  - `xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3`
+  - `xcrun simctl io booted screenshot 01.png`
+- **Tamaño de las capturas:** el obligatorio es «iPhone con Dynamic Island (pantalla mediana)», de 1206×2622. Desde un Pro Max (1320×2868) se achica con `sips -z 2622 1206 in.png --out out.png`. Se suben 5 capturas.
+- **Video para el revisor:**
+  - menos de 2 minutos, grabado con `xcrun simctl io booted recordVideo revision.mp4`;
+  - muestra arranque, login demo, el flujo principal, compartir y la pantalla de Eliminar cuenta, sin confirmar;
+  - tipear tecla por tecla, porque el pegado se come letras;
+  - bajarlo a menos de 10 MB con `avconvert --source revision.mp4 --preset Preset960x540 --output revision-540.mp4`.
+- **Dónde se suben:** las capturas en el Gestor de recursos multimedia; el video en Información para la revisión › Archivo adjunto.
+
+## A.4 Cuenta demo para el revisor
+- **Creación:** el comando idempotente `npm run demo:revisor-apple` crea una empresa ficticia con datos alrededor de hoy, sin envíos reales.
+- **Variables en Coolify:**
+  - `APPLE_REVIEW_EMAIL`, por ejemplo `owncodingdev+revisionapple@gmail.com`;
+  - `APPLE_REVIEW_PASSWORD`, de 12 caracteres o más, que **carga el dueño**.
+- **Después de cargarlas:**
+  - reiniciar la app y comprobar con `[ -n "$APPLE_REVIEW_EMAIL" ] && echo OK`;
+  - el refresco diario la vuelve a crear si el revisor la borra.
+
+## A.5 Notas de revisión (modelo de Acti Access, en inglés)
+1. **SCREEN RECORDING:** attached. It shows launching the app, signing in with the demo account, [main flows], and Account > Delete my account (confirmation screen).
+2. **PURPOSE AND AUDIENCE:** [App] is a free B2B tool for [who] in Paraguay, for business owners and their staff. It is not for end customers and sells nothing: no in-app purchases or paid content.
+3. **ACCESS:** use the demo account in Sign-In Information. It opens «[demo business]» with fictitious data and is recreated daily if deleted. Account deletion: Account tab > Delete my account.
+4. **EXTERNAL SERVICES:** only our own backend. Optional Sign in with Apple and Apple Push Notification service. No third-party analytics, advertising, tracking or AI services.
+5. **REGIONAL DIFFERENCES:** none. The interface is in Spanish because our customers are in Paraguay.
+6. **REGULATED INDUSTRY:** not applicable.
+
+## A.6 Build y envío con EAS (desde `mobile/`)
+1. **Login:** `npx eas-cli login --device`.
+   - Abrir `https://expo.dev/oauth/device?user_code=…`, tocar Continue y anotar el número.
+   - Después `npx eas-cli login --device --resume <request-id> --match <número>`.
+   - El login con navegador falla si no conecta el callback a localhost.
+2. **Paquete de menos de 2 GB:**
+   - un `.easignore` en la raíz y otro en `mobile/`, con lo de `.gitignore` más `.claude/`, `**/node_modules/`, `mobile/ios/`, `mobile/android/`, `docs/app-store/`, `.next/` y `src/generated/`;
+   - sumarlo a `.git/info/exclude`;
+   - con eso el paquete baja de unos 2,7 GB a unos 67 MB.
+3. **Build:** `EAS_BUILD_NO_EXPO_GO_WARNING=true npx eas-cli build --platform ios --profile production --auto-submit`.
+   - Al iniciar sesión en Apple, el dueño escribe la contraseña y el código 2FA en su terminal.
+   - Capacidades, certificado y perfil: **Sí**.
+   - **«Set up Push Notifications?» → No:** ya hay 2 claves APNs y se reutiliza la existente.
+   - Tarda de 15 a 20 minutos.
+4. **Enviar:** `npx eas-cli submit --platform ios --id <BUILD_ID>`.
+   - Elegir «[Add a new key]», con rol ADMIN.
+   - **No usar la key vieja `QBAHR9V274`.**
+   - Apple la procesa en 5 a 10 minutos.
+5. **Build local cuando Expo se queda sin cupo** (así se subió el build 14 de Agendese, el 23/10/2026):
+   1. `brew install fastlane cocoapods`.
+   2. Desde la carpeta de la app: `npx eas-cli build --platform ios --profile production --local --output ~/Desktop/<app>-build<N>.ipa`.
+   3. Si falla con «Provisioning profile … doesn't include signing certificate»:
+      - en Acceso a Llaveros, exportar a `.p12` (como respaldo) el «Apple Distribution» que no es el de Expo y quitarlo;
+      - el de Expo es «iPhone Distribution: Dario De Oliveira (F65VS7VHB9)».
+   4. Subir con `npx eas-cli submit --platform ios --path ~/Desktop/<app>-build<N>.ipa`, que usa la API key `3VV927BY9X`, ya guardada en Expo.
+6. **Revisión:** en la versión, elegir la compilación y tocar «Añadir a revisión» › «Enviar a revisión». Tarda hasta 48 h.
+
+## A.7 Notificaciones push
+- **Una sola clave APNs para todo el equipo:** es la de MobOS (`MOBOS_APNS_KEY_ID`, `MOBOS_APNS_TEAM_ID`, `MOBOS_APNS_PRIVATE_KEY`) y Agendese la reutiliza.
+- **Variables de Agendese en Coolify:** `APNS_KEY_ID`, `APNS_TEAM_ID=F65VS7VHB9` y `APNS_PRIVATE_KEY`. La clave la copia el dueño.
+- **Ambiente del token:** las builds de tienda lo registran como `production`; las de desarrollo, como `sandbox`.
+
+## A.8 Iniciar sesión con Google en una app Expo
+1. **Crear el cliente iOS:** en Google Cloud (`weem-db`), Auth Platform › Clientes › Crear cliente, de tipo iOS.
+   - Datos: bundle, ID de App Store y equipo `F65VS7VHB9`.
+   - El ID de cliente no es secreto.
+2. **En la app:**
+   - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` en `eas.json`;
+   - `expo-auth-session` (code + PKCE, solo JS, sin pod nativo);
+   - el botón va debajo del de Apple, del mismo alto (48 px).
+3. **En el servidor:** `GOOGLE_IOS_CLIENT_ID` y `POST /api/v1/mobile/auth/google {idToken}`. Ese endpoint:
+   - valida la firma RS256 contra el JWKS, más `iss`, `aud`, `exp`/`iat` y `email_verified`;
+   - busca la cuenta por `sub` y, si no está, por email, solo entre cuentas existentes;
+   - si no hay cuenta, responde 404 `GOOGLE_SIN_CUENTA`.
+
+## A.9 Qué hace el dueño y qué hace el agente
+| El dueño (no delegable) | El agente |
+|---|---|
+| Iniciar sesión en App Store Connect, developer.apple.com y Expo | Completar la ficha con Chrome |
+| Las contraseñas (Apple en la terminal de EAS, cuenta demo en Coolify y en App Store Connect) | Categorías, precio, URLs, copyright, edad y derechos |
+| Copiar secretos (.p8, claves privadas) | El cuestionario de privacidad, sin el clic final |
+| Crear credenciales nuevas (cliente OAuth, keys) | Capturas, video, notas en inglés y subidas |
+| Confirmar las declaraciones y tocar «Enviar a revisión» | Variables no secretas en Coolify y reinicios |
+| Aprobar el OAuth de `eas-cli` | Builds, `eas submit` y agregar el build a la versión |
