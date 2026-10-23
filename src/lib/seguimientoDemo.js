@@ -11,6 +11,8 @@
 // (nombre, cantidad, precio), total, pagado y nombre de la tienda demo.
 // Es entrada de terceros: al leerlo se valida y se acota todo.
 import { codigoPedido, totalesPedido } from '../utils/pedido.js'
+import { ESTADOS_SOBRE_PEDIDO, estadoDelPedido, tituloParaCliente } from './ventaSinStock.js'
+import { estadoPedidoDemo } from './demo/ventaSinStock.js'
 
 export const MAX_FRAGMENTO_DEMO = 1500
 export const esTokenDemo = (token) => String(token || '').startsWith('demo-')
@@ -53,10 +55,42 @@ const iso = (valor) => {
   return Number.isNaN(fecha.getTime()) ? new Date().toISOString() : fecha.toISOString()
 }
 
+// Venta sin stock: estado «sobre pedido» del pedido demo (franja «Estado de tu
+// pedido» de la página pública). Sale de las líneas vivas de la demo si existen
+// y, si no, de las líneas marcadas sobre pedido en el pedido.
+function estadoSobrePedidoDeOrden(order = {}) {
+  let vivas = null
+  try { vivas = estadoPedidoDemo(order.orderNumber) || estadoPedidoDemo(codigoPedido(order.orderNumber)) } catch { vivas = null }
+  if (vivas?.length) {
+    const estado = estadoDelPedido(vivas.map((linea) => linea.estado))
+    if (!estado) return null
+    const fechas = vivas.filter((linea) => linea.estado && !['LLEGO', 'ENTREGADO'].includes(linea.estado) && linea.prometidaEl).map((linea) => new Date(linea.prometidaEl).getTime())
+    return { estado, prometidaEl: fechas.length ? new Date(Math.max(...fechas)).toISOString() : null }
+  }
+  const items = Array.isArray(order.items) ? order.items : []
+  if (!items.some((linea) => linea?.backorder || linea?.sobrePedido || Number(linea?.stockPending) > 0)) return null
+  const prometida = order.promisedAt || order.prometidaEl
+  const fecha = prometida ? new Date(prometida) : null
+  return { estado: 'PENDIENTE_COMPRA', prometidaEl: fecha && !Number.isNaN(fecha.getTime()) ? fecha.toISOString() : null }
+}
+
+const DETALLE_SOBRE_PEDIDO = { PENDIENTE_COMPRA: 'Estamos consiguiendo tu producto.', COMPRADO: 'Ya compramos tu producto.', LLEGO: 'Tu producto ya llegó.' }
+
+/** Franja pública «Estado de tu pedido» (misma forma que manda el backend); `null` si no hay estado. */
+export function franjaEstadoPedidoDemo(estado, prometidaEl = null, { entregaADomicilio = false } = {}) {
+  if (!ESTADOS_SOBRE_PEDIDO.includes(estado)) return null
+  const titulo = tituloParaCliente(estado, { fechaPrometida: prometidaEl, entregaADomicilio })
+  const llegada = tituloParaCliente('PENDIENTE_COMPRA', { fechaPrometida: prometidaEl })
+  const fecha = llegada.includes('aprox. ') ? llegada.split('aprox. ')[1] : null
+  const detalle = estado === 'EN_CAMINO' ? (fecha ? `Llega aprox. ${fecha}.` : null) : DETALLE_SOBRE_PEDIDO[estado] || null
+  return { estado, titulo, detalle, lineas: [] }
+}
+
 /** Resumen mínimo de un pedido demo (cualquiera de las formas que circulan). */
 export function resumenSeguimientoDemo(order = {}) {
   const { total, pagado } = totalesPedido(order)
   const lineas = Array.isArray(order.items) ? order.items : []
+  const sobrePedido = estadoSobrePedidoDeOrden(order)
   const entrega = String(order.deliveryType || order.entrega || '').toLowerCase().includes('retiro') ? 'R' : 'D'
   const cronologia = (Array.isArray(order.timeline) ? order.timeline : [])
     .filter((evento) => ['created', 'payment', 'fulfillment'].includes(evento?.type))
@@ -78,6 +112,7 @@ export function resumenSeguimientoDemo(order = {}) {
     ]),
     m: 0,
     c: cronologia,
+    ...(sobrePedido ? { b: [sobrePedido.estado, sobrePedido.prometidaEl] } : {}),
   }
 }
 
@@ -133,6 +168,8 @@ export function leerSeguimientoDemo(hash = '') {
     if (tipo === 'f') return { type: 'fulfillment', at: iso(at), metadata: { current: texto(extra, 20) } }
     return { type: 'created', at: iso(at) }
   })
+  const [estadoSobrePedido, prometidaSobrePedido] = Array.isArray(datos.b) ? datos.b : []
+  const prometida = prometidaSobrePedido ? iso(prometidaSobrePedido) : null
   return {
     demo: true,
     orderNumber: texto(datos.n, 24) || 'Pedido demo',
@@ -147,6 +184,7 @@ export function leerSeguimientoDemo(hash = '') {
     level: 'detallado',
     timeline,
     company: { name: texto(datos.s, 40) || 'Tienda demo' },
+    estadoPedido: franjaEstadoPedidoDemo(texto(estadoSobrePedido, 24), prometida, { entregaADomicilio: metodo === 'DELIVERY' }),
     tracking: {
       metodo,
       encabezado: ENCABEZADOS[metodo],
