@@ -201,11 +201,16 @@ export async function selectSectionOption(page, ariaLabel, label) {
   // The tabs mount with the section: wait for them before choosing a branch.
   await nav.waitFor({ state: 'attached' })
   const tab = nav.getByRole('button', { name: label, exact: true })
-  if (await tab.count()) await tab.click()
-  else {
-    await nav.locator('[data-tab-more]').click()
-    await nav.getByRole('menuitem', { name: label, exact: true }).click()
-  }
+  // El ancho se mide al montar y se reajusta (fuentes, barra lateral): la
+  // pestaña puede pasar un instante por «Más». Se reintenta hasta que el clic
+  // llegue, por la pestaña o por el menú, sin depender de una foto fija.
+  await expect(async () => {
+    if (await tab.count()) await tab.click({ timeout: 1500 })
+    else {
+      await nav.locator('[data-tab-more]').click({ timeout: 1500 })
+      await nav.getByRole('menuitem', { name: label, exact: true }).click({ timeout: 1500 })
+    }
+  }).toPass({ timeout: 15_000 })
   await expect(nav.getByRole('button', { name: label, exact: true })).toHaveAttribute(
     'aria-current',
     'page',
