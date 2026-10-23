@@ -261,8 +261,9 @@ const auditoriaCierre = await req('/api/audit?action=SUPPLIER_PAYABLE_CREATED&li
 const cuentaCerrada = (auditoriaCierre || []).find((fila) => fila.metadata?.code === pendiente.code)
 assert.ok(cuentaCerrada, 'el cierre genera la cuenta a pagar')
 assert.equal(Number(cuentaCerrada.metadata?.amountPyg), 3600000)
-// Con la cuenta ya saldada no se ajusta el costo en silencio (contado pago).
-await req('/api/supply/purchases', 'PATCH', { id: pendiente.id, action: 'costs', originalCost: 4000000 }, 409)
+// Decisión B: la compra al contado ya no nace pagada sin salida de caja, así que mientras
+// nadie la pague el costo se puede corregir; con un pago real el ajuste va por Finanzas.
+await req('/api/supply/purchases', 'PATCH', { id: pendiente.id, action: 'costs', originalCost: 4000000 }, 200)
 
 // Validaciones del cierre (compra sin costo y sin cuenta).
 const paraValidar = await req('/api/supply/purchases', 'POST', { supplierName: `Proveedor Cierre ${sufijo}`, currency: 'PYG', lines: [{ productId: productoCierre.id, quantity: 1 }] }, 201)

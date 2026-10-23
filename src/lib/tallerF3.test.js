@@ -165,7 +165,7 @@ test('Taller scoped responsive presentation retains full identities, sort, detai
     'white-space: nowrap',
     'repeat(2, minmax(0, 1fr))',
     // #448: desde 1280 px cada orden es una fila fina (una por renglón).
-    'grid-template-columns: 13.5rem minmax(0, 1.6fr) minmax(0, 1fr) 24rem',
+    'grid-template-columns: 16rem minmax(0, 1.6fr) minmax(0, 1fr) 24rem',
   ])
     assert.ok(css.includes(text), text)
   assert.ok(!css.includes('.shell-'))

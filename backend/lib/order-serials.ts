@@ -1,6 +1,8 @@
 import type { Prisma, ProductCondition } from '@prisma/client'
 import { InputError } from './payment-input'
 import { changeStock, linkSoldUnits, promoteToEquipo } from './stock'
+import { costoAlAsignarSerial } from './supply-costs'
+import { numeroOpcional } from './montos'
 
 // Espejo indexado de OrderItem.serials (ver modelo OrderItemSerial). El JSON
 // sigue siendo el dato que muestra el comprobante; esta tabla existe para
@@ -62,8 +64,13 @@ export async function attachSerialsToOrderItem(tx: Prisma.TransactionClient, inp
     }
   }
   // Con costo informado se completa el de la línea que se vendió sin saberlo.
-  const completaCosto = cost !== null && item.costPending
-  const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length }, ...(completaCosto ? { costPending: false, baseUnitCostPyg: cost, unitCostPyg: cost } : {}) } })
+  // Si la línea ya tiene el costo de la compra (costSource PURCHASE) no se pisa: solo se audita la diferencia.
+  const decisionCosto = costoAlAsignarSerial({ linea: { costSource: item.costSource, costPending: item.costPending, baseUnitCostPyg: numeroOpcional(item.baseUnitCostPyg) }, costoSerial: cost === null ? null : Number(cost) })
+  const completaCosto = cost !== null && decisionCosto.accion === 'completar'
+  const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length }, ...(completaCosto ? { costPending: false, baseUnitCostPyg: cost, unitCostPyg: cost, costSource: 'SERIAL' } : {}) } })
+  if (decisionCosto.accion === 'auditar_diferencia') {
+    await tx.auditLog.create({ data: { tenantId: tenant, userId, action: 'ORDER_ITEM_COST_MISMATCH', entity: 'Order', entityId: order.id, metadata: { itemId, costoCompraPyg: numeroOpcional(item.baseUnitCostPyg), costoSerialPyg: Number(cost), serials } } })
+  }
   await tx.auditLog.create({ data: { tenantId: tenant, userId, action: 'ORDER_SERIALS_ATTACHED', entity: 'Order', entityId: order.id, metadata: { itemId, serials } } })
   await syncOrderItemSerials(tx, [saved])
   await linkSoldUnits(tx, tenant, [{ id: saved.id, serials }])

@@ -90,7 +90,7 @@ export default function BandejaAutorizaciones({
         resolvedAt: new Date().toISOString(),
         resolvedNote: nota,
       })
-      toast.success('Solicitud aprobada', 'En la demo queda simulada: no habilita operaciones reales.')
+      toast.success('Solicitud aprobada', 'Queda habilitada para ejecutarse una sola vez desde la ficha de la unidad.')
       setAprobar(null)
       return
     }
@@ -126,7 +126,7 @@ export default function BandejaAutorizaciones({
         resolvedAt: new Date().toISOString(),
         resolvedNote: nota,
       })
-      toast.success('Solicitud rechazada', 'En la demo queda simulada.')
+      toast.success('Solicitud rechazada')
       setRechazar(null)
       return
     }

@@ -18,6 +18,8 @@ export type CreateCashMovementInput = {
   description: string
   dueAt: Date | null
   accountId: string | null
+  /** Clave única por empresa: un reintento no duplica el movimiento (P2002). */
+  idempotencyKey?: string | null
 }
 
 export type CreateCashMovementOptions = {
@@ -75,6 +77,7 @@ export async function createCashMovement(db: MovementDb, input: CreateCashMoveme
     dueAt: input.dueAt,
     status: isCheque ? 'PENDING' as const : 'CLEARED' as const,
     clearedAt: isCheque ? null : new Date(),
+    ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
   }
   const created = options.includeAccount
     ? await db.cashMovement.create({ data, include: { account: { select: { id: true, name: true, currency: true } } } })

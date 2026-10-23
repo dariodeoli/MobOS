@@ -464,7 +464,7 @@ export async function POST(request: Request) {
       }
       // #250 F1: la demanda que deja la venta (sobre pedido / offline) y los
       // productos a revisar por punto de reposición se juntan acá.
-      const demandaItems: Array<{ productId: string; condition?: string | null; quantity: number; stockPending: number; serialsPending: number; stockFaltante: number; unitPricePyg: number; costPyg: number | null }> = []
+      const demandaItems: Array<{ productId: string; condition?: string | null; quantity: number; stockPending: number; serialsPending: number; stockFaltante: number; unitPricePyg: number; costPyg: number | null; orderItemId?: string | null }> = []
       const productosDelPedido = new Map<string, { condition: string | null; reorderPoint: number | null }>()
       const prometida = body.promisedAt !== undefined && body.promisedAt !== null && String(body.promisedAt).trim() ? new Date(String(body.promisedAt)) : null
       if (prometida && Number.isNaN(prometida.getTime())) throw new InputError('La fecha prometida del pedido no es válida.')
@@ -777,6 +777,15 @@ export async function POST(request: Request) {
       // La demanda se persiste con el pedido ya creado: el dedupeKey y el
       // vínculo usan su id real (una reserva de unidades existentes no genera
       // compra: solo la diferencia sin cubrir).
+      // Venta sin stock: cada necesidad queda atada a su línea de la venta (estado, costo y avisos).
+      if (demandaItems.length) {
+        const creados = await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true, productId: true, stockPending: true, serialsPending: true } })
+        const usados = new Set<string>()
+        for (const demandaItem of demandaItems) {
+          const linea = creados.find(fila => !usados.has(fila.id) && fila.productId === demandaItem.productId && fila.stockPending === demandaItem.stockPending && fila.serialsPending === demandaItem.serialsPending)
+          if (linea) { usados.add(linea.id); demandaItem.orderItemId = linea.id }
+        }
+      }
       const demandas = demandasDePedido({ orderId: order.id, items: demandaItems, promisedAt: prometida, customerId, branchId, ventaConfirmada: confirmed > 0, ahora: new Date() })
       if (demandas.length) await crearDemandas(tx, tenant, demandas, session.user.id)
       // #250 F1: reposición automática por punto de mínimos de los vendidos.

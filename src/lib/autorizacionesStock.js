@@ -130,3 +130,9 @@ export const DEMO_AUTORIZACIONES_STOCK = [
 export function demoAutorizacionesStock() {
   return DEMO_AUTORIZACIONES_STOCK.map((row) => ({ ...row }))
 }
+
+// Sesion demo: la resolucion queda en la lista (no se pierde al cambiar de vista).
+export function resolverAutorizacionStockDemo(id, cambios = {}) {
+  const i = DEMO_AUTORIZACIONES_STOCK.findIndex((row) => row.id === id)
+  if (i >= 0) DEMO_AUTORIZACIONES_STOCK[i] = { ...DEMO_AUTORIZACIONES_STOCK[i], ...cambios }
+}

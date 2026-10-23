@@ -19,7 +19,7 @@ import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
 import { adsDemo, gastosDemo, PREFIJO_AD_DEMO, PREFIJO_GASTO_DEMO } from './demo/finanzas.js'
 import { tomarNumeroPedidoDemo, registrarNumerosUsadosDemo } from './demoTenant.js'
-import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
+import { marcarUnidadesVendidasDemo, liberarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo, limpiarMemoriaDemo } from './demoStorage.js'
 import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo, activarContextoSnapshots, invalidarSnapshotsPrivados, alInvalidarSnapshots, esDenegacionPrivada, permiteRespaldoOffline } from './offline/snapshot'
@@ -1067,6 +1067,30 @@ export function updateVenta(id, cambios) {
   entUpsert('ventas', merged)
   if (isDemoRuntime && ('pagos' in cambios || 'totalPagado' in cambios)) sincronizarPedidoDemoConVenta(merged)
   logAuditoria('editar', merged, difs)
+}
+// Demo: vincula (o quita, con `ficha` nula) la ficha de cliente de un pedido.
+export function asignarClienteVenta(id, ficha) {
+  const nuevo = ficha
+    ? { id: ficha.id, name: ficha.name, phone: ficha.phone || '', countryCode: ficha.countryCode || '+595', email: ficha.email || '', document: ficha.document || '' }
+    : { id: null, name: 'Consumidor final', phone: '', email: '', document: '' }
+  updateVenta(id, { clienteId: nuevo.id, customerId: nuevo.id, cliente: ficha ? nuevo.name : '', customer: nuevo })
+}
+// Demo: anular un pedido lo deja CANCELLED, devuelve el stock y las unidades
+// (IMEI) y no deja saldo pendiente; los pagos quedan registrados.
+export function anularVenta(id, motivo = '') {
+  const v = cache.ventas.find(x => x.id === id)
+  if (!v || v.status === 'CANCELLED') return v
+  for (const item of stockDePedidoDemo(v)) moverStock(item.productoId, item.quantity)
+  if (isDemoRuntime) {
+    const seriales = v.seriales || v.serials || (v.items || []).flatMap(item => item.serials || item.seriales || [])
+    if (Array.isArray(seriales) && seriales.length) {
+      liberarUnidadesVendidasDemo({ serials: seriales, orderNumber: v.orderNumber || v.numero || '' })
+      sincronizarCatalogoDemo()
+    }
+  }
+  const razon = String(motivo || '').trim()
+  updateVenta(id, { status: 'CANCELLED', totalPendiente: 0, anuladoEn: new Date().toISOString(), ...(razon ? { observacion: `Anulado: ${razon}` } : {}) })
+  return cache.ventas.find(x => x.id === id)
 }
 export function deleteVenta(id) {
   const v = cache.ventas.find(x => x.id === id)

@@ -19,10 +19,10 @@ import '@/components/shared/gestionProfundo.css'
 import '@/components/stock/stockToque.css'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
-import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
+import { loadDemoPurchases, createDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
 import { Aviso, Badge, BarraProgreso, Button, EmptyState, FormField, IconAction, Input, Label, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
-import { SaveActions } from '@/components/shared/popupKit'
+import { FormActions, SaveActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { useSesion } from '@/lib/sesion'
@@ -310,7 +310,7 @@ export default function Compras() {
   const totalDevolucionPyg = lineasDevolucion.reduce((sum, line) => sum + line.totalPyg, 0)
   // #323: recibir mercadería cierra con confirmación solo si el operador
   // cambió alguna cantidad respecto del pendiente precargado.
-  const recepcionSucio = !demo && Boolean(recepcionDe) && (recepcionDe.lines || []).some(item => String(recepcionCantidades[item.id] ?? '') !== String(pendienteDeLinea(recepcionDe, item)))
+  const recepcionSucio = Boolean(recepcionDe) && (recepcionDe.lines || []).some(item => String(recepcionCantidades[item.id] ?? '') !== String(pendienteDeLinea(recepcionDe, item)))
   // Error junto al campo de cada línea (enteros, nunca más que lo pendiente).
   const errorRecepcionDe = (item) => {
     const crudo = recepcionCantidades[item.id]
@@ -325,15 +325,6 @@ export default function Compras() {
     setError(''); setMessage(''); setAccionError('')
     setRecepcionDe(purchase)
     setRecepcionCantidades(Object.fromEntries((purchase.lines || []).map(item => [item.id, String(pendienteDeLinea(purchase, item))])))
-  }
-  async function recibirTodo(purchase) {
-    setBusy(true); setError(''); setAccionError('')
-    try {
-      if (demo) { receiveDemoPurchase(purchase.id); setPurchases(loadDemoPurchases()) }
-      else { await purchasesApi.receive(purchase.id); await load() }
-      setMessage('Compra recibida y stock actualizado.')
-      setRecepcionDe(null)
-    } catch (err) { setAccionError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) }
   }
   async function confirmarRecepcion(event) {
     event.preventDefault(); if (!recepcionDe) return
@@ -355,7 +346,6 @@ export default function Compras() {
   }
   function abrirDevolucion(purchase) {
     setError(''); setMessage(''); setAccionError('')
-    if (demo) { toast.info('Devolución al proveedor', 'Requiere conexión con el servidor: la demo no registra devoluciones ni movimientos de stock.'); return }
     setDevolucionDe(purchase)
     setDevolucionCantidades(Object.fromEntries((purchase.lines || []).map(item => [item.id, ''])))
     setDevolucionMotivo('')
@@ -653,7 +643,7 @@ export default function Compras() {
         {control.mostrarResumen && !control.valido && (
           <p role="alert" data-testid="compra-motivos" className="rounded-xl border border-bad/30 bg-bad/5 px-3 py-2 text-xs font-semibold text-bad">{control.motivo}</p>
         )}
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-mute shadow-lg shadow-black/10"><span>Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span><span className="flex items-center gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear pedido</Button></span></div>
+        <FormActions className="items-center"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear pedido</Button><span className="text-sm text-mute sm:order-first sm:mr-auto">Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span></FormActions>
       </form>
       {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     </VentanaDetalle>
@@ -715,7 +705,7 @@ export default function Compras() {
                   {!demo && <IconAction icon="clock" label="Historial de la compra" disabled={busy} onClick={event => { event.stopPropagation(); setHistorialDe(purchase) }} />}
                   {(purchase.status === 'DRAFT' || purchase.status === 'PARTIAL') && <IconAction icon="download" tone="fono" label="Recibir mercadería" disabled={busy} onClick={event => { event.stopPropagation(); abrirRecepcion(purchase) }} />}
                   {(purchase.status === 'RECEIVED' || purchase.status === 'PARTIAL') && <IconAction icon="back" tone="warn" label="Devolver al proveedor" disabled={busy} onClick={event => { event.stopPropagation(); abrirDevolucion(purchase) }} />}
-                  {!demo && saldo > 0 && <IconAction icon="money" tone="ok" label="Pagar la compra" disabled={busy || !accounts.length} onClick={event => { event.stopPropagation(); openPayment(purchase) }} />}
+                  {saldo > 0 && <IconAction icon="money" tone="ok" label="Pagar la compra" disabled={busy || !accounts.length} onClick={event => { event.stopPropagation(); openPayment(purchase) }} />}
                 </span>
               </div>
               {abierta && <div className="mt-1 space-y-2 rounded-xl border border-ink-600 bg-ink-800/60 p-3">
@@ -767,9 +757,8 @@ export default function Compras() {
       {historialDe && <Cronologia endpoint={`/api/purchases/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los costos, la recepción, los pagos y los adjuntos de esta compra aparecerán acá." />}
     </Popup>
     <Popup open={recepcionDe !== null} onClose={() => !busy && setRecepcionDe(null)} title="Recibir mercadería" dirty={recepcionSucio}>
-      {recepcionDe && <form onSubmit={event => { event.preventDefault(); if (demo) recibirTodo(recepcionDe); else confirmarRecepcion(event) }} className="space-y-4">
+      {recepcionDe && <form onSubmit={event => { event.preventDefault(); confirmarRecepcion(event) }} className="space-y-4">
         <p className="text-sm text-mute">{recepcionDe.supplierName} · {estadoCompra(recepcionDe).texto}. Lo que elijas entra al stock; el resto queda pendiente en la orden.</p>
-        {demo && <Aviso tono="warn">La recepción parcial requiere conexión con el servidor: en la demo solo se puede recibir la compra completa.</Aviso>}
         <div className="space-y-2">
           {(recepcionDe.lines || []).map(item => {
             const pendiente = pendienteDeLinea(recepcionDe, item)
@@ -777,16 +766,15 @@ export default function Compras() {
               <span className="min-w-0 truncate text-sm">{item.productName || item.productId}{item.lotReference ? ` · ${item.lotReference}` : ''}</span>
               <span className="text-[11px] text-mute">Pedido {item.quantity} · Recibido {recibidoDeLinea(recepcionDe, item)} · <b className={pendiente > 0 ? 'text-warn' : 'text-ok'}>Pendiente {pendiente}</b></span>
               {pendiente > 0
-                ? (demo
-                  ? <span className="text-[11px] text-mute">Se recibe completo</span>
-                  : <FormField label="Cantidad" htmlFor={`recibir-${item.id}`} error={errorRecepcionDe(item)}><Input id={`recibir-${item.id}`} inputMode="numeric" aria-label={`Recibir ${item.productName || item.productId}`} value={recepcionCantidades[item.id] ?? ''} onChange={(event) => setRecepcionCantidades(current => ({ ...current, [item.id]: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" /></FormField>)
+                ? (
+                  <FormField label="Cantidad" htmlFor={`recibir-${item.id}`} error={errorRecepcionDe(item)}><Input id={`recibir-${item.id}`} inputMode="numeric" aria-label={`Recibir ${item.productName || item.productId}`} value={recepcionCantidades[item.id] ?? ''} onChange={(event) => setRecepcionCantidades(current => ({ ...current, [item.id]: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" /></FormField>)
                 : <span className="text-[11px] text-ok">Completa</span>}
             </div>
           })}
         </div>
         {accionError && <Aviso tono="error">{accionError}</Aviso>}
         <SaveActions pendiente={busy}>
-          <Button type="submit" disabled={busy}>{demo ? 'Recibir todo' : 'Recibir cantidades'}</Button>
+          <Button type="submit" disabled={busy}>Recibir cantidades</Button>
         </SaveActions>
       </form>}
     </Popup>

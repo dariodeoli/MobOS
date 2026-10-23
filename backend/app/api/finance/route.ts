@@ -6,9 +6,10 @@ import { error, json } from '../../../lib/http'
 import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable } from '../../../lib/finance'
-import { CONDICION_PROVEEDOR_LABELS, SUPPLIER_PAYABLE_CONDITIONS, SupplierPayableInputError, enDepositoDeCompra, estadoDeVencimiento, pendienteDeCompra, payableDeCompra } from '../../../lib/supplier-payables'
+import { CONDICION_PROVEEDOR_LABELS, SUPPLIER_PAYABLE_CONDITIONS, SupplierPayableInputError, enDepositoDeCompra, estadoDeVencimiento, pendienteDeCompra, payableDeCompra, registrarPagoAProveedor } from '../../../lib/supplier-payables'
 import { deudaRepuesto, resumenRepuestos } from '../../../lib/workshop-parts'
 import { createCashMovement } from '../../../lib/cash-movements'
+import { asignarCuentaDePago, PagoCompraError } from '../../../lib/supply-payments'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 import { numero } from '../../../lib/montos'
 import { signedOriginalAmount, netPaid } from '../../../lib/payment-net'
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
   const tenantId = ctx.session.user.tenantId
   const branchFilter = ctx.branchId ? { branchId: ctx.branchId } : {}
-  const [movements, accounts, orders, purchases, salePayments, reconciliations, supplierPayablesRows, workshopPartRows] = await Promise.all([
+  const [movements, accounts, orders, purchases, salePayments, reconciliations, supplierPayablesRows, pagosSinCuentaRows, workshopPartRows] = await Promise.all([
     prisma.cashMovement.findMany({ where: { tenantId, kind: { not: 'CHANGE' }, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
@@ -61,6 +62,13 @@ export async function GET(request: Request) {
     // Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83): contado,
     // crédito con vencimiento y consignación (que recién impacta al consumirse).
     prisma.supplierPayable.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, concept: true, condition: true, amountPyg: true, paidPyg: true, consumedPyg: true, dueAt: true, reference: true, createdAt: true, supplyPurchaseId: true }, orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }], take: 2000 }),
+    // Venta sin stock: compras que el encargado marcó «ya pagadas» sin cuenta; Finanzas asigna la cuenta (una sola salida).
+    prisma.supplyPurchase.findMany({
+      where: { tenantId, paymentPendingAccount: true, ...branchFilter },
+      select: { id: true, code: true, supplierId: true, supplierName: true, paidAt: true, paidById: true, payable: { select: { amountPyg: true, paidPyg: true } } },
+      orderBy: { paidAt: 'asc' },
+      take: 500,
+    }),
     // Repuestos del taller (#250 · FIN): crédito y consignación consumida.
     prisma.workshopPart.findMany({
       where: { tenantId, ...branchFilter, paidAt: null, paymentMode: { in: ['CREDITO', 'CONSIGNACION'] } },
@@ -152,6 +160,11 @@ export async function GET(request: Request) {
       porVencerPyg: Number(proveedoresTotales[0]?.porVencerPyg ?? 0),
       depositoPyg: Number(proveedoresTotales[0]?.depositoPyg ?? 0),
       compras: Number(proveedoresTotales[0]?.compras ?? 0),
+    },
+    // Venta sin stock: «Pagos a proveedor sin cuenta» (decisión D).
+    supplyPaymentsNoAccount: {
+      rows: pagosSinCuentaRows.map(fila => ({ id: fila.id, code: fila.code, supplierId: fila.supplierId, supplierName: fila.supplierName, paidAt: fila.paidAt, amountPyg: numero(fila.payable?.paidPyg) })),
+      totalPyg: pagosSinCuentaRows.reduce((suma, fila) => suma + numero(fila.payable?.paidPyg), 0),
     },
     // Repuestos del taller (#250 · FIN): la deuda entra al «por pagar» y se
     // paga desde Caja (el pago registra el egreso de la cuenta elegida).
@@ -273,24 +286,8 @@ export async function POST(request: Request) {
       const amountPyg = Number(body.amountPyg)
       const accountId = text(body.accountId, 'Cuenta', 200)
       const actualizado = await prisma.$transaction(async tx => {
-        const compra = await tx.supplierPayable.findFirst({ where: { id, tenantId: ctx.session.user.tenantId, ...(ctx.branchId ? { branchId: ctx.branchId } : {}) } })
-        if (!compra) throw new FinanceInputError('La compra no existe.')
-        const pendiente = pendienteDeCompra(compra)
-        if (!Number.isSafeInteger(amountPyg) || amountPyg < 1 || amountPyg > pendiente) throw new FinanceInputError(pendiente > 0 ? `El pago tiene que estar entre 1 y ${pendiente} Gs.` : 'Esa compra no tiene saldo pendiente.')
-        if (accountId) {
-          const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true }, select: { id: true } })
-          if (!account) throw new FinanceInputError('La cuenta no existe o está inactiva.')
-        }
-        const fila = await tx.supplierPayable.update({ where: { id: compra.id }, data: { paidPyg: { increment: amountPyg } } })
-        if (accountId) {
-          await createCashMovement(tx, {
-            tenantId: ctx.session.user.tenantId, branchId: compra.branchId, createdById: ctx.session.user.id,
-            kind: 'SUPPLIER_ADVANCE', direction: 'OUT', currency: 'PYG', originalAmount: String(amountPyg), exchangeRatePyg: '1',
-            counterparty: compra.supplierName, reference: compra.reference, description: `Pago a proveedor: ${compra.concept}`, dueAt: null, accountId,
-          }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
-        }
-        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_PAID', entity: 'SupplierPayable', entityId: compra.id, metadata: { amountPyg, saldoAnteriorPyg: pendiente, conCuenta: Boolean(accountId) } } })
-        return fila
+        const { cuenta } = await registrarPagoAProveedor(tx, { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, payableId: id, branchId: ctx.branchId, amountPyg, accountId })
+        return cuenta
       })
       return json(await paraRol(ctx.session, { ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) }))
     }
@@ -327,6 +324,19 @@ export async function POST(request: Request) {
         return fila
       })
       return json(await paraRol(ctx.session, { ...actualizado, deudaPyg: 0, porPagar: false }))
+    }
+    // Venta sin stock: Finanzas asigna la cuenta a una compra «ya pagada» sin cuenta; la salida de caja se registra una sola vez.
+    if (action === 'supplyPaymentAccount') {
+      const purchaseId = text(body.purchaseId, 'Compra', 200, true)!
+      const accountId = text(body.accountId, 'Cuenta', 200, true)!
+      try {
+        const resultado = await prisma.$transaction(tx => asignarCuentaDePago(tx, { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, purchaseId, accountId, branchId: ctx.branchId }))
+        return json({ purchaseId, ...resultado })
+      } catch (cause) {
+        if (cause instanceof PagoCompraError) return error(cause.message, cause.status)
+        if ((cause as { code?: string })?.code === 'P2002') return error('La salida de caja de esta compra ya se registró.', 409)
+        throw cause
+      }
     }
     if (action === 'supplierConsumption') {
       const id = text(body.id, 'Compra', 200, true)!

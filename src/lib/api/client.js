@@ -62,12 +62,23 @@ async function readBody(response) {
 // simultáneos.
 const consultasEnVuelo = new Map()
 
+// Demo: cada llamada que la barrera frena queda anotada en memoria (sin
+// storage) para que el barrido e2e detecte acciones que no se aplican.
+function registrarLlamadaDemo(path, metodo) {
+  try {
+    if (typeof window === 'undefined') return
+    const lista = window.__mobosDemoBloqueadas || (window.__mobosDemoBloqueadas = [])
+    if (lista.length < 200) lista.push(`${String(metodo || 'GET').toUpperCase()} ${path}`)
+  } catch { /* sin window */ }
+}
+
 /** Cliente fetch aislado. No reemplaza ni conoce la implementación de storage.js. */
 export function request(path, options = {}) {
   // Demo pública (#192): las operaciones de tienda usan datos locales y esta
   // barrera permanece cerrada. La consulta real RUC (#498) tiene un transporte
   // público específico, sin sesión; nunca usa una excepción genérica aquí.
   if (isDemoRuntime) {
+    registrarLlamadaDemo(path, options?.method)
     return Promise.reject(new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' }))
   }
   if (!API_URL) {
@@ -185,6 +196,7 @@ export const api = {
 // mismo contrato de demo que el resto de la API (#192).
 export async function apiFetch(path, options = {}) {
   if (isDemoRuntime) {
+    registrarLlamadaDemo(path, options?.method)
     throw new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' })
   }
   if (!API_URL) {

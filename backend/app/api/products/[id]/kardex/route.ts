@@ -11,11 +11,12 @@ import {
   eventosDeCompras,
   eventosDeDevolucionesProveedor,
   eventosDeProducto,
+  eventosDeRecepcionRapida,
   eventosDeTransferencias,
   eventosDeUnidades,
   eventosDeVentas,
 } from '../../../../../lib/kardex'
-import type { AdjuntoSerialKardex, RestitucionKardex } from '../../../../../lib/kardex'
+import type { AdjuntoSerialKardex, RecepcionRapidaKardex, RestitucionKardex } from '../../../../../lib/kardex'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -115,22 +116,28 @@ export async function GET(request: Request, { params }: RouteContext) {
       : Promise.resolve([]),
     itemIds.length
       ? prisma.auditLog.findMany({
-          where: { tenantId: tenant, entity: 'Order', action: 'ORDER_SERIALS_ATTACHED', entityId: { in: orderIds } },
-          select: { id: true, createdAt: true, metadata: true, user: { select: { name: true } } },
+          where: { tenantId: tenant, entity: 'Order', action: { in: ['ORDER_SERIALS_ATTACHED', 'SUPPLY_QUICK_RECEIVED'] }, entityId: { in: orderIds } },
+          select: { id: true, action: true, createdAt: true, metadata: true, user: { select: { name: true } } },
           take: 2000,
         })
       : Promise.resolve([]),
   ])
 
   const adjuntosPorItem = new Map<string, AdjuntoSerialKardex[]>()
+  const recepcionesRapidas: RecepcionRapidaKardex[] = []
   for (const auditoria of adjuntos) {
     const metadata = (auditoria.metadata && typeof auditoria.metadata === 'object' ? auditoria.metadata : {}) as Record<string, unknown>
     const itemId = typeof metadata.itemId === 'string' ? metadata.itemId : null
-    const seriales = Array.isArray(metadata.serials) ? metadata.serials.length : 0
+    const rapida = auditoria.action === 'SUPPLY_QUICK_RECEIVED'
+    const seriales = rapida ? numero(metadata.quantity) : Array.isArray(metadata.serials) ? metadata.serials.length : 0
     if (!itemId || !seriales) continue
     const lista = adjuntosPorItem.get(itemId) ?? []
-    lista.push({ itemId, at: auditoria.createdAt, cantidad: seriales, user: auditoria.user?.name ?? null })
+    lista.push({ itemId, at: auditoria.createdAt, cantidad: seriales, user: auditoria.user?.name ?? null, ...(rapida ? { etiqueta: 'Entrega de lo recibido' } : {}) })
     adjuntosPorItem.set(itemId, lista)
+    if (rapida && items.some(item => item.id === itemId)) {
+      const pedido = items.find(item => item.id === itemId)!.order
+      recepcionesRapidas.push({ orderId: pedido.id, at: auditoria.createdAt, cantidad: seriales, user: auditoria.user?.name ?? null, orderNumber: pedido.orderNumber })
+    }
   }
   const restitucionesPorPedido = new Map<string, RestitucionKardex[]>()
   for (const auditoria of restituciones) {
@@ -149,6 +156,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     ...eventosDeProducto(auditoriasProducto),
     ...eventosDeCompras(compras, { costos: verCostos, proveedor }),
     ...eventosDeVentas(items, adjuntosPorItem, restitucionesPorPedido, { precios: true }),
+    ...eventosDeRecepcionRapida(recepcionesRapidas),
     ...eventosDeTransferencias(transferencias, producto.id),
     ...eventosDeDevolucionesProveedor(devoluciones, { costos: verCostos, proveedor }),
     ...eventosDeUnidades(auditoriasUnidad),

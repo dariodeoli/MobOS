@@ -276,7 +276,7 @@ test.describe('demo completa · historia y cronologías', () => {
     for (const [id, texto] of PEDIDOS_EN_TODOS_LOS_ESTADOS) {
       await irA(page, `/pedidos/${id}`)
       const eventos = page.getByTestId('pedido-evento')
-      if (!(await eventos.first().isVisible().catch(() => false))) await page.getByRole('button', { name: /Cronología/ }).first().click().catch(() => {})
+      if (!(await eventos.first().isVisible().catch(() => false))) await page.getByRole('button', { name: /Cronología/ }).first().click({ timeout: 3000 }).catch(() => {})
       await expect(eventos.first(), `${id}: sin cronología`).toBeVisible({ timeout: 15000 })
       expect(await eventos.count(), `${id}: eventos`).toBeGreaterThanOrEqual(3)
       await expect(page.getByTestId('pedido-evento').filter({ hasText: texto }).first(), `${id}: ${texto}`).toBeVisible()

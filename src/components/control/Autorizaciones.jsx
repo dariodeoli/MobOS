@@ -25,7 +25,7 @@ import {
   useValidacionCampos,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
+import { demoAutorizacionesFiltradas, resolverAutorizacionDemo } from '@/lib/demoAutorizaciones'
 import { autorizacionesCreditoDemo } from '@/lib/demoCreditoStore'
 import { demoCantidadPagosPendientes } from '@/lib/demoVerificacionPagos'
 import { TABS_AUTORIZACIONES, TIPOS_POR_TAB, puedeVerificarPagos, tabDeTipo, tabValida } from '@/lib/verificacionPagos'
@@ -36,7 +36,7 @@ import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } 
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
 const GRID_AUTORIZACIONES =
-  'grid grid-cols-2 items-center gap-x-2 gap-y-1 md:min-w-[54rem] md:grid-cols-[minmax(8rem,1.2fr)_7rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem]'
+  'grid grid-cols-2 items-center gap-x-2 gap-y-1 md:min-w-[56rem] md:grid-cols-[minmax(8rem,1.2fr)_9rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem]'
 
 const KINDS = {
   WHOLESALE: 'Mayorista',
@@ -277,18 +277,18 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
       }
     }
     if (esDemo) {
-      setRows((actuales) => actuales.map((row) => (row.id === approveTarget.id
-        ? {
-            ...row,
-            status: 'APPROVED',
-            resolvedValue,
-            resolvedBy: { name: usuario?.name || 'Administrador' },
-            resolvedAt: new Date().toISOString(),
-            resolvedNote: approveForm.resolvedNote.trim(),
-          }
-        : row)))
-      toast.success('Solicitud aprobada', 'En la demo queda simulada: no cambia condiciones reales.')
+      const cambios = {
+        status: 'APPROVED',
+        resolvedValue,
+        resolvedBy: { name: usuario?.name || 'Administrador' },
+        resolvedAt: new Date().toISOString(),
+        resolvedNote: approveForm.resolvedNote.trim(),
+      }
+      if (approveTarget.id.startsWith('demo-autz-')) resolverAutorizacionDemo(approveTarget.id, cambios)
+      setRows((actuales) => actuales.map((row) => (row.id === approveTarget.id ? { ...row, ...cambios } : row)))
+      toast.success('Solicitud aprobada', kind === 'WHOLESALE' || kind === 'CREDIT' || kind === 'CREDIT_DAYS' || kind === 'DISCOUNT' ? 'La condición del cliente quedó actualizada.' : 'La operación quedó autorizada.')
       setApproveTarget(null)
+      load()
       return
     }
     setBusy(true)
@@ -320,17 +320,17 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
     if (!rejectTarget || busy) return
     if (!validar({ motivo: rejectNote }).valido) return
     if (esDemo) {
-      setRows((actuales) => actuales.map((row) => (row.id === rejectTarget.id
-        ? {
-            ...row,
-            status: 'REJECTED',
-            resolvedBy: { name: usuario?.name || 'Administrador' },
-            resolvedAt: new Date().toISOString(),
-            resolvedNote: rejectNote.trim(),
-          }
-        : row)))
-      toast.success('Solicitud rechazada', 'En la demo queda simulada.')
+      const cambios = {
+        status: 'REJECTED',
+        resolvedBy: { name: usuario?.name || 'Administrador' },
+        resolvedAt: new Date().toISOString(),
+        resolvedNote: rejectNote.trim(),
+      }
+      if (rejectTarget.id.startsWith('demo-autz-')) resolverAutorizacionDemo(rejectTarget.id, cambios)
+      setRows((actuales) => actuales.map((row) => (row.id === rejectTarget.id ? { ...row, ...cambios } : row)))
+      toast.success('Solicitud rechazada', 'El vendedor ve el motivo en su solicitud.')
       setRejectTarget(null)
+      load()
       return
     }
     setBusy(true)
@@ -371,8 +371,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
       </BarraModulo>
       {esDemo && (
         <Aviso tono="warn">
-          Datos ficticios: las solicitudes son de ejemplo y aprobar o rechazar queda simulado
-          (no cambia condiciones reales).
+          Datos ficticios: aprobar o rechazar se aplica en esta sesión y se reinicia al salir.
         </Aviso>
       )}
       <div className="op-rd-tabs flex flex-wrap gap-1" role="tablist" aria-label="Tipo de autorización" data-testid="autorizaciones-tabs">

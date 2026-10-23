@@ -4,10 +4,11 @@ import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { PAYMENT_LABELS } from '../../../../../lib/payments'
 import { countablePayments, netPaid } from '../../../../../lib/payment-net'
-import { seguimientoDeEntrega } from '../../../../../lib/orders'
+import { metodoDeEntrega, seguimientoDeEntrega } from '../../../../../lib/orders'
 import { numero, numeroOpcional } from '../../../../../lib/montos'
 import { politicasPublicadas } from '../../../../../lib/public-policies'
 import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
+import { estadoSobrePedidoDeOrden, franjaPublicaDeEstado } from '../../../../../lib/backorder-order'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
@@ -32,7 +33,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const order = await prisma.order.findFirst({
     where: acceso ? { id: acceso.orderId } : { OR: [{ publicTokenHash: tokenHash }, { publicToken: token }] },
     include: {
-      items: { select: { id: true, description: true, quantity: true, unitPricePyg: true, listPricePyg: true, discountPyg: true, totalPyg: true } },
+      items: { select: { id: true, description: true, quantity: true, unitPricePyg: true, listPricePyg: true, discountPyg: true, totalPyg: true, stockPending: true, serialsPending: true, backorderArrivedAt: true } },
       payments: { orderBy: { createdAt: 'asc' } },
       customer: { select: { name: true, phone: true, countryCode: true, email: true, document: true, addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
       seller: { select: { name: true } },
@@ -77,8 +78,13 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   if (!fechasEntrega[order.fulfillmentStatus]) fechasEntrega[order.fulfillmentStatus] = order.updatedAt.toISOString()
   const tracking = seguimientoDeEntrega(order.deliveryType, order.fulfillmentStatus, fechasEntrega)
 
+  // Venta sin stock: franja «Estado de tu pedido» en vivo (fuera del comprobante congelado).
+  const estadoVivo = order.status === 'CANCELLED' ? null : await estadoSobrePedidoDeOrden(prisma, order.tenantId, { id: order.id, fulfillmentStatus: order.fulfillmentStatus, expectedAt: order.expectedAt, deliveryType: order.deliveryType, items: order.items })
+  const estadoPedido = estadoVivo ? franjaPublicaDeEstado(estadoVivo, order.items, { settings: order.tenant?.settings, entregaADomicilio: Boolean(order.deliveryType) && metodoDeEntrega(order.deliveryType) === 'DELIVERY' }) : null
+
   const base = {
     level,
+    estadoPedido,
     orderNumber: order.orderNumber,
     status: order.status,
     fulfillmentStatus: order.fulfillmentStatus,

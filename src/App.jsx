@@ -10,7 +10,6 @@ import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import { applyPageMetadata } from '@/lib/seo'
-import { isDemoRuntime } from '@/lib/demoMode'
 import DemoAccess from '@/pages/DemoAccess'
 import { DESTINO_LEGADO } from '@/lib/rutas'
 import AvisoMetricas from '@/components/app/AvisoMetricas'
@@ -340,7 +339,8 @@ export default function App() {
   }
   return (
     <SesionProvider>
-      <ToastProvider demo={isDemoRuntime}>
+      {/* Demo: las acciones se aplican en pantalla; el aviso vive en el chip «Demo · se reinicia al salir» de la cabecera, no en cada toast. */}
+      <ToastProvider>
         <MetadatosPagina />
         <TraficoSitio kind="demo" />
         <AvisoMetricas soloDemo />

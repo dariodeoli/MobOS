@@ -117,10 +117,10 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   const ficha = page.getByRole('dialog')
   await expect(ficha.getByRole('heading', { name: new RegExp(`Cliente: Ficha ${marca}`) })).toBeVisible()
   await expect(ficha.getByText(/Modo demo/)).toBeVisible()
-  // Las acciones de la ficha quedan deshabilitadas en demo.
+  // En demo las acciones de la ficha están habilitadas y se aplican en pantalla.
   await ficha.getByRole('tab', { name: /^Datos/ }).click()
-  await expect(ficha.getByRole('button', { name: 'Guardar notas' })).toBeDisabled()
-  await expect(ficha.getByRole('switch', { name: 'Seguro del cliente activo' })).toBeDisabled()
+  await expect(ficha.getByRole('button', { name: 'Guardar notas' })).toBeEnabled()
+  await expect(ficha.getByRole('switch', { name: 'Seguro del cliente activo' })).toBeEnabled()
   // El menú de WhatsApp usa las plantillas demo (sin ir al API) y recuerda la
   // última elegida como predeterminada (#209).
   const menuWa = () => page.getByRole('dialog', { name: 'Plantillas de WhatsApp' })
@@ -205,11 +205,11 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await expect(ficha.getByText('Gasto por mes')).toBeVisible()
   await page.screenshot({ path: '/tmp/qa221-estadisticas-demo.png' })
 
-  // El control del seguro queda activo (12,5%) y deshabilitado en demo.
+  // El control del seguro queda activo (12,5%) y editable en demo.
   await ficha.getByRole('tab', { name: /^Datos/ }).click()
   const interruptorSeguro = ficha.getByRole('switch', { name: 'Seguro del cliente activo' })
   await expect(interruptorSeguro).toBeChecked()
-  await expect(interruptorSeguro).toBeDisabled()
+  await expect(interruptorSeguro).toBeEnabled()
   await expect(ficha.getByLabel('Porcentaje del cliente')).toHaveValue('12,5')
 
   // Comprobante de verificación de IMEI (#203): en demo se simula y se puede

@@ -35,7 +35,7 @@ import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging
 import { gs } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import { codigoPedido, fechaLegible, pagosDelPedido, totalesPedido } from '@/utils/pedido'
-import { getVendedores, listVentas, ventaDesdeApi } from '@/lib/storage'
+import { anularVenta, asignarClienteVenta, getVendedores, listVentas, updateVenta, ventaDesdeApi } from '@/lib/storage'
 import { buscarClienteDemo } from '@/lib/demoClientes'
 import PagosPedido from './PagosPedido'
 import { AvisoEntregaBloqueada } from './PagoVerificacion'
@@ -162,7 +162,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       // Demo: el cobro de saldo y las correcciones escriben en la venta local; el detalle
       // vuelve a leerla para que Pagado/Saldo no queden con la foto vieja de la fila.
       const viva = listVentas().find(venta => venta.id === row.id)
-      const detalleBase = viva ? { ...row, payments: viva.pagos, pagos: viva.pagos, totalPagado: viva.totalPagado, totalPendiente: viva.totalPendiente, estadoPago: viva.estadoPago } : row
+      const detalleBase = viva ? { ...row, payments: viva.pagos, pagos: viva.pagos, totalPagado: viva.totalPagado, totalPendiente: viva.totalPendiente, estadoPago: viva.estadoPago, fulfillmentStatus: viva.fulfillmentStatus || row.fulfillmentStatus, status: viva.status || row.status, archivedAt: viva.archivedAt ?? row.archivedAt ?? null, tags: viva.tags || row.tags, notes: viva.notes ?? row.notes, observacion: viva.observacion ?? row.observacion } : row
       // La fila del listado trae solo el nombre: se completa el contacto con la ficha demo del cliente.
       const ficha = buscarClienteDemo(viva?.clienteId || row.clienteId || row.customerId)
       const clienteBase = typeof detalleBase.customer === 'string' ? { name: detalleBase.customer } : (detalleBase.customer || {})
@@ -275,6 +275,16 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       await load(); onChanged?.()
     } catch (cause) { setError(cause?.message || 'No se pudo preparar el aviso.') } finally { setAvisando(false) }
   }
+  // Venta sin stock: llegó lo que se vendió sobre pedido → mensaje «Llegó tu producto» (lo manda la persona).
+  async function avisarLlegada() {
+    if (avisando || esDemo) return
+    setAvisando(true); setError('')
+    try {
+      const payload = await api.post(`/api/orders/${encodeURIComponent(order.id)}/whatsapp-message`, { templateKey: 'backorder_llego' })
+      if (payload?.whatsappUrl) window.open(payload.whatsappUrl, '_blank', 'noopener,noreferrer')
+      await load(); onChanged?.()
+    } catch (cause) { setError(cause?.message || 'No se pudo preparar el aviso.') } finally { setAvisando(false) }
+  }
   // Envío con plantilla elegida: el API arma el mensaje con las variables del
   // pedido, lo marca como avisado y devuelve el enlace definitivo de WhatsApp.
   async function enviarPlantilla({ template }) {
@@ -283,8 +293,15 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     return payload?.whatsappUrl || ''
   }
 
-  async function accion(operation, success) {
-    if (busy || esDemo) return
+  // Demo: `operation` ya no se llama contra el API; `local` aplica el cambio en la
+  // venta de la sesión y la pantalla se vuelve a leer igual que con el backend.
+  async function accion(operation, success, local) {
+    if (busy) return
+    if (esDemo) {
+      if (!local) return
+      try { local(); toast.success(success); await load(); onChanged?.() } catch (cause) { setError(cause?.message || 'No se pudo actualizar el pedido.') }
+      return
+    }
     setBusy(true); setError('')
     try { await operation(); toast.success(success); await load(); onChanged?.() } catch (cause) { setError(cause?.message || 'No se pudo actualizar el pedido.') } finally { setBusy(false) }
   }
@@ -363,7 +380,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       setEntregaOpen(true)
       return
     }
-    return accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
+    return accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.', () => updateVenta(order.id, { fulfillmentStatus }))
   }
   // Con permiso de gestión entrega directo; sin permiso pide la autorización y,
   // cuando está aprobada, ejecuta la entrega consumiéndola una sola vez.
@@ -372,7 +389,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     if (motivo.length < 3) { setEntregaError('Indicá un motivo de al menos 3 caracteres.'); return }
     setEntregaBusy(true); setEntregaError('')
     try {
-      if (entregaAuth) {
+      if (esDemo) {
+        updateVenta(order.id, { fulfillmentStatus: 'DELIVERED' })
+        toast.success('Pedido entregado', 'La entrega con saldo quedó registrada.')
+        setEntregaOpen(false)
+        await load(); onChanged?.()
+      } else if (entregaAuth) {
         await api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus: 'DELIVERED', deliveryAuthorizationId: entregaAuth.id })
         toast.success('Pedido entregado', 'La entrega con saldo quedó registrada y auditada.')
         setEntregaOpen(false)
@@ -383,8 +405,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       }
     } catch (cause) { setEntregaError(cause?.message || 'No se pudo registrar la entrega.') } finally { setEntregaBusy(false) }
   }
-  const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.')
-  const guardarTags = (next) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { tags: next }), 'Etiquetas actualizadas.')
+  const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.', () => updateVenta(order.id, { archivedAt: archivado ? null : new Date().toISOString() }))
+  const guardarTags = (next) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { tags: next }), 'Etiquetas actualizadas.', () => updateVenta(order.id, { tags: next }))
   function abrirAnular() {
     setAnularMotivo('')
     setAnularError('')
@@ -399,7 +421,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     if (motivo.length < 3) { setAnularError('Indicá un motivo de al menos 3 caracteres.'); return }
     setAnularBusy(true); setAnularError('')
     try {
-      if (puedeAnular || anularAuth) {
+      if (esDemo) {
+        anularVenta(order.id, motivo)
+        toast.success('Pedido anulado.', 'Las unidades vendidas volvieron a stock; los pagos quedan registrados.')
+      } else if (puedeAnular || anularAuth) {
         await api.post(`/api/orders/${encodeURIComponent(order.id)}/void`, { reason: motivo, ...(anularAuth && !puedeAnular ? { authorizationId: anularAuth.id } : {}) })
         toast.success('Pedido anulado.', 'Las unidades vendidas volvieron a stock; los pagos quedan registrados.')
       } else {
@@ -497,7 +522,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               </div>
             )}
 
-            <PedidoArticulos items={items} cantidad={itemsCantidad} esDemo={esDemo} puedeVerStock={puedeVerStock} />
+            <PedidoArticulos items={items} cantidad={itemsCantidad} esDemo={esDemo} puedeVerStock={puedeVerStock} sobrePedido={order.sobrePedido} onAvisar={esDemo ? null : avisarLlegada} avisando={avisando} />
 
             <PedidoPago
               order={order}
@@ -569,7 +594,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                       type="button"
                       disabled={busy}
                       onClick={() => {
-                        if (esDemo) { setDetail({ ...order, notes: notaTexto.trim() || null }); onChanged?.(); setNotaOpen(false); toast.success('Nota guardada.'); return }
+                        if (esDemo) { updateVenta(order.id, { notes: notaTexto.trim(), observacion: notaTexto.trim() }); load(); onChanged?.(); setNotaOpen(false); toast.success('Nota guardada.'); return }
                         accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))
                       }}
                     >
@@ -584,7 +609,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <section className="ventas-f3-detail-section p-3" data-testid="pedido-cliente">
               <h3 className="ventas-f3-card-title !px-0 !pt-0">
                 <Icon name="user" className="h-3.5 w-3.5" /> Cliente
-                {!esDemo && order.customer?.id && !anulado && (
+                {(order.customer?.id || (esDemo && order.customerId)) && !anulado && (
                   <span className="-my-2.5 ml-auto flex items-center">
                     <button type="button" aria-label="Cambiar cliente" title="Cambiar cliente" data-testid="pedido-cambiar-cliente" className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore" onClick={() => setClienteModal('asignar')}><Icon name="edit" className="h-3.5 w-3.5" /></button>
                     <button type="button" aria-label="Quitar cliente" title="Quitar cliente" data-testid="pedido-quitar-cliente" className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-warn" onClick={() => setQuitarCliente(true)}><Icon name="close" className="h-3.5 w-3.5" /></button>
@@ -624,7 +649,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 {order.customer?.email && <p className="break-all text-xs text-mute">{order.customer.email}</p>}
                 {order.customer?.document && <p className="text-xs text-mute">CI/RUC {order.customer.document}</p>}
               </div>
-              {!esDemo && !order.customer?.id && !anulado && (
+              {!(order.customer?.id || (esDemo && order.customerId)) && !anulado && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Button type="button" className="h-9 px-3 text-xs" data-testid="pedido-asignar-cliente" onClick={() => setClienteModal('asignar')}>Asignar cliente</Button>
                   <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-crear-ficha" onClick={() => setClienteModal('crear')}>Crear ficha</Button>
@@ -665,7 +690,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               })()}
               {row.publicToken && !esDemo && <p className="mt-2 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : motivoBloqueoPago || undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value} disabled={Boolean(motivoBloqueoPago) && ESTADOS_QUE_ENTREGAN.includes(value)}>{FULFILLMENT[value] || value}</option>)}</Select>}
+                {!anulado && <Select aria-label="Estado de entrega" className="max-w-full" value={order.fulfillmentStatus || 'PENDING'} disabled={busy || creditoRetiene} title={creditoRetiene ? 'Pendiente de autorización de crédito' : motivoBloqueoPago || undefined} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value} disabled={Boolean(motivoBloqueoPago) && ESTADOS_QUE_ENTREGAN.includes(value)}>{FULFILLMENT[value] || value}</option>)}</Select>}
                 {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
                 {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" preferKey={eventoAviso} contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
                 {!correoEnTitulo && correoAviso}
@@ -688,7 +713,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </section>
 
             {/* Etiquetas */}
-            {!esDemo && (
+            {(
               <section className="ventas-f3-detail-section p-3" data-testid="pedido-etiquetas">
                 <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="tag" className="h-3.5 w-3.5" /> Etiquetas</h3>
                 <div className="flex flex-wrap items-center gap-2">
@@ -708,13 +733,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             open={Boolean(clienteModal)}
             modo={clienteModal || 'asignar'}
             order={order}
+            esDemo={esDemo}
             onClose={() => setClienteModal(null)}
             onSaved={() => { setClienteModal(null); load(); onChanged?.() }}
           />
           <ConfirmDialog
             open={quitarCliente}
             onCancel={() => setQuitarCliente(false)}
-            onConfirm={() => { setQuitarCliente(false); accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: 'setCustomer', customerId: null }), 'Cliente quitado.') }}
+            onConfirm={() => { setQuitarCliente(false); accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: 'setCustomer', customerId: null }), 'Cliente quitado.', () => asignarClienteVenta(order.id, null)) }}
             title="Quitar el cliente del pedido"
             description="El pedido queda como cliente ocasional. La ficha no se borra y el cambio queda en la cronología y la auditoría."
             confirmLabel="Quitar cliente"
@@ -878,14 +904,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 items={[
                   ...(!esDemo && !anulado ? [{ id: 'devolver', label: 'Devolver / postventa', onClick: () => setCobroAbierto(true) }] : []),
                   { id: 'pagina-estado', label: 'Ver página de estado del pedido', onClick: verPaginaEstado },
-                  ...(!esDemo ? [{ id: 'archivar', label: archivado ? 'Desarchivar' : 'Archivar', onClick: alternarArchivado }] : []),
+                  { id: 'archivar', label: archivado ? 'Desarchivar' : 'Archivar', onClick: alternarArchivado },
                   { separador: true },
                   { id: 'imprimir-a4', label: 'Imprimir comprobante A4', onClick: () => impresion.imprimir('a4') },
                   { id: 'imprimir-ticket', label: 'Imprimir ticket 80 mm', onClick: () => impresion.imprimir('ticket-80') },
                   { id: 'nota-entrega', label: 'Imprimir nota de entrega', onClick: () => impresion.imprimir('nota-entrega') },
                   { id: 'etiqueta-envio', label: 'Imprimir etiqueta de envío 10×15', onClick: () => imprimirEtiquetaEnvioPedido(order, { toast }) },
                   { id: 'imprimir-pagina', label: 'Imprimir página del pedido', onClick: () => impresion.imprimir('pagina') },
-                  ...(!esDemo && !anulado ? [{ separador: true }, { id: 'anular', label: 'Anular pedido', peligro: true, onClick: abrirAnular }] : []),
+                  ...(!anulado ? [{ separador: true }, { id: 'anular', label: 'Anular pedido', peligro: true, onClick: abrirAnular }] : []),
                 ]}
               />
             </div>

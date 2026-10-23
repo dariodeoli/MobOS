@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { FormActions } from '@/components/shared/popupKit'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
@@ -212,7 +213,7 @@ export default function Gastos() {
         {validacion.mostrarResumen && !validacion.valido && (
           <p role="alert" data-testid="gastos-motivos" className="col-span-full text-xs font-semibold text-bad">{validacion.motivo}</p>
         )}
-        <div className="flex items-end"><Button type="submit" disabled={busy || !validacion.valido || faltaAutorizacion} title={motivoBloqueo || undefined}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
+        <FormActions><Button type="submit" disabled={busy || !validacion.valido || faltaAutorizacion} title={motivoBloqueo || undefined}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></FormActions>
       </form>
     </Popup>
     <section aria-label="Libro financiero" data-testid="gastos-libro">

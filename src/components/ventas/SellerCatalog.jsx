@@ -247,7 +247,7 @@ export default function SellerCatalog() {
       <Button type="button" variant="outline" className="max-lg:hidden" onClick={data.refresh} disabled={data.loading}>
         <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
       </Button>
-      {canManage && !esDemo && <Button type="button" variant="outline" onClick={() => setCombosOpen(true)}>Combos</Button>}
+      {canManage && <Button type="button" variant="outline" onClick={() => setCombosOpen(true)}>Combos</Button>}
       {esOwner && !esDemo && <ImportarProductos onImportada={data.refresh} />}
     </BarraModulo>
 

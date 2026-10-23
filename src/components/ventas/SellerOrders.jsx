@@ -230,7 +230,7 @@ function FilaPedido({ row, onClick, onAcciones, onCobrar, v2, angosta = false, i
       style={{ '--i': Math.min(indice, 14) }}
       className={cn('ventas-f3-order-row', !angosta && GRID, ACENTO_PAGO(row))}
     >
-      <div className="ventas-f3-order-code">
+      <div className="ventas-f3-order-code flex items-center">
         <span className={cn('font-mono text-xs font-semibold', cancelado && 'line-through')}>
           {codigo}
         </span>

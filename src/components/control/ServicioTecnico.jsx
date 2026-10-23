@@ -987,7 +987,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
       >
         {form && (
           <form id="form-taller-orden" onSubmit={guardar} className="space-y-3">
-            <div className={GRILLA_DOS_COLUMNAS}>
+            <div className="grid gap-3 sm:grid-cols-3">
               <FormField label="Cliente *" htmlFor="cliente" error={errorOrden('customerName')}>
                 <div className="relative">
                   <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={(event) => { limpiarOrden('customerName'); set('customerName')(event) }} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
@@ -1005,11 +1005,13 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                   )}
                 </div>
               </FormField>
+              <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
+              <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
               <FormField
                 label="Dispositivo *"
                 hint="El modelo manda: capacidad y color se despliegan después."
                 error={errorOrden('device')}
-                className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2"
+                className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-3"
               >
                 <div className="mt-1" data-testid="recepcion-dispositivo">
                   {dispositivo.modelo && <SelectorResultadoCompacto
@@ -1024,9 +1026,6 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                   <BuscadorDispositivo className={dispositivo.modelo ? 'selector-dispositivo-elegido' : ''} valor={dispositivo} tipo="servicio" onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
                 </div>
               </FormField>
-              <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
-              <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
-              <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
               {editing?.receivedAt && <div><Label>Recibido</Label><p className="mt-2 text-sm text-mute">{fechaHora(editing.receivedAt)}</p></div>}
             </div>
 
@@ -1047,18 +1046,20 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                 </FormField>
               </div>
               {serviciosDelTipo.length === 0 && <p className="mt-1 text-xs text-mute">{servicios.length === 0 ? 'El catálogo está vacío: usá "Cargar catálogo sugerido" o agregá servicios desde Gestionar catálogo.' : 'Ningún servicio de este tipo coincide con la búsqueda.'}</p>}
-              <p className="mt-1 text-xs text-mute">El precio sugerido es opcional: al elegir el servicio se carga en el precio y lo podés cambiar a mano.</p>
+              <p className="mt-1 text-xs text-mute">Precio sugerido opcional: se carga en el precio y lo podés cambiar.</p>
             </div>
 
-            <div><Label htmlFor="falla-reportada">Falla reportada</Label><Textarea id="falla-reportada" rows={2} value={form.reportedIssue} onChange={set('reportedIssue')} placeholder="Qué reporta el cliente" autoCapitalize="sentences" /></div>
-            <div><Label htmlFor="diagnostico">Diagnóstico</Label><Textarea id="diagnostico" rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
+            <div className={GRILLA_DOS_COLUMNAS}>
+              <div><Label htmlFor="falla-reportada">Falla reportada</Label><Textarea id="falla-reportada" rows={2} value={form.reportedIssue} onChange={set('reportedIssue')} placeholder="Qué reporta el cliente" autoCapitalize="sentences" /></div>
+              <div><Label htmlFor="diagnostico">Diagnóstico</Label><Textarea id="diagnostico" rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
+            </div>
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-mute">Inspección de recepción ({form.deviceType})</p>
                 <Button type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setChecklistOpen(true)}>Configurar</Button>
               </div>
-              <p className="mt-1 text-xs text-mute">Un solo bloque: tocá el dibujo o la lista. Los 8 primeros puntos son los del dibujo y el resto completa la inspección.</p>
+              <p className="mt-1 text-xs text-mute">Tocá el dibujo o la lista; los 8 primeros puntos son los del dibujo.</p>
               <div className="mt-3">
                 <InspeccionEquipo
                   tipo={form.deviceType}
@@ -1083,27 +1084,22 @@ export default function ServicioTecnico({ accionesVista = [] }) {
               </div>
             </div>
 
-            <div className={GRILLA_DOS_COLUMNAS}>
+            <div className="grid gap-3 sm:grid-cols-3">
               <div><Label htmlFor="estado">Estado</Label><Select id="estado" value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
               <div><Label htmlFor="precio-cobrado">Precio cobrado</Label><MoneyInput id="precio-cobrado" value={form.pricePyg} onValueChange={value => setForm(current => ({ ...current, pricePyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
+              <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
             </div>
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-mute">Costos del trabajo</p>
-              <p className="mt-1 text-xs text-mute">Cargá repuesto, mano de obra y otros; si preferís un número único, usá el costo total directo.</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-3">
+              
+              <div className="mt-2 grid gap-3 sm:grid-cols-4">
                 <div><Label htmlFor="costo-repuesto">Repuesto (Gs)</Label><MoneyInput id="costo-repuesto" value={form.partsPyg} onValueChange={value => setForm(current => ({ ...current, partsPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
                 <div><Label htmlFor="costo-mano-obra">Mano de obra (Gs)</Label><MoneyInput id="costo-mano-obra" value={form.laborPyg} onValueChange={value => setForm(current => ({ ...current, laborPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
                 <div><Label htmlFor="costo-otros">Otros (Gs)</Label><MoneyInput id="costo-otros" value={form.otherCostPyg} onValueChange={value => setForm(current => ({ ...current, otherCostPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
-              </div>
-              <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
                 <div><Label htmlFor="costo-total">Costo total directo (Gs)</Label><MoneyInput id="costo-total" value={form.costPyg} onValueChange={value => setForm(current => ({ ...current, costPyg: value === '' ? '' : String(value) }))} placeholder="0" disabled={hayDesgloseForm} />{hayDesgloseForm && <p className="mt-1 text-[11px] text-mute">Con el desglose cargado, el total se calcula solo.</p>}</div>
-                <div className="rounded-xl border border-ink-600 p-3 text-sm">
-                  <p className="text-xs text-mute">Costo del trabajo</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-warn">{gs(costoTrabajoForm)}</p>
-                  <p className="mt-1 text-xs text-mute">Utilidad: <b className={cn('tabular-nums', numeroDe(form.pricePyg) - costoTrabajoForm >= 0 ? 'text-ok' : 'text-bad')}>{gs(numeroDe(form.pricePyg) - costoTrabajoForm)}</b></p>
-                </div>
               </div>
+              <p className="mt-2 text-sm text-mute">Costo del trabajo <b className="tabular-nums text-warn">{gs(costoTrabajoForm)}</b> · Utilidad <b className={cn('tabular-nums', numeroDe(form.pricePyg) - costoTrabajoForm >= 0 ? 'text-ok' : 'text-bad')}>{gs(numeroDe(form.pricePyg) - costoTrabajoForm)}</b></p>
             </div>
 
             <div><Label htmlFor="notas">Notas</Label><Textarea id="notas" rows={2} value={form.notes} onChange={set('notes')} placeholder="Observaciones, repuestos, estado físico" autoCapitalize="sentences" /></div>

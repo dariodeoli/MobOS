@@ -165,7 +165,17 @@ export type VentaKardex = {
   unitPricePyg: bigint | number
   order: { id: string; orderNumber: string; status: string; createdAt: Date; customer: { name: string } | null; seller: { name: string } | null }
 }
-export type AdjuntoSerialKardex = { itemId: string; at: Date; cantidad: number; user: string | null }
+export type AdjuntoSerialKardex = { itemId: string; at: Date; cantidad: number; user: string | null; /** Rótulo propio (recepción rápida de una venta sin stock). */ etiqueta?: string }
+
+/** Recepción rápida de una venta sin stock: la unidad entra (+) al llegar; la salida hacia el cliente es el adjunto. Neto cero. */
+export type RecepcionRapidaKardex = { orderId: string; at: Date; cantidad: number; user: string | null; orderNumber: string }
+export function eventosDeRecepcionRapida(recepciones: RecepcionRapidaKardex[]): KardexEvento[] {
+  return recepciones.filter(r => r.cantidad > 0).map((r, i) => ({
+    id: `recepcion-rapida-${r.orderId}-${r.at.getTime()}-${i}`, at: r.at, kind: 'COMPRA' as const,
+    label: `Recepción rápida · ${displayOrderNumber(r.orderNumber)}`, detail: unid(r.cantidad),
+    reference: r.orderId, user: r.user, delta: r.cantidad,
+  }))
+}
 export type RestitucionKardex = { orderId: string; at: Date; action: string; restock: string | null; reference: string | null; user: string | null }
 
 const serialesDe = (valor: unknown): string[] => Array.isArray(valor) ? valor.filter((serial): serial is string => typeof serial === 'string') : []
@@ -205,7 +215,7 @@ export function eventosDeVentas(items: VentaKardex[], adjuntosPorItem: Map<strin
       if (!adjunto.cantidad) continue
       eventos.push({
         id: `entrega-${item.id}-${adjunto.at.getTime()}-${adjunto.cantidad}`, at: adjunto.at, kind: 'VENTA',
-        label: `Entrega de IMEI · ${displayOrderNumber(item.order.orderNumber)}`,
+        label: `${adjunto.etiqueta ?? 'Entrega de IMEI'} · ${displayOrderNumber(item.order.orderNumber)}`,
         detail: unir(cliente, unid(adjunto.cantidad)),
         reference: item.order.id, user: adjunto.user, delta: -adjunto.cantidad,
       })

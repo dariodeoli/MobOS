@@ -2,7 +2,8 @@ import { guardarFichaClienteDemo } from '@/lib/demoCheckoutCustomer'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, IconAction, Input } from '@/components/ui'
-import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
+import { ConfirmDialog, FormActions, Modal } from '@/components/shared/popupKit'
+import { Info } from 'lucide-react'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import CountrySelect from '@/components/shared/CountrySelect'
 import { Campo, GrillaCampos } from '@/components/shared/GrillaCampos'
@@ -35,7 +36,7 @@ function estadisticasDemo(cliente) {
   return { orders: pedidos.length, lastOrderAt: ultimo, pendingPyg: pedidos.reduce((suma, o) => suma + Number(o.pendingPyg || 0), 0) }
 }
 
-const TITULO_SECCION = 'text-[11px] font-semibold uppercase tracking-wide text-mute'
+const TITULO_SECCION = 'text-xs font-semibold text-mute'
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
@@ -552,27 +553,24 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   }
 
   const fichaContenido = (
-    <div className="mt-3 space-y-4">
-        {(colapsarFicha || typeof value.nameOfficial === 'string') && <section aria-label="Nombre del cliente" className="space-y-2"><Campo rotulo="Nombre del cliente"><Input aria-label="Nombre del cliente en ficha" maxLength={200} value={value.displayName ?? (value.name || '')} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} /></Campo>{typeof value.nameOfficial === 'string' && <p className="text-xs text-mute" data-testid="ficha-razon-social">Nombre visible para el mostrador (en una empresa, el de fantasía). Razón social fiscal, que se conserva aparte: <b className="break-words">{value.nameOfficial}</b></p>}{errorNombre && <p role="alert" className="text-xs text-bad-text">{errorNombre}</p>}</section>}
-        {editar && colapsarFicha && <div className="flex justify-end"><button type="button" className="min-h-9 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute hover:text-fore" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</button></div>}
+    <div className="mt-1 space-y-3">
         <section aria-label="Identidad" className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
-            <div className="flex items-center justify-end gap-3">
-              {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('min-w-0 text-xs font-semibold', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
-              <button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 rounded-lg bg-fono px-3 py-2 text-sm font-bold text-onbrand transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60 md:min-h-9" onClick={confirmarFicha}>
-                Confirmar cliente
-              </button>
-            </div>
-          </div>
-          <GrillaCampos className="md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] md:flex-none">
-            <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={(datos) => { const antes = value; aplicarDocumento(datos); return () => onChange(antes) }} esDemo={esDemo} /></Campo>
-            <Campo como="div" className="md:min-w-0 md:max-w-none" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
-            <Campo ancho="correo" className="md:col-span-2 md:min-w-0 md:max-w-none" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
+          <h4 className={TITULO_SECCION}>Identidad y contacto</h4>
+          <GrillaCampos>
+            {(colapsarFicha || typeof value.nameOfficial === 'string') && <Campo ancho="flexible" rotulo={<>Nombre del cliente{typeof value.nameOfficial === 'string' && <span className="ml-1 inline-flex align-middle text-mute" title="Nombre visible para el mostrador. La identidad fiscal se conserva aparte."><Info aria-hidden="true" className="h-3.5 w-3.5" /></span>}</>}><Input aria-label="Nombre del cliente en ficha" maxLength={200} value={value.displayName ?? (value.name || '')} onChange={event => onChange({ ...value, name: event.target.value, displayName: event.target.value })} placeholder="Nombre y apellido o razón social" aria-invalid={errorNombre ? true : undefined} />{errorNombre && <span role="alert" className="mt-1 block text-xs text-bad-text">{errorNombre}</span>}</Campo>}
+            <Campo como="div" ancho="documento" rotulo="CI o RUC"><RucField ariaLabel="CI o RUC del cliente" disabled={guardandoFicha} value={value.document || ''} onChange={(document) => onChange({ ...clearCheckoutIdentity(value), document })} onAplicar={(datos) => { const antes = value; aplicarDocumento(datos); return () => onChange(antes) }} esDemo={esDemo} /></Campo>
+            <Campo como="div" ancho="telefono" rotulo="Teléfono" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); confirmarFicha() } }}><PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></Campo>
+            <Campo ancho="correo" rotulo="Correo"><EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></Campo>
           </GrillaCampos>
+          {typeof value.nameOfficial === 'string' && <p className="text-xs text-mute" data-testid="ficha-razon-social">Razón social fiscal (se conserva aparte): <b className="break-words">{value.nameOfficial}</b></p>}
         </section>
+        <FormActions className="items-center">
+          {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('min-w-0 text-xs font-semibold md:mr-auto', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
+          {editar && colapsarFicha && <Button type="button" variant="outline" className="min-h-11 md:h-11" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</Button>}
+          <Button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className={cn('min-h-11 md:h-11', !feedbackFicha && !(editar && colapsarFicha) && 'w-full')} onClick={confirmarFicha}>Confirmar cliente</Button>
+        </FormActions>
         {onBillingChange && (
-          <section aria-label="Facturación" className="rounded-xl border border-ink-600 p-3">
+          <section aria-label="Facturación" className="rounded-xl border border-ink-600 px-3 py-2">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-fono-light md:min-h-0">
               <input
                 type="checkbox"
@@ -587,10 +585,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             </label>
             {facturarAOtro && (
               <>
-                <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
-                <GrillaCampos className="mt-3 md:!grid md:grid-cols-[minmax(0,30%)_minmax(0,70%)] md:flex-none">
-                  <Campo como="div" ancho="documento" className="md:min-w-0 md:max-w-none" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => { const antes = billingTo || { name: '', document: '' }; onBillingChange(applyCheckoutIdentity(billingTo || {}, datos)); return () => onBillingChange(antes) }} esDemo={esDemo} /></Campo>
-                  <Campo ancho="flexible" className="md:min-w-0 md:max-w-none" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
+                <p className="mt-1 text-xs text-mute">Buscá por RUC o cédula, o escribí el nombre: los datos fiscales se completan solos.</p>
+                <GrillaCampos className="mt-2">
+                  <Campo como="div" ancho="documento" rotulo="RUC del titular"><RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...clearCheckoutIdentity(billingTo), document })} onAplicar={(datos) => { const antes = billingTo || { name: '', document: '' }; onBillingChange(applyCheckoutIdentity(billingTo || {}, datos)); return () => onBillingChange(antes) }} esDemo={esDemo} /></Campo>
+                  <Campo ancho="flexible" rotulo="Nombre y apellido del titular"><Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...clearCheckoutIdentity(billingTo), name: normalizarNombre(event.target.value), displayName: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></Campo>
                 </GrillaCampos>
               </>
             )}

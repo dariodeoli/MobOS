@@ -60,3 +60,11 @@ La demo cuenta una historia completa y coherente de ~4 meses, relativa a «hoy»
 **Auditoría/actividad:** la cronología de cada pedido, cliente, caja, taller y cuota incluye las acciones del equipo (quién y cuándo). La auditoría de medios y efectivo (`demoAuditoria.js`) ya sale de las mismas ventas.
 
 Coherencia verificada en `src/lib/demo/historiaCompleta.test.js` (saldos de caja y bancos, turnos encadenados, transferencias que se anulan, kardex contra stock, períodos no vacíos en 21 instantes de carga) y en `e2e/demo-completa.spec.js` («historia y cronologías»).
+
+## Demo funcional (rama `codex/demo-funcional`)
+
+Toda acción de la demo se **aplica en pantalla** durante la sesión. Los datos viven en memoria de la pestaña (`demoStorage` + stores de `src/lib/demo/*`): nada va a `localStorage` y al recargar o salir vuelve el estado inicial. El aviso por acción («no se guardó en la tienda») se reemplazó por el chip fijo «Demo · se reinicia al salir» de la cabecera.
+
+Acciones que antes no cambiaban nada y hoy sí: pedido (estado de entrega, etiquetas, archivar, anular con vuelta de stock/IMEI, nota, cambiar o quitar cliente), módulos (activar/desactivar apaga menú y pestañas), conteos físicos, traslados (guía y ETA), stock compartido, apartados en tránsito, reservas (el listado se refresca al liberar), compras (recepción parcial, devolución, pago), productos (editar, desactivar, combos), ficha de cliente (etiquetas, direcciones, condiciones, notas, seguimientos, puntos, solicitudes, facturación), autorizaciones (aprobar/rechazar persiste entre vistas y baja el contador).
+
+Regresión: `e2e/demo-acciones.spec.js` (config `e2e/demo-acciones.frontend.config.js`). La barrera de la demo anota en `window.__mobosDemoBloqueadas` cada llamada al API que frena, para detectar acciones que no se aplican.

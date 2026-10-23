@@ -16,6 +16,7 @@ import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-vis
 import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
 import { creditTermEnabled, effectiveCreditLimits, parseCreditConfig, resolveCreditTerm } from '../../../../lib/credit-config'
 import { assertNoPaymentInVerification } from '../../../../lib/payment-verification'
+import { estadoSobrePedidoDeOrden } from '../../../../lib/backorder-order'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -41,7 +42,10 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
   // `warrantyDays` por línea: el comprobante imprime la garantía de cada equipo (#461).
-  return json(await withCreditAuthorization(prisma, tenant, await withItemThumbs(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session)))))))
+  const respuesta = await withCreditAuthorization(prisma, tenant, await withItemThumbs(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session))))))
+  // Venta sin stock: estado en vivo por línea y del pedido (la línea más atrasada). Sin costos.
+  const sobrePedido = await estadoSobrePedidoDeOrden(prisma, tenant, { id: order.id, fulfillmentStatus: order.fulfillmentStatus, expectedAt: order.expectedAt, deliveryType: order.deliveryType, items: order.items })
+  return json({ ...respuesta, sobrePedido: sobrePedido.estado ? sobrePedido : null })
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
