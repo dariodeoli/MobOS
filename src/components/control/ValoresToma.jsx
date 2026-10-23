@@ -5,6 +5,7 @@ import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
+import AttachmentInput from '@/components/shared/AttachmentInput'
 import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
@@ -115,12 +116,8 @@ export default function ValoresToma({ esDemo }) {
   }
   function plantilla() { descargarCsvCliente('valores-de-toma-plantilla.csv', csvPlantilla()) }
 
-  async function leerArchivo(evento) {
-    const elegido = evento.target.files?.[0]
-    evento.target.value = ''
-    if (!elegido) return
+  async function leerArchivo(elegido) {
     setError(''); setMessage('')
-    if (elegido.size > 2 * 1024 * 1024) { setError('El archivo es demasiado grande (máximo 2 MB).'); return }
     const lectura = leerCsvValores(await elegido.text())
     setImportacion({ ...lectura, nombre: elegido.name, cambian: filasQueCambian(lectura.rows, rows) })
   }
@@ -158,7 +155,7 @@ export default function ValoresToma({ esDemo }) {
             { label: 'Actualizar', disabled: busy || loading, onClick: load },
           ]}
         />
-        <input ref={archivo} type="file" accept=".csv,text/csv,text/plain" className="hidden" aria-label="Archivo CSV de valores de toma" data-testid="valores-csv-archivo" onChange={leerArchivo} />
+        <AttachmentInput className="hidden" inputRef={archivo} accept=".csv,text/csv" mensaje="El archivo debe ser un CSV (.csv o text/csv) de hasta 5 MiB." onSelect={leerArchivo} onError={setError} aria-label="Archivo CSV de valores de toma" data-testid="valores-csv-archivo" />
       </div>
     </div>
     {loading && <p role="status" className="text-sm text-mute">Cargando valores…</p>}

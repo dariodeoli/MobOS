@@ -7,7 +7,7 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Button, DocumentoImpresion, EmptyState, FormField, Input, MoneyInput, Select, Stat, Textarea, MenuDesplegable } from '@/components/ui'
+import { Aviso, Button, DocumentoImpresion, EmptyState, FormField, Input, MoneyInput, Stat, Textarea, MenuDesplegable } from '@/components/ui'
 import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import EmailField from '@/components/shared/EmailField'
@@ -817,12 +817,12 @@ export default function SellerQuotes() {
             <FormField label="Capacidad" htmlFor="cotizacion-equipo-capacidad">
               {equipoCatalogo
                 ? (equipoNecesitaCapacidad
-                  ? <Select id="cotizacion-equipo-capacidad" value={equipo.storage} onChange={event => setEquipo(actual => ({ ...actual, storage: event.target.value }))}><option value="">Elegí la capacidad</option>{equipoCatalogo.capacidades.map(capacidad => <option key={capacidad} value={capacidad}>{capacidad}</option>)}</Select>
+                  ? <ChipsFiltro etiqueta="Capacidad del equipo" opciones={equipoCatalogo.capacidades.map(capacidad => [capacidad, capacidad])} valor={equipo.storage} onChange={storage => setEquipo(actual => ({ ...actual, storage }))} />
                   : <Input id="cotizacion-equipo-capacidad" readOnly disabled value="Sin capacidad" />)
                 : <Input id="cotizacion-equipo-capacidad" maxLength={60} value={equipo.storage} onChange={event => setEquipo(actual => ({ ...actual, storage: event.target.value }))} placeholder="Ej. 128GB (opcional)" />}
             </FormField>
             <FormField label="Condición" htmlFor="cotizacion-equipo-condicion">
-              <Select id="cotizacion-equipo-condicion" value={equipo.condition} onChange={event => setEquipo(actual => ({ ...actual, condition: event.target.value }))}>{CONDICIONES_TOMA.map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}</Select>
+              <ChipsFiltro etiqueta="Condición del equipo" opciones={CONDICIONES_TOMA} valor={equipo.condition} onChange={condition => setEquipo(actual => ({ ...actual, condition }))} />
             </FormField>
           </div>
           <p className="text-xs text-mute" role="status" data-testid="cotizacion-equipo-valor">

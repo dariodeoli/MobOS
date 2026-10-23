@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dependenciesEnabled, hasEnabledDependents, MODULE_CATALOG, MODULE_KINDS, mergeModuleStoreSettings, moduleStoreFrom, newCompanyModuleStore, newCompanySettings, parseModuleChange, updateModuleStore } from '../lib/module-store'
+import { moduloActivo } from '../lib/modulos-catalogo.mjs'
 
 test('tienda de módulos: el estado inicial conserva funciones existentes y fuerza los módulos core', () => {
   const state = moduleStoreFrom({ keepMe: true }, '2026-10-17T10:00:00.000Z')
@@ -86,7 +87,8 @@ test('tienda de módulos v2: empresa existente (sin store o versión 1) conserva
   for (const settings of [undefined, {}, { moduleStore: { version: 1, preset: 'comercio', modules: {} } }]) {
     const state = moduleStoreFrom(settings, '2026-10-21T10:00:00.000Z')
     assert.equal(state.version, 2)
-    for (const module of MODULE_CATALOG) assert.equal(state.modules[module.id].enabled, module.status === 'available', module.id)
+    // «Catálogo de modelos» no se guarda prendido: se deriva de Trade-In (implicadoPor), ver más abajo.
+    for (const module of MODULE_CATALOG) assert.equal(state.modules[module.id].enabled, module.status === 'available' && module.id !== 'catalogo-modelos', module.id)
   }
   const v1 = { moduleStore: { version: 1, preset: 'comercio', modules: { delivery: { enabled: false, source: 'manual', manuallySelected: true, updatedAt: '2026-10-01T00:00:00.000Z' }, mensajes: { enabled: false } } } }
   const state = moduleStoreFrom(v1)
@@ -128,4 +130,16 @@ test('tienda de módulos v2: los settings de una empresa nueva traen el store y 
   assert.equal(settings.moduleStore.version, 2)
   assert.equal(settings.moduleStore.modules.servicios.enabled, false)
   assert.equal(settings.moduleStore.modules.ventas.enabled, true)
+})
+
+test('Catálogo de modelos: se activa solo con Trade-In y no bloquea apagarlo', () => {
+  const def = MODULE_CATALOG.find(module => module.id === 'catalogo-modelos')!
+  assert.deepEqual([...def.dependencies], ['tradein'])
+  assert.deepEqual([...(def.implicadoPor ?? [])], ['tradein'])
+  const conTradein = { moduleStore: { version: 2, preset: 'comercio', modules: { tradein: { enabled: true } } } }
+  const sinTradein = { moduleStore: { version: 2, preset: 'comercio', modules: { tradein: { enabled: false } } } }
+  assert.equal(moduloActivo(conTradein, 'catalogo-modelos'), true)
+  assert.equal(moduloActivo(sinTradein, 'catalogo-modelos'), false)
+  const apagado = updateModuleStore(conTradein, { moduleId: 'tradein', enabled: false }, '2026-10-23T10:00:00.000Z')
+  assert.equal(apagado.modules.tradein.enabled, false, 'apagar Trade-In no queda bloqueado por el catálogo')
 })
