@@ -11,7 +11,7 @@ import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
 import { Aviso, Badge, Button, Card, Input, PasswordInput, PinInput, Subtabs, useToast } from '@/components/ui'
-import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
+import { ConfirmDialog, FormActions, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import UsoEquipo from '@/components/control/UsoEquipo'
@@ -506,7 +506,7 @@ function SeccionInvitaciones() {
           <p className="text-sm text-mute">Elegí tu PIN de 4 a 6 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
           <PinInput autoFocus length={6} value={pin} onChange={(next) => { setPin(next); setError('') }} />
           {error && <Aviso tono="error">{error}</Aviso>}
-          <Button type="submit" className="w-full" disabled={busy || pin.length < 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
+          <FormActions><Button type="submit" disabled={busy || pin.length < 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button></FormActions>
         </form>
       </Modal>
     </Card>

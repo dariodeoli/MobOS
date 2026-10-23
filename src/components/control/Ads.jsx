@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { FormActions } from '@/components/shared/popupKit'
 import { listAds, addAds, deleteAds } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -141,10 +142,10 @@ export default function Ads() {
               {PLATAFORMAS.map((p) => <option key={p} value={p}>{p}</option>)}
             </Select>
           </div>
-          <div className="flex justify-end gap-2 sm:col-span-3">
+          <FormActions>
             <Button type="button" variant="ghost" onClick={() => setAbierto(false)}>Cancelar</Button>
             <Button type="submit">Guardar inversión</Button>
-          </div>
+          </FormActions>
         </form>
       </Popup>
       <div className="gp-dos">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FormActions } from '@/components/shared/popupKit'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
@@ -401,7 +402,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
             <p id="pa-active-desc" className="text-[11px] text-mute">Desactivada deja de ofrecerse al cobrar; la cuenta, su historial y sus marcas se conservan.</p>
           </div>
         </fieldset>
-        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={cerrarForm}>Cancelar</Button></div>
+        <FormActions><Button type="button" variant="ghost" disabled={busy} onClick={cerrarForm}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button></FormActions>
         </form>
         </Popup>
       )}

@@ -154,14 +154,14 @@ export default function Popup({
           onPointerUp={alSoltar}
           onPointerCancel={alSoltar}
         >
-          <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-ink-500" aria-hidden="true" />
-          <div className="h-2" aria-hidden="true" />
+          <div className="mx-auto mt-1.5 h-1.5 w-10 rounded-full bg-ink-500" aria-hidden="true" />
+          <div className="h-1" aria-hidden="true" />
         </div>
-        <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-2 md:px-5 md:pt-4">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex items-start justify-between gap-3 px-4 pb-1 pt-1 md:px-6 md:pb-1 md:pt-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             {Icono && <Icono aria-hidden="true" className={cn('h-6 w-6 shrink-0', TONO_ICONO[tono])} />}
             <div className="min-w-0">
-              <h2 id={titleId} className="text-lg font-bold leading-6">{title}</h2>
+              <h2 id={titleId} className="text-base font-bold leading-6 md:text-lg">{title}</h2>
               {description && <p id={descId} className="mt-0.5 text-sm text-mute">{description}</p>}
             </div>
           </div>
@@ -179,10 +179,10 @@ export default function Popup({
           </div>
         </div>
         <ContextoPopup.Provider value={contexto}>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
+          <div className="popup-cuerpo min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 text-sm md:px-6 md:pb-4">{children}</div>
         </ContextoPopup.Provider>
         {(footer || lista.length > 0) ? (
-          <div className="border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 md:px-5 md:pb-4">
+          <div className="border-t border-ink-600 bg-ink px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 md:px-6 md:pb-3 md:pt-3">
             {footer || (
               <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end" data-testid="popup-acciones">
                 {lista.map(({ clave, label, variante, cierra, ...resto }) => (
@@ -194,7 +194,7 @@ export default function Popup({
         ) : (
           <>
             {/* Pie fijo para `FormActions`/`SaveActions` (se oculta si nadie escribe en él). */}
-            <div ref={setPie} className="popup-pie border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 empty:hidden md:px-5 md:pb-4" />
+            <div ref={setPie} className="popup-pie border-t border-ink-600 bg-ink px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 empty:hidden md:px-6 md:pb-3 md:pt-3" />
             <div className="popup-pie-espacio shrink-0 pb-[env(safe-area-inset-bottom,0px)]" aria-hidden="true" />
           </>
         )}

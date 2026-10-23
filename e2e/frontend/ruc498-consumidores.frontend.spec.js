@@ -66,7 +66,8 @@ for (const width of [390, 1440]) {
     await edit.click()
     const form = page.getByTestId('cuenta-form')
     const official = await extraer(page, form.locator('#pa-document'), form.locator('#pa-holder'))
-    await form.getByRole('button', { name: 'Guardar cuenta', exact: true }).click()
+    // El botón vive en el pie fijo del Popup, fuera del <form> (asociado por su atributo form).
+    await page.getByRole('dialog').getByRole('button', { name: 'Guardar cuenta', exact: true }).click()
     await expect(form).toHaveCount(0)
     await page.getByRole('button', { name: editName, exact: true }).click()
     await expect(form.locator('#pa-holder')).toHaveValue(official)

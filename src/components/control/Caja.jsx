@@ -1259,15 +1259,17 @@ export default function Caja() {
             {error}
           </Aviso>
         )}
-        <Button
-          type="button"
-          variant="success"
-          className="mt-4 w-full"
-          onClick={cerrar}
-          disabled={saving || !resumen.hayConteo}
-        >
-          {saving ? 'Cerrando…' : <>Cerrar caja · <Money value={contado} /></>}
-        </Button>
+        <div className={cn(PIE_ACCIONES_REVERSO, 'mt-3')}>
+          <Button type="button" variant="ghost" onClick={() => setConteoOpen(false)} disabled={saving}>Cancelar</Button>
+          <Button
+            type="button"
+            variant="success"
+            onClick={cerrar}
+            disabled={saving || !resumen.hayConteo}
+          >
+            {saving ? 'Cerrando…' : <>Cerrar caja · <Money value={contado} /></>}
+          </Button>
+        </div>
       </Popup>
       <Popup
         open={Boolean(turnoAjeno)}
