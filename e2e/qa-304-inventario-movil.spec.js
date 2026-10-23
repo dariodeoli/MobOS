@@ -18,8 +18,8 @@ async function entrarDemo(page) {
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   await cerrarGuiaDemo(page)
-  // El aviso del demo es el mismo (texto largo en escritorio, corto en móvil).
-  await expect(page.getByRole('status').filter({ hasText: /datos ficticios/ }).first()).toBeVisible()
+  // El aviso del demo es un chip fijo «Demo · se reinicia al salir».
+  await expect(page.getByTestId('demo-aviso')).toContainText('Demo')
 }
 
 async function capturar(page, nombre, oscuro) {

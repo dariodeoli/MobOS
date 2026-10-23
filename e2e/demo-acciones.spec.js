@@ -303,6 +303,7 @@ test.describe('demo · acciones que se aplican en pantalla', () => {
     await expect(page.getByText('Seguimiento marcado como hecho').first()).toBeVisible()
     // Cerrar y volver a abrir: lo guardado sigue en la ficha de la sesión.
     await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
     await page.getByText('Lucía Fernández').first().click()
     await page.getByRole('tab', { name: /Datos/ }).click()
     await expect(page.locator('#perfil-tags')).toHaveValue('vip, mayorista')
