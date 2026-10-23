@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.242 — 2026-10-22
+
+- **Otros:** la app de iPhone muestra lo mismo que la web (Stock, Compras, Taller, Finanzas, Análisis, Inicio) según los módulos de cada empresa; sin alta de tienda ni planes dentro de la app por reglas de Apple.
+- **Otros:** el ingreso con Google en la app de iPhone vuelve a funcionar.
+- **Otros:** la pantalla de código es más grande y animada; con un correo compartido de la empresa, cada vendedor entra con su código y el sistema lo reconoce («Hola, Nombre»).
+- **Impresión:** los QR de comprobantes, seguimiento, cotizaciones y etiquetas llevan el logo de la tienda en el centro.
+
 ## v1.0.241 — 2026-10-21
 
 - **Ventas:** el POS tiene diseño nuevo: catálogo y ticket lado a lado con el total y «Cobrar» siempre a la vista, y un «Falta cobrar» grande que baja con cada pago. En el celular, el cobro y la venta registrada se ven más claros, con el vuelto grande.
