@@ -52,3 +52,49 @@ export function updateDemoPurchaseCosts(id, lines) {
   write(items.map((item) => item.id === id ? updated : item))
   return updated
 }
+
+// Recepcion total o parcial: suma el stock de lo recibido y deja la compra en
+// PARTIAL o RECEIVED segun lo que falte (misma regla que el servidor).
+export function receiveDemoPurchaseLines(id, lines) {
+  const items = read(); const purchase = items.find((item) => item.id === id)
+  if (!purchase || !['DRAFT', 'PARTIAL'].includes(purchase.status)) throw new Error('La compra ya fue recibida o no existe.')
+  const pedidas = Array.isArray(lines) ? Object.fromEntries(lines.map((line) => [line.id, Number(line.quantity)])) : null
+  const actualizadas = (purchase.lines || []).map((line) => {
+    const recibido = Number(line.receivedQty || 0)
+    const pendiente = Math.max(0, Number(line.quantity) - recibido)
+    const cantidad = pedidas ? Math.min(pendiente, Math.max(0, pedidas[line.id] || 0)) : pendiente
+    if (cantidad > 0) moverStock(line.productId, cantidad)
+    return { ...line, receivedQty: recibido + cantidad }
+  })
+  const completa = actualizadas.every((line) => Number(line.receivedQty) >= Number(line.quantity))
+  const updated = { ...purchase, status: completa ? 'RECEIVED' : 'PARTIAL', receivedAt: completa ? new Date().toISOString() : purchase.receivedAt, lines: actualizadas, finalCostPyg: costoFinal(actualizadas) }
+  write(items.map((item) => item.id === id ? updated : item))
+  return updated
+}
+
+// Devolucion al proveedor: baja el stock y deja constancia por linea.
+export function returnDemoPurchase(id, { lines = [] } = {}) {
+  const items = read(); const purchase = items.find((item) => item.id === id)
+  if (!purchase) throw new Error('La compra no existe.')
+  const pedidas = Object.fromEntries(lines.map((line) => [line.id, Number(line.quantity)]))
+  const actualizadas = (purchase.lines || []).map((line) => {
+    const cantidad = Math.max(0, pedidas[line.id] || 0)
+    if (cantidad > 0) moverStock(line.productId, -cantidad)
+    return { ...line, returnedQty: Number(line.returnedQty || 0) + cantidad }
+  })
+  const updated = { ...purchase, lines: actualizadas }
+  write(items.map((item) => item.id === id ? updated : item))
+  return updated
+}
+
+// Pago o anticipo a proveedor: suma el pago y baja el saldo por pagar.
+export function payDemoPurchase(id, { originalAmount, exchangeRatePyg = 1, accountId = '', reference = '' } = {}, action = 'pay') {
+  const items = read(); const purchase = items.find((item) => item.id === id)
+  if (!purchase) throw new Error('La compra no existe.')
+  const monto = Math.round(Number(originalAmount) * Number(exchangeRatePyg || 1))
+  const pago = { id: `demo-pago-${Date.now().toString(36)}`, amountPyg: monto, accountId, reference, kind: action === 'advance' ? 'ADVANCE' : 'PAYMENT', paidAt: new Date().toISOString() }
+  const pagado = Number(purchase.paidPyg || 0) + monto
+  const updated = { ...purchase, payments: [...(purchase.payments || []), pago], paidPyg: pagado, outstandingPyg: Math.max(0, Number(purchase.finalCostPyg || 0) - pagado) }
+  write(items.map((item) => item.id === id ? updated : item))
+  return { payment: pago, purchase: updated }
+}
