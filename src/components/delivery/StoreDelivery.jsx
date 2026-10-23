@@ -18,6 +18,7 @@ import { codigoPedido } from '@/utils/pedido'
 import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
 import { deliveryFields, settlementFields, ENTREGA_LABELS, MEDIO_LABELS, RENDICION_LABELS } from './datos'
+import EtiquetaEnvioPopup from './EtiquetaEnvioPopup'
 import { asignarRepartoDemo, equipoDeRepartoDemo, listDemoDeliveryOrders, listDemoDeliverySettlements, verificarRendicionDemo } from '@/lib/demo/delivery.js'
 
 // Vista de la tienda para el reparto propio: asignar pedidos a un repartidor
@@ -39,6 +40,10 @@ function Asignaciones() {
   const [autorizar, setAutorizar] = useState({})
   const [ocupado, setOcupado] = useState('')
   const [error, setError] = useState('')
+  // Etiqueta de envío 10×15: pedidos marcados para el lote y los que están en el popup.
+  const [marcados, setMarcados] = useState({})
+  const [paraEtiqueta, setParaEtiqueta] = useState(null)
+  const elegidos = data.rows.filter(row => marcados[row.id])
 
   useEffect(() => {
     if (esDemo) { setEquipo(equipoDeRepartoDemo()); return }
@@ -105,6 +110,31 @@ function Asignaciones() {
       )}
       {error && <Aviso tono="error">{error}</Aviso>}
       <SellerFeedback {...data} empty={!data.rows.length} />
+      {data.rows.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" data-testid="etiquetas-envio-lote">
+          <label className="flex items-center gap-2 text-sm">
+            <Input
+              type="checkbox"
+              className="h-4 w-4"
+              aria-label="Marcar todos los repartos"
+              checked={elegidos.length === data.rows.length}
+              onChange={event => setMarcados(event.target.checked ? Object.fromEntries(data.rows.map(row => [row.id, true])) : {})}
+            />
+            Marcar todos
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!elegidos.length}
+            onClick={() => setParaEtiqueta(elegidos.map(row => row.orden))}
+            data-testid="etiquetas-envio-imprimir-lote"
+          >
+            <Icon name="printer" className="h-4 w-4" />
+            {elegidos.length ? `Etiquetas de envío (${elegidos.length})` : 'Etiquetas de envío'}
+          </Button>
+        </div>
+      )}
+      <EtiquetaEnvioPopup open={Boolean(paraEtiqueta)} ordenes={paraEtiqueta || []} onClose={() => setParaEtiqueta(null)} />
       <div className="entregas-f3-grid">
         {data.rows.map(row => (
           <article
@@ -114,7 +144,16 @@ function Asignaciones() {
             className="entregas-f3-order"
           >
             <header className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-sm font-semibold">{codigoPedido(row.number)}</span>
+              <label className="flex items-center gap-2">
+                <Input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  aria-label={`Marcar ${codigoPedido(row.number)} para etiqueta de envío`}
+                  checked={Boolean(marcados[row.id])}
+                  onChange={event => setMarcados(actual => ({ ...actual, [row.id]: event.target.checked }))}
+                />
+                <span className="font-mono text-sm font-semibold">{codigoPedido(row.number)}</span>
+              </label>
               <div className="flex flex-wrap items-center gap-2">
                 {row.repartidor && <Badge color="blue">{row.repartidor}</Badge>}
                 {row.sinRendir > 0 && row.pendiente === 0 && (
@@ -157,6 +196,9 @@ function Asignaciones() {
               )}
             </div>
             <div className="entregas-f3-actions">
+              <Button type="button" variant="outline" onClick={() => setParaEtiqueta([row.orden])} data-testid="etiqueta-envio-pedido">
+                <Icon name="printer" className="h-4 w-4" />Etiqueta de envío
+              </Button>
               {row.repartidorId ? (
                 <>
                   <Select

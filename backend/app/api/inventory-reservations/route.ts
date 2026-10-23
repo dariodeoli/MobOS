@@ -9,7 +9,9 @@ import { moduloGuard } from '../../../lib/modulos-guard'
 const MAX_MINUTES = 24 * 60
 
 // Campos que se limpian cuando la reserva termina (vencida, liberada o vendida).
-const SIN_RESERVA = { reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null }
+const SIN_RESERVA = { reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null }
+// Las retenciones de carrito (CART_HOLD) no son reservas de cliente: no se listan ni se liberan por acá.
+const SOLO_CLIENTE = { OR: [{ reservationKind: 'CUSTOMER' as const }, { reservationKind: null }] }
 
 function branchAllowed(role: string, assigned: string | null, branchId: string | null) {
   return !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
   await prisma.$transaction(tx => liberarReservasVencidas(tx, tenant))
   const branchId = new URL(request.url).searchParams.get('branchId')
   if (!branchAllowed(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
-  return json(await prisma.inventoryUnit.findMany({ where: { tenantId: tenant, status: 'RESERVED', ...(branchId ? { branchId } : {}) }, include: { product: { select: { id: true, name: true, sku: true, capacity: true } }, branch: { select: { id: true, name: true } }, reservationCustomerRef: { select: { id: true, name: true, phone: true, countryCode: true, document: true, email: true } } }, orderBy: { reservedUntil: 'asc' }, take: 200 }))
+  return json(await prisma.inventoryUnit.findMany({ where: { tenantId: tenant, status: 'RESERVED', ...SOLO_CLIENTE, ...(branchId ? { branchId } : {}) }, include: { product: { select: { id: true, name: true, sku: true, capacity: true } }, branch: { select: { id: true, name: true } }, reservationCustomerRef: { select: { id: true, name: true, phone: true, countryCode: true, document: true, email: true } } }, orderBy: { reservedUntil: 'asc' }, take: 200 }))
 }
 
 export async function POST(request: Request) {
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
       const candidates = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: 'AVAILABLE' }, select: { id: true, serial: true, branchId: true } })
       if (candidates.length !== serials.length) throw new Error('Uno o más equipos ya no están disponibles.')
       if (candidates.some(unit => !branchAllowed(session.user.role, session.user.branchId, unit.branchId))) throw new Error('No autorizado para reservar equipos de otra sucursal.')
-      const changed = await tx.inventoryUnit.updateMany({ where: { id: { in: candidates.map(unit => unit.id) }, tenantId: tenant, status: 'AVAILABLE' }, data: { status: 'RESERVED', reservedUntil: until, reservationCustomer: etiqueta, reservationCustomerId: cliente?.id ?? null, reservedById: session.user.id } })
+      const changed = await tx.inventoryUnit.updateMany({ where: { id: { in: candidates.map(unit => unit.id) }, tenantId: tenant, status: 'AVAILABLE' }, data: { status: 'RESERVED', reservedUntil: until, reservationCustomer: etiqueta, reservationCustomerId: cliente?.id ?? null, reservedById: session.user.id, reservationKind: 'CUSTOMER', holdCartId: null, holdDeviceId: null, holdStartedAt: null } })
       if (changed.count !== candidates.length) throw new Error('El stock cambió mientras se reservaba.')
       // Un evento por unidad: la cronología de cada equipo muestra para quién
       // quedó reservado y hasta cuándo, con el usuario que lo hizo.
@@ -103,20 +105,27 @@ export async function PATCH(request: Request) {
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
   const serials = (Array.isArray(body.serials) ? body.serials : []).map(serialKey).filter(Boolean)
   if (body.action !== 'release' || !serials.length || serials.length > 20 || new Set(serials).size !== serials.length) return error('Acción de liberación e IMEI/seriales únicos son obligatorios.')
-  const where: any = { tenantId: tenant, serial: { in: serials }, status: 'RESERVED' }
+  const where: any = { tenantId: tenant, serial: { in: serials }, status: 'RESERVED', ...SOLO_CLIENTE }
   if (['VENDEDOR', 'CAJERA'].includes(session.user.role)) where.reservedById = session.user.id
-  const reservadas = await prisma.inventoryUnit.findMany({ where, select: { id: true, serial: true, reservationCustomer: true } })
-  const released = await prisma.inventoryUnit.updateMany({ where: { id: { in: reservadas.map(unit => unit.id) }, tenantId: tenant, status: 'RESERVED' }, data: { status: 'AVAILABLE', ...SIN_RESERVA } })
-  if (released.count !== serials.length) return error('No se pudieron liberar todos los equipos solicitados.', 409)
-  await prisma.auditLog.createMany({
-    data: reservadas.map(unit => ({
-      tenantId: tenant,
-      userId: session.user.id,
-      action: INVENTORY_RESERVATION_RELEASED,
-      entity: 'InventoryUnit',
-      entityId: unit.id,
-      metadata: { serial: unit.serial, customer: unit.reservationCustomer },
-    })),
-  })
-  return json({ released: released.count })
+  // Buscar, liberar y auditar en UNA transacción: si la liberación no alcanza a
+  // todos, no queda nada a medias ni auditoría sin cambio.
+  try {
+    const released = await prisma.$transaction(async tx => {
+      const reservadas = await tx.inventoryUnit.findMany({ where, select: { id: true, serial: true, reservationCustomer: true } })
+      const result = await tx.inventoryUnit.updateMany({ where: { id: { in: reservadas.map(unit => unit.id) }, tenantId: tenant, status: 'RESERVED', ...SOLO_CLIENTE }, data: { status: 'AVAILABLE', ...SIN_RESERVA } })
+      if (result.count !== serials.length) throw new Error('No se pudieron liberar todos los equipos solicitados.')
+      await tx.auditLog.createMany({
+        data: reservadas.map(unit => ({
+          tenantId: tenant,
+          userId: session.user.id,
+          action: INVENTORY_RESERVATION_RELEASED,
+          entity: 'InventoryUnit',
+          entityId: unit.id,
+          metadata: { serial: unit.serial, customer: unit.reservationCustomer },
+        })),
+      })
+      return result.count
+    })
+    return json({ released })
+  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo liberar.', 409) }
 }

@@ -190,7 +190,11 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
 
   // Cronología con eventos ficticios.
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  // La cronología tiene filtros por tipo (historiales): con «Todo» solo se ven
+  // los primeros eventos, así que cada tipo se comprueba en su filtro.
+  await ficha.getByTestId('historial-grupo-compras').click()
   await expect(ficha.getByText('Pedido creado').first()).toBeVisible()
+  await ficha.getByTestId('historial-grupo-notas').click()
   await expect(ficha.getByText('Comentario del equipo').first()).toBeVisible()
 
   // Estadísticas calculadas de verdad desde los pedidos demo (#221).

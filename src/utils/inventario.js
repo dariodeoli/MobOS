@@ -93,7 +93,11 @@ export function unidadesElegibles(unidades = [], { productId = '', seleccionados
   if (!productId) return []
   const elegidos = new Set((seleccionados || []).map(serialNormalizado))
   return (unidades || []).filter((unit) => unit?.productId === productId
-    && (unit.status === 'AVAILABLE' || elegidos.has(serialNormalizado(unit.serial))))
+    && (unit.status === 'AVAILABLE'
+      // Retenida en el carrito de otro vendedor: se muestra deshabilitada con
+      // quién la tiene y cuánto le queda (las reservas de cliente siguen fuera).
+      || (unit.status === 'RESERVED' && unit.reservationKind === 'CART_HOLD')
+      || elegidos.has(serialNormalizado(unit.serial))))
 }
 
 // Costo total en guaraníes de una unidad: el guardado o, si está en moneda

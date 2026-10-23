@@ -6,6 +6,7 @@ import { politicasPublicadas } from '../../../../../lib/public-policies'
 import { OTP_MAX_ATTEMPTS, congelarVersionDeCotizacion, enmascararEmail, enmascararTelefono } from '../../../../../lib/quote-approval'
 import { canalesOtpDisponibles } from '../../../../../lib/otp-transport'
 import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
+import { tradeInPublico } from '../../../../../lib/quote-tradein'
 
 // Vista pública de la cotización para el cliente: número, empresa/sucursal,
 // ítems con precios, descuento, total, validez y estado. Nunca expone costos,
@@ -111,6 +112,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     discountPyg: contenido.discountPyg,
     totalPyg: contenido.totalPyg,
     notes: contenido.notes,
+    // Equipo que entrega el cliente (estimado, sujeto a revisión) tal como quedó congelado.
+    tradeIn: tradeInPublico(snapshot ? snapshot.tradeIn : quote.tradeIn, numero(contenido.totalPyg)),
     // Versión congelada vigente: lo que el cliente revisa y puede aprobar.
     version: version ? { number: version.version, hash: version.hash, frozenAt: version.createdAt } : null,
     // Evidencia de una aprobación autenticada previa (A3).

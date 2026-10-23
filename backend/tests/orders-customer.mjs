@@ -68,4 +68,17 @@ await req(`/api/orders/${encodeURIComponent(pedido.id)}`, 'PATCH', { action: 'cr
 await req(`/api/orders/${encodeURIComponent(pedido.id)}`, 'PATCH', { action: 'setCustomer', customerId: 'no-existe' }, 400)
 await req(`/api/orders/${encodeURIComponent(pedido.id)}`, 'PATCH', { action: 'setCustomer', customerId: null }, 401, 'token-invalido')
 
+// 6) Saldo a crédito pendiente: no se cambia ni se quita el cliente (409), y la nota audita antes/después.
+const clienteCredito = await req('/api/customers', 'POST', { name: `Credito ${sufijo}`, phone: `59598${String(Date.now()).slice(-7)}`, creditLimitPyg: 1000000, creditDays: 30 }, 201)
+const productoCredito = await req('/api/products', 'POST', { sku: `CRED-${sufijo}`, name: 'Producto crédito', pricePyg: 100000, stock: 5, branchId: 'branch-a-it' }, 201)
+const pedidoCredito = await req('/api/orders', 'POST', { orderNumber: `CRED-${sufijo}`, customerId: clienteCredito.id, items: [{ productId: productoCredito.id, quantity: 1, unitPricePyg: 100000 }], payments: [], creditDays: 15 }, 201)
+await req(`/api/orders/${encodeURIComponent(pedidoCredito.id)}`, 'PATCH', { action: 'setCustomer', customerId: null }, 409)
+await req(`/api/orders/${encodeURIComponent(pedidoCredito.id)}`, 'PATCH', { notes: 'Nota nueva' }, 200)
+const auditoriaNota = await req('/api/audit?q=ORDER_BILLING_UPDATED&limit=100')
+assert.ok(auditoriaNota.some((fila) => fila.entityId === pedidoCredito.id), 'la edición de nota queda auditada')
+
+// 8) Pedido anulado: tampoco admite cambiar el cliente (409).
+await req(`/api/orders/${encodeURIComponent(otra.id)}/void`, 'POST', { reason: 'Prueba de cliente en pedido anulado' })
+await req(`/api/orders/${encodeURIComponent(otra.id)}`, 'PATCH', { action: 'setCustomer', customerId: otraFicha.id }, 409)
+
 console.log(`PASS: cliente ocasional (sin ficha, crear/cambiar/quitar con auditoría y cronología) · ${checks} chequeos`)

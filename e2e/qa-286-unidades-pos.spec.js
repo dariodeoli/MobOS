@@ -61,8 +61,8 @@ test('#286 · el selector de IMEI del POS lista la unidad de la sucursal (vended
     // La unidad aparece con su IMEI y se puede reservar (sin errores crudos).
     await expect(selector.getByText(serial.slice(-4), { exact: false }).first()).toBeVisible({ timeout: 15_000 })
     await expect(selector.getByTestId('picker-error')).toHaveCount(0)
-    await expect(selector.getByRole('button', { name: 'Reservar este' })).toBeVisible()
-    await selector.getByRole('button', { name: 'Reservar este' }).click()
+    await expect(selector.getByRole('button', { name: 'Elegir' })).toBeVisible()
+    await selector.getByRole('button', { name: 'Elegir' }).click()
     await expect(selector.getByRole('button', { name: 'Liberar' })).toBeVisible({ timeout: 15_000 })
     for (const modo of ['light', 'dark']) {
       await tema(page, modo)
@@ -100,7 +100,7 @@ test('#286/#511 · perder acceso al stock cierra el selector y exige revalidar',
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
     const selector = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })
     await expect(selector).toBeVisible({ timeout: 15_000 })
-    await expect(selector.getByRole('button', { name: 'Reservar este' })).toBeVisible({ timeout: 15_000 })
+    await expect(selector.getByRole('button', { name: 'Elegir' })).toBeVisible({ timeout: 15_000 })
 
     // Una denegación retira todo el contexto privado (#502); el selector
     // no puede mantener una copia del producto solo para mostrar un error.
@@ -110,7 +110,7 @@ test('#286/#511 · perder acceso al stock cierra el selector y exige revalidar',
     })
     await page.route('**/api/inventory-units**', ruta => ruta.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ message: 'No autorizado para esa sucursal.' }) }))
     const denegacion = page.waitForResponse(response => new URL(response.url()).pathname === '/api/inventory-units' && response.status() === 403)
-    await selector.getByRole('button', { name: 'Reservar este' }).click()
+    await selector.getByRole('button', { name: 'Elegir' }).click()
     await denegacion
     await expect(selector).toHaveCount(0)
     const aviso = page.getByTestId('pos-acceso-stock-invalidado')

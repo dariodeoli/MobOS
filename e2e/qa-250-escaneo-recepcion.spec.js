@@ -118,7 +118,7 @@ test('F3 · preparar compra: escaneo, Luhn, duplicados y pegado múltiple', asyn
   // Duplicado: el IMEI que ya tiene la línea se rechaza.
   await page.getByLabel('IMEI a escanear').fill(imeiA)
   await page.getByRole('button', { name: 'Cargar', exact: true }).click()
-  await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('preparar-compra-estado-texto')).toContainText(/cargad|duplicad|repetid/i, { timeout: 20_000 })
 
   // Pegado múltiple: el válido entra, el repetido y el roto no.
   await page.getByRole('button', { name: 'Pegar varios' }).click()

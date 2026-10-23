@@ -28,7 +28,7 @@ async function entrarDemo(page) {
 }
 
 async function crearCuenta(page, { kind, campos = {}, nombre }) {
-  await page.getByRole('button', { name: 'Añadir cuenta' }).click()
+  await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   await page.locator('[data-testid="cuenta-form"]').waitFor()
   await page.selectOption('#pa-kind', kind)
   for (const [selector, valor] of Object.entries(campos)) {
@@ -63,7 +63,7 @@ test.describe('demo anónimo · Finanzas', () => {
     await crearCuenta(page, { kind: 'PIX', campos: { '#pa-holder': 'Titular Demo' }, nombre: /Pix - Titular Demo/ })
     await crearCuenta(page, { kind: 'CRYPTO', campos: { '#pa-holder': 'Titular Demo' }, nombre: /USDT - Titular Demo/ })
     // Pix fija BRL y USDT fija USD: sin selector de moneda.
-    await page.getByRole('button', { name: 'Añadir cuenta' }).click()
+    await page.getByRole('button', { name: 'Agregar cuenta' }).click()
     await page.selectOption('#pa-kind', 'PIX')
     await expect(page.getByText('BRL · Reales')).toBeVisible()
     await page.selectOption('#pa-kind', 'CRYPTO')

@@ -761,3 +761,31 @@ El **modo taller** imprime sus documentos en serie desde «Imprimir en serie…�
 - Ejemplos imprimibles: `docs/taller-impresos-ejemplo/`
   (`hoja-estacion-serie.pdf`, `certificados-serie.pdf` y
   `scripts/ejemplo-taller-impresos.mjs`).
+
+## 18. Etiqueta de envío 10 × 15 cm (100 × 150 mm)
+
+Formato 4×6" (Mercado Libre, Zebra/Xprinter). Una página por bulto, `@page { size: 100mm 150mm; margin: 0 }`, blanco y negro de alto contraste.
+
+- **Pieza pura:** `src/lib/printing/etiquetaEnvio.js` (datos, método de entrega, bultos, contra reembolso vs «PAGADO», HTML). Tests: `etiquetaEnvio.test.js`.
+- **Armado con DOM:** `etiquetaEnvioImpresion.js` (QR con logo, Code128 del número de pedido, logo de la tienda, diálogo de impresión). Recuerda el último diseño usado con `recordarFormatoDeTipo('etiqueta-envio', …)`.
+- **QR:** el mismo seguimiento público del comprobante (`/pedidos/<token>`); el token es el **impreso** del nivel rápido (`tokenDeNivel`, docs/TOKENS.md), nunca el del panel. Sin enlace, la etiqueta sale con «QR no disponible», sin inventar uno.
+- **Contra reembolso:** saldo = `delivery.pendingPyg` (reparto) o el pendiente del pedido; si es 0 sale «PAGADO».
+- **Dónde se imprime:** Delivery → Repartos (por pedido, y en lote con «Marcar» + «Etiquetas de envío (n)»), panel del repartidor (por pedido) y detalle del pedido (Más acciones → «Etiqueta de envío 10×15», 1 bulto). El popup `components/delivery/EtiquetaEnvioPopup.jsx` pide bultos (1 a 20) y diseño (estándar / destinatario grande).
+- **Enganche para PedidoDetalle:** hoy es una sola línea en el menú (`imprimirEtiquetaEnvioPedido(order, { toast })`). Quien rediseñe esa pantalla puede montar `EtiquetaEnvioPopup` con `ordenes={[order]}` para elegir bultos y diseño.
+- **Impresión Pro:** tipo de plantilla `etiquetas-envio` (galería con 2 variantes: «Envío Estándar 10×15» y «Envío Destinatario Grande 10×15»), mismos presets en `backend/lib/print-templates-pro.mjs` y validación en `print-templates.ts`.
+- **Salida física:** por ahora el diálogo del navegador al tamaño exacto (o «Guardar como PDF»). El agente de impresión solo tiene perfil raster validado para ZKP8008 (80 mm); mandar la etiqueta como imagen a una impresora 4×6" exige un perfil nuevo (TSPL/ZPL) probado con el equipo real. En el diálogo: papel 100 × 150 mm, sin márgenes, escala 100 %.
+
+## 19. «Imprimir» del detalle del pedido: último formato por usuario
+
+- El botón **Imprimir** del pedido (estilo Shopify) imprime con el **último formato que usó esa persona**
+  para pedidos: `a4` (comprobante A4), `ticket-80` (ticket 80 mm), `nota-entrega` y `pagina` (página del
+  pedido, nivel detallado). El ▾ elige otro; el elegido imprime y pasa a ser el último.
+- Memoria **por usuario** (`mobos:pedido:impresion:<userId>` en localStorage, con try/catch): dos cajeros en la
+  misma computadora no se pisan. Sin historial vale el predeterminado de la empresa (impresora térmica de 80 mm
+  configurada o el formato preferido del equipo; si no, A4). Código: `src/lib/printing/ultimoFormatoPedido.js`
+  y `src/components/ventas/pedido/useImprimirPedido.js`.
+- Ticket 80 mm sale por el camino térmico común (`imprimirHtmlComun`, §1); A4 y página abren el diálogo del
+  navegador; la nota de entrega sigue el flujo no fiscal (agente → diálogo de respaldo).
+- **Demo:** todo sale por la vista de impresión del navegador con datos ficticios y una banda «Demo»
+  (`src/lib/printing/bandaDemo.js`); nunca toca el agente ni la cola.
+- «Vista previa y opciones…» (en el ▾) abre el comprobante completo (niveles, recibo de regalo, impresión directa).

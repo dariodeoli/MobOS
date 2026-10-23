@@ -1,9 +1,12 @@
+import { nombreDesdeRuc } from './nombreDesdeRuc.js'
 export function customerDisplayName(customer) {
   return customer.identityKind === 'PERSON' && customer.givenNames?.trim() && customer.surnames?.trim()
     ? `${customer.givenNames.trim()} ${customer.surnames.trim()}` : customer.name || ''
 }
 export function acceptedCustomerIdentity(form, result) {
-  return { ...form, nameOfficial: result.nameOfficial ?? result.name, document: result.fullRuc || form.document,
+  const nombre = nombreDesdeRuc(result)
+  return { ...form, nameOfficial: result.nameOfficial ?? result.name, nombreRuc: nombre.nombreCompleto, tipoRuc: nombre.tipo,
+    document: result.fullRuc || form.document,
     identityKind: '', givenNames: '', surnames: '', personConfirmed: false }
 }
 export function customerIdentityPayload(form) {

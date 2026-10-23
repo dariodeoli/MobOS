@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { leerRaster } from './helpers/raster-qr.js'
 import { SEED } from './helpers/seed-data.js'
 import { crearPuenteFalso, parearPuente } from './helpers/fake-bridge.mjs'
+import { abrirVistaPreviaComprobante } from './helpers/pedido-imprimir.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const NOMBRE = 'Térmica E2E remota'
@@ -497,7 +498,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       await page.getByTestId('pedido-fila').first().click()
       await expect(page.getByText('Artículos preparados')).toBeVisible()
       const tokenEmitido = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/orders\/[^/]+\/access-tokens$/.test(new URL(r.url()).pathname)).then(r => r.json())
-      await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+      await abrirVistaPreviaComprobante(page)
       const { token: tokenQr } = await tokenEmitido
       expect(tokenQr).toMatch(/^[A-Za-z0-9_-]{32}$/)
       await page.getByRole('button', { name: 'Impresión directa' }).click()
@@ -551,7 +552,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     await expect(page.getByText('Artículos preparados')).toBeVisible()
 
     // Primer click: encola (queda pendiente).
-    await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+    await abrirVistaPreviaComprobante(page)
     await page.getByRole('button', { name: 'Impresión directa' }).click()
     await expect(page.getByText('Comprobante se envió a la impresora')).toBeVisible({ timeout: 15_000 })
 

@@ -90,6 +90,14 @@ test('unidadesElegibles deja las vendibles del producto y la ya elegida', () => 
   assert.deepEqual(elegibles.map((unit) => unit.id), ['u1', 'u5'])
 })
 
+test('unidadesElegibles muestra la retención de carrito de otro vendedor pero no la reserva de cliente', () => {
+  const unidades = [
+    { id: 'u1', productId: 'p1', status: 'RESERVED', reservationKind: 'CART_HOLD', serial: 'AAA111' },
+    { id: 'u2', productId: 'p1', status: 'RESERVED', reservationKind: 'CUSTOMER', serial: 'BBB222' },
+  ]
+  assert.deepEqual(unidadesElegibles(unidades, { productId: 'p1' }).map((unit) => unit.id), ['u1'])
+})
+
 test('unidadesElegibles ignora unidades sin sucursal y sin producto', () => {
   const conSucursal = [{ id: 'u1', productId: 'p1', status: 'AVAILABLE', serial: 'A1', branchId: 'branch-1' }]
   assert.deepEqual(unidadesElegibles(conSucursal, { productId: 'p1' }).map((unit) => unit.id), ['u1'], 'la sucursal la decide la API, no el cliente')

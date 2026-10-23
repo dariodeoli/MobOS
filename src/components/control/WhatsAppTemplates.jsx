@@ -189,7 +189,7 @@ export default function WhatsAppTemplates() {
       </BarraModulo>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Canal de las plantillas" data-testid="plantillas-canal">
         {CANALES_PLANTILLA.map((item) => (
-          <button key={item.clave} type="button" aria-pressed={canal === item.clave} onClick={() => setCanal(item.clave)} className={cn('min-h-11 rounded-lg border px-3.5 text-xs font-semibold transition md:min-h-9', canal === item.clave ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:text-fore')}>
+          <button key={item.clave} type="button" aria-pressed={canal === item.clave} onClick={() => setCanal(item.clave)} className={cn('min-h-11 rounded-lg border px-3.5 text-xs font-semibold transition md:min-h-9', canal === item.clave ? 'border-info/40 bg-info/10 text-info' : 'border-ink-500 text-mute hover:text-fore')}>
             {item.nombre}{items ? ` (${items.filter((plantilla) => canalDe(plantilla) === item.clave).length})` : ''}
           </button>
         ))}
@@ -198,7 +198,7 @@ export default function WhatsAppTemplates() {
         {CATEGORIAS_PLANTILLA.map((item) => {
           const total = (items || []).filter((plantilla) => plantilla.category === item.clave && canalDe(plantilla) === canal).length
           return (
-            <button key={item.clave} type="button" onClick={() => setCategoria(item.clave)} className={cn('rounded-lg border px-3 py-1.5 text-xs font-semibold transition', categoria === item.clave ? 'border-fono/40 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:text-fore')}>
+            <button key={item.clave} type="button" onClick={() => setCategoria(item.clave)} className={cn('min-h-11 rounded-lg border px-3 py-1.5 text-xs font-semibold transition md:min-h-8', categoria === item.clave ? 'border-info/40 bg-info/10 text-info' : 'border-ink-500 text-mute hover:text-fore')}>
               {item.nombre}{items ? ` (${total})` : ''}
             </button>
           )
@@ -225,9 +225,9 @@ export default function WhatsAppTemplates() {
                 <Icon name={item.isActive !== false ? 'check' : 'close'} className="h-3.5 w-3.5" />{item.isActive !== false ? 'Activa' : 'Inactiva'}
               </span>
               <span className="flex items-center justify-end gap-1">
-                  <button type="button" aria-label={`Editar ${item.name}`} title="Editar" disabled={busy} onClick={() => abrirEditor(editorDe(item))} className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-fono/10 hover:text-fono-light"><Icon name="edit" className="h-3.5 w-3.5" /></button>
-                  <button type="button" aria-label={`Duplicar ${item.name}`} title="Duplicar" disabled={busy} onClick={() => duplicar(item)} className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-fono/10 hover:text-fono-light"><Icon name="copy" className="h-3.5 w-3.5" /></button>
-                  <button type="button" aria-label={`Eliminar ${item.name}`} title="Eliminar" disabled={busy} onClick={() => setEliminar(item)} className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"><Icon name="trash" className="h-3.5 w-3.5" /></button>
+                  <button type="button" aria-label={`Editar ${item.name}`} title="Editar" disabled={busy} onClick={() => abrirEditor(editorDe(item))} className="grid h-11 w-11 place-items-center rounded-lg text-mute md:h-8 md:w-8 transition hover:bg-fono/10 hover:text-fono-light"><Icon name="edit" className="h-3.5 w-3.5" /></button>
+                  <button type="button" aria-label={`Duplicar ${item.name}`} title="Duplicar" disabled={busy} onClick={() => duplicar(item)} className="grid h-11 w-11 place-items-center rounded-lg text-mute md:h-8 md:w-8 transition hover:bg-fono/10 hover:text-fono-light"><Icon name="copy" className="h-3.5 w-3.5" /></button>
+                  <button type="button" aria-label={`Eliminar ${item.name}`} title="Eliminar" disabled={busy} onClick={() => setEliminar(item)} className="grid h-11 w-11 place-items-center rounded-lg text-mute md:h-8 md:w-8 transition hover:bg-bad/10 hover:text-bad"><Icon name="trash" className="h-3.5 w-3.5" /></button>
               </span>
             </div>
           ))}

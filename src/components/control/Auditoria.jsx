@@ -104,6 +104,7 @@ const ACCIONES = {
   COMMISSION_SETTLEMENT_CANCELLED: ['Liquidación anulada', 'red'],
   DEVICE_VALUATION_CREATED: ['Valor de toma creado', 'blue'],
   DEVICE_VALUATION_UPDATED: ['Valor de toma actualizado', 'slate'],
+  DEVICE_VALUATION_BATCH: ['Valores de toma editados en lote', 'slate'],
   BANK_STATEMENT_IMPORTED: ['Extracto bancario importado', 'blue'],
   LOYALTY_ACCRUED: ['Puntos de fidelización acreditados', 'green'],
   LOYALTY_REDEEMED: ['Puntos canjeados como saldo a favor', 'blue'],

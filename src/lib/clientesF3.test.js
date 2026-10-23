@@ -22,7 +22,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '  async function create(event)',
       '  async function exportar()',
-      '576f43351ace32ecc98039b1e47b897132cfa1bde7c51ccf6efb31a49b70d7ca',
+      'e000372aa85036465717365652adb002e88a5e4e9550b3cae3f3f8e4b947d613',
     ],
     [
       '  async function exportar()',
@@ -37,7 +37,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '    <Modal open={crearAbierto}',
       '    </>\n    </div>\n  </SellerSection>',
-      '368ae93ae37a42cf8c7fcccbb4a3e21575e3e8ee6501d2633a31b48fc3adc593',
+      'a6a8f7f572ed0ff61c67f33533909a7237a04e3b87cbd0fcb989737dc65eeb14',
     ],
   ])
     assert.equal(digest(between(originalHandlers, start, end)), expected)
@@ -48,7 +48,8 @@ test('Clientes preserves reviewed fiscal profile and unchanged summary/communica
     // Módulo Mayoristas: ficha y resumen ocultan el tipo/solicitud mayorista con el módulo apagado (useModulos).
     // Rediseño página de cliente: solo estructura visual (encabezado, KPI, columna lateral); la lógica no cambió.
     // #498: alta/edición fiscal demo y geometría de teclado revisadas; cubierta por ruc498-identidad frontend y demoBillingIdentities.
-    ['CustomerProfile.jsx', '1397f84a9059489ce1d7ec13fdc77e3979fd7090610782352f531df15ff52e72'],
+    // Historial del cliente: filtros por tipo/período, totales y apertura del pedido desde la cronología.
+    ['CustomerProfile.jsx', 'cfe8debd48e758d21661a005975620a6a789b001db93ef73c3b9f3fc0790d1ad'],
     ['ClienteResumenPopup.jsx', 'd8fd0e032ca0542a911b6582621971099fa2cad69fa810b7398d4798e91cc510'],
     [
       'CustomerCommunicationCard.jsx',

@@ -96,7 +96,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
         ? await tx.inventoryUnit.findMany({ where: { tenantId: transfer.tenantId, serial: { in: seriales }, status: 'IN_TRANSIT' }, select: { id: true, serial: true, productId: true, branchId: true } })
         : []
       for (const unit of units) {
-        await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'AVAILABLE', locationId: null, reservedUntil: null, reservationCustomer: null, reservedById: null } })
+        await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'AVAILABLE', locationId: null, reservedUntil: null, reservationCustomer: null, reservedById: null, reservationKind: null, holdCartId: null, holdDeviceId: null, holdStartedAt: null } })
         await changeStock(tx, { tenantId: transfer.tenantId, productId: unit.productId, delta: 1, message: 'El stock cambió mientras se recibía el equipo.' })
         await tx.auditLog.create({ data: { tenantId: transfer.tenantId, userId: null, action: 'INVENTORY_TRANSIT_RECEIVED', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial: unit.serial, branchId: unit.branchId, origin: ORIGIN } } })
       }

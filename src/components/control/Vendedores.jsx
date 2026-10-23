@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
@@ -11,6 +11,7 @@ import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import Cronologia from '@/components/shared/Cronologia'
+import { ResumenFuncionario } from '@/components/shared/ResumenHistorial'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
 import { SUCURSALES_DEMO } from '@/lib/demo/empresa'
@@ -74,6 +75,7 @@ function MetaDiaria({ vendor, onGuardar }) {
 // solo la tarea de esa pestaña.
 export default function Vendedores({ seccion = 'miembros' } = {}) {
   const navigate = useNavigate()
+  const [parametros] = useSearchParams()
   const { esDemo, sesion } = useSesion()
   // Vista previa v2 (#241): las fichas del equipo van como tiles de consola y
   // los importes con el número del lenguaje nuevo. Se apaga con el flag.
@@ -321,6 +323,16 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   const fechaCortaInv = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
   const integrantesDeTab = tabIntegrantes === 'inactivos' ? vendedores.filter(v => !v.activo) : vendedores.filter(v => v.activo)
   const activos = vendedores.filter(v => v.activo)
+  // Llegar desde el pedido (?miembro=<id>): abre la ficha (historial) de quien vendió.
+  const miembroUrl = parametros.get('miembro') || ''
+  const miembroAbierto = useRef('')
+  // Sin dependencias a propósito: `vendedores` se relee en cada render y el ref evita repetir.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!miembroUrl || miembroAbierto.current === miembroUrl) return
+    const integrante = vendedores.find(v => String(v.id) === miembroUrl)
+    if (integrante) { miembroAbierto.current = miembroUrl; setHistorialDe(integrante) }
+  })
   const mesActual = fechaClave().slice(0, 7)
   const hayCambiosHorario = horario ? firmaHorario(horario) !== horarioInicial.current : false
 
@@ -609,7 +621,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
       </form>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
-      {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
+      {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} paginado resumen={(meta) => <ResumenFuncionario meta={meta} />} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
     </Modal>
 
     <Modal open={pinDe !== null} onClose={() => !pinBusy && setPinDe(null)} title={`PIN de ${pinDe?.nombre || 'integrante'}`} size="corto">

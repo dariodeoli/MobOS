@@ -69,7 +69,10 @@ test('aceptar fiscal borra todas las partes anteriores sin adivinar PERSON ni em
     const next = aplicarIdentidadTitular(previous, { nameOfficial, name: 'No usar alias', fullRuc: '1234567-9', identityKind: 'PERSON' })
     assert.equal(next.nameOfficial, nameOfficial)
     assert.equal(next.document, '1234567-9')
-    for (const field of ['firstName', 'middleName', 'otherName', 'lastName', 'secondLastName']) assert.equal(next[field], '')
+    const esPersona = nameOfficial === 'PEREZ, JUAN'
+    assert.equal(next.firstName, esPersona ? 'Juan' : '')
+    assert.equal(next.lastName, esPersona ? 'Perez' : '')
+    for (const field of ['middleName', 'otherName', 'secondLastName']) assert.equal(next[field], '')
     assert.equal(Object.hasOwn(next, 'identityKind'), false)
     assert.throws(() => validarRevisionTitular(next))
     assert.doesNotThrow(() => validarRevisionTitular({ ...next, firstName: 'Juan', lastName: 'Perez', personConfirmed: true }))

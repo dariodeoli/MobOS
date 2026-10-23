@@ -222,12 +222,20 @@ test.describe('demo completa · acciones', () => {
   test('trade-in: valores de toma editables', async ({ page }) => {
     await irA(page, '/trade-in')
     await expect(page.getByText('Valores de toma').first()).toBeVisible()
+    // La demo trae el catálogo completo con valores: se busca el modelo en la tabla.
+    await page.getByLabel('Buscar valores por modelo').fill('iPhone 15 Pro Max')
     await expect(page.getByText('iPhone 15 Pro Max').first()).toBeVisible()
-    await page.getByRole('button', { name: 'Añadir valor' }).click()
-    await page.locator('#dv-model').fill('iPhone 16')
-    await page.locator('#dv-base').fill('6000000')
-    await page.getByRole('button', { name: /Guardar|Crear/ }).last().click()
-    await expect(page.getByText('iPhone 16').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Agregar valor' }).click()
+    // El modelo se busca en el catálogo y la capacidad depende del modelo.
+    await page.locator('#dv-model').fill('iPhone 11')
+    await page.getByRole('listbox').getByRole('option').filter({ has: page.locator('span', { hasText: /^iPhone 11$/ }) }).click()
+    await page.locator('#dv-storage').selectOption('128GB')
+    await page.locator('#dv-condition').selectOption('NEW')
+    await page.locator('#dv-base').fill('1500000')
+    await page.getByRole('button', { name: 'Guardar valor' }).click()
+    await page.getByLabel('Buscar valores por modelo').fill('iPhone 11 128')
+    await expect(page.getByText('iPhone 11').first()).toBeVisible()
+    await expect(page.getByTestId('valoracion-fila').filter({ has: page.getByText('Nuevo', { exact: true }) })).toHaveCount(1)
   })
 
   test('traslados, verificaciones y bajas de stock tienen historial', async ({ page }) => {

@@ -52,9 +52,9 @@ test('Cobrar saldo se ve en la demo y el detalle suma los pagos (antes: Pagado 0
   const detalle = page.locator('main')
   await expect(detalle).toContainText(`Gs ${miles(pedido.pagado)}`)
   await expect(detalle).toContainText(`Gs ${miles(pedido.pendiente)}`)
-  const cobrar = page.getByRole('button', { name: /^Cobrar saldo/ })
+  const cobrar = page.getByTestId('pedido-cobrar')
   await expect(cobrar).toBeVisible()
-  await expect(cobrar).toContainText(miles(pedido.pendiente))
+  await expect(page.getByTestId('pedido-totales-f3')).toContainText(miles(pedido.pendiente))
 
   // Cobra el saldo completo: el detalle queda pagado, sin botón y sin saldo.
   await cobrar.click()
@@ -65,7 +65,7 @@ test('Cobrar saldo se ve en la demo y el detalle suma los pagos (antes: Pagado 0
   await modal.getByRole('button', { name: 'Registrar pago' }).click()
   await expect(modal.getByTestId('pago-aviso')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: /^Cobrar saldo/ })).toHaveCount(0)
+  await expect(page.getByTestId('pedido-cobrar')).toHaveCount(0)
 
   // La ficha del cliente dice lo mismo que el detalle: sin deuda en ese pedido.
   const enFicha = await page.evaluate(async ({ clienteId, numero }) => {

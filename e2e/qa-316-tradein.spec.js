@@ -23,6 +23,9 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   await expect(page.getByTestId('tradein-tabla')).toBeVisible({ timeout: 20_000 })
   const filas = page.getByTestId('tradein-fila')
   await expect(filas.first()).toBeVisible()
+  // Los valores de toma van arriba: la lista queda más abajo. Se trae la fila a
+  // la vista antes de medir para que el click no desplace la página.
+  await filas.first().scrollIntoViewIfNeeded()
   await esperarAnimaciones(page)
   const antes = await filas.first().boundingBox()
 
@@ -44,7 +47,7 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   expect((await filas.first().boundingBox()).y).toBeCloseTo(antes.y, 0)
 
   // El alta de valor de toma se abre en modal (con acciones visibles).
-  await page.getByRole('button', { name: 'Añadir valor' }).click()
+  await page.getByRole('button', { name: 'Agregar valor' }).click()
   const modal = page.getByRole('dialog', { name: 'Nuevo valor de toma' })
   await expect(modal).toBeVisible()
   await expect(modal.getByRole('button', { name: 'Guardar valor' })).toBeInViewport()

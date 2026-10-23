@@ -98,10 +98,18 @@ export function pagosParaPapel(order = {}) {
   return confirmados.filter((pago) => !pago.reversalOfId && !(pago.id && revertidos.has(pago.id)))
 }
 
+// Cobros PIX/USDT/transferencia que esperan verificación: no suman como pagado,
+// pero el papel los muestra «En verificación» para que el cliente sepa que el
+// pago se registró y falta que la tienda lo confirme.
+export function pagosEnVerificacion(order = {}) {
+  return pagosDelPedido(order).filter((pago) => pago?.status === 'PENDING' && pago?.pendingReason === 'VERIFICACION')
+}
+
 // Importes del pie: subtotal, descuento, envío, pagado y saldo solo cuando
 // aplican. `pagado` ignora los pagos no confirmados.
 export function desgloseVenta(order = {}) {
   const confirmados = pagosParaPapel(order)
+  const enVerificacion = pagosEnVerificacion(order)
   // Pagado/Saldo: la misma cuenta que el detalle, el listado y la ficha (#461).
   const { total, pagado } = totalesPedido(order)
   const descuento = numero(order.discountPyg ?? order.descuento)
@@ -138,5 +146,7 @@ export function desgloseVenta(order = {}) {
     // ya lo dice y no se repite el total.
     mostrarPagado: pagado > 0 && saldo > 0,
     confirmados,
+    enVerificacion,
+    enVerificacionPyg: enVerificacion.reduce((suma, pago) => suma + numero(pago.amountPyg ?? pago.monto), 0),
   }
 }

@@ -345,3 +345,32 @@ html.dark .v3-portal {
 @media (forced-colors: active) {
   .shell-nav-v2 :is(.bg-ink, .bg-ink-900).border { border-color: CanvasText; }
 }
+
+/* ── Pulido (colores de estado) ─────────────────────────────────────────
+   Un chip "en curso" (fondo azul de información) no puede llevar texto verde:
+   la biblioteca teñía el fondo de azul y, a la vez, el texto de verde cuando el
+   chip declaraba `bg-fono/15 text-fono-*`. El texto sigue al fondo (≥ 4.5:1). */
+.tema-v2 .v2-chip.v2-chip.bg-fono\/15[class*='text-fono'],
+.v2-piloto .v2-chip.v2-chip.bg-fono\/15[class*='text-fono'] {
+  color: rgb(var(--c-info-text));
+}
+/* Botón primario deshabilitado dentro de ventanas: mismo aspecto que en el shell. */
+.v3-portal button.bg-fono:not([role='switch']):disabled { opacity: .45; cursor: not-allowed; }
+
+
+/* ── Ancho de lectura (pedido de Dario, pantallas anchas) ──────────────────
+   Páginas de detalle y formularios no se estiran de borde a borde: contenedor
+   compartido de hasta --v3-lectura, centrado. Los listados con tablas siguen a
+   todo el ancho pero con más padding lateral desde 1440. Móvil sin cambios. */
+:root { --v3-lectura: 1200px; --v3-padding-ancho: 2.5rem; }
+@media (min-width: 1024px) {
+  .shell-nav-v2 :is(.v3-lectura, .ventas-f3-page, [data-testid='config-pagina'], [data-testid='record-header']) {
+    max-width: var(--v3-lectura);
+    margin-inline: auto;
+  }
+}
+@media (min-width: 1440px) {
+  .shell-nav-v2 .shell-body > main,
+  .shell-nav-v2 .shell-body > div > main { padding-inline: var(--v3-padding-ancho); }
+  .shell-nav-v2 .shell-page-header-wrap { padding-inline: var(--v3-padding-ancho); }
+}

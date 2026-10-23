@@ -45,8 +45,8 @@ test('trade-in: el grado y los hallazgos ajustan la valuación con su detalle', 
   const vendedor = await contextoVendedor(browser)
   const herramienta = await vendedor.newPage()
   await herramienta.goto('/trade-in')
-  await expect(herramienta.getByLabel('Modelo y capacidad')).toBeVisible({ timeout: 30000 })
-  await herramienta.getByLabel('Modelo y capacidad').fill(modelo)
+  await expect(herramienta.getByLabel('Modelo', { exact: true })).toBeVisible({ timeout: 30000 })
+  await herramienta.getByLabel('Modelo', { exact: true }).fill(modelo)
   await herramienta.getByLabel('IMEI / serial').fill('356789102345678')
   await expect(herramienta.getByText(/Valor sugerido:/)).toContainText('Gs 1.500.000', { timeout: 15000 })
   await herramienta.screenshot({ path: `${SALIDA}/01-base-modelo-condicion.png` })
@@ -78,7 +78,7 @@ test('trade-in: el grado y los hallazgos ajustan la valuación con su detalle', 
 
   // El grado se sugiere solo con marcas menores (B) y sin hallazgos vuelve a A.
   await herramienta.goto('/trade-in')
-  await herramienta.getByLabel('Modelo y capacidad').fill(modelo)
+  await herramienta.getByLabel('Modelo', { exact: true }).fill(modelo)
   await herramienta.getByLabel('IMEI / serial').fill('356789102345678')
   await expect(herramienta.getByText(/Valor sugerido:/)).toContainText('Gs 1.500.000', { timeout: 15000 })
   await herramienta.getByRole('checkbox', { name: /Botones con fallas/ }).check()

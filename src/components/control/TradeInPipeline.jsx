@@ -3,14 +3,12 @@ import ChipsFiltro from '@/components/ventas/ChipsFiltro'
 import StatGrid from '@/components/shared/StatGrid'
 import '@/components/ventas/ventasF3.css'
 import '@/components/shared/gestionProfundo.css'
-import { Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select, Stat, Textarea } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Stat, Textarea } from '@/components/ui'
 import { FormActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import { useSesion } from '@/lib/sesion'
-import { guardarValuacionDemo, listarValuacionesDemo } from '@/lib/demo/valuaciones'
-import { api } from '@/lib/api'
+import ValoresToma from './ValoresToma'
 import { gs } from '@/utils/calculos'
-import { normalizarModelo } from '@/utils/tradeInCheckout'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
@@ -21,7 +19,7 @@ import {
   TRADE_IN_STATUSES, TRADE_IN_DESTINATIONS, TRADE_IN_TRANSITIONS,
   loadDemoTradeIns, updateDemoTradeIn, tradeInsApi, tradeInValuePyg, normalizeTradeInHistory,
 } from '@/lib/tradeInPipeline'
-import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 function Reference({ value }) {
   return <span className="break-all">{value || '—'}</span>
 }
@@ -40,7 +38,7 @@ const GRID_TRADEIN = 'grid min-w-[58rem] grid-cols-[minmax(9rem,1.3fr)_minmax(7r
 const fechaTradeIn = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 
 function FilaDevice({ item, abierto, onClick }) {
@@ -56,7 +54,7 @@ function FilaDevice({ item, abierto, onClick }) {
       className={cn(GRID_TRADEIN, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
     >
       <span className="min-w-0">
-        <b className={cn('block', CELDA_IDENTIDAD)} title={item.model}>{item.model || 'Equipo'}</b>
+        <b className={cn('block', CELDA_IDENTIDAD)} title={item.model}>{[item.model || 'Equipo', item.storage].filter(Boolean).join(' ')}</b>
         <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={item.serial}>{item.serial || 'Sin serial'}</span>
       </span>
       <span className={CELDA_DATO} title={item.customerName || item.order?.customer?.name || undefined}>{item.customerName || item.order?.customer?.name || 'Sin cliente'}</span>
@@ -114,6 +112,10 @@ function Device({ item, busy, onSave }) {
       <div><dt className="text-mute">Total invertido</dt><dd>{gs(tradeInValuePyg(item) + Number(item.repairCostPyg || 0))}</dd></div>
       {price != null && <div><dt className="text-mute">Precio publicado</dt><dd>{gs(price)}</dd></div>}
       {publishedDestination && <div><dt className="text-mute">Destino</dt><dd>{TRADE_IN_DESTINATIONS[publishedDestination] || publishedDestination}</dd></div>}
+      {item.storage && <div><dt className="text-mute">Capacidad</dt><dd>{item.storage}</dd></div>}
+      {item.color && <div><dt className="text-mute">Color</dt><dd>{item.color}</dd></div>}
+      {item.batteryPct != null && <div><dt className="text-mute">Batería</dt><dd>{item.batteryPct}%</dd></div>}
+      {(item.faults?.length > 0 || item.faultsNote) && <div className="col-span-2 sm:col-span-3"><dt className="text-mute">Fallas</dt><dd>{[...(item.faults || []), item.faultsNote].filter(Boolean).join(' · ')}</dd></div>}
     </dl>
     {(item.diagnosis || item.technicianName || item.accessories?.length || item.photos?.length) && <section className="rounded-lg border border-ink-600 p-3 text-sm">
       <h4 className="font-medium">Diagnóstico y recepción</h4>
@@ -169,138 +171,6 @@ function Device({ item, busy, onSave }) {
       </fieldset>
     </form>}
   </div>
-}
-
-const GRID_VALORACIONES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.4fr)_6rem_6.5rem_7rem_7rem_6rem_8rem] items-center gap-x-2'
-const CONDICIONES_VALUACION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
-const VALUACION_VACIA = { model: '', storage: '', condition: 'USED', baseValuePyg: '', maxValuePyg: '', notes: '', isActive: true }
-
-// Tabla de valores de toma que alimenta la sugerencia del POS: el vendedor ve
-// el valor base del modelo y la condición, y decide si lo usa o lo cambia.
-function Valuaciones({ esDemo }) {
-  const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [form, setForm] = useState(null)
-  const [editingId, setEditingId] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [query, setQuery] = useState('')
-  const lock = useRef(false)
-
-  const load = useCallback(async () => {
-    if (esDemo) { setRows(listarValuacionesDemo()); return }
-    setLoading(true); setError('')
-    try {
-      const data = await api.get('/api/device-valuations?all=1')
-      if (!Array.isArray(data)) throw new Error('La API no devolvió una lista de valores.')
-      setRows(data)
-    } catch (err) { setError(err.message || 'No se pudieron cargar los valores de toma.') }
-    finally { setLoading(false) }
-  }, [esDemo])
-
-  useEffect(() => { load() }, [load])
-
-  function openForm(row = null) {
-    setEditingId(row?.id ?? null)
-    setForm(row ? { model: row.model, storage: row.storage || '', condition: row.condition, baseValuePyg: row.baseValuePyg,
-      maxValuePyg: row.maxValuePyg ?? '', notes: row.notes || '', isActive: row.isActive } : { ...VALUACION_VACIA })
-    setMessage('')
-  }
-
-  function change(key, value) { setForm(current => ({ ...current, [key]: value })) }
-
-  async function guardar(event) {
-    event.preventDefault()
-    if (lock.current || !form) return
-    const model = form.model.trim()
-    const baseValuePyg = Number(form.baseValuePyg)
-    const maxValuePyg = String(form.maxValuePyg ?? '').trim() === '' ? null : Number(form.maxValuePyg)
-    if (!model) { setError('Indicá el modelo.'); return }
-    if (!Number.isSafeInteger(baseValuePyg) || baseValuePyg <= 0) { setError('El valor base debe ser un entero positivo.'); return }
-    if (maxValuePyg !== null && (!Number.isSafeInteger(maxValuePyg) || maxValuePyg < baseValuePyg)) { setError('El valor máximo debe ser mayor o igual al valor base.'); return }
-    lock.current = true; setBusy(true); setError(''); setMessage('')
-    try {
-      const payload = { model, storage: form.storage.trim(), condition: form.condition, baseValuePyg, maxValuePyg, notes: form.notes.trim(), isActive: form.isActive }
-      const saved = esDemo ? guardarValuacionDemo(editingId, payload) : editingId ? await api.patch('/api/device-valuations', { id: editingId, ...payload }) : await api.post('/api/device-valuations', payload)
-      setRows(current => current.some(row => row.id === saved.id) ? current.map(row => row.id === saved.id ? saved : row) : [saved, ...current])
-      setMessage(editingId ? 'Valor actualizado.' : 'Valor creado. El POS ya puede sugerirlo.')
-      setForm(null); setEditingId(null)
-    } catch (err) { setError(err.message || 'No se pudo guardar el valor.') }
-    finally { lock.current = false; setBusy(false) }
-  }
-
-  async function alternar(row) {
-    if (lock.current) return
-    lock.current = true; setBusy(true); setError(''); setMessage('')
-    try {
-      const saved = esDemo ? guardarValuacionDemo(row.id, { isActive: !row.isActive }) : await api.patch('/api/device-valuations', { id: row.id, isActive: !row.isActive })
-      setRows(current => current.map(item => item.id === saved.id ? saved : item))
-      setMessage(saved.isActive ? 'Valor activado.' : 'Valor desactivado: el POS deja de sugerirlo y conserva el historial.')
-    } catch (err) { setError(err.message || 'No se pudo cambiar el estado del valor.') }
-    finally { lock.current = false; setBusy(false) }
-  }
-
-  const search = normalizarModelo(query)
-  const visibles = search ? rows.filter(row => normalizarModelo(row.model).includes(search)) : rows
-
-  return <Card className="space-y-4">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 className="font-bold">Valores de toma</h2>
-        <p className="mt-1 text-sm text-mute">Sugerencia por modelo, capacidad y condición. El vendedor la ve al cargar el canje y puede cambiarla.</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={busy || loading || !!form} onClick={load}>Actualizar</Button>
-        <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Añadir valor</Button>
-      </div>
-    </div>
-    {loading && <p role="status" className="text-sm text-mute">Cargando valores…</p>}
-    {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
-    {message && <p role="status" className="text-sm text-ok">{message}</p>}
-    <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />
-    <Popup open={Boolean(form)} onClose={busy ? undefined : () => { setForm(null); setEditingId(null); setError('') }} title={editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'} tamano="md">
-      {form && <form onSubmit={guardar} className="space-y-4">
-        <fieldset disabled={busy} className={GRILLA_DOS_COLUMNAS}>
-          <div><Label htmlFor="dv-model">Modelo</Label><Input id="dv-model" autoFocus required maxLength={150} value={form.model} onChange={(event) => change('model', event.target.value)} placeholder="Ej. iPhone 13" /></div>
-          <div><Label htmlFor="dv-storage">Capacidad (opcional)</Label><Input id="dv-storage" maxLength={60} value={form.storage} onChange={(event) => change('storage', event.target.value)} placeholder="Ej. 128GB" /></div>
-          <div><Label htmlFor="dv-condition">Condición</Label><Select id="dv-condition" value={form.condition} onChange={(event) => change('condition', event.target.value)}>{Object.entries(CONDICIONES_VALUACION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
-          <div><Label htmlFor="dv-base">Valor base (Gs)</Label><MoneyInput id="dv-base" required value={form.baseValuePyg} onValueChange={(value) => change('baseValuePyg', value)} placeholder="0" /></div>
-          <div><Label htmlFor="dv-max">Valor máximo (Gs, opcional)</Label><MoneyInput id="dv-max" value={form.maxValuePyg} onValueChange={(value) => change('maxValuePyg', value)} placeholder="Hasta" /></div>
-          <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.isActive} onChange={(event) => change('isActive', event.target.checked)} />Valor activo</label>
-          <div className="sm:col-span-2"><Label htmlFor="dv-notes">Notas (opcional)</Label><Textarea id="dv-notes" rows={2} maxLength={2000} value={form.notes} onChange={(event) => change('notes', event.target.value)} placeholder="Aclaraciones para el equipo" /></div>
-        </fieldset>
-        <FormActions>
-          <Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setEditingId(null); setError('') }}>Cancelar</Button>
-          <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar valor'}</Button>
-        </FormActions>
-      </form>}
-    </Popup>
-    {!loading && !error && !visibles.length && <p className="text-sm text-mute">{rows.length ? 'Ningún valor coincide con la búsqueda.' : 'Todavía no hay valores cargados. Sin un valor cargado, el POS no sugiere nada.'}</p>}
-    {visibles.length > 0 && <div className="overflow-x-auto" data-testid="valoraciones-tabla">
-      <div className={cn(GRID_VALORACIONES, 'px-3.5 pb-2 pt-1')}>
-        <span className={CELDA_ENCABEZADO}>Modelo</span>
-        <span className={CELDA_ENCABEZADO}>Capacidad</span>
-        <span className={CELDA_ENCABEZADO}>Condición</span>
-        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Valor base</span>
-        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Máximo</span>
-        <span className={CELDA_ENCABEZADO}>Estado</span>
-        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
-      </div>
-      <div className="space-y-1">{visibles.map(row => <div key={row.id} data-testid="valoracion-fila" className={cn(GRID_VALORACIONES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-        <span className={cn('min-w-0', CELDA_IDENTIDAD)} title={row.model}>{row.model}</span>
-        <span className={CELDA_DATO}>{row.storage || '—'}</span>
-        <span><Badge color={row.condition === 'NEW' ? 'green' : row.condition === 'USED' ? 'orange' : 'slate'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDICIONES_VALUACION[row.condition] || row.condition}</Badge></span>
-        <span className="truncate text-right text-xs tabular-nums text-fore">{gs(row.baseValuePyg)}</span>
-        <span className="truncate text-right text-xs tabular-nums text-mute">{row.maxValuePyg != null ? gs(row.maxValuePyg) : '—'}</span>
-        <span className={CELDA_DATO}>{row.isActive ? 'Activo' : 'Inactivo'}</span>
-        <span className="flex items-center justify-end gap-1.5">
-          <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${row.model}`} onClick={() => openForm(row)}>Editar</Button>
-          <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${row.isActive ? 'Desactivar' : 'Activar'} ${row.model}`} onClick={() => alternar(row)}>{row.isActive ? 'Desactivar' : 'Activar'}</Button>
-        </span>
-      </div>)}</div>
-    </div>}
-  </Card>
 }
 
 export default function TradeInPipeline() {
@@ -361,6 +231,8 @@ export default function TradeInPipeline() {
 
   const cuenta = (estado) => items.filter((item) => item.status === estado).length
   return <div className="gp ventas-f3 space-y-4" data-testid="tradein-pagina">
+    {/* Los valores de toma van primero: sin ellos el POS no sugiere nada al recibir un equipo. */}
+    <ValoresToma esDemo={esDemo} />
     {/* #388: una sola barra (buscador · estado · acciones); el aviso de la demo
         es un chip con tooltip, no una fila ni un párrafo explicativo. */}
     <Toolbar
@@ -390,7 +262,7 @@ export default function TradeInPipeline() {
     {uncertain && <p className="text-sm text-mute">Actualizá la lista para verificar el estado antes de otro movimiento.</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {busy && <p role="status" className="text-sm text-mute">Procesando…</p>}
-    {!busy && !error && !visible.length && <EmptyState compact icon="refresh" title="No hay equipos que coincidan." description="Los equipos aparecen después de registrarlos como pago de una venta." action={<Button type="button" variant="outline" onClick={load}>Actualizar</Button>} />}
+    {!busy && !error && !visible.length && <EmptyState compact icon="refresh" title="No hay equipos que coincidan." description="Los equipos aparecen después de registrarlos como pago de una venta." />}
     {visible.length > 0 && <div className="overflow-x-auto" data-testid="tradein-tabla">
       <div className={cn(GRID_TRADEIN, 'px-3.5 pb-2 pt-1')}>
         <span className={CELDA_ENCABEZADO}>Equipo</span>
@@ -410,6 +282,5 @@ export default function TradeInPipeline() {
     <Popup open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo">
       {abiertoItem && <Device item={abiertoItem} busy={busy || uncertain} onSave={save} />}
     </Popup>
-    <Valuaciones esDemo={esDemo} />
   </div>
 }

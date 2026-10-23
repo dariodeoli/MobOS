@@ -1,3 +1,4 @@
+import CamposEquipoRecibido from './CamposEquipoRecibido'
 import { Input, Label, MoneyInput, Textarea, useToast } from '@/components/ui'
 import { isDemoRuntime } from '@/lib/demoMode'
 import CuentaCobroCombobox from './CuentaCobroCombobox'
@@ -19,6 +20,9 @@ import { avisoDesvioCotizacion, cambiarCuentaPago, errorCotizacion, FOREIGN } fr
 import { montoMaximoEnMoneda } from '@/utils/conversionPyg'
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
+import ComprobantePago from './ComprobantePago'
+import { filaPideComprobante } from '@/lib/comprobantePos'
+import { usePoliticaVerificacion } from '@/lib/politicaVerificacion'
 
 // Cotización del día para cobros (#401): fuente y lado de Configuración →
 // Comercial (por defecto Cambios Chaco · compra: lo que favorece a la casa). Se pide con el caché de
@@ -62,6 +66,9 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
   useEffect(() => { onChangeRef.current = onChange })
   const { sesion } = useSesion() || {}
   const toast = useToast()
+  // Medios que la empresa marca «verificar» (PIX, USDT, transferencia…): piden el comprobante en el mismo cobro.
+  const politica = usePoliticaVerificacion()
+  const pideComprobante = filaPideComprobante(politica, payment, accounts)
   const [sinCotizacion, setSinCotizacion] = useState(false)
   const [actualizando, setActualizando] = useState(false)
   const [datosAbiertos, setDatosAbiertos] = useState(false)
@@ -284,10 +291,12 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
         </div>
       )}
     </div>
+    {pideComprobante && <ComprobantePago comprobante={payment.comprobante} obligatorio={Boolean(politica?.requireProof)} indice={indice} disabled={guardando} onChange={(comprobante) => onChange({ comprobante })} />}
     {account?.kind === 'TRADE_IN' && <>
       <div><Label htmlFor="serial-imei-del-canje">Serial / IMEI del canje *</Label><SerialField id="serial-imei-del-canje" aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(value) => onChange({ tradeIn: { ...payment.tradeIn, serial: value } })} /></div>
       <div><Label htmlFor="modelo-del-canje">Modelo del canje *</Label><Input id="modelo-del-canje" aria-label="Modelo del canje" value={payment.tradeIn?.model || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, model: e.target.value } })} /></div>
       <div className="sm:col-span-2"><Label htmlFor="condicion-del-equipo-recibido">Condición del equipo recibido *</Label><Textarea id="condicion-del-equipo-recibido" aria-label="Condición del equipo recibido (obligatoria)" aria-required="true" rows={2} value={payment.tradeIn?.conditionNotes || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, conditionNotes: e.target.value } })} /></div>
+      <div className="sm:col-span-2"><CamposEquipoRecibido idPrefix="canje" model={payment.tradeIn?.model || ''} value={payment.tradeIn || {}} onChange={(patch) => onChange({ tradeIn: { ...payment.tradeIn, ...patch } })} /></div>
     </>}
   </div>
 }

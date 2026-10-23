@@ -20,7 +20,7 @@ import '@/components/shared/gestionProfundo.css'
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 
 const project = ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive }) => ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive })

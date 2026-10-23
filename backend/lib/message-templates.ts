@@ -34,7 +34,7 @@ const WHATSAPP: Record<Category, Raw[]> = {
     ['entregado', 'Pedido entregado', '¡Hola {{cliente}}! ✅ Tu pedido {{pedido}} quedó entregado. Gracias por elegirnos.'],
     ['envio_seguimiento', 'Seguimiento de envío', '¡Hola {{cliente}}! 📍 Tu pedido {{pedido}} ya está en camino. Podés seguirlo acá: {{seguimiento}}'],
     ['garantia_registrada', 'Garantía registrada', '¡Hola {{cliente}}! 🛡️ Registramos la garantía de tu {{producto}} (pedido {{pedido}}): {{garantia}}, hasta el {{garantia_hasta}}. Guardá este mensaje y tu comprobante; si necesitás un reclamo, escribinos. — {{empresa}}'],
-    ['cotizacion_enviada', 'Cotización enviada', '¡Hola {{cliente}}! 🧾 Te enviamos la cotización {{cotizacion}} por {{total}}, válida hasta {{vigencia}}. Podés verla y aprobarla acá: {{enlace}}. Cualquier duda, estamos para ayudarte. — {{empresa}}'],
+    ['cotizacion_enviada', 'Cotización enviada', '🧾 *Cotización {{cotizacion}}*\nHola {{cliente}}, te comparto tu cotización de {{empresa}}.\n\n{{detalle}}\n\n💰 *Total: {{total}}*\n{{equipo_entrega}}\n{{faltante}}\n{{validez}}\n{{contacto}}\n\n{{aviso_revision}}\n🔗 Ver y aprobar: {{enlace}}'],
   ],
   CUSTOMERS: [
     ['seguimiento', 'Seguimiento postventa', '¡Hola {{nombre}}! 😊 Te escribimos de {{empresa}} para saber cómo te fue con tu compra. Si necesitás algo, estamos por acá.'],

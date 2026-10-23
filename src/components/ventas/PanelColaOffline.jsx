@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 // Reporte del modo offline (#168): qué se vendió sin conexión, cuánto tardó en
 // sincronizarse, con qué éxito, y la lista de ventas con sus conflictos para
 // resolverlos (reintentar o descartar).
-const hora = (ms) => (ms ? new Date(ms).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—')
+const hora = (ms) => (ms ? new Date(ms).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '—')
 const duracion = (ms) => {
   if (!ms) return '—'
   const segundos = Math.round(ms / 1000)

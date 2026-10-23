@@ -23,6 +23,7 @@ export const TIPOS_DOCUMENTO = Object.freeze({
   'etiqueta-stock': 'Etiqueta de unidad',
   'etiquetas-producto': 'Etiquetas de góndola',
   'etiqueta-ubicacion': 'Etiqueta de ubicación',
+  'etiqueta-envio': 'Etiqueta de envío 10×15',
   'cierre-caja': 'Cierre de caja',
   'resumen-dia': 'Resumen del día',
   'imei-check': 'Verificación de IMEI',

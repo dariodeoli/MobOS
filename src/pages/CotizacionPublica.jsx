@@ -149,6 +149,18 @@ export default function CotizacionPublica() {
               </div>
             </section>
 
+            {quote.tradeIn?.model && (
+              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-sm" data-testid="cotizacion-publica-equipo">
+                <h2 className="font-semibold">Equipo que entregás</h2>
+                <p className="mt-2 text-fore">{[quote.tradeIn.model, quote.tradeIn.storage].filter(Boolean).join(' ')}</p>
+                <div className="mt-3 space-y-1.5 text-mute">
+                  <p>Valor estimado: <b className="tabular-nums text-fore">{gs(quote.tradeIn.estimatedValuePyg)}</b></p>
+                  <p>Faltante a pagar: <b className="tabular-nums text-fore">{gs(quote.tradeIn.faltantePyg ?? Math.max(0, Number(quote.totalPyg) - Number(quote.tradeIn.estimatedValuePyg || 0)))}</b></p>
+                </div>
+                <p className="mt-3 text-xs text-mute">{quote.tradeIn.aviso || 'Valor estimado sujeto a revisión: se confirma al traer el equipo a la tienda (batería, estado, fallas).'}</p>
+              </section>
+            )}
+
             {(quote.customer?.document || quote.seller) && (
               <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-sm">
                 <h2 className="font-semibold">Datos</h2>

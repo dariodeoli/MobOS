@@ -101,3 +101,44 @@ export function prepararVentaDesdeInventario({ empresaId, sucursalId, usuarioId,
     ...(observacion ? { observacion } : {}),
   })
 }
+
+// ── Identificador del carrito (retención de IMEI) ────────────────────────────
+// Un uuid por carrito ACTIVO, compartido entre las pestañas del mismo vendedor
+// (vive en localStorage junto al carrito, misma clave empresa/sucursal/usuario).
+// El servidor lo usa para saber qué retenciones son de este carrito: renovarlas
+// con el latido, liberarlas al vaciar y no dejar que otra pestaña las duplique.
+const PREFIJO_ID = 'mobos:pos-cart-id:v1'
+
+function claveCartId(empresaId, sucursalId, usuarioId) {
+  const clave = claveCarrito(empresaId, sucursalId, usuarioId)
+  return clave ? clave.replace(PREFIJO, PREFIJO_ID) : null
+}
+
+function nuevoCartId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return `cart-${globalThis.crypto.randomUUID()}`
+  } catch { /* sin crypto */ }
+  return `cart-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+}
+
+/** Devuelve el cartId del carrito activo (lo crea si no existe). Sin almacenamiento, uno efímero por llamada. */
+export function obtenerCartId(empresaId, sucursalId, usuarioId) {
+  const key = claveCartId(empresaId, sucursalId, usuarioId)
+  if (!key) return null
+  try {
+    const guardado = storage()?.getItem(key)
+    if (guardado) return guardado
+    const nuevo = nuevoCartId()
+    storage()?.setItem(key, nuevo)
+    return nuevo
+  } catch {
+    return nuevoCartId()
+  }
+}
+
+/** Cierra el carrito (venta cobrada, vaciado o suspensión): el próximo tendrá otro cartId. */
+export function soltarCartId(empresaId, sucursalId, usuarioId) {
+  const key = claveCartId(empresaId, sucursalId, usuarioId)
+  if (!key) return
+  try { storage()?.removeItem(key) } catch { /* noop */ }
+}

@@ -748,7 +748,7 @@ test('demo: el POS reserva un IMEI de la demo y la línea queda con el serial', 
   await carrito.getByRole('button', { name: /^(Elegir|Cambiar) IMEI de / }).first().click()
   const dialogo = page.getByRole('dialog', { name: /Elegir IMEI/ })
   await expect(dialogo.getByText('Equipo físico / IMEI')).toBeVisible()
-  const reservar = dialogo.getByRole('button', { name: 'Reservar este' }).first()
+  const reservar = dialogo.getByRole('button', { name: 'Elegir' }).first()
   await expect(reservar).toBeVisible()
   await reservar.click()
 

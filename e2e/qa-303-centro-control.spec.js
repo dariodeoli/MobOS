@@ -98,7 +98,7 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   // aparecen en la lista que ve el cliente.
   await openShellDestination(page, 'Centro de Control')
   await page.getByTestId('cargar-lineup').click()
-  await expect(page.getByText(/modelo\(s\) del lineup iPhone/)).toBeVisible()
+  await expect(page.getByText(/modelo\(s\) iPhone agregados/)).toBeVisible()
   const filaLineup = page.getByTestId('fila-celular').filter({ hasText: 'iPhone 17 Pro Max' }).first()
   await expect(filaLineup).toBeVisible()
   await filaLineup.getByRole('textbox').fill('9999000')

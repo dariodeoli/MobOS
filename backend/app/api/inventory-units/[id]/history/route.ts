@@ -119,7 +119,7 @@ export async function GET(request: Request, props: RouteContext) {
 
   const unit = await prisma.inventoryUnit.findFirst({
     where: { id, tenantId: session.user.tenantId },
-    select: { id: true, serial: true, status: true, productId: true, branchId: true, createdAt: true, product: { select: { name: true, sku: true } } },
+    select: { id: true, serial: true, status: true, productId: true, branchId: true, createdAt: true, purchasedAt: true, costPyg: true, supplierName: true, supplier: { select: { name: true } }, reservedUntil: true, reservationCustomer: true, product: { select: { name: true, sku: true } } },
   })
   if (!unit) return error('Unidad no encontrada.', 404)
   if (session.user.role === 'GERENTE' && unit.branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
@@ -185,6 +185,29 @@ export async function GET(request: Request, props: RouteContext) {
     prisma.stockLocation.findMany({ where: { tenantId: session.user.tenantId }, select: { id: true, name: true }, take: 500 }),
   ])
   const locaciones = new Map(ubicaciones.map(ubicacion => [ubicacion.id, ubicacion.name]))
+  const verProveedor = canSeeSupplierName(session.user.role)
+  const gs = (valor: unknown) => `Gs ${Number(valor || 0).toLocaleString('es-PY')}`
+
+  // Compra (proveedor y costo), garantías por serial y margen de la venta.
+  const [garantias, lineaVendida] = await Promise.all([
+    prisma.warrantyCase.findMany({
+      where: { tenantId: session.user.tenantId, serial: unit.serial },
+      select: { id: true, description: true, status: true, kind: true, createdAt: true, technicianName: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+    prisma.orderItem.findFirst({
+      where: { serials: { array_contains: unit.serial }, order: { tenantId: session.user.tenantId, status: { not: 'CANCELLED' } } },
+      select: { quantity: true, totalPyg: true, order: { select: { id: true, orderNumber: true, createdAt: true } } },
+      orderBy: { order: { createdAt: 'desc' } },
+    }),
+  ])
+  const costoUnidad = unit.costPyg == null ? null : Number(unit.costPyg)
+  const ventaPyg = lineaVendida ? Math.round(Number(lineaVendida.totalPyg || 0) / Math.max(1, lineaVendida.quantity || 1)) : null
+  // Mismo criterio que el resto de la ficha: costo y margen solo para quien ya los ve.
+  const margen = lineaVendida && costoUnidad != null
+    ? { costPyg: costoUnidad, ventaPyg, margenPyg: (ventaPyg || 0) - costoUnidad, pedido: displayOrderNumber(lineaVendida.order.orderNumber), orderId: lineaVendida.order.id }
+    : null
 
   const events = [
     ...auditEvents.map(event => {
@@ -227,6 +250,33 @@ export async function GET(request: Request, props: RouteContext) {
       detail: comment.body,
       photos: comment.photos,
     })),
+    ...(unit.purchasedAt || unit.costPyg != null || unit.supplier || unit.supplierName ? [{
+      id: `purchase-${unit.id}`,
+      type: 'purchase' as const,
+      action: 'UNIT_PURCHASED',
+      label: 'Compra',
+      createdAt: unit.purchasedAt || unit.createdAt,
+      user: null,
+      detail: [verProveedor && (unit.supplier?.name || unit.supplierName) ? `Proveedor ${unit.supplier?.name || unit.supplierName}` : '', costoUnidad != null ? `costo ${gs(costoUnidad)}` : ''].filter(Boolean).join(' · ') || 'Ingreso de la unidad',
+    }] : []),
+    ...(unit.status === 'RESERVED' && unit.reservedUntil ? [{
+      id: `reservation-${unit.id}`,
+      type: 'reservation' as const,
+      action: 'UNIT_RESERVED_NOW',
+      label: 'Reservada',
+      createdAt: unit.reservedUntil,
+      user: null,
+      detail: `${unit.reservationCustomer ? `Para ${unit.reservationCustomer} · ` : ''}hasta ${fechaHora(unit.reservedUntil)}`,
+    }] : []),
+    ...garantias.map(caso => ({
+      id: `warranty-${caso.id}`,
+      type: 'warranty' as const,
+      action: 'WARRANTY_CASE',
+      label: 'Garantía',
+      createdAt: caso.createdAt,
+      user: caso.technicianName ? { id: '', name: caso.technicianName } : null,
+      detail: `${caso.description || 'Garantía'} · ${caso.status}`,
+    })),
     // #240: historial del serial — consultas IMEI y reparaciones del taller.
     ...(await (async () => {
       const ids = [...new Set(consultasImei.map(fila => fila.userId).filter(Boolean))] as string[]
@@ -260,5 +310,6 @@ export async function GET(request: Request, props: RouteContext) {
     })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  return json({ unit, events, verificacion })
+  const { purchasedAt: _compra, costPyg: _costo, supplierName: _nombre, supplier: _proveedor, reservedUntil: _reserva, reservationCustomer: _reservaCliente, ...unidadPublica } = unit
+  return json({ unit: unidadPublica, events, verificacion, margen })
 }

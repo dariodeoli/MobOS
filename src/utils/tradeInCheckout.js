@@ -7,12 +7,15 @@ export const normalizarModelo = value => String(value ?? '')
 
 // Elige la valuación cargada para el modelo y la condición exactos. Sin una
 // coincidencia no hay sugerencia: el POS nunca inventa un número.
-export function valorSugerido(valuations, model, condition) {
+export function valorSugerido(valuations, model, condition, storage) {
   if (!Array.isArray(valuations)) return null
   const key = normalizarModelo(model)
   if (!key) return null
-  return valuations.find(valuation => valuation && valuation.isActive !== false
-    && valuation.modelKey === key && (!condition || valuation.condition === condition)) || null
+  const candidatos = valuations.filter(valuation => valuation && valuation.isActive !== false
+    && (valuation.modelKey ?? normalizarModelo(valuation.model)) === key && (!condition || valuation.condition === condition))
+  // Con capacidad elegida, solo vale la de esa capacidad (o una sin capacidad): nunca la de otra.
+  if (storage) return candidatos.find(valuation => (valuation.storage || '') === storage) || candidatos.find(valuation => !valuation.storage) || null
+  return candidatos[0] || null
 }
 
 // Base de la demo (#240 ítem 7): sin tabla de valores del servidor, la demo
@@ -45,6 +48,28 @@ export function valorSugeridoDeCatalogo(productos, model, condition = 'USED') {
   }
 }
 
+// Accesorios que suelen venir con el equipo recibido.
+export const ACCESORIOS_TOMA = ['Caja', 'Cargador', 'Cable', 'Auriculares', 'Funda', 'Protector de pantalla']
+
+/**
+ * Datos del equipo al aceptarlo como parte de pago (color, capacidad, % de
+ * batería, fallas y accesorios). Solo devuelve lo que se cargó: el servidor
+ * valida color y capacidad contra el catálogo del modelo.
+ */
+export function datosEquipoRecibido(valor = {}) {
+  const texto = item => String(item ?? '').trim()
+  const lista = items => [...new Set((Array.isArray(items) ? items : []).map(texto).filter(Boolean))]
+  const bateria = valor.batteryPct === '' || valor.batteryPct == null ? null : Math.round(Number(valor.batteryPct))
+  const datos = {}
+  if (texto(valor.color)) datos.color = texto(valor.color)
+  if (texto(valor.storage)) datos.storage = texto(valor.storage)
+  if (bateria !== null && Number.isFinite(bateria)) datos.batteryPct = Math.min(100, Math.max(0, bateria))
+  const faults = lista(valor.faults); if (faults.length) datos.faults = faults
+  if (texto(valor.faultsNote)) datos.faultsNote = texto(valor.faultsNote).slice(0, 1000)
+  const accessories = lista(valor.accessories); if (accessories.length) datos.accessories = accessories
+  return datos
+}
+
 // Una ficha se convierte en un pago preparado; solo confirmar la venta lo registra.
 export function tradeInDraftPayment(draft, accounts, payments = []) {
   const account = accounts.find(a => a.isActive && a.kind === 'TRADE_IN' && a.currency === 'PYG')
@@ -57,6 +82,6 @@ export function tradeInDraftPayment(draft, accounts, payments = []) {
   return {
     accountId: account.id, medioPago: account.name, cuenta: account.name,
     originalAmount: String(draft.value), exchangeRatePyg: '1', monto: String(draft.value),
-    tradeIn: { model: draft.model.trim(), serial, conditionNotes: draft.conditionNotes.trim() },
+    tradeIn: { model: draft.model.trim(), serial, conditionNotes: draft.conditionNotes.trim(), ...datosEquipoRecibido(draft) },
   }
 }

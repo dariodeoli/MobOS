@@ -8,7 +8,9 @@ test('Impresión Pro: 3 o 4 diseños por documento y todos son válidos', () => 
   const pro = proTemplates()
   for (const kind of PRINT_TEMPLATE_KINDS) {
     const lista = pro.filter(preset => preset.kind === kind)
-    assert.ok(lista.length >= 3 && lista.length <= 4, `${kind}: ${lista.length} diseños`)
+    // La etiqueta de envío 10×15 ofrece 2 variantes; el resto, 3 o 4.
+    const minimo = kind === 'etiquetas-envio' ? 2 : 3
+    assert.ok(lista.length >= minimo && lista.length <= 4, `${kind}: ${lista.length} diseños`)
   }
   assert.equal(new Set(pro.map(p => `${p.kind}:${p.name}`)).size, pro.length, 'nombres únicos por documento')
   for (const preset of pro) {
@@ -50,4 +52,20 @@ test('ticket, cotización y remito exigen sus datos y rechazan contenido ajeno',
   assert.throws(() => templateDefinition('etiquetas-producto', ticket.definition))
   const remito = proTemplates().find(p => p.kind === 'remito')!
   assert.ok(!remito.definition.elements.some(e => e.binding === 'payments'))
+})
+
+test('etiqueta de envío 10×15: 2 variantes de 100 × 150 mm que exigen destinatario, pedido, QR y código de barras', () => {
+  const lista = proTemplates().filter(p => p.kind === 'etiquetas-envio')
+  assert.equal(lista.length, 2)
+  for (const preset of lista) {
+    assert.equal(preset.definition.page.widthMm, 100)
+    assert.equal(preset.definition.page.heightMm, 150)
+    for (const binding of ['recipient', 'address', 'orderNumber', 'qr', 'barcode']) {
+      const oculto = structuredClone(preset.definition)
+      oculto.elements.find(e => e.binding === binding)!.visible = false
+      assert.throws(() => templateDefinition('etiquetas-envio', oculto), `${preset.name}: no se puede ocultar ${binding}`)
+    }
+    // No vale como etiqueta de unidad ni de producto.
+    assert.throws(() => templateDefinition('etiquetas-stock', preset.definition))
+  }
 })

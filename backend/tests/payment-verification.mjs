@@ -117,6 +117,27 @@ try {
   ok(/comprobante/i.test(r.payload?.message || ''))
   r = await uploadProof(pagoPix.id, sellerToken)
   is(r.status, 201, JSON.stringify(r.payload))
+  // Subida desde el cobro del POS: reintentar el mismo archivo no duplica (200, mismo id).
+  const comprobanteId = r.payload.id
+  r = await uploadProof(pagoPix.id, sellerToken)
+  is(r.status, 200, 'el reintento devuelve el comprobante ya guardado')
+  is(r.payload.id, comprobanteId)
+  is(Number(psql(`SELECT COUNT(*) FROM "PaymentProof" WHERE "paymentId" = '${pagoPix.id}'`)), 1, 'un solo comprobante por archivo')
+  // Solo sube quien cobró o un verificador: el pago que registró la gerencia sobre el pedido del vendedor no lo sube el vendedor.
+  r = await venta(120000, [])
+  is(r.status, 201, JSON.stringify(r.payload))
+  r = await call('/api/payments', { method: 'POST', token: gerenteToken, body: { orderId: r.payload.id, method: 'TRANSFER', amountPyg: 120000, reference: `TR-${stamp}-g` } })
+  is(r.status, 201, JSON.stringify(r.payload))
+  const pagoDeGerencia = r.payload
+  r = await uploadProof(pagoDeGerencia.id, sellerToken)
+  is(r.status, 403, 'el vendedor no sube el comprobante de un cobro que registró otra persona')
+  r = await uploadProof(pagoDeGerencia.id, cajeraToken)
+  ok([201, 404].includes(r.status), `un verificador sube (o no ve otra sucursal): ${r.status}`)
+  // Política visible para el POS: cualquier sesión de la empresa, solo lectura.
+  r = await call('/api/payments/verification/policy', { token: sellerToken })
+  is(r.status, 200, JSON.stringify(r.payload))
+  is(r.payload.methods.PIX, 'verificar')
+  is(r.payload.requireProof, true)
   // Aprobar: CONFIRMED con paidAt = fecha de aprobación; cierra el pedido.
   const creado = psql(`SELECT EXTRACT(EPOCH FROM "paidAt")::bigint FROM "Payment" WHERE "id" = '${pagoPix.id}'`)
   await new Promise(resolve => setTimeout(resolve, 1100))

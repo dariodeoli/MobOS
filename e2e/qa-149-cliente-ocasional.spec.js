@@ -73,8 +73,6 @@ test('cliente ocasional: crear ficha, cambiar y quitar con cronología', async (
   await expect(page.getByTestId('pedido-asignar-cliente')).toBeVisible({ timeout: 15000 })
 
   // Cronología: los tres movimientos quedaron auditados.
-  const cronologia = page.getByRole('button', { name: /^Cronología/ })
-  if ((await cronologia.getAttribute('aria-expanded')) !== 'true') await cronologia.click()
   await expect(page.getByText(/Ficha creada desde el pedido/).first()).toBeVisible({ timeout: 15000 })
   await expect(page.getByText(/^Cliente: /).first()).toBeVisible()
   await expect(page.getByText(/Cliente quitado/).first()).toBeVisible()

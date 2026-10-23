@@ -38,7 +38,7 @@ const GRID_GARANTIAS = 'grid min-w-[54rem] grid-cols-[minmax(7rem,1.1fr)_minmax(
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 // El vencimiento de la garantía se guardaba y no se veía en el listado: se
 // pinta solo cuando está por caer o ya venció.

@@ -10,7 +10,7 @@ import RucField from '@/components/shared/RucField'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
 import { leerIdentidadCuentaDemo, guardarIdentidadCuentaDemo } from '@/lib/demoAccountIdentity'
-import { cambiosIdentidad, formularioIdentidad } from '@/lib/identidadCuenta'
+import { cambiosIdentidad, formularioIdentidad, nombreParaNegocio } from '@/lib/identidadCuenta'
 
 // Datos de la tienda. Dos modos:
 //  - tarjeta (por defecto): lectura + «Editar» en la misma tarjeta (#298);
@@ -165,7 +165,7 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
               <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
             </FormField>}
             {ver('ruc') && <FormField label="RUC" htmlFor="edit-ruc">
-              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc, nameOfficial: null })} onAplicar={(datos) => { const antes = form; tocado.current = true; setForm(current => ({ ...current, name: datos.nameOfficial ?? datos.name ?? current.name, nameOfficial: datos.nameOfficial ?? datos.name, ruc: datos.fullRuc || current.ruc })); return () => setForm(antes) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
+              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc, nameOfficial: null })} onAplicar={(datos) => { const antes = form; tocado.current = true; setForm(current => ({ ...current, name: nombreParaNegocio(datos, current.name), nameOfficial: datos.nameOfficial ?? datos.name, ruc: datos.fullRuc || current.ruc })); return () => setForm(antes) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
             </FormField>}
             {ver('phone') && <FormField label="Teléfono">
               <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />

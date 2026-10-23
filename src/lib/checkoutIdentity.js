@@ -1,22 +1,26 @@
 import { acceptedCustomerIdentity } from './customerIdentity.js'
 import { normalizarNombre } from '../utils/nombre.js'
+import { nombreDesdeRuc } from './nombreDesdeRuc.js'
 
 // La identidad fiscal no es un nombre de mostrador ni permite inferir PERSON.
 // Los metadatos viven en el formulario/borrador; la API de pedidos admite name.
 export function applyCheckoutIdentity(current, result) {
   const official = result?.nameOfficial ?? result?.name
   if (typeof official !== 'string' || !official.trim()) return { ...current, document: result?.fullRuc || current.document }
-  return { ...acceptedCustomerIdentity(current, result), name: official,
-    displayName: current.displayName ?? current.name ?? '' }
+  // Personas: nombre «Nombres Apellidos» sin coma (regla única). Empresas: razón social exacta.
+  const nombre = nombreDesdeRuc({ ...result, nameOfficial: official })
+  return { ...acceptedCustomerIdentity(current, result), name: nombre.tipo === 'persona' ? nombre.nombreCompleto : official,
+    tipoRuc: nombre.tipo, displayName: current.displayName ?? current.name ?? '' }
 }
 
 export function clearCheckoutIdentity(current) {
   const next = { ...current }
-  for (const key of ['nameOfficial', 'identityKind', 'givenNames', 'surnames', 'personConfirmed']) delete next[key]
+  for (const key of ['nameOfficial', 'identityKind', 'givenNames', 'surnames', 'personConfirmed', 'tipoRuc']) delete next[key]
   return next
 }
 
 export function checkoutName(current, fallback = current?.name || '') {
+  if (current?.tipoRuc === 'persona' && current.name?.trim()) return current.name.trim()
   return typeof current?.nameOfficial === 'string' ? current.nameOfficial : normalizarNombre(fallback)
 }
 
@@ -46,7 +50,7 @@ export function restoreBillingIdentity(value) {
 // borradores conservan ambos sin truncar el nombre fiscal.
 export function checkoutBillingPayload(current) {
   return {
-    ...(current.name?.trim() ? { name: typeof current.nameOfficial === 'string' ? current.nameOfficial : current.name.trim() } : {}),
+    ...(current.name?.trim() ? { name: typeof current.nameOfficial === 'string' && current.tipoRuc !== 'persona' ? current.nameOfficial : current.name.trim() } : {}),
     ...(current.document?.trim() ? { document: current.document.trim() } : {}),
   }
 }

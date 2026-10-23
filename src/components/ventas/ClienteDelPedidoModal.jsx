@@ -48,10 +48,10 @@ export default function ClienteDelPedidoModal({ open, modo = 'asignar', order, o
   }
 
   return (
-    <Modal open={open} onClose={() => !busy && onClose?.()} dirty={sucio} busy={busy} title={modo === 'crear' ? 'Crear ficha desde el pedido' : 'Cliente del pedido'} size="amplio">
+    <Modal open={open} onClose={() => !busy && onClose?.()} dirty={sucio} busy={busy} title={modo === 'crear' ? 'Crear ficha desde el pedido' : (order?.customer?.id ? 'Cambiar cliente' : 'Asignar cliente')} size="amplio">
       <div className="space-y-4" data-testid="cliente-del-pedido">
         <p className="text-sm text-mute">
-          Buscá una ficha existente o cargá los datos para crear una nueva. El pedido queda vinculado y el cambio queda en la cronología y la auditoría.
+          Buscá por nombre, teléfono, CI/RUC o correo, o cargá los datos para crear una ficha nueva. Los precios cobrados no cambian; el pedido pasa a la cronología del cliente nuevo y el cambio queda auditado.
         </p>
         <CheckoutCustomer value={valor} onChange={(siguiente) => { limpiar('nombre'); setValor(siguiente) }} esDemo={false} errorNombre={errorDe('nombre')} />
         {valor.id && valor.name && (

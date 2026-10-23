@@ -22,10 +22,18 @@ import { ticketProforma } from '@/lib/printing/tickets'
 import { cn } from '@/lib/utils'
 import { fechaDia } from '@/utils/fecha'
 import FichaClienteModal from '@/components/customers/FichaClienteModal'
-import { resources } from '@/lib/api'
+import { api, resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone, whatsappUrl } from '@/utils/telefono'
-import { mensajeCotizacion } from '@/lib/mensajeCotizacion'
+import { AVISO_VALOR_ESTIMADO, faltanteCotizacion, mensajeCotizacion, nombreEquipoEntrega } from '@/lib/mensajeCotizacion'
+import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
+import { CONDICIONES_TOMA } from '@/lib/valoresToma'
+import { useValoresDeModelo } from '@/hooks/useValoresDeModelo'
+import { plantillasDemo } from '@/lib/demo/plantillas'
+import { canalDe } from '@/lib/whatsappPlantillas'
+import { valorSugerido } from '@/utils/tradeInCheckout'
+import { useModulos } from '@/lib/useModulos'
+import { modeloApple } from '../../../backend/lib/catalogo-apple.mjs'
 import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
 import { PLANTILLA_COTIZACION } from '@/lib/avisos'
 import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
@@ -71,7 +79,7 @@ const GRID = 'ventas-f3-quote-grid'
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 // Vencimiento relativo: es lo que se mira para apurar la venta. La fecha exacta
 // queda en el title.
@@ -116,7 +124,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
             ]}
             detalle={items}
             liquidacion={{ subtotal, descuento, total: Number(cotizacion.totalPyg ?? Math.max(0, subtotal - descuento)) }}
-            notas={cotizacion.notes || null}
+            notas={[cotizacion.notes, cotizacion.tradeIn?.model ? `Equipo que entrega el cliente: ${nombreEquipoEntrega(cotizacion.tradeIn)}. Valor estimado: ${gs(cotizacion.tradeIn.estimatedValuePyg)}. Faltante a pagar: ${gs(faltanteCotizacion(cotizacion.totalPyg, cotizacion.tradeIn))}. ${AVISO_VALOR_ESTIMADO}` : ''].filter(Boolean).join('\n') || null}
             moneda="PYG"
             simbolo="Gs."
           />
@@ -176,6 +184,17 @@ export default function SellerQuotes() {
   const [fichaAbierta, setFichaAbierta] = useState(false)
   const clienteTimer = useRef(null)
   const [items, setItems] = useState([emptyItem()])
+  // Equipo que entrega el cliente (módulo Trade-In): el valor sale de la tabla de valores de toma de la empresa.
+  const tomaActiva = useModulos().activo('tradein')
+  const [equipo, setEquipo] = useState(null)
+  const equipoCatalogo = equipo ? modeloApple(equipo.model) : null
+  const equipoNombre = equipo ? (equipoCatalogo?.nombre || equipo.model).trim() : ''
+  const { valores: valoresEquipo, estado: estadoEquipo } = useValoresDeModelo(equipoNombre, { demo: esDemo, activo: Boolean(equipo) })
+  const equipoValor = equipo ? valorSugerido(valoresEquipo, equipoNombre, equipo.condition, equipo.storage) : null
+  const equipoNecesitaCapacidad = Boolean(equipoCatalogo?.capacidades.length)
+  const tradeInBorrador = equipo && equipoValor && equipoNombre && (!equipoNecesitaCapacidad || equipo.storage)
+    ? { model: equipoNombre, storage: equipo.storage || '', condition: equipo.condition, estimatedValuePyg: Number(equipoValor.baseValuePyg), maxValuePyg: equipoValor.maxValuePyg != null ? Number(equipoValor.maxValuePyg) : null }
+    : null
   // #314: error adentro del modal (el Aviso de la página queda detrás del
   // overlay) y vistas previas del documento (borrador y cotización guardada).
   const [crearError, setCrearError] = useState('')
@@ -209,6 +228,7 @@ export default function SellerQuotes() {
     subtotalPyg: itemsValidos.reduce((suma, item) => suma + num(item.quantity) * num(item.unitPricePyg), 0),
     discountPyg: num(form.discountPyg),
     totalPyg: Math.max(0, total),
+    ...(tradeInBorrador ? { tradeIn: tradeInBorrador } : {}),
   }
 
   async function accion(operacion, exito) {
@@ -239,6 +259,7 @@ export default function SellerQuotes() {
     event.preventDefault()
     if (busy) return
     if (!form.customerName.trim() || !itemsValidos.length) { setCrearError('Indicá el cliente y al menos un ítem válido.'); return }
+    if (equipo && !tradeInBorrador) { setCrearError(equipoValor === null && equipoNombre && (!equipoNecesitaCapacidad || equipo.storage) ? 'No hay un valor de toma cargado para ese equipo: cargalo en Trade-in › Valores de toma o quitá el equipo.' : 'Completá el modelo, la capacidad y la condición del equipo que entrega el cliente, o quitalo.'); return }
     setBusy(true); setCrearError('')
     const datos = {
       customerName: form.customerName.trim(),
@@ -247,6 +268,8 @@ export default function SellerQuotes() {
       notes: form.notes.trim() || undefined,
       discountPyg: num(form.discountPyg),
       items: itemsValidos.map(item => ({ ...(item.productId ? { productId: item.productId } : {}), description: item.description.trim(), quantity: num(item.quantity), unitPricePyg: num(item.unitPricePyg) })),
+      // El servidor toma el valor de su tabla: solo viaja qué equipo es.
+      ...(tradeInBorrador ? { tradeIn: esDemo ? tradeInBorrador : { model: tradeInBorrador.model, storage: tradeInBorrador.storage, condition: tradeInBorrador.condition } } : {}),
     }
     try {
       // #314: en demo la cotización vive en el navegador y recorre el mismo
@@ -254,7 +277,7 @@ export default function SellerQuotes() {
       let creada = null
       if (esDemo) creada = crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
       else await resources.quotes.create(datos)
-      setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClienteSeleccionado(null); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
+      setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClienteSeleccionado(null); setClientes([]); setItems([emptyItem()]); setEquipo(null); setCrearOpen(false)
       setNotice('Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
       // Correo real de la demo: si el cliente elegido tiene correo, le llega la cotización.
       const correoCliente = String(clienteSeleccionado?.email || '').trim()
@@ -276,15 +299,17 @@ export default function SellerQuotes() {
       else await resources.quotes.update({ id: row.id, status })
     }, mensaje)
   }
+  // El equipo que entrega el cliente se revalida en persona (color, batería, fallas, IMEI) y su valor puede variar.
+  const avisoRevalidar = row => (row.tradeIn?.model ? ` El equipo (${nombreEquipoEntrega(row.tradeIn)}) se revalida al recibirlo en la tienda: el valor estimado puede variar.` : '')
   const convertir = row => accion(async () => {
     if (esDemo) {
       const pedido = convertirDemoCotizacion(row.id, { vendedorId: sesion?.vendedorId, vendedorNombre: sesion?.nombre })
       if (!pedido?.orderNumber) throw new Error('No se pudo convertir la cotización.')
-      setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(pedido.orderNumber)} (queda pendiente de cobro en Pedidos).`)
+      setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(pedido.orderNumber)} (queda pendiente de cobro en Pedidos).${avisoRevalidar(row)}`)
       return
     }
     const order = await resources.quotes.convert(row.id)
-    setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).`)
+    setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).${avisoRevalidar(row)}`)
   }, '')
 
   // Enlace/QR del cliente: el vendedor lo comparte y el cliente acepta o
@@ -368,6 +393,32 @@ export default function SellerQuotes() {
     }
   }
 
+  // Texto listo para WhatsApp: sale de la plantilla editable «Cotización enviada» (Mensajes) y se
+  // arma por adelantado para copiarlo en el gesto del toque (Safari/iOS no deja copiar tras un await).
+  async function armarTextoWhatsApp(cotizacion) {
+    let plantilla = ''
+    try {
+      const lista = esDemo ? plantillasDemo('ORDERS') : await api.get('/api/message-templates?category=ORDERS')
+      plantilla = (Array.isArray(lista) ? lista : []).find(item => item.key === PLANTILLA_COTIZACION && canalDe(item) === 'whatsapp' && item.isActive !== false)?.body || ''
+    } catch { /* si no carga la plantilla, sale la de fábrica */ }
+    const url = esDemo ? enlaceDemoCotizacion(cotizacion) : quoteUrlFor(cotizacion.publicToken)
+    return mensajeCotizacion(cotizacion, { enlace: url, plantilla, tienda: { nombre: emisor.nombre, direccion: emisor.direccion, telefono: emisor.telefono } })
+  }
+  const [textoWa, setTextoWa] = useState('')
+  useEffect(() => {
+    if (!enlace) { setTextoWa(''); return undefined }
+    let vigente = true
+    armarTextoWhatsApp(enlace).then(texto => { if (vigente) setTextoWa(texto) })
+    return () => { vigente = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enlace, esDemo])
+  async function copiarTexto() {
+    if (!textoWa) return
+    if (isNativeIOS()) { if (!(await compartirNativo({ titulo: `Cotización ${enlace?.number || ''}`, texto: textoWa, dialogo: 'Compartir cotización' }))) setEnlaceError('No se pudo compartir el texto.'); return }
+    setEnlaceError('')
+    if (await copiarAlPortapapeles(textoWa)) setNotice('Texto copiado: pegalo en WhatsApp.'); else setEnlaceError('No se pudo copiar el texto.')
+  }
+
   async function copiarEnlace() {
     const url = esDemo ? enlaceDemoCotizacion(enlace) : quoteUrlFor(enlace?.publicToken)
     if (!url) return
@@ -405,7 +456,7 @@ export default function SellerQuotes() {
     setEnlaceError('')
     try {
       const url = esDemo ? enlaceDemoCotizacion(enlace) : quoteUrlFor(enlace.publicToken)
-      const mensaje = mensajeCotizacion(enlace, { enlace: url })
+      const mensaje = await armarTextoWhatsApp(enlace)
       const blob = await documentoAPdf(await buildProformaHtml(enlace, { format: 'a4', enlace: url }), { formato: 'a4' })
       if (!blob?.size) throw new Error('No se pudo preparar el PDF.')
       const archivo = new File([blob], nombrePdfDocumento(`cotizacion-${enlace.number || ''}`), { type: 'application/pdf' })
@@ -495,8 +546,8 @@ export default function SellerQuotes() {
                 const estado = esDemo ? estadoCotizacion(row) : row.status
                 const [label, tone] = STATUS[estado] || [estado || row.status, 'neutral']
                 const cliente = row.customerName || row.customer?.name || 'Sin cliente'
-                const articulos = (row.items || [])
-                  .map(item => `${item.quantity} × ${item.description}`)
+                const articulos = [...(row.items || []).map(item => `${item.quantity} × ${item.description}`), row.tradeIn?.model ? `Entrega: ${nombreEquipoEntrega(row.tradeIn)}` : '']
+                  .filter(Boolean)
                   .join(' · ')
                 // Una sola referencia visual: primer artículo vinculado, sin
                 // adivinar productos por descripción ni alterar el orden del resumen.
@@ -749,14 +800,52 @@ export default function SellerQuotes() {
               )}
             </div>
           ))}
-          <Button type="button" variant="outline" onClick={() => setItems(list => [...list, emptyItem()])}>+ Agregar ítem</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => setItems(list => [...list, emptyItem()])}>+ Agregar ítem</Button>
+            {tomaActiva && !equipo && <Button type="button" variant="outline" data-testid="cotizacion-agregar-equipo" onClick={() => setEquipo({ model: '', storage: '', condition: 'USED' })}><Icon name="refresh" className="h-4 w-4" />Equipo que entrega el cliente</Button>}
+          </div>
         </div>
+        {tomaActiva && equipo && <section className="space-y-3 rounded-xl border border-fono/25 bg-fono/[.04] p-3" data-testid="cotizacion-equipo" aria-label="Equipo que entrega el cliente">
+          <div className="flex items-center justify-between gap-2">
+            <p className={ROTULO_DATO}>Equipo que entrega el cliente</p>
+            <button type="button" aria-label="Quitar el equipo que entrega el cliente" title="Quitar equipo" className="grid h-11 w-11 place-items-center rounded-lg text-bad transition hover:bg-bad/10" onClick={() => setEquipo(null)}><Icon name="close" className="h-4 w-4" /></button>
+          </div>
+          <FormField label="Modelo" htmlFor="cotizacion-equipo-modelo">
+            <ModeloCatalogoField id="cotizacion-equipo-modelo" value={equipo.model} onChange={model => setEquipo(actual => ({ ...actual, model, storage: modeloApple(model)?.capacidades.length === 1 ? modeloApple(model).capacidades[0] : '' }))} />
+          </FormField>
+          <div className={GRILLA_DOS_COLUMNAS}>
+            <FormField label="Capacidad" htmlFor="cotizacion-equipo-capacidad">
+              {equipoCatalogo
+                ? (equipoNecesitaCapacidad
+                  ? <ChipsFiltro etiqueta="Capacidad del equipo" opciones={equipoCatalogo.capacidades.map(capacidad => [capacidad, capacidad])} valor={equipo.storage} onChange={storage => setEquipo(actual => ({ ...actual, storage }))} />
+                  : <Input id="cotizacion-equipo-capacidad" readOnly disabled value="Sin capacidad" />)
+                : <Input id="cotizacion-equipo-capacidad" maxLength={60} value={equipo.storage} onChange={event => setEquipo(actual => ({ ...actual, storage: event.target.value }))} placeholder="Ej. 128GB (opcional)" />}
+            </FormField>
+            <FormField label="Condición" htmlFor="cotizacion-equipo-condicion">
+              <ChipsFiltro etiqueta="Condición del equipo" opciones={CONDICIONES_TOMA} valor={equipo.condition} onChange={condition => setEquipo(actual => ({ ...actual, condition }))} />
+            </FormField>
+          </div>
+          <p className="text-xs text-mute" role="status" data-testid="cotizacion-equipo-valor">
+            {estadoEquipo === 'buscando' ? 'Buscando el valor de toma…'
+              : tradeInBorrador ? <>Valor estimado de toma: <b className="tabular-nums text-fono-light">{gs(tradeInBorrador.estimatedValuePyg)}</b>{tradeInBorrador.maxValuePyg && tradeInBorrador.maxValuePyg !== tradeInBorrador.estimatedValuePyg ? <span> · hasta {gs(tradeInBorrador.maxValuePyg)}</span> : null}</>
+                : equipoNombre.length < 2 ? 'Buscá el modelo para ver el valor de toma.'
+                  : equipoNecesitaCapacidad && !equipo.storage ? 'Elegí la capacidad para ver el valor de toma.'
+                    : estadoEquipo === 'error' ? 'No se pudo consultar el valor de toma.' : 'Sin valor de toma cargado para ese equipo, capacidad y condición.'}
+          </p>
+          <p className="text-[11px] text-mute">{AVISO_VALOR_ESTIMADO}</p>
+        </section>}
         <div className={GRILLA_DOS_COLUMNAS}>
           <FormField label="Descuento (Gs)">
             <MoneyInput value={form.discountPyg} onValueChange={value => setForm(current => ({ ...current, discountPyg: value === '' ? '' : String(value) }))} placeholder="0" aria-label="Descuento de la cotización" />
           </FormField>
           <div className="flex items-end">
-            <div className="w-full rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm" data-testid="cotizacion-total">Total: <b className="tabular-nums text-fono-light">{gs(Math.max(0, total))}</b></div>
+            <div className="w-full space-y-0.5 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm" data-testid="cotizacion-total">
+              <p>Total: <b className="tabular-nums text-fono-light">{gs(Math.max(0, total))}</b></p>
+              {tradeInBorrador && <>
+                <p className="text-xs text-mute" data-testid="cotizacion-descuento-equipo">Equipo que entrega (estimado): −{gs(tradeInBorrador.estimatedValuePyg)}</p>
+                <p data-testid="cotizacion-faltante">Faltante a pagar: <b className="tabular-nums text-ok">{gs(faltanteCotizacion(Math.max(0, total), tradeInBorrador))}</b></p>
+              </>}
+            </div>
           </div>
         </div>
         <FormField label="Notas">
@@ -803,6 +892,7 @@ export default function SellerQuotes() {
           {!esDemo && <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>}
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
+          <Button type="button" variant="outline" disabled={enlaceBusy || !enlace || !textoWa} onClick={copiarTexto} data-testid="cotizacion-copiar-texto"><Icon name={isNativeIOS() ? 'share' : 'copy'} className="h-4 w-4" />{isNativeIOS() ? 'Compartir texto' : 'Copiar texto'}</Button>
           <Button type="button" variant="success" disabled={enlaceBusy || !enlace} onClick={enviarWhatsApp} data-testid="cotizacion-whatsapp"><Icon name="send" className="h-4 w-4" />Enviar por WhatsApp</Button>
           <AvisarPorCorreo
             email={enlace?.customer?.email || enlace?.customerEmail}
@@ -824,7 +914,7 @@ export default function SellerQuotes() {
             construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: enlaceUrl })}
             nombre={`cotizacion-${enlace?.number || ''}`}
             titulo={`Cotización ${enlace?.number || ''}`}
-            texto={[`Cotización ${enlace?.number || ''}`, enlace?.customerName, enlaceUrl].filter(Boolean).join(' · ')}
+            texto={textoWa || [`Cotización ${enlace?.number || ''}`, enlace?.customerName, enlaceUrl].filter(Boolean).join(' · ')}
             formato="a4"
             disabled={enlaceBusy || !enlace}
           />

@@ -1,8 +1,10 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../../../lib/order-number'
 import { numero } from '../../../../../lib/montos'
+import { AVISO_VALOR_ESTIMADO } from '../../../../../lib/quote-tradein'
 
 // Convierte la cotización en un pedido pendiente (sin movimientos de stock:
 // el stock y los IMEI se confirman al cobrar/entregar en el POS).
@@ -19,6 +21,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const items = Array.isArray(quote.items) ? quote.items as Array<Record<string, unknown>> : []
   if (!items.length) return error('La cotización no tiene ítems.', 409)
   const total = Math.max(0, numero(quote.totalPyg))
+  // Equipo que entrega el cliente: el pedido nace por el total completo (no se descuenta ni se cobra nada acá).
+  // El valor se revalida presencialmente al recibirlo en el POS y puede variar.
+  const tradeIn = quote.tradeIn && typeof quote.tradeIn === 'object' && !Array.isArray(quote.tradeIn) ? quote.tradeIn as Record<string, unknown> : null
+  const notaTradeIn = tradeIn && tradeIn.model
+    ? ` · Equipo a recibir: ${[tradeIn.model, tradeIn.storage].filter(Boolean).join(' ')} (${String(tradeIn.condition || '')}), valor estimado Gs ${Number(tradeIn.estimatedValuePyg || 0).toLocaleString('es-PY')}. ${AVISO_VALOR_ESTIMADO} El valor final puede variar.`
+    : ''
   try {
     const convertir = () => prisma.$transaction(async tx => {
       const created = await tx.order.create({ data: {
@@ -30,7 +38,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         subtotalPyg: quote.subtotalPyg,
         discountPyg: quote.discountPyg,
         totalPyg: total,
-        notes: `Cotización ${quote.number}${quote.notes ? ` · ${quote.notes}` : ''}`,
+        notes: `Cotización ${quote.number}${quote.notes ? ` · ${quote.notes}` : ''}${notaTradeIn}`,
         status: 'PENDING',
         items: { create: items.map(item => ({
           productId: typeof item.productId === 'string' && item.productId ? item.productId : undefined,
@@ -41,7 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         })) },
       }, include: { items: true } })
       await tx.quote.update({ where: { id: quote.id }, data: { status: 'CONVERTED', orderId: created.id } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CONVERTED', entity: 'Quote', entityId: quote.id, metadata: { orderId: created.id, orderNumber: created.orderNumber } } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CONVERTED', entity: 'Quote', entityId: quote.id, metadata: { orderId: created.id, orderNumber: created.orderNumber, ...(tradeIn ? { tradeInPorRevalidar: tradeIn as Prisma.InputJsonObject } : {}) } } })
       return created
     })
     let order

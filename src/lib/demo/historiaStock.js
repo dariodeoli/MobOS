@@ -220,3 +220,21 @@ export function historiaUnidadDemo(unidad = {}, { ventas = [], ahora = new Date(
   if (unidad.removedAt) poner('baja', aMs(unidad.removedAt), 'unit', 'Dada de baja', unidad.removedReason || '', JEFE)
   return eventos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
+
+/**
+ * Margen de una unidad vendida (demo): precio de la línea del pedido menos el
+ * costo de la unidad. Misma forma que `margen` de /api/inventory-units/:id/history.
+ */
+export function margenUnidadDemo(unidad = {}, { ventas = [] } = {}) {
+  const serial = String(unidad.serial || '').trim().toUpperCase()
+  const costo = Number(unidad.costPyg)
+  if (!serial || !Number.isFinite(costo) || costo <= 0) return null
+  const venta = ventasPorSerial(ventas).get(serial)
+  if (!venta || venta.status === 'CANCELLED') return null
+  const linea = (venta.items || []).find((item) => (item.serials || item.seriales || []).some((s) => String(s).trim().toUpperCase() === serial))
+  if (!linea) return null
+  const cantidad = Math.max(1, Number(linea.quantity) || 1)
+  const ventaPyg = Math.round(Number(linea.totalPyg ?? (Number(linea.unitPricePyg) || 0) * cantidad) / cantidad)
+  if (!ventaPyg) return null
+  return { costPyg: costo, ventaPyg, margenPyg: ventaPyg - costo, pedido: codigoPedido(venta.orderNumber || venta.numero || ''), orderId: venta.id }
+}

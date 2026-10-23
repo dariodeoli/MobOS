@@ -63,6 +63,8 @@ export function deliveryFields(row) {
     cobros: cobros.map(pago => ({ id: pago.id, monto: Number(pago.amountPyg || 0), metodo: pago.method, referencia: pago.reference || '', cobradoEn: pago.collectedAt || pago.createdAt })),
     sinRendir: cobros.reduce((suma, pago) => suma + Number(pago.amountPyg || 0), 0),
     pagos: Array.isArray(row.payments) ? row.payments : [],
+    // Pedido tal cual llegó: la etiqueta de envío 10×15 lo lee entero.
+    orden: row,
   }
 }
 

@@ -35,11 +35,10 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   const filaSeed = page.getByTestId('pedido-fila').filter({ hasText: seedOrder.orderNumber }).first()
   await expect(filaSeed).toBeVisible({ timeout: 15000 })
   await filaSeed.click()
-  await page.getByRole('button', { name: /Cronología/ }).click()
   const caja = page.getByLabel('Comentario del pedido')
   await expect(caja).toBeVisible()
   await caja.fill(comentario)
-  const botonComentar = page.getByRole('button', { name: 'Comentar' })
+  const botonComentar = page.getByRole('button', { name: 'Publicar' })
   // La cronología se refresca en vivo: si el formulario se re-monta con el
   // borrador perdido, se vuelve a escribir hasta que el botón habilite.
   await expect(async () => {
@@ -48,7 +47,7 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   }).toPass({ timeout: 15000 })
   await botonComentar.click()
   await expect(page.getByText(comentario).first()).toBeVisible({ timeout: 15000 })
-  await expect(page.getByText('Solo tú y otros empleados pueden ver los comentarios.')).toBeVisible()
+  await expect(page.getByText('Solo vos y el equipo ven los comentarios.')).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/01-comentario-con-mencion.png` })
 
   // (2) El mencionado ve la novedad en su campana (sesión del vendedor).
@@ -78,7 +77,7 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   await publica.goto(`/pedido/${seedOrder.publicToken}`)
   await expect(publica.locator('h1').first()).toBeVisible({ timeout: 20000 })
   await expect(publica.getByText(new RegExp(`Revisar stock ${marca}`))).toHaveCount(0)
-  await expect(publica.getByText(/Solo tú y otros empleados/)).toHaveCount(0)
+  await expect(publica.getByText(/Solo (tú y otros empleados|vos y el equipo)/)).toHaveCount(0)
   await publica.screenshot({ path: `${SALIDA}/03-publico-sin-comentarios.png` })
   await cliente.close()
   await vendedor.close()

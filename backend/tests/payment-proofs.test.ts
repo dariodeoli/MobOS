@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MAX_PROOF_SIZE_BYTES, normalizeReconciliationNote, readProofFile, safeDownloadName } from '../app/api/payments/_lib'
+import { canUploadPaymentProof, MAX_PROOF_SIZE_BYTES, normalizeReconciliationNote, readProofFile, safeDownloadName } from '../app/api/payments/_lib'
 
 function pdfFile(name = 'comprobante.pdf') {
   return new File([Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])], name, { type: 'application/pdf' })
@@ -22,6 +22,15 @@ test('rechaza MIME no permitido y magic bytes incompatibles', async () => {
 test('rechaza comprobantes mayores a 5 MiB antes de leerlos', async () => {
   const oversized = new File([new Uint8Array(MAX_PROOF_SIZE_BYTES + 1)], 'large.pdf', { type: 'application/pdf' })
   await assert.rejects(() => readProofFile(oversized), /supera el límite/)
+})
+
+test('subir un comprobante: quien cobró o un verificador; el resto de los roles no', () => {
+  const pago = { createdById: 'u-cobro', userId: 'u-cobro' }
+  assert.equal(canUploadPaymentProof({ id: 'u-cobro', role: 'VENDEDOR' }, pago), true)
+  assert.equal(canUploadPaymentProof({ id: 'otro', role: 'VENDEDOR' }, pago), false)
+  assert.equal(canUploadPaymentProof({ id: 'otro', role: 'REPARTIDOR' }, pago), false)
+  for (const role of ['ADMIN', 'GERENTE', 'CAJERA']) assert.equal(canUploadPaymentProof({ id: 'otro', role }, pago), true)
+  assert.equal(canUploadPaymentProof({ id: 'x', role: 'VENDEDOR' }, { createdById: null, userId: null }), false)
 })
 
 test('normaliza nombres para descarga y notas de conciliación', () => {

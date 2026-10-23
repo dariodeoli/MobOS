@@ -1,6 +1,6 @@
 import { acceptedCustomerIdentity, customerIdentityPayload, customerDisplayName } from '@/lib/customerIdentity'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useModulos } from '@/lib/useModulos'
 import { api } from '@/lib/api/client'
@@ -113,6 +113,11 @@ export default function SellerCustomers() {
   // con ?cliente=<id> para abrir su ficha directo.
   const [searchParams, setSearchParams] = useSearchParams()
   const qParam = searchParams.get('q') || ''
+  const tabParam = searchParams.get('tab') || ''
+  const navegar = useNavigate()
+  const ubicacion = useLocation()
+  // Si llegamos desde un pedido, cerrar la ficha vuelve a ese pedido.
+  const volverA = typeof ubicacion.state?.volverA === 'string' && ubicacion.state.volverA.startsWith('/') ? ubicacion.state.volverA : ''
   const clienteParam = searchParams.get('cliente') || ''
   const [query, setQuery] = useState(qParam)
   const [search, setSearch] = useState('')
@@ -173,10 +178,11 @@ export default function SellerCustomers() {
   // sesión real se abre por id y el perfil lo trae del API.
   useEffect(() => {
     if (!clienteParam) return
+    if (tabParam === 'datos') setProfileTab('datos')
     if (!esDemo) { setProfileCustomer({ id: clienteParam }); return }
     const encontrado = readDemoCustomers().find((row) => row.id === clienteParam)
     if (encontrado) setProfileCustomer(encontrado)
-  }, [clienteParam, esDemo])
+  }, [clienteParam, esDemo, tabParam])
   // Búsqueda y filtros van al servidor (cubren todas las fichas del tenant, no
   // solo la página cargada); el hook pagina con cursor para "Cargar más".
   const path = useMemo(() => {
@@ -219,6 +225,7 @@ export default function SellerCustomers() {
   function cerrarPerfil() {
     setProfileCustomer(null)
     if (!clienteParam) return
+    if (volverA) { navegar(volverA, { replace: true }); return }
     const siguientes = new URLSearchParams(searchParams)
     siguientes.delete('cliente')
     setSearchParams(siguientes, { replace: true })
@@ -236,7 +243,7 @@ export default function SellerCustomers() {
     // primer y segundo nombre.
     const firstName = form.firstName.trim()
     const secondName = form.secondName.trim()
-    const nombre = [firstName, secondName].filter(Boolean).join(' ') || form.nameOfficial || ''
+    const nombre = [firstName, secondName].filter(Boolean).join(' ') || form.nombreRuc || form.nameOfficial || ''
     if (savingRef.current || !nombre) return
     // #323: el teléfono inválido frena el alta; el campo lo avisa al salir
     // (PhoneField) y la ficha no cae al error general del modal.
@@ -497,8 +504,8 @@ export default function SellerCustomers() {
           <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required={!form.nameOfficial} autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
           <label className="block space-y-2"><span>Segundo nombre <small className="text-mute">(opcional)</small></span><Input maxLength={120} disabled={saving} value={form.secondName} onChange={(event) => setForm({ ...form, secondName: event.target.value })} /></label>
         </div>
-        <fieldset className="space-y-2"><legend className={ROTULO_SECCION}>Identidad</legend><GrillaCampos><Campo como="div" rotulo={<>RUC o CI <small className="text-mute">(opcional)</small></>}><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => { const antes = form; setForm((actual) => acceptedCustomerIdentity(actual, datos)); return () => setForm(antes) }} esDemo={esDemo} /></Campo></GrillaCampos></fieldset>
-        {form.nameOfficial !== undefined && <p className="whitespace-pre-wrap rounded-xl border border-fore/10 p-3 text-sm"><b>Nombre fiscal aceptado:</b> {form.nameOfficial}</p>}
+        <fieldset className="space-y-2"><legend className={ROTULO_SECCION}>Identidad</legend><GrillaCampos><Campo como="div" rotulo={<>RUC o CI <small className="text-mute">(opcional)</small></>}><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, nombreRuc: undefined, tipoRuc: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => { const antes = form; setForm((actual) => acceptedCustomerIdentity(actual, datos)); return () => setForm(antes) }} esDemo={esDemo} /></Campo></GrillaCampos></fieldset>
+        {form.nameOfficial !== undefined && <p className="whitespace-pre-wrap rounded-xl border border-fore/10 p-3 text-sm"><b>Nombre fiscal aceptado:</b> {form.nameOfficial}{form.nombreRuc && form.nombreRuc !== form.nameOfficial && <><br /><b>Se guarda como:</b> <span data-testid="cliente-nombre-ruc">{form.nombreRuc}</span></>}</p>}
         <label className="block space-y-2"><span>Tipo de identidad (revisión manual)</span><Select disabled={saving} value={form.identityKind} onChange={(event) => setForm({ ...form, identityKind: event.target.value, givenNames: '', surnames: '', personConfirmed: false })}><option value="">Sin confirmar</option><option value="COMPANY">Empresa</option><option value="PERSON">Persona: revisar nombres y apellidos</option></Select></label>
         {form.identityKind === 'PERSON' && <fieldset className="space-y-3 rounded-xl border border-fore/10 p-3">
           <legend>Nombres y apellidos revisados</legend>

@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Usamos la cámara para escanear IMEI y códigos de barras de tus productos.</string>
+	<string>Usamos la cámara para escanear IMEI y códigos de barras de tus productos y para fotografiar los comprobantes de pago de tus cobros.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Usamos Face ID como protección extra para abrir MobOS en este iPhone.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

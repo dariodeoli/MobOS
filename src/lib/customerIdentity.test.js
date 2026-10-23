@@ -47,7 +47,7 @@ test('seller and billing consumers carry raw identity without substituting displ
   assert.ok(seller.includes('name: row.name ||'))
   assert.ok(seller.includes('nameOfficial: row.nameOfficial ?? null'))
   const profile = readFileSync(new URL('../components/customers/CustomerProfile.jsx', import.meta.url), 'utf8')
-  assert.ok(profile.includes('name: datos.nameOfficial ?? datos.name ?? form.name'))
+  assert.ok(profile.includes('name: datos.nombreCompleto ?? datos.nameOfficial ?? datos.name ?? form.name'))
   assert.ok(profile.includes('const name = identityForm.name\n'))
   assert.ok(!profile.includes('const name = identityForm.name.trim()'))
 })

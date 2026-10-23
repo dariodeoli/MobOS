@@ -4,6 +4,7 @@
 
 import { origenParaServidor } from './cotizacion.js'
 import { convertirAPyg, montoMaximoEnMoneda } from './conversionPyg.js'
+import { datosEquipoRecibido } from './tradeInCheckout.js'
 
 // Rango razonable de una cotización escrita a mano (Gs por unidad extranjera).
 export const COTIZACION_MIN = 1000
@@ -69,6 +70,7 @@ export function accountPayment(payment, accounts) {
     serial: (payment.tradeIn?.serial || '').trim(),
     model: (payment.tradeIn?.model || '').trim(),
     conditionNotes: (payment.tradeIn?.conditionNotes || '').trim(),
+    ...datosEquipoRecibido(payment.tradeIn),
   } : undefined
   if (tradeIn && (!tradeIn.serial || !tradeIn.model || !tradeIn.conditionNotes)) throw new Error('El canje requiere serial, modelo y condición del equipo recibido.')
   // #401: el origen (fuente o manual) viaja informativo; el valor que cuenta es exchangeRatePyg.

@@ -621,7 +621,7 @@ async function landLine(tx: Prisma.TransactionClient, ctx: TxCtx, line: LineRow,
     data: {
       tenantId: actor.tenantId, productId, branchId: arrival.branchId, serial, ...fields,
       status: reserved ? 'RESERVED' : 'AVAILABLE',
-      ...(reserved ? { reservationCustomer: ctx.customerNames.get(line.customerId as string) ?? null, reservationCustomerId: line.customerId, reservedById: actor.userId } : {}),
+      ...(reserved ? { reservationCustomer: ctx.customerNames.get(line.customerId as string) ?? null, reservationCustomerId: line.customerId, reservedById: actor.userId, reservationKind: 'CUSTOMER' as const } : {}),
     },
   })
   await changeStock(tx, { tenantId: actor.tenantId, productId, delta: 1, branchId: arrival.branchId, message: 'No se pudo sumar el stock de la llegada.' })

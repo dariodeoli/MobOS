@@ -29,6 +29,8 @@ export type CotizacionCongelable = {
   totalPyg: number | bigint
   notes: string | null
   validUntil: Date | null
+  // Equipo que entrega el cliente (opcional): entra al snapshot solo si existe.
+  tradeIn?: unknown
   status?: string
 }
 
@@ -42,6 +44,7 @@ export type SnapshotCotizacion = {
   subtotalPyg: number
   discountPyg: number
   totalPyg: number
+  tradeIn?: { model: string; storage: string; condition: string; estimatedValuePyg: number; maxValuePyg: number | null }
 }
 
 const numeroDe = (valor: unknown) => {
@@ -80,7 +83,16 @@ export function snapshotDeCotizacion(cotizacion: CotizacionCongelable): Snapshot
     subtotalPyg: numeroDe(cotizacion.subtotalPyg),
     discountPyg: numeroDe(cotizacion.discountPyg),
     totalPyg: numeroDe(cotizacion.totalPyg),
+    ...tradeInCongelado(cotizacion.tradeIn),
   }
+}
+
+function tradeInCongelado(valor: unknown): { tradeIn?: NonNullable<SnapshotCotizacion['tradeIn']> } {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return {}
+  const dato = valor as Record<string, unknown>
+  const model = String(dato.model || '').trim()
+  if (!model) return {}
+  return { tradeIn: { model, storage: String(dato.storage || '').trim(), condition: String(dato.condition || ''), estimatedValuePyg: numeroDe(dato.estimatedValuePyg), maxValuePyg: dato.maxValuePyg == null ? null : numeroDe(dato.maxValuePyg) } }
 }
 
 // JSON canónico (claves ordenadas, recursivo): dos snapshots iguales dan el
