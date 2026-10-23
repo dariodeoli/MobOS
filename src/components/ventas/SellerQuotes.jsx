@@ -71,7 +71,7 @@ const GRID = 'ventas-f3-quote-grid'
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 // Vencimiento relativo: es lo que se mira para apurar la venta. La fecha exacta
 // queda en el title.

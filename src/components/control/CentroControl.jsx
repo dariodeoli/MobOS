@@ -80,7 +80,7 @@ function SeccionCelulares() {
 
   function cargarLineup() {
     const agregados = cargarLineupIphone()
-    if (agregados) toast.success(`${agregados} modelo(s) del lineup iPhone`, 'Completales el precio para que salgan en la lista.')
+    if (agregados) toast.success(`${agregados} modelo(s) iPhone agregados`, 'Completales el precio para que salgan en la lista.')
     else toast.info('Ya estaban todos cargados.')
   }
 
@@ -109,7 +109,7 @@ function SeccionCelulares() {
           <div className="flex flex-wrap items-center gap-2">
             {celulares.length > 0 && <Badge color="slate">{celulares.length} modelo(s)</Badge>}
             <Button type="button" variant="outline" onClick={cargarLineup} data-testid="cargar-lineup">
-              <Icon name="refresh" className="h-3.5 w-3.5" />Cargar lineup iPhone
+              <Icon name="refresh" className="h-3.5 w-3.5" />Cargar modelos iPhone
             </Button>
           </div>
         </div>
@@ -155,7 +155,7 @@ function SeccionCelulares() {
         <EmptyState
           icon="phone"
           title="Todavía no hay modelos cargados."
-          description="Sumá uno con el formulario o cargá el lineup de iPhone y completá los precios."
+          description="Sumá uno con el formulario o cargá los modelos iPhone y completá los precios."
         />
       ) : (
         (['Nuevo', 'Seminuevo']).map(estado => {

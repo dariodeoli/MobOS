@@ -345,3 +345,14 @@ html.dark .v3-portal {
 @media (forced-colors: active) {
   .shell-nav-v2 :is(.bg-ink, .bg-ink-900).border { border-color: CanvasText; }
 }
+
+/* ── Pulido (colores de estado) ─────────────────────────────────────────
+   Un chip "en curso" (fondo azul de información) no puede llevar texto verde:
+   la biblioteca teñía el fondo de azul y, a la vez, el texto de verde cuando el
+   chip declaraba `bg-fono/15 text-fono-*`. El texto sigue al fondo (≥ 4.5:1). */
+.tema-v2 .v2-chip.v2-chip.bg-fono\/15[class*='text-fono'],
+.v2-piloto .v2-chip.v2-chip.bg-fono\/15[class*='text-fono'] {
+  color: rgb(var(--c-info-text));
+}
+/* Botón primario deshabilitado dentro de ventanas: mismo aspecto que en el shell. */
+.v3-portal button.bg-fono:not([role='switch']):disabled { opacity: .45; cursor: not-allowed; }

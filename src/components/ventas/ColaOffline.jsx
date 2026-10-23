@@ -6,7 +6,7 @@ import { ETIQUETA_OTRA_EMPRESA } from '@/lib/offline/queue'
 import { cn } from '@/lib/utils'
 
 const hora = (ms) =>
-  ms ? new Date(ms).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' }) : ''
+  ms ? new Date(ms).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
 
 // Indicador de la cola de ventas sin sincronizar: cuántas hay, cuándo se
 // sincronizó la última y si alguna quedó en conflicto, con el detalle y las

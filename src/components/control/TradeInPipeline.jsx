@@ -40,7 +40,7 @@ const GRID_TRADEIN = 'grid min-w-[58rem] grid-cols-[minmax(9rem,1.3fr)_minmax(7r
 const fechaTradeIn = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ')
 }
 
 function FilaDevice({ item, abierto, onClick }) {
@@ -252,7 +252,7 @@ function Valuaciones({ esDemo }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" disabled={busy || loading || !!form} onClick={load}>Actualizar</Button>
-        <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Añadir valor</Button>
+        <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Agregar valor</Button>
       </div>
     </div>
     {loading && <p role="status" className="text-sm text-mute">Cargando valores…</p>}

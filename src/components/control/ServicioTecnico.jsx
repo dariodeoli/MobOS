@@ -55,7 +55,7 @@ const CAMPOS_ORDEN = [['recibido', 'Recibido'], ['equipo', 'Equipo'], ['cliente'
 // Rótulos cortos de los chips de etapa para que la barra quepa en una fila.
 const ETIQUETA_CHIP = { ESPERANDO_REPUESTO: 'Repuesto', LISTO: 'Listo' }
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
-const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
+const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '').replace('-', ' ') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
 const numeroDe = (valor) => Number(String(valor || '').replace(/\D/g, '')) || 0
 // Tipo del checklist de una orden: el guardado o el que surge del modelo.

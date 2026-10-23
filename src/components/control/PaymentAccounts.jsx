@@ -305,7 +305,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
   return (
     <div className="gp ventas-f3 finanzas-tactil space-y-4">
       {movimientosDe && <MovimientosCuentaDemo cuenta={movimientosDe} onClose={() => setMovimientosDe(null)} />}
-      {/* #388: una barra (plantillas rápidas · demo · Añadir cuenta) y tira de KPI de una línea. */}
+      {/* #388: una barra (plantillas rápidas · demo · Agregar cuenta) y tira de KPI de una línea. */}
       <Toolbar
         plano
         lista
@@ -319,7 +319,7 @@ function AccountManager({ empresaId, esDemo = isDemoRuntime }) {
           </div>
         ) : undefined}
         more={isDemoRuntime ? <span data-testid="cuentas-demo" title="Demo: cuentas ficticias guardadas en este navegador. No ingreses datos bancarios reales." className="inline-flex min-h-7 items-center rounded-full border border-warn/40 bg-warn/5 px-2.5 text-xs text-warn">Demo: sin datos reales</span> : undefined}
-        primary={<Button type="button" disabled={busy || loading || !!loadError || !!form} onClick={() => openForm()}>Añadir cuenta</Button>}
+        primary={<Button type="button" disabled={busy || loading || !!loadError || !!form} onClick={() => openForm()}>Agregar cuenta</Button>}
       />
       {v2 && accounts.length > 0 && (
         <StatGrid testId="cuentas-resumen">

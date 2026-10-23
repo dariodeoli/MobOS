@@ -44,7 +44,7 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   expect((await filas.first().boundingBox()).y).toBeCloseTo(antes.y, 0)
 
   // El alta de valor de toma se abre en modal (con acciones visibles).
-  await page.getByRole('button', { name: 'Añadir valor' }).click()
+  await page.getByRole('button', { name: 'Agregar valor' }).click()
   const modal = page.getByRole('dialog', { name: 'Nuevo valor de toma' })
   await expect(modal).toBeVisible()
   await expect(modal.getByRole('button', { name: 'Guardar valor' })).toBeInViewport()
