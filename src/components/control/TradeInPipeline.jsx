@@ -171,7 +171,7 @@ function Device({ item, busy, onSave }) {
   </div>
 }
 
-const GRID_VALORACIONES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.4fr)_6rem_6.5rem_7rem_7rem_6rem_8rem] items-center gap-x-2'
+const GRID_VALORACIONES = 'grid min-w-[58rem] grid-cols-[minmax(11rem,1.4fr)_6rem_8rem_7rem_7rem_6rem_11rem] items-center gap-x-2'
 const CONDICIONES_VALUACION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const VALUACION_VACIA = { model: '', storage: '', condition: 'USED', baseValuePyg: '', maxValuePyg: '', notes: '', isActive: true }
 

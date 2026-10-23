@@ -36,7 +36,7 @@ import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } 
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
 const GRID_AUTORIZACIONES =
-  'grid grid-cols-2 items-center gap-x-2 gap-y-1 md:min-w-[54rem] md:grid-cols-[minmax(8rem,1.2fr)_7rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem]'
+  'grid grid-cols-2 items-center gap-x-2 gap-y-1 md:min-w-[56rem] md:grid-cols-[minmax(8rem,1.2fr)_9rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem]'
 
 const KINDS = {
   WHOLESALE: 'Mayorista',

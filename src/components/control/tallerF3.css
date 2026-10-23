@@ -177,16 +177,20 @@
     gap: 4px;
   }
   .taller-f3-row {
-    grid-template-columns: 13.5rem minmax(0, 1.6fr) minmax(0, 1fr) 24rem;
+    grid-template-columns: 16rem minmax(0, 1.6fr) minmax(0, 1fr) 24rem;
     align-items: center;
     align-content: center;
     column-gap: 12px;
     padding: 6px 12px;
     border-radius: 10px;
   }
+  /* Alineación de filas (23-10): el botón de 44 px centra título y meta como
+     una unidad en el mismo eje que el resto de las celdas (antes quedaban
+     pegados arriba por la línea base). */
   .taller-f3-identity {
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    align-self: center;
     gap: 8px;
     min-width: 0;
   }
