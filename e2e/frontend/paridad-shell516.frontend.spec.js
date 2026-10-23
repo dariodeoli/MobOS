@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test'
 import {mkdir} from 'node:fs/promises'
+import {esperarAnimaciones} from '../helpers/animaciones.js'
 const out='/Users/dario/Documents/Codex/2026-10-15/gi/outputs/QA-516-shell'
 async function preparar(browser,baseURL,{width,dark,ios}){
  const context=await browser.newContext({viewport:{width,height:900},baseURL})
@@ -17,7 +18,7 @@ async function preparar(browser,baseURL,{width,dark,ios}){
  await page.goto('/demo',{waitUntil:'domcontentloaded'})
  await expect(page.getByRole('button',{name:'Entrar como Dueño',exact:true})).toBeVisible()
  expect(await page.evaluate(async()=> (await import('/src/lib/plataforma.js')).isNativeIOS())).toBe(ios)
- if(ios)expect(await page.evaluate(async()=>{const p=await import('/src/lib/plataforma.js');return {vender:p.moduloDisponible('cargar'),inventario:p.moduloDisponible('inventario'),finanzas:p.moduloDisponible('finanzas')}})).toEqual({vender:true,inventario:false,finanzas:false})
+ if(ios)expect(await page.evaluate(async()=>{const p=await import('/src/lib/plataforma.js');return {moduloDisponible:typeof p.moduloDisponible,modulos:typeof p.MODULOS_IOS}}),'iOS ya no filtra módulos: los rigen los módulos v2').toEqual({moduloDisponible:'undefined',modulos:'undefined'})
  await page.getByRole('button',{name:'Entrar como Dueño',exact:true}).click()
  await expect(page.getByTestId('shell')).toBeVisible()
  const nav=width<1024?page.getByTestId('shell-bottom-nav'):page.getByTestId('shell-lateral').getByRole('navigation',{name:'Navegación principal',exact:true})
@@ -53,25 +54,21 @@ for(const width of [360,390,1440])for(const dark of [false,true])test(`#516 mism
   const a=await medir(web.page),b=await medir(ios.page)
   expect(a.overflow).toBe(false);expect(b.overflow).toBe(false)
   if(width<1024){expect(a.smallTouch).toEqual([]);expect(b.smallTouch).toEqual([])}
-  // La barra «Secciones de Vender» (Nueva venta/Cobros…, ~45 px) se oculta en iOS
-  // cuando queda una sola sección disponible (MODULOS_IOS): sólo cambia la y.
-  const innerW=width
-  const sinY=({x,width,height})=>innerW<1024?{x,width,height}:{x,width} // escritorio: el catálogo llena el viewport, su alto crece sin la barra
-  // En escritorio la caja medida de la cabecera incluye esa barra: sólo cambia el alto.
-  expect(width<1024?b.header:{...b.header,height:0},'cabecera compartida, safeareas0 en Chromium').toEqual(width<1024?a.header:{...a.header,height:0})
-  expect(sinY(b.productos),'misma tarjeta catálogo').toEqual(sinY(a.productos))
-  expect(sinY(b.foto),'mismo icono/foto').toEqual(sinY(a.foto))
-  expect(Math.round(a.productos.y-b.productos.y),'sólo la barra de secciones difiere').toBeLessThanOrEqual(46)
+  // Paridad estricta: la barra «Secciones de Vender» existe también en iOS, así que
+  // cabecera, catálogo y foto coinciden en x, y, ancho y alto.
+  expect(b.header,'cabecera compartida, safeareas0 en Chromium').toEqual(a.header)
+  expect(b.productos,'misma tarjeta catálogo (incluida la y)').toEqual(a.productos)
+  expect(b.foto,'mismo icono/foto').toEqual(a.foto)
+  expect(b.productos.y,'misma y del catálogo').toBe(a.productos.y)
   const wa=await agregarYCobrar(web.page,width),ia=await agregarYCobrar(ios.page,width);expect(ia).toEqual(wa)
   const ca=await medir(web.page),cb=await medir(ios.page)
-  const sinYd=o=>width<1024||!o?o:{x:o.x,width:o.width,height:o.height} // escritorio: la barra oculta sube el panel
-  expect(sinYd(cb.cobro)).toEqual(sinYd(ca.cobro));expect(sinYd(cb.total)).toEqual(sinYd(ca.total))
+  expect(cb.cobro).toEqual(ca.cobro);expect(cb.total).toEqual(ca.total)
   expect(ca.overflow).toBe(false);expect(cb.overflow).toBe(false)
   if(width<1024){expect(ca.smallTouch).toEqual([]);expect(cb.smallTouch).toEqual([])}
   if(width===390&&dark&&process.env.MOBOS_516_SHOTS==='1'){await mkdir(out,{recursive:true});await ios.page.screenshot({path:out+'/390-oscuro-cobro-ios-simulado.png'})}
   if(width<768)for(const p of [web.page,ios.page])await p.getByRole('dialog').getByRole('button',{name:/Cerrar/}).first().click()
   for(const p of [web.page,ios.page]){await p.evaluate(()=>{history.pushState(null,'','/pedidos');dispatchEvent(new PopStateEvent('popstate'))});await expect(p.getByTestId('pedido-fila').first()).toBeVisible()}
-  const pa=await medir(web.page),pb=await medir(ios.page);expect({x:pb.pedido.x,width:pb.pedido.width,height:pb.pedido.height}).toEqual({x:pa.pedido.x,width:pa.pedido.width,height:pa.pedido.height}); // y cambia al ocultar pestañas de módulos no disponibles en iOS
+  await esperarAnimaciones(web.page);await esperarAnimaciones(ios.page);const pa=await medir(web.page),pb=await medir(ios.page);expect(pb.pedido).toEqual(pa.pedido);expect(pb.pedido.y,'misma y de la fila de pedidos').toBe(pa.pedido.y);
   expect(pa.overflow).toBe(false);expect(pb.overflow).toBe(false)
   console.log('PARIDAD516',JSON.stringify({width,dark,web:a,ios:b,cobroWeb:ca.cobro,cobroIOS:cb.cobro,pedidoWeb:pa.pedido,pedidoIOS:pb.pedido,webRequests:web.requests.length,iosRequests:ios.requests.length}))
  }finally{await web.context.close();await ios.context.close()}

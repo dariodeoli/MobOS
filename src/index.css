@@ -377,23 +377,8 @@ html.app-ios textarea {
   font-size: max(16px, 1em);
 }
 
-/* Ingreso en UNA pantalla (iPhone SE 375x667 hasta Pro Max): logo chico, campos
-   y botones de 44-48 px, etiquetas solo para lectores (el placeholder dice qué
-   va), sin pie ni encabezado largo. El contenedor igual puede desplazarse para
-   que el teclado nunca tape el campo enfocado. */
-html.app-ios .auth-ios .auth-shell-grid { align-items: start; padding-top: 0.5rem; padding-bottom: 0.5rem; }
-html.app-ios .auth-ios .login-panel { padding: 1rem; border-radius: 1.5rem; box-shadow: none; }
-html.app-ios .auth-ios .auth-form > * + * { margin-top: 0.5rem; }
-html.app-ios .auth-ios .auth-form button[class*='h-14'],
-html.app-ios .auth-ios .auth-form > .h-14 { height: 3rem; border-radius: 0.875rem; }
-html.app-ios .auth-ios .auth-form #mail,
-html.app-ios .auth-ios .auth-form #pass { height: 2.75rem; }
-html.app-ios .auth-ios .auth-form label[for='mail'],
-html.app-ios .auth-ios .auth-form label[for='pass'] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-html.app-ios .auth-ios .auth-form > .py-1 { padding-block: 0; }
-/* El PIN valida automáticamente. El login por correo conserva el botón y
-   su progreso mientras espera, igual que la web. */
-html.app-ios .auth-ios .auth-form[data-etapa='vendedor'] > button[type='submit'] { display: none; }
+/* El ingreso usa las mismas medidas que la web (paridad con la web): solo cambian
+   las zonas seguras de arriba. */
 
 /* ── PIN segmentado (celdas iguales, un punto por dígito) ─────────────── */
 @keyframes pin-seg-pop { 0% { transform: scale(.55); opacity: 0; } 65% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
@@ -531,10 +516,13 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
    siga entrando sin scroll. Solo agrega reglas bajo `.pin-pad`. */
 .pin-seg.pin-pad { --pin-tecla: clamp(52px, min(21vw, 9.5dvh), 80px); max-width: 20rem; }
 .pin-seg.pin-pad [data-testid='pin-indicadores'] { width: fit-content; margin-inline: auto; }
-.pin-seg.pin-pad [data-testid='pin-indicadores'] > div { gap: 16px; }
-.pin-seg.pin-pad .pin-seg-celda { width: 14px; height: 14px; min-height: 0; aspect-ratio: 1; border-radius: 50%; border-width: 1.5px; max-height: none; }
-.pin-seg.pin-pad .pin-seg-punto { width: 10px; height: 10px; }
-.pin-seg.pin-pad .pin-seg-check { width: 12px; height: 12px; }
+/* Indicador grande: casillas de ~58 px (48 en pantallas bajas) con borde que se llenan al tipear. */
+.pin-seg.pin-pad { --pin-celda: clamp(48px, min(15vw, 7.2dvh), 62px); }
+.pin-seg.pin-pad [data-testid='pin-indicadores'] > div { gap: 12px; }
+.pin-seg.pin-pad .pin-seg-celda { width: var(--pin-celda); height: var(--pin-celda); min-height: 0; aspect-ratio: 1; border-radius: 18px; border-width: 2px; max-height: none; }
+.pin-seg.pin-pad .pin-seg-punto { width: 18px; height: 18px; }
+.pin-seg.pin-pad .pin-seg-check { width: 24px; height: 24px; }
+.pin-seg.pin-pad .pin-seg-celda[data-lleno="true"] { border-color: rgb(var(--c-fono-dark)); background-color: rgb(var(--c-fono) / .14); }
 .pin-seg.pin-pad input { min-height: 44px; top: -16px; cursor: default; }
 .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { width: 100%; grid-template-columns: repeat(3, var(--pin-tecla)); justify-content: space-between; gap: clamp(8px, 1.6dvh, 16px) 0; margin-top: 20px; }
 .pin-seg.pin-pad[data-teclado-tactil='true'] .pin-tecla { width: var(--pin-tecla); height: var(--pin-tecla); border: 0; background: rgb(var(--c-ink-700)); font-size: clamp(1.5rem, calc(var(--pin-tecla) * .42), 2rem); }
@@ -554,4 +542,53 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
 @media (max-width: 767px) {
   .auth-login .demo-acceso .pin-seg.pin-pad { --pin-tecla: clamp(48px, min(20vw, 9dvh), 80px); margin-top: 4px; }
   .auth-login .demo-acceso .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: 12px; gap: clamp(6px, 1.2dvh, 12px) 0; }
+}
+
+/* ── PIN grande: aire repartido, animaciones y estados (pedido «pin-grande») ── */
+@keyframes pin-celda-pop { 0% { transform: scale(.88); } 55% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes pin-celda-valida { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-4px); opacity: .6; } }
+@keyframes pin-celda-limpia { 0% { background-color: rgb(var(--c-bad) / .22); } 100% { background-color: rgb(var(--c-bad) / 0); } }
+@keyframes pin-celda-exito { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+.pin-seg-celda { transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.pin-seg[data-validando="true"] .pin-seg-celda { border-color: rgb(var(--c-fono-dark)); background-color: rgb(var(--c-fono) / .22); }
+.pin-seg .pin-tecla { transition: transform .12s ease, filter .12s ease, background-color .12s ease; }
+@media (prefers-reduced-motion: no-preference) {
+  .pin-seg-celda[data-lleno="true"] { animation: pin-celda-pop .24s cubic-bezier(.2,.8,.3,1) both; }
+  .pin-seg[data-validando="true"] .pin-seg-celda { animation: pin-celda-valida .9s ease-in-out infinite; animation-delay: calc(var(--i, 0) * .12s); }
+  .pin-seg[data-invalido="true"] .pin-seg-celda { animation: pin-celda-limpia .6s ease-out both; }
+  .pin-seg[data-exito="true"] .pin-seg-celda { animation: pin-celda-exito .4s ease-out both; animation-delay: calc(var(--i, 0) * .06s); }
+  .pin-seg .pin-tecla:active:not(:disabled) { transform: scale(.9); filter: brightness(1.15); }
+}
+@media (prefers-reduced-motion: reduce) { .pin-seg-celda, .pin-seg .pin-tecla { animation: none !important; transition: background-color .15s ease, border-color .15s ease; } }
+
+/* Bloqueo en móvil: el bloque tienda + persona + PIN sube y el teclado se
+   reparte el alto restante (sin hueco muerto arriba); en pantallas bajas sigue
+   entrando sin scroll. */
+@media (max-width: 767px) {
+  .lock-identidad { padding-top: clamp(4px, 4dvh, 40px); }
+  .lock-acceso { margin-top: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; padding-top: clamp(8px, 2dvh, 20px); }
+  .lock-acceso > .pin-seg { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; width: 100%; }
+  .lock-acceso > .pin-seg [data-testid='pin-teclado'] { margin-top: 0; }
+  .lock-avatar { width: 40px; height: 40px; font-size: 15px; }
+}
+@media (max-width: 767px) and (min-height: 760px) {
+  .lock-acceso .pin-seg.pin-pad { --pin-tecla: clamp(60px, min(21vw, 10.2dvh), 86px); }
+}
+@media (max-width: 767px) and (max-height: 700px) {
+  .lock-avatar { width: 28px; height: 28px; font-size: 12px; }
+}
+@media (max-width: 767px) {
+  .lock-avatar.lock-avatar-hola { width: 56px; height: 56px; font-size: 20px; }
+}
+/* Pantallas muy bajas (SE antiguo, teclado abierto): casillas compactas para no scrollear. */
+@media (max-height: 600px) {
+  .pin-seg.pin-pad { --pin-celda: 24px; }
+  .pin-seg.pin-pad .pin-seg-celda { border-radius: 10px; }
+  .pin-seg.pin-pad .pin-seg-punto { width: 12px; height: 12px; }
+  .lock-ultimo, [data-testid="lock-ultimo"] { display: none; }
+}
+@media (max-width: 767px) and (max-height: 700px) {
+  .auth-login-pin:has(details[open]) .pin-seg.pin-pad { --pin-celda: 16px; }
+  .auth-login-pin:has(details[open]) .pin-seg.pin-pad .pin-seg-celda { border-radius: 6px; }
+  .auth-login-pin:has(details[open]) .pin-seg.pin-pad .pin-seg-punto { width: 8px; height: 8px; }
 }

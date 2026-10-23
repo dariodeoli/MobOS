@@ -21,7 +21,7 @@ let result
 // 1. Sin sesión, ambos endpoints rechazan.
 result = await request('/api/user-invitations/pending')
 assert.equal(result.response.status, 401, JSON.stringify(result.payload))
-result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-a-b-it', pin: '1357', deviceId: 'anon-device' })
+result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-a-b-it', pin: '7319', deviceId: 'anon-device' })
 assert.equal(result.response.status, 401, JSON.stringify(result.payload))
 
 // 2. Creación vía API: el arnés no configura el relay de correo, por eso el
@@ -55,10 +55,10 @@ assert.ok(Array.isArray(result.payload) && !result.payload.some(item => item.id 
 
 // 5. Ese otro seller tampoco puede aceptarla: 404 para id inexistente y 410
 //    para invitación válida pero de otro email (mismo mensaje, sin detalles).
-result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-nonexistent-it', pin: '1357', deviceId: 'other-seller-device' }, otherSellerToken)
+result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-nonexistent-it', pin: '7319', deviceId: 'other-seller-device' }, otherSellerToken)
 assert.ok([404, 410].includes(result.response.status), `id inexistente devolvió HTTP ${result.response.status}.`)
 assert.equal(result.payload?.message, INVALID_MESSAGE)
-result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-c-b-it', pin: '1357', deviceId: 'other-seller-device' }, otherSellerToken)
+result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-c-b-it', pin: '7319', deviceId: 'other-seller-device' }, otherSellerToken)
 assert.ok([404, 410].includes(result.response.status), `email ajeno devolvió HTTP ${result.response.status}.`)
 assert.equal(result.payload?.message, INVALID_MESSAGE)
 
@@ -67,7 +67,7 @@ result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invi
 assert.equal(result.response.status, 400, JSON.stringify(result.payload))
 
 // 7. Aceptación real: crea el User en tenant-a sin cookies ni cambio de sesión.
-result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-a-b-it', pin: '1357', deviceId: 'invite-app-device-b' }, sellerBToken)
+result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-a-b-it', pin: '7319', deviceId: 'invite-app-device-b' }, sellerBToken)
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 assert.equal(result.payload.ok, true)
 assert.equal(result.payload.user.tenantId, 'tenant-a-it')
@@ -88,12 +88,12 @@ assert.equal(member.branchId, 'branch-a-it')
 assert.equal(member.status, 'ACTIVE')
 
 // 9. Segunda aceptación de la misma invitación: consumida → 404/410.
-result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-a-b-it', pin: '1357', deviceId: 'invite-app-device-b' }, sellerBToken)
+result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-a-b-it', pin: '7319', deviceId: 'invite-app-device-b' }, sellerBToken)
 assert.ok([404, 410].includes(result.response.status), `aceptación repetida devolvió HTTP ${result.response.status}.`)
 assert.equal(result.payload?.message, INVALID_MESSAGE)
 
 // 10. Invitación de una tienda donde ese email YA tiene usuario: 409 claro.
-result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-b-b-it', pin: '1357', deviceId: 'invite-app-device-b' }, sellerBToken)
+result = await request('/api/user-invitations/accept-by-id', 'POST', { id: 'invite-b-b-it', pin: '7319', deviceId: 'invite-app-device-b' }, sellerBToken)
 assert.equal(result.response.status, 409, JSON.stringify(result.payload))
 assert.equal(result.payload.message, 'Ya sos parte de esa tienda.')
 

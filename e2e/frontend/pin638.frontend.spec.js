@@ -6,7 +6,8 @@ const baseUser = { id: 'qa638-user', name: 'Usuario sintético', tenantId: tenan
 const draftKey = 'mobos:pos-cart:v1:qa638-tenant:qa638-branch:qa638-user'
 const generation = page => page.evaluate(async () => (await import('/src/lib/offline/snapshot.js')).generacionSnapshots())
 
-async function prepare(page, user, onUnlock) {
+async function prepare(page, user, onUnlock, onPin) {
+  let actual = user
   await page.addInitScript(({ tenant, user, draftKey }) => {
     localStorage.setItem('owncoding_hub_company_context', JSON.stringify({ tenant, sellers: [user], cookieSession: true }))
     localStorage.setItem(draftKey, JSON.stringify({ items: [{ productoId: 'qa638-product', nombre: 'Producto borrador 638', precio: 12000, precioManual: true, quantity: 2 }], observacion: 'Nota de la venta pendiente 638' }))
@@ -14,12 +15,17 @@ async function prepare(page, user, onUnlock) {
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
     if (!path.startsWith('/api/')) return route.continue()
-    if (path === '/api/auth/me') return route.fulfill({ json: { tenant, user } })
+    if (path === '/api/auth/me') return route.fulfill({ json: { tenant, user: actual } })
     if (path === '/api/auth/unlock') {
       expect(route.request().postDataJSON()).toEqual({ pin: '1234' })
       return onUnlock(route)
     }
-    if (path === '/api/auth/pin') throw new Error('A locked screen must not sign in or switch operator')
+    if (path === '/api/auth/pin') {
+      expect(route.request().postDataJSON()).toEqual({ pin: '1234', desbloqueo: true })
+      // Sin onPin: sesión sin empresa (invitación) -> el bloqueo reconfirma al mismo operador.
+      if (!onPin) return route.fulfill({ status: 422, json: { code: 'COMPANY_SESSION_REQUIRED', message: 'Sesión de empresa requerida.' } })
+      return onPin(route, nuevo => { actual = nuevo })
+    }
     return route.fulfill({ json: [] })
   })
   await page.goto('/pos')
@@ -54,7 +60,7 @@ for (const code of ['INVALID_PIN', 'SELLER_SESSION_REQUIRED']) test(`PIN639: ${c
   await expect(pos).toHaveAttribute('data-pin638', 'same-pos-instance')
   await preservedDraft(page)
   await page.locator('#lock-pin').pressSequentially('1234')
-  expect(attempts).toBe(2)
+  await expect.poll(() => attempts).toBe(2)
   if (code === 'INVALID_PIN') {
     await expect(lock).toHaveCount(0)
     await expect(pos).toHaveAttribute('data-pin638', 'same-pos-instance')
@@ -87,4 +93,39 @@ for (const [label, initial, fresh] of [
   expect(await generation(page)).toBeGreaterThan(before)
   expect(await page.evaluate(() => localStorage.getItem('owncoding_hub_company_context'))).toBeNull()
   await preservedDraft(page)
+})
+
+// El PIN manda: identifica al vendedor aunque no sea el último en usar el equipo.
+test('PIN: el código del mismo vendedor desbloquea y conserva el borrador', async ({ page }) => {
+  const { pos, lock } = await prepare(page, baseUser, route => route.abort(), route => route.fulfill({ json: { user: baseUser } }))
+  await expect(lock.getByTestId('lock-ingresa')).toHaveText('Ingresá tu código')
+  await page.locator('#lock-pin').pressSequentially('1234')
+  await expect(lock).toHaveCount(0)
+  await expect(pos).toHaveAttribute('data-pin638', 'same-pos-instance')
+  await preservedDraft(page)
+})
+
+test('PIN: el código de otro vendedor muestra «Hola, <Nombre>» y entra ese vendedor', async ({ page }) => {
+  const otro = { ...baseUser, id: 'qa638-otro', name: 'Lucía Gómez' }
+  const { lock } = await prepare(page, baseUser, route => route.abort(), (route, activar) => { activar(otro); return route.fulfill({ json: { user: otro } }) })
+  await page.locator('#lock-pin').pressSequentially('1234')
+  await expect(lock.getByTestId('lock-saludo')).toHaveText('Hola, Lucía')
+  await expect(lock).toHaveCount(0)
+})
+
+test('PIN: error 422 no invalida los datos y PIN repetido (409) explica qué hacer', async ({ page }) => {
+  let intento = 0
+  const { lock } = await prepare(page, baseUser, route => route.abort(), route => {
+    intento++
+    return intento === 1
+      ? route.fulfill({ status: 422, json: { code: 'INVALID_PIN', message: 'PIN inválido.' } })
+      : route.fulfill({ status: 409, json: { code: 'PIN_DUPLICATED', message: 'Hay más de un usuario con ese PIN. Pedí al administrador que asigne PINs únicos.' } })
+  })
+  const before = await generation(page)
+  await page.locator('#lock-pin').pressSequentially('1234')
+  await expect(lock.getByRole('alert')).toHaveText('PIN inválido.')
+  expect(await generation(page)).toBe(before)
+  await page.locator('#lock-pin').pressSequentially('1234')
+  await expect(lock.getByRole('alert')).toContainText('asigne PINs únicos')
+  await expect(lock).toBeVisible()
 })

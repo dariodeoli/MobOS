@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs'
 import { authRequestMetadata, createInvitedSellerSession, hashToken } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
-import { pinValido } from '../../../../lib/pin'
+import { pinValido, PIN_EN_USO_MENSAJE } from '../../../../lib/pin'
+import { pinEnUso } from '../../../../lib/pin-unico'
 import { COOKIE_SELLER, sessionCookieOptions } from '../../../../lib/google-oauth'
 import { prisma } from '../../../../lib/prisma'
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
   const invitation = await prisma.userInvitation.findUnique({ where: { tokenHash: hashToken(`USER_INVITATION:${token}`) } })
   const now = new Date()
   if (!invitation || invitation.consumedAt || invitation.revokedAt || invitation.expiresAt <= now) return safeInvalid()
+  if (await pinEnUso(invitation.tenantId, pin)) return error(PIN_EN_USO_MENSAJE, 409)
   const pinHash = await bcrypt.hash(pin, 12)
   try {
     const result = await prisma.$transaction(async tx => {

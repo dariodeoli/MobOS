@@ -21,9 +21,7 @@ import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import PinSegmentado from '@/components/shared/PinSegmentado'
-import { vibrar } from '@/lib/nativo/haptics'
-import { isNativeIOS, moduloDisponible } from '@/lib/plataforma'
-import ProximamenteIOS from '@/components/nativo/ProximamenteIOS'
+import { isNativeIOS } from '@/lib/plataforma'
 import { alPasarASegundoPlano, marcarPinVigente, pinVigente } from '@/lib/nativo/bloqueo'
 import { faceIdAlAbrir, tipoBiometria, verificarBiometria } from '@/lib/nativo/biometria'
 import SeguridadDemo from '@/components/control/config/SeguridadDemo'
@@ -342,9 +340,6 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
   Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
 )
 
-// Vistas de precios/pagos: la app nunca enlaza a su versión web.
-const SIN_ENLACE_WEB = ['precios', 'celulares', 'comparador', 'centro-control', 'creditos', 'finanzas', 'cuotas', 'comisiones']
-
 const LABELS = {
   clientes: 'Clientes',
   campanas: 'Campañas',
@@ -437,6 +432,7 @@ export default function PanelVendedor() {
     usuario,
     vendedores,
     cambiarVendedor,
+    activarVendedor,
     entrarDemo,
     esDemo,
     salir,
@@ -515,6 +511,9 @@ export default function PanelVendedor() {
   const [lockPin, setLockPin] = useState('')
   const [lockError, setLockError] = useState('')
   const [lockBusy, setLockBusy] = useState(false)
+  // Vendedor que el PIN identificó: se muestra «Hola, <Nombre>» antes de entrar.
+  const [lockIdentificado, setLockIdentificado] = useState(null)
+  const timerEntrada = useRef(null)
   const [salirAbierto, setSalirAbierto] = useState(false)
   const [saliendo, setSaliendo] = useState(false)
   const [ayudaAbierto, setAyudaAbierto] = useState(false)
@@ -537,7 +536,7 @@ export default function PanelVendedor() {
   const navDelRol = useMemo(() => {
     const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : esVerificador ? [...SELLER_NAV, ...VERIFICADOR_NAV] : SELLER_NAV
     return base
-      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas') && moduloDisponible(id)) }))
+      .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas')) }))
       .filter(group => group.items.length)
   }, [esOwner, esTecnico, esVerificador, puedeCampanas])
   // Los módulos solo RESTAN a lo que el rol ya ve: nunca amplían permisos. El
@@ -547,8 +546,6 @@ export default function PanelVendedor() {
   const navActual = useMemo(() => navDelRol
     .map(group => ({ ...group, items: group.items.filter(([id]) => itemVisible(id)) }))
     .filter(group => group.items.length), [navDelRol, itemVisible])
-  const vistaRequerida = subpadre ? SUBPAGINAS[subpadre].vista : vista
-  const proximamenteIOS = !moduloDisponible(vistaRequerida)
   const idsDelMenu = useMemo(() => new Set(navActual.flatMap(group => group.items.map(([id]) => id))), [navActual])
   const accesibles = useMemo(() => {
     const base = navActual.flatMap(group => group.items).map(([id]) => id)
@@ -661,10 +658,6 @@ export default function PanelVendedor() {
       navigate(rutaDeVista(primera) || '/pos', { replace: true })
     }
   }, [subpadre, accesibles, vista, navigate, moduloApagado])
-  // App de iPhone: el inicio no existe; la app abre directo en Vender.
-  useEffect(() => {
-    if (!subpadre && vista === 'resumen' && !moduloDisponible('resumen')) navigate('/pos', { replace: true })
-  }, [subpadre, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
   useEffect(() => {
     if (subpadre) {
@@ -779,24 +772,40 @@ export default function PanelVendedor() {
 
   const intentarDesbloqueo = useCallback(
     async (pinIntento) => {
+      let identificado = null
       await controlPin.current.ejecutar(async signal => {
         if (esDemo) {
           const esperado = usuario?.pin || (esOwner ? '3001' : '2001')
           if (pinIntento !== esperado) throw new Error('PIN inválido. Probá de nuevo.')
         } else {
-          await sessionApi.unlockSeller(pinIntento, usuario, { signal })
+          // El PIN identifica al vendedor (correo compartido): entra quien
+          // corresponda al código, sea o no el último usuario. Una sesión sin
+          // empresa (invitación) conserva el desbloqueo del mismo operador.
+          try {
+            identificado = await sessionApi.loginSeller({ pin: pinIntento, desbloqueo: true }, { signal })
+          } catch (err) {
+            if (err?.code !== 'COMPANY_SESSION_REQUIRED') throw err
+            await sessionApi.unlockSeller(pinIntento, usuario, { signal })
+          }
         }
       }, {
         alIniciar: () => { setLockBusy(true); setLockError('') },
         alConfirmar: () => {
-          setLocked(false); setLockPin(''); marcarBloqueo(false)
-          vibrar('exito'); marcarPinVigente(true)
+          const terminar = () => { setLocked(false); setLockPin(''); setLockIdentificado(null); marcarBloqueo(false); marcarPinVigente(true); setLockBusy(false) }
+          if (!identificado) { terminar(); return }
+          const nombre = identificado.user?.name || identificado.user?.nombre || ''
+          setLockIdentificado({ id: identificado.user?.id, name: nombre, hasAvatar: identificado.user?.hasAvatar })
+          // Pausa corta para ver el saludo; luego se activa ese vendedor.
+          timerEntrada.current = setTimeout(async () => {
+            try { await activarVendedor(identificado); terminar() }
+            catch (err) { setLockIdentificado(null); setLockError(err?.message || 'No se pudo abrir la sesión.'); setLockPin(''); setLockBusy(false) }
+          }, 750)
         },
         alFallar: err => { setLockError(err?.message || 'PIN inválido. Probá de nuevo.'); setLockPin('') },
-        alTerminar: () => setLockBusy(false),
+        alTerminar: () => { if (!identificado) setLockBusy(false) },
       })
     },
-    [esDemo, esOwner, usuario],
+    [esDemo, esOwner, usuario, activarVendedor],
   )
 
   // Face ID opcional (Configuración, solo dueño/admin): se pide ANTES del PIN,
@@ -817,8 +826,8 @@ export default function PanelVendedor() {
 
   useEffect(() => {
     const control = controlPin.current
-    control.invalidar(); setLockBusy(false); setLockPin(''); setLockError('')
-    return () => control.invalidar()
+    control.invalidar(); clearTimeout(timerEntrada.current); setLockBusy(false); setLockPin(''); setLockError('')
+    return () => { control.invalidar(); clearTimeout(timerEntrada.current) }
   }, [identidad])
 
   // App de iPhone: al pasar a segundo plano se bloquea; al volver pide el PIN.
@@ -1034,7 +1043,7 @@ export default function PanelVendedor() {
         <main data-gestion={esVistaGestion ? '1' : undefined} data-compras={!subpadre && VISTAS_COMPRAS.has(vista) ? '1' : undefined} className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-0">
           <VistaErrorBoundary resetKey={vista}>
           <Suspense fallback={<VistaCargando />}>
-          {proximamenteIOS ? <ProximamenteIOS nombre={LABELS[vistaRequerida] || MIGA_SUBPAGINA[subpadre]} urlWeb={SIN_ENLACE_WEB.includes(vistaRequerida) || SIN_ENLACE_WEB.includes(vista) ? '' : `https://moboss.online${window.location.pathname}`} /> : (moduloPendiente || moduloApagado) ? <VistaCargando /> : (<>
+          {(moduloPendiente || moduloApagado) ? <VistaCargando /> : (<>
           {posMontado && (
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
             {tradeIn?.identidad === identidad && (
@@ -1234,6 +1243,7 @@ export default function PanelVendedor() {
         onPinChange={setLockPin}
         busy={lockBusy}
         error={lockError}
+        identificado={lockIdentificado}
         esDemo={esDemo}
         onCambiarUsuario={() => {
           setCambiarAbierto(true)

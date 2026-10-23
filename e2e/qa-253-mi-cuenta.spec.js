@@ -224,12 +224,16 @@ test('al recargar el bloqueo no se pinta la foto anterior', async ({ page }) => 
 
   const bloqueo = page.getByTestId('pantalla-bloqueada')
   await expect(bloqueo).toBeVisible({ timeout: 20000 })
-  await expect(bloqueo.locator('img[alt^="Foto de"]')).toHaveAttribute('src', foto, { timeout: 20000 })
+  // El PIN identifica al vendedor: antes de validar no hay usuario
+  // preseleccionado, así que el bloqueo no pinta ninguna foto (ni la vieja ni la
+  // actual); solo «Ingresá tu código» y el chip de texto «Último ingreso».
+  await expect(bloqueo.getByTestId('lock-ingresa')).toHaveText('Ingresá tu código')
+  await expect(bloqueo.getByTestId('lock-ultimo')).toBeVisible()
+  await expect(bloqueo.locator('img[alt^="Foto de"]')).toHaveCount(0)
   await page.screenshot({ path: `${SHOTS}/09-271-bloqueo-recarga.png` })
 
   const pintadas = await page.evaluate(() => window.__fotosPintadas)
   expect(pintadas, `fotos pintadas: ${pintadas.join(' | ')}`).not.toContain('foto-vieja.invalid')
-  expect(pintadas, `fotos pintadas: ${pintadas.join(' | ')}`).toContain(foto)
   expect(pintadas.filter((src) => src.startsWith('http')), `se pintaron fotos externas: ${pintadas.join(' | ')}`).toEqual([])
 
   // Limpieza: la foto de la prueba no queda en la base.

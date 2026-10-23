@@ -20,6 +20,18 @@ sepa **qué mirar en menos de un minuto**.
 - El QR del comprobante va con corrección **H** y el módulo térmico en **7**:
   un QR chico o claro es la causa número uno de "no me lee el código".
 
+### Logo en el centro del QR
+
+`qrDataUrl` (`src/lib/qr.js`) pinta, sobre el QR ya generado, un cuadrado blanco
+redondeado (20 % del lado) con el logo de la tienda (`getLogoDataUrl('light')`,
+el mismo del comprobante) o, sin logo, el ícono de MobOS. Fuerza nivel **H**. El
+contenido codificado no cambia. Se omite (QR liso) si: no hay lienzo o el logo no
+carga, el ancho es < 140 px, el texto supera 180 caracteres, o la etiqueta mide
+< 25 mm (`mm` en las opciones; las etiquetas de unidad/ubicación lo pasan).
+`logo: false` lo desactiva. Los tickets cuyo QR sale por el comando **nativo** de
+ESC/POS (la impresora lo dibuja) quedan sin logo; los que viajan como imagen
+(HTML/PDF/raster) sí lo llevan. Ver capturas `docs/rediseno/qr-*.png`.
+
 ### Contrato de los códigos QR (regla dura)
 
 Todo QR que imprime MobOS es una **URL absoluta de la app**, nunca un texto

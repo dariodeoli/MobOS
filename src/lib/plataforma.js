@@ -66,15 +66,8 @@ export const SOPORTE_URL = 'mailto:soporte@moboss.online'
 // Se completa con el ID real de la ficha cuando exista en App Store Connect.
 export const APP_STORE_URL = 'https://apps.apple.com/app/mobos/id0000000000'
 
-// Módulos de la app de iPhone v1. El resto (Stock, Compras, Taller, Finanzas,
-// Análisis…) queda detrás de esta bandera hasta que se habiliten:
-// `VITE_IOS_TODOS_LOS_MODULOS=1` en el build los muestra todos.
-export const MODULOS_IOS = ['cargar', 'pedidos', 'clientes', 'equipo', 'ayuda', 'mi-cuenta', 'resumen']
-
-const TODOS_LOS_MODULOS = String(import.meta.env?.VITE_IOS_TODOS_LOS_MODULOS || '') === '1'
-
-/** ¿Esta vista (id de navegación) existe en la plataforma actual? Web: siempre. */
-export function moduloDisponible(id, { ios = isNativeIOS(), todos = TODOS_LOS_MODULOS } = {}) {
-  if (!ios || todos) return true
-  return MODULOS_IOS.includes(id)
-}
+// Paridad con la web (#paridad-ios): la app de iPhone muestra las mismas secciones
+// y vistas que la web y se rige por los módulos v2 de la empresa
+// (`useModulos().vistaVisible`), no por una lista fija de plataforma. Lo único que
+// la app no ofrece son los puntos de entrada que Apple no admite (guideline 3.1.1):
+// landing con planes, alta de tienda y cobro del plan de MobOS.
