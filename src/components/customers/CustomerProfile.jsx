@@ -38,6 +38,9 @@ import './identidadFiscal.css'
 import './clientePagina.css'
 import { guardarIdentidadFacturacionDemo } from '@/lib/demoBillingIdentities'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, buscarClienteDemo, registrarInformeDemo } from '@/lib/demoClientes'
+import { agregarNotaClienteDemo, agregarSeguimientoDemo, borrarNotaClienteDemo, borrarSeguimientoDemo, canjearPuntosDemo, completarSeguimientoDemo, editarNotaClienteDemo, eliminarIdentidadFacturacionDemo, fidelizacionDemo, patchClienteDemo, resolverSolicitudClienteDemo, solicitarCondicionDemo, usarIdentidadActualDemo } from '@/lib/demo/fichaCliente'
+import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
+import { listDemoPriceLists } from '@/lib/demo/precios'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { Aviso, Badge, Button, DataTable, EmptyState, FormField, Input, Label, MoneyInput, CeldaMoneda, Select, Skeleton, Textarea, useToast, useValidacionCampos, IconAction } from '@/components/ui'
 import { ConfirmDialog, Modal, SaveActions } from '@/components/shared/popupKit'
@@ -186,11 +189,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // Modo demo (#189): nada de la ficha se guarda contra el API real. Los
   // acciones sin simulación quedan bloqueadas; las identidades fiscales usan
   // su almacenamiento demo local y nunca envían una petición.
-  const demoBloqueado = () => {
-    if (!esDemo) return false
-    toast.info('Modo demo', 'Esta acción no está disponible en la demo.')
-    return true
-  }
+  // Demo: cada acción escribe en la ficha de la sesión (ver lib/demo/fichaCliente.js).
+  const patchFicha = (cuerpo) => (esDemo
+    ? Promise.resolve(patchClienteDemo(customer.id, cuerpo))
+    : api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, cuerpo))
   const [revision, setRevision] = useState(0)
   const [unificarAbierto, setUnificarAbierto] = useState(false)
   const [principalFusionada, setPrincipalFusionada] = useState(null)
@@ -232,7 +234,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   // El seguro afecta costo real y margen: lo configuran administración/gerencia.
   async function guardarSeguro(enabled = seguroForm.enabled) {
-    if (demoBloqueado() || guardandoSeguro || !customer?.id) return
+    if (guardandoSeguro || !customer?.id) return
     const pct = parsePercent(seguroForm.pct)
     if (enabled && seguroForm.pct.trim() && (pct === null || pct < 0 || pct > 100)) {
       toast.error('Porcentaje inválido', 'El seguro debe estar entre 0 y 100 (hasta 2 decimales).')
@@ -240,7 +242,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     }
     setGuardandoSeguro(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, {
+      await patchFicha({
         insuranceEnabled: enabled,
         insuranceRatePct: pct,
       })
@@ -273,11 +275,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function guardarTags(event) {    event.preventDefault()
-    if (demoBloqueado() || guardandoTags || !customer?.id) return
+    if (guardandoTags || !customer?.id) return
     const tags = tagsTexto.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20)
     setGuardandoTags(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { tags })
+      await patchFicha({ tags })
       toast.success('Etiquetas guardadas.')
       refresh()
     } catch (cause) {
@@ -305,7 +307,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   async function guardarDireccion(event) {
     event.preventDefault()
-    if (demoBloqueado() || !direccionForm || direccionBusy || !customer?.id) return
+    if (!direccionForm || direccionBusy || !customer?.id) return
     const address = direccionForm.address.trim()
     if (!address) { toast.error('Dirección obligatoria', 'Ingresá el detalle de la dirección.'); return }
     const actuales = direcciones.map((item) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: item.isDefault }))
@@ -314,7 +316,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     const conPredeterminada = lista.map((item, index) => ({ ...item, isDefault: item.isDefault || (index === 0 && !lista.some((otra) => otra.isDefault)) }))
     setDireccionBusy(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { addresses: conPredeterminada })
+      await patchFicha({ addresses: conPredeterminada })
       toast.success('Direcciones guardadas.')
       setDireccionForm(null)
       refresh()
@@ -324,13 +326,13 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function removeDireccion() {
-    if (demoBloqueado() || !pendingDelete || pendingDelete.type !== 'address' || deleteBusy || !customer?.id) return
+    if (!pendingDelete || pendingDelete.type !== 'address' || deleteBusy || !customer?.id) return
     setDeleteBusy(true)
     try {
       const lista = direcciones
         .filter((_, index) => index !== pendingDelete.index)
         .map((item, index) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: index === 0 ? true : item.isDefault }))
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { addresses: lista })
+      await patchFicha({ addresses: lista })
       toast.success('Dirección eliminada.')
       setPendingDelete(null)
       refresh()
@@ -354,7 +356,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   async function guardarComercial(event) {
     event.preventDefault()
-    if (demoBloqueado() || guardandoComercial || !customer?.id) return
+    if (guardandoComercial || !customer?.id) return
     const body = { pricingTier: comercialForm.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL' }
     if (comercialForm.creditHabilitado) {
       const limite = Number(String(comercialForm.creditLimitPyg).replace(/\D/g, ''))
@@ -373,7 +375,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     body.blockedReason = comercialForm.blocked ? comercialForm.blockedReason.trim() : null
     setGuardandoComercial(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, body)
+      await patchFicha(body)
       toast.success('Configuración comercial guardada.')
       setComercialAbierto(false)
       refresh()
@@ -388,10 +390,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }, [profile?.customer?.notes, profile?.customer?.publicNote, customer?.notes, customer?.publicNote])
 
   async function pedirCambio() {
-    if (demoBloqueado() || !solicitud || solicitudBusy || !customer?.id) return
+    if (!solicitud || solicitudBusy || !customer?.id) return
     setSolicitudBusy(true)
     try {
-      await api.post('/api/authorizations', {
+      if (esDemo) solicitarCondicionDemo(customer, { kind: solicitud, requestedValue: solicitud === 'CREDIT' ? { creditDays: Number(solicitudDias) || 0, creditLimitPyg: Number(solicitudLimite) || 0 } : {} })
+      else await api.post('/api/authorizations', {
         customerId: customer.id,
         kind: solicitud,
         ...(solicitud === 'CREDIT'
@@ -404,20 +407,20 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function guardarNotas() {
-    if (demoBloqueado() || guardandoNotas || !customer?.id) return
+    if (guardandoNotas || !customer?.id) return
     setGuardandoNotas(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { notes: notaInterna.trim(), publicNote: notaPublica.trim() })
+      await patchFicha({ notes: notaInterna.trim(), publicNote: notaPublica.trim() })
       toast.success('Notas guardadas.')
     } catch (cause) { toast.error(cause?.message || 'No se pudieron guardar las notas.') } finally { setGuardandoNotas(false) }
   }
 
   // Lista de precios de la ficha: vacía vuelve al precio por tipo de cliente.
   async function cambiarListaPrecios(value) {
-    if (demoBloqueado() || guardandoLista || !customer?.id) return
+    if (guardandoLista || !customer?.id) return
     setGuardandoLista(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { priceListId: value || null })
+      await patchFicha({ priceListId: value || null })
       toast.success(value ? 'Lista de precios asignada.' : 'La ficha vuelve a su precio por tipo de cliente.')
       refresh()
     } catch (cause) {
@@ -678,11 +681,12 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     // Modo demo (#189): la ficha se arma con los datos del navegador; no hay
     // pedidos, deuda, cronología ni portal y nada de esto pega al API real.
     if (esDemo) {
-      const demoPerfil = buildDemoProfile(customer, { empresaId: empresa?.id })
+      const fichaViva = buscarClienteDemo(customer.id) || customer
+      const demoPerfil = buildDemoProfile(fichaViva, { empresaId: empresa?.id })
       setProfile(demoPerfil)
       setIdentities(demoPerfil.billingIdentities)
       setTimeline(buildDemoTimeline(buscarClienteDemo(customer.id) || customer))
-      setAnalitica(buildDemoAnalytics(customer))
+      setAnalitica(buildDemoAnalytics(fichaViva))
       setLoading(false)
       return () => { active = false }
     }
@@ -716,6 +720,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   // Solicitudes comerciales del cliente (mayorista, crédito, plazo).
   useEffect(() => {
+    if (open && customer?.id && esDemo) {
+      setAuthorizations(demoAutorizacionesFiltradas('', '').filter((fila) => fila.customer?.id === customer.id))
+      setAuthLoading(false); setAuthError('')
+      return undefined
+    }
     if (!open || !customer?.id || esDemo) return undefined
     let active = true
     setAuthLoading(true)
@@ -748,6 +757,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   // Fidelización: se pide al abrir la pestaña Datos y al canjear o reintentar.
   useEffect(() => {
+    if (open && customer?.id && tab === 'datos' && esDemo) { setLoyalty(fidelizacionDemo(customer.id)); setLoyaltyLoading(false); return undefined }
     if (!open || !customer?.id || tab !== 'datos' || esDemo) return undefined
     let active = true
     setLoyaltyLoading(true)
@@ -765,6 +775,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // Listas de precios de la empresa: se cargan al abrir la ficha para poder
   // asignar una a este cliente.
   useEffect(() => {
+    if (open && customer?.id && esDemo) { setListasPrecios(listDemoPriceLists()); return undefined }
     if (!open || !customer?.id || esDemo) return undefined
     let active = true
     api.get('/api/price-lists').then((data) => { if (active) setListasPrecios(Array.isArray(data) ? data : []) }).catch(() => { if (active) setListasPrecios([]) })
@@ -772,10 +783,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }, [open, customer?.id, esDemo])
 
   async function asignarLista(priceListId) {
-    if (demoBloqueado() || !customer?.id || asignandoLista) return
+    if (!customer?.id || asignandoLista) return
     setAsignandoLista(true)
     try {
-      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { priceListId: priceListId || null })
+      await patchFicha({ priceListId: priceListId || null })
       toast.success(priceListId ? 'Lista de precios asignada.' : 'Lista de precios quitada.')
       refresh()
     } catch (cause) { toast.error(cause?.message || 'No se pudo asignar la lista.') } finally { setAsignandoLista(false) }
@@ -790,13 +801,13 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // de la transacción; acá solo se valida antes de enviar.
   async function canjearPuntos(event) {
     event.preventDefault()
-    if (demoBloqueado() || canjeBusy || !customer?.id) return
+    if (canjeBusy || !customer?.id) return
     const pointsPyg = Number(canjePuntos)
     if (!Number.isSafeInteger(pointsPyg) || pointsPyg <= 0) { toast.error('Puntos inválidos', 'Ingresá una cantidad entera de puntos.'); return }
     if (pointsPyg > puntos) { toast.error('Saldo insuficiente', `El cliente tiene ${formatGs(puntos)} en puntos.`); return }
     setCanjeBusy(true)
     try {
-      const result = await api.post(`/api/customers/${encodeURIComponent(customer.id)}/loyalty`, { pointsPyg })
+      const result = esDemo ? canjearPuntosDemo(customer.id, pointsPyg) : await api.post(`/api/customers/${encodeURIComponent(customer.id)}/loyalty`, { pointsPyg })
       toast.success('Puntos canjeados', `Se agregaron ${formatGs(pointsPyg)} de saldo a favor.`)
       setCanjeAbierto(false)
       setCanjePuntos('')
@@ -929,14 +940,16 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   async function saveNote(event) {
     event.preventDefault()
     const content = newNote.trim()
-    if (demoBloqueado() || !content || noteBusy) return
+    if (!content || noteBusy) return
     setNoteBusy(true)
     try {
       if (editingNote) {
-        await api.patch(`/api/customers/${customer.id}/notes`, { id: editingNote.id, content })
+        if (esDemo) editarNotaClienteDemo(customer.id, editingNote.id, content)
+        else await api.patch(`/api/customers/${customer.id}/notes`, { id: editingNote.id, content })
         toast.success('Nota actualizada')
       } else {
-        await api.post(`/api/customers/${customer.id}/notes`, { content })
+        if (esDemo) agregarNotaClienteDemo(customer.id, content)
+        else await api.post(`/api/customers/${customer.id}/notes`, { content })
         toast.success('Nota guardada')
       }
       setNewNote('')
@@ -993,10 +1006,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function removeNote() {
-    if (demoBloqueado() || !pendingDelete || deleteBusy) return
+    if (!pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
-      await api.delete(`/api/customers/${customer.id}/notes`, { id: pendingDelete.id })
+      if (esDemo) borrarNotaClienteDemo(customer.id, pendingDelete.id)
+      else await api.delete(`/api/customers/${customer.id}/notes`, { id: pendingDelete.id })
       toast.success('Nota eliminada')
       setPendingDelete(null)
       refresh()
@@ -1010,10 +1024,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   async function saveFollowUp(event) {
     event.preventDefault()
     const note = followForm.note.trim()
-    if (demoBloqueado() || !note || followBusy) return
+    if (!note || followBusy) return
     setFollowBusy(true)
     try {
-      await api.post(`/api/customers/${customer.id}/follow-ups`, { kind: followForm.kind, note, dueAt: followForm.dueAt || undefined })
+      if (esDemo) agregarSeguimientoDemo(customer.id, { kind: followForm.kind, note, dueAt: followForm.dueAt || undefined })
+      else await api.post(`/api/customers/${customer.id}/follow-ups`, { kind: followForm.kind, note, dueAt: followForm.dueAt || undefined })
       toast.success('Seguimiento agendado')
       setFollowForm({ kind: 'CALL', dueAt: '', note: '' })
       refresh()
@@ -1025,10 +1040,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function markDone(item) {
-    if (demoBloqueado() || item.doneAt || followDoneId) return
+    if (item.doneAt || followDoneId) return
     setFollowDoneId(item.id)
     try {
-      await api.patch(`/api/customers/${customer.id}/follow-ups`, { id: item.id, doneAt: new Date().toISOString() })
+      if (esDemo) completarSeguimientoDemo(customer.id, item.id)
+      else await api.patch(`/api/customers/${customer.id}/follow-ups`, { id: item.id, doneAt: new Date().toISOString() })
       toast.success('Seguimiento marcado como hecho')
       refresh()
     } catch (cause) {
@@ -1039,10 +1055,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function removeFollowUp() {
-    if (demoBloqueado() || !pendingDelete || deleteBusy) return
+    if (!pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
-      await api.delete(`/api/customers/${customer.id}/follow-ups`, { id: pendingDelete.id })
+      if (esDemo) borrarSeguimientoDemo(customer.id, pendingDelete.id)
+      else await api.delete(`/api/customers/${customer.id}/follow-ups`, { id: pendingDelete.id })
       toast.success('Seguimiento eliminado')
       setPendingDelete(null)
       refresh()
@@ -1064,7 +1081,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   async function enviarSolicitud(event) {
     event.preventDefault()
-    if (demoBloqueado() || !requestKind || requestBusy) return
+    if (!requestKind || requestBusy) return
     const requestedValue = {}
     if (requestKind === 'CREDIT') {
       const limit = Number(requestForm.creditLimitPyg)
@@ -1087,7 +1104,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     }
     setRequestBusy(true)
     try {
-      await api.post('/api/authorizations', {
+      if (esDemo) solicitarCondicionDemo(customer, { kind: requestKind, requestedValue, note: requestForm.note.trim() })
+      else await api.post('/api/authorizations', {
         customerId: customer.id,
         kind: requestKind,
         requestedValue,
@@ -1111,7 +1129,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function confirmarResolver() {
-    if (demoBloqueado() || !resolveTarget || resolveBusy) return
+    if (!resolveTarget || resolveBusy) return
     if (resolveAction === 'reject' && !validarResolve({ motivo: resolveForm.resolvedNote }).valido) return
     const body = {
       id: resolveTarget.id,
@@ -1151,7 +1169,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     }
     setResolveBusy(true)
     try {
-      await api.patch('/api/authorizations', body)
+      if (esDemo) resolverSolicitudClienteDemo(body, customer)
+      else await api.patch('/api/authorizations', body)
       toast.success(resolveAction === 'approve' ? 'Solicitud aprobada' : 'Solicitud rechazada', resolveAction === 'approve' ? 'El cliente quedó con la condición autorizada.' : undefined)
       setResolveTarget(null)
       refresh()
@@ -1197,10 +1216,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function usarComoActual(identity) {
-    if (demoBloqueado() || identityBusy) return
+    if (identityBusy) return
     setIdentityBusy(true)
     try {
-      await api.patch(`/api/customers/${customer.id}/billing-identities`, { id: identity.id, useAsCurrent: true })
+      if (esDemo) usarIdentidadActualDemo(customer, identity.id, { empresaId: empresa?.id })
+      else await api.patch(`/api/customers/${customer.id}/billing-identities`, { id: identity.id, useAsCurrent: true })
       toast.success('Facturación actualizada', `Ahora factura a ${identity.name}.`)
       refresh()
     } catch (cause) {
@@ -1211,10 +1231,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   async function removeBillingIdentity() {
-    if (demoBloqueado() || !pendingDelete || deleteBusy) return
+    if (!pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
-      await api.delete(`/api/customers/${customer.id}/billing-identities?id=${encodeURIComponent(pendingDelete.id)}`)
+      if (esDemo) eliminarIdentidadFacturacionDemo(customer, pendingDelete.id, { empresaId: empresa?.id })
+      else await api.delete(`/api/customers/${customer.id}/billing-identities?id=${encodeURIComponent(pendingDelete.id)}`)
       toast.success('Identidad eliminada')
       setPendingDelete(null)
       refresh()
@@ -1251,7 +1272,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
         <div className="space-y-5">
           {esDemo && (
             <Aviso tono="warn" compact>
-              Modo demo: esta ficha usa los datos cargados en tu navegador (pedidos, deuda, cronología y portal incluidos). Nada se guarda en una tienda real.
+              Modo demo: esta ficha usa los datos cargados en tu navegador (pedidos, deuda, cronología y portal incluidos). Lo que cambies se aplica y se reinicia al salir.
             </Aviso>
           )}
           {/* #312: cabecera y pestañas fijas dentro del modal. Al scrollear el
@@ -1444,7 +1465,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
             </div>
           )}
 
-          {!esDemo && (
+          {(
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Configuración comercial</p>
@@ -1456,19 +1477,19 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               </div>
               <span className="flex flex-wrap gap-2">
                 {mayoristasActivo && !mayorista && !hayPendiente('WHOLESALE') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => setSolicitud('WHOLESALE')}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>
                     <Icon name="tag" className="h-4 w-4" />
                     Solicitar mayorista
                   </Button>
                 )}
                 {!creditoHabilitado && !hayPendiente('CREDIT') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => abrirSolicitud('CREDIT')}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT')}>
                     <Icon name="wallet" className="h-4 w-4" />
                     Solicitar crédito
                   </Button>
                 )}
                 {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => abrirSolicitud('CREDIT_DAYS')}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
                     <Icon name="clock" className="h-4 w-4" />
                     Solicitar días
                   </Button>
@@ -1634,14 +1655,14 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
             <div className={GRILLA_DOS_COLUMNAS}>
               <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
                 <Label>Nota interna <span className="text-mute">(solo equipo, nunca visible al cliente)</span></Label>
-                <Textarea rows={3} aria-label="Nota interna" value={notaInterna} disabled={esDemo} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
+                <Textarea rows={3} aria-label="Nota interna" value={notaInterna} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
               </div>
               <div className="rounded-xl border border-ok/30 bg-ok/5 p-3">
                 <Label>Nota pública <span className="text-mute">(visible al cliente)</span></Label>
                 <Textarea rows={3} aria-label="Nota pública" value={notaPublica} onChange={event => setNotaPublica(event.target.value)} placeholder="Información que puede ir en comprobantes o mensajes" autoCapitalize="sentences" />
               </div>
               <div className="sm:col-span-2 flex justify-end">
-                <Button type="button" variant="outline" disabled={esDemo || guardandoNotas} onClick={guardarNotas}>{guardandoNotas ? 'Guardando…' : 'Guardar notas'}</Button>
+                <Button type="button" variant="outline" disabled={guardandoNotas} onClick={guardarNotas}>{guardandoNotas ? 'Guardando…' : 'Guardar notas'}</Button>
               </div>
             </div>
           )}
@@ -1654,7 +1675,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Observación interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
                 </FormField>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="submit" disabled={esDemo || noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar comentario'}</Button>
+                  <Button type="submit" disabled={noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar comentario'}</Button>
                   {editingNote && <Button type="button" variant="ghost" onClick={() => { setEditingNote(null); setNewNote('') }}>Cancelar</Button>}
                 </div>
               </form>
@@ -1668,8 +1689,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                         <p className="flex items-center gap-1.5 text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{item.user?.name || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
                         <div className="flex gap-2">
-                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
-                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
+                          <button type="button" className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
+                          <button type="button" className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
                         </div>
                       </div>
                     </li>
@@ -1785,7 +1806,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 <FormField label="Detalle" htmlFor="profile-follow-note">
                   <Input id="profile-follow-note" maxLength={2000} placeholder="Motivo y qué acordaste…" value={followForm.note} onChange={(event) => setFollowForm({ ...followForm, note: event.target.value })} />
                 </FormField>
-                <div className="sm:col-span-3"><Button type="submit" disabled={esDemo || followBusy || !followForm.note.trim()}>{followBusy ? 'Guardando…' : 'Agendar seguimiento'}</Button></div>
+                <div className="sm:col-span-3"><Button type="submit" disabled={followBusy || !followForm.note.trim()}>{followBusy ? 'Guardando…' : 'Agendar seguimiento'}</Button></div>
               </form>
               {!followUps.length ? (
                 <EmptyState compact icon="calendar" title="Sin seguimientos" description="Agendá llamadas, WhatsApp o visitas para no perderle el rastro." />
@@ -1813,8 +1834,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(item.user?.name) || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
                           <div className="flex gap-2">
-                            {!item.doneAt && <button type="button" disabled={esDemo || followDoneId === item.id} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => markDone(item)}>{followDoneId === item.id ? 'Guardando…' : 'Marcar hecho'}</button>}
-                            <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
+                            {!item.doneAt && <button type="button" disabled={followDoneId === item.id} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => markDone(item)}>{followDoneId === item.id ? 'Guardando…' : 'Marcar hecho'}</button>}
+                            <button type="button" className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
                           </div>
                         </div>
                       </li>
@@ -1836,7 +1857,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 <div className="flex items-center gap-3">
                   <Switch
                     checked={seguroForm.enabled}
-                    disabled={esDemo || !puedeResolver || guardandoSeguro}
+                    disabled={!puedeResolver || guardandoSeguro}
                     ariaLabel="Seguro del cliente activo"
                     onChange={(event) => { const next = event.target.checked; setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
                   />
@@ -1847,19 +1868,19 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <div className="w-44">
                     <FormField label="Porcentaje del cliente" htmlFor="perfil-seguro-pct" hint="Vacío = usa el de la empresa.">
-                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={esDemo || !puedeResolver || guardandoSeguro} onChange={(value) => setSeguroForm((form) => ({ ...form, pct: value }))} />
+                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={!puedeResolver || guardandoSeguro} onChange={(value) => setSeguroForm((form) => ({ ...form, pct: value }))} />
                     </FormField>
                   </div>
-                  {puedeResolver && <Button type="button" variant="outline" disabled={esDemo || guardandoSeguro} onClick={() => guardarSeguro(true)}>{guardandoSeguro ? 'Guardando…' : 'Guardar porcentaje'}</Button>}
+                  {puedeResolver && <Button type="button" variant="outline" disabled={guardandoSeguro} onClick={() => guardarSeguro(true)}>{guardandoSeguro ? 'Guardando…' : 'Guardar porcentaje'}</Button>}
                 </div>
               )}
               <form onSubmit={guardarTags} className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                 <div className="min-w-[16rem] flex-1">
                   <FormField label="Etiquetas" htmlFor="perfil-tags" hint="Separadas por coma (hasta 20).">
-                    <Input id="perfil-tags" maxLength={200} disabled={esDemo} value={tagsTexto} onChange={(event) => setTagsTexto(event.target.value)} placeholder="mayorista, prioridad" />
+                    <Input id="perfil-tags" maxLength={200} value={tagsTexto} onChange={(event) => setTagsTexto(event.target.value)} placeholder="mayorista, prioridad" />
                   </FormField>
                 </div>
-                <Button type="submit" variant="outline" disabled={esDemo || guardandoTags}>{guardandoTags ? 'Guardando…' : 'Guardar etiquetas'}</Button>
+                <Button type="submit" variant="outline" disabled={guardandoTags}>{guardandoTags ? 'Guardando…' : 'Guardar etiquetas'}</Button>
               </form>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Configuración comercial</p>
@@ -1899,7 +1920,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   >
                     <Select
                       id="profile-lista-precios"
-                      disabled={guardandoLista || esDemo}
+                      disabled={guardandoLista}
                       value={listaPreciosId}
                       onChange={(event) => cambiarListaPrecios(event.target.value)}
                     >
@@ -1941,8 +1962,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                           {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
                           {puedeResolver && row.status === 'PENDING' && !propia && (
                             <div className="mt-2 flex gap-2">
-                              <button type="button" disabled={esDemo} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => abrirResolver(row, 'approve')}>Aprobar</button>
-                              <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => abrirResolver(row, 'reject')}>Rechazar</button>
+                              <button type="button" className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => abrirResolver(row, 'approve')}>Aprobar</button>
+                              <button type="button" className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => abrirResolver(row, 'reject')}>Rechazar</button>
                             </div>
                           )}
                         </li>
@@ -1957,9 +1978,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
           {tab === 'datos' && (
             <div className="space-y-4">
               <p className="text-sm font-semibold">Puntos de fidelización</p>
-              {esDemo ? (
-                <p className="text-sm text-mute">La fidelización se calcula con las ventas reales de la tienda.</p>
-              ) : (
+              {(
                 <>
                   <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                     <div className="min-w-0">
@@ -1967,7 +1986,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                       <p className="mt-1 text-2xl font-semibold text-fore">{formatGs(puntos)}</p>
                       <p className="mt-1 text-xs text-mute">{loyaltyPct > 0 ? `Se acredita el ${loyaltyPct}% del total de cada venta (1 punto = 1 Gs.).` : 'La fidelización está apagada: activala en Configuración → Negocio.'}</p>
                     </div>
-                    <Button type="button" disabled={esDemo || !puedeCanjearPuntos || puntos <= 0} onClick={abrirCanje}>Canjear como saldo a favor</Button>
+                    <Button type="button" disabled={!puedeCanjearPuntos || puntos <= 0} onClick={abrirCanje}>Canjear como saldo a favor</Button>
                   </div>
                   {loyaltyLoading && <div className="space-y-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
                   {!loyaltyLoading && loyaltyError && (
@@ -2004,7 +2023,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Direcciones</p>
-                <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => abrirDireccion(null)}>
+                <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirDireccion(null)}>
                   <Icon name="plus" className="h-3.5 w-3.5" />
                   Agregar dirección
                 </Button>
@@ -2028,8 +2047,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
-                        <button type="button" disabled={esDemo} className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirDireccion(address, index)}>Editar</button>
-                        <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'address', index })}>Eliminar</button>
+                        <button type="button" className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirDireccion(address, index)}>Editar</button>
+                        <button type="button" className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'address', index })}>Eliminar</button>
                       </div>
                     </li>
                   ))}
@@ -2086,9 +2105,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                         <span className={CELDA_DATO} title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
                         <span className="flex items-center justify-end gap-2">
-                          {!actual && <button type="button" disabled={esDemo || identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
+                          {!actual && <button type="button" disabled={identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
                           <button type="button" disabled={identityBusy} className="min-h-11 min-w-11 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirIdentidad(identity)}>Editar</button>
-                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
+                          <button type="button" className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
                         </span>
                       </div>
                     )
@@ -2502,7 +2521,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
             </label>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" disabled={direccionBusy} onClick={() => setDireccionForm(null)}>Cancelar</Button>
-              <Button type="submit" disabled={esDemo || direccionBusy || !direccionForm.address.trim()}>{direccionBusy ? 'Guardando…' : 'Guardar dirección'}</Button>
+              <Button type="submit" disabled={direccionBusy || !direccionForm.address.trim()}>{direccionBusy ? 'Guardando…' : 'Guardar dirección'}</Button>
             </div>
           </form>
         )}
@@ -2558,7 +2577,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
           <p className="text-xs text-mute">El cambio queda registrado en la cronología del cliente.</p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" disabled={guardandoComercial} onClick={() => setComercialAbierto(false)}>Cancelar</Button>
-            <Button type="submit" disabled={esDemo || guardandoComercial}>{guardandoComercial ? 'Guardando…' : 'Guardar configuración'}</Button>
+            <Button type="submit" disabled={guardandoComercial}>{guardandoComercial ? 'Guardando…' : 'Guardar configuración'}</Button>
           </div>
         </form>
       </Modal>

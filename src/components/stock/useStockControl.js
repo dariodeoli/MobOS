@@ -1,3 +1,5 @@
+import { listarClientesDemo } from '@/lib/demoClientes'
+import { aplicarConteoDemo, cancelarConteoDemo, crearConteoDemo, detalleConteoDemo, escanearConteoDemo, listarConteosDemo } from '@/lib/demo/conteos'
 import { stockBusinessDay, nextStockDayDelay } from '@/lib/stockDay'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -37,6 +39,12 @@ import { useStockItems } from './useStockItems'
 import { conFiltroStock, conSucursalActiva, leerFiltrosStock, rangoDePeriodo, sinFiltrosStock } from './stockFiltros'
 import { EtiquetasStockError, vistaPreviaEtiquetasPdf } from '@/lib/printing/etiquetasStock'
 import { filasEtiquetasDeItems, unidadDeItem } from '@/lib/stockItems'
+
+// Demo: búsqueda de clientes sobre la cartera ficticia de la sesión.
+function buscarClientesDemo(texto) {
+  const q = String(texto || '').trim().toLowerCase()
+  return listarClientesDemo().filter(c => [c.name, c.phone, c.document, c.email].some(v => String(v || '').toLowerCase().includes(q))).slice(0, 8)
+}
 
 export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // La búsqueda global abre Unidades con ?q=<serial> ya aplicado y #287 suma
@@ -389,14 +397,14 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setDetalleUnidad(current => (current ? units.find(unit => unit.id === current.id) || current : current))
   }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!apiMode || tab !== 'compartido') return undefined
+    if ((!apiMode && !esDemo) || tab !== 'compartido') return undefined
     let active = true
     setVisibilityError('')
     Promise.all([resources.sharedStock.list().catch(() => []), canManageVisibility ? resources.sharedStock.mine().catch(() => []) : Promise.resolve([])])
       .then(([received, mine]) => { if (active) { setReceivedStock(received); setGrants(mine) } })
       .catch(() => { if (active) setVisibilityError('No se pudo cargar la disponibilidad compartida.') })
     return () => { active = false }
-  }, [tab, apiMode, canManageVisibility])
+  }, [tab, apiMode, esDemo, canManageVisibility])
   const tabValido = (value) => INVENTARIO_TABS.includes(value)
   // La URL manda: si cambia por atrás/adelante o por un enlace profundo, la
   // pestaña activa sigue al prop.
@@ -591,23 +599,23 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const escanearConteoRef = useRef(null)
   const puedeAplicarConteo = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const cargarConteos = useCallback(async () => {
-    if (!apiMode) return
+    if (!apiMode && !esDemo) return
     setConteosLoading(true); setConteosError('')
     try {
       const params = new URLSearchParams()
       if (sucursal?.id) params.set('branchId', sucursal.id)
       const query = params.toString() ? `?${params}` : ''
-      setConteos((await api.get(`/api/inventory-counts${query}`)) || [])
+      setConteos(esDemo ? listarConteosDemo() : ((await api.get(`/api/inventory-counts${query}`)) || []))
     } catch (cause) { setConteosError(cause?.message || 'No se pudieron cargar los conteos.') } finally { setConteosLoading(false) }
-  }, [apiMode, sucursal?.id])
+  }, [apiMode, esDemo, sucursal?.id])
   const cargarConteo = useCallback(async (id, silencioso = false) => {
-    if (!id || !apiMode) return
+    if (!id || (!apiMode && !esDemo)) return
     if (!silencioso) setConteoLoading(true)
     setConteoError('')
-    try { setConteoDetalle(await api.get(`/api/inventory-counts/${encodeURIComponent(id)}`)) }
+    try { setConteoDetalle(esDemo ? detalleConteoDemo(id) : await api.get(`/api/inventory-counts/${encodeURIComponent(id)}`)) }
     catch (cause) { setConteoError(cause?.message || 'No se pudo cargar el conteo.') }
     finally { if (!silencioso) setConteoLoading(false) }
-  }, [apiMode])
+  }, [apiMode, esDemo])
   useEffect(() => { if (tab === 'conteos') cargarConteos() }, [tab, cargarConteos])
   useEffect(() => { if (conteoId) cargarConteo(conteoId); else setConteoDetalle(null) }, [conteoId, cargarConteo])
   useEffect(() => { escanearConteoRef.current = escanearConteo })
@@ -619,14 +627,15 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const detectarConteoCamara = useCallback((raw) => { escanearConteoRef.current?.(raw) }, [])
   const cerrarCamaraConteo = useCallback(() => setCamaraConteoOpen(false), [])
   function abrirConteo(item) { setConteoError(''); setConteoSerial(''); setConteoFlash(null); setConteoDetalle(null); setConteoId(item.id) }
-  function cerrarConteo() { setConteoId(null); setConteoDetalle(null); setConteoSerial(''); setConteoFlash(null); setConteoError(''); if (apiMode) cargarConteos() }
+  function cerrarConteo() { setConteoId(null); setConteoDetalle(null); setConteoSerial(''); setConteoFlash(null); setConteoError(''); if (apiMode || esDemo) cargarConteos() }
   async function crearConteo(event) {
     event.preventDefault()
     if (conteoBusy) return
     setConteoBusy(true); setConteosError('')
     try {
       const nota = nuevoConteoNota.trim()
-      const creado = await api.post('/api/inventory-counts', { ...(nota ? { note: nota } : {}), ...(sucursal?.id ? { branchId: sucursal.id } : {}), scope: nuevoConteoAlcance, ...(nuevoConteoUbicacionId ? { locationId: nuevoConteoUbicacionId } : {}) })
+      const datosConteo = { ...(nota ? { note: nota } : {}), ...(sucursal?.id ? { branchId: sucursal.id } : {}), scope: nuevoConteoAlcance, ...(nuevoConteoUbicacionId ? { locationId: nuevoConteoUbicacionId } : {}) }
+      const creado = esDemo ? crearConteoDemo(datosConteo) : await api.post('/api/inventory-counts', datosConteo)
       setNuevoConteoOpen(false); setNuevoConteoNota('')
       setNuevoConteoUbicacionId(''); setNuevoConteoAlcance('PARTIAL')
       await cargarConteos()
@@ -640,7 +649,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if ((conteoDetalle?.lines || []).some(line => line.serial === serial)) { setConteoSerial(''); setConteoFlash({ kind: 'dup', serial }); conteoSerialRef.current?.focus(); return }
     setConteoBusy(true); setConteoError('')
     try {
-      const linea = await api.patch('/api/inventory-counts', { id: conteoId, action: 'scan', serial })
+      const linea = esDemo ? escanearConteoDemo({ id: conteoId, serial }) : await api.patch('/api/inventory-counts', { id: conteoId, action: 'scan', serial })
       setConteoSerial(''); setConteoFlash({ kind: linea.expected ? 'ok' : 'miss', serial })
       await cargarConteo(conteoId, true)
       conteoSerialRef.current?.focus()
@@ -653,7 +662,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (!conteoId || !conteoSinSerie.productId || !Number.isSafeInteger(quantity) || quantity < 1 || conteoBusy) return
     setConteoBusy(true); setConteoError('')
     try {
-      await api.patch('/api/inventory-counts', { id: conteoId, action: 'scan', productId: conteoSinSerie.productId, quantity })
+      if (esDemo) escanearConteoDemo({ id: conteoId, productId: conteoSinSerie.productId, quantity })
+      else await api.patch('/api/inventory-counts', { id: conteoId, action: 'scan', productId: conteoSinSerie.productId, quantity })
       setConteoSinSerie({ productId: '', quantity: '1' })
       await cargarConteo(conteoId, true)
     } catch (cause) { setConteoError(cause?.message || 'No se pudo sumar el producto sin serie.') } finally { setConteoBusy(false) }
@@ -665,7 +675,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (!conteoAplicable(conteoDetalle)) { setConteoError('Escaneá al menos un equipo antes de aplicar el conteo.'); setAplicarConteoOpen(false); return }
     setConteoBusy(true); setConteoError('')
     try {
-      const resultado = await api.patch('/api/inventory-counts', { id: conteoId, action: 'apply', adjust: ajustarConteo, reason: motivoAplicarConteo.trim() })
+      const resultado = esDemo ? aplicarConteoDemo({ id: conteoId, adjust: ajustarConteo }) : await api.patch('/api/inventory-counts', { id: conteoId, action: 'apply', adjust: ajustarConteo, reason: motivoAplicarConteo.trim() })
       setAplicarConteoOpen(false)
       setMotivoAplicarConteo('')
       await Promise.all([cargarConteo(conteoId, true), cargarConteos()])
@@ -677,7 +687,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (!conteoId || conteoBusy) return
     setConteoBusy(true); setConteoError('')
     try {
-      await api.patch('/api/inventory-counts', { id: conteoId, action: 'cancel' })
+      if (esDemo) cancelarConteoDemo({ id: conteoId })
+      else await api.patch('/api/inventory-counts', { id: conteoId, action: 'cancel' })
       setCancelarConteoOpen(false)
       await Promise.all([cargarConteo(conteoId, true), cargarConteos()])
       toast.success('Conteo cancelado. El stock no cambió.')
@@ -696,7 +707,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     reserveTimer.current = setTimeout(async () => {
       const q = texto.trim()
       if (q.length < 2) { setReserveMatches([]); return }
-      try { setReserveMatches((await api.get(`/api/customers?q=${encodeURIComponent(q)}`)) || []) } catch { setReserveMatches([]) }
+      try { setReserveMatches(esDemo ? buscarClientesDemo(q) : ((await api.get(`/api/customers?q=${encodeURIComponent(q)}`)) || [])) } catch { setReserveMatches([]) }
     }, 250)
   }
   // #279 (A4): apartar una unidad que viaja (asignación futura). Queda bloqueada
@@ -711,7 +722,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     apartadoTimer.current = setTimeout(async () => {
       const q = texto.trim()
       if (q.length < 2) { setApartadoMatches([]); return }
-      try { setApartadoMatches((await api.get(`/api/customers?q=${encodeURIComponent(q)}`)) || []) } catch { setApartadoMatches([]) }
+      try { setApartadoMatches(esDemo ? buscarClientesDemo(q) : ((await api.get(`/api/customers?q=${encodeURIComponent(q)}`)) || [])) } catch { setApartadoMatches([]) }
     }, 250)
   }
   function abrirApartado(unit) {

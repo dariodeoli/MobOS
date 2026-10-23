@@ -28,12 +28,12 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
     <div
       role="status"
       data-testid="demo-aviso"
-      title="Modo demo: datos ficticios, no se guardan y se descartan al recargar."
+      title="Modo demo: datos ficticios; todo lo que hagas se aplica en pantalla y se reinicia al recargar o salir."
       className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-ink-600 bg-ink-800 pl-3 text-xs leading-4 text-mute"
     >
       <span className="shrink-0 font-semibold text-fore">Demo</span>
       {/* Solo con espacio de sobra: si no, el aviso empuja «Ver como» y la sucursal a una segunda fila. */}
-      <span className="hidden min-w-0 truncate min-[1440px]:inline">datos ficticios, no se guardan</span>
+      <span className="hidden min-w-0 truncate min-[1200px]:inline">· se reinicia al salir</span>
       <span className="flex shrink-0 items-center gap-2">
         {onSalir && (
           <button

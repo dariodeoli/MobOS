@@ -182,7 +182,7 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
 
-test('dueño: un guardado en demo avisa que quedó simulado', async ({ page }) => {
+test('dueño: un guardado en demo se aplica en pantalla sin el aviso «no se guardó» en cada toast', async ({ page }) => {
   const llamadas = []
   page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
 
@@ -200,9 +200,10 @@ test('dueño: un guardado en demo avisa que quedó simulado', async ({ page }) =
   await panel.locator('#direct-name').fill(`Demo E2E ${Date.now().toString(36)}`)
   await panel.getByRole('button', { name: 'Agregar', exact: true }).click()
   await expect(page.getByText('Integrante agregado correctamente.')).toBeVisible()
-  // El aviso de guardado simulado viaja en el toast (título + nota de demo).
-  await expect(page.getByText('Cambio simulado en la demo')).toBeVisible()
-  await expect(page.getByText(/no se guardó en la tienda/).first()).toBeVisible()
+  // El aviso de la demo es el chip de la cabecera; el toast ya no repite «no se guardó».
+  await expect(page.getByText('Cambio simulado en la demo')).toHaveCount(0)
+  await expect(page.getByText(/no se guardó en la tienda/i)).toHaveCount(0)
+  await expect(page.getByTestId('demo-aviso')).toContainText('Demo')
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })

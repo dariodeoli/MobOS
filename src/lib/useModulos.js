@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { moduloActivo, vistaActiva } from '@/lib/modulos'
+import { estadoModulosSesion, suscribirModulosSesion } from '@/lib/demo/modulosSesion'
 
 let estado = { clave: null, data: null, resuelto: false }
 const oyentes = new Set()
@@ -46,6 +47,8 @@ export function reiniciarModulos() {
 export function useModulos() {
   const { esDemo, sesion, empresa } = useSesion()
   const actual = useSyncExternalStore(suscribir, instantanea, instantanea)
+  // Demo: los módulos viven en memoria de la sesión y se pueden apagar de verdad.
+  const estadoDemo = useSyncExternalStore(suscribirModulosSesion, estadoModulosSesion, estadoModulosSesion)
   const habilitado = !esDemo && Boolean(sesion)
   const clave = habilitado ? String(empresa?.id ?? 'sin-empresa') : null
 
@@ -67,10 +70,11 @@ export function useModulos() {
     }
   }, [habilitado, clave])
 
-  const fuente = habilitado && actual.clave === clave ? actual.data : null
+  const fuenteDemo = useMemo(() => (esDemo ? { state: estadoDemo } : null), [esDemo, estadoDemo])
+  const fuente = esDemo ? fuenteDemo : habilitado && actual.clave === clave ? actual.data : null
   const resuelto = !habilitado || (actual.clave === clave && actual.resuelto)
-  const activo = useCallback(id => moduloActivo(fuente, id, { demo: esDemo }), [fuente, esDemo])
-  const vistaVisible = useCallback(id => vistaActiva(fuente, id, { demo: esDemo }), [fuente, esDemo])
+  const activo = useCallback(id => moduloActivo(fuente, id), [fuente])
+  const vistaVisible = useCallback(id => vistaActiva(fuente, id), [fuente])
   const refrescar = useCallback(() => (clave ? pedir(clave, { forzar: true }) : Promise.resolve()), [clave])
   return useMemo(
     () => ({ fuente, resuelto, esDemo, activo, vistaVisible, refrescar }),
