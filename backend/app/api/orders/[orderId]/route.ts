@@ -11,6 +11,7 @@ import { consumeAuthorization, usableAuthorization } from '../../../../lib/autho
 import { serialKey } from '../../../../lib/validation'
 import { numero } from '../../../../lib/montos'
 import { withItemWarranty } from '../../../../lib/order-warranty'
+import { withItemThumbs } from '../../../../lib/order-item-thumbs'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
 import { creditTermEnabled, effectiveCreditLimits, parseCreditConfig, resolveCreditTerm } from '../../../../lib/credit-config'
@@ -40,7 +41,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
   // `warrantyDays` por línea: el comprobante imprime la garantía de cada equipo (#461).
-  return json(await withCreditAuthorization(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session))))))
+  return json(await withCreditAuthorization(prisma, tenant, await withItemThumbs(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session)))))))
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
@@ -57,7 +58,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       where: { id: orderId, tenantId: tenant },
       include: {
         items: true,
-        payments: { select: { amountPyg: true, status: true } },
+        payments: { select: { amountPyg: true, status: true, method: true } },
         customer: { select: { id: true, name: true, creditLimitPyg: true, creditDays: true, creditTolerancePct: true, creditTermMode: true, creditDayOfMonth: true, creditInstallments: true } },
       },
     })
@@ -70,6 +71,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       const pendiente = Number(existing.totalPyg) - Number(netPaid(existing.payments))
       if (pendiente > 0 && (existing.creditDays || existing.dueAt)) {
         throw new InputError('El pedido tiene saldo a crédito pendiente: cobralo antes de cambiar o quitar el cliente.', 409)
+      }
+      // El saldo a favor pertenece a la ficha del cliente: si se aplicó a este pedido, el cliente no se toca.
+      if (existing.payments.some(pago => pago.method === 'STORE_CREDIT' && pago.status !== 'REJECTED' && pago.status !== 'REFUNDED')) {
+        throw new InputError('El pedido usó saldo a favor de este cliente: no se puede cambiar ni quitar el cliente.', 409)
       }
     }
 

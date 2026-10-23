@@ -49,7 +49,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
   try {
     const form = await request.formData()
     const rawBody = form.get('body')
-    body = typeof rawBody === 'string' ? rawBody.trim().slice(0, 2000) : ''
+    // Saneado: sin caracteres de control (se conservan saltos de línea y tabulaciones); el render escapa el HTML.
+    body = typeof rawBody === 'string' ? rawBody.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, 2000) : ''
     const rawFile = form.get('file')
     if (rawFile && typeof rawFile !== 'string') file = await readProofFile(rawFile)
   } catch (cause) {
