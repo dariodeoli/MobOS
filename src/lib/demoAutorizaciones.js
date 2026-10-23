@@ -62,3 +62,18 @@ export function demoAutorizacionesFiltradas(filtro = '', tipo = '') {
     (fila) => (!filtro || fila.status === filtro) && (!tipo || fila.kind === tipo),
   )
 }
+
+// Sesion demo: aprobar, rechazar o pedir una autorizacion cambia la lista de verdad
+// (bandeja, contador del menu y ficha del cliente) hasta recargar o salir.
+export function resolverAutorizacionDemo(id, cambios = {}) {
+  const i = DEMO_AUTORIZACIONES.findIndex((fila) => fila.id === id)
+  if (i < 0) return null
+  DEMO_AUTORIZACIONES[i] = { ...DEMO_AUTORIZACIONES[i], ...cambios }
+  return DEMO_AUTORIZACIONES[i]
+}
+
+export function crearAutorizacionDemo(fila = {}) {
+  const nueva = { id: `demo-autz-${Date.now().toString(36)}`, status: 'PENDING', createdAt: new Date().toISOString(), requestedBy: { id: 'demo-user', name: 'Equipo demo' }, requestedValue: {}, ...fila }
+  DEMO_AUTORIZACIONES.unshift(nueva)
+  return nueva
+}

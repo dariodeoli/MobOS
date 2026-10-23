@@ -12,11 +12,9 @@ import { ESTADO_CONTEO, fechaReserva } from './stockHelpers'
 import { CameraScan } from './CameraScan'
 
 export default function TabConteos({ ctx }) {
-  const { esDemo, conteoId, conteoError, conteoLoading, conteoDetalle, cerrarConteo, enviarEscaneo, conteoSerialRef, conteoSerial, setConteoSerial, conteoBusy, setCamaraConteoOpen, conteoFlash, sumarSinSerie, conteoSinSerie, setConteoSinSerie, availableProducts, puedeAplicarConteo, setAjustarConteo, setAplicarConteoOpen, setCancelarConteoOpen, aplicarConteoOpen, ajustarConteo, aplicarConteo, motivoAplicarConteo, setMotivoAplicarConteo, cancelarConteoOpen, cancelarConteo, camaraConteoOpen, cerrarCamaraConteo, detectarConteoCamara, setNuevoConteoOpen, conteosLoading, conteosError, conteos, abrirConteo, nuevoConteoOpen, crearConteo, sucursal, nuevoConteoNota, setNuevoConteoNota, nuevoConteoUbicacionId, setNuevoConteoUbicacionId, nuevoConteoAlcance, setNuevoConteoAlcance, locationsFor } = ctx
+  const { conteoId, conteoError, conteoLoading, conteoDetalle, cerrarConteo, enviarEscaneo, conteoSerialRef, conteoSerial, setConteoSerial, conteoBusy, setCamaraConteoOpen, conteoFlash, sumarSinSerie, conteoSinSerie, setConteoSinSerie, availableProducts, puedeAplicarConteo, setAjustarConteo, setAplicarConteoOpen, setCancelarConteoOpen, aplicarConteoOpen, ajustarConteo, aplicarConteo, motivoAplicarConteo, setMotivoAplicarConteo, cancelarConteoOpen, cancelarConteo, camaraConteoOpen, cerrarCamaraConteo, detectarConteoCamara, setNuevoConteoOpen, conteosLoading, conteosError, conteos, abrirConteo, nuevoConteoOpen, crearConteo, sucursal, nuevoConteoNota, setNuevoConteoNota, nuevoConteoUbicacionId, setNuevoConteoUbicacionId, nuevoConteoAlcance, setNuevoConteoAlcance, locationsFor } = ctx
   return (
-    esDemo
-      ? <div className="mt-4"><Aviso tono="warn">Los conteos físicos auditables necesitan conexión con el servidor: en la demo no se guardan documentos ni se ajusta stock. Ingresá con una cuenta real para usarlos.</Aviso></div>
-      : <div className="mt-4 space-y-4" data-testid="conteos-tab">
+    <div className="mt-4 space-y-4" data-testid="conteos-tab">
         {conteoId ? <div className="space-y-4">
           {conteoError && <Aviso tono="error">{conteoError}</Aviso>}
           {(conteoLoading || !conteoDetalle) && !conteoError && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-44 w-full" /></div>}

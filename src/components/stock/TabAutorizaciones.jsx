@@ -1,3 +1,4 @@
+import { resolverAutorizacionStockDemo } from '@/lib/autorizacionesStock'
 import BandejaAutorizaciones from '@/components/inventory/BandejaAutorizaciones'
 
 export default function TabAutorizaciones({ ctx }) {
@@ -18,7 +19,7 @@ export default function TabAutorizaciones({ ctx }) {
           usuarioId={sesion?.vendedorId || ''}
           esDemo={esDemo}
           onReload={cargarAutorizacionesStock}
-          onDemoResolve={(id, cambios) => setAuthStock((actuales) => ({ ...actuales, rows: actuales.rows.map((row) => (row.id === id ? { ...row, ...cambios } : row)) }))}
+          onDemoResolve={(id, cambios) => { resolverAutorizacionStockDemo(id, cambios); setAuthStock((actuales) => ({ ...actuales, rows: actuales.rows.map((row) => (row.id === id ? { ...row, ...cambios } : row)) })) }}
         />
       </div>
   )

@@ -2,12 +2,13 @@ import { api, request, apiFetch, API_URL } from './client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getProductos } from '@/lib/storage'
 import { cancelarVerificacionDemo, crearVerificacionDemo, detalleVerificacionDemo, escanearVerificacionDemo, listVerificacionesDemo, terminarVerificacionDemo } from '@/lib/demoVerificacion.js'
-import { createDemoTransfer, createDemoUnit, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit, undoVerifyDemoUnit } from '@/lib/demoInventory'
+import { createDemoTransfer, createDemoTransitAssignment, createDemoUnit, listDemoSharedGrants, searchDemoTenants, setDemoSharedGrant, updateDemoTransfer, updateDemoTransitAssignment, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit, undoVerifyDemoUnit } from '@/lib/demoInventory'
 import { listarStockItemsDemo } from '@/lib/demo/stockItems.js'
 import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
 import { completeDemoArrivalSerial, confirmDemoArrival, createDemoArrival, getDemoArrival, listDemoArrivals, parseDemoArrival, patchDemoArrivalLine } from '@/lib/demo/llegada.js'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones.js'
+import { actualizarComboDemo, crearComboDemo, listarCombosDemo } from '@/lib/demo/combos.js'
 import { liberarDemo, renovarDemo, retenerDemo } from '@/lib/demo/retenciones.js'
 import { anularGiftCardDemo, buscarGiftCardDemo, detalleGiftCardDemo, emitirGiftCardDemo, listarGiftCardsDemo } from '@/lib/giftCards'
 // El módulo de Inventario funciona igual en demo (#213): cuando hay sesión demo
@@ -36,10 +37,10 @@ export const resources = {
   },
   inventoryReservations: { list: demo(() => api.get('/api/inventory-reservations'), () => listDemoReservations()), create: demo(data => api.post('/api/inventory-reservations', data), data => reserveDemoUnits(data)), release: demo(serials => api.patch('/api/inventory-reservations', { action: 'release', serials }), serials => releaseDemoReservations(serials)) },
   stockLocations: { list: demo((branchId = '') => api.get(`/api/stock-locations${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`), (branchId = '') => listDemoLocations(branchId)), create: demo(data => api.post('/api/stock-locations', data), data => saveDemoLocation(data)), update: demo(data => api.patch('/api/stock-locations', data), data => saveDemoLocation(data)) },
-  sharedStock: { list: demo(() => api.get('/api/shared-stock'), () => []), mine: demo(() => api.get('/api/shared-stock?mine=true'), () => []), setGrant: demo(data => api.post('/api/shared-stock', data), () => null) },
-  tenants: { search: (q = '') => api.get(`/api/tenants?q=${encodeURIComponent(q)}`) },
-  transfers: { list: demo(() => api.get('/api/transfers'), () => listDemoTransfers()), create: demo(data => api.post('/api/transfers', data), data => createDemoTransfer(data)), update: demo(data => api.patch('/api/transfers', data), data => data), accessToken: demo((id, regenerate = false) => api.post(`/api/transfers/${encodeURIComponent(id)}/access-token`, { regenerate }), () => ({ publicToken: 'demo-remito' })) },
-  combos: { list: (all = false) => api.get('/api/combos' + (all ? '?all=1' : '')), create: data => api.post('/api/combos', data), update: data => api.patch('/api/combos', data) },
+  sharedStock: { list: demo(() => api.get('/api/shared-stock'), () => []), mine: demo(() => api.get('/api/shared-stock?mine=true'), () => listDemoSharedGrants()), setGrant: demo(data => api.post('/api/shared-stock', data), data => setDemoSharedGrant(data)) },
+  tenants: { search: demo((q = '') => api.get(`/api/tenants?q=${encodeURIComponent(q)}`), (q = '') => searchDemoTenants(q)) },
+  transfers: { list: demo(() => api.get('/api/transfers'), () => listDemoTransfers()), create: demo(data => api.post('/api/transfers', data), data => createDemoTransfer(data)), update: demo(data => api.patch('/api/transfers', data), data => updateDemoTransfer(data)), accessToken: demo((id, regenerate = false) => api.post(`/api/transfers/${encodeURIComponent(id)}/access-token`, { regenerate }), () => ({ publicToken: 'demo-remito' })) },
+  combos: { list: demo((all = false) => api.get('/api/combos' + (all ? '?all=1' : '')), (all = false) => listarCombosDemo(all)), create: demo(data => api.post('/api/combos', data), data => crearComboDemo(data)), update: demo(data => api.patch('/api/combos', data), data => actualizarComboDemo(data)) },
   priceLists: {
     list: demo(() => api.get('/api/price-lists'), () => listDemoPriceLists()),
     create: demo(data => api.post('/api/price-lists', data), data => createDemoPriceList(data)),
@@ -145,8 +146,8 @@ export const resources = {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/transit-assignments${query.toString() ? `?${query.toString()}` : ''}`, { cacheMs: 0 })
     },
-    create: data => api.post('/api/transit-assignments', data),
-    update: data => api.patch('/api/transit-assignments', data),
+    create: demo(data => api.post('/api/transit-assignments', data), data => createDemoTransitAssignment(data)),
+    update: demo(data => api.patch('/api/transit-assignments', data), data => updateDemoTransitAssignment(data)),
   },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },

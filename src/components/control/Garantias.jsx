@@ -93,7 +93,7 @@ export default function Garantias() {
     </button>
   )
   const visible = useMemo(() => {
-    const lista = esDemo ? items.filter((x) => [x.customerName, x.serial, x.description].some((v) => v.toLowerCase().includes(q.toLowerCase()))) : items
+    const lista = esDemo ? items.filter((x) => [x.customerName, x.serial, x.description].some((v) => String(v || '').toLowerCase().includes(q.toLowerCase()))) : items
     if (estadoFiltro !== 'todos') return lista.filter((item) => item.status === estadoFiltro)
     if (orden.key === 'recientes') return lista
     const factor = orden.dir === 'asc' ? 1 : -1

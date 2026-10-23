@@ -4,6 +4,7 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { useModulos } from '@/lib/useModulos'
 import { estadoDemoModulos } from '@/lib/demo/modulos'
+import { cambiarModuloSesion } from '@/lib/demo/modulosSesion'
 import {
   AL_DESACTIVAR, FILTROS_MODULOS, INCLUYE, SALDOS_AL_DESACTIVAR,
   dependenciasFaltantes, dependientesActivos, disponible, filtrarModulos, hrefConfigurar,
@@ -18,7 +19,7 @@ import { cn } from '@/lib/utils'
 // de descripción, estado, el botón Activar/Desactivar (44 px) y «Configurar ›».
 // Tocar la fila abre el detalle (qué incluye, de qué depende, qué pasa al
 // desactivarlo). Solo el dueño cambia algo; el resto ve la lista en lectura.
-// En la demo todo está activo y los cambios no se guardan.
+// En la demo el estado vive en memoria de la sesión y se aplica de verdad.
 const ICONO_DE = { tool: 'wrench', heart: 'user' }
 const iconoModulo = nombre => {
   const candidato = ICONO_DE[nombre] || nombre
@@ -85,22 +86,24 @@ export default function Modulos() {
   const [error, setError] = useState(null)
   const [cargaFallida, setCargaFallida] = useState('')
 
-  const datos = esDemo ? estadoDemoModulos() : modulos.fuente
+  // Demo: catálogo ficticio con el estado en memoria de la sesión (se aplica de verdad).
+  const datos = useMemo(() => (esDemo ? { ...estadoDemoModulos(), state: modulos.fuente?.state ?? estadoDemoModulos().state } : modulos.fuente), [esDemo, modulos.fuente])
   useEffect(() => {
     if (esDemo || datos || !modulos.resuelto) return
     modulos.refrescar().catch(() => setCargaFallida('No se pudo cargar la lista de módulos.'))
   }, [esDemo, datos, modulos])
   // La demo ve todo activo (`demo`); en una empresa real manda el estado guardado.
-  const fuente = useMemo(() => (esDemo ? { demo: true } : datos), [esDemo, datos])
+  const fuente = datos
   const puedeCambiar = Boolean(datos?.canManage)
   const lista = useMemo(() => (datos ? filtrarModulos(fuente, filtro, datos.catalog) : []), [datos, fuente, filtro])
-  const activoDe = id => (esDemo ? true : modulos.activo(id))
+  const activoDe = id => modulos.activo(id)
   const detalle = detalleId ? datos?.catalog.find(def => def.id === detalleId) : null
 
   async function aplicar(def, enabled) {
     if (ocupado) return
     if (esDemo) {
-      toast.info('Vista previa de la demo', 'En la demo los módulos están todos activos y no se guardan cambios.')
+      cambiarModuloSesion(def.id, enabled)
+      toast.success(enabled ? `${def.name} activado` : `${def.name} desactivado`)
       return
     }
     setOcupado(true); setError(null)
@@ -120,8 +123,7 @@ export default function Modulos() {
 
   function pedirCambio(def, enabled) {
     setError(null)
-    if (esDemo) aplicar(def, enabled)
-    else if (enabled) aplicar(def, true)
+    if (enabled) aplicar(def, true)
     else setAApagar(def)
   }
 
@@ -142,7 +144,7 @@ export default function Modulos() {
       )}
       {esDemo && (
         <Nota tono="info" como="div" role="status" data-testid="modulos-demo">
-          Vista previa con datos de ejemplo: en la demo todos los módulos están activos y los cambios no se guardan.
+          Demo: activá o desactivá módulos y mirá cómo cambia el menú. Se reinicia al salir.
         </Nota>
       )}
       {error && (

@@ -14,6 +14,10 @@
 .stock-rediseno .stock-lista-fila:hover { box-shadow: inset 3px 0 0 rgb(var(--c-fono) / 0.6); }
 .stock-rediseno .stock-tarjeta { transition: border-color .12s ease, transform .12s ease; animation: stock-entra .2s ease both; }
 .stock-rediseno .stock-tarjeta:hover { border-color: rgb(var(--c-fono) / 0.5); transform: translateY(-1px); }
+/* Cada fila anima su entrada y forma su propio contexto de apilado: el menú «⋯» de una fila
+   quedaba tapado por las filas siguientes. La fila con el menú abierto sube sobre las demás. */
+.stock-rediseno .stock-lista-fila:has([aria-expanded='true']),
+.stock-rediseno .stock-tarjeta:has([aria-expanded='true']) { position: relative; z-index: 30; }
 @keyframes stock-entra { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .stock-rediseno .stock-lista-fila, .stock-rediseno .stock-tarjeta { animation: none; transition: none; }

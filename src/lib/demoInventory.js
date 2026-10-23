@@ -459,3 +459,77 @@ export function marcarUnidadesVendidasDemo({ serials = [], orderNumber = '', cus
   write(state)
   return vendidas
 }
+
+// Anular un pedido en la demo devuelve sus unidades a disponibles (SOLD -> AVAILABLE)
+// y deja el evento en la cronologia de cada una, como el API real.
+export function liberarUnidadesVendidasDemo({ serials = [], orderNumber = '' } = {}) {
+  const state = read()
+  const liberadas = []
+  for (const serial of serials) {
+    const unit = porSerial(state, serial)
+    if (!unit || unit.status !== 'SOLD') continue
+    const at = new Date().toISOString()
+    unit.status = 'AVAILABLE'
+    unit.sale = null
+    unit.events = [...(unit.events || []), { id: `demo-evento-${Date.now().toString(36)}-anul-${liberadas.length}`, type: 'void', title: 'Pedido anulado', detail: `La unidad volvió a stock por la anulación de ${orderNumber || 'el pedido'}`, at }]
+    liberadas.push(snapshot(state, unit))
+  }
+  write(state)
+  return liberadas
+}
+
+// Traslados: guia AEX y ETA editables en la sesion demo.
+export function updateDemoTransfer(data = {}) {
+  const state = read()
+  const transfer = (state.transfers || []).find(item => item.id === data.id)
+  if (!transfer) throw new Error('El traslado demo no existe.')
+  if (data.aexGuide !== undefined) transfer.aexGuide = String(data.aexGuide || '').trim()
+  if (data.eta !== undefined) transfer.eta = data.eta || null
+  write(state)
+  return transfer
+}
+
+// Apartado de una unidad en transito para un cliente (asignacion futura).
+export function createDemoTransitAssignment(data = {}) {
+  const state = read()
+  const unit = state.units.find(item => item.id === data.unitId)
+  if (!unit) throw new Error('La unidad demo no existe.')
+  unit.transitAssignment = { id: `demo-apartado-${Date.now().toString(36)}`, customerId: data.customerId || null, customerName: data.customerName || '', notes: data.notes || '', createdAt: new Date().toISOString() }
+  write(state)
+  return unit.transitAssignment
+}
+
+export function updateDemoTransitAssignment(data = {}) {
+  const state = read()
+  const unit = state.units.find(item => item.transitAssignment?.id === data.id)
+  if (!unit) throw new Error('El apartado demo no existe.')
+  if (data.action === 'release') unit.transitAssignment = null
+  write(state)
+  return { id: data.id, released: true }
+}
+
+// Disponibilidad compartida entre empresas: empresas ficticias, permisos en memoria.
+const EMPRESAS_COMPARTIR_DEMO = [
+  { id: 'demo-empresa-norte', name: 'Celulares del Norte S.R.L.' },
+  { id: 'demo-empresa-iguazu', name: 'Iguazú Tech' },
+  { id: 'demo-empresa-capital', name: 'Capital Móvil' },
+]
+export function searchDemoTenants(q = '') {
+  const buscar = String(q || '').trim().toLowerCase()
+  return EMPRESAS_COMPARTIR_DEMO.filter(item => !buscar || item.name.toLowerCase().includes(buscar))
+}
+export function listDemoSharedGrants() {
+  const state = read()
+  return (state.sharedGrants || []).map(item => ({ ...item }))
+}
+export function setDemoSharedGrant({ recipientTenantId, isActive } = {}) {
+  const state = read()
+  const empresa = EMPRESAS_COMPARTIR_DEMO.find(item => item.id === recipientTenantId)
+  if (!empresa) throw new Error('La empresa demo no existe.')
+  const lista = state.sharedGrants || (state.sharedGrants = [])
+  const actual = lista.find(item => item.recipientTenant?.id === recipientTenantId)
+  if (actual) actual.isActive = Boolean(isActive)
+  else lista.unshift({ id: `demo-grant-${Date.now().toString(36)}`, recipientTenant: empresa, isActive: Boolean(isActive), createdAt: new Date().toISOString() })
+  write(state)
+  return { ok: true }
+}
