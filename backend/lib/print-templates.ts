@@ -2,7 +2,7 @@ import presets from './print-templates-presets.json'
 import { PRESETS_PRO } from './print-templates-pro.mjs'
 import { InputError } from './payment-input'
 
-export const PRINT_TEMPLATE_KINDS = ['comprobante', 'etiquetas-producto', 'etiquetas-stock', 'ticket', 'cotizacion', 'remito'] as const
+export const PRINT_TEMPLATE_KINDS = ['comprobante', 'etiquetas-producto', 'etiquetas-stock', 'etiquetas-envio', 'ticket', 'cotizacion', 'remito'] as const
 export type PrintTemplateKind = typeof PRINT_TEMPLATE_KINDS[number]
 // Documentos de flujo: el contenido lo arma el comprobante premium (encabezado y
 // pie estándar), el diseño solo cambia papel, márgenes, tamaños y alineación; el
@@ -13,6 +13,7 @@ const REQUIRED: Record<PrintTemplateKind, string[]> = {
   comprobante: ['brand', 'documentTitle', 'documentNumber', 'items', 'total', 'nonFiscal', 'qr', 'customer', 'payments', 'warranty', 'date'],
   'etiquetas-producto': ['product', 'sku', 'barcode'],
   'etiquetas-stock': ['model', 'serial', 'qr', 'barcode'],
+  'etiquetas-envio': ['recipient', 'address', 'orderNumber', 'qr', 'barcode'],
   ticket: [...HEADER_FOOTER, 'items', 'total'],
   cotizacion: [...HEADER_FOOTER, 'customer', 'items', 'total'],
   remito: [...HEADER_FOOTER, 'customer', 'items'],
@@ -21,6 +22,7 @@ const OPTIONAL: Record<PrintTemplateKind, string[]> = {
   comprobante: [],
   'etiquetas-producto': ['price', 'brand', 'qr'],
   'etiquetas-stock': ['brand', 'condition', 'battery', 'location', 'supplierCode'],
+  'etiquetas-envio': ['sender', 'method', 'packages', 'cod', 'date'],
   ticket: ['customer', 'payments', 'warranty'],
   cotizacion: [],
   remito: ['total'],

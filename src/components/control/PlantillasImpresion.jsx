@@ -16,7 +16,8 @@ import {
 import { avisoSalidaPlantilla } from '@/lib/printing/perfiles'
 import { renderPlantilla, pdfPlantilla } from '@/lib/printing/renderPlantilla'
 import { descargarArchivo } from '@/utils/descargarArchivo'
-import { baseDeApp, qrProducto, qrUnidad } from '@/lib/printing/qr'
+import { baseDeApp, qrPedido, qrProducto, qrUnidad } from '@/lib/printing/qr'
+import { datosEtiquetaEnvio, datosPlantillaEnvio } from '@/lib/printing/etiquetaEnvio'
 
 const qrDeMuestra = (crear, valor) => {
   const base = baseDeApp()
@@ -39,6 +40,20 @@ const MUESTRA_PEDIDO = {
   items: [{ description: 'Funda de muestra', quantity: 1, unitPricePyg: 180000, totalPyg: 180000 }],
   payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 180000 }],
   customer: { name: 'Cliente de muestra' },
+}
+const MUESTRA_ENVIO = {
+  id: 'QA-ENV',
+  orderNumber: 'AUR-0042',
+  deliveryType: 'DELIVERY',
+  deliveryNotes: 'Portón negro, tocar timbre.',
+  customer: {
+    name: 'Cliente de muestra',
+    phone: '0981123456',
+    countryCode: '+595',
+    addresses: [{ address: 'Av. Mcal. López 1234 c/ Perú', city: 'Asunción', department: 'Capital', notes: 'Edificio azul, 3.er piso' }],
+  },
+  totalPyg: 4850000,
+  payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 1000000 }],
 }
 const MUESTRA_COTIZACION = {
   id: 'QA-COT',
@@ -68,8 +83,22 @@ const premiumDe = kind => {
     return recibo.buildOrderReceiptHtml(documento, { format: 'thermal-80' })
   }
 }
+const muestraEnvio = () => {
+  const enlace = qrDeMuestra(qrPedido, 'muestra-seguimiento') || ''
+  return datosPlantillaEnvio(
+    datosEtiquetaEnvio(MUESTRA_ENVIO, {
+      empresa: { tenant: { name: 'Tienda de muestra', address: 'Av. España 100', city: 'Asunción', phone: '021 555 000', ruc: '80000000-1' } },
+      bulto: 1,
+      bultos: 2,
+      enlace,
+      fecha: new Date('2026-10-15T12:00:00Z'),
+    }),
+  )
+}
 const sample = kind =>
-  kind === 'cotizacion'
+  kind === 'etiquetas-envio'
+    ? [muestraEnvio()]
+    : kind === 'cotizacion'
     ? [MUESTRA_COTIZACION]
     : kind === 'remito'
       ? [MUESTRA_REMITO]
