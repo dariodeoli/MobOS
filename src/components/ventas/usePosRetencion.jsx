@@ -31,7 +31,9 @@ export function usePosRetencion({ items, empresaId, sucursalId, usuarioId, esDem
   const ultimoLatido = useRef(Date.now())
   const avisadas = useRef(new Set())
   const callbacks = useRef({ onConflicto, onVencio }); callbacks.current = { onConflicto, onVencio }
-  const dispositivo = useMemo(() => deviceId(), [])
+  // La demo no persiste nada: el id de dispositivo es efímero (sin localStorage).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const dispositivo = useMemo(() => (esDemo ? deviceId({ crypto: globalThis.crypto }) : deviceId()), [])
 
   const aplicar = useCallback((respuesta, { capped = false } = {}) => {
     const desfase = desfaseReloj(respuesta?.serverNow)
