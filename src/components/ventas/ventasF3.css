@@ -203,6 +203,10 @@
 .ventas-f3 .ventas-f3-page-main,
 .ventas-f3 .ventas-f3-page-side {
   display: grid;
+  /* Una sola columna que NUNCA crece por el contenido: con Inter real el
+     mínimo intrínseco de una fila de monto empujaba la tarjeta fuera de la
+     pantalla (390 px). */
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   align-content: start;
   gap: 12px;
