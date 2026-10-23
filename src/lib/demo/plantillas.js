@@ -9,7 +9,7 @@ export const PLANTILLAS_PEDIDOS_DEMO = [
   { id: 'demo-sobre-pedido', key: 'sobre_pedido_llego', category: 'ORDERS', name: 'Llegó tu pedido sobre encargo', body: '¡Hola {{cliente}}! 🎉 Llegó el {{producto}} que encargaste (pedido {{pedido}}). Pasá a retirarlo por {{sucursal}} cuando quieras. — {{empresa}}' },
   { id: 'demo-entregado', key: 'entregado', category: 'ORDERS', name: 'Pedido entregado', body: '¡Hola {{cliente}}! ✅ Tu pedido {{pedido}} quedó entregado. Gracias por elegirnos.' },
   { id: 'demo-garantia', key: 'garantia_registrada', category: 'ORDERS', name: 'Garantía registrada', body: '¡Hola {{cliente}}! 🛡️ Registramos la garantía de tu {{producto}} (pedido {{pedido}}): {{garantia}}, hasta el {{garantia_hasta}}. — {{empresa}}' },
-  { id: 'demo-cotizacion', key: 'cotizacion_enviada', category: 'ORDERS', name: 'Cotización enviada', body: '¡Hola {{cliente}}! 🧾 Te enviamos la cotización {{cotizacion}} por {{total}}, válida hasta {{vigencia}}. Podés verla acá: {{enlace}}. — {{empresa}}' },
+  { id: 'demo-cotizacion', key: 'cotizacion_enviada', category: 'ORDERS', name: 'Cotización enviada', body: '🧾 *Cotización {{cotizacion}}*\nHola {{cliente}}, te comparto tu cotización de {{empresa}}.\n\n{{detalle}}\n\n💰 *Total: {{total}}*\n{{equipo_entrega}}\n{{faltante}}\n{{validez}}\n{{contacto}}\n\n{{aviso_revision}}\n🔗 Ver y aprobar: {{enlace}}' },
   { id: 'demo-arrived', key: 'arrived_from_depot', category: 'ORDERS', name: 'Pedido llegó a sucursal', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya llegó a {{branch_name}}.' },
   { id: 'demo-reservation', key: 'reservation', category: 'ORDERS', name: 'Reserva confirmada', body: 'Hola, {{customer_name}}. Reservamos tu pedido {{order_number}} hasta {{reservation_until}}.' },
 ]

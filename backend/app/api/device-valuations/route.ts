@@ -10,6 +10,7 @@ import { capacidadValida, modeloApple, normalizarCapacidad } from '../../../lib/
 
 const CONDITIONS = Object.values(ProductCondition)
 const LIMIT = 200
+const LIMIT_TODOS = 2000
 const CAMPOS_DIFF = ['model', 'storage', 'condition', 'baseValuePyg', 'maxValuePyg', 'notes', 'isActive'] as const
 
 // Clave de comparación del modelo: sin mayúsculas, sin acentos y con espacios
@@ -70,7 +71,8 @@ export async function GET(request: Request) {
       ...(modelKey ? { modelKey: { contains: modelKey } } : {}),
     },
     orderBy: [{ model: 'asc' }, { storage: 'asc' }, { condition: 'asc' }],
-    take: LIMIT,
+    // La edición masiva carga todo el catálogo de valores; las consultas del POS siguen acotadas.
+    take: all ? LIMIT_TODOS : LIMIT,
   })
   return json(valuations)
 }

@@ -7,12 +7,15 @@ export const normalizarModelo = value => String(value ?? '')
 
 // Elige la valuación cargada para el modelo y la condición exactos. Sin una
 // coincidencia no hay sugerencia: el POS nunca inventa un número.
-export function valorSugerido(valuations, model, condition) {
+export function valorSugerido(valuations, model, condition, storage) {
   if (!Array.isArray(valuations)) return null
   const key = normalizarModelo(model)
   if (!key) return null
-  return valuations.find(valuation => valuation && valuation.isActive !== false
-    && valuation.modelKey === key && (!condition || valuation.condition === condition)) || null
+  const candidatos = valuations.filter(valuation => valuation && valuation.isActive !== false
+    && (valuation.modelKey ?? normalizarModelo(valuation.model)) === key && (!condition || valuation.condition === condition))
+  // Con capacidad elegida, solo vale la de esa capacidad (o una sin capacidad): nunca la de otra.
+  if (storage) return candidatos.find(valuation => (valuation.storage || '') === storage) || candidatos.find(valuation => !valuation.storage) || null
+  return candidatos[0] || null
 }
 
 // Base de la demo (#240 ítem 7): sin tabla de valores del servidor, la demo
