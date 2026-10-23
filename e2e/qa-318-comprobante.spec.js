@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { abrirVistaPreviaComprobante } from './helpers/pedido-imprimir.js'
 
 const SALIDA = 'docs/qa/318-comprobante'
 mkdirSync(SALIDA, { recursive: true })
@@ -37,7 +38,7 @@ async function abrirComprobante(page) {
   await expect(fila).toContainText(VENTA.producto)
   await expect(fila).toContainText(VENTA.total)
   await fila.click()
-  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await abrirVistaPreviaComprobante(page)
   await page.getByLabel('Tipo de comprobante').waitFor()
   const iframe = page.locator('iframe[title="Vista previa del comprobante"]')
   await expect(iframe).toBeVisible()

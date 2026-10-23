@@ -10,6 +10,7 @@ import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
 import { codigoPedido } from '../src/utils/pedido.js'
 import { ensureCobro } from './helpers/ensure-cobro.js'
+import { abrirVistaPreviaComprobante } from './helpers/pedido-imprimir.js'
 
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -109,7 +110,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   // Vista previa del comprobante con nivel y formato elegibles (desde el detalle).
-  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await abrirVistaPreviaComprobante(page)
   await expect(page.getByLabel('Tipo de comprobante')).toBeVisible()
   await expect(page.getByLabel('Formato de impresión')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -709,8 +710,7 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
-  // La cronología (donde vive el comentario) arranca plegada (#164).
-  await page.getByRole('button', { name: /Cronología/ }).click()
+  // La cronología (donde vive el comentario) está siempre abierta.
   const comentario = page.getByLabel('Comentario del pedido')
   await expect(comentario).toBeVisible()
   await comentario.fill('Revisar stock @')
@@ -719,7 +719,7 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   const nombre = (await sugerencia.innerText()).replace('@', '')
   await sugerencia.click()
   await comentario.fill(`Revisar stock @${nombre}`)
-  await page.getByRole('button', { name: 'Comentar' }).click()
+  await page.getByRole('button', { name: 'Publicar' }).click()
   await expect(page.getByText(`Revisar stock @${nombre}`)).toBeVisible({ timeout: 15_000 })
 })
 

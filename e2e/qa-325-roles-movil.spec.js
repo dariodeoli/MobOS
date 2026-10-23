@@ -16,6 +16,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'
 import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
+import { abrirVistaPreviaComprobante } from './helpers/pedido-imprimir.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const SHOTS = process.env.MOBOS_CAPTURAS || join('docs', 'qa', '325-roles-responsive')
@@ -342,7 +343,7 @@ test('detalles: cliente, pedido y producto con kardex (claro · móvil · oscuro
     listo: (p) => p.getByTestId('pedido-fila').first(),
     accion: async (p) => {
       await p.getByTestId('pedido-fila').first().click()
-      await expect(p.getByRole('button', { name: /Imprimir comprobante/ }).first()).toBeVisible({ timeout: 20_000 })
+      await expect(p.getByRole('button', { name: /^Imprimir/ }).first()).toBeVisible({ timeout: 20_000 })
     },
   }))
 
@@ -541,7 +542,8 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
     listo: (p) => p.getByTestId('pedido-fila').first(),
     accion: async (p) => {
       await p.getByTestId('pedido-fila').first().click()
-      await p.getByRole('button', { name: /Imprimir comprobante/ }).first().click({ timeout: 20_000 })
+      await expect(p.getByRole('button', { name: /^Imprimir/ }).first()).toBeVisible({ timeout: 20_000 })
+      await abrirVistaPreviaComprobante(p)
       await expect(p.getByRole('dialog', { name: 'Comprobante' })).toBeVisible({ timeout: 20_000 })
       await expect(p.getByTitle('Vista previa del comprobante')).toBeVisible()
     },

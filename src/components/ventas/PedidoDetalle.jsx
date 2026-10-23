@@ -841,17 +841,17 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </span>
           )}
           actions={
-            <div data-testid="pedido-acciones" className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
+            <div data-testid="pedido-acciones" className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1">
               <PresenciaPedido pedidoId={order.id || row?.id} />
               {navegacion && (
                 <span className="flex items-center" role="group" aria-label="Pedidos vecinos">
-                  <button type="button" data-testid="pedido-anterior" aria-label="Pedido anterior" title="Pedido anterior" disabled={!navegacion.anterior} onClick={() => navegacion.onIr(navegacion.anterior)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
-                  <button type="button" data-testid="pedido-siguiente" aria-label="Pedido siguiente" title="Pedido siguiente" disabled={!navegacion.siguiente} onClick={() => navegacion.onIr(navegacion.siguiente)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
+                  <button type="button" data-testid="pedido-anterior" aria-label="Pedido anterior" title="Pedido anterior" disabled={!navegacion.anterior} onClick={() => navegacion.onIr(navegacion.anterior)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:w-10"><Icon name="chevron" className="h-4 w-4 rotate-90" /></button>
+                  <button type="button" data-testid="pedido-siguiente" aria-label="Pedido siguiente" title="Pedido siguiente" disabled={!navegacion.siguiente} onClick={() => navegacion.onIr(navegacion.siguiente)} className="grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore disabled:opacity-40 lg:w-10"><Icon name="chevron" className="h-4 w-4 -rotate-90" /></button>
                 </span>
               )}
               {/* #275: después de confirmar la venta la app aterriza acá; desde el
                   detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
-              <Button type="button" variant="outline" className="min-h-11 min-w-11 justify-center px-3" data-testid="volver-al-pos" aria-label="Volver al POS" title="Volver al POS" onClick={() => navigate('/pos')}>
+              <Button type="button" variant="outline" className="min-h-11 min-w-11 justify-center px-2.5" data-testid="volver-al-pos" aria-label="Volver al POS" title="Volver al POS" onClick={() => navigate('/pos')}>
                 <Icon name="receipt" className="h-3.5 w-3.5" /><span className="hidden 2xl:inline">Volver al POS</span>
               </Button>
               <BotonImprimir
@@ -865,7 +865,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <MenuDesplegable
                 alineacion="right"
                 ariaLabel="Más acciones del pedido"
-                trigger={<span className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-ink-500 px-3 text-xs font-semibold leading-none text-fore">Más acciones<Icon name="chevron" className="h-3.5 w-3.5" /></span>}
+                trigger={<span className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border border-ink-500 px-2.5 text-xs font-semibold leading-none text-fore"><span className="sr-only sm:not-sr-only">Más acciones</span><Icon name="dots" className="h-4 w-4 sm:hidden" /><Icon name="chevron" className="hidden h-3.5 w-3.5 sm:inline" /></span>}
                 items={[
                   ...(!esDemo && !anulado ? [{ id: 'devolver', label: 'Devolver / postventa', onClick: () => setCobroAbierto(true) }] : []),
                   { id: 'pagina-estado', label: 'Ver página de estado del pedido', onClick: verPaginaEstado },

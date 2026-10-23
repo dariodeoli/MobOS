@@ -15,7 +15,7 @@ export default function BotonImprimir({ formatoActual, etiquetaActual, formatos,
         title={`Imprimir: ${etiquetaActual}`}
         disabled={imprimiendo}
         onClick={() => onImprimir(formatoActual)}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-l-lg border border-ink-500 px-3 text-xs font-semibold leading-none text-fore transition hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono disabled:opacity-60"
+        className="inline-flex min-h-11 items-center gap-1 rounded-l-lg border border-ink-500 px-2.5 text-xs font-semibold leading-none text-fore transition hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono disabled:opacity-60"
       >
         <Icon name="printer" className="h-3.5 w-3.5" />
         <span>{imprimiendo ? 'Preparando…' : 'Imprimir'}</span>
@@ -25,7 +25,7 @@ export default function BotonImprimir({ formatoActual, etiquetaActual, formatos,
         ariaLabel="Elegir formato de impresión"
         className="-ml-px"
         trigger={(
-          <span data-testid="pedido-imprimir-formato" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-r-lg border border-ink-500 px-2 text-fore hover:bg-ink-700">
+          <span data-testid="pedido-imprimir-formato" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-r-lg border border-ink-500 px-2 text-fore lg:min-w-9 hover:bg-ink-700">
             <span className="sr-only">Elegir formato de impresión</span>
             <Icon name="chevron" className="h-3.5 w-3.5" />
           </span>

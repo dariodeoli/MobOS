@@ -80,7 +80,7 @@ const SUPERFICIES = [
   }],
   ['pedido-detalle', '/pedidos', (page) => page.getByTestId('pedido-fila').first(), async (page) => {
     await page.getByTestId('pedido-fila').first().click()
-    await expect(page.getByRole('button', { name: /Imprimir comprobante/ }).first()).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('button', { name: /^Imprimir/ }).first()).toBeVisible({ timeout: 20_000 })
   }],
   ['inventario-ficha', '/stock/unidades', (page) => filaInventario(page), async (page) => {
     // La fila y la tarjeta de Stock abren la ficha por el modelo.
