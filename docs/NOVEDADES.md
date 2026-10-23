@@ -21,6 +21,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 - La demo permite hacer todo: vender, mover stock, activar o desactivar, sin guardar nada al salir.
 - Los popups ocupan menos espacio y el campo que se está llenando queda arriba del teclado.
 - Las filas de los formularios quedan alineadas en todas las pantallas.
+### App de iPhone
+- La app de iPhone y la web móvil se ven y se comportan igual en las pantallas principales.
+- Las fuentes viajan dentro de la app: se ve igual aunque no haya internet.
+- Abrir un pedido ya no abre el teclado ni salta hasta los comentarios.
+- Los campos de texto en el celular ya no hacen zoom al tocarlos.
+
+### Clientes y venta sin stock
+- Si escribís las etiquetas de un cliente antes de que cargue su ficha, lo escrito ya no se pierde.
+- En la demo, el enlace público de un pedido sobre pedido muestra «Estado de tu pedido».
+- Dos líneas del mismo producto sin stock generan cada una su compra pendiente en «Por comprar».
+- Los montos grandes en la fila de pago se ven completos y el detalle del pedido en el celular ya no se corta por la derecha.
 ## v1.0.243 — 2026-10-23
 
 - **Clientes:** cada cliente muestra su historial completo con totales (gastado, ticket promedio, última compra); cada IMEI dice a quién se compró, a quién se vendió y cuánto se ganó; proveedor y vendedor con su resumen. Nombres desde RUC/CI como «Nombres Apellidos» en toda la app y nombre de fantasía para empresas y proveedores.
