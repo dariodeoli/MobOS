@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
+import { paginaDeEventos } from '../../../../../lib/history-page'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -30,6 +31,7 @@ type TimelineEvent = {
   createdAt: Date
   user: { id: string; name: string } | null
   detail: string
+  ref?: { kind: string; id: string }
 }
 
 // Cronología del proveedor: compras con su total/estado, pagos y anticipos,
@@ -48,9 +50,11 @@ export async function GET(request: Request, props: RouteContext) {
   if (!supplier) return error('Proveedor no encontrado.', 404)
 
   const branchId = session.user.role === 'ADMIN' ? null : (session.user.branchId || '')
-  if (branchId === '') return json({ events: [] })
+  const searchParams = new URL(request.url).searchParams
+  const paginado = searchParams.has('limit')
+  if (branchId === '') return json({ events: [], summary: { totalPurchasedPyg: 0, paidPyg: 0, returnedPyg: 0, outstandingPyg: 0, products: [] } })
 
-  const [orders, units, audits] = await Promise.all([
+  const [orders, units, audits, lineas] = await Promise.all([
     prisma.purchaseOrder.findMany({
       where: { tenantId: tenant, supplierId: supplier.id, ...(branchId ? { branchId } : {}) },
       select: {
@@ -58,21 +62,28 @@ export async function GET(request: Request, props: RouteContext) {
         createdBy: { select: { id: true, name: true } },
         lines: { select: { finalTotalCostPyg: true } },
         payments: { select: { id: true, amountPyg: true, kind: true, reference: true, paidAt: true, createdAt: true, createdById: true } },
+        returns: { select: { totalPyg: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: paginado ? 500 : 100,
     }),
     prisma.inventoryUnit.findMany({
       where: { tenantId: tenant, supplierId: supplier.id, ...(branchId ? { branchId } : {}) },
       select: { id: true, serial: true, costPyg: true, createdAt: true, product: { select: { name: true, sku: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: paginado ? 500 : 100,
     }),
     prisma.auditLog.findMany({
       where: { tenantId: tenant, entity: 'Supplier', entityId: supplier.id },
       select: { id: true, action: true, metadata: true, createdAt: true, user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 300,
+    }),
+    // Productos comprados a este proveedor (mismo alcance de sucursal).
+    prisma.purchaseLine.findMany({
+      where: { purchase: { tenantId: tenant, supplierId: supplier.id, ...(branchId ? { branchId } : {}) } },
+      select: { productId: true, quantity: true, receivedQty: true, finalTotalCostPyg: true, product: { select: { name: true, sku: true } }, purchase: { select: { createdAt: true } } },
+      take: 2000,
     }),
   ])
 
@@ -110,7 +121,7 @@ export async function GET(request: Request, props: RouteContext) {
         user: userById.get(payment.createdById) || null,
         detail: `Gs ${gs(payment.amountPyg)}${payment.reference ? ` · ${payment.reference}` : ''} · ${order.supplierReference || `compra ${order.id}`}`,
       }))
-      return [compra, ...recibida, ...pagos]
+      return [compra, ...recibida, ...pagos].map(item => ({ ...item, ...(item.id.startsWith('payment-') ? {} : { ref: { kind: 'purchase', id: order.id } }) }))
     }),
     ...units.map(unit => ({
       id: `unit-${unit.id}`,
@@ -129,6 +140,26 @@ export async function GET(request: Request, props: RouteContext) {
       detail: detalleMetadata(audit.metadata),
     })),
   ]
-  events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  return json({ events: events.slice(0, 300) })
+  events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || String(a.id).localeCompare(String(b.id)))
+  // Totales y productos comprados: saldo pendiente = comprado - pagado - devuelto.
+  const totalPurchasedPyg = orders.reduce((sum, order) => sum + order.lines.reduce((acc, line) => acc + numero(line.finalTotalCostPyg), 0), 0)
+  const paidPyg = orders.reduce((sum, order) => sum + order.payments.reduce((acc, payment) => acc + numero(payment.amountPyg), 0), 0)
+  const returnedPyg = orders.reduce((sum, order) => sum + order.returns.reduce((acc, item) => acc + numero(item.totalPyg), 0), 0)
+  const porProducto = new Map<string, { productId: string; name: string; sku: string; quantity: number; totalPyg: number; lastPurchasedAt: Date }>()
+  for (const linea of lineas) {
+    const actual = porProducto.get(linea.productId) || { productId: linea.productId, name: linea.product?.name || 'Producto', sku: linea.product?.sku || '', quantity: 0, totalPyg: 0, lastPurchasedAt: linea.purchase.createdAt }
+    actual.quantity += linea.quantity
+    actual.totalPyg += numero(linea.finalTotalCostPyg)
+    if (linea.purchase.createdAt > actual.lastPurchasedAt) actual.lastPurchasedAt = linea.purchase.createdAt
+    porProducto.set(linea.productId, actual)
+  }
+  const summary = {
+    totalPurchasedPyg,
+    paidPyg,
+    returnedPyg,
+    outstandingPyg: Math.max(0, totalPurchasedPyg - paidPyg - returnedPyg),
+    products: [...porProducto.values()].sort((a, b) => b.totalPyg - a.totalPyg).slice(0, 50),
+  }
+  if (!paginado) return json({ events: events.slice(0, 300), summary })
+  return json({ ...paginaDeEventos(events, searchParams), summary })
 }

@@ -11,6 +11,7 @@ import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import Cronologia from '@/components/shared/Cronologia'
+import { ResumenFuncionario } from '@/components/shared/ResumenHistorial'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
 import { SUCURSALES_DEMO } from '@/lib/demo/empresa'
@@ -609,7 +610,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
       </form>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
-      {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
+      {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} paginado resumen={(meta) => <ResumenFuncionario meta={meta} />} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
     </Modal>
 
     <Modal open={pinDe !== null} onClose={() => !pinBusy && setPinDe(null)} title={`PIN de ${pinDe?.nombre || 'integrante'}`} size="corto">

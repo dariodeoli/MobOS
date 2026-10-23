@@ -20,9 +20,9 @@ export function eventosClienteDemo(cliente = {}, ahora = new Date()) {
   const perfil = cliente.demoProfile || {}
   const pedidos = Array.isArray(perfil.orders) ? perfil.orders : []
   const eventos = []
-  const poner = (id, type, action, t, user, detail = '') => {
+  const poner = (id, type, action, t, user, detail = '', extra = {}) => {
     if (t == null) return
-    eventos.push({ id, type, action, label: action, createdAt: new Date(Math.min(tope, t)).toISOString(), user, detail })
+    eventos.push({ id, type, action, label: action, createdAt: new Date(Math.min(tope, t)).toISOString(), user, detail, ...extra })
   }
   const vendedorDe = (pedido) => (pedido.seller?.name ? { id: pedido.seller.id || VENDEDOR.id, name: pedido.seller.name } : VENDEDOR)
 
@@ -36,18 +36,24 @@ export function eventosClienteDemo(cliente = {}, ahora = new Date()) {
     const codigo = codigoPedido(pedido.orderNumber) || 'Demo'
     const total = Number(pedido.totalPyg) || 0
     const cancelado = pedido.status === 'CANCELLED'
-    poner(`${pedido.id}-timeline`, 'order', 'Pedido creado', creado, vendedorDe(pedido), `Pedido ${codigo} · ${formatGs(total)} · ${cancelado ? 'Anulado' : Number(pedido.pendingPyg) > 0 ? 'Pendiente' : 'Pagado'}`)
+    const pendiente = Math.max(0, Number(pedido.pendingPyg) || 0)
+    const venceMs = Number(pedido.creditDays) > 0 ? creado + Number(pedido.creditDays) * DIA : null
+    poner(`${pedido.id}-timeline`, 'order', 'Pedido creado', creado, vendedorDe(pedido), `Pedido ${codigo} · ${formatGs(total)} · ${cancelado ? 'Anulado' : pendiente > 0 ? 'Pendiente' : 'Pagado'}${pendiente > 0 ? ` · Saldo pendiente ${formatGs(pendiente)}` : ''}`, {
+      ref: { kind: 'order', id: pedido.id },
+      items: (pedido.items || []).map((linea) => ({ description: linea.description || linea.name || 'Producto', quantity: Number(linea.quantity) || 1, serials: (linea.serials || linea.seriales || []).map(String) })),
+      amounts: { totalPyg: total, paidPyg: Math.max(0, total - pendiente), balancePyg: cancelado ? 0 : pendiente, status: cancelado ? 'Cancelado' : pendiente > 0 ? 'Pendiente' : 'Completado', dueAt: venceMs && pendiente > 0 ? new Date(venceMs).toISOString() : null },
+    })
     ;(pedido.pagos || []).forEach((pago, i) => {
       const monto = Number(pago.amountPyg) || 0
       if (!monto) return
-      poner(`${pedido.id}-pago-${i}`, 'payment', 'Pago confirmado', Math.max(creado + 4 * MIN, aMs(pago.paidAt) ?? creado), (aMs(pago.paidAt) ?? creado) - creado > 6 * HORA ? CAJERA : vendedorDe(pedido), `Pedido ${codigo} · ${formatGs(monto)} · ${pago.methodLabel || 'Efectivo'}`)
+      poner(`${pedido.id}-pago-${i}`, 'payment', 'Pago confirmado', Math.max(creado + 4 * MIN, aMs(pago.paidAt) ?? creado), (aMs(pago.paidAt) ?? creado) - creado > 6 * HORA ? CAJERA : vendedorDe(pedido), `Pedido ${codigo} · ${formatGs(monto)} · ${pago.methodLabel || 'Efectivo'}`, { ref: { kind: 'order', id: pedido.id } })
     })
     const estado = pedido.fulfillmentStatus
     if (cancelado) {
       poner(`${pedido.id}-anulado`, 'audit', 'Pedido anulado', creado + 3 * HORA, GERENTE, `Pedido ${codigo} · unidades repuestas al stock`)
     } else if (estado && estado !== 'PROCESSING') {
       const demora = pedido.deliveryType === 'DELIVERY' ? 26 * HORA : 70 * MIN
-      poner(`${pedido.id}-entrega`, 'order', `Pedido ${ETIQUETA_ENTREGA[estado] || 'actualizado'}`, creado + demora, pedido.deliveryType === 'DELIVERY' ? { id: 'demo-user-repartidor', name: 'Marcos Aquino' } : vendedorDe(pedido), `Pedido ${codigo}`)
+      poner(`${pedido.id}-entrega`, 'order', `Pedido ${ETIQUETA_ENTREGA[estado] || 'actualizado'}`, creado + demora, pedido.deliveryType === 'DELIVERY' ? { id: 'demo-user-repartidor', name: 'Marcos Aquino' } : vendedorDe(pedido), `Pedido ${codigo}`, { ref: { kind: 'order', id: pedido.id } })
     }
     // Crédito: vencimiento de la cuota y mora si quedó saldo.
     const dias = Number(pedido.creditDays) || 0
@@ -68,6 +74,19 @@ export function eventosClienteDemo(cliente = {}, ahora = new Date()) {
     if (pedido.status === 'CANCELLED') return
     poner(`${pedido.id}-gracias`, 'notice', 'Mensaje postventa por WhatsApp', (aMs(pedido.createdAt) ?? tope) + 2 * HORA + 15 * MIN, vendedorDe(pedido), `Pedido ${codigoPedido(pedido.orderNumber)} · agradecimiento y garantía del equipo`)
   })
+
+  // Cotizaciones del cliente, saldo a favor y equipos recibidos en parte de pago.
+  for (const cotizacion of cliente.cotizaciones || []) {
+    poner(`${cliente.id}-cot-${cotizacion.number}`, 'quote', 'Cotización', aMs(cotizacion.createdAt), VENDEDOR, `${cotizacion.number} · ${formatGs(cotizacion.totalPyg)} · ${{ DRAFT: 'Borrador', SENT: 'Enviada', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida en pedido', EXPIRED: 'Vencida' }[cotizacion.status] || cotizacion.status}`)
+  }
+  if (Number(cliente.saldoFavorPyg) > 0) {
+    const ultimo = [...pedidos].sort((a, b) => (aMs(b.createdAt) ?? 0) - (aMs(a.createdAt) ?? 0))[0]
+    poner(`${cliente.id}-saldo-favor`, 'credit', 'Saldo a favor otorgado', (aMs(ultimo?.createdAt) ?? tope) + 3 * HORA, GERENTE, `${formatGs(cliente.saldoFavorPyg)} · disponible para su próxima compra${ultimo ? ` · por el pedido ${codigoPedido(ultimo.orderNumber)}` : ''}`)
+  }
+  if ((cliente.tags || []).includes('trade-in')) {
+    const compra = [...pedidos].filter((p) => p.status !== 'CANCELLED').sort((a, b) => (aMs(a.createdAt) ?? 0) - (aMs(b.createdAt) ?? 0))[0]
+    if (compra) poner(`${cliente.id}-tradein`, 'tradein', 'Equipo recibido en parte de pago', (aMs(compra.createdAt) ?? tope) + 20 * MIN, vendedorDe(compra), `Equipo usado valuado y descontado del total · Pedido ${codigoPedido(compra.orderNumber)}`, { ref: { kind: 'order', id: compra.id } })
+  }
 
   for (const nota of perfil.notes || []) poner(`${nota.id}-evento`, 'note', 'Comentario del equipo', aMs(nota.createdAt), nota.user || VENDEDOR, nota.content)
   for (const seg of perfil.followUps || []) {
