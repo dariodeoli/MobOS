@@ -74,7 +74,7 @@ export default function PagosPorVerificar({ onConteo, refresco = 0 }) {
     try {
       if (esDemo) demoResolverPago(aprobar.id, 'approve')
       else await api.patch(`/api/payments/${encodeURIComponent(aprobar.id)}/reconciliation`, { state: 'VERIFIED' })
-      toast.success('Pago aprobado', esDemo ? 'En la demo queda simulado.' : 'El vendedor recibe el aviso y el pedido puede entregarse.')
+      toast.success('Pago aprobado', esDemo ? 'Queda aplicado en esta sesión.' : 'El vendedor recibe el aviso y el pedido puede entregarse.')
       setAprobar(null)
       cargar()
     } catch (cause) {
@@ -120,7 +120,7 @@ export default function PagosPorVerificar({ onConteo, refresco = 0 }) {
         onTab={setEstado}
         etiquetaTabs="Filtrar pagos por estado"
       />
-      {esDemo && <Aviso tono="warn">Datos ficticios: los pagos y comprobantes son de ejemplo y aprobar o rechazar queda simulado.</Aviso>}
+      {esDemo && <Aviso tono="warn">Datos ficticios: aprobar o rechazar un pago se aplica en esta sesión y se reinicia al salir.</Aviso>}
       {error && <Aviso tono="error">{error}</Aviso>}
       {cargando && !datos && (
         <div className="space-y-2" aria-busy="true"><Skeleton className="h-28 w-full" /><Skeleton className="h-28 w-full" /></div>

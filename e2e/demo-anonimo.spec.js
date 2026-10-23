@@ -203,7 +203,6 @@ test('dueño: un guardado en demo se aplica en pantalla sin el aviso «no se gua
   // El aviso de la demo es el chip de la cabecera; el toast ya no repite «no se guardó».
   await expect(page.getByText('Cambio simulado en la demo')).toHaveCount(0)
   await expect(page.getByText(/no se guardó en la tienda/i)).toHaveCount(0)
-  await expect(page.getByTestId('demo-aviso')).toContainText('Demo')
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })

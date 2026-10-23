@@ -17,7 +17,7 @@ test('la demo muestra autorizaciones ficticias y las resuelve simulado', async (
   const filas = page.getByTestId('autorizacion-fila')
   await expect(page.getByTestId('autorizaciones-tab-precios')).toHaveAttribute('aria-selected', 'true', { timeout: 20_000 })
   await expect(filas).toHaveCount(3)
-  await expect(page.getByText(/Datos ficticios: las solicitudes son de ejemplo/)).toBeVisible()
+  await expect(page.getByText(/Datos ficticios: aprobar o rechazar se aplica en esta sesión/)).toBeVisible()
   // 2 solicitudes comerciales + 4 pagos por verificar de ejemplo.
   await expect(page.getByText('6 pendientes')).toBeVisible()
   await page.getByTestId('autorizaciones-tab-credito').click()
@@ -28,7 +28,7 @@ test('la demo muestra autorizaciones ficticias y las resuelve simulado', async (
   const modal = page.getByRole('dialog')
   await expect(modal).toBeVisible()
   await modal.getByRole('button', { name: 'Aprobar' }).click()
-  await expect(page.getByText(/queda simulada/)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('Solicitud aprobada').first()).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText('5 pendientes')).toBeVisible()
   expect(llamadas, `llamadas al API de autorizaciones: ${llamadas.join(', ')}`).toEqual([])
 })

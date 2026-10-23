@@ -10,8 +10,19 @@ function leer() {
   try {
     const guardado = JSON.parse(leerDemo(KEY) || 'null')
     if (guardado && Array.isArray(guardado.items)) return guardado
-  } catch { /* dato dañado: se arranca vacío */ }
-  return { items: [] }
+  } catch { /* dato dañado: se arranca con el conteo de ejemplo */ }
+  return { items: [conteoDeEjemplo()] }
+}
+
+// Un conteo ya aplicado de ayer, para que la pantalla no arranque vacía.
+function conteoDeEjemplo() {
+  const unidades = leerEstadoDemo().units.filter((u) => !u.removedAt && u.status === 'AVAILABLE' && u.branchId === 'mobos-demo-central').slice(0, 3)
+  const ayer = new Date(Date.now() - 26 * 3600000).toISOString()
+  return {
+    id: 'demo-conteo-ejemplo', status: 'APPLIED', scope: 'PARTIAL', note: 'Conteo mensual de vidriera', branchId: 'mobos-demo-central', locationId: null,
+    createdAt: ayer, appliedAt: ayer, faltantes: [],
+    lines: unidades.map((u, i) => ({ id: `demo-linea-ejemplo-${i}`, serial: u.serial, expected: true, quantity: 1, productId: u.productId || null, product: u.product ? { name: u.product.name || u.product.nombre, sku: u.product.sku } : null })),
+  }
 }
 const escribir = (estado) => { guardarDemo(KEY, JSON.stringify(estado)); return estado }
 

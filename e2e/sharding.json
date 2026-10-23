@@ -178,6 +178,7 @@
         "cliente-flechas.spec.js",
         "comprobante-pos.spec.js",
         "config-comercial.spec.js",
+        "demo-acciones.spec.js",
         "demo-anonimo.spec.js",
         "demo-autorizaciones.spec.js",
         "demo-completa.spec.js",

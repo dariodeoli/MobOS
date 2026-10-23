@@ -371,8 +371,7 @@ export default function Autorizaciones({ soloPagos = false } = {}) {
       </BarraModulo>
       {esDemo && (
         <Aviso tono="warn">
-          Datos ficticios: las solicitudes son de ejemplo y aprobar o rechazar queda simulado
-          (no cambia condiciones reales).
+          Datos ficticios: aprobar o rechazar se aplica en esta sesión y se reinicia al salir.
         </Aviso>
       )}
       <div className="op-rd-tabs flex flex-wrap gap-1" role="tablist" aria-label="Tipo de autorización" data-testid="autorizaciones-tabs">

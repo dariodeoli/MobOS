@@ -11,7 +11,7 @@ const esLlamadaApi = (url) => new URL(url).pathname.startsWith('/api/') && !url.
 const ruidoConocido = (texto) => /Failed to load resource|ERR_UNSAFE_PORT|\/api\/public\/track/.test(texto)
 
 // Vigila lo que la demo no puede hacer: llamar al API real, escribir en
-// localStorage (la clave del aviso de métricas es del arnés) o romper la consola.
+// localStorage (aviso de métricas, id anónimo y tema no son datos de la tienda) o romper la consola.
 function vigilar(page) {
   const vigia = { llamadas: [], consola: [] }
   page.on('request', (peticion) => { if (esLlamadaApi(peticion.url())) vigia.llamadas.push(peticion.url()) })
@@ -47,7 +47,7 @@ async function abrirDialogo(page, boton) {
 }
 
 const toastes = (page) => page.locator('[role=status], [role=alert]').filter({ hasNotText: /Demo\s/ })
-const principal = (page) => page.locator('main').first()
+const principal = (page) => page.locator('main').last()
 
 test.describe('demo · acciones que se aplican en pantalla', () => {
   test('el aviso es un chip fijo «se reinicia al salir» y ningún toast dice «no se guardó»', async ({ page }) => {
@@ -324,8 +324,120 @@ test.describe('demo · acciones que se aplican en pantalla', () => {
     await expect(principal(page)).toContainText('51 visibles')
 
     await page.getByRole('button', { name: 'Combos' }).click()
-    await page.getByPlaceholder('Ej. Funda + lámina').fill('Combo demo acciones')
-    await page.getByRole('button', { name: 'Combos' }).first().waitFor()
+    await expect(ventanaAbierta(page)).toContainText('Todavía no hay combos creados.')
+    expect(vigia.llamadas).toEqual([])
+  })
+
+  test('unidades: habilita una unidad defectuosa, la da de baja y la restaura', async ({ page }) => {
+    const vigia = vigilar(page)
+    await entrar(page, { ancho: 1440 })
+    await irA(page, '/stock/unidades')
+    await page.getByPlaceholder(/Escanear IMEI/).fill('354032112821405')
+    const fila = page.getByTestId('inventario-fila').first()
+    await expect(page.getByTestId('inventario-fila')).toHaveCount(1)
+    await expect(fila).toContainText('Defectuoso')
+    await fila.getByRole('button', { name: /^Acciones de/ }).click()
+    await page.getByRole('menuitem', { name: 'Habilitar unidad' }).click()
+    await ventanaAbierta(page).locator('select').selectOption({ label: 'Revisión física' })
+    await ventanaAbierta(page).getByPlaceholder('Indicá el motivo').fill('Revisado en mostrador')
+    await ventanaAbierta(page).getByRole('button', { name: 'Habilitar', exact: true }).click()
+    await expect(page.getByTestId('inventario-fila').first()).toContainText('Disponible')
+
+    await page.getByTestId('inventario-fila').first().getByRole('button', { name: /^Acciones de/ }).click()
+    await page.getByRole('menuitem', { name: 'Dar de baja' }).click()
+    await ventanaAbierta(page).locator('select').selectOption({ label: 'Daño' })
+    await ventanaAbierta(page).getByPlaceholder('Indicá el motivo').fill('Daño en la placa')
+    await ventanaAbierta(page).getByRole('button', { name: 'Dar de baja', exact: true }).click()
+    await expect(page.getByTestId('inventario-fila')).toHaveCount(0)
+
+    await irA(page, '/stock/eliminados')
+    await page.getByPlaceholder(/Escanear IMEI/).fill('')
+    await expect(principal(page)).toContainText('Mostrando 3 de 3')
+    await page.getByRole('button', { name: 'Restaurar' }).first().click()
+    await ventanaAbierta(page).getByPlaceholder('Indicá el motivo').fill('Se cargó por error')
+    await ventanaAbierta(page).getByRole('button', { name: /^Restaurar/ }).last().click()
+    await expect(principal(page)).toContainText('Mostrando 2 de 2')
+    expect(vigia.llamadas).toEqual([])
+  })
+
+  test('reservas: reserva una unidad para un cliente y la libera', async ({ page }) => {
+    const vigia = vigilar(page)
+    await entrar(page, { ancho: 1440 })
+    await irA(page, '/stock/unidades')
+    await page.getByPlaceholder(/Escanear IMEI/).fill('iPhone 15 Pro 256GB Titanio')
+    const fila = page.getByTestId('inventario-fila').first()
+    await expect(fila).toContainText('Disponible')
+    await page.waitForTimeout(700)
+    await fila.getByRole('button', { name: /^Acciones de/ }).click()
+    await page.getByRole('menuitem', { name: 'Reservar' }).click()
+    await page.getByPlaceholder('Buscar cliente o reservar sin cliente').fill('Lucía')
+    await ventanaAbierta(page).getByRole('button', { name: 'Reservar', exact: true }).click()
+    await expect(page.getByTestId('inventario-fila').first()).toContainText('Reservado')
+    await irA(page, '/stock/reservas')
+    await expect(principal(page)).toContainText('iPhone 15 Pro 256GB Titanio')
+    const antes = await page.getByRole('button', { name: 'Liberar' }).count()
+    await page.getByRole('button', { name: 'Liberar' }).first().click()
+    await expect(page.getByRole('button', { name: 'Liberar' })).toHaveCount(antes - 1)
+    expect(vigia.llamadas).toEqual([])
+  })
+
+  test('caja: cerrar el turno con el efectivo contado', async ({ page }) => {
+    const vigia = vigilar(page)
+    await entrar(page)
+    await irA(page, '/finanzas/caja')
+    await expect(principal(page)).toContainText('Abierta')
+    await page.getByRole('button', { name: 'Contar y cerrar' }).click()
+    for (const tecla of ['1', '1', '1', '7', '00', '00', '0']) await ventanaAbierta(page).getByRole('button', { name: `Agregar ${tecla}`, exact: true }).click()
+    await ventanaAbierta(page).getByRole('button', { name: /^Cerrar caja/ }).last().click()
+    await expect(principal(page)).toContainText('Cerrada')
+    expect(vigia.llamadas).toEqual([])
+  })
+
+  test('delivery: asignar un pedido a un repartidor lo pasa a Asignados', async ({ page }) => {
+    const vigia = vigilar(page)
+    await entrar(page)
+    await irA(page, '/delivery')
+    await page.locator('main select').first().selectOption({ index: 1 })
+    await page.getByRole('button', { name: 'Asignar', exact: true }).first().click()
+    await expect(page.getByText('Reparto asignado').first()).toBeVisible()
+    expect(vigia.llamadas).toEqual([])
+  })
+
+  test('técnico (Ver como): avanza una orden de taller', async ({ page }) => {
+    const vigia = vigilar(page)
+    await entrar(page)
+    await page.getByTestId('demo-perspectivas-toggle').click()
+    await page.getByTestId('demo-ver-como-menu').getByRole('menuitemradio', { name: /Técnico/ }).click()
+    await expect(page.getByTestId('demo-rol-actual')).toHaveText(/Técnico/)
+    await cerrarGuiaDemo(page)
+    await irA(page, '/servicio')
+    const orden = page.getByText('OS-#0011', { exact: true }).locator('xpath=ancestor::*[.//button[starts-with(@aria-label,"Pasar a")]][1]')
+    await orden.getByRole('button', { name: 'Pasar a Con técnico' }).click()
+    await expect(orden).toContainText('Con técnico')
+    expect(vigia.llamadas).toEqual([])
+  })
+
+  test('nada se escribe en localStorage y al recargar todo vuelve al estado inicial', async ({ page }) => {
+    const vigia = vigilar(page)
+    await entrar(page)
+    await irA(page, '/servicio')
+    const orden = page.getByText('OS-#0011', { exact: true }).locator('xpath=ancestor::*[.//button[starts-with(@aria-label,"Pasar a")]][1]')
+    await orden.getByRole('button', { name: 'Pasar a Con técnico' }).click()
+    await expect(orden).toContainText('Con técnico')
+    await irA(page, '/pedidos')
+    await page.getByText('AUR-0500').first().click()
+    await page.getByLabel('Estado de entrega').selectOption('READY_FOR_PICKUP')
+    await expect(page.locator('[aria-current=step]')).toContainText('Listo para retirar')
+    const claves = await page.evaluate(() => Object.keys(localStorage).filter((clave) => !['mobos:aviso-metricas', 'mobos:vid', 'mobos:theme'].includes(clave)))
+    expect(claves, `localStorage escrito por la demo: ${claves.join(', ')}`).toEqual([])
+
+    await page.reload()
+    await irA(page, '/servicio')
+    const recargada = page.getByText('OS-#0011', { exact: true }).locator('xpath=ancestor::*[.//button[starts-with(@aria-label,"Pasar a")]][1]')
+    await expect(recargada).toContainText('Diagnóstico')
+    await irA(page, '/pedidos')
+    await page.getByText('AUR-0500').first().click()
+    await expect(page.locator('[aria-current=step]')).toContainText('Preparando')
     expect(vigia.llamadas).toEqual([])
   })
 })

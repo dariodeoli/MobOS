@@ -283,6 +283,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [unidadesPedidas, setUnidadesPedidas] = useState(false)
   const unidadesNecesarias = unidadesPedidas || TABS_CON_UNIDADES.includes(tab)
   const unidadesCargadas = useRef(false)
+  const secundariosListos = useRef(false)
   const recargarStockRef = useRef(null)
   const detalleRef = useRef(null)
   const refresh = useCallback(async (search, { lista = true } = {}) => {
@@ -300,6 +301,21 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
         tareas.push(resources.inventoryUnits.list(serial, 'active').then((filas) => { const fresca = filas.find((fila) => fila.id === id); if (fresca) setDetalleUnidad((actual) => (actual && actual.id === id ? fresca : actual)) }))
       }
       if (lista) tareas.push(recargarStockRef.current?.())
+      // Reservas, eliminados, traslados y depósitos ya cargados se vuelven a leer: liberar una
+      // reserva, dar de baja o recibir un lote tiene que verse en su pestaña sin recargar.
+      if (secundariosListos.current) {
+        tareas.push(Promise.all([
+          resources.inventoryUnits.list('', 'removed').catch(() => null),
+          resources.inventoryReservations.list().catch(() => null),
+          resources.transfers.list().catch(() => null),
+          resources.stockLocations.list().catch(() => null),
+        ]).then(([eliminadas, reservadas, traslados, depositos]) => {
+          if (eliminadas) setRemovedUnits(eliminadas)
+          if (reservadas) setReservations(reservadas)
+          if (traslados) setTransfers(traslados)
+          if (depositos) setLocations(depositos)
+        }))
+      }
       setProducts(getProductos())
       await Promise.all(tareas)
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false); setCargandoUnidades(false) }
@@ -314,7 +330,6 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     } catch { /* sin cotización se guarda el monto tal cual */ }
     return null
   }, [])
-  const secundariosListos = useRef(false)
   const cargarSecundarios = useCallback(async () => {
     if (!inventarioOperativo || secundariosListos.current) return
     secundariosListos.current = true
