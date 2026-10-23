@@ -25,3 +25,8 @@ html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0
 .popup-pie:not(:empty) + .popup-pie-espacio { display: none; }
 /* Mientras sale, el popup ya no captura clics ni oculta el resto a los lectores. */
 .popup-fondo[data-saliendo='true'] { pointer-events: none; }
+
+/* Teclado abierto (src/lib/enfoque.js): el popup se acota al área visible sobre el teclado. */
+html.teclado-abierto .popup-fondo { bottom: var(--teclado-alto, 0px); }
+html.teclado-abierto .popup-panel { max-height: 100%; }
+html.teclado-abierto .popup-cuerpo { padding-bottom: calc(1rem + 40dvh); }
