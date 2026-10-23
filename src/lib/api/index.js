@@ -6,6 +6,7 @@ import { createDemoTransfer, createDemoTransitAssignment, createDemoUnit, listDe
 import { listarStockItemsDemo } from '@/lib/demo/stockItems.js'
 import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
+import { actualizarCompraSinStockDemo, avisarClienteDemo, comprarSinStockDemo, esCompraDemoSinStock, esNecesidadDemoSinStock, listarVentasSinStockDemo, recibirRapidoSinStockDemo } from '@/lib/demo/ventaSinStock.js'
 import { completeDemoArrivalSerial, confirmDemoArrival, createDemoArrival, getDemoArrival, listDemoArrivals, parseDemoArrival, patchDemoArrivalLine } from '@/lib/demo/llegada.js'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones.js'
 import { actualizarComboDemo, crearComboDemo, listarCombosDemo } from '@/lib/demo/combos.js'
@@ -68,9 +69,9 @@ export const resources = {
     list: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/needs${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    }, (params = {}) => listDemoSupplyNeeds(params)),
+    }, (params = {}) => (params.detalle ? listarVentasSinStockDemo(params) : listDemoSupplyNeeds(params))),
     create: demo(data => api.post('/api/supply/needs', data), data => createDemoSupplyNeed(data)),
-    update: demo(data => api.patch('/api/supply/needs', data), data => updateDemoSupplyNeeds(data)),
+    update: demo(data => api.patch('/api/supply/needs', data), data => (data?.action === 'notified' ? avisarClienteDemo(data) : updateDemoSupplyNeeds(data))),
   },
   // F3 (#250 §7): preparación de la compra (IMEI por completar) — escaneo de a
   // uno (`scan`) o pegado múltiple (`serials`).
@@ -80,8 +81,8 @@ export const resources = {
       return api.get(`/api/supply/purchases${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
     }, (params = {}) => listDemoSupplyPurchases(params)),
     // #250 F2: compra desde el panel (cubre necesidades o reposición libre).
-    create: demo(data => api.post('/api/supply/purchases', data), data => createDemoSupplyPurchase(data)),
-    update: demo(data => api.patch('/api/supply/purchases', data), data => updateDemoSupplyPurchase(data)),
+    create: demo(data => api.post('/api/supply/purchases', data), data => ((data?.lines || []).some(linea => esNecesidadDemoSinStock(linea?.needId)) ? comprarSinStockDemo(data) : createDemoSupplyPurchase(data))),
+    update: demo(data => api.patch('/api/supply/purchases', data), data => (esCompraDemoSinStock(data?.id) ? actualizarCompraSinStockDemo(data) : updateDemoSupplyPurchase(data))),
     // F3 (#250 §11): etiquetas de la preparación (una por unidad comprada).
     labels: demo(id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }), id => demoSupplyPurchaseLabels(id)),
   },
@@ -105,7 +106,7 @@ export const resources = {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/receptions${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
     }, (params = {}) => (params.id || params.shipmentId ? demoSupplyReceptionDetail(params) : listDemoSupplyReceptions(params))),
-    create: demo(data => api.post('/api/supply/receptions', data), data => createDemoSupplyReception(data)),
+    create: demo(data => api.post('/api/supply/receptions', data), data => (data?.action === 'receiveQuick' ? recibirRapidoSinStockDemo(data) : createDemoSupplyReception(data))),
     update: demo(data => api.patch('/api/supply/receptions', data), data => updateDemoSupplyReception(data)),
   },
   // Llegada de mercadería (#408 G): borrador → pegado en seco → editar filas →

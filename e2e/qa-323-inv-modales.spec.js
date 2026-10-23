@@ -73,13 +73,13 @@ test('#323 · recibir mercadería usa el pie estándar y no marca cambios en la 
   await fila.getByRole('button', { name: 'Recibir mercadería' }).click()
   const dialogo = page.getByRole('dialog', { name: 'Recibir mercadería' })
   await expect(dialogo).toBeVisible()
-  await expect(dialogo.getByText('La recepción parcial requiere conexión con el servidor')).toBeVisible()
-  await expect(dialogo.getByRole('button', { name: 'Recibir todo' })).toBeVisible()
+  // La demo aplica la recepción parcial en pantalla: hay cantidades editables y el pie estándar.
+  await expect(dialogo.getByText('Lo que elijas entra al stock')).toBeVisible()
+  await expect(dialogo.getByRole('button', { name: 'Recibir cantidades' })).toBeVisible()
   await expect(dialogo.getByRole('button', { name: 'Cancelar' })).toBeVisible()
   await page.screenshot({ path: join(DIR, 'recibir-mercaderia-demo-1440-light.png') })
 
-  // Sin campos editables en la demo no hay nada que perder: cierra sin
-  // confirmación de descarte.
+  // Sin tocar la cantidad no hay nada que perder: cierra sin confirmación de descarte.
   await page.keyboard.press('Escape')
   await expect(dialogo).toHaveCount(0)
   await expect(page.getByRole('alertdialog', { name: '¿Descartar los cambios?' })).toHaveCount(0)

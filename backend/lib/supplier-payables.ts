@@ -11,7 +11,9 @@ export const CONDICION_PROVEEDOR_LABELS: Record<SupplierPayableCondition, string
   CONSIGNACION: 'En consignación',
 }
 
+import type { Prisma } from '@prisma/client'
 import { LIMITE_MONTO_GENERAL } from './montos'
+import { createCashMovement } from './cash-movements'
 
 export class SupplierPayableInputError extends Error {}
 
@@ -86,4 +88,65 @@ export function resumenProveedores(compras: DatosDeCompra[], ahora: Date = new D
     depositoPyg += enDepositoDeCompra(compra)
   }
   return { totalPyg, vencidasPyg, porVencerPyg, depositoPyg }
+}
+
+/** Finanzas (cuentas de caja/banco): quien tiene `cash:manage` (ADMIN y gerencia). */
+export function puedeFinanzas(permisos: readonly string[] | null | undefined): boolean {
+  return Array.isArray(permisos) && (permisos.includes('*') || permisos.includes('cash:manage'))
+}
+
+/** Saldo de una cuenta a pagar sin la regla de contado (contado/crédito por igual). */
+export function saldoDeCuenta({ amountPyg, paidPyg = 0 }: { amountPyg: bigint | number; paidPyg?: bigint | number }) {
+  return Math.max(0, monto(amountPyg, 'Monto') - monto(paidPyg, 'Pagado'))
+}
+
+export type PagoAProveedor = {
+  tenantId: string
+  userId: string
+  payableId: string
+  /** Sucursal a la que se acota la búsqueda (null = toda la empresa). */
+  branchId?: string | null
+  /** Monto a pagar; null = todo el saldo. */
+  amountPyg?: number | null
+  /** Cuenta de caja/banco: con ella se registra la salida de plata. */
+  accountId?: string | null
+  /** Saldo que se considera pagable (por defecto, el de `pendienteDeCompra`). */
+  saldoPagable?: (cuenta: { amountPyg: bigint | number; paidPyg: bigint | number; condition: SupplierPayableCondition; consumedPyg: bigint | number }) => number
+  /** Evita duplicar la salida en un reintento (único por empresa). */
+  idempotencyKey?: string | null
+  descripcion?: string
+  auditExtra?: Record<string, unknown>
+}
+
+/**
+ * Registra un pago a proveedor dentro de la transacción del llamador: suma al
+ * pagado y, con cuenta, deja la salida de caja/banco (`CashMovement` OUT).
+ * Extraído de `supplierPayment` de Finanzas para compartirlo con «Marcar
+ * pagado» de Por comprar.
+ */
+export async function registrarPagoAProveedor(tx: Prisma.TransactionClient, pago: PagoAProveedor) {
+  const compra = await tx.supplierPayable.findFirst({ where: { id: pago.payableId, tenantId: pago.tenantId, ...(pago.branchId ? { branchId: pago.branchId } : {}) } })
+  if (!compra) throw new SupplierPayableInputError('La compra no existe.')
+  const pendiente = (pago.saldoPagable ?? pendienteDeCompra)(compra as never)
+  const aPagar = pago.amountPyg === null || pago.amountPyg === undefined ? pendiente : Number(pago.amountPyg)
+  if (!Number.isSafeInteger(aPagar) || aPagar < 1 || aPagar > pendiente) {
+    throw new SupplierPayableInputError(pendiente > 0 ? `El pago tiene que estar entre 1 y ${pendiente} Gs.` : 'Esa compra no tiene saldo pendiente.')
+  }
+  if (pago.accountId) {
+    const cuenta = await tx.paymentAccount.findFirst({ where: { id: pago.accountId, tenantId: pago.tenantId, isActive: true }, select: { id: true } })
+    if (!cuenta) throw new SupplierPayableInputError('La cuenta no existe o está inactiva.')
+  }
+  const fila = await tx.supplierPayable.update({ where: { id: compra.id }, data: { paidPyg: { increment: aPagar } } })
+  let movimientoId: string | null = null
+  if (pago.accountId) {
+    const movimiento = await createCashMovement(tx, {
+      tenantId: pago.tenantId, branchId: compra.branchId, createdById: pago.userId,
+      kind: 'SUPPLIER_ADVANCE', direction: 'OUT', currency: 'PYG', originalAmount: String(aPagar), exchangeRatePyg: '1',
+      counterparty: compra.supplierName, reference: compra.reference, description: pago.descripcion || `Pago a proveedor: ${compra.concept}`, dueAt: null, accountId: pago.accountId,
+      idempotencyKey: pago.idempotencyKey ?? null,
+    }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
+    movimientoId = movimiento.id
+  }
+  await tx.auditLog.create({ data: { tenantId: pago.tenantId, userId: pago.userId, action: 'SUPPLIER_PAYABLE_PAID', entity: 'SupplierPayable', entityId: compra.id, metadata: { amountPyg: aPagar, saldoAnteriorPyg: pendiente, conCuenta: Boolean(pago.accountId), ...(pago.auditExtra ?? {}) } } })
+  return { cuenta: fila, aPagar, saldoAnteriorPyg: pendiente, movimientoId }
 }

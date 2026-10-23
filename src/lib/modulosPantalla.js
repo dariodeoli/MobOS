@@ -102,10 +102,11 @@ export function dependenciasFaltantes(def, fuente, catalogo = MODULE_CATALOG) {
     .map(id => catalogo.find(item => item.id === id)?.name || id)
 }
 
-/** Nombres de los módulos activos que dependen de este (hay que apagarlos primero). */
+/** Nombres de los módulos activos que dependen de este (hay que apagarlos primero).
+ *  Los que este mismo módulo activa solo (implicadoPor) no bloquean: se apagan con él. */
 export function dependientesActivos(def, fuente, catalogo = MODULE_CATALOG) {
   return catalogo
-    .filter(item => !item.nucleo && item.dependencies.includes(def.id) && moduloActivo(fuente, item.id))
+    .filter(item => !item.nucleo && item.dependencies.includes(def.id) && !(item.implicadoPor ?? []).includes(def.id) && moduloActivo(fuente, item.id))
     .map(item => item.name)
 }
 

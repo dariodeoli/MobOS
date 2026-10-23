@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { FAMILIAS_APPLE, modeloApple, normalizarCapacidad } from '../../../backend/lib/catalogo-apple.mjs'
 import { CONDICIONES_TOMA, ETIQUETA_CONDICION, cambiosDeGrilla, csvPlantilla, csvValores, filasGrilla, filasQueCambian, leerCsvValores } from '@/lib/valoresToma'
 
-const GRID_VALORACIONES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.4fr)_6rem_6.5rem_7rem_7rem_6rem_8rem] items-center gap-x-2'
+const GRID_VALORACIONES = 'grid min-w-[57rem] grid-cols-[minmax(11rem,1.4fr)_6rem_8rem_7rem_7rem_6rem_10rem] items-center gap-x-2'
 const GRID_MASIVA = 'grid grid-cols-[minmax(0,1fr)_9.5rem_9.5rem] items-center gap-x-2 max-sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'
 const VALUACION_VACIA = { model: '', storage: '', condition: 'USED', baseValuePyg: '', maxValuePyg: '', notes: '', isActive: true }
 const FILAS_POR_PAGINA = 12
@@ -212,7 +212,8 @@ export default function ValoresToma({ esDemo }) {
           <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${row.isActive ? 'Desactivar' : 'Activar'} ${row.model} ${row.storage || ''}`.trim()} onClick={() => alternar(row)}>{row.isActive ? 'Desactivar' : 'Activar'}</Button>
         </span>
       </div>)}</div>
-      {visibles.length > pagina.length && <div className="flex justify-center pt-2">
+      {visibles.length > pagina.length && <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+        <span className="text-xs text-mute">Mostrando {pagina.length} de {visibles.length}</span>
         <Button type="button" variant="outline" onClick={() => setLimite(actual => actual + FILAS_POR_PAGINA)}>Mostrar más ({visibles.length - pagina.length} restantes)</Button>
       </div>}
     </div>}

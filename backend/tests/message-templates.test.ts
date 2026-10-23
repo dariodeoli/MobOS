@@ -24,7 +24,7 @@ test('cada evento nuevo tiene su versión correo con prefijo email., asunto y ca
 
 test('claves únicas, cuerpos dentro del límite y variables conocidas', () => {
   assert.equal(new Set(todas.map((item) => item.key)).size, todas.length)
-  const conocidas = new Set(['cliente', 'nombre', 'empresa', 'pedido', 'total', 'saldo_pendiente', 'producto', 'sucursal', 'seguimiento', 'reservation_until', 'garantia', 'garantia_hasta', 'cotizacion', 'vigencia', 'enlace', 'equipo', 'estado', 'vencimiento', 'dias_atraso', 'detalle', 'equipo_entrega', 'faltante', 'validez', 'contacto', 'aviso_revision'])
+  const conocidas = new Set(['cliente', 'nombre', 'empresa', 'pedido', 'total', 'saldo_pendiente', 'producto', 'sucursal', 'seguimiento', 'reservation_until', 'garantia', 'garantia_hasta', 'cotizacion', 'vigencia', 'enlace', 'equipo', 'estado', 'vencimiento', 'dias_atraso', 'detalle', 'equipo_entrega', 'faltante', 'validez', 'contacto', 'aviso_revision', 'fecha_estimada'])
   for (const item of todas) {
     assert.ok(item.body.length <= 1200, item.key)
     for (const [, nombre] of `${item.body} ${item.subject || ''}`.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g)) assert.ok(conocidas.has(nombre), `${item.key}: {{${nombre}}}`)

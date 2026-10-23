@@ -843,6 +843,7 @@ node "$BACKEND_ROOT/tests/supply-f1-verify.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
 echo "Centro de Abastecimiento F2: compra rápida, IMEI y stock adicional (#250)..."
 node "$BACKEND_ROOT/tests/supply-purchases.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+node "$BACKEND_ROOT/tests/venta-sin-stock-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
 
 echo "Centro de Abastecimiento F3: IMEI y preparación (escaneo, lote y etiquetas) (#250)..."
 node "$BACKEND_ROOT/tests/supply-preparation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"

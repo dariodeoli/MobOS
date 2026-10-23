@@ -216,7 +216,7 @@ for (const esquema of ['light', 'dark']) {
   })
 }
 
-test('demo: todos los módulos activos y la pantalla Módulos es una vista previa que no guarda', async ({ page }) => {
+test('demo: todos los módulos activos y la pantalla Módulos los apaga y reactiva solo en la sesión', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await entrarDemo(page)
   const primaria = await shellPrimary(page)
@@ -227,8 +227,12 @@ test('demo: todos los módulos activos y la pantalla Módulos es una vista previ
   await page.goto('/configuracion/modulos')
   await expect(page.getByTestId('modulos-demo')).toBeVisible()
   await expect(page.getByTestId('modulo-fila-delivery')).toHaveAttribute('data-estado', 'activo')
+  const fila = page.getByTestId('modulo-fila-delivery')
   await page.getByRole('button', { name: 'Desactivar Delivery externo', exact: true }).click()
-  await expect(page.getByText('En la demo los módulos están todos activos y no se guardan cambios.')).toBeVisible()
-  await expect(page.getByTestId('modulo-fila-delivery')).toHaveAttribute('data-estado', 'activo')
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Desactivar' }).click()
+  // En demo el cambio se aplica en pantalla (sin guardar): el módulo queda apagado hasta salir.
+  await expect(fila).toHaveAttribute('data-estado', 'apagado')
+  await page.getByRole('button', { name: 'Activar Delivery externo', exact: true }).click()
+  await expect(fila).toHaveAttribute('data-estado', 'activo')
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
 })

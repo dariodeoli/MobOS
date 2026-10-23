@@ -6,6 +6,7 @@ import { changeStock, promoteToEquipo } from '../../../../lib/stock'
 import { costoPorUnidad, estadoLoteRecepcion, normalizarSeriales, RESULTADOS_INCIDENCIA, RESULTADOS_RECEPCION, resumenRecepcion } from '../../../../lib/supply'
 import { numeroOpcional } from '../../../../lib/montos'
 import { moduloGuard } from '../../../../lib/modulos-guard'
+import { marcarLlegadaDeLineas, recibirRapido, RecepcionRapidaError } from '../../../../lib/supply-quick-receive'
 
 // #250 Fase 5 (Centro de Abastecimiento): recepción del envío entrante.
 //
@@ -112,6 +113,19 @@ export async function POST(request: Request) {
 
   let body: any
   try { body = await request.json() } catch { return error('JSON inválido.') }
+  // Venta sin stock: «Recibido» rápido de un producto sin serial (un toque + cantidad).
+  if (body?.action === 'receiveQuick') {
+    const needId = typeof body?.needId === 'string' ? body.needId.trim() : ''
+    if (!needId) return error('Indicá la necesidad que llegó.')
+    try {
+      const resultado = await prisma.$transaction((tx) => recibirRapido(tx, { tenantId: tenant, userId: session.user.id, needId, quantity: body?.quantity }))
+      return json(resultado)
+    } catch (cause) {
+      if (cause instanceof RecepcionRapidaError) return error(cause.message, cause.status)
+      throw cause
+    }
+  }
+
   const shipmentId = typeof body?.shipmentId === 'string' ? body.shipmentId.trim() : ''
   const code = typeof body?.code === 'string' ? body.code.trim().toUpperCase() : ''
   const token = typeof body?.token === 'string' ? body.token.trim() : ''
@@ -279,6 +293,9 @@ export async function PATCH(request: Request) {
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: unidad.id, metadata: { serial: item.serial, productId: item.productId, branchId: recepcion.shipment.destinationBranchId, locationId: deposito.id, envio: recepcion.shipment.code } } })
       await tx.supplyShipmentItem.update({ where: { id: esperado.id }, data: { status: 'RECIBIDO' } })
     }
+    // Venta sin stock: lo que se recibió cubre las ventas originales (queda «Llegó»).
+    const lineasRecibidas = recepcion.items.filter((item) => item.resultado === 'RECIBIDO').map((item) => esperados.find((fila) => fila.id === item.shipmentItemId)?.lineId).filter((id): id is string => Boolean(id))
+    if (lineasRecibidas.length) await marcarLlegadaDeLineas(tx, { tenantId: tenant, userId: session.user.id, lineIds: lineasRecibidas })
     // Lo esperado sin escanear queda faltante (no entra al stock).
     const cubiertos = new Set(recepcion.items.map((item) => item.shipmentItemId).filter(Boolean) as string[])
     for (const esperado of esperados) {

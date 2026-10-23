@@ -567,7 +567,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         <FormActions className="items-center">
           {feedbackFicha && <span role={feedbackFichaTipo === 'error' ? 'alert' : 'status'} data-testid="cliente-guardado" className={cn('min-w-0 text-xs font-semibold md:mr-auto', feedbackFichaTipo === 'error' ? 'text-bad-text' : feedbackFichaTipo === 'success' ? 'text-ok' : 'text-fono-light')}>{feedbackFicha}</span>}
           {editar && colapsarFicha && <Button type="button" variant="outline" className="min-h-11 md:h-11" onClick={() => { setAbierto(false); setEditar(false) }}>Cerrar edición</Button>}
-          <Button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className="min-h-11 md:h-11" onClick={confirmarFicha}>Confirmar cliente</Button>
+          <Button type="button" data-testid="confirmar-cliente" disabled={guardandoFicha} className={cn('min-h-11 md:h-11', !feedbackFicha && !(editar && colapsarFicha) && 'w-full')} onClick={confirmarFicha}>Confirmar cliente</Button>
         </FormActions>
         {onBillingChange && (
           <section aria-label="Facturación" className="rounded-xl border border-ink-600 px-3 py-2">

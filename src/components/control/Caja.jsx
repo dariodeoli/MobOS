@@ -496,7 +496,9 @@ export default function Caja() {
     try {
       const url = `/api/finance${sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''}`
       // Repuesto del taller: deuda total (sin monto a mano) y egreso opcional.
-      const cuerpo = proveedorAccion.tipo === 'pagar-taller'
+      const cuerpo = proveedorAccion.tipo === 'asignar-cuenta'
+        ? { action: 'supplyPaymentAccount', purchaseId: proveedorAccion.fila.id, accountId: proveedorCuenta }
+        : proveedorAccion.tipo === 'pagar-taller'
         ? { action: 'workshopPartPayment', id: proveedorAccion.fila.id, ...(proveedorCuenta ? { accountId: proveedorCuenta } : {}) }
         : {
           action: proveedorAccion.tipo === 'pagar' ? 'supplierPayment' : 'supplierConsumption',
@@ -977,6 +979,32 @@ export default function Caja() {
               )}
             />
           )}
+          {finance?.supplyPaymentsNoAccount?.rows?.length > 0 && (
+            <div className="mt-4 space-y-2 border-t border-ink-600 pt-4" data-testid="pagos-sin-cuenta">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold">Pagos a proveedor sin cuenta</h4>
+                  <p className="mt-0.5 text-xs text-mute">Compras que el encargado marcó «ya pagadas» sin elegir cuenta. Asigná la cuenta de la que salió la plata: la salida de caja se registra una sola vez.</p>
+                </div>
+                <div className="text-right">
+                  <Label>Sin cuenta</Label>
+                  <strong className="tabular-nums text-warn" data-testid="pagos-sin-cuenta-total"><Money value={finance.supplyPaymentsNoAccount.totalPyg} /></strong>
+                </div>
+              </div>
+              <ul className="space-y-1.5">
+                {finance.supplyPaymentsNoAccount.rows.map(fila => (
+                  <li key={fila.id} data-testid={`pago-sin-cuenta-${fila.id}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-ink-600 px-3 py-2">
+                    <div className="min-w-0 flex-1 basis-48">
+                      <p className={cn(CELDA_IDENTIDAD, 'max-w-full')}>{fila.supplierName || 'Proveedor'}</p>
+                      <p className="text-xs text-mute">Compra {fila.code}{fila.paidAt ? ` · marcada pagada ${new Date(fila.paidAt).toLocaleDateString('es-PY')}` : ''}</p>
+                    </div>
+                    <strong className="tabular-nums"><Money value={fila.amountPyg} /></strong>
+                    <Button type="button" variant="outline" className="min-h-11" data-testid="pago-sin-cuenta-asignar" onClick={() => { setProveedorError(''); setProveedorCuenta(''); setProveedorAccion({ tipo: 'asignar-cuenta', fila }) }}>Asignar cuenta</Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {taller && taller.rows.length > 0 && (
             <div className="mt-4 space-y-3 border-t border-ink-600 pt-4" data-testid="taller-repuestos">
               <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1384,25 +1412,27 @@ export default function Caja() {
           </div>
         </form>
       </Popup>
-      <Popup open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
+      <Popup open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'asignar-cuenta' ? 'Asignar cuenta al pago' : proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
         <form onSubmit={confirmarAccionProveedor} className="space-y-3">
           <p className="text-sm text-mute">
-            {proveedorAccion?.tipo === 'pagar-taller'
+            {proveedorAccion?.tipo === 'asignar-cuenta'
+              ? <>{proveedorAccion?.fila.supplierName} · compra {proveedorAccion?.fila.code}. Pago de <b className="text-fore">{formatGs(proveedorAccion?.fila.amountPyg || 0)}</b> marcado sin cuenta.</>
+              : proveedorAccion?.tipo === 'pagar-taller'
               ? <>{proveedorAccion?.fila.name} · {proveedorAccion?.fila.code}. Deuda <b className="text-fore">{formatGs(proveedorAccion?.fila.deudaPyg || 0)}</b> (pago total).</>
               : <>{proveedorAccion?.fila.supplierName} · {proveedorAccion?.fila.concept}.{' '}
                 {proveedorAccion?.tipo === 'pagar'
                   ? `Pendiente ${formatGs(proveedorAccion?.fila.pendientePyg || 0)}.`
                   : `En depósito ${formatGs(proveedorAccion?.fila.depositoPyg || 0)}: lo consumido pasa a pagarse.`}</>}
           </p>
-          {proveedorAccion?.tipo !== 'pagar-taller' && (
+          {proveedorAccion?.tipo !== 'pagar-taller' && proveedorAccion?.tipo !== 'asignar-cuenta' && (
             <FormField label="Monto (Gs)" htmlFor="prov-accion-monto">
               <MoneyInput id="prov-accion-monto" value={proveedorMonto} onValueChange={setProveedorMonto} placeholder="0" />
             </FormField>
           )}
           {proveedorAccion?.tipo !== 'consumir' && (
-            <FormField label="Cuenta de salida (opcional)" htmlFor="prov-accion-cuenta">
+            <FormField label={proveedorAccion?.tipo === 'asignar-cuenta' ? 'Cuenta de salida' : 'Cuenta de salida (opcional)'} htmlFor="prov-accion-cuenta">
               <Select id="prov-accion-cuenta" value={proveedorCuenta} onChange={evento => setProveedorCuenta(evento.target.value)}>
-                <option value="">Solo registrar el pago</option>
+                <option value="">{proveedorAccion?.tipo === 'asignar-cuenta' ? 'Elegí la cuenta…' : 'Solo registrar el pago'}</option>
                 {(finance?.accounts || []).map(cuenta => <option key={cuenta.id} value={cuenta.id}>{cuenta.name} · {cuenta.currency}</option>)}
               </Select>
             </FormField>
@@ -1410,7 +1440,7 @@ export default function Caja() {
           {proveedorError && <Aviso tono="error">{proveedorError}</Aviso>}
           <div className={PIE_ACCIONES_REVERSO}>
             <Button type="button" variant="ghost" disabled={proveedorBusy} onClick={() => setProveedorAccion(null)}>Cancelar</Button>
-            <Button type="submit" disabled={proveedorBusy || (proveedorAccion?.tipo !== 'pagar-taller' && !proveedorMonto)}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'consumir' ? 'Registrar consumo' : 'Registrar pago'}</Button>
+            <Button type="submit" disabled={proveedorBusy || (proveedorAccion?.tipo === 'asignar-cuenta' ? !proveedorCuenta : proveedorAccion?.tipo !== 'pagar-taller' && !proveedorMonto)}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'consumir' ? 'Registrar consumo' : proveedorAccion?.tipo === 'asignar-cuenta' ? 'Asignar cuenta' : 'Registrar pago'}</Button>
           </div>
         </form>
       </Popup>

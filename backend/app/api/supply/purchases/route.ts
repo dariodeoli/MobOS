@@ -4,6 +4,9 @@ import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { coberturaDeCompra, codigoCompra, compararModelo, costoPorUnidad, cuadrarSeriales, normalizarCierreDeCostos, normalizarCompra, normalizarLineasCompra, resumenPreparacion, estadoSerialCompra, validarQuitarSerial } from '../../../../lib/supply'
 import { numero, numeroOpcional } from '../../../../lib/montos'
 import { moduloGuard } from '../../../../lib/modulos-guard'
+import { puedeFinanzas } from '../../../../lib/supplier-payables'
+import { marcarCompraPagada, modoDePago, PagoCompraError } from '../../../../lib/supply-payments'
+import { propagarCostoAVentas, revertirCostoDeVentas } from '../../../../lib/supply-costs'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -142,7 +145,9 @@ export async function GET(request: Request) {
     select: {
       id: true, code: true, status: true, supplierId: true, supplierName: true, currency: true,
       originalCost: true, exchangeRatePyg: true, costPyg: true, reference: true, notes: true,
-      branchId: true, createdAt: true,
+      branchId: true, createdAt: true, paymentCondition: true, dueAt: true,
+      paidAt: true, paidById: true, paidAccountId: true, paymentPendingAccount: true,
+      payable: { select: { amountPyg: true, paidPyg: true } },
       branch: { select: { name: true } },
       // #278 · la lista de compra (§11) sale del propio listado: quién compró
       // (firma del papel) y, por línea, los datos de su necesidad (prioridad,
@@ -222,6 +227,22 @@ export async function POST(request: Request) {
   if (!normalizada.ok) return error(normalizada.error)
   const compra = normalizada.data
 
+  // Decisión B: la compra «contado» ya no nace pagada sin salida de caja. Para
+  // marcarla pagada al registrarla hay que decirlo (`yaPagado`) y, con permiso de
+  // Finanzas, elegir la cuenta de origen; sin ese permiso queda «ya pagada» sin
+  // cuenta y Finanzas la completa después.
+  const finanzas = puedeFinanzas(session.user.permissions)
+  const accountIdPago = typeof body?.accountId === 'string' && body.accountId.trim() ? body.accountId.trim().slice(0, 128) : null
+  const pagarAhora = body?.yaPagado === true || Boolean(accountIdPago)
+  if (pagarAhora) {
+    if (compra.paymentCondition !== 'CONTADO') return error('Solo una compra al contado se registra como ya pagada: la de crédito se paga después con «Marcar pagado».')
+    if (compra.costPyg === null || compra.costPyg <= 0) return error('Para marcar la compra como pagada cargá primero el costo: sin monto no hay salida de caja.')
+    try { modoDePago({ finanzas, accountId: accountIdPago }) } catch (cause) {
+      if (cause instanceof PagoCompraError) return error(cause.message, cause.status)
+      throw cause
+    }
+  }
+
   // Proveedor: ficha de la empresa o nombre libre (se conserva el snapshot).
   let supplierName = compra.supplierName
   if (compra.supplierId) {
@@ -297,7 +318,6 @@ export async function POST(request: Request) {
     // proveedor (contado nace paga; crédito queda pendiente con vencimiento).
     // Sin costo (factura pendiente) no hay cuenta hasta que el monto exista.
     if (compra.costPyg !== null) {
-      const pagada = compra.paymentCondition === 'CONTADO'
       const cuenta = await tx.supplierPayable.create({
         data: {
           tenantId: tenant,
@@ -307,7 +327,7 @@ export async function POST(request: Request) {
           concept: `Compra ${code}`,
           condition: compra.paymentCondition as never,
           amountPyg: compra.costPyg,
-          paidPyg: pagada ? compra.costPyg : 0,
+          paidPyg: 0,
           dueAt: compra.dueAt ? new Date(compra.dueAt) : null,
           reference: code,
           supplyPurchaseId: cabecera.id,
@@ -324,7 +344,10 @@ export async function POST(request: Request) {
           metadata: { origen: 'SUPPLY_PURCHASE', code, condition: compra.paymentCondition, amountPyg: numeroOpcional(compra.costPyg), dueAt: compra.dueAt },
         },
       })
+      if (pagarAhora) await marcarCompraPagada(tx, { tenantId: tenant, userId: session.user.id, purchaseId: cabecera.id, accountId: accountIdPago, finanzas })
     }
+    // El costo de la compra llega a la venta original (margen en la fecha de la venta).
+    await propagarCostoAVentas(tx, cabecera.id, { tenantId: tenant, userId: session.user.id })
     await tx.auditLog.create({
       data: {
         tenantId: tenant,
@@ -348,9 +371,11 @@ export async function POST(request: Request) {
     })
     return cabecera
   }).catch((cause: any) => {
+    if (cause instanceof PagoCompraError) return cause
     if (String(cause?.code) === 'P2002') return null
     throw cause
   })
+  if (creada instanceof PagoCompraError) return error(creada.message, creada.status)
   if (!creada) return error('El código de la compra ya existe (reintentá).', 409)
 
   return json(await compraConDetalle(creada.id, tenant), { status: 201 })
@@ -371,6 +396,22 @@ export async function PATCH(request: Request) {
   const compra = await prisma.supplyPurchase.findFirst({ where: { id, tenantId: tenant } })
   if (!compra) return error('Compra no encontrada.', 404)
 
+  // Decisión A/D: «Marcar pagado». El encargado de stock puede; elegir la cuenta
+  // (salida de caja/banco) exige Finanzas, y sin ese permiso queda «ya pagado» sin
+  // cuenta para que Finanzas la asigne (nunca dos salidas).
+  if (body?.action === 'markPaid') {
+    const finanzas = puedeFinanzas(session.user.permissions)
+    const accountId = typeof body?.accountId === 'string' && body.accountId.trim() ? body.accountId.trim().slice(0, 128) : null
+    try {
+      const resultado = await prisma.$transaction((tx) => marcarCompraPagada(tx, { tenantId: tenant, userId: session.user.id, purchaseId: compra.id, accountId, finanzas }))
+      return json({ ...(await compraConDetalle(compra.id, tenant)), pago: resultado })
+    } catch (cause: any) {
+      if (cause instanceof PagoCompraError) return error(cause.message, cause.status)
+      if (String(cause?.code) === 'P2002') return error('La salida de caja de esta compra ya se registró.', 409)
+      throw cause
+    }
+  }
+
   if (body?.action === 'cancel') {
     if (compra.status === 'CANCELADA') return error('La compra ya está cancelada.', 409)
     const motivo = typeof body?.reason === 'string' ? body.reason.trim() : ''
@@ -384,8 +425,13 @@ export async function PATCH(request: Request) {
     if (conPlataReal) {
       return error('La cuenta a pagar de esta compra ya tiene pagos o consumo: resolvela en Finanzas antes de cancelar.', 409)
     }
+    if (compra.paidAt) return error('La compra ya está pagada: resolvé la devolución del pago en Finanzas antes de cancelar.', 409)
+    const recibidas = await prisma.supplyPurchaseLine.findFirst({ where: { purchaseId: compra.id, tenantId: tenant, need: { is: { receivedQty: { gt: 0 } } } }, select: { id: true } })
+    if (recibidas) return error('Ya se recibió mercadería de esta compra: no se puede cancelar.', 409)
     const actualizada = await prisma.$transaction(async (tx) => {
       const fila = await tx.supplyPurchase.update({ where: { id: compra.id }, data: { status: 'CANCELADA', notes: motivo.slice(0, 500) } })
+      // El costo que esta compra le había dado a las ventas se recalcula con las compras que quedan.
+      await revertirCostoDeVentas(tx, compra.id, { tenantId: tenant, userId: session.user.id })
       if (cuenta) {
         await tx.supplierPayable.delete({ where: { id: cuenta.id } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLIER_PAYABLE_CANCELLED', entity: 'SupplierPayable', entityId: cuenta.id, metadata: { code: compra.code, reason: motivo.slice(0, 500) } } })
@@ -477,6 +523,36 @@ export async function PATCH(request: Request) {
   // real, y las unidades ya recibidas con el costo pendiente se completan.
   // Nunca se pisa un costo ya congelado ni una cuenta con pagos: eso va por
   // Finanzas (no se revalúa stock ni se mueve plata registrada en silencio).
+  // «Cargar costo» de Por comprar: costo por unidad (de todas las líneas sin costo o
+  // de las líneas indicadas por línea/necesidad). Se resuelve con el mismo cierre
+  // de costos, que además lo imputa a las ventas originales.
+  if (body?.action === 'setCost') {
+    const lineasCompra = await prisma.supplyPurchaseLine.findMany({ where: { purchaseId: compra.id, tenantId: tenant }, select: { id: true, needId: true, unitCostPyg: true }, orderBy: { createdAt: 'asc' } })
+    const general = body?.unitCostPyg === undefined || body?.unitCostPyg === null || body?.unitCostPyg === '' ? null : Number(body.unitCostPyg)
+    if (general !== null && (!Number.isSafeInteger(general) || general < 0)) return error('El costo unitario debe ser un entero en guaraníes.')
+    const pedidas = Array.isArray(body?.lines) ? body.lines : []
+    const mapa = new Map<string, number>()
+    for (const fila of pedidas) {
+      const id = typeof fila?.lineId === 'string' ? fila.lineId : typeof fila?.id === 'string' ? fila.id : ''
+      const linea = lineasCompra.find((candidata) => candidata.id === id || (fila?.needId && candidata.needId === fila.needId))
+      if (!linea) return error('Alguna línea del costo no pertenece a la compra.')
+      const costo = Number(fila?.unitCostPyg)
+      if (!Number.isSafeInteger(costo) || costo < 0) return error('El costo unitario debe ser un entero en guaraníes.')
+      mapa.set(linea.id, costo)
+    }
+    if (general === null && !mapa.size) return error('Indicá el costo unitario.')
+    body = {
+      ...body,
+      action: 'costs',
+      lines: lineasCompra.flatMap((linea) => {
+        const costo = mapa.get(linea.id) ?? (general !== null && linea.unitCostPyg === null ? general : null)
+        return costo === null ? [] : [{ id: linea.id, unitCostPyg: costo }]
+      }),
+    }
+    delete body.unitCostPyg
+    delete body.originalCost
+  }
+
   if (body?.action === 'costs') {
     if (compra.status === 'CANCELADA') return error('La compra está cancelada.', 409)
     const conLineas = await prisma.supplyPurchase.findFirst({
@@ -533,7 +609,6 @@ export async function PATCH(request: Request) {
 
       // Cuenta a pagar: nace si el costo recién aparece; si sigue impaga, se
       // corrige el monto/condición. Con plata real no se toca (validado arriba).
-      const pagada = cierre.paymentCondition === 'CONTADO'
       let cuentaId = cuenta?.id || null
       if (cierre.costPyg !== null) {
         if (cuentaId) {
@@ -541,7 +616,7 @@ export async function PATCH(request: Request) {
             where: { id: cuentaId },
             data: {
               amountPyg: cierre.costPyg,
-              paidPyg: pagada ? cierre.costPyg : 0,
+              paidPyg: 0,
               condition: cierre.paymentCondition as never,
               dueAt: cierre.dueAt ? new Date(cierre.dueAt) : null,
             },
@@ -557,7 +632,7 @@ export async function PATCH(request: Request) {
               concept: `Compra ${compra.code}`,
               condition: cierre.paymentCondition as never,
               amountPyg: cierre.costPyg,
-              paidPyg: pagada ? cierre.costPyg : 0,
+              paidPyg: 0,
               dueAt: cierre.dueAt ? new Date(cierre.dueAt) : null,
               reference: compra.code,
               supplyPurchaseId: compra.id,
@@ -597,6 +672,9 @@ export async function PATCH(request: Request) {
         }
       }
 
+      // Decisión C: el costo llega a la venta original (margen en la fecha de la venta).
+      const imputacion = await propagarCostoAVentas(tx, compra.id, { tenantId: tenant, userId: session.user.id })
+
       await tx.auditLog.create({
         data: {
           tenantId: tenant,
@@ -609,14 +687,15 @@ export async function PATCH(request: Request) {
             before: { currency: compra.currency, costPyg: numeroOpcional(compra.costPyg), originalCost: compra.originalCost === null ? null : Number(compra.originalCost) },
             after: { currency: cierre.currency, costPyg: cierre.costPyg, originalCost: cierre.originalCost },
             unidadesCompletadas,
+            ventasConCosto: imputacion.imputadas,
           },
         },
       })
-      return { unidadesCompletadas }
+      return { unidadesCompletadas, ventasConCosto: imputacion.imputadas }
     })
 
     const detalle = await compraConDetalle(compra.id, tenant)
-    return json({ ...detalle, unidadesCompletadas: resultado.unidadesCompletadas })
+    return json({ ...detalle, unidadesCompletadas: resultado.unidadesCompletadas, ventasConCosto: resultado.ventasConCosto })
   }
 
   // IMEI: carga múltiple (pegado) o escaneo de a uno (mobile). Ambos comparten
@@ -697,5 +776,5 @@ export async function PATCH(request: Request) {
     return json(await compraConDetalle(compra.id, tenant))
   }
 
-  return error('Acción inválida: usá cancel, addLines, serials, scan o removeSerial.')
+  return error('Acción inválida: usá cancel, markPaid, setCost, costs, addLines, serials, scan o removeSerial.')
 }
