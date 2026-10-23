@@ -87,7 +87,7 @@ for (const [kind, name] of [['titular', 'Ana Prueba'], ['empresa', 'Empresa Fict
     await page.getByRole('button', { name: `Guardar ${kind}`, exact: true }).click()
     await expect(page.getByRole('button', { name: `Editar ${name}`, exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Abrir cuentas', exact: true }).click()
-    await page.getByRole('button', { name: 'Añadir cuenta', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Agregar cuenta', exact: true }).first().click()
     await page.locator('#pa-kind').selectOption('PIX')
     await page.locator('#pa-holder').fill(name)
     await expect(page.getByRole('option', { name: new RegExp(name) })).toBeVisible()

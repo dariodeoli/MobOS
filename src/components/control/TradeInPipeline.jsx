@@ -252,7 +252,7 @@ function Valuaciones({ esDemo }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" disabled={busy || loading || !!form} onClick={load}>Actualizar</Button>
-        <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Añadir valor</Button>
+        <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Agregar valor</Button>
       </div>
     </div>
     {loading && <p role="status" className="text-sm text-mute">Cargando valores…</p>}

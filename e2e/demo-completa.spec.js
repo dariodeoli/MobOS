@@ -223,7 +223,7 @@ test.describe('demo completa · acciones', () => {
     await irA(page, '/trade-in')
     await expect(page.getByText('Valores de toma').first()).toBeVisible()
     await expect(page.getByText('iPhone 15 Pro Max').first()).toBeVisible()
-    await page.getByRole('button', { name: 'Añadir valor' }).click()
+    await page.getByRole('button', { name: 'Agregar valor' }).click()
     await page.locator('#dv-model').fill('iPhone 16')
     await page.locator('#dv-base').fill('6000000')
     await page.getByRole('button', { name: /Guardar|Crear/ }).last().click()

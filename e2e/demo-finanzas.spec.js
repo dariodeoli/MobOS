@@ -19,7 +19,7 @@ test.describe('demo de Finanzas', () => {
     await page.goto('/finanzas/bancos')
     await expect(page.getByRole('heading', { name: 'Bancos y cuentas' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Añadir cuenta' }).click()
+    await page.getByRole('button', { name: 'Agregar cuenta' }).click()
     // #311: el alta vive en un cajón y el switch «Cuenta activa» queda descrito.
     await expect(page.locator('#pa-active')).toHaveAttribute('aria-describedby', 'pa-active-desc')
     await expect(page.locator('#pa-active-desc')).toContainText('historial')
