@@ -9,7 +9,10 @@ export function actualizarProductoDemo(actual, payload = {}) {
   const cambios = { ...campos }
   if (campos.pricePyg !== undefined) cambios.precioVenta = campos.pricePyg
   if (campos.costPyg !== undefined) cambios.precioCosto = campos.costPyg ?? 0
-  if (campos.category !== undefined) cambios.categoria = campos.category
+  // La ficha manda valores por defecto (p. ej. categoría «Otros»): no se pisan datos que el producto demo no trae.
+  for (const clave of ['category', 'condition', 'model', 'color', 'capacity']) {
+    if (cambios[clave] !== undefined && actual[clave] === undefined) delete cambios[clave]
+  }
   updateProducto(id || actual.id, cambios)
   return { ...actual, ...(getProductos().find((p) => p.id === (id || actual.id)) || {}), ...cambios }
 }
