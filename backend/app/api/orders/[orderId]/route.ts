@@ -64,6 +64,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
     if (existing.status === 'CANCELLED') throw new InputError('Un pedido cancelado no admite cambios.', 409)
 
+    // La deuda a crédito/fiado/cuotas pertenece al cliente: con saldo pendiente
+    // el pedido no cambia de titular ni queda sin cliente (409 con motivo claro).
+    const assertClienteEditable = () => {
+      const pendiente = Number(existing.totalPyg) - Number(netPaid(existing.payments))
+      if (pendiente > 0 && (existing.creditDays || existing.dueAt)) {
+        throw new InputError('El pedido tiene saldo a crédito pendiente: cobralo antes de cambiar o quitar el cliente.', 409)
+      }
+    }
+
     // ── Entregar equipos sobre pedido: agregar IMEI/seriales a una línea ──
     if (body.action !== undefined) {
       // Cliente ocasional (#149): asignar, cambiar o quitar la ficha del pedido.
@@ -74,7 +83,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           : null
         if (customerId && !customer) throw new InputError('Cliente no encontrado.')
         const updated = await prisma.$transaction(async tx => {
-          if (customerId !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
+          if (customerId !== existing.customerId) { assertClienteEditable(); await assertNoCreditAuthorization(tx, tenant, existing.id) }
           const order = await tx.order.update({ where: { id: existing.id }, data: { customerId } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: customerId ? 'ORDER_CUSTOMER_CHANGED' : 'ORDER_CUSTOMER_REMOVED', entity: 'Order', entityId: existing.id, metadata: { previousCustomerId: existing.customerId, previousCustomerName: existing.customer?.name || null, customerId, customerName: customer?.name || null } } })
           return order
@@ -98,7 +107,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
             : phone
               ? await tx.customer.findFirst({ where: { tenantId: tenant, phone, archivedAt: null }, select: { id: true, name: true, phone: true } })
               : await tx.customer.findFirst({ where: { tenantId: tenant, archivedAt: null, name: { equals: nombre, mode: 'insensitive' } }, select: { id: true, name: true, phone: true } })
-          if (existente?.id !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
+          if (existente?.id !== existing.customerId) { assertClienteEditable(); await assertNoCreditAuthorization(tx, tenant, existing.id) }
           const ficha = existente || (await tx.customer.create({ data: { tenantId: tenant, createdById: session.user.id, name: nombre, ...(phone ? { phone, countryCode } : {}), ...(document ? { document } : {}), ...(email ? { email } : {}) }, select: { id: true, name: true, phone: true } }))
           await tx.order.update({ where: { id: existing.id }, data: { customerId: ficha.id } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CUSTOMER_CREATED', entity: 'Order', entityId: existing.id, metadata: { customerId: ficha.id, customerName: ficha.name, matched: Boolean(existente) } } })

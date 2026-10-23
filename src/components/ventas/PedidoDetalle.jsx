@@ -13,6 +13,7 @@ import Avatar from '@/components/shared/Avatar'
 import PersonaChip from '@/components/shared/PersonaChip'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { cn, primerNombre } from '@/lib/utils'
+import { internationalPhone, whatsappUrl } from '@/utils/telefono'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AvisarPorCorreo from '@/components/shared/AvisarPorCorreo'
 import { plantillaDeEntrega, variablesDeProducto } from '@/lib/avisos'
@@ -321,7 +322,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   ].filter(Boolean).length
   const correoEnTitulo = accionesEntrega === 0
   const correoAviso = (
-    <AvisarPorCorreo email={order.customer?.email || order.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} demoCorreo={demoCorreoDePedido(order)} />
+    <AvisarPorCorreo email={order.customer?.email || order.email} category="ORDERS" evento={eventoAviso} contexto={contextoWhatsApp} disabled={avisando || busy} title={order.customer?.name} demoCorreo={demoCorreoDePedido(order)} className="-my-2.5" />
   )
 
   async function avisarPorWhatsApp() {
@@ -714,43 +715,64 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           <aside className="ventas-f3-page-side" aria-label="Información del pedido" data-testid="pedido-lateral">
             {/* Notas */}
             <section className="ventas-f3-detail-section p-3" data-testid="pedido-notas">
-              <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="edit" className="h-3.5 w-3.5" /> Notas</h3>
+              <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="edit" className="h-3.5 w-3.5" /> Notas{!anulado && !notaOpen && <button type="button" aria-label={order.notes ? 'Editar nota' : 'Agregar nota'} title={order.notes ? 'Editar nota' : 'Agregar nota'} data-testid="pedido-nota-lapiz" className="-my-2.5 ml-auto grid h-11 w-11 place-items-center rounded-lg text-mute hover:bg-ink-700 hover:text-fore" onClick={() => { setNotaTexto(order.notes || ''); setNotaOpen(true) }}><Icon name={order.notes ? 'edit' : 'plus'} className="h-3.5 w-3.5" /></button>}</h3>
               {order.notes && !notaOpen && <p className="whitespace-pre-wrap text-sm text-fore">{order.notes}</p>}
               {!order.notes && !notaOpen && <p className="text-xs text-mute">Sin notas.</p>}
-              {!esDemo && (notaOpen ? (
-                <div className="mt-2 space-y-2">
-                  <Textarea rows={2} maxLength={2000} value={notaTexto} onChange={(event) => setNotaTexto(event.target.value)} placeholder="Nota interna del pedido" aria-label="Nota del pedido" />
+              {!anulado && (notaOpen ? (
+                <div className="mt-2 space-y-2" onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setNotaOpen(false) } }}>
+                  <Textarea autoFocus rows={2} maxLength={2000} value={notaTexto} onChange={(event) => setNotaTexto(event.target.value)} placeholder="Nota interna del pedido" aria-label="Nota del pedido" />
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="ghost" onClick={() => setNotaOpen(false)}>Cancelar</Button>
                     <Button
                       type="button"
                       disabled={busy}
-                      onClick={() => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))}
+                      onClick={() => {
+                        if (esDemo) { setDetail({ ...order, notes: notaTexto.trim() || null }); onChanged?.(); setNotaOpen(false); toast.success('Nota guardada.'); return }
+                        accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))
+                      }}
                     >
                       Guardar nota
                     </Button>
                   </div>
                 </div>
-              ) : (
-                <button type="button" className="mt-1 inline-flex min-h-11 items-center text-xs font-semibold text-fono-light hover:underline lg:min-h-0" onClick={() => { setNotaTexto(order.notes || ''); setNotaOpen(true) }}>
-                  {order.notes ? 'Editar nota' : '＋ Agregar nota'}
-                </button>
-              ))}
+              ) : null)}
             </section>
 
             {/* Cliente */}
             <section className="ventas-f3-detail-section p-3" data-testid="pedido-cliente">
               <h3 className="ventas-f3-card-title !px-0 !pt-0"><Icon name="user" className="h-3.5 w-3.5" /> Cliente</h3>
-              <div className="flex items-start gap-2.5">
-                <Avatar user={{ name: nombreCliente }} size="md" />
-                <div className="min-w-0 flex-1">
-                  <p className="ventas-f3-name">{nombreCliente}</p>
-                  {customerOrderCount > 0 && <p className="text-xs text-fono-light">{customerOrderCount} pedido{customerOrderCount === 1 ? '' : 's'}</p>}
-                  <p className="mt-0.5 break-words text-xs text-mute">{order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : 'Sin teléfono'}</p>
-                  {order.customer?.email && <p className="break-all text-xs text-mute">{order.customer.email}</p>}
-                  {order.customer?.document && <p className="text-xs text-mute">CI/RUC {order.customer.document}</p>}
-                  {order.customer?.id && !esDemo && <Link to={`/clientes?cliente=${encodeURIComponent(order.customer.id)}`} className="mt-1 inline-flex min-h-11 items-center text-xs font-semibold text-fono-light hover:underline lg:min-h-0" data-testid="pedido-ver-perfil">Ver perfil</Link>}
-                </div>
+              <div className="flex items-start gap-1">
+                {order.customer?.id && !esDemo ? (
+                  <Link to={`/clientes?cliente=${encodeURIComponent(order.customer.id)}`} state={{ volverA: `${ubicacion.pathname}${ubicacion.search}` }} aria-label={`Ver ficha de ${nombreCliente}`} data-testid="pedido-ver-perfil" className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg hover:bg-ink-700/60">
+                    <Avatar user={{ name: nombreCliente }} size="md" />
+                    <span className="min-w-0 flex-1"><span className="ventas-f3-name block">{nombreCliente}</span></span>
+                    <Icon name="arrowRight" className="h-4 w-4 shrink-0 text-mute" />
+                  </Link>
+                ) : (
+                  <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5">
+                    <Avatar user={{ name: nombreCliente }} size="md" />
+                    <p className="ventas-f3-name min-w-0 flex-1">{nombreCliente}</p>
+                  </div>
+                )}
+                {(order.customer?.phone || order.customer?.email) && (
+                  <div className="flex shrink-0 items-center" data-testid="pedido-cliente-contacto">
+                    {order.customer?.phone && <a href={whatsappUrl(order.customer.phone, '', order.customer.countryCode || '+595')} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp al cliente" title="WhatsApp" className="grid h-11 w-11 place-items-center rounded-lg text-fono-light hover:bg-fono/10"><Icon name="send" className="h-4 w-4" /></a>}
+                    {order.customer?.phone && <a href={`tel:${internationalPhone(order.customer.phone, order.customer.countryCode || '+595')}`} aria-label="Llamar al cliente" title="Llamar" className="grid h-11 w-11 place-items-center rounded-lg text-fono-light hover:bg-fono/10"><Icon name="phone" className="h-4 w-4" /></a>}
+                    {order.customer?.email && <a href={`mailto:${order.customer.email}`} aria-label="Escribir un correo al cliente" title="Correo" className="grid h-11 w-11 place-items-center rounded-lg text-fono-light hover:bg-fono/10"><Icon name="mail" className="h-4 w-4" /></a>}
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 pl-1">
+                {customerOrderCount > 0 && (order.customer?.id && !esDemo
+                  ? <Link to={`/pedidos?q=${encodeURIComponent(nombreCliente)}`} data-testid="pedido-cliente-pedidos" className="inline-flex min-h-11 items-center text-xs font-semibold text-ok hover:underline lg:min-h-0">{customerOrderCount} pedido{customerOrderCount === 1 ? '' : 's'}</Link>
+                  : <p className="text-xs text-ok">{customerOrderCount} pedido{customerOrderCount === 1 ? '' : 's'}</p>)}
+                {order.customer?.phone
+                  ? <p className="mt-0.5 break-words text-xs text-mute">{order.customer.countryCode || '+595'} {order.customer.phone}</p>
+                  : (order.customer?.id && !esDemo
+                    ? <Link to={`/clientes?cliente=${encodeURIComponent(order.customer.id)}&tab=datos`} state={{ volverA: `${ubicacion.pathname}${ubicacion.search}` }} data-testid="pedido-agregar-telefono" className="inline-flex min-h-11 items-center text-xs font-semibold text-fono-light hover:underline lg:min-h-0">＋ Agregar teléfono</Link>
+                    : <p className="mt-0.5 text-xs text-mute">Sin teléfono</p>)}
+                {order.customer?.email && <p className="break-all text-xs text-mute">{order.customer.email}</p>}
+                {order.customer?.document && <p className="text-xs text-mute">CI/RUC {order.customer.document}</p>}
               </div>
               {!esDemo && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">

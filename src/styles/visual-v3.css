@@ -356,3 +356,21 @@ html.dark .v3-portal {
 }
 /* Botón primario deshabilitado dentro de ventanas: mismo aspecto que en el shell. */
 .v3-portal button.bg-fono:not([role='switch']):disabled { opacity: .45; cursor: not-allowed; }
+
+
+/* ── Ancho de lectura (pedido de Dario, pantallas anchas) ──────────────────
+   Páginas de detalle y formularios no se estiran de borde a borde: contenedor
+   compartido de hasta --v3-lectura, centrado. Los listados con tablas siguen a
+   todo el ancho pero con más padding lateral desde 1440. Móvil sin cambios. */
+:root { --v3-lectura: 1200px; --v3-padding-ancho: 2.5rem; }
+@media (min-width: 1024px) {
+  .shell-nav-v2 :is(.v3-lectura, .ventas-f3-page, [data-testid='config-pagina'], [data-testid='record-header']) {
+    max-width: var(--v3-lectura);
+    margin-inline: auto;
+  }
+}
+@media (min-width: 1440px) {
+  .shell-nav-v2 .shell-body > main,
+  .shell-nav-v2 .shell-body > div > main { padding-inline: var(--v3-padding-ancho); }
+  .shell-nav-v2 .shell-page-header-wrap { padding-inline: var(--v3-padding-ancho); }
+}

@@ -58,6 +58,6 @@ export async function updateOrderComment(db: Db, actor: OrderCommentActor, order
   // updateMany may wait on an Order row lock: revalidate live authorization after that wait.
   if (options.binding) await readOrderComment(db, actor, orderId, options.binding)
   const updated = await db.order.findUniqueOrThrow({ where: { id: order.id }, select: { id: true, notes: true, billingName: true, billingDocument: true, updatedAt: true } })
-  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'ORDER_BILLING_UPDATED', entity: 'Order', entityId: order.id, metadata: { billingName: updated.billingName, hasDocument: Boolean(updated.billingDocument) } } })
+  await db.auditLog.create({ data: { tenantId: actor.tenantId, userId: actor.id, action: 'ORDER_BILLING_UPDATED', entity: 'Order', entityId: order.id, metadata: { billingName: updated.billingName, hasDocument: Boolean(updated.billingDocument), ...(fields.notes !== undefined ? { notesBefore: order.notes ?? null, notesAfter: updated.notes ?? null } : {}) } } })
   return updated
 }
