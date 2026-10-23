@@ -72,6 +72,8 @@ async function preparar(page, marca) {
 async function limpiar(page, datos) {
   try {
     await page.evaluate(async ({ api, datos }) => {
+      // El apartado del carrito (5 min) frena la baja: se libera antes (el test de «Vender todos» deja el lote en el POS).
+      await fetch(`${api}/api/inventory-reservations/holds`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'release', serials: datos.unidades.map(unidad => unidad.serial) }) }).catch(() => {})
       for (const unidad of datos.unidades) {
         await fetch(`${api}/api/inventory-reservations`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'release', serials: [unidad.serial] }) }).catch(() => {})
         await fetch(`${api}/api/inventory-units`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: unidad.id, action: 'remove', reason: 'Limpieza del spec de QA' }) }).catch(() => {})
@@ -441,7 +443,7 @@ test('el costo se puede dejar pendiente y completar desde el detalle', async ({ 
     // La cronología deja el evento del costo con su valor.
     const cronologia = detalle.getByTestId('unidad-cronologia')
     await expect(cronologia.getByText('Costo del equipo')).toBeVisible()
-    await expect(cronologia.getByText(/Gs 1\.500\.000/)).toBeVisible()
+    await expect(cronologia.getByText(/Gs 1\.500\.000/).first()).toBeVisible()
 
     const guardado = await page.evaluate(async ({ api, serial }) => {
       const filas = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then(r => r.json())
@@ -579,6 +581,9 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     await page.getByLabel('Filtrar por ubicación').selectOption('')
     // Acotar estación a las tres unidades propias; otros tests también reciben stock.
     await page.getByLabel('Filtrar por ubicación').selectOption({ label: datos.locationName })
+    // Además se acota por el prefijo de los seriales del test: otros specs dejan unidades en la misma ubicación.
+    await page.getByLabel('Buscar en el taller').fill(datos.unidades[0].serial.slice(0, -1))
+    await expect(page.getByTestId('rack-equipo')).toHaveCount(3)
 
     // Selección de las unidades nuevas.
     for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()

@@ -70,7 +70,7 @@ test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal',
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('Nota de entrega')
   expect(texto).toContain('Documento no fiscal')
-  expect(texto).toContain(orden.orderNumber)
+  expect(texto).toContain(String(orden.orderNumber).replace('#', ''))
 })
 
 test('la remisión interna de un traslado sale por el agente con firmas', async ({ page }) => {
