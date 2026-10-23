@@ -70,7 +70,8 @@ test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal',
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('Nota de entrega')
   expect(texto).toContain('Documento no fiscal')
-  expect(texto).toContain(orden.orderNumber)
+  // El ticket imprime el código sin el «#» del número interno (MOB-#0009 → MOB-0009).
+  expect(texto).toContain(String(orden.orderNumber).replace('#', ''))
 })
 
 test('la remisión interna de un traslado sale por el agente con firmas', async ({ page }) => {

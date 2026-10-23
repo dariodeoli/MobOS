@@ -801,8 +801,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     const tituloPedido = codigoPedido(order.orderNumber || order.number) || 'Pedido'
     const vendedorNombre = order.seller?.name || order.sellerName || ''
     const vendedorId = order.seller?.id || order.sellerId || ''
+    const tipoComprobante = order.billingDocument ? 'Factura' : 'Comprobante'
     const subtitulo = [
-      order.billingDocument ? 'Factura' : 'Comprobante',
       order.createdAt || order.date ? fechaLegible(order.createdAt || order.date) : '',
       order.branch?.name || (typeof order.sucursal === 'string' ? order.sucursal : '') || sucursal?.nombre,
     ].filter(Boolean)
@@ -829,12 +829,20 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           }
           meta={(
             <span data-testid="pedido-subtitulo">
+              {/* En celular se omite el tipo de comprobante para que el subtítulo entre en una línea. */}
+              <span className="hidden sm:inline">{tipoComprobante} · </span>
               {subtitulo.join(' · ')}
               {vendedorNombre && (
                 <>
-                  {subtitulo.length > 0 ? ' · ' : ''}
+                  {' · '}
                   {puedeVerEquipo && !esDemo && vendedorId
-                    ? <Link to={`/configuracion/equipo?miembro=${encodeURIComponent(vendedorId)}`} state={{ volverA: `${ubicacion.pathname}${ubicacion.search}` }} data-testid="pedido-vendedor-ficha" className="font-semibold text-fono-light hover:underline">{vendedorNombre}</Link>
+                    ? (
+                      <>
+                        {/* En celular el nombre va como texto (un enlace en línea no llega a 44 px); desde tablet abre la ficha. */}
+                        <span className="md:hidden">{vendedorNombre}</span>
+                        <Link to={`/configuracion/equipo?miembro=${encodeURIComponent(vendedorId)}`} state={{ volverA: `${ubicacion.pathname}${ubicacion.search}` }} data-testid="pedido-vendedor-ficha" className="hidden font-semibold text-fono-light hover:underline md:inline">{vendedorNombre}</Link>
+                      </>
+                    )
                     : vendedorNombre}
                 </>
               )}
