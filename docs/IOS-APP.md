@@ -167,3 +167,15 @@ contraseña (12+ caracteres) en el campo de Información para la revisión.
 - `src/lib/plataforma.js` (plataforma, módulos), `src/lib/api/nativo.js` (Bearer y
   Keychain), `src/lib/nativo/*` (Apple, Google, escáner, push, PIN/Face ID, compartir),
   `src/components/nativo/*` (actualización, sin conexión, «Disponible pronto»).
+
+## Paridad con la web: medirla y mantenerla
+
+- `bash scripts/ios-paridad-capturas.sh [salida]` compila la app para simulador (sin ML Kit, restaura el
+  Podfile al terminar), la instala en un simulador propio (`mobos-paridad-390`, iPhone 16e, 390×844) y corre
+  los mismos pasos que la web móvil (`scripts/ios-paridad-pasos.mjs`) dentro de la WebView real, vía el
+  puente de QA `scripts/ios-paridad-puente.mjs` (solo para esta medición, no entra a la app de tienda).
+  Deja un PNG «simulador | web» por pantalla. `SKIP_BUILD=1` recaptura sin recompilar.
+- Guardia: `e2e/frontend/paridad-shell516.frontend.spec.js` (config `e2e/paridad-shell516.frontend.config.js`)
+  compara iOS simulado y web en todas las pantallas. Lista de diferencias admitidas y su motivo:
+  `docs/rediseno/ios-paridad/README.md`.
+- Las fuentes son propias (`@fontsource/inter`, `@fontsource/space-grotesk`): no dependen de la red.
