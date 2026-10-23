@@ -22,7 +22,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
 import { Aviso, Badge, BarraProgreso, Button, EmptyState, FormField, IconAction, Input, Label, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
-import { SaveActions } from '@/components/shared/popupKit'
+import { FormActions, SaveActions } from '@/components/shared/popupKit'
 import Popup from '@/components/shared/Popup'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { useSesion } from '@/lib/sesion'
@@ -643,7 +643,7 @@ export default function Compras() {
         {control.mostrarResumen && !control.valido && (
           <p role="alert" data-testid="compra-motivos" className="rounded-xl border border-bad/30 bg-bad/5 px-3 py-2 text-xs font-semibold text-bad">{control.motivo}</p>
         )}
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-mute shadow-lg shadow-black/10"><span>Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span><span className="flex items-center gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear pedido</Button></span></div>
+        <FormActions className="items-center"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear pedido</Button><span className="text-sm text-mute sm:order-first sm:mr-auto">Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span></FormActions>
       </form>
       {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     </VentanaDetalle>

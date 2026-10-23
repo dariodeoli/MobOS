@@ -26,6 +26,34 @@ html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0
 /* Mientras sale, el popup ya no captura clics ni oculta el resto a los lectores. */
 .popup-fondo[data-saliendo='true'] { pointer-events: none; }
 
+/* Compacidad (popups-compactos): escala 8pt, 16 px en móvil y 24 px en escritorio. */
+.popup-cuerpo { --popup-px: 1rem; --popup-pb: 0.75rem; }
+@media (min-width: 768px) { .popup-cuerpo { --popup-px: 1.5rem; --popup-pb: 1rem; } }
+/* Separación vertical entre bloques: 16 px como máximo (antes 20-24 px). */
+.popup-cuerpo .space-y-5 > :not([hidden]) ~ :not([hidden]),
+.popup-cuerpo .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+.popup-cuerpo .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.875rem; }
+.popup-cuerpo .gap-5, .popup-cuerpo .gap-6 { gap: 1rem; }
+/* Encabezados de sección en tipo normal (no MAYÚSCULAS); las pastillas y los
+   encabezados de tabla conservan su estilo. */
+.popup-cuerpo :is(h3, h4, h5, h6, legend, p, div, dt, summary, span).uppercase:not([class*='rounded']):not([role='columnheader']):not(th):not(button *) {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+}
+/* Acciones que una pantalla arma dentro del cuerpo (PIE_ACCIONES_REVERSO): quedan
+   pegadas al borde inferior como un pie fijo, sin botón suelto en una fila. */
+.popup-cuerpo .popup-acciones-cuerpo {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0.75rem calc(-1 * var(--popup-px)) calc(-1 * var(--popup-pb));
+  padding: 0.5rem var(--popup-px) var(--popup-pb);
+  border-top: 1px solid rgb(var(--c-ink-600));
+  background-color: rgb(var(--c-ink));
+  align-items: stretch;
+}
+@media (min-width: 640px) { .popup-cuerpo .popup-acciones-cuerpo { align-items: center; } }
 /* Teclado abierto (src/lib/enfoque.js): el popup se acota al área visible sobre el teclado. */
 html.teclado-abierto .popup-fondo { bottom: var(--teclado-alto, 0px); }
 html.teclado-abierto .popup-panel { max-height: 100%; }
