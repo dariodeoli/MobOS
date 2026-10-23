@@ -38,6 +38,19 @@ export async function findAccessiblePayment(paymentId: string, session: SessionC
   return payment
 }
 
+/**
+ * Quién puede subir el comprobante de un pago: quien lo cobró (el vendedor desde
+ * el mismo cobro del POS) o los roles verificadores. `findAccessiblePayment` ya
+ * limitó el acceso por sucursal y por pedido; esto cierra el resto.
+ */
+export function canUploadPaymentProof(
+  user: { id: string; role: string },
+  payment: { createdById?: string | null; userId?: string | null },
+) {
+  if ((RECONCILIATION_ROLES as readonly string[]).includes(user.role)) return true
+  return [payment.createdById, payment.userId].some(id => Boolean(id) && id === user.id)
+}
+
 export function safeDownloadName(fileName: string) {
   const baseName = fileName.split(/[\\/]/).pop() ?? 'comprobante'
   return (baseName.replace(/[\u0000-\u001f\u007f]/g, '_').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'comprobante')

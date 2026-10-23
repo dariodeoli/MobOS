@@ -2,7 +2,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
 import { saveAttachment } from '../../../../../lib/attachment-storage'
-import { findAccessiblePayment, MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../_lib'
+import { canUploadPaymentProof, findAccessiblePayment, MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../_lib'
 
 type RouteContext = { params: Promise<{ paymentId: string }> }
 
@@ -48,6 +48,7 @@ export async function POST(request: Request, props: RouteContext) {
   if (!session) return error('Falta sesión.', 401)
   const payment = await findAccessiblePayment(params.paymentId, session)
   if (!payment) return error('Pago no encontrado.', 404)
+  if (!canUploadPaymentProof(session.user, payment)) return error('Solo quien registró el cobro o quien verifica pagos puede subir su comprobante.', 403)
 
   const contentLengthHeader = request.headers.get('content-length')
   const contentLength = contentLengthHeader === null ? null : Number(contentLengthHeader)
@@ -61,6 +62,14 @@ export async function POST(request: Request, props: RouteContext) {
     if (cause instanceof Error && 'status' in cause) return error(cause.message, (cause as { status: 400 | 413 | 415 }).status)
     return error('No se pudo leer el comprobante.', 400)
   }
+
+  // Idempotente: el mismo archivo (mismo SHA-256) para el mismo pago no se duplica.
+  // Un reintento del POS tras un corte devuelve el comprobante ya guardado (200).
+  const existing = await prisma.paymentProof.findFirst({
+    where: { paymentId: payment.id, tenantId: session.user.tenantId, sha256: file.sha256 },
+    select: { id: true, fileName: true, mimeType: true, sizeBytes: true, sha256: true, createdAt: true, uploadedBy: { select: { id: true, name: true } } },
+  })
+  if (existing) return json(metadata(existing), { status: 200 })
 
   // Write-through: si hay volumen configurado se guarda el archivo y en la
   // base queda el storageKey; `data` se conserva como respaldo del adjunto.

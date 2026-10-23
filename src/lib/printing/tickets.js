@@ -126,15 +126,20 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
     if (desglose.vuelto > 0) t.par('Vuelto', gs(desglose.vuelto))
   }
   if (desglose.mostrarPagado) t.par('Pagado', gs(pagado))
+  if (!completo && desglose.enVerificacion.length) t.par('En verificación', gs(desglose.enVerificacionPyg))
   if (pendiente > 0) {
     t.negrita().texto('SALDO PENDIENTE').negrita(false)
     importeGrande(t, '', gs(pendiente))
   }
 
   // Pago: el medio y la referencia (la cronología solo en el detallado).
-  if (completo && pagos.length) {
+  if (completo && (pagos.length || desglose.enVerificacion.length)) {
     t.linea()
     t.texto('Pago')
+    for (const pago of desglose.enVerificacion) {
+      const metodo = ETIQUETAS_MEDIO_PAGO[pago.method] || pago.medioPago || 'Pago'
+      t.par(`${metodo} · En verificación`, gs(pago.amountPyg ?? pago.monto ?? 0))
+    }
     for (const pago of pagos) {
       const metodo = ETIQUETAS_MEDIO_PAGO[pago.method] || pago.medioPago || 'Pago'
       const referencia = pago.reference || pago.cuenta || pago.accountSnapshot?.name || ''
