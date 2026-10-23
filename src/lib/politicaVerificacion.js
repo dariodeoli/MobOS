@@ -7,6 +7,9 @@ import { POLITICA_POR_DEFECTO, normalizarPolitica } from './comprobantePos.js'
 // pide una vez y se reutiliza un minuto (el cobro y el celular la comparten).
 // Si no se puede leer queda `null`: el cobro no pide nada y es el servidor quien
 // decide el estado del pago de todas formas.
+// En la demo los medios a verificar muestran «Adjuntar comprobante», pero no lo
+// exigen: así la venta de prueba se completa sin trabar el recorrido.
+const POLITICA_DEMO = { ...POLITICA_POR_DEFECTO, requireProof: false }
 const VIGENCIA_MS = 60_000
 let cache = { valor: undefined, hasta: 0, promesa: null }
 
@@ -15,7 +18,7 @@ export function olvidarPoliticaVerificacion() {
 }
 
 export function cargarPoliticaVerificacion() {
-  if (isDemoRuntime) return Promise.resolve(POLITICA_POR_DEFECTO)
+  if (isDemoRuntime) return Promise.resolve(POLITICA_DEMO)
   if (cache.valor !== undefined && Date.now() < cache.hasta) return Promise.resolve(cache.valor)
   if (cache.promesa) return cache.promesa
   const promesa = api.get('/api/payments/verification/policy')
@@ -31,7 +34,7 @@ export function cargarPoliticaVerificacion() {
 
 /** Política vigente (o null mientras carga / si no se pudo leer). */
 export function usePoliticaVerificacion() {
-  const [politica, setPolitica] = useState(() => (isDemoRuntime ? POLITICA_POR_DEFECTO : cache.valor ?? null))
+  const [politica, setPolitica] = useState(() => (isDemoRuntime ? POLITICA_DEMO : cache.valor ?? null))
   useEffect(() => {
     let vivo = true
     cargarPoliticaVerificacion().then(valor => { if (vivo) setPolitica(valor) })
