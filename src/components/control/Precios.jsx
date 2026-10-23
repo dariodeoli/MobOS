@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { useModulos } from '@/lib/useModulos'
 import { resources } from '@/lib/api'
@@ -91,7 +91,7 @@ export default function Precios() {
 
   // Fusión por id: nunca se pierde un producto ya visible (el catálogo de la
   // API viene paginado y el recién creado puede quedar afuera de la página).
-  function fusionarProductos(filas) {
+  const fusionarProductos = useCallback((filas) => {
     if (!Array.isArray(filas)) return
     setProductos((actuales) => {
       const porId = new Map(actuales.map(p => [p.id, p]))
@@ -101,16 +101,18 @@ export default function Precios() {
       }
       return [...porId.values()]
     })
-  }
+  }, [])
 
   // Al tipear en un buscador de producto se consulta al servidor y se fusiona:
   // así aparecen también los productos creados después de abrir la pantalla.
-  async function buscarProductos(texto) {
+  // Identidad estable: el buscador la usa como dependencia de un efecto; si
+  // cambiara en cada render, fusionar → render → buscar de nuevo, sin fin.
+  const buscarProductos = useCallback(async (texto) => {
     if (esDemo || String(texto || '').trim().length < 2) return
     try {
       fusionarProductos(await resources.products.list(texto.trim()))
     } catch { /* la búsqueda del servidor es un extra */ }
-  }
+  }, [esDemo, fusionarProductos])
 
   // #323: reglas por campo del formulario. Los ítems llevan su error junto al
   // control (producto/categoría y porcentaje) con las reglas compartidas.
