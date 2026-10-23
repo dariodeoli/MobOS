@@ -6,6 +6,8 @@ import { canAccessOrder } from '../../../../../lib/orders'
 import { numero } from '../../../../../lib/montos'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 import { displayOrderNumber } from '../../../../../lib/order-number'
+import { estadoSobrePedidoDeOrden } from '../../../../../lib/backorder-order'
+import { fechaCorta } from '../../../../../lib/backorder-status'
 
 // Plantilla sugerida según el estado de entrega del pedido.
 const TEMPLATE_BY_STATUS: Record<string, string> = {
@@ -78,10 +80,10 @@ const orderInclude = {
   accessTokens: { where: { revokedAt: null, level: 'rapido' }, orderBy: { createdAt: 'desc' as const }, take: 1, select: { token: true } },
 }
 
-function buildPayload(order: OrderForMessage, template: { body: string; isActive: boolean } | null, fallback: string) {
+function buildPayload(order: OrderForMessage, template: { body: string; isActive: boolean } | null, fallback: string, extra: Record<string, string> = {}) {
   const tokenSeguimiento = order.publicToken || order.accessTokens[0]?.token || ''
   const trackingUrl = tokenSeguimiento ? `${process.env.MOBOS_APP_URL || 'https://app.moboss.online'}/pedido/${tokenSeguimiento}` : ''
-  const variables = { ...variablesDe(order), tracking_url: trackingUrl, seguimiento: trackingUrl }
+  const variables = { ...variablesDe(order), tracking_url: trackingUrl, seguimiento: trackingUrl, ...extra }
   const body = template?.isActive === false ? '' : (template?.body || fallback)
   const message = `${render(body, variables)}${trackingUrl && !body.includes('{{tracking_url}}') ? `\n${trackingUrl}` : ''}`.trim()
   const phone = internationalPhone(order.customer?.phone, order.customer?.countryCode)
@@ -118,11 +120,32 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
   if (!order.customer?.phone) return error('El cliente no tiene teléfono cargado.', 409)
   const template = await prisma.messageTemplate.findUnique({ where: { tenantId_key: { tenantId: tenant, key: templateKey } } })
   if (!template || template.category !== 'ORDERS') return error('Plantilla de pedidos no encontrada.', 404)
+  // Venta sin stock: las plantillas backorder_* llevan el producto y la fecha estimada de la
+  // línea sobre pedido, y «Llegó» deja constancia de que el cliente fue avisado (lo manda la persona).
+  const esSobrePedido = templateKey.replace(/^email\./, '').startsWith('backorder_')
+  const extra: Record<string, string> = {}
+  if (esSobrePedido) {
+    const full = await prisma.order.findFirst({ where: { id: order.id, tenantId: tenant }, select: { id: true, fulfillmentStatus: true, expectedAt: true, deliveryType: true, items: { select: { id: true, description: true, stockPending: true, serialsPending: true, backorderArrivedAt: true } } } })
+    if (full) {
+      const estado = await estadoSobrePedidoDeOrden(prisma, tenant, full)
+      const linea = estado.lineas.find((fila) => fila.estado && fila.estado !== 'ENTREGADO') ?? estado.lineas.find((fila) => fila.estado)
+      const item = full.items.find((fila) => fila.id === linea?.itemId)
+      if (item) extra.producto = item.description
+      extra.fecha_estimada = fechaCorta(estado.prometidaEl ?? linea?.prometidaEl ?? null) || 'la fecha que te confirmemos'
+    }
+  }
   const notifiedAt = await prisma.$transaction(async tx => {
     const updated = await tx.order.update({ where: { id: order.id }, data: { notifiedAt: new Date() }, select: { notifiedAt: true } })
     await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_NOTIFIED_WHATSAPP', entity: 'Order', entityId: order.id, metadata: { fulfillmentStatus: order.fulfillmentStatus, templateKey } } })
+    if (templateKey === 'backorder_llego') {
+      const llegadas = await tx.supplyNeed.findMany({ where: { tenantId: tenant, orderId: order.id, OR: [{ arrivedAt: { not: null } }, { status: 'RECIBIDA' }] }, select: { id: true } })
+      if (llegadas.length) {
+        await tx.supplyNeed.updateMany({ where: { id: { in: llegadas.map((fila) => fila.id) }, tenantId: tenant }, data: { customerNotifiedAt: new Date() } })
+        for (const fila of llegadas) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_CUSTOMER_NOTIFIED', entity: 'SupplyNeed', entityId: fila.id, metadata: { canal: 'whatsapp', orderId: order.id } } })
+      }
+    }
     return updated.notifiedAt
   })
-  const payload = buildPayload(order, template, 'Hola, {{customer_name}}. Tu pedido {{order_number}} cambió de estado.')
+  const payload = buildPayload(order, template, 'Hola, {{customer_name}}. Tu pedido {{order_number}} cambió de estado.', extra)
   return json({ templateKey, ...payload, notifiedAt })
 }

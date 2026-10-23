@@ -8,6 +8,8 @@ import { puedeVerCliente } from '../../../../lib/supply-customer'
 import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../../../../lib/supply-priority'
 import { numeroOpcional } from '../../../../lib/montos'
 import { moduloGuard } from '../../../../lib/modulos-guard'
+import { canSeeCostForSession } from '../../../../lib/cost-visibility'
+import { estadoSobrePedido, ESTADO_SOBRE_PEDIDO_LABEL, pedidoEntregado, siguientePaso } from '../../../../lib/backorder-status'
 
 // #250 Fase 1 (Centro de Abastecimiento): API del panel «Por comprar».
 //
@@ -47,11 +49,16 @@ export async function GET(request: Request) {
   const prioridadValida = (NECESIDAD_PRIORIDADES as readonly string[]).includes(prioridad) ? prioridad : ''
   const condicion = (params.get('condition') || params.get('condicion') || '').trim().toUpperCase()
   const limite = Math.min(500, Math.max(1, Number(params.get('limit')) || 200))
+  // Venta sin stock: `detalle=1` suma una fila por necesidad con su estado, cliente y
+  // próximo paso; `estados=A,B` pide varios estados a la vez (el panel móvil).
+  const detalle = params.get('detalle') === '1' || params.get('detalle') === 'true'
+  const estadosPedidos = (params.get('estados') || '').split(',').map((valor) => valor.trim().toUpperCase()).filter((valor) => (NECESIDAD_ESTADOS as readonly string[]).includes(valor))
+  const verCosto = await canSeeCostForSession(session)
 
   const filas = await prisma.supplyNeed.findMany({
     where: {
       tenantId: tenant,
-      status: estado && (NECESIDAD_ESTADOS as readonly string[]).includes(estado) ? estado : { in: ESTADOS_PENDIENTES },
+      status: estadosPedidos.length ? { in: estadosPedidos } : estado && (NECESIDAD_ESTADOS as readonly string[]).includes(estado) ? estado : { in: ESTADOS_PENDIENTES },
       ...(branchId ? { branchId } : {}),
       ...(productId ? { productId } : {}),
       ...(assignedToId ? { assignedToId } : {}),
@@ -85,7 +92,7 @@ export async function GET(request: Request) {
     const precioUnitarioPyg = item
       ? (Number(item.unitPricePyg) > 0 ? Number(item.unitPricePyg) : Math.round(Number(item.totalPyg) / Math.max(1, Number(item.quantity) || 1)))
       : null
-    const costoUnitarioPyg = numeroOpcional(fila.product?.costPyg)
+    const costoUnitarioPyg = verCosto ? numeroOpcional(fila.product?.costPyg) : null
     const costoEstimadoPyg = costoEstimadoDeNecesidad({ costoUnitarioPyg, cantidad: fila.quantity })
     const margenEstimadoPyg = margenEstimadoDeNecesidad({ precioUnitarioPyg, costoUnitarioPyg, cantidad: fila.quantity })
     // Prioridad efectiva: la guardada (que ya escalona al crear, motor #250 o
@@ -133,6 +140,71 @@ export async function GET(request: Request) {
   const contar = (filas: Array<{ _count: { _all: number } } & Record<string, unknown>>, clave: string, valores: readonly string[]) =>
     Object.fromEntries(valores.map((valor) => [valor, filas.find((fila) => fila[clave] === valor)?._count._all || 0]))
 
+  // Venta sin stock: una fila por necesidad con estado, cliente, fecha prometida y
+  // próximo paso. Los costos solo viajan a quien tiene permiso de verlos.
+  let lineas: unknown[] | undefined
+  if (detalle) {
+    const itemsDetalle = orderItemIds.length
+      ? await prisma.orderItem.findMany({
+        where: { id: { in: orderItemIds }, order: { tenantId: tenant } },
+        select: { id: true, quantity: true, stockPending: true, serialsPending: true, costPending: true, costSource: true, backorderArrivedAt: true, unitCostPyg: true, order: { select: { id: true, orderNumber: true, fulfillmentStatus: true } } },
+      })
+      : []
+    const itemDetallePorId = new Map(itemsDetalle.map((item) => [item.id, item]))
+    const comprasIds = [...new Set(filas.map((fila) => fila.purchaseId).filter(Boolean))] as string[]
+    const compras = comprasIds.length
+      ? await prisma.supplyPurchase.findMany({
+        where: { id: { in: comprasIds }, tenantId: tenant },
+        select: { id: true, code: true, status: true, paymentCondition: true, costPyg: true, paidAt: true, paymentPendingAccount: true, supplierName: true, payable: { select: { amountPyg: true, paidPyg: true } }, shipments: { select: { status: true, etaAt: true } } },
+      })
+      : []
+    const compraPorId = new Map(compras.map((compra) => [compra.id, compra]))
+    lineas = filas.map((fila) => {
+      const item = fila.orderItemId ? itemDetallePorId.get(fila.orderItemId) : undefined
+      const compra = fila.purchaseId ? compraPorId.get(fila.purchaseId) : undefined
+      const envio = compra?.shipments.find((lote) => ['DESPACHADO', 'EN_TRANSITO', 'CON_INCIDENCIA', 'RECEPCION_PARCIAL'].includes(lote.status))
+      const estadoLinea = estadoSobrePedido({
+        stockPending: item?.stockPending, serialsPending: item?.serialsPending, backorderArrivedAt: item?.backorderArrivedAt,
+        need: { status: fila.status, quantity: fila.quantity, arrivedAt: fila.arrivedAt },
+        shipmentStatus: envio?.status, entregado: item ? pedidoEntregado(item.order.fulfillmentStatus) : false,
+      })
+      const costoCompra = numeroOpcional(compra?.costPyg)
+      const faltaCosto = Boolean(compra) && compra!.status !== 'CANCELADA' && (costoCompra === null || costoCompra <= 0)
+      const monto = numeroOpcional(compra?.payable?.amountPyg) ?? 0
+      const pagado = Boolean(compra?.paidAt) || (monto > 0 && (numeroOpcional(compra?.payable?.paidPyg) ?? 0) >= monto)
+      const credito = compra?.paymentCondition === 'CREDITO'
+      return {
+        id: fila.id,
+        productoId: fila.productId,
+        producto: fila.product?.name || '',
+        condicion: fila.condition,
+        porComprar: fila.quantity,
+        pendientes: (item?.stockPending ?? 0) + (item?.serialsPending ?? 0),
+        recibidas: fila.receivedQty,
+        conImei: (item?.serialsPending ?? 0) > 0,
+        estado: estadoLinea,
+        estadoLabel: estadoLinea ? ESTADO_SOBRE_PEDIDO_LABEL[estadoLinea] : null,
+        siguientePaso: siguientePaso({ estado: estadoLinea, faltaCosto, pagado, credito, avisado: Boolean(fila.customerNotifiedAt) }),
+        faltaCosto,
+        pagado,
+        pagoSinCuenta: Boolean(compra?.paymentPendingAccount),
+        credito,
+        prioridad: fila.priority,
+        prometidaEl: fila.promisedAt,
+        centro: fila.origin,
+        sucursal: fila.branch?.name || null,
+        pedidoId: fila.orderId,
+        pedidoNumero: fila.order?.orderNumber || null,
+        clienteId: fila.customerId,
+        cliente: verCliente ? fila.customer?.name || null : null,
+        avisadoEl: fila.customerNotifiedAt,
+        llegoEl: fila.arrivedAt,
+        compra: compra ? { id: compra.id, code: compra.code, estado: compra.status, condicion: compra.paymentCondition, etaAt: envio?.etaAt ?? null, ...(verCosto ? { costoPyg: costoCompra } : {}) } : null,
+        ...(verCosto ? { costoUnitarioPyg: numeroOpcional(item?.unitCostPyg), costoDelProductoPyg: numeroOpcional(fila.product?.costPyg) } : {}),
+      }
+    }).filter((fila) => fila.estado !== 'ENTREGADO')
+  }
+
   return json({
     fecha: ahora.toISOString(),
     totales: {
@@ -150,6 +222,7 @@ export async function GET(request: Request) {
       pendientes: porEstado.filter((fila) => ESTADOS_PENDIENTES.includes(String(fila.status))).reduce((suma, fila) => suma + fila._count._all, 0),
     },
     grupos,
+    ...(lineas ? { lineas } : {}),
   })
 }
 
@@ -234,8 +307,21 @@ export async function PATCH(request: Request) {
     ? [...new Set(body.ids.filter((valor: unknown): valor is string => typeof valor === 'string' && valor.trim().length > 0).map((valor: string) => valor.trim()))].slice(0, 200)
     : []
   if (!id && !ids.length) return error('Indicá la necesidad o las necesidades.')
+  // Venta sin stock: el encargado avisó al cliente (WhatsApp con plantilla; nada sale solo).
+  if (body?.action === 'notified') {
+    const claves = ids.length ? ids : [id]
+    const llegadas = await prisma.supplyNeed.findMany({ where: { id: { in: claves }, tenantId: tenant }, select: { id: true, status: true, arrivedAt: true } })
+    if (llegadas.length !== claves.length) return error('Una o más necesidades no existen.', 404)
+    if (llegadas.some((fila) => !fila.arrivedAt && fila.status !== 'RECIBIDA')) return error('Todavía no llegó: avisá al cliente cuando llegue el producto.', 409)
+    const ahora = new Date()
+    await prisma.$transaction(async (tx) => {
+      await tx.supplyNeed.updateMany({ where: { id: { in: claves }, tenantId: tenant }, data: { customerNotifiedAt: ahora } })
+      for (const clave of claves) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_CUSTOMER_NOTIFIED', entity: 'SupplyNeed', entityId: clave, metadata: { canal: 'whatsapp' } } })
+    })
+    return json({ avisadas: claves.length, avisadoEl: ahora.toISOString() })
+  }
   const accion = ['assign', 'cancel', 'update'].includes(String(body?.action)) ? body.action as 'assign' | 'cancel' | 'update' : null
-  if (!accion) return error('Acción inválida: usá assign, update o cancel.')
+  if (!accion) return error('Acción inválida: usá assign, update, cancel o notified.')
   if (accion === 'cancel' && ids.length) return error('La cancelación es de a una necesidad (con motivo).')
   const claves = ids.length ? ids : [id]
 
