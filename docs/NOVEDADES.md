@@ -11,6 +11,16 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+### Venta sin stock
+- Por comprar muestra cada venta sin stock paso a paso: comprar, cargar costo, pagar, recibir y avisar al cliente, con una sola acción por fila.
+- El costo cargado después llega a la venta original: la ganancia cuenta en la fecha de la venta.
+- Marcar pagado eligiendo la cuenta registra la salida de plata una sola vez; sin permiso de Finanzas queda «ya pagado» y Finanzas asigna la cuenta.
+- El cliente ve «Sobre pedido · llega aprox.», «En camino» y «Listo para retirar» en su pedido y en la reimpresión.
+
+### Demo y uso diario
+- La demo permite hacer todo: vender, mover stock, activar o desactivar, sin guardar nada al salir.
+- Los popups ocupan menos espacio y el campo que se está llenando queda arriba del teclado.
+- Las filas de los formularios quedan alineadas en todas las pantallas.
 ## v1.0.243 — 2026-10-23
 
 - **Clientes:** cada cliente muestra su historial completo con totales (gastado, ticket promedio, última compra); cada IMEI dice a quién se compró, a quién se vendió y cuánto se ganó; proveedor y vendedor con su resumen. Nombres desde RUC/CI como «Nombres Apellidos» en toda la app y nombre de fantasía para empresas y proveedores.
