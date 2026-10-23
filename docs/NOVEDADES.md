@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.243 — 2026-10-23
+
+- **Clientes:** cada cliente muestra su historial completo con totales (gastado, ticket promedio, última compra); cada IMEI dice a quién se compró, a quién se vendió y cuánto se ganó; proveedor y vendedor con su resumen. Nombres desde RUC/CI como «Nombres Apellidos» en toda la app y nombre de fantasía para empresas y proveedores.
+- **Pedidos:** detalle estilo Shopify: «Imprimir» recuerda el formato de cada usuario, tarjeta de pago con «Cobrar» y aviso de pago, comentarios internos del equipo, notas editables y cambiar o quitar el cliente.
+- **Ventas:** foto del comprobante desde el cobro del POS; el IMEI elegido queda apartado 5 minutos sin elegir cliente.
+- **Impresión:** etiqueta de envío 10 × 15 cm (tamaño Mercado Libre) desde Delivery y el pedido, con QR y código de barras.
+- **Otros:** Trade-In con catálogo Apple, valores de toma por modelo y capacidad, edición masiva, cotizador y cotización con el equipo del cliente y el faltante; pulido visual (botón principal verde, estados con el mismo color, fechas claras).
+
 ## v1.0.242 — 2026-10-22
 
 - **Otros:** la app de iPhone muestra lo mismo que la web (Stock, Compras, Taller, Finanzas, Análisis, Inicio) según los módulos de cada empresa; sin alta de tienda ni planes dentro de la app por reglas de Apple.

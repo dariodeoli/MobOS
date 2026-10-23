@@ -212,7 +212,8 @@ export default function ValoresToma({ esDemo }) {
           <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${row.isActive ? 'Desactivar' : 'Activar'} ${row.model} ${row.storage || ''}`.trim()} onClick={() => alternar(row)}>{row.isActive ? 'Desactivar' : 'Activar'}</Button>
         </span>
       </div>)}</div>
-      {visibles.length > pagina.length && <div className="flex justify-center pt-2">
+      {visibles.length > pagina.length && <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+        <span className="text-xs text-mute">Mostrando {pagina.length} de {visibles.length}</span>
         <Button type="button" variant="outline" onClick={() => setLimite(actual => actual + FILAS_POR_PAGINA)}>Mostrar más ({visibles.length - pagina.length} restantes)</Button>
       </div>}
     </div>}
