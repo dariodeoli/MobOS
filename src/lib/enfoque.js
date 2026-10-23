@@ -129,7 +129,11 @@ export function instalarEnfoque(win = window) {
     detener()
     const antes = new Set(doc.querySelectorAll(CAMPO))
     const dialogoAntes = boton.closest(DIALOGO)
+    const rutaAntes = win.location.pathname + win.location.search
     const revisar = () => {
+      // Un clic que navega (abrir un pedido, una ficha) no es abrir una sección:
+      // los campos de la pantalla nueva no roban el foco ni abren el teclado.
+      if (win.location.pathname + win.location.search !== rutaAntes) { detener(); return }
       const nuevo = [...doc.querySelectorAll(CAMPO)].find(c => !antes.has(c) && c.offsetParent !== null && !c.closest(NO_TOCAR) && !c.readOnly &&
         !boton.contains(c) && c.closest(DIALOGO) === dialogoAntes)
       if (!nuevo) return
