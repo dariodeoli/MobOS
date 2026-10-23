@@ -309,7 +309,7 @@ for (const [width, height, maxTop, maxHeader] of [
     await expect(page.getByTestId('shell-contexto')).toHaveCount(0)
     await expect(page.getByTestId('shell-pestanas')).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^[A-Z]{2,}-#?\d+/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^#?[A-Z]{2,}-#?\d+/)
     const back = page.getByTestId('record-header-back')
     expect((await back.boundingBox()).height, 'volver 44px').toBeGreaterThanOrEqual(44)
     await expect(page.getByTestId('volver-al-pos')).toBeVisible()

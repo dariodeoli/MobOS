@@ -265,7 +265,7 @@ try {
   const otro = await nuevoCliente('Otro Cliente')
   r = await call(`/api/orders/${retenido.id}`, { method: 'PATCH', token: adminToken, body: { action: 'setCustomer', customerId: otro.id } })
   assert.equal(r.status, 409, JSON.stringify(r.payload))
-  assert.match(String(r.payload?.message), /autorización de crédito/)
+  assert.match(String(r.payload?.message), /autorización de crédito|saldo a crédito pendiente/)
   r = await call(`/api/orders/${retenido.id}`, { method: 'PATCH', token: adminToken, body: { action: 'createCustomer', customer: { name: `Nuevo ${stamp}`, phone: '595981000111' } } })
   assert.equal(r.status, 409, JSON.stringify(r.payload))
   assert.equal(psql(`SELECT "customerId" FROM "Order" WHERE "id" = '${retenido.id}'`), lucia.id)

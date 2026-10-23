@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 import { ensureCobro } from './helpers/ensure-cobro.js'
 import { openShellDestination } from './helpers/shell-navigation.js'
+import { abrirVistaPreviaComprobante } from './helpers/pedido-imprimir.js'
 
 async function entrarDemo(page) {
   await page.goto('/demo')
@@ -29,7 +30,7 @@ test('demo: el QR del comprobante abre el seguimiento del pedido en otro navegad
   await entrarDemo(page)
   await crearPedidoDemo(page)
 
-  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await abrirVistaPreviaComprobante(page)
   const iframe = page.locator('iframe[title="Vista previa del comprobante"]')
   await expect(iframe).toBeVisible()
   await expect.poll(() => iframe.evaluate((frame) => frame.contentDocument?.querySelector('img.qr')?.dataset?.enlace || ''), { timeout: 15_000 }).toContain('#d=')

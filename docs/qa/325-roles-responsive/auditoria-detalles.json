@@ -60,8 +60,17 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 2,
+    "totalChicos": 5,
     "chicos": [
+      {
+        "que": "button",
+        "texto": "Pedido anterior",
+        "ancho": 40,
+        "alto": 44,
+        "dibujo": "40x44",
+        "clase": "grid h-11 w-11 place-items-center rounded-lg text-mute hover",
+        "veces": 2
+      },
       {
         "que": "button",
         "texto": "Configuración",
@@ -78,6 +87,15 @@
         "alto": 36,
         "dibujo": "207x36",
         "clase": "flex min-h-11 items-center gap-3 rounded-lg px-3 text-left t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Administrador",
+        "ancho": 96,
+        "alto": 17,
+        "dibujo": "96x17",
+        "clase": "hidden font-semibold text-fono-light hover:underline md:inli",
         "veces": 1
       }
     ]

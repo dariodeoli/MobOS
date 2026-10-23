@@ -1,6 +1,6 @@
 import { acceptedCustomerIdentity, customerIdentityPayload, customerDisplayName } from '@/lib/customerIdentity'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useModulos } from '@/lib/useModulos'
 import { api } from '@/lib/api/client'
@@ -113,6 +113,11 @@ export default function SellerCustomers() {
   // con ?cliente=<id> para abrir su ficha directo.
   const [searchParams, setSearchParams] = useSearchParams()
   const qParam = searchParams.get('q') || ''
+  const tabParam = searchParams.get('tab') || ''
+  const navegar = useNavigate()
+  const ubicacion = useLocation()
+  // Si llegamos desde un pedido, cerrar la ficha vuelve a ese pedido.
+  const volverA = typeof ubicacion.state?.volverA === 'string' && ubicacion.state.volverA.startsWith('/') ? ubicacion.state.volverA : ''
   const clienteParam = searchParams.get('cliente') || ''
   const [query, setQuery] = useState(qParam)
   const [search, setSearch] = useState('')
@@ -173,10 +178,11 @@ export default function SellerCustomers() {
   // sesión real se abre por id y el perfil lo trae del API.
   useEffect(() => {
     if (!clienteParam) return
+    if (tabParam === 'datos') setProfileTab('datos')
     if (!esDemo) { setProfileCustomer({ id: clienteParam }); return }
     const encontrado = readDemoCustomers().find((row) => row.id === clienteParam)
     if (encontrado) setProfileCustomer(encontrado)
-  }, [clienteParam, esDemo])
+  }, [clienteParam, esDemo, tabParam])
   // Búsqueda y filtros van al servidor (cubren todas las fichas del tenant, no
   // solo la página cargada); el hook pagina con cursor para "Cargar más".
   const path = useMemo(() => {
@@ -219,6 +225,7 @@ export default function SellerCustomers() {
   function cerrarPerfil() {
     setProfileCustomer(null)
     if (!clienteParam) return
+    if (volverA) { navegar(volverA, { replace: true }); return }
     const siguientes = new URLSearchParams(searchParams)
     siguientes.delete('cliente')
     setSearchParams(siguientes, { replace: true })

@@ -661,6 +661,8 @@ node "$BACKEND_ROOT/tests/orders-public-security.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 out="$(response_file)"; COMPANY_TOKEN_C="$(auth_cookie POST /api/auth/login 200 '{"email":"company-c-it@example.invalid","password":"company-password-it","deviceId":"device-c-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; ADMIN_TOKEN_C="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-c-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_C" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/store-branch.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
+echo "Comentarios internos del pedido: permisos, tenencia y página pública..."
+node "$BACKEND_ROOT/tests/order-comments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/payment-account-defaults.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/account-parties.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/seller-pin.mjs" "$BASE_URL" "$COMPANY_TOKEN_A"
@@ -973,6 +975,8 @@ PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/public-pages403-pg.mjs"
 
 # Keep this fixture at the end: it creates five orders and one product, while
 # backup-restore intentionally compares the full tenant count before it runs.
+echo "Pedidos: saldo a favor aplicado bloquea cambiar o quitar el cliente..."
+node "$BACKEND_ROOT/tests/orders-customer-credit.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Pedidos: identidad fiscal exacta en cliente inline (#344)..."
 node "$BACKEND_ROOT/tests/orders-inline-fiscal-identity.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 

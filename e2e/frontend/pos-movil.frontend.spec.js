@@ -459,7 +459,7 @@ for (const width of [360, 390]) for (const dark of [false, true]) {
     for (const boton of await botones.all()) { const box = await boton.boundingBox(); if (box) expect(box.height).toBeGreaterThanOrEqual(44) }
     await sinScrollHorizontal(page, width)
     if (width === 360 && !dark) await page.screenshot({ path: `${out}/485-pedido360.png` })
-    await page.getByRole('button', { name: /^Cobrar saldo/ }).click()
+    await page.getByTestId('pedido-cobrar').click()
     const pagos = page.getByRole('dialog', { name: /^Pagos ·/ })
     await expect(pagos).toHaveClass(/ventana-detalle/)
     await expect(pagos.getByTestId('pagos-resumen')).toContainText('Gs 80.000')

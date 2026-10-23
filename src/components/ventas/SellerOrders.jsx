@@ -345,7 +345,7 @@ export default function SellerOrders() {
   // restituya la misma vista (antes se perdía el filtro y el listado parecía
   // recargarse solo).
   const location = useLocation()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => new URLSearchParams(location.search).get('q') || '')
   // La búsqueda del listado se resuelve en el servidor: así encuentra pedidos
   // que todavía no están en la página cargada (número, cliente, RUC, vendedor).
   const [filtro, setFiltro] = useUrlState('filtro', 'activos')

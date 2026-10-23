@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { codigoPedido } from '../src/utils/pedido.js'
 import { SEED } from './helpers/seed-data.js'
+import { abrirVistaPreviaComprobante } from './helpers/pedido-imprimir.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -83,7 +84,7 @@ test('pedidos: el comprobante ofrece 80 mm y A4; el 58 mm solo con el interrupto
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
-  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await abrirVistaPreviaComprobante(page)
 
   const formato = page.getByRole('radiogroup', { name: 'Formato de impresión' })
   await expect(formato).toBeVisible()
@@ -127,7 +128,7 @@ test('pedidos: el comprobante se descarga como imagen PNG', async ({ page }) => 
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
-  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await abrirVistaPreviaComprobante(page)
   await expect(page.locator('iframe[title="Vista previa del comprobante"]')).toBeVisible()
 
   const [descarga] = await Promise.all([
@@ -166,7 +167,6 @@ test('pedidos: la cronología muestra al vendedor que creó el pedido', async ({
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 
   // La cronología arranca plegada (#164): se abre para leer los movimientos.
-  await page.getByRole('button', { name: /Cronología/ }).click()
   const creado = page.locator('article').filter({ hasText: 'Pedido creado' }).first()
   await expect(creado).toBeVisible()
   await expect(creado).not.toContainText('Sistema')

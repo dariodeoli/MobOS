@@ -174,8 +174,9 @@
 .ventas-f3-detail-totals {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px 16px;
+  /* Total · Pagado · Saldo juntos con separación fija (no a todo el ancho). */
+  justify-content: flex-start;
+  gap: 8px 40px;
   padding-top: 8px;
   margin-top: 8px;
   border-top: 1px solid rgb(var(--c-ink-600));
@@ -213,9 +214,20 @@
 
 @media (min-width: 1024px) {
   .ventas-f3 .ventas-f3-page {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 320px);
     align-items: start;
+    gap: 24px;
   }
+  /* Lateral como secciones apiladas con divisor fino, no tarjetas sueltas. */
+  .ventas-f3 .ventas-f3-page-side { gap: 0; }
+  .ventas-f3 .ventas-f3-page-side > .ventas-f3-detail-section {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding-inline: 4px;
+  }
+  .ventas-f3 .ventas-f3-page-side > .ventas-f3-detail-section:last-child { border-bottom-width: 0; }
   .ventas-f3 .ventas-f3-page-side {
     order: 0;
   }
@@ -440,3 +452,12 @@
     justify-content: flex-end !important;
   }
 }
+
+/* Filas de pago y artículos: columnas de ancho acotado, el monto queda cerca de su etiqueta. */
+.ventas-f3 [data-testid='pedido-transaccion'] { max-width: 640px; }
+.ventas-f3 [data-testid='pedido-pago'] .space-y-1 > p.flex { max-width: 520px; }
+.ventas-f3-detail-item { max-width: 760px; }
+.ventas-f3-detail-item > div:first-child,
+.ventas-f3-detail-item > div:last-child { flex-basis: 160px; }
+.ventas-f3-detail-item > div:first-child { flex-grow: 1; }
+.ventas-f3-detail-item > div:last-child { flex-grow: 0; min-width: 140px; }

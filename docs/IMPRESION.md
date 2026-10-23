@@ -774,3 +774,18 @@ Formato 4×6" (Mercado Libre, Zebra/Xprinter). Una página por bulto, `@page { s
 - **Enganche para PedidoDetalle:** hoy es una sola línea en el menú (`imprimirEtiquetaEnvioPedido(order, { toast })`). Quien rediseñe esa pantalla puede montar `EtiquetaEnvioPopup` con `ordenes={[order]}` para elegir bultos y diseño.
 - **Impresión Pro:** tipo de plantilla `etiquetas-envio` (galería con 2 variantes: «Envío Estándar 10×15» y «Envío Destinatario Grande 10×15»), mismos presets en `backend/lib/print-templates-pro.mjs` y validación en `print-templates.ts`.
 - **Salida física:** por ahora el diálogo del navegador al tamaño exacto (o «Guardar como PDF»). El agente de impresión solo tiene perfil raster validado para ZKP8008 (80 mm); mandar la etiqueta como imagen a una impresora 4×6" exige un perfil nuevo (TSPL/ZPL) probado con el equipo real. En el diálogo: papel 100 × 150 mm, sin márgenes, escala 100 %.
+
+## 19. «Imprimir» del detalle del pedido: último formato por usuario
+
+- El botón **Imprimir** del pedido (estilo Shopify) imprime con el **último formato que usó esa persona**
+  para pedidos: `a4` (comprobante A4), `ticket-80` (ticket 80 mm), `nota-entrega` y `pagina` (página del
+  pedido, nivel detallado). El ▾ elige otro; el elegido imprime y pasa a ser el último.
+- Memoria **por usuario** (`mobos:pedido:impresion:<userId>` en localStorage, con try/catch): dos cajeros en la
+  misma computadora no se pisan. Sin historial vale el predeterminado de la empresa (impresora térmica de 80 mm
+  configurada o el formato preferido del equipo; si no, A4). Código: `src/lib/printing/ultimoFormatoPedido.js`
+  y `src/components/ventas/pedido/useImprimirPedido.js`.
+- Ticket 80 mm sale por el camino térmico común (`imprimirHtmlComun`, §1); A4 y página abren el diálogo del
+  navegador; la nota de entrega sigue el flujo no fiscal (agente → diálogo de respaldo).
+- **Demo:** todo sale por la vista de impresión del navegador con datos ficticios y una banda «Demo»
+  (`src/lib/printing/bandaDemo.js`); nunca toca el agente ni la cola.
+- «Vista previa y opciones…» (en el ▾) abre el comprobante completo (niveles, recibo de regalo, impresión directa).

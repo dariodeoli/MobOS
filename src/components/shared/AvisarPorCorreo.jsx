@@ -72,7 +72,7 @@ export default function AvisarPorCorreo({ email, category = 'ORDERS', evento = '
         type="button"
         disabled={disabled || ocupado}
         aria-label={title ? `Avisar por correo a ${title}` : 'Avisar por correo'}
-        title={error || 'Abrir el correo con la plantilla de este aviso'}
+        title={error || 'Avisar por correo'}
         data-testid="avisar-correo"
         onClick={(event) => { event.stopPropagation(); abrir() }}
         className={cn('grid h-11 w-11 place-items-center rounded-lg transition', disabled || ocupado ? 'cursor-not-allowed text-mute' : 'text-fono-light hover:bg-fono/10')}

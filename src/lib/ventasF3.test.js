@@ -78,8 +78,6 @@ test('F3 order detail keeps real totals, guards and operational controls', () =>
   const detail = source('PedidoDetalle.jsx')
   for (const text of [
     'totalesPedido(order)',
-    // «Cobrar saldo» también en la demo (#461): sin `!esDemo`.
-    '!anulado && pendiente > 0',
     'opcionesDeEntrega(',
     'cambiarEntrega(',
     'confirmarAnular',
@@ -88,11 +86,13 @@ test('F3 order detail keeps real totals, guards and operational controls', () =>
     '<AutorizacionBloque',
     '<ComprobantePreview',
     '<ClienteDelPedidoModal',
-    'enviarComentario',
+    'publicarComentario',
     'alternarArchivado',
     'regenerarAccesoQr',
   ])
     assert.ok(detail.includes(text), text)
+  // «Cobrar» también en la demo (#461): sin `!esDemo`; vive en el bloque de pago del detalle.
+  assert.ok(source('pedido/PedidoPago.jsx').includes('!anulado && pendiente > 0'), 'Cobrar con saldo pendiente')
   const css = source('ventasF3.css')
   assert.ok(!css.includes('min-w-['))
   assert.ok(css.includes('white-space: nowrap'))

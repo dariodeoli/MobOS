@@ -11,6 +11,7 @@ import { consumeAuthorization, usableAuthorization } from '../../../../lib/autho
 import { serialKey } from '../../../../lib/validation'
 import { numero } from '../../../../lib/montos'
 import { withItemWarranty } from '../../../../lib/order-warranty'
+import { withItemThumbs } from '../../../../lib/order-item-thumbs'
 import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 import { assertCreditAvailableForDelivery, assertCreditCleared, assertNoCreditAuthorization, withCreditAuthorization } from '../../../../lib/credit-authorization'
 import { creditTermEnabled, effectiveCreditLimits, parseCreditConfig, resolveCreditTerm } from '../../../../lib/credit-config'
@@ -40,7 +41,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
   // `warrantyDays` por línea: el comprobante imprime la garantía de cada equipo (#461).
-  return json(await withCreditAuthorization(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session))))))
+  return json(await withCreditAuthorization(prisma, tenant, await withItemThumbs(prisma, tenant, await withItemWarranty(prisma, redactOrderCosts(order, (await canSeeCostForSession(session)))))))
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
@@ -57,12 +58,25 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       where: { id: orderId, tenantId: tenant },
       include: {
         items: true,
-        payments: { select: { amountPyg: true, status: true } },
+        payments: { select: { amountPyg: true, status: true, method: true } },
         customer: { select: { id: true, name: true, creditLimitPyg: true, creditDays: true, creditTolerancePct: true, creditTermMode: true, creditDayOfMonth: true, creditInstallments: true } },
       },
     })
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
     if (existing.status === 'CANCELLED') throw new InputError('Un pedido cancelado no admite cambios.', 409)
+
+    // La deuda a crédito/fiado/cuotas pertenece al cliente: con saldo pendiente
+    // el pedido no cambia de titular ni queda sin cliente (409 con motivo claro).
+    const assertClienteEditable = () => {
+      const pendiente = Number(existing.totalPyg) - Number(netPaid(existing.payments))
+      if (pendiente > 0 && (existing.creditDays || existing.dueAt)) {
+        throw new InputError('El pedido tiene saldo a crédito pendiente: cobralo antes de cambiar o quitar el cliente.', 409)
+      }
+      // El saldo a favor pertenece a la ficha del cliente: si se aplicó a este pedido, el cliente no se toca.
+      if (existing.payments.some(pago => pago.method === 'STORE_CREDIT' && pago.status !== 'REJECTED' && pago.status !== 'REFUNDED')) {
+        throw new InputError('El pedido usó saldo a favor de este cliente: no se puede cambiar ni quitar el cliente.', 409)
+      }
+    }
 
     // ── Entregar equipos sobre pedido: agregar IMEI/seriales a una línea ──
     if (body.action !== undefined) {
@@ -74,7 +88,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           : null
         if (customerId && !customer) throw new InputError('Cliente no encontrado.')
         const updated = await prisma.$transaction(async tx => {
-          if (customerId !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
+          if (customerId !== existing.customerId) { assertClienteEditable(); await assertNoCreditAuthorization(tx, tenant, existing.id) }
           const order = await tx.order.update({ where: { id: existing.id }, data: { customerId } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: customerId ? 'ORDER_CUSTOMER_CHANGED' : 'ORDER_CUSTOMER_REMOVED', entity: 'Order', entityId: existing.id, metadata: { previousCustomerId: existing.customerId, previousCustomerName: existing.customer?.name || null, customerId, customerName: customer?.name || null } } })
           return order
@@ -98,7 +112,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
             : phone
               ? await tx.customer.findFirst({ where: { tenantId: tenant, phone, archivedAt: null }, select: { id: true, name: true, phone: true } })
               : await tx.customer.findFirst({ where: { tenantId: tenant, archivedAt: null, name: { equals: nombre, mode: 'insensitive' } }, select: { id: true, name: true, phone: true } })
-          if (existente?.id !== existing.customerId) await assertNoCreditAuthorization(tx, tenant, existing.id)
+          if (existente?.id !== existing.customerId) { assertClienteEditable(); await assertNoCreditAuthorization(tx, tenant, existing.id) }
           const ficha = existente || (await tx.customer.create({ data: { tenantId: tenant, createdById: session.user.id, name: nombre, ...(phone ? { phone, countryCode } : {}), ...(document ? { document } : {}), ...(email ? { email } : {}) }, select: { id: true, name: true, phone: true } }))
           await tx.order.update({ where: { id: existing.id }, data: { customerId: ficha.id } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CUSTOMER_CREATED', entity: 'Order', entityId: existing.id, metadata: { customerId: ficha.id, customerName: ficha.name, matched: Boolean(existente) } } })
