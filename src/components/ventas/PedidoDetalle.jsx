@@ -275,6 +275,16 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       await load(); onChanged?.()
     } catch (cause) { setError(cause?.message || 'No se pudo preparar el aviso.') } finally { setAvisando(false) }
   }
+  // Venta sin stock: llegó lo que se vendió sobre pedido → mensaje «Llegó tu producto» (lo manda la persona).
+  async function avisarLlegada() {
+    if (avisando || esDemo) return
+    setAvisando(true); setError('')
+    try {
+      const payload = await api.post(`/api/orders/${encodeURIComponent(order.id)}/whatsapp-message`, { templateKey: 'backorder_llego' })
+      if (payload?.whatsappUrl) window.open(payload.whatsappUrl, '_blank', 'noopener,noreferrer')
+      await load(); onChanged?.()
+    } catch (cause) { setError(cause?.message || 'No se pudo preparar el aviso.') } finally { setAvisando(false) }
+  }
   // Envío con plantilla elegida: el API arma el mensaje con las variables del
   // pedido, lo marca como avisado y devuelve el enlace definitivo de WhatsApp.
   async function enviarPlantilla({ template }) {
@@ -512,7 +522,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               </div>
             )}
 
-            <PedidoArticulos items={items} cantidad={itemsCantidad} esDemo={esDemo} puedeVerStock={puedeVerStock} />
+            <PedidoArticulos items={items} cantidad={itemsCantidad} esDemo={esDemo} puedeVerStock={puedeVerStock} sobrePedido={order.sobrePedido} onAvisar={esDemo ? null : avisarLlegada} avisando={avisando} />
 
             <PedidoPago
               order={order}
