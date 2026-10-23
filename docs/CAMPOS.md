@@ -117,3 +117,7 @@ El ancho lo resuelve el **componente compartido**, no la pantalla: arreglar `Ema
 ### Campos compartidos · #362 / #363
 
 `RucField` usa la variante compacta de owncoding-ui (Usar/Descartar), adaptando `nameOfficial` sin modificarlo y conservando la admisión fiscal, la invalidación por contexto y el consentimiento. `SupplierCombobox` adapta `BuscadorProveedor` para ids/texto, últimos usados y confirmación al salir o al teclear. `BancoCombobox` y `BancoLogo` son los componentes compartidos; el catálogo tiene 32 instituciones. Los nombres bancarios históricos/desconocidos permanecen como se guardaron salvo las equivalencias exactas documentadas en `BANCOS-CATALOGO.md`.
+
+## Nombres desde RUC/CI
+
+Toda consulta de RUC/CI arma el nombre con una sola regla: `backend/lib/nombre-desde-ruc.mjs` (reexportada en `src/lib/nombreDesdeRuc.js`). Persona = «Nombres Apellidos» sin coma en Formato Título; empresa = razón social tal cual. `RucField` ya entrega `nombreCompleto`, `razonSocial`, `tipo`, `nombres` y `apellidos` en `onAplicar`; no armes nombres a mano con `nameOfficial`.

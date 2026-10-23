@@ -68,11 +68,9 @@ export function hayCambiosIdentidad(form, guardado) {
 
 /**
  * Nombre de la tienda al aplicar un RUC: persona -> «Nombres Apellidos»; empresa
- * -> se conserva el nombre de fantasía ya cargado y, si no hay, la razón social.
- * El nombre fiscal exacto va aparte (nameOfficial).
+ * -> razón social tal cual (la persona puede cambiarla por el nombre de fantasía
+ * en el mismo campo o con «Deshacer»). El nombre fiscal exacto va aparte (nameOfficial).
  */
 export function nombreParaNegocio(datos, actual = '') {
-  const nombre = nombreDesdeRuc(datos)
-  if (nombre.tipo === 'empresa') return String(actual || '').trim() ? actual : nombre.razonSocial
-  return nombre.nombreCompleto || actual
+  return nombreDesdeRuc(datos).nombreCompleto || actual
 }

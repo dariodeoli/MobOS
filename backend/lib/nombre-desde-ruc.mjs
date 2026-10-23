@@ -39,7 +39,8 @@ function baseRuc(ruc) {
 export function tipoDeContribuyente({ ruc, nameOfficial, givenNames, surnames } = {}) {
   if (limpiar(givenNames) && limpiar(surnames)) return 'persona'
   const base = baseRuc(ruc)
-  if (base !== null) return base >= RUC_EMPRESA_DESDE ? 'empresa' : 'persona'
+  if (base !== null && base >= RUC_EMPRESA_DESDE) return 'empresa'
+  // Un tipo societario explícito (S.A., S.R.L., LTDA…) manda aunque el RUC sea bajo.
   return esRazonSocialTexto(nameOfficial) ? 'empresa' : 'persona'
 }
 

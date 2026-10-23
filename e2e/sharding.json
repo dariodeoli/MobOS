@@ -86,6 +86,7 @@
         "pos-309-orden.spec.js",
         "pos-busqueda-global.spec.js",
         "pos-cliente-ruc.spec.js",
+        "nombre-ruc-unico.spec.js",
         "pos-resumen-fijo.spec.js",
         "precios-listas.spec.js",
         "public-quote-transfer.spec.js",
