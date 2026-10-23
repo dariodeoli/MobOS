@@ -23,7 +23,7 @@ export default function PedidoArticulos({ items = [], cantidad = 0, esDemo = fal
             <article key={item.id || index} className="ventas-f3-detail-item items-start py-2.5" data-testid="pedido-articulo">
               <div className="flex min-w-0 items-start gap-3">
                 {fichaProducto
-                  ? <Link to={fichaProducto} state={{ volverA }} aria-label={`Ver ficha de ${item.description}`} className="shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono">{miniatura}</Link>
+                  ? <Link to={fichaProducto} state={{ volverA }} aria-label={`Ver ficha de ${item.description}`} className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono">{miniatura}</Link>
                   : miniatura}
                 <div className="min-w-0">
                   {fichaProducto

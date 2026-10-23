@@ -178,7 +178,8 @@ const PANTALLAS = [
     // Contenedor del pedido: el stepper del flujo de entrega vive acá.
     await page.getByTestId('pedido-fila').first().click()
     await page.waitForURL(/\/pedidos\/[^/]+$/, { timeout: 20_000 })
-    await expect(page.getByRole('button', { name: /Imprimir comprobante/ })).toBeVisible({ timeout: 20_000 })
+    // El pedido estilo Shopify trae «Imprimir» (último formato) + ▾; es la señal de que cargó el detalle.
+    await expect(page.getByTestId('pedido-imprimir-principal')).toBeVisible({ timeout: 20_000 })
   }],
   ['clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
   ['clientes-resumen', '/clientes', (page) => page.getByTestId('cliente-fila').first(), undefined, async (page) => {

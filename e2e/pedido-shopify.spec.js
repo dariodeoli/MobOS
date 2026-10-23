@@ -99,6 +99,9 @@ test('cliente: abrir su ficha desde el pedido y volver', async ({ page }) => {
   await expect(page.getByText('Artículos preparados')).toBeVisible({ timeout: 20_000 })
   await page.getByTestId('pedido-ver-perfil').click()
   await expect(page).toHaveURL(new RegExp(`/clientes\\?cliente=${cliente.id}`))
+  // La ficha carga al resolver ?cliente=: se espera el modal antes del Escape
+  // para no cerrarlo antes de que exista.
+  await expect(page.getByRole('dialog').first()).toBeVisible({ timeout: 15_000 })
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(new RegExp(`/pedidos/${pedido.id}$`), { timeout: 15_000 })
   await expect(page.getByTestId('pedido-detalle-f3')).toBeVisible()
