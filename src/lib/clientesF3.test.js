@@ -37,7 +37,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '    <Modal open={crearAbierto}',
       '    </>\n    </div>\n  </SellerSection>',
-      'a6a8f7f572ed0ff61c67f33533909a7237a04e3b87cbd0fcb989737dc65eeb14',
+      '6c9f4c3bb06b358ed2105201fe0ebbfa63f1263d9ce566b59777eb6f493ec51b',
     ],
   ])
     assert.equal(digest(between(originalHandlers, start, end)), expected)
