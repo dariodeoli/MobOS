@@ -222,14 +222,22 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [imeiDe, setImeiDe] = useState(null)
   const [tagsTexto, setTagsTexto] = useState('')
   const [guardandoTags, setGuardandoTags] = useState(false)
+  // Lo que la persona escribió nunca se pisa al llegar (o refrescarse) el perfil:
+  // los valores del servidor solo entran en campos que no se tocaron.
+  const editado = useRef({ clienteId: null, tags: false, seguro: false })
 
   useEffect(() => {
     const ficha = profile?.customer
-    setSeguroForm({
-      enabled: ficha?.insuranceEnabled === true,
-      pct: ficha?.insuranceEnabled && ficha?.insuranceRatePct !== null && ficha?.insuranceRatePct !== undefined ? formatPercent(ficha.insuranceRatePct) : '',
-    })
-    setTagsTexto((ficha?.tags || []).join(', '))
+    // Otro cliente: se descarta lo editado del anterior. La primera llegada conserva lo ya escrito.
+    if (ficha?.id && editado.current.clienteId && editado.current.clienteId !== ficha.id) editado.current = { clienteId: ficha.id, tags: false, seguro: false }
+    else if (ficha?.id) editado.current.clienteId = ficha.id
+    if (!editado.current.seguro) {
+      setSeguroForm({
+        enabled: ficha?.insuranceEnabled === true,
+        pct: ficha?.insuranceEnabled && ficha?.insuranceRatePct !== null && ficha?.insuranceRatePct !== undefined ? formatPercent(ficha.insuranceRatePct) : '',
+      })
+    }
+    if (!editado.current.tags) setTagsTexto((ficha?.tags || []).join(', '))
   }, [profile])
 
   // El seguro afecta costo real y margen: lo configuran administración/gerencia.
@@ -246,6 +254,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
         insuranceEnabled: enabled,
         insuranceRatePct: pct,
       })
+      editado.current.seguro = false
       toast.success(enabled ? 'Seguro del cliente activado.' : 'Seguro del cliente desactivado.')
       refresh()
     } catch (cause) {
@@ -280,6 +289,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     setGuardandoTags(true)
     try {
       await patchFicha({ tags })
+      editado.current.tags = false
       toast.success('Etiquetas guardadas.')
       refresh()
     } catch (cause) {
@@ -1859,7 +1869,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                     checked={seguroForm.enabled}
                     disabled={!puedeResolver || guardandoSeguro}
                     ariaLabel="Seguro del cliente activo"
-                    onChange={(event) => { const next = event.target.checked; setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
+                    onChange={(event) => { const next = event.target.checked; editado.current.seguro = true; setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
                   />
                   <span className={cn('text-xs font-semibold', seguroForm.enabled ? 'text-ok' : 'text-mute')}>{seguroForm.enabled ? 'Activo' : 'Inactivo'}</span>
                 </div>
@@ -1868,7 +1878,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <div className="w-44">
                     <FormField label="Porcentaje del cliente" htmlFor="perfil-seguro-pct" hint="Vacío = usa el de la empresa.">
-                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={!puedeResolver || guardandoSeguro} onChange={(value) => setSeguroForm((form) => ({ ...form, pct: value }))} />
+                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={!puedeResolver || guardandoSeguro} onChange={(value) => { editado.current.seguro = true; setSeguroForm((form) => ({ ...form, pct: value })) }} />
                     </FormField>
                   </div>
                   {puedeResolver && <Button type="button" variant="outline" disabled={guardandoSeguro} onClick={() => guardarSeguro(true)}>{guardandoSeguro ? 'Guardando…' : 'Guardar porcentaje'}</Button>}
@@ -1877,7 +1887,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               <form onSubmit={guardarTags} className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                 <div className="min-w-[16rem] flex-1">
                   <FormField label="Etiquetas" htmlFor="perfil-tags" hint="Separadas por coma (hasta 20).">
-                    <Input id="perfil-tags" maxLength={200} value={tagsTexto} onChange={(event) => setTagsTexto(event.target.value)} placeholder="mayorista, prioridad" />
+                    <Input id="perfil-tags" maxLength={200} value={tagsTexto} onChange={(event) => { editado.current.tags = true; setTagsTexto(event.target.value) }} placeholder="mayorista, prioridad" />
                   </FormField>
                 </div>
                 <Button type="submit" variant="outline" disabled={guardandoTags}>{guardandoTags ? 'Guardando…' : 'Guardar etiquetas'}</Button>

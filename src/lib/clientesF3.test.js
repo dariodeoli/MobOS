@@ -50,7 +50,7 @@ test('Clientes preserves reviewed fiscal profile and unchanged summary/communica
     // #498: alta/edición fiscal demo y geometría de teclado revisadas; cubierta por ruc498-identidad frontend y demoBillingIdentities.
     // Historial del cliente: filtros por tipo/período, totales y apertura del pedido desde la cronología.
     // Demo funcional: las acciones de la ficha (etiquetas, direcciones, notas, seguimientos, puntos, solicitudes) se aplican en la sesión demo.
-    ['CustomerProfile.jsx', '41bfcefe666fca0345940b0ca509aaf62920d8b04af10cd4eb1d6858f9a4604a'],
+    ['CustomerProfile.jsx', '78435c45483a410311172b35d904910e230a9dc8cdda40b758ee64d02293591a'],
     ['ClienteResumenPopup.jsx', 'd8fd0e032ca0542a911b6582621971099fa2cad69fa810b7398d4798e91cc510'],
     [
       'CustomerCommunicationCard.jsx',

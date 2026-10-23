@@ -280,9 +280,6 @@ test.describe('demo · acciones que se aplican en pantalla', () => {
     await irA(page, '/clientes')
     await page.getByText('Lucía Fernández').first().click()
     await page.getByRole('tab', { name: /Datos/ }).click()
-    // Con el perfil ya cargado (si no, la carga reemplaza el campo y el texto se pierde).
-    await expect(page.getByText('1 asignada')).toBeVisible()
-    await expect(page.locator('#perfil-tags')).toHaveValue('prioridad')
     await page.locator('#perfil-tags').fill('vip, mayorista')
     await page.getByRole('button', { name: 'Guardar etiquetas' }).click()
     await expect(page.getByText('Etiquetas guardadas.')).toBeVisible()
