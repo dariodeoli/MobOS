@@ -158,6 +158,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   TRADE_IN_REPAIR_COST_ADDED: 'Costo de reparación',
   DEVICE_VALUATION_CREATED: 'Valor de toma creado',
   DEVICE_VALUATION_UPDATED: 'Valor de toma editado',
+  DEVICE_VALUATION_BATCH: 'Valores de toma editados en lote',
   MESSAGE_TEMPLATE_CREATED: 'Plantilla creada',
   MESSAGE_TEMPLATE_UPDATED: 'Plantilla editada',
   MESSAGE_TEMPLATE_DELETED: 'Plantilla eliminada',

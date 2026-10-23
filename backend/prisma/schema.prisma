@@ -1455,6 +1455,8 @@ model Quote {
   totalPyg     BigInt
   notes        String?
   validUntil   DateTime?
+  // Equipo que entrega el cliente: { model, storage, condition, estimatedValuePyg }.
+  tradeIn      Json?
   status       QuoteStatus @default(DRAFT)
   // Acceso público del cliente: token no enumerable que viaja en el QR/enlace
   // para aceptar o rechazar la cotización sin sesión.
@@ -2571,6 +2573,11 @@ model TradeInDevice {
   diagnosis      String?
   technicianName String?
   accessories    Json          @default("[]")
+  color          String?
+  storage        String?
+  batteryPct     Int?
+  faults         Json          @default("[]")
+  faultsNote     String?
   photos         Json          @default("[]")
   notes          String?
   productId      String?       @unique

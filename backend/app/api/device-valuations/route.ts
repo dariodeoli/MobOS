@@ -6,6 +6,7 @@ import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
 import { diffCampos } from '../../../lib/audit'
 import { moduloGuard } from '../../../lib/modulos-guard'
+import { capacidadValida, modeloApple, normalizarCapacidad } from '../../../lib/catalogo-apple.mjs'
 
 const CONDITIONS = Object.values(ProductCondition)
 const LIMIT = 200
@@ -20,6 +21,15 @@ const storageInput = (value: unknown) => {
   if (value === null) return ''
   if (typeof value !== 'string' || value.trim().length > 60) throw new InputError('La capacidad debe ser texto de hasta 60 caracteres.')
   return value.trim().replace(/\s+/g, ' ')
+}
+
+// Capacidad del modelo del catálogo: forma canónica («256 gb» → «256GB») y solo
+// las que ese modelo trae. Los modelos fuera del catálogo siguen siendo texto libre.
+const capacidadDelModelo = (model: string, storage: string) => {
+  if (!modeloApple(model)) return storage
+  const canonica = normalizarCapacidad(storage)
+  if (!capacidadValida(model, canonica)) throw new InputError(`${modeloApple(model)!.nombre} no viene en ${storage || 'esa capacidad'}. Elegí una capacidad del modelo.`)
+  return canonica
 }
 
 const conditionInput = (value: unknown) => {
@@ -74,7 +84,7 @@ export async function POST(request: Request) {
     const body = objectInput(await request.json())
     const model = textInput(body.model, 'El modelo', 150).replace(/\s+/g, ' ')
     const modelKey = normalizarModelo(model)
-    const storage = storageInput(body.storage) ?? ''
+    const storage = capacidadDelModelo(model, storageInput(body.storage) ?? '')
     const condition = conditionInput(body.condition) ?? ProductCondition.USED
     const baseValuePyg = moneyInput(body.baseValuePyg, 'El valor base')
     const maxValuePyg = maxValueInput(body.maxValuePyg) ?? null
@@ -107,14 +117,15 @@ export async function PATCH(request: Request) {
     const current = await prisma.deviceValuation.findFirst({ where: { id, tenantId: session.user.tenantId } })
     if (!current) throw new InputError('Valor de toma no encontrado.', 404)
     const model = body.model === undefined ? undefined : textInput(body.model, 'El modelo', 150).replace(/\s+/g, ' ')
-    const storage = storageInput(body.storage)
+    const storageBody = storageInput(body.storage)
     const condition = conditionInput(body.condition)
     const baseValuePyg = body.baseValuePyg === undefined ? undefined : moneyInput(body.baseValuePyg, 'El valor base')
     const maxValuePyg = maxValueInput(body.maxValuePyg)
     const notes = notesInput(body.notes)
     const isActive = body.isActive
     if (isActive !== undefined && typeof isActive !== 'boolean') throw new InputError('isActive debe ser booleano.')
-    if (model === undefined && storage === undefined && condition === undefined && baseValuePyg === undefined && maxValuePyg === undefined && notes === undefined && isActive === undefined) throw new InputError('Faltan cambios.')
+    if (model === undefined && storageBody === undefined && condition === undefined && baseValuePyg === undefined && maxValuePyg === undefined && notes === undefined && isActive === undefined) throw new InputError('Faltan cambios.')
+    const storage = model === undefined && storageBody === undefined ? undefined : capacidadDelModelo(model ?? current.model, storageBody ?? current.storage)
     const next = {
       model: model ?? current.model,
       storage: storage ?? current.storage,
