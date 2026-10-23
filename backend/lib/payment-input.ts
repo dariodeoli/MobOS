@@ -1,4 +1,5 @@
 import { Prisma, type Payment, type PaymentAccount, type PaymentMethod, type PaymentStatus } from '@prisma/client'
+import { capacidadValida, modeloApple, normalizarCapacidad } from './catalogo-apple.mjs'
 import { LIMITE_MONTO_VENTAS, numero } from './montos'
 import { codigoGiftCardValido } from './gift-card-code'
 import { decideInitialPaymentState, parsePaymentVerification, type PaymentVerificationPolicy, type PendingReason } from './payment-verification-policy'
@@ -21,7 +22,42 @@ export function decimalInput(value: unknown, name: string, scale: number, allowZ
   if (!result.isFinite() || result.isNegative() || (!allowZero && result.isZero()) || result.decimalPlaces() > scale || result.gte('1000000000000')) throw new InputError(`${name} fuera de rango o con más de ${scale} decimales.`)
   return result
 }
-export type TradeInInput = { serial: string; model: string; conditionNotes: string }
+export type TradeInInput = {
+  serial: string; model: string; conditionNotes: string
+  // Datos del equipo al aceptarlo como parte de pago (todos opcionales).
+  color?: string; storage?: string; batteryPct?: number; faults?: string[]; faultsNote?: string; accessories?: string[]
+}
+
+const listaTexto = (valor: unknown, nombre: string, max = 20) => {
+  if (valor === undefined || valor === null) return undefined
+  if (!Array.isArray(valor) || valor.length > max) throw new InputError(`${nombre} debe ser una lista de hasta ${max} elementos.`)
+  return [...new Set(valor.map(item => textInput(item, nombre, 80)))]
+}
+
+/** Campos opcionales del equipo recibido (color, capacidad, batería, fallas, accesorios). */
+export function datosEquipoRecibido(device: Record<string, unknown>, model: string): Partial<TradeInInput> {
+  const extra: Partial<TradeInInput> = {}
+  if (device.color !== undefined && device.color !== null && device.color !== '') {
+    const color = textInput(device.color, 'color', 60)
+    const catalogo = modeloApple(model)
+    if (catalogo && !catalogo.colores.includes(color)) throw new InputError(`${catalogo.nombre} no viene en color ${color}.`)
+    extra.color = color
+  }
+  if (device.storage !== undefined && device.storage !== null && device.storage !== '') {
+    const storage = normalizarCapacidad(textInput(device.storage, 'storage', 60))
+    if (!capacidadValida(model, storage)) throw new InputError(`${model} no viene en ${storage}.`)
+    extra.storage = storage
+  }
+  if (device.batteryPct !== undefined && device.batteryPct !== null && device.batteryPct !== '') {
+    const pct = Number(device.batteryPct)
+    if (!Number.isInteger(pct) || pct < 0 || pct > 100) throw new InputError('El porcentaje de batería debe ser un entero de 0 a 100.')
+    extra.batteryPct = pct
+  }
+  const faults = listaTexto(device.faults, 'faults'); if (faults) extra.faults = faults
+  const accessories = listaTexto(device.accessories, 'accessories'); if (accessories) extra.accessories = accessories
+  if (device.faultsNote !== undefined && device.faultsNote !== null && String(device.faultsNote).trim()) extra.faultsNote = textInput(device.faultsNote, 'faultsNote', 1000)
+  return extra
+}
 type NormalizedPayment = {
   method: PaymentMethod; status: PaymentStatus; amountPyg: number; reference: string | null;
   accountId?: string; accountSnapshot?: Prisma.InputJsonObject; currency?: 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT';
@@ -139,7 +175,8 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
   if (result.method === 'TRADE_IN') {
     if (result.status !== 'CONFIRMED') throw new InputError('La recepción trade-in requiere pago CONFIRMED.')
     const device = objectInput(input.tradeIn)
-    result.tradeIn = { serial: textInput(device.serial, 'serial', 100).toUpperCase(), model: textInput(device.model, 'model', 200), conditionNotes: textInput(device.conditionNotes, 'conditionNotes') }
+    const model = textInput(device.model, 'model', 200)
+    result.tradeIn = { serial: textInput(device.serial, 'serial', 100).toUpperCase(), model, conditionNotes: textInput(device.conditionNotes, 'conditionNotes'), ...datosEquipoRecibido(device, model) }
   } else if (input.tradeIn !== undefined && input.tradeIn !== null) throw new InputError('tradeIn solo corresponde al método TRADE_IN.')
   // Gift card (#280): el canje viaja con el código y el monto aplicado; el saldo
   // se descuenta en la misma transacción del cobro (consumirGiftCard).

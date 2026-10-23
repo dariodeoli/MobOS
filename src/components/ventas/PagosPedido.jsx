@@ -1,3 +1,5 @@
+import CamposEquipoRecibido from './CamposEquipoRecibido'
+import { datosEquipoRecibido } from '@/utils/tradeInCheckout'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { codigoPedido, pagadoNeto, totalesPedido } from '@/utils/pedido'
 import CheckAnimado from '@/components/shared/CheckAnimado'
@@ -81,7 +83,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
   const [rateOrigin, setRateOrigin] = useState(null)
   const [fxLoading, setFxLoading] = useState(false)
   const [asPending, setAsPending] = useState(false)
-  const [device, setDevice] = useState({ serial: '', model: '', conditionNotes: '' })
+  const [device, setDevice] = useState({ serial: '', model: '', conditionNotes: '', color: '', batteryPct: '', faults: [], faultsNote: '', accessories: [] })
   const account = accounts.find(a => a.id === accountId)
   useEffect(() => { let active = true; getPaymentAccounts().then(rows => { if (active) setAccounts(rows.filter(a => a.isActive)) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [])
   useEffect(() => {
@@ -287,7 +289,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
     }
     setBusy(true); setError(''); setNotice('')
     try {
-      const tradeIn = account?.kind === 'TRADE_IN' ? device : undefined
+      const tradeIn = account?.kind === 'TRADE_IN' ? { serial: device.serial.trim(), model: device.model.trim(), conditionNotes: device.conditionNotes.trim(), ...datosEquipoRecibido(device) } : undefined
       if (tradeIn && (!device.serial.trim() || !device.model.trim() || !device.conditionNotes.trim())) throw new Error('Completá IMEI/serial, modelo y estado del teléfono recibido.')
       const details = account ? { accountId, originalAmount, exchangeRatePyg, currency: account.currency, accountSnapshot: { ...account }, tradeIn, ...(FOREIGN(account.currency) && origenParaServidor(rateOrigin) ? { exchangeRateOrigin: origenParaServidor(rateOrigin) } : {}) } : {}
       if (esDemo) {
@@ -487,7 +489,7 @@ export default function PagosPedido({ venta, onClose, onVerComprobante, open = t
       <label className="block text-xs text-mute">Monto en {FOREIGN(account?.currency) ? account.currency : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={FOREIGN(account?.currency) ? account.currency : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={FOREIGN(account?.currency) ? '10,50' : '0'} />{!FOREIGN(account?.currency) && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
       {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={(v) => { setRate(v); setRateOrigin(v === '' || v == null ? null : origenManual(sesion?.nombre)) }} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando…' : 'Usar cotización del día'}</button>{rateOrigin && <span className={`ml-2 text-[11px] ${rateOrigin.stale ? 'text-warn' : 'text-mute'}`} data-testid="cotizacion-origen">{etiquetaOrigen(rateOrigin)}</span>}</div>}
       {account && !cuotaPago && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
-      {account?.kind === 'TRADE_IN' && <div className="space-y-2"><SerialField aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={value => setDevice(d => ({ ...d, serial: value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
+      {account?.kind === 'TRADE_IN' && <div className="space-y-2"><SerialField aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={value => setDevice(d => ({ ...d, serial: value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /><CamposEquipoRecibido idPrefix="pedido-canje" model={device.model} value={device} onChange={patch => setDevice(d => ({ ...d, ...patch }))} /></div>}
       {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{METODOS_PAGO.map(key => <option key={key} value={key}>{key === 'STORE_CREDIT' ? `Saldo a favor${saldoFavor?.availablePyg ? ` (${gs(saldoFavor.availablePyg)})` : ''}` : ETIQUETAS_MEDIO_PAGO[key]}</option>)}</Select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : cuotaPago ? 'Cobrar cuota' : 'Registrar pago'}</Button>

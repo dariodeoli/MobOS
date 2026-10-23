@@ -2,6 +2,7 @@ import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { addProducto, updateProducto, getProductos, contextoActual, modoDatosActual } from '@/lib/storage'
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { datosEquipoRecibido } from '../utils/tradeInCheckout.js'
 
 export const TRADE_IN_STATUSES = {
   RECEIVED: 'Recibido', REVIEW: 'En revisión', REPAIR: 'En reparación',
@@ -143,7 +144,7 @@ function devices(payments) {
     const amount = money(payment.amountPyg ?? payment.monto ?? device.acceptedValuePyg, 'Valor de toma', true)
     const acceptedValuePyg = money(device.acceptedValuePyg ?? amount, 'Valor de toma', true)
     if (amount !== acceptedValuePyg) throw new Error('El valor de toma debe coincidir con el monto del pago.')
-    return [{ serial, model, conditionNotes, acceptedValuePyg, valuePyg: acceptedValuePyg, paymentId: payment.id || null, paymentIndex: index }]
+    return [{ serial, model, conditionNotes, ...datosEquipoRecibido(device), acceptedValuePyg, valuePyg: acceptedValuePyg, paymentId: payment.id || null, paymentIndex: index }]
   })
 }
 

@@ -49,6 +49,12 @@ export const VARIABLES_POR_CONTEXTO = {
     { clave: 'cotizacion', descripcion: 'Número de cotización' },
     { clave: 'vigencia', descripcion: 'Validez de la cotización' },
     { clave: 'enlace', descripcion: 'Enlace público de la cotización' },
+    { clave: 'detalle', descripcion: 'Productos de la cotización (📱)' },
+    { clave: 'equipo_entrega', descripcion: 'Equipo que entrega el cliente y su valor estimado (🔄, vacío si no hay)' },
+    { clave: 'faltante', descripcion: 'Faltante a pagar descontando el equipo (✅, vacío si no hay)' },
+    { clave: 'validez', descripcion: 'Línea de validez (📅, vacía sin fecha)' },
+    { clave: 'contacto', descripcion: 'Tienda y contacto (📍)' },
+    { clave: 'aviso_revision', descripcion: 'Aviso de valor sujeto a revisión (solo con equipo)' },
   ],
   SERVICE: [
     { clave: 'cliente', descripcion: 'Nombre del cliente' },
@@ -108,6 +114,12 @@ export const VALORES_EJEMPLO = {
   cotizacion: 'COT-0012',
   vigencia: '28-sep-2026',
   enlace: 'https://moboss.online/cotizacion/abc123',
+  detalle: '📱 *Detalle*\n• 1 × iPhone 15 Pro Max 256GB — Gs 8.000.000',
+  equipo_entrega: '🔄 *Equipo que entregás*\n• iPhone 13 128GB (Seminuevo)\n• Valor estimado: Gs 2.100.000',
+  faltante: '✅ *Faltante a pagar: Gs 5.900.000*',
+  validez: '📅 Válida hasta el 28-sep-2026',
+  contacto: '📍 MobOS · Sucursal Centro',
+  aviso_revision: '_Valor estimado sujeto a revisión: se confirma al traer el equipo a la tienda (batería, estado, fallas)._',
   enlace_resena: 'https://g.page/r/tu-negocio/review',
 }
 

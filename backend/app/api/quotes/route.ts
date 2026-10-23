@@ -7,6 +7,8 @@ import { enforceRateLimit } from '../../../lib/rate-limit'
 import { esNumeroCotizacionDuplicado, nextQuoteNumber } from '../../../lib/quote-number'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 import { congelarVersionDeCotizacion } from '../../../lib/quote-approval'
+import { TradeInCotizacionError, normalizarTradeInCotizacion } from '../../../lib/quote-tradein'
+import { moduloGuard } from '../../../lib/modulos-guard'
 
 const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
@@ -103,6 +105,9 @@ export async function POST(request: Request) {
     const subtotal = totals.subtotalPyg
     const discount = totals.discountPyg
     const customerId = typeof body?.customerId === 'string' && body.customerId ? body.customerId : null
+    // Equipo que entrega el cliente: requiere el módulo Trade-In y toma su valor de la tabla de la empresa.
+    if (body?.tradeIn) { const apagado = await moduloGuard(request, 'tradein'); if (apagado) return apagado }
+    const tradeIn = await normalizarTradeInCotizacion(body?.tradeIn, tenant)
     if (customerId && !await prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })) return error('Cliente no encontrado.', 404)
     // El número se calcula dentro de la transacción; si otra cotización ganó
     // el número en el medio, el índice único rechaza y se reintenta.
@@ -113,6 +118,7 @@ export async function POST(request: Request) {
             tenantId: tenant, branchId: session.user.branchId, customerId, customerName, sellerId: session.user.id, number: await nextQuoteNumber(tx, tenant),
             items, subtotalPyg: subtotal, discountPyg: discount, totalPyg: totals.totalPyg,
             notes: text(body?.notes, 2000), validUntil, status: 'DRAFT',
+            ...(tradeIn ? { tradeIn: tradeIn as unknown as Prisma.InputJsonValue } : {}),
           }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } } } }))
         } catch (e) {
           if (intento >= 2 || !esNumeroCotizacionDuplicado(e)) throw e
@@ -120,9 +126,9 @@ export async function POST(request: Request) {
       }
     })()
     const number = quote.number
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CREATED', entity: 'Quote', entityId: quote.id, metadata: { number, totalPyg: quote.totalPyg } } })
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CREATED', entity: 'Quote', entityId: quote.id, metadata: { number, totalPyg: quote.totalPyg, ...(tradeIn ? { tradeIn: { model: tradeIn.model, storage: tradeIn.storage, condition: tradeIn.condition, estimatedValuePyg: tradeIn.estimatedValuePyg } } : {}) } } })
     return json(quote, { status: 201 })
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo crear la cotización.', 400) }
+  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo crear la cotización.', cause instanceof TradeInCotizacionError ? cause.status : 400) }
 }
 
 export async function PATCH(request: Request) {
@@ -140,16 +146,20 @@ export async function PATCH(request: Request) {
   try {
     const validUntil = body?.validUntil === undefined ? undefined : body.validUntil === null || body.validUntil === '' ? null : new Date(body.validUntil)
     if (validUntil && Number.isNaN(validUntil.getTime())) return error('Vencimiento inválido.')
+    // tradeIn: objeto = cambia el equipo; null = lo quita; ausente = no se toca.
+    if (body?.tradeIn) { const apagado = await moduloGuard(request, 'tradein'); if (apagado) return apagado }
+    const tradeIn = body?.tradeIn === undefined || body.tradeIn === null ? undefined : await normalizarTradeInCotizacion(body.tradeIn, tenant)
     const updated = await prisma.$transaction(async tx => {
       const data = await tx.quote.update({ where: { id: quote.id }, data: {
         ...(status ? { status } : {}),
+        ...(body?.tradeIn === null ? { tradeIn: Prisma.JsonNull } : tradeIn ? { tradeIn: tradeIn as unknown as Prisma.InputJsonValue } : {}),
         ...(validUntil !== undefined ? { validUntil } : {}),
         ...(body?.notes !== undefined ? { notes: text(body.notes, 2000) } : {}),
         ...(body?.discountPyg !== undefined ? { discountPyg: Number(body.discountPyg), totalPyg: numero(quote.subtotalPyg) - Number(body.discountPyg) } : {}),
       }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } }, order: { select: { id: true, orderNumber: true } } } })
       // A3 (#279): si el enlace ya existe (o la cotización se marca enviada),
       // el cambio de contenido deja una versión nueva congelada para el cliente.
-      const tocaContenido = status === 'SENT' || validUntil !== undefined || body?.notes !== undefined || body?.discountPyg !== undefined
+      const tocaContenido = status === 'SENT' || validUntil !== undefined || body?.notes !== undefined || body?.discountPyg !== undefined || body?.tradeIn !== undefined
       if (tocaContenido && (data.status === 'SENT' || quote.publicToken)) {
         await congelarVersionDeCotizacion(tx, data, { frozenById: session.user.id, motivo: 'patch' })
       }
@@ -157,5 +167,5 @@ export async function PATCH(request: Request) {
       return data
     })
     return json(updated)
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la cotización.', 409) }
+  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la cotización.', cause instanceof TradeInCotizacionError ? cause.status : 409) }
 }

@@ -5,16 +5,34 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 14,
+    "totalChicos": 17,
     "chicos": [
       {
         "que": "button",
-        "texto": "Cobrar saldo · Gs 60.000",
-        "ancho": 196,
+        "texto": "Publicar",
+        "ancho": 87,
         "alto": 36,
-        "dibujo": "196x36",
+        "dibujo": "87x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 9
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Pedido anterior",
+        "ancho": 40,
+        "alto": 44,
+        "dibujo": "40x44",
+        "clase": "grid h-11 w-11 place-items-center rounded-lg text-mute hover",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Ver detalle",
+        "ancho": 73,
+        "alto": 20,
+        "dibujo": "73x20",
+        "clase": "mt-0.5 inline-flex min-h-11 items-center gap-1 text-[11px] f",
+        "veces": 2
       },
       {
         "que": "button",
@@ -35,6 +53,24 @@
         "veces": 1
       },
       {
+        "que": "a",
+        "texto": "Administrador",
+        "ancho": 96,
+        "alto": 17,
+        "dibujo": "96x17",
+        "clase": "hidden font-semibold text-fono-light hover:underline md:inli",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Producto Shopify MVKKED9Z479",
+        "ancho": 209,
+        "alto": 20,
+        "dibujo": "209x20",
+        "clase": "ventas-f3-name block text-fono-light hover:underline",
+        "veces": 1
+      },
+      {
         "que": "button",
         "texto": "Regenerar acceso QR",
         "ancho": 149,
@@ -44,21 +80,12 @@
         "veces": 1
       },
       {
-        "que": "button",
-        "texto": "＋ Agregar nota",
-        "ancho": 91,
-        "alto": 16,
-        "dibujo": "91x16",
-        "clase": "mt-1 inline-flex min-h-11 items-center text-xs font-semibold",
-        "veces": 1
-      },
-      {
         "que": "a",
-        "texto": "Ver perfil",
-        "ancho": 54,
+        "texto": "1 pedido",
+        "ancho": 48,
         "alto": 16,
-        "dibujo": "54x16",
-        "clase": "mt-1 inline-flex min-h-11 items-center text-xs font-semibold",
+        "dibujo": "48x16",
+        "clase": "inline-flex min-h-11 items-center text-xs font-semibold text",
         "veces": 1
       }
     ]

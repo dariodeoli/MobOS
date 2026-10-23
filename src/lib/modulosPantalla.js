@@ -17,6 +17,7 @@ export const FILTROS_MODULOS = [
 // Pestaña del filtro de cada módulo opcional (los próximamente van a Integraciones).
 const GRUPO_DE_MODULO = {
   tradein: 'ventas',
+  'catalogo-modelos': 'ventas',
   servicios: 'ventas',
   delivery: 'ventas',
   'gift-cards': 'ventas',
@@ -47,6 +48,7 @@ export const grupoDeModulo = id => GRUPO_DE_MODULO[id] || 'integraciones'
 // Qué incluye cada módulo, en lenguaje de producto.
 export const INCLUYE = {
   tradein: ['Cotizador de equipos usados', 'Equipo recibido como parte de pago', 'Pipeline de trade-in para el dueño'],
+  'catalogo-modelos': ['Todos los modelos Apple: iPhone desde el 11, iPad, Mac, Apple Watch y AirPods', 'Capacidades y colores de cada modelo', 'Se activa solo con Trade-In'],
   servicios: ['Órdenes de servicio y su seguimiento', 'Reclamos de garantía', 'La pestaña Taller en Stock'],
   delivery: ['Repartos y asignación de repartidor', 'Cobro contra entrega y rendiciones', 'Cierre diario y semanal'],
   'campanas-recompra': ['Campañas para que los clientes vuelvan a comprar', 'Seguimiento de clientes'],

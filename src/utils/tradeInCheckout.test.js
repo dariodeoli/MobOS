@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizarModelo, tradeInDraftPayment, valorSugerido, valorSugeridoDeCatalogo } from './tradeInCheckout.js'
+import { datosEquipoRecibido, normalizarModelo, tradeInDraftPayment, valorSugerido, valorSugeridoDeCatalogo } from './tradeInCheckout.js'
 const accounts = [{ id: 'canje', isActive: true, kind: 'TRADE_IN', currency: 'PYG', name: 'Canje' }]
 const draft = { model: 'Equipo ficticio', imei: 'DEMO-123', conditionNotes: 'Pantalla rayada', value: 200000 }
 test('ficha conserva importe, modelo, serial y condición en el pago', () => {
@@ -56,4 +56,30 @@ test('el valor base de la demo sale del catálogo por modelo y condición', () =
   assert.equal(valorSugeridoDeCatalogo(productos, 'iPhone 15 Pro 256GB Titanio', 'NEW').baseValuePyg, 4250000)
   assert.equal(valorSugeridoDeCatalogo(productos, 'Galaxy S99', 'USED'), null)
   assert.equal(valorSugeridoDeCatalogo(productos, '', 'USED'), null)
+})
+
+test('la sugerencia respeta la capacidad elegida y nunca usa la de otra', () => {
+  const valores = [
+    { model: 'iPhone 13', modelKey: 'iphone 13', storage: '128GB', condition: 'USED', baseValuePyg: 2100000, isActive: true },
+    { model: 'iPhone 13', modelKey: 'iphone 13', storage: '256GB', condition: 'USED', baseValuePyg: 2500000, isActive: true },
+    { model: 'iPhone 13', storage: '512GB', condition: 'USED', baseValuePyg: 2900000, isActive: false },
+  ]
+  assert.equal(valorSugerido(valores, 'iPhone 13', 'USED', '256GB').baseValuePyg, 2500000)
+  assert.equal(valorSugerido(valores, 'iphone 13', 'USED', '128GB').baseValuePyg, 2100000)
+  assert.equal(valorSugerido(valores, 'iPhone 13', 'USED', '512GB'), null, 'el inactivo no se sugiere')
+  assert.equal(valorSugerido(valores, 'iPhone 13', 'USED', '1TB'), null)
+  assert.equal(valorSugerido(valores, 'iPhone 13', 'USED').baseValuePyg, 2100000, 'sin capacidad elegida sigue la regla de siempre')
+  assert.equal(valorSugerido([{ ...valores[0], storage: '' }], 'iPhone 13', 'USED', '128GB').baseValuePyg, 2100000, 'un valor sin capacidad sirve para cualquiera')
+})
+
+test('el equipo recibido lleva color, capacidad, batería, fallas y accesorios solo si se cargaron', () => {
+  assert.deepEqual(datosEquipoRecibido({}), {})
+  assert.deepEqual(datosEquipoRecibido({ color: ' Titanio azul ', storage: '256GB', batteryPct: '87', faults: ['Cámaras con fallas', 'Cámaras con fallas', ''], faultsNote: ' rayón ', accessories: ['Caja'] }), {
+    color: 'Titanio azul', storage: '256GB', batteryPct: 87, faults: ['Cámaras con fallas'], faultsNote: 'rayón', accessories: ['Caja'],
+  })
+  assert.equal(datosEquipoRecibido({ batteryPct: 140 }).batteryPct, 100)
+  assert.equal(datosEquipoRecibido({ batteryPct: '' }).batteryPct, undefined)
+  const pago = tradeInDraftPayment({ ...draft, color: 'Negro', batteryPct: 91, faults: ['Pantalla rota o con fallas'], accessories: ['Cargador'] }, accounts)
+  assert.deepEqual(pago.tradeIn, { model: 'Equipo ficticio', serial: 'DEMO-123', conditionNotes: 'Pantalla rayada', color: 'Negro', batteryPct: 91, faults: ['Pantalla rota o con fallas'], accessories: ['Cargador'] })
+  assert.equal(pago.monto, '200000', 'el monto del pago no cambia')
 })

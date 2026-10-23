@@ -35,6 +35,7 @@ export function demoCotizacionPayload(token) {
     discountPyg,
     totalPyg: Number(cotizacion.totalPyg ?? subtotal - discountPyg),
     notes: cotizacion.notes || null,
+    tradeIn: cotizacion.tradeIn?.model ? { model: cotizacion.tradeIn.model, storage: cotizacion.tradeIn.storage || '', condition: cotizacion.tradeIn.condition || '', estimatedValuePyg: Number(cotizacion.tradeIn.estimatedValuePyg) || 0 } : null,
     resolution: cotizacion.resolution || null,
     // A3 (#279): versión congelada y canales de OTP (demo simulada).
     version: cotizacion.version || { number: 1, hash: 'demo', frozenAt: cotizacion.updatedAt || cotizacion.createdAt || null },
