@@ -143,7 +143,7 @@ export function aprobarDemoCotizacion(token, evidencia = {}) {
 }
 
 /** Alta demo de una cotización (borrador) desde el modal. */
-export function crearDemoCotizacion({ customerName, customerId = null, validUntil = null, notes = '', discountPyg = 0, items = [] } = {}) {
+export function crearDemoCotizacion({ customerName, customerId = null, validUntil = null, notes = '', discountPyg = 0, items = [], tradeIn = null } = {}) {
   const numero = `COT-#${String(secuencia).padStart(4, '0')}`
   const id = `demo-cot-nueva-${secuencia}`
   secuencia += 1
@@ -161,6 +161,7 @@ export function crearDemoCotizacion({ customerName, customerId = null, validUnti
     notes: String(notes || ''),
     items: filas,
     ...totales(filas, Number(discountPyg) || 0),
+    ...(tradeIn ? { tradeIn } : {}),
     publicToken: id,
   }
   overrides.set(id, cotizacion)

@@ -1,3 +1,4 @@
+import { AVISO_VALOR_ESTIMADO, faltanteCotizacion, nombreEquipoEntrega } from '@/lib/mensajeCotizacion'
 import { htmlConAreaTermica } from '@/lib/printing/papelTermico'
 import { aplicarDisenoPredeterminado } from '@/lib/printing/disenoPro'
 import { gs } from '@/utils/calculos'
@@ -793,6 +794,7 @@ async function armarProformaHtml(quote, { format = 'a4', enlace = '' } = {}) {
       ${descuento ? `<tr><td>Descuento</td><td class="num">− ${escapeHtml(gs(descuento))}</td></tr>` : ''}
       <tr class="total"><td>Total</td><td class="num">${escapeHtml(gs(quote.totalPyg))}</td></tr>
     </table>
+    ${quote.tradeIn?.model ? `<div class="card"><div class="label">Equipo que entrega el cliente</div><div><strong>${escapeHtml(nombreEquipoEntrega(quote.tradeIn))}</strong></div><div>Valor estimado: − ${escapeHtml(gs(quote.tradeIn.estimatedValuePyg))}</div><div><strong>Faltante a pagar: ${escapeHtml(gs(faltanteCotizacion(quote.totalPyg, quote.tradeIn)))}</strong></div><p class="small">${escapeHtml(AVISO_VALOR_ESTIMADO)}</p></div>` : ''}
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
     <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
     ${enlace ? `<div class="card"><div class="label">Aceptación en línea</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR de la cotización">` : ''}<p class="small">Escaneá o abrí el enlace para aceptar o rechazar la cotización:<br>${escapeHtml(enlace)}</p></div></div>` : ''}
