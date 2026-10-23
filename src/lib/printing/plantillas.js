@@ -6,6 +6,7 @@ export const TIPOS_PLANTILLA = {
   comprobante: 'Comprobante premium',
   'etiquetas-producto': 'Etiquetas de producto',
   'etiquetas-stock': 'Etiquetas de unidad',
+  'etiquetas-envio': 'Etiqueta de envío 10×15',
   ticket: 'Ticket',
   cotizacion: 'Cotización',
   remito: 'Remito',
@@ -27,6 +28,7 @@ export const OBLIGATORIOS = {
   ],
   'etiquetas-producto': ['product', 'sku', 'barcode'],
   'etiquetas-stock': ['model', 'serial', 'qr', 'barcode'],
+  'etiquetas-envio': ['recipient', 'address', 'orderNumber', 'qr', 'barcode'],
   ticket: [...ENCABEZADO_PIE, 'items', 'total'],
   cotizacion: [...ENCABEZADO_PIE, 'customer', 'items', 'total'],
   remito: [...ENCABEZADO_PIE, 'customer', 'items'],
@@ -35,6 +37,7 @@ export const OPCIONALES = {
   comprobante: [],
   'etiquetas-producto': ['price', 'brand', 'qr'],
   'etiquetas-stock': ['brand', 'condition', 'battery', 'location', 'supplierCode'],
+  'etiquetas-envio': ['sender', 'method', 'packages', 'cod', 'date'],
   ticket: ['customer', 'payments', 'warranty'],
   cotizacion: [],
   remito: ['total'],
@@ -61,6 +64,13 @@ export const CONTENIDOS = {
   battery: 'Batería',
   location: 'Ubicación',
   supplierCode: 'Sigla del proveedor',
+  sender: 'Remitente (tienda)',
+  recipient: 'Destinatario',
+  address: 'Dirección y referencia',
+  orderNumber: 'Número de pedido',
+  method: 'Método de entrega',
+  packages: 'Bultos',
+  cod: 'Contra reembolso / pagado',
 }
 export const tipoElemento = binding =>
   binding === 'qr'

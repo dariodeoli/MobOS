@@ -21,7 +21,7 @@ async function abrirPlantillas(page) {
 test('la galería muestra 3 o 4 diseños por documento y se elige el predeterminado', async ({ page }) => {
   await abrirPlantillas(page)
   const tipo = page.getByLabel('Tipo de documento', { exact: true })
-  for (const [valor, minimo] of [['comprobante', 3], ['ticket', 3], ['cotizacion', 4], ['remito', 3], ['etiquetas-producto', 3], ['etiquetas-stock', 3]]) {
+  for (const [valor, minimo] of [['comprobante', 3], ['ticket', 3], ['cotizacion', 4], ['remito', 3], ['etiquetas-producto', 3], ['etiquetas-stock', 3], ['etiquetas-envio', 2]]) {
     await tipo.selectOption(valor)
     await expect(page.getByTestId('galeria-pro')).toBeVisible()
     expect(await page.getByTestId('diseno-pro').count()).toBeGreaterThanOrEqual(minimo)

@@ -71,6 +71,7 @@
         "documentos-no-fiscales.spec.js",
         "dsn-responsive-mobile.spec.js",
         "equipo-integrantes.spec.js",
+        "etiqueta-envio.spec.js",
         "etiquetas-unidad.spec.js",
         "finanzas-ultimo-usado.spec.js",
         "fotos-producto.spec.js",
@@ -111,7 +112,7 @@
         "sin-recortes.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 232,
+      "tests": 234,
       "ms": 1312756
     },
     {
