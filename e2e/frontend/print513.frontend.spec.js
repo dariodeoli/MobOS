@@ -296,6 +296,9 @@ test('513 rechazo local tardío no encola en la empresa siguiente', async ({ pag
     return route.fulfill({ status: 400, headers: { 'Access-Control-Allow-Origin': '*' }, json: { ok: false, error: 'Rechazo antes de aceptar' } })
   })
   await page.goto('/e2e/fixtures/plantillas507.html')
+  // Las fuentes propias cargan junto al fixture: se espera la carga completa
+  // para que el sondeo inicial del agente no compita con la impresión.
+  await page.waitForLoadState('networkidle')
   const pending = page.evaluate(async () => {
     const agent = await import('/src/lib/printing/agent.js')
     const { crearTicket } = await import('/src/lib/printing/escpos.js')
