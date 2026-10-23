@@ -21,7 +21,7 @@ import { CONDICIONES_TOMA, ETIQUETA_CONDICION, cambiosDeGrilla, csvPlantilla, cs
 const GRID_VALORACIONES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.4fr)_6rem_6.5rem_7rem_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_MASIVA = 'grid grid-cols-[minmax(0,1fr)_9.5rem_9.5rem] items-center gap-x-2 max-sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'
 const VALUACION_VACIA = { model: '', storage: '', condition: 'USED', baseValuePyg: '', maxValuePyg: '', notes: '', isActive: true }
-const FILAS_POR_PAGINA = 60
+const FILAS_POR_PAGINA = 12
 
 // Tabla de valores de toma que alimenta la sugerencia del POS y el cotizador: el
 // vendedor ve el valor base del modelo, la capacidad y la condición, y decide si
@@ -105,7 +105,7 @@ export default function ValoresToma({ esDemo }) {
 
   // Un solo endpoint de lote (idempotente) para la grilla y para el CSV.
   async function guardarLote(lote) {
-    if (esDemo) return guardarLoteValuacionesDemo(lote)
+    if (esDemo) { const respuesta = guardarLoteValuacionesDemo(lote); setRows(respuesta.rows); return respuesta }
     const respuesta = await api.post('/api/device-valuations/batch', { rows: lote })
     await load()
     return respuesta
@@ -138,14 +138,14 @@ export default function ValoresToma({ esDemo }) {
 
   return <Card className="space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
+      <div className="min-w-[16rem] flex-1">
         <h2 className="font-bold">Valores de toma · {rows.length} cargados</h2>
         <p className="mt-1 text-sm text-mute">Sugerencia por modelo, capacidad y condición. El vendedor la ve al cargar el canje y en las cotizaciones, y puede cambiarla.</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" disabled={busy || loading || !!form} onClick={() => setMasiva(true)}>Edición masiva</Button>
         <Button type="button" disabled={busy || loading || !!form} onClick={() => openForm()}>Agregar valor</Button>
-        <MenuDesplegable
+        <span data-testid="valores-mas"><MenuDesplegable
           trigger={<span className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm font-semibold text-fore">Más<Icon name="chevron" className="h-3.5 w-3.5 text-mute" /></span>}
           ariaLabel="Más acciones de valores de toma"
           items={[
@@ -154,7 +154,7 @@ export default function ValoresToma({ esDemo }) {
             { label: 'Descargar plantilla CSV', onClick: plantilla },
             { label: 'Actualizar', disabled: busy || loading, onClick: load },
           ]}
-        />
+        /></span>
         <AttachmentInput className="hidden" inputRef={archivo} accept=".csv,text/csv" mensaje="El archivo debe ser un CSV (.csv o text/csv) de hasta 5 MiB." onSelect={leerArchivo} onError={setError} aria-label="Archivo CSV de valores de toma" data-testid="valores-csv-archivo" />
       </div>
     </div>
@@ -179,11 +179,11 @@ export default function ValoresToma({ esDemo }) {
           <div><Label htmlFor="dv-condition">Condición</Label><Select id="dv-condition" value={form.condition} onChange={(event) => change('condition', event.target.value)}>{CONDICIONES_TOMA.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
           <div><Label htmlFor="dv-base">Valor base (Gs)</Label><MoneyInput id="dv-base" required value={form.baseValuePyg} onValueChange={(value) => change('baseValuePyg', value)} placeholder="0" /></div>
           <div><Label htmlFor="dv-max">Valor máximo (Gs, opcional)</Label><MoneyInput id="dv-max" value={form.maxValuePyg} onValueChange={(value) => change('maxValuePyg', value)} placeholder="Hasta" /></div>
-          <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.isActive} onChange={(event) => change('isActive', event.target.checked)} />Valor activo</label>
           <div className="sm:col-span-2"><Label htmlFor="dv-notes">Notas (opcional)</Label><Textarea id="dv-notes" rows={2} maxLength={2000} value={form.notes} onChange={(event) => change('notes', event.target.value)} placeholder="Aclaraciones para el equipo" /></div>
         </fieldset>
         {formError && <Aviso tono="error" className="px-3 py-2 text-sm">{formError}</Aviso>}
         <FormActions>
+          <label className="mr-auto flex min-h-11 items-center gap-2 self-center text-sm"><input type="checkbox" checked={form.isActive} disabled={busy} onChange={(event) => change('isActive', event.target.checked)} />Valor activo</label>
           <Button type="button" variant="ghost" disabled={busy} onClick={cerrarForm}>Cancelar</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar valor'}</Button>
         </FormActions>
@@ -301,8 +301,8 @@ function EdicionMasiva({ open, onClose, rows, guardarLote, onGuardado }) {
           const etiqueta = `${fila.model}${fila.storage ? ` ${fila.storage}` : ''}`
           return <div key={fila.clave} role="row" data-testid="masiva-fila" data-modelo={fila.model} data-capacidad={fila.storage} className={cn(GRID_MASIVA, 'border-b border-ink-700 px-3 py-1.5 last:border-b-0', editada && 'bg-fono/5')}>
             <span role="cell" className="min-w-0 text-sm"><span className="font-medium text-fore">{fila.model}</span>{fila.storage && <span className="ml-1.5 text-mute">{fila.storage}</span>}</span>
-            <span role="cell"><MoneyInput aria-label={`Valor base de ${etiqueta}`} value={editada ? editada.base : fila.base} onValueChange={(valor) => editar(fila, 'base', valor)} placeholder="—" className="h-9 text-right text-sm" /></span>
-            <span role="cell"><MoneyInput aria-label={`Valor máximo de ${etiqueta}`} value={editada ? editada.max : fila.max} onValueChange={(valor) => editar(fila, 'max', valor)} placeholder="—" className="h-9 text-right text-sm" /></span>
+            <span role="cell"><MoneyInput aria-label={`Valor base de ${etiqueta}`} value={editada ? editada.base : fila.base} onValueChange={(valor) => editar(fila, 'base', valor)} placeholder="—" className="h-11 text-right text-sm sm:h-9" /></span>
+            <span role="cell"><MoneyInput aria-label={`Valor máximo de ${etiqueta}`} value={editada ? editada.max : fila.max} onValueChange={(valor) => editar(fila, 'max', valor)} placeholder="—" className="h-11 text-right text-sm sm:h-9" /></span>
           </div>
         })}
       </div>

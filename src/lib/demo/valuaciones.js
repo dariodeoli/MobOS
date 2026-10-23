@@ -41,7 +41,8 @@ function iniciar() {
     if (!base) continue
     const capacidades = modelo.capacidades.length ? modelo.capacidades : ['']
     capacidades.forEach((storage, posicion) => {
-      for (const condition of ['USED', 'REFURBISHED', 'NEW']) {
+      // Un modelo de 2020 o anterior ya no se vende sellado: sin valor «Nuevo».
+      for (const condition of modelo.anio <= 2020 ? ['USED', 'REFURBISHED'] : ['USED', 'REFURBISHED', 'NEW']) {
         const valor = redondear(base * FACTOR_CAPACIDAD[Math.min(posicion, FACTOR_CAPACIDAD.length - 1)] * FACTOR_CONDICION[condition])
         indice += 1
         filas.push({
@@ -61,6 +62,10 @@ export const listarValuacionesDemo = () => { iniciar(); return filas.map((fila) 
 export function guardarValuacionDemo(id, datos) {
   iniciar()
   const conClave = datos.model ? { ...datos, modelKey: normalizarClaveModelo(datos.model) } : datos
+  // Igual que el servidor: un modelo, capacidad y condición tienen un solo valor.
+  if (conClave.model && conClave.condition && filas.some((fila) => fila.id !== id && fila.modelKey === conClave.modelKey && (fila.storage || '') === (conClave.storage || '') && fila.condition === conClave.condition)) {
+    throw new Error('Ya existe un valor para ese modelo, capacidad y condición.')
+  }
   if (id) {
     filas = filas.map((fila) => (fila.id === id ? { ...fila, ...conClave } : fila))
     return { ...filas.find((fila) => fila.id === id) }

@@ -23,6 +23,8 @@ test('trade-in demo: detalle en panel, sin empujar la lista', async ({ page }) =
   await expect(page.getByTestId('tradein-tabla')).toBeVisible({ timeout: 20_000 })
   const filas = page.getByTestId('tradein-fila')
   await expect(filas.first()).toBeVisible()
+  // La tabla de valores de toma (con catálogo) ocupa más: se mide con la fila a la vista.
+  await filas.first().scrollIntoViewIfNeeded()
   await esperarAnimaciones(page)
   const antes = await filas.first().boundingBox()
 

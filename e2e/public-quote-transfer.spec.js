@@ -140,7 +140,7 @@ test('la cotización se envía por WhatsApp con el PDF y queda enviada', async (
   expect(abierto.length).toBe(1)
   expect(abierto[0]).toContain('https://wa.me/595981')
   const mensaje = decodeURIComponent(abierto[0])
-  expect(mensaje).toContain('te comparto la cotización')
+  expect(mensaje).toContain('te comparto tu cotización')
   expect(mensaje).toContain('/cotizacion/')
 
   // El estado queda en SENT (enviada): el PATCH sale después del share, así

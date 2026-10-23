@@ -110,10 +110,11 @@
         "qa-564-imei-demo.spec.js",
         "ruc-extraccion.spec.js",
         "sin-recortes.spec.js",
+        "tradein-catalogo-api.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 234,
-      "ms": 1312756
+      "tests": 235,
+      "ms": 1327756
     },
     {
       "archivos": [
@@ -170,10 +171,11 @@
         "redireccion-248.spec.js",
         "ruc-demo.spec.js",
         "sesion-bloqueo.spec.js",
+        "tradein-catalogo-demo.spec.js",
         "verificacion-diaria.spec.js"
       ],
-      "tests": 234,
-      "ms": 1311865
+      "tests": 240,
+      "ms": 1431865
     },
     {
       "archivos": [
