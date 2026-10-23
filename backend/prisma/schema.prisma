@@ -1866,6 +1866,12 @@ model OrderItem {
   stockPending         Int            @default(0)
   // La línea se vendió sin costo conocido: falta cargar el costo del producto.
   costPending          Boolean        @default(false)
+  // De dónde salió el costo de la línea: PURCHASE (compra de Por comprar, se
+  // imputa una sola vez a la venta original), SERIAL (IMEI entregado) o
+  // MANUAL. Null = costo del producto al vender.
+  costSource           String?
+  // Cuándo llegó lo que se vendió sobre pedido (aviso «Listo para retirar»).
+  backorderArrivedAt   DateTime?
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
   discountPyg          BigInt         @default(0)
   discountPct          Decimal?       @db.Decimal(5, 2)
@@ -3004,6 +3010,11 @@ model SupplyNeed {
   // Compra que la cubrió (Fase 2): el panel muestra con qué compra se resolvió.
   purchaseId   String?
   purchase     SupplyPurchase?  @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  // Venta sin stock: unidades ya recibidas (recepción rápida o lote), cuándo
+  // llegó todo y cuándo se le avisó al cliente (lo manda el encargado).
+  receivedQty  Int              @default(0)
+  arrivedAt    DateTime?
+  customerNotifiedAt DateTime?
   createdById  String
   createdBy    User             @relation("SupplyNeedAuthor", fields: [createdById], references: [id], onDelete: Restrict)
   // Clave de deduplicación de las automáticas: repetir la misma demanda no crea
@@ -3093,6 +3104,13 @@ model SupplyPurchase {
   // costo cargado, la compra genera su cuenta a pagar (contado nace paga).
   paymentCondition String         @default("CONTADO")
   dueAt           DateTime?
+  // Pago al proveedor: cuándo y quién lo marcó pagado; `paidAccountId` es la
+  // cuenta de donde salió la plata y `paymentPendingAccount` indica que quedó
+  // «ya pagado» sin cuenta (Finanzas la asigna después, sin doble salida).
+  paidAt          DateTime?
+  paidById        String?
+  paidAccountId   String?
+  paymentPendingAccount Boolean   @default(false)
   createdById     String
   createdBy       User            @relation("SupplyPurchaseAuthor", fields: [createdById], references: [id], onDelete: Restrict)
   createdAt       DateTime        @default(now())
