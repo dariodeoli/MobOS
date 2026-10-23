@@ -11,6 +11,7 @@ import { itemsDeResumenCorreoDemo, tipoCorreoDemoDeEntrega } from '@/lib/demoCor
 import { plantillaDeEntrega } from '@/lib/avisos'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import { ChipsReparto } from './ChipsReparto'
+import EtiquetaEnvioPopup from './EtiquetaEnvioPopup'
 import './entregasF3.css'
 import '@/components/shared/operacionRediseno.css'
 import { codigoPedido } from '@/utils/pedido'
@@ -43,7 +44,7 @@ function FilaMonto({ label, value, tono = '' }) {
   )
 }
 
-function PedidoReparto({ row, onCobrar, onEstado, busy }) {
+function PedidoReparto({ row, onCobrar, onEstado, onEtiqueta, busy }) {
   const pendiente = row.pendiente > 0
   return (
     <article data-testid="reparto-pedido" data-pedido={row.number} className="entregas-f3-order">
@@ -88,6 +89,9 @@ function PedidoReparto({ row, onCobrar, onEstado, busy }) {
             <Icon name="check" className="h-4 w-4" />Marcar entregado
           </Button>
         )}
+        <Button type="button" variant="outline" disabled={busy} onClick={() => onEtiqueta(row)} data-testid="etiqueta-envio-pedido">
+          <Icon name="printer" className="h-4 w-4" />Etiqueta de envío
+        </Button>
         {pendiente && (
           <Button type="button" variant="outline" disabled={busy} onClick={() => onCobrar(row)} data-testid="reparto-cobrar">
             <Icon name="money" className="h-4 w-4" />Registrar cobro
@@ -126,6 +130,7 @@ export default function DriverOrders() {
   const data = useSellerData(`/api/delivery/orders?estado=${estado}`, deliveryFields, demoRead, esDemo, { limit: 50 })
   const pagina = usePaginaLista(data.rows, { tamano: 10, modo: 'mas' })
   const [ocupado, setOcupado] = useState('')
+  const [paraEtiqueta, setParaEtiqueta] = useState(null)
 
   function abrirCobro(row) {
     setCobro(row); setMonto(row.pendiente); setMetodo('CASH'); setReferencia(''); setError('')
@@ -180,8 +185,9 @@ export default function DriverOrders() {
         claseFilas="entregas-f3-grid"
         etiquetaPie="Más repartos"
         unidad="repartos"
-        renderFila={row => <PedidoReparto key={row.id} row={row} onCobrar={abrirCobro} onEstado={cambiarEstado} busy={ocupado === row.id} />}
+        renderFila={row => <PedidoReparto key={row.id} row={row} onCobrar={abrirCobro} onEstado={cambiarEstado} onEtiqueta={fila => setParaEtiqueta([fila.orden])} busy={ocupado === row.id} />}
       />
+      <EtiquetaEnvioPopup open={Boolean(paraEtiqueta)} ordenes={paraEtiqueta || []} onClose={() => setParaEtiqueta(null)} />
 
       <Popup
         open={Boolean(cobro)}

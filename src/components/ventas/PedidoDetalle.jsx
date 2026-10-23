@@ -28,6 +28,7 @@ import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote, trackingUrlFor } from
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ClienteDelPedidoModal from './ClienteDelPedidoModal'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { imprimirEtiquetaEnvioPedido } from '@/lib/printing/etiquetaEnvioImpresion'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketNotaEntrega } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
@@ -967,6 +968,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 items={[
                   ...(!esDemo && !anulado ? [{ id: 'devolver', label: 'Devolver / postventa', onClick: () => setCobroAbierto(true) }] : []),
                   { id: 'nota-entrega', label: 'Nota de entrega', onClick: imprimirNotaEntrega },
+                  { id: 'etiqueta-envio', label: 'Etiqueta de envío 10×15', onClick: () => imprimirEtiquetaEnvioPedido(order, { toast }) },
                   ...(!esDemo ? [{ id: 'archivar', label: archivado ? 'Desarchivar' : 'Archivar', onClick: alternarArchivado }] : []),
                   ...(!esDemo && !anulado ? [{ separador: true }, { id: 'anular', label: 'Anular pedido', onClick: abrirAnular }] : []),
                 ]}
