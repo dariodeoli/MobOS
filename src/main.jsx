@@ -7,8 +7,10 @@ import { installErrorTracking } from './lib/errorTracking'
 import './lib/qrLogoFuente'
 import { isNativeIOS } from './lib/plataforma'
 import { mostrarApp, prepararNativo } from './lib/nativo/arranque'
+import { instalarEnfoque } from './lib/enfoque'
 
 const nativo = isNativeIOS()
+instalarEnfoque()
 
 if (import.meta.env.PROD) {
   installErrorTracking()

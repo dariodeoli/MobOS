@@ -179,7 +179,7 @@ export default function Popup({
           </div>
         </div>
         <ContextoPopup.Provider value={contexto}>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
+          <div className="popup-cuerpo min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 text-sm md:px-5">{children}</div>
         </ContextoPopup.Provider>
         {(footer || lista.length > 0) ? (
           <div className="border-t border-ink-600 bg-ink px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 md:px-5 md:pb-4">

@@ -592,3 +592,7 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login-pin:has(details[open]) .pin-seg.pin-pad .pin-seg-celda { border-radius: 6px; }
   .auth-login-pin:has(details[open]) .pin-seg.pin-pad .pin-seg-punto { width: 8px; height: 8px; }
 }
+
+/* Foco y desplazamiento (src/lib/enfoque.js): con el teclado abierto la página
+   gana recorrido inferior (80 dvh) para subir un campo del pie a la mitad superior. */
+html.teclado-abierto body { padding-bottom: max(var(--teclado-alto, 0px), 80dvh); }
