@@ -39,3 +39,152 @@
   .config-pagina [data-testid$='-estado'], .config-barra-cambios { animation: none !important; }
   .config-icono { transition: none; }
 }
+
+/* ── Grafito (tokens --ds-*): solo detalles visuales ──────────────────────
+   Misma estructura y navegación de Configuración; acá cambian superficies,
+   radios, espaciado y tipografía para hablar el lenguaje del panel: líneas
+   hairline en vez de rellenos y sombras, radios chicos y un solo acento. */
+
+/* Menú de secciones (segunda columna en escritorio). */
+[data-config-menu] {
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-2) var(--ds-space-2) var(--ds-space-3);
+}
+[data-config-menu] [data-testid='config-volver'] {
+  border-radius: var(--ds-radius-sm);
+  margin-bottom: var(--ds-space-1);
+}
+[data-config-menu] [data-testid='config-volver'] > span {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+}
+[data-config-menu] [data-testid='config-buscar'] {
+  border-radius: var(--ds-radius-md);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface-subtle));
+  font-size: var(--ds-text-sm);
+}
+[data-config-menu] [data-testid='config-empresa'] {
+  border-radius: var(--ds-radius-md);
+  border-color: rgb(var(--ds-border));
+  margin-block: var(--ds-space-1);
+}
+[data-config-menu] [data-testid='config-empresa'] > span[aria-hidden],
+[data-config-menu] [data-testid='config-empresa'] > img {
+  border-radius: var(--ds-radius-sm);
+}
+[data-config-menu] :is([data-tab-id], [data-ajuste-id]) {
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-sm);
+}
+[data-config-menu] [data-tab-id] {
+  font-weight: var(--ds-weight-medium);
+}
+[data-config-menu] [data-tab-id][aria-current='page'] {
+  background: rgb(var(--ds-surface-hover));
+  box-shadow: inset 2px 0 0 rgb(var(--ds-accent));
+  font-weight: var(--ds-weight-semibold);
+}
+[data-config-menu] [data-tab-id][aria-current='page'] > svg {
+  color: rgb(var(--ds-accent));
+}
+
+/* Lista de secciones en celular: un solo bloque con líneas. */
+.config-pagina [data-lista-movil] {
+  border-radius: var(--ds-radius-lg);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface));
+}
+.config-pagina [data-lista-movil] .config-icono {
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-border));
+  color: rgb(var(--ds-accent));
+}
+
+/* Encabezado de la sección: superficie blanca con línea, título claro. */
+.config-pagina [data-testid='config-grupo-cabecera'] {
+  border-radius: var(--ds-radius-lg);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface));
+  box-shadow: var(--ds-shadow-1);
+  margin-bottom: var(--ds-space-4);
+  align-items: center;
+}
+.config-pagina [data-testid='config-grupo-cabecera'] > span:first-child {
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-border));
+  color: rgb(var(--ds-accent));
+}
+.config-pagina [data-testid='config-grupo-cabecera'] > span:last-child > span:first-child {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+  line-height: var(--ds-leading-tight);
+}
+.config-pagina [data-testid='config-grupo-descripcion'] {
+  margin-top: var(--ds-space-1);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-normal);
+}
+
+/* Pestañas internas de cada sección (Negocio, Equipo…): grupo hairline con
+   la pestaña activa en relleno neutro y el ícono en el acento, en lugar de
+   la píldora verde llena. «Zona de peligro» conserva su rojo. */
+.config-pagina [role='tablist'] {
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--ds-radius-md);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface-subtle));
+  margin-bottom: var(--ds-space-4);
+}
+.config-pagina [role='tablist'] > [role='tab'] {
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  padding-inline: var(--ds-space-3);
+}
+.config-pagina [role='tablist'] > [role='tab']:not(:has(.config-tab-peligro)) {
+  color: rgb(var(--ds-text-muted));
+}
+.config-pagina [role='tablist'] > [role='tab']:not(:has(.config-tab-peligro)):hover {
+  color: rgb(var(--ds-text));
+}
+.config-pagina [role='tablist'] > [role='tab'][aria-selected='true']:not(:has(.config-tab-peligro)) {
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: 0 0 0 1px rgb(var(--ds-border)), var(--ds-shadow-1);
+}
+.config-pagina [role='tablist'] > [role='tab'][aria-selected='true']:not(:has(.config-tab-peligro)) svg {
+  color: rgb(var(--ds-accent));
+}
+
+/* Contenido: tarjetas hairline, títulos con jerarquía y avisos sin bloque grueso. */
+.config-contenido {
+  font-size: var(--ds-text-md);
+}
+.config-contenido :is(h2, h3) {
+  letter-spacing: var(--ds-tracking-title);
+}
+.config-contenido .shadow-card {
+  border-radius: var(--ds-radius-lg);
+  border-color: rgb(var(--ds-border));
+  box-shadow: var(--ds-shadow-1);
+}
+.config-contenido :is(.rounded-xl, .rounded-2xl):not(.shadow-card) {
+  border-radius: var(--ds-radius-lg);
+}
+
+/* Barra de cambios sin guardar: flota, así que es lo único con sombra. */
+.config-barra-cambios {
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface));
+  border-color: rgb(var(--ds-notice-border));
+  box-shadow: var(--ds-shadow-pop);
+  font-size: var(--ds-text-sm);
+}
+.config-barra-punto { background: rgb(var(--ds-notice-border)); }
