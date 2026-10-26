@@ -78,7 +78,8 @@ function EnlacePantalla({ ruta, titulo }) {
     <Link
       to={ruta}
       aria-label={`Ir a ${titulo}`}
-      className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
+      data-ayuda-ir
+      className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border px-3 py-2 text-xs font-semibold transition"
     >
       Ir
       <Icon name="external" className="h-3.5 w-3.5" />
@@ -98,9 +99,9 @@ export default function ComandosAtajos({ vistasAccesibles }) {
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div data-ayuda-lista>
         {atajosVisibles.map(({ tecla, mac, titulo, detalle, ruta, pantalla }) => (
-          <div key={titulo} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-start sm:justify-between">
+          <div key={titulo} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-bold">{titulo}</h3>
@@ -109,22 +110,23 @@ export default function ComandosAtajos({ vistasAccesibles }) {
               <p className="mt-1 text-sm text-fore">{detalle}</p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
-              <kbd className="rounded-md border border-ink-500 bg-ink-700 px-2 py-0.5 text-xs font-semibold text-mute">{tecla}</kbd>
-              {mac && <kbd className="rounded-md border border-ink-500 bg-ink-700 px-2 py-0.5 text-xs font-semibold text-mute">{mac}</kbd>}
+              <kbd className="rounded-md border border-ink-600 bg-ink-800 px-2 py-0.5 text-xs font-medium text-mute">{tecla}</kbd>
+              {mac && <kbd className="rounded-md border border-ink-600 bg-ink-800 px-2 py-0.5 text-xs font-medium text-mute">{mac}</kbd>}
               <EnlacePantalla ruta={ruta} titulo={titulo} />
             </div>
           </div>
         ))}
       </div>
 
-      <p className="rounded-xl border border-ink-600 bg-ink-700/40 p-3 text-xs text-mute">
+      <p data-ayuda-nota className="rounded-xl border border-ink-600 bg-ink-700/40 p-3 text-xs text-mute">
         En <b className="text-fore">Mac</b>, las teclas de función van con <b className="text-fore">Fn</b> (<b className="text-fore">Fn+F1</b> … <b className="text-fore">Fn+F4</b>) y los atajos que usan Ctrl usan <b className="text-fore">Cmd</b> (<b className="text-fore">Cmd+K</b>, <b className="text-fore">Cmd+S</b>). Los atajos no actúan mientras escribís en un campo o tenés un diálogo abierto.
       </p>
 
       <div className="space-y-2">
         <h3 className="text-sm font-bold">Pantallas de soporte</h3>
+        <div data-ayuda-lista>
         {soporteVisible.map(({ titulo, detalle, ruta }) => (
-          <div key={titulo} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div key={titulo} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h4 className="text-sm font-semibold">{titulo}</h4>
               <p className="mt-0.5 text-sm text-mute">{detalle}</p>
@@ -132,6 +134,7 @@ export default function ComandosAtajos({ vistasAccesibles }) {
             <EnlacePantalla ruta={ruta} titulo={titulo} />
           </div>
         ))}
+        </div>
       </div>
     </Card>
   )

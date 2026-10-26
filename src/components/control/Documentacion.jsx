@@ -6,6 +6,7 @@ import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { publicUrls } from '@/lib/urls'
 import { buscarAyuda } from '@/lib/busquedaAyuda'
+import './ayudaRediseno.css'
 
 // Tareas frecuentes (#321): la ayuda arranca por la pregunta real, con los
 // pasos y el enlace a la pantalla. El índice completo sigue abajo.
@@ -391,7 +392,8 @@ export default function Documentacion({ vistasAccesibles, children }) {
                   <button
                     type="button"
                     onClick={() => navigate(entrada.ruta)}
-                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
+                    data-ayuda-ir
+                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-lg border px-3 py-2 text-xs font-semibold transition"
                     aria-label={`Ir a ${entrada.titulo}`}
                   >
                     Ir
@@ -420,7 +422,7 @@ export default function Documentacion({ vistasAccesibles, children }) {
         {tareasVisibles.map(({ pregunta, pasos, ruta, accion, icono }) => (
             <Card key={pregunta} className="flex flex-col gap-3 p-4">
               <div className="flex min-w-0 items-start gap-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
+                <span data-ayuda-icono className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
                   <Icon name={icono} className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
@@ -432,7 +434,8 @@ export default function Documentacion({ vistasAccesibles, children }) {
                 type="button"
                 onClick={() => navigate(ruta)}
                 aria-label={`${accion}: ${pregunta}`}
-                className="mt-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-9"
+                data-ayuda-ir
+                className="mt-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-lg border px-3 py-2 text-xs font-semibold transition md:min-h-9"
               >
                 {accion}
                 <Icon name="external" className="h-3.5 w-3.5" />
@@ -498,7 +501,7 @@ export default function Documentacion({ vistasAccesibles, children }) {
       {busqueda.trim() ? null : resultados.length === 0 ? (
         <EmptyState compact icon="search" title="No hay guías para estas categorías." description="Tu usuario no tiene secciones disponibles en esta vista." />
       ) : (
-        <div className="space-y-2.5">
+        <div data-ayuda-lista>
           {resultados.map(entrada => (
             <Card key={entrada.titulo} className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -514,7 +517,8 @@ export default function Documentacion({ vistasAccesibles, children }) {
                 <button
                   type="button"
                   onClick={() => navigate(entrada.ruta)}
-                  className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
+                  data-ayuda-ir
+                  className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border px-3 py-2 text-xs font-semibold transition"
                   aria-label={`Ir a ${entrada.titulo}`}
                 >
                   Ir
