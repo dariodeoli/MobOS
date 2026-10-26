@@ -113,11 +113,11 @@ export default function ImeiVerificador() {
   return (
     <div className="grid gap-8 lg:grid-cols-[.95fr_1.05fr] lg:items-start">
       <div>
-        <p className="inline-flex items-center gap-2 rounded-full border border-fono/25 bg-fono/[.08] px-3 py-1.5 text-xs font-bold uppercase tracking-[.16em] text-fono-dark">
+        <p className="inline-flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[.14em] text-fono-dark">
           <ScanLine size={13} />
           Verificación de IMEI
         </p>
-        <h2 className="mt-5 font-display text-4xl font-bold tracking-[-.04em] sm:text-5xl">
+        <h2 className="mt-4 font-display text-3xl font-bold tracking-[-.04em] sm:text-4xl">
           Un IMEI deja de ser un número suelto.
         </h2>
         <p className="mt-5 leading-7 text-mute">

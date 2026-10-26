@@ -416,7 +416,7 @@ test('escritorio 1440: catálogo + ticket fijo y sin barra ni hojas del celular'
   await expect(page.getByTestId('pos-barra-carrito')).toHaveCount(0)
   const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
   const der = await page.getByTestId('pos-columna-venta').boundingBox()
-  expect(Math.abs(der.width - 410)).toBeLessThanOrEqual(2)
+  expect(Math.abs(der.width - 460)).toBeLessThanOrEqual(2)
   expect(izq.width).toBeGreaterThan(der.width)
 })
 

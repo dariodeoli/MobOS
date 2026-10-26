@@ -136,9 +136,12 @@
     display: none;
   }
 }
+/* El carrito es el área de trabajo principal (pedido de Dario): desde 1280 el
+   ticket gana ancho (460 px; 500 px en pantallas grandes) y el catálogo queda
+   como zona para explorar. */
 @media (min-width: 1280px) {
   .pos-f2 .pos-layout {
-    --pos-ticket: 410px;
+    --pos-ticket: 460px;
     --pos-gap: 16px;
     gap: var(--pos-gap);
     grid-template-columns: minmax(0, 1fr) var(--pos-ticket);
@@ -148,6 +151,34 @@
   }
   .pos-f2 .pos-layout[data-cobro] {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 1600px) {
+  .pos-f2 .pos-layout {
+    --pos-ticket: 500px;
+  }
+}
+
+/* Cabecera del ticket: «Venta actual» y el vendedor, sobre el cliente. En la
+   pantalla de cobro el resumen ya tiene su propio encabezado. */
+@media (min-width: 1024px) {
+  .pos-f2 .pos-ticket-cabecera {
+    flex: 0 0 auto;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid rgb(var(--c-ink-600));
+    background: rgb(var(--c-ink-700));
+  }
+  .pos-f2 .pos-layout[data-cobro] .pos-ticket-cabecera {
+    display: none;
+  }
+  /* Carrito vacío: el estado vacío ocupa el alto libre del ticket en vez de
+     dejar un panel en blanco. */
+  .pos-f2 .pos-layout:not([data-cobro]) [data-testid='pos-carrito-cuerpo']:has(> [data-carrito-vacio]) {
+    display: flex;
+    flex-direction: column;
+  }
+  .pos-f2 [data-testid='pos-carrito-cuerpo'] > [data-carrito-vacio] {
+    flex: 1 0 auto;
   }
 }
 

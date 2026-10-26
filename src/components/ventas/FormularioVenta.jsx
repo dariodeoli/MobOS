@@ -2552,6 +2552,16 @@ export default function FormularioVenta({
             data-testid="pos-columna-venta"
             className="pos-columna-venta flex min-w-0 flex-col gap-2"
           >
+            {/* Cabecera del ticket (solo escritorio): el carrito es el área de
+                trabajo principal. El vendedor ya figura en el bloque Cliente. */}
+            <div data-testid="pos-ticket-cabecera" className="pos-ticket-cabecera hidden items-center justify-between gap-3 lg:flex">
+              <h2 className="text-base font-bold tracking-tight text-fore">Venta actual</h2>
+              {cantTotal > 0 && (
+                <span className="shrink-0 rounded-full bg-fono/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-fono">
+                  {cantTotal} {cantTotal === 1 ? 'ítem' : 'ítems'}
+                </span>
+              )}
+            </div>
             {/* El cliente queda junto al ticket y al total; el catálogo conserva el foco de búsqueda. */}
             {pos('cliente',
             <PosCustomer

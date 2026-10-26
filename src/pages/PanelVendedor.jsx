@@ -41,6 +41,7 @@ import { moduloDeVista } from '@/lib/modulos'
 import { rutaPadreDeVista, textoModuloDesactivado } from '@/lib/modulosAviso'
 import '@/components/shared/gestionRediseno.css'
 import '@/components/supply/comprasRediseno.css'
+import '@/styles/paginas-inicio-finanzas.css'
 
 const VISTAS_COMPRAS = new Set(['compras', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion'])
 const VISTAS_GESTION = new Set(['resumen', 'metricas', 'mi-cuenta', 'cotizaciones', 'plantillas', 'promociones', 'precios', 'campanas', 'tradein-admin', 'cotizador', 'celulares', 'comparador', 'centro-control', 'compras', 'abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion'])
@@ -1116,7 +1117,7 @@ export default function PanelVendedor() {
             </div>
           )}
           {(esOwner || esVerificador) && subpadre === 'finanzas' && (
-            <div>
+            <div className="ds-pagina">
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}

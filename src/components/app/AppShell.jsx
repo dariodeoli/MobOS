@@ -41,6 +41,10 @@ import {
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
 import '@/styles/visual-v3.css'
+// Dirección «Grafito»: va después de v3 para ganarle a igual especificidad.
+import '@/styles/panel-foundation.css'
+// Páginas de listado (Stock, Clientes, Pedidos) en el mismo lenguaje.
+import '@/styles/panel-paginas.css'
 
 function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
   if (sinEmpresa > 0) return `${sinEmpresa} venta${sinEmpresa === 1 ? '' : 's'} sin empresa por confirmar`
@@ -324,16 +328,133 @@ export default function AppShell({
     </button>
   )
 
-  const botonLateral = section =>
+  const botonLateral = (section, { conDesplegable = false } = {}) =>
     sectionButton(section, {
       className: cn(
         'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
         collapsed ? 'w-11 justify-center px-0' : 'lg:min-h-9',
+        conDesplegable && 'w-full pr-10',
         currentId === section.id && 'bg-ink-700 font-semibold text-fore',
       ),
       children: !collapsed && section.label,
       pendientes: section.id === 'pedidos' ? badgesPestanas[claveBadge('pedidos', 'autorizaciones')] : 0,
     })
+
+  // Menú lateral en acordeón (escritorio, menú expandido): una sección con más
+  // de un grupo despliega sus grupos debajo y el grupo activo, sus vistas
+  // (Inicio › Reportes › Ventas del día…). La fila de la sección sigue
+  // navegando; el chevrón solo abre o cierra. Entrar a otra sección deja
+  // desplegada solo esa. Configuración no se toca: tiene su propio menú.
+  const [desplegadas, setDesplegadas] = useState({ seccion: currentId, ids: currentId ? [currentId] : [] })
+  if (desplegadas.seccion !== currentId)
+    setDesplegadas({ seccion: currentId, ids: currentId ? [currentId] : [] })
+  const alternarSeccion = id =>
+    setDesplegadas(actual => ({
+      ...actual,
+      ids: actual.ids.includes(id) ? actual.ids.filter(abierta => abierta !== id) : [...actual.ids, id],
+    }))
+  // Vistas del grupo activo: las pestañas de la propia página (Análisis) o el
+  // segundo nivel del grupo (Precios: Listas · Lista por modelo…).
+  const subpaginas = pageTabs ? pageTabs.items.map(([id, label]) => ({ id, label })) : segments
+  const subpaginaActiva = pageTabs ? pageTabs.value : active
+  const abrirSubpagina = id => (pageTabs ? pageTabs.onChange(id) : navegar(id))
+  // Las entradas del submenú son destinos (role="link"): no compiten por nombre
+  // con los botones de sección («Pedidos» › «Pedidos») y la sección conserva
+  // el único aria-current="page" del menú; la entrada activa lleva "true".
+  const entradaLateral = ({ id, label, badge, activa, nivel, onClick }) => {
+    const info = infoBadge({ badge })
+    return (
+      <button
+        type="button"
+        role="link"
+        data-shell-sub={id}
+        aria-current={activa ? 'true' : undefined}
+        aria-label={info ? `${label}, ${info.etiqueta}` : undefined}
+        title={label}
+        onClick={onClick}
+        className={cn(
+          'relative flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 text-left hover:bg-ink-700 hover:text-fore',
+          nivel === 1 ? 'min-h-11 text-[13px] lg:min-h-8' : 'min-h-11 text-xs lg:min-h-7',
+          activa
+            ? "font-semibold text-fore before:absolute before:inset-y-1.5 before:-left-[9px] before:w-0.5 before:rounded-full before:bg-fono before:content-['']"
+            : 'text-mute',
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        {info && (
+          <span aria-hidden className="inline-grid min-w-5 place-items-center rounded-full bg-warn/20 px-1.5 text-[11px] font-bold tabular-nums text-warn">
+            {info.texto}
+          </span>
+        )}
+      </button>
+    )
+  }
+  const seccionLateral = section => {
+    const grupos = section.id === 'configuracion' || collapsed ? [] : shellContextGroups(section)
+    if (grupos.length < 2) return botonLateral(section)
+    const abierta = desplegadas.ids.includes(section.id)
+    const panelId = `shell-submenu-${section.id}`
+    return (
+      <div key={section.id} data-shell-acordeon={section.id} className="flex shrink-0 flex-col">
+        <div className="relative flex">
+          {botonLateral(section, { conDesplegable: true })}
+          <button
+            type="button"
+            data-testid={`shell-desplegar-${section.id}`}
+            aria-label={`Submenú de ${section.label}`}
+            title={abierta ? `Ocultar ${section.label}` : `Mostrar ${section.label}`}
+            aria-expanded={abierta}
+            aria-controls={abierta ? panelId : undefined}
+            onClick={() => alternarSeccion(section.id)}
+            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-mute hover:bg-ink-700 hover:text-fore"
+          >
+            <Icon name="chevron" className={cn('h-3.5 w-3.5 transition-transform motion-reduce:transition-none', !abierta && '-rotate-90')} />
+          </button>
+        </div>
+        {abierta && (
+          <ul
+            id={panelId}
+            aria-label={`Páginas de ${section.label}`}
+            className="ml-[21px] mt-0.5 mb-1 flex flex-col gap-0.5 border-l border-ink-600 pl-2"
+          >
+            {grupos.map(group => {
+              const grupoActivo = currentId === section.id && currentGroup?.id === group.id
+              return (
+                <li key={group.id} className="flex min-w-0 flex-col">
+                  {entradaLateral({
+                    id: group.id,
+                    label: group.label,
+                    badge: badgesPestanas[claveBadge(section.id, group.id)],
+                    activa: grupoActivo,
+                    nivel: 1,
+                    onClick: () => navegar(group.items[0][0]),
+                  })}
+                  {grupoActivo && subpaginas.length > 1 && (
+                    <ul
+                      aria-label={`Vistas de ${group.label}`}
+                      className="mb-0.5 ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-ink-600 pl-2"
+                    >
+                      {subpaginas.map(pagina => (
+                        <li key={pagina.id} className="min-w-0">
+                          {entradaLateral({
+                            id: pagina.id,
+                            label: pagina.label,
+                            activa: subpaginaActiva === pagina.id,
+                            nivel: 2,
+                            onClick: () => abrirSubpagina(pagina.id),
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    )
+  }
 
   // Pestañas de contexto (nivel 1) y las de la propia página (Inicio › Reportes
   // trae las suyas): cuando hay las dos van en UNA fila, con las de la página en
@@ -428,7 +549,7 @@ export default function AppShell({
         {searchButton()}
         <nav aria-label="Navegación principal" className={cn('flex min-h-0 flex-1 flex-col', collapsed && 'w-full items-center')}>
           <div className={cn('flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto', collapsed && 'w-full items-center')}>
-            {sections.filter(section => section.id !== 'configuracion').map(section => botonLateral(section))}
+            {sections.filter(section => section.id !== 'configuracion').map(section => seccionLateral(section))}
           </div>
           {/* Configuración va abajo, separada: ahí se cambian ajustes, no se opera. */}
           {sections.filter(section => section.id === 'configuracion').map(section => (
@@ -483,7 +604,7 @@ export default function AppShell({
           <div className="flex h-14 min-w-0 items-center gap-1 px-3 max-[359px]:gap-0 max-[359px]:px-1">
             {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : (
               <>
-                <ThemeLogo data-testid="shell-mobile-brand" className="hidden h-6 w-[74px] shrink-0 min-[380px]:block" />
+                <ThemeLogo data-testid="shell-mobile-brand" className="hidden h-6 w-[74px] shrink-0 min-[380px]:block" variante="dark" />
                 <img data-testid="shell-mobile-brand-icon" src="/mobos-icon.svg" alt="MobOS" className="block h-7 w-7 shrink-0 min-[380px]:hidden" />
               </>
             )}

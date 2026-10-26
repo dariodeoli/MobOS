@@ -1,0 +1,734 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Páginas de listado del panel · dirección «Grafito» (tokens en tokens.css)
+   ────────────────────────────────────────────────────────────────────────
+   Capa de presentación para Stock (Unidades · Productos · Compras ·
+   Traslados · Control), Clientes (listado y ficha) y Pedidos. Se carga
+   DESPUÉS de panel-foundation.css y de las hojas propias de cada página; cada
+   regla va acotada al shell (.shell-nav-v2) y a la raíz de su página, así que
+   gana por especificidad sin tocar geometría: los objetivos de 44 px, los
+   data-testid, las columnas y los textos quedan como estaban.
+
+   La ficha del cliente (ventana) se reconoce por su cabecera fija
+   (perfil-cabecera-fija), sin tocar el componente.
+
+   Lenguaje (el mismo de Vender):
+   - Listas y tablas: UNA superficie blanca con borde hairline y radio 10;
+     filas densas separadas por línea fina, sin tarjetas por fila ni sombras.
+   - Encabezado de tabla fijo (sticky), 11 px en versalitas grises.
+   - Chips de estado: tono apagado (relleno al 10 % del color, sin borde).
+   - KPI: cifras planas con rótulo chico, sin caja ni mini-gráficos.
+   - Filtros: una sola fila limpia, sin caja alrededor.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 0. Raíces y tokens locales ─────────────────────────────────────────── */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']),
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) {
+  --pg-line: rgb(var(--ds-border));
+  --pg-surface: rgb(var(--ds-surface));
+  --pg-subtle: rgb(var(--ds-surface-subtle));
+  --pg-hover: rgb(var(--ds-surface-subtle));
+  --pg-head-h: 34px;
+  /* Debajo de lg la barra superior móvil (3 rem) queda fija: el encabezado
+     de la tabla se ancla justo debajo. */
+  --pg-sticky-top: 0px;
+}
+@media (max-width: 1023px) {
+  .shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) {
+    --pg-sticky-top: 3rem;
+  }
+}
+
+/* ── 1. Rótulos de encabezado de tabla ──────────────────────────────────── */
+.shell-nav-v2 .ped-rd .ventas-f3-list-header,
+.shell-nav-v2 .ped-rd .ventas-f3-list-header > button,
+.shell-nav-v2 .clientes-f3 .clientes-f3-table > div:first-child :is(button, span),
+.shell-nav-v2 .stock-rediseno :is(.stock-lista-encabezado, .pl-encabezado) > span,
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] > div:first-child > *,
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compras-tabla'] > div:first-child > * {
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2 .ped-rd .ventas-f3-list-header > button[class*='text-fono'],
+.shell-nav-v2 .clientes-f3 .clientes-f3-table > div:first-child button[class*='text-fono'],
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compras-tabla'] > div:first-child > button[class*='text-fono'] {
+  color: rgb(var(--ds-text));
+}
+
+/* ── 2. KPI: cifras planas con rótulo chico ─────────────────────────────── */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) [role='group'][aria-label='Resumen'] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  gap: var(--ds-space-6);
+  padding-inline: 2px;
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) [role='group'][aria-label='Resumen'] > div {
+  border-right: 0;
+  padding-inline: 0;
+  flex: 0 0 auto;
+  column-gap: var(--ds-space-2);
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) [role='group'][aria-label='Resumen'] > div > span:first-child {
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) [role='group'][aria-label='Resumen'] .v2-numero {
+  font-size: 1.0625rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) [role='group'][aria-label='Resumen'] > p {
+  margin-left: auto;
+  padding-inline: 0;
+  font-weight: var(--ds-weight-medium);
+  font-size: var(--ds-text-2xs);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+}
+/* Cifras planas: el mini-gráfico sigue en el DOM pero no se pinta. */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) [data-testid='kpi-grafico'] {
+  display: none !important;
+}
+/* El selector de período abre la tira sin caja: un rótulo con flecha. */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3) [role='group'][aria-label='Resumen'] > div:first-child:has([data-testid='kpi-periodo']) {
+  border-right: 1px solid var(--pg-line);
+  padding-right: var(--ds-space-3);
+}
+
+/* ── 3. Chips de estado: tono apagado, sin borde ────────────────────────── */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is(span[data-estado]:not(.pl-fila), .v2-chip, .pl-chip),
+.v3-portal :is(.popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']), .ped-rd) :is(span[data-estado], .v2-chip) {
+  border-color: transparent;
+  border-radius: var(--ds-radius-xs);
+  background: color-mix(in srgb, currentColor 11%, transparent);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* El texto del chip toma el tono de su familia (varias clases text-*-text no
+   existen en la paleta y caían al color de texto general). */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-ok'], [class*='bg-ok']),
+.v3-portal :is(.popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']), .ped-rd) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-ok'], [class*='bg-ok']) {
+  color: rgb(var(--c-ok));
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-warn'], [class*='bg-warn']),
+.v3-portal :is(.popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']), .ped-rd) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-warn'], [class*='bg-warn']) {
+  color: rgb(var(--c-warn));
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-bad'], [class*='bg-bad']),
+.v3-portal :is(.popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']), .ped-rd) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-bad'], [class*='bg-bad']) {
+  color: rgb(var(--c-bad));
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-info'], [class*='bg-info'], [class*='text-fono'], [class*='bg-fono']),
+.v3-portal :is(.popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']), .ped-rd) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-info'], [class*='bg-info'], [class*='text-fono'], [class*='bg-fono']) {
+  color: rgb(var(--c-info));
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is(.v2-chip, span[data-estado]:not(.pl-fila)):is([class*='text-reserved'], [class*='bg-reserved'], [data-estado='reservado']) {
+  color: rgb(var(--c-reserved));
+}
+/* Pedidos: la píldora con punto pasa a chip cuadrado con punto. */
+.shell-nav-v2 .ped-rd .ventas-f3-order-statuses .v2-chip,
+.v3-portal .ped-rd [data-testid='pedido-vista-rapida'] .v2-chip {
+  border-radius: var(--ds-radius-xs);
+  padding: 1px 7px 1px 6px;
+}
+.shell-nav-v2 .ped-rd .ventas-f3-order-statuses .v2-chip::before {
+  width: 5px;
+  height: 5px;
+}
+/* El chip «Reservado» de Stock forzaba fondo oscuro: vuelve al tono apagado. */
+.shell-nav-v2 .stock-rediseno span[data-estado='reservado'] {
+  background: color-mix(in srgb, currentColor 11%, transparent) !important;
+}
+/* Chip neutro de Clientes (tipo de cliente): gris sin borde. */
+.shell-nav-v2 .clientes-f3 [data-testid='cliente-fila'] .v2-chip {
+  background: rgb(var(--ds-surface-subtle));
+  color: rgb(var(--ds-text-muted));
+}
+
+/* ── 4. Filtros: una fila limpia, sin caja alrededor ────────────────────── */
+.shell-nav-v2 .stock-rediseno :is([data-testid='barra-inventario'], [data-testid='barra-traslados'], [data-testid='barra-control']),
+.shell-nav-v2 .prod-rediseno .prod-barra {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+/* Chips de filtro (Tipo · Estado · Sucursal…): radio de control, hairline. */
+.shell-nav-v2 .stock-rediseno .filtros-stock button,
+.shell-nav-v2 .stock-rediseno [data-testid='filtros-stock'] button,
+.shell-nav-v2 .prod-rediseno [data-testid='chips-accesorio'] > button {
+  border-radius: var(--ds-radius-md);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface));
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2 .prod-rediseno [data-testid='chips-accesorio'] > button[aria-pressed='true'] {
+  background: rgb(var(--ds-text));
+  border-color: rgb(var(--ds-text));
+  color: rgb(var(--ds-surface));
+}
+/* Pestañas de estado (Activos · Con saldo…) y chips de Clientes/Compras:
+   grupo segmentado con borde hairline, igual que el segundo nivel del shell. */
+.shell-nav-v2 :is(.ped-rd, [data-testid='compras-pagina']) .ventas-f3-chips,
+.shell-nav-v2 .clientes-f3 .clientes-f3-chips {
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-md);
+  background: var(--pg-subtle);
+}
+.shell-nav-v2 :is(.ped-rd, [data-testid='compras-pagina']) .ventas-f3-chips > button,
+.shell-nav-v2 .clientes-f3 .clientes-f3-chips > button {
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: rgb(var(--ds-text-muted));
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2 :is(.ped-rd, [data-testid='compras-pagina']) .ventas-f3-chips > button:hover,
+.shell-nav-v2 .clientes-f3 .clientes-f3-chips > button:hover {
+  background: rgb(var(--ds-surface-hover));
+  color: rgb(var(--ds-text));
+}
+.shell-nav-v2 :is(.ped-rd, [data-testid='compras-pagina']) .ventas-f3-chips > button[aria-pressed='true'],
+.shell-nav-v2 .clientes-f3 .clientes-f3-chips > button[aria-pressed='true'] {
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: 0 0 0 1px rgb(var(--ds-border)), var(--ds-shadow-1);
+}
+.shell-nav-v2 :is(.ped-rd, [data-testid='compras-pagina']) .ventas-f3-chips > button[aria-pressed='true']::after {
+  display: none;
+}
+
+/* ── 5. Pedidos ─────────────────────────────────────────────────────────── */
+.shell-nav-v2 .ped-rd .ventas-f3-list {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  /* clip (no hidden): recorta las esquinas sin crear un contenedor de
+     desplazamiento, así el encabezado puede quedar fijo. */
+  overflow: clip;
+}
+.shell-nav-v2 .ped-rd .ventas-f3-list-header {
+  position: sticky;
+  top: var(--pg-sticky-top);
+  z-index: 4;
+  background: var(--pg-subtle);
+  border-bottom: 1px solid var(--pg-line);
+}
+.shell-nav-v2 .ped-rd .ventas-f3-order-row {
+  border-top-color: var(--pg-line);
+  /* El acento de pago queda como marca fina (el chip «Pago» ya lo dice). */
+  border-left-width: 2px;
+}
+.shell-nav-v2 .ped-rd .ventas-f3-list-header + .ventas-f3-order-row,
+.shell-nav-v2 .ped-rd .ventas-f3-list-header + * > .ventas-f3-order-row:first-child {
+  border-top-color: transparent;
+}
+.shell-nav-v2 .ped-rd .ventas-f3-order-row:hover {
+  background: var(--pg-hover);
+}
+.shell-nav-v2 .ped-rd .ventas-f3-order-code > span {
+  font-family: var(--ds-font-mono);
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2 .ped-rd .ventas-f3-name {
+  font-size: var(--ds-text-sm);
+}
+.shell-nav-v2 .ped-rd .ventas-f3-order-total {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+}
+.shell-nav-v2 .ped-rd .ventas-f3-quick {
+  border-color: transparent;
+  background: transparent;
+  border-radius: var(--ds-radius-sm);
+}
+.shell-nav-v2 .ped-rd .ventas-f3-quick:hover {
+  border-color: var(--pg-line);
+  background: rgb(var(--ds-surface));
+}
+/* Detalle del pedido: secciones con hairline, sin sombra al pasar. */
+.shell-nav-v2 .ped-rd :is(.ventas-f3-detail-header, .ventas-f3-detail-section),
+.shell-nav-v2 .ped-rd .ventas-f3-detail-section:hover {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: none;
+}
+
+/* ── 6. Clientes ────────────────────────────────────────────────────────── */
+.shell-nav-v2 .clientes-f3 .clientes-f3-table {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  overflow: clip;
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-table > div:first-child {
+  position: sticky;
+  top: var(--pg-sticky-top);
+  z-index: 4;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: var(--pg-subtle);
+  border-bottom: 1px solid var(--pg-line);
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-table [data-testid='cliente-fila'] {
+  background: var(--pg-surface);
+  border-bottom-color: var(--pg-line);
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-table [data-testid='cliente-fila']:last-child {
+  border-bottom-color: transparent;
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-table [data-testid='cliente-fila']:hover {
+  background: var(--pg-hover);
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-table > div:first-child :is(button, span) {
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+/* Acciones de la fila (ver · ⋯): sin caja hasta que se pasa el puntero. */
+.shell-nav-v2 .clientes-f3 [data-testid='cliente-fila'] > :last-child :is(button, a)[class*='border'] {
+  border-color: transparent;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2 .clientes-f3 [data-testid='cliente-fila'] > :last-child :is(button, a)[class*='border']:is(:hover, [aria-expanded='true']) {
+  border-color: var(--pg-line);
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+}
+/* Celular: tarjetas como filas de una sola superficie. */
+.shell-nav-v2 .clientes-f3 .clientes-f3-cards {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  overflow: clip;
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-cards > label {
+  width: 100%;
+  padding-inline: var(--ds-space-3);
+  background: var(--pg-subtle);
+  border-bottom: 1px solid var(--pg-line);
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-card {
+  border-bottom-color: var(--pg-line);
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-card:last-child {
+  border-bottom-color: transparent;
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-grid > li {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+}
+/* Seguimientos y vacío: aviso con línea, sin relleno de color. */
+.shell-nav-v2 .clientes-f3 .clientes-f3-followups {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  box-shadow: inset 3px 0 0 rgb(var(--c-warn));
+}
+.shell-nav-v2 .clientes-f3 .clientes-f3-followups > div > article {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-md);
+}
+.shell-nav-v2 .clientes-f3 [data-testid='clientes-vacio'] {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+}
+
+/* Ficha del cliente (ventana): cabecera blanca, bloques con hairline. */
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) .cp-cabecera {
+  background: rgb(var(--ds-surface));
+  border-bottom-color: rgb(var(--ds-border));
+}
+/* Solapas de la ficha: subrayado de acento, sin relleno (como el shell). */
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) .cp-seccion {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) .cp-seccion[aria-selected='true'] {
+  background: transparent;
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+  border-bottom-color: rgb(var(--ds-accent));
+}
+/* KPI de la ficha: cifras planas sobre blanco, separadas por línea fina. */
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) [data-testid='perfil-kpis'] {
+  background: rgb(var(--ds-surface));
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) [data-testid='perfil-kpis'] > div > span:first-child {
+  font-size: var(--ds-text-2xs);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) :is(.rounded-xl, .rounded-2xl) {
+  border-radius: var(--ds-radius-lg);
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) :is(.rounded-xl, .rounded-lg).border.bg-ink-800 {
+  background: rgb(var(--ds-surface));
+  border-color: rgb(var(--ds-border));
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) [data-testid='perfil-cronologia-cliente'] {
+  background: rgb(var(--ds-surface-subtle));
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) :is(.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl):not([role='menu']):not([role='dialog']) {
+  box-shadow: none;
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) :is([data-testid='perfil-dispositivo-fila'], [data-testid='perfil-garantia-fila'], [data-testid='perfil-servicio-fila']) {
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) :is([data-testid='perfil-dispositivo-fila'], [data-testid='perfil-garantia-fila'], [data-testid='perfil-servicio-fila']):last-child {
+  border-bottom-width: 0;
+}
+.v3-portal .popup-cuerpo:has(> div > [data-testid='perfil-cabecera-fija']) :is([data-testid='perfil-dispositivos'], [data-testid='perfil-garantias'], [data-testid='perfil-servicios']) > :is(div, ul) {
+  gap: 0;
+}
+
+/* ── 7. Stock: Unidades (lista y planilla) ──────────────────────────────── */
+.shell-nav-v2 .stock-rediseno [data-testid='inventario-tabla'] {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  overflow: clip;
+}
+.shell-nav-v2 .stock-rediseno .stock-lista-encabezado {
+  top: var(--pg-sticky-top);
+  border: 0;
+  border-bottom: 1px solid var(--pg-line);
+  border-radius: 0;
+  background: var(--pg-subtle);
+  padding-inline: var(--ds-space-2);
+}
+.shell-nav-v2 .stock-rediseno [data-testid='inventario-tabla'] > .space-y-1 > * + * {
+  margin-top: 0;
+}
+/* Fila plana: sin borde de tarjeta ni radio; la condición se lee en una
+   marca lateral y un tinte suave (nuevo y semi nuevo siguen distintos). */
+.shell-nav-v2 .stock-rediseno :is(.pl-fila, .stock-f4-row) {
+  border: 0;
+  border-bottom: 1px solid var(--pg-line);
+  border-radius: 0;
+  padding-inline: var(--ds-space-2);
+}
+.shell-nav-v2 .stock-rediseno .pl-fila {
+  background: color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface)));
+  box-shadow: inset 3px 0 0 rgb(var(--pl-bd));
+}
+.shell-nav-v2 .stock-rediseno .pl-fila[data-tono]:not([data-propio]) {
+  background: color-mix(in srgb, color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface))) 90%, var(--pl-tono) 10%);
+}
+.shell-nav-v2 .stock-rediseno :is(.pl-fila, .stock-f4-row):last-child {
+  border-bottom-color: transparent;
+}
+.shell-nav-v2 .stock-rediseno .pl-fila:hover {
+  border-color: var(--pg-line);
+  background: color-mix(in srgb, rgb(var(--pl-bg)) 60%, rgb(var(--ds-surface)));
+}
+.shell-nav-v2 .stock-rediseno .stock-lista-fila:hover {
+  box-shadow: inset 3px 0 0 rgb(var(--pl-bd, var(--ds-border)));
+}
+.shell-nav-v2 .stock-rediseno :is(.pl-fila[data-sel='true'], .stock-lista-fila-sel) {
+  box-shadow: inset 3px 0 0 rgb(var(--ds-accent));
+}
+.shell-nav-v2 .stock-rediseno .pl-sec {
+  color: rgb(var(--pl-fg2, var(--cond-fg-2)) / 0.85);
+}
+/* Batería: cifra plana, sin caja (el tono del texto sigue avisando). */
+.shell-nav-v2 .stock-rediseno :is([data-testid='inventario-fila'], [data-testid='inventario-tarjeta-movil']) span.rounded.border.tabular-nums {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0;
+  font-weight: var(--ds-weight-medium);
+}
+/* Menú «⋯» de la fila: sin caja hasta que se pasa el puntero. */
+.shell-nav-v2 .stock-rediseno .stock-f4-menu > button {
+  border-color: transparent;
+  background: transparent;
+  border-radius: var(--ds-radius-sm);
+}
+.shell-nav-v2 .stock-rediseno .stock-f4-menu > button:hover,
+.shell-nav-v2 .stock-rediseno .stock-f4-menu > button[aria-expanded='true'] {
+  border-color: var(--pg-line);
+  background: rgb(var(--ds-surface));
+}
+/* Planilla agrupada: cabecera del grupo como banda gris, no como pastilla. */
+.shell-nav-v2 .stock-rediseno .pl-encabezado {
+  top: var(--pg-sticky-top);
+  background: var(--pg-subtle);
+  border-bottom: 1px solid var(--pg-line);
+}
+.shell-nav-v2 .stock-rediseno .pl-grupo {
+  border-radius: 0;
+  background: var(--pg-subtle);
+  border-bottom-color: var(--pg-line);
+  font-weight: var(--ds-weight-semibold);
+}
+/* Tarjetas (vista de cuadrícula y celular): hairline, sin levantar. */
+.shell-nav-v2 .stock-rediseno .stock-tarjeta {
+  border-radius: var(--ds-radius-lg);
+  box-shadow: none;
+}
+.shell-nav-v2 .stock-rediseno .cond-color {
+  background: color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface)));
+  border-color: rgb(var(--ds-border));
+  box-shadow: inset 3px 0 0 rgb(var(--pl-bd));
+}
+.shell-nav-v2 .stock-rediseno .cond-color[data-tono]:not([data-propio]) {
+  background: color-mix(in srgb, color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface))) 90%, var(--pl-tono) 10%);
+}
+.shell-nav-v2 .stock-rediseno .cond-color[data-sel='true'] {
+  box-shadow: inset 3px 0 0 rgb(var(--ds-accent));
+}
+.shell-nav-v2 .stock-rediseno .stock-tarjeta:hover {
+  transform: none;
+  border-color: rgb(var(--ds-border-strong));
+}
+/* Pestañas de Control y Traslados: tarjetas internas con hairline. */
+.shell-nav-v2 .stock-rediseno .stock-toque :is(.rounded-xl, .rounded-2xl) {
+  border-radius: var(--ds-radius-lg);
+}
+.shell-nav-v2 .stock-rediseno .stock-toque :is(.shadow, .shadow-sm, .shadow-md, .shadow-lg):not([role='menu']):not([role='dialog']) {
+  box-shadow: none;
+}
+
+/* Subpestañas de Traslados y Control (Traslados · En tránsito…): grupo
+   segmentado con hairline; la activa es blanca, no un relleno verde. */
+.shell-nav-v2 .stock-rediseno [data-testid='subtabs-inventario'] > div {
+  border-color: var(--pg-line);
+  border-radius: var(--ds-radius-md);
+  background: var(--pg-subtle);
+  padding: 2px !important;
+  gap: 2px !important;
+}
+.shell-nav-v2 .stock-rediseno [data-testid='subtabs-inventario'] [role='tab'] {
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-sm);
+}
+.shell-nav-v2 .stock-rediseno [data-testid='subtabs-inventario'] [role='tab'][aria-selected='true'] {
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: 0 0 0 1px rgb(var(--ds-border)), var(--ds-shadow-1);
+}
+/* Tablas de Traslados y Control: una superficie, filas planas con divisor. */
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla']:not([data-testid='inventario-tabla']) {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  overflow: clip;
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla']:not([data-testid='inventario-tabla']) > div:first-child:not([data-testid$='-fila']) {
+  padding-top: var(--ds-space-2);
+  padding-bottom: var(--ds-space-2);
+  padding-inline: var(--ds-space-3);
+  border: 0;
+  border-bottom: 1px solid var(--pg-line);
+  border-radius: 0;
+  background: var(--pg-subtle);
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla']:not([data-testid='inventario-tabla']) > div:first-child:not([data-testid$='-fila']) > span {
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla'] > .space-y-1 > * + *,
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla'] > .space-y-2 > * + * {
+  margin-top: 0;
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla'] [data-testid$='-fila']:not(.pl-fila):not(.stock-f4-row) {
+  border-width: 0 0 1px;
+  border-color: var(--pg-line);
+  border-radius: 0;
+  background: var(--pg-surface);
+  box-shadow: none;
+  padding-inline: var(--ds-space-3);
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla'] [data-testid$='-fila']:not(.pl-fila):not(.stock-f4-row):last-child {
+  border-bottom-width: 0;
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-tabla'] [data-testid$='-fila']:not(.pl-fila):not(.stock-f4-row):hover {
+  background: var(--pg-hover);
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-acciones'] {
+  border-top-color: var(--pg-line);
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-acciones'] button[class*='border'] {
+  border-color: var(--pg-line);
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2 .stock-rediseno .stock-toque [data-testid$='-acciones'] button[class*='border']:hover:not(:disabled) {
+  border-color: rgb(var(--ds-border-strong));
+}
+
+/* Listas apiladas de Control (filas sueltas con borde dentro de un
+   .space-y-1 que solo tiene filas): pasan a una superficie con divisores. */
+.shell-nav-v2 .stock-rediseno .stock-toque .space-y-1:has(> [data-testid$='-fila'].border):not(:has(> :not([data-testid$='-fila']))):not([data-testid='verif-lista']) {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  overflow: clip;
+}
+.shell-nav-v2 .stock-rediseno .stock-toque .space-y-1:has(> [data-testid$='-fila'].border):not(:has(> :not([data-testid$='-fila']))):not([data-testid='verif-lista']) > * {
+  margin-top: 0;
+  border-width: 0 0 1px;
+  border-color: var(--pg-line);
+  border-radius: 0;
+  background: transparent;
+}
+.shell-nav-v2 .stock-rediseno .stock-toque .space-y-1:has(> [data-testid$='-fila'].border):not(:has(> :not([data-testid$='-fila']))):not([data-testid='verif-lista']) > :last-child {
+  border-bottom-width: 0;
+}
+/* Certificaciones (Alertas): KPI planos y lista en una superficie. */
+.shell-nav-v2 .stock-rediseno [data-testid='certificaciones-tablero'] > .grid > div {
+  border: 0;
+  border-left: 1px solid var(--pg-line);
+  border-radius: 0;
+  padding-block: 2px;
+  padding-inline: var(--ds-space-3);
+  text-align: left;
+}
+.shell-nav-v2 .stock-rediseno [data-testid='certificaciones-tablero'] > .grid > div:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.shell-nav-v2 .stock-rediseno [data-testid='certificaciones-tablero'] > .space-y-1 {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  overflow: clip;
+}
+.shell-nav-v2 .stock-rediseno [data-testid='certificaciones-tablero'] > .space-y-1 > button {
+  margin-top: 0;
+  border-width: 0 0 1px;
+  border-color: var(--pg-line);
+  border-radius: 0;
+}
+.shell-nav-v2 .stock-rediseno [data-testid='certificaciones-tablero'] > .space-y-1 > button:last-child {
+  border-bottom-width: 0;
+}
+.shell-nav-v2 .stock-rediseno [data-testid='certificaciones-tablero'] > .space-y-1 > button:hover {
+  background: var(--pg-hover);
+}
+
+/* ── 8. Stock: Productos ────────────────────────────────────────────────── */
+.shell-nav-v2 .prod-rediseno [data-testid='resumen-productos'] {
+  border-radius: 0;
+  background: transparent;
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+  overflow: clip;
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] > div:first-child {
+  top: var(--pg-sticky-top);
+  background: var(--pg-subtle);
+  border-bottom-color: var(--pg-line);
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] [data-testid='producto-fila'] {
+  border-width: 0 0 1px;
+  border-color: var(--pg-line);
+  border-radius: 0;
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] > div:first-child {
+  padding-top: var(--ds-space-2);
+  padding-bottom: var(--ds-space-2);
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] > .space-y-1 > * + * {
+  margin-top: 0;
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] [data-testid='producto-fila']:last-child {
+  border-bottom-width: 0;
+}
+/* Condición del producto: marca lateral y tinte suave, igual que Unidades. */
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] .cond-color {
+  background: color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface)));
+  box-shadow: inset 3px 0 0 rgb(var(--pl-bd));
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] .cond-color[data-tono]:not([data-propio]) {
+  background: color-mix(in srgb, color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface))) 90%, var(--pl-tono) 10%);
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] [data-testid='producto-fila']:hover {
+  background: color-mix(in srgb, rgb(var(--pl-bg, var(--ds-surface-subtle))) 60%, rgb(var(--ds-surface)));
+  transform: none;
+}
+.shell-nav-v2 .prod-rediseno [data-testid='catalogo-tabla'] .cond-color[data-sel='true'] {
+  box-shadow: inset 3px 0 0 rgb(var(--ds-accent));
+}
+
+/* ── 9. Stock: Compras ──────────────────────────────────────────────────
+   La tabla desplaza en horizontal (celular): el encabezado no se fija, pero
+   encabezado y filas forman una sola superficie con divisores finos. */
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compras-tabla'] {
+  border: 1px solid var(--pg-line);
+  border-radius: var(--ds-radius-lg);
+  background: var(--pg-surface);
+}
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compras-tabla'] > div:first-child {
+  padding-top: var(--ds-space-2);
+  padding-bottom: var(--ds-space-2);
+  background: var(--pg-subtle);
+  border-bottom: 1px solid var(--pg-line);
+}
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compras-tabla'] > .space-y-1 > * + * {
+  margin-top: 0;
+}
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compra-fila'] {
+  border-width: 0 0 1px;
+  border-color: var(--pg-line);
+  border-radius: 0;
+  background: var(--pg-surface);
+  box-shadow: none;
+}
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compras-tabla'] > .space-y-1 > :last-child [data-testid='compra-fila'] {
+  border-bottom-width: 0;
+}
+.shell-nav-v2 [data-testid='compras-pagina'] [data-testid='compra-fila']:hover {
+  background: var(--pg-hover);
+}
+.shell-nav-v2 [data-testid='compras-pagina'] .acciones-toque :is(button, a)[class*='border'] {
+  border-color: transparent;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+}
+.shell-nav-v2 [data-testid='compras-pagina'] .acciones-toque :is(button, a)[class*='border']:hover {
+  border-color: var(--pg-line);
+  background: rgb(var(--ds-surface));
+}
+.shell-nav-v2 [data-testid='compras-pagina'] :is(.rounded-xl, .rounded-2xl) {
+  border-radius: var(--ds-radius-lg);
+}
+
+/* ── 10. Común: sin sombras en capas ni degradés dentro de las páginas ─── */
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) :is([class*='bg-gradient-'], .glow-blue) {
+  background-image: none;
+}
+.shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno, [data-testid='compras-pagina']) .glow-blue::before {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-nav-v2 :is(.ped-rd, .clientes-f3, .stock-rediseno, .prod-rediseno) :is(.pl-fila, .stock-lista-fila, [data-testid='producto-fila']) {
+    transition: none;
+  }
+}

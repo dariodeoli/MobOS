@@ -1,0 +1,122 @@
+/* Ayuda · dirección «Grafito» (tokens --ds-* en src/styles/tokens.css).
+   Solo presentación, acotada a la pantalla de Ayuda: listas en un bloque
+   hairline con filas divididas (no tarjetas dentro de tarjetas), enlaces
+   «Ir» como botón secundario neutro y filtros con el acento solo en lo
+   elegido. */
+[data-testid='documentacion'] {
+  font-size: var(--ds-text-md);
+}
+[data-testid='documentacion'] :is(h2, h3, h4) {
+  letter-spacing: var(--ds-tracking-title);
+}
+[data-testid='documentacion'] h2 {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+}
+[data-testid='documentacion'] :is(h3, h4) {
+  font-weight: var(--ds-weight-semibold);
+}
+
+/* Tarjetas: hairline, radio de tarjeta, sin sombra en capas. */
+[data-testid='documentacion'] .shadow-card {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-1);
+}
+
+/* Listas (atajos y pantallas de soporte): un bloque con filas divididas. */
+[data-testid='documentacion'] [data-ayuda-lista] {
+  overflow: hidden;
+  border: 1px solid rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+}
+[data-testid='documentacion'] [data-ayuda-lista] > * + * {
+  margin-top: 0;
+  border-top: 1px solid rgb(var(--ds-border));
+}
+/* Guías: el bloque es la tarjeta; cada guía es una fila, no otra tarjeta. */
+[data-testid='documentacion'] [data-ayuda-lista]:has(> .shadow-card) {
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+  box-shadow: var(--ds-shadow-1);
+}
+/* Especificidad alta a propósito: la regla de tarjeta de visual-v3 usa
+   `.shell-nav-v2.shell-nav-v2 :is(...)` y acá hay que aplanarla. */
+.shell-nav-v2.shell-nav-v2.shell-nav-v2 [data-testid='documentacion'] [data-ayuda-lista] > .shadow-card {
+  border-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-color: transparent;
+}
+.shell-nav-v2.shell-nav-v2.shell-nav-v2 [data-testid='documentacion'] [data-ayuda-lista] > .shadow-card + .shadow-card {
+  border-top: 1px solid rgb(var(--ds-border));
+}
+[data-testid='documentacion'] [data-ayuda-lista] > *:hover {
+  background: rgb(var(--ds-surface-subtle));
+}
+[data-testid='documentacion'] [data-ayuda-lista] kbd {
+  border-radius: var(--ds-radius-xs);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface-subtle));
+  font-size: var(--ds-text-2xs);
+}
+[data-testid='documentacion'] [data-ayuda-nota] {
+  border-radius: var(--ds-radius-md);
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface-subtle));
+  line-height: var(--ds-leading-normal);
+}
+
+/* «Ir»: botón secundario neutro con línea. */
+[data-testid='documentacion'] [data-ayuda-ir] {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-medium);
+}
+[data-testid='documentacion'] [data-ayuda-ir]:hover {
+  border-color: rgb(var(--ds-border-strong));
+  background: rgb(var(--ds-surface-hover));
+}
+[data-testid='documentacion'] [data-ayuda-ir] > svg {
+  color: rgb(var(--ds-text-muted));
+}
+
+/* Ícono de tarea: cuadro hairline con el ícono en el acento. */
+[data-testid='documentacion'] [data-ayuda-icono] {
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-border));
+  color: rgb(var(--ds-accent));
+}
+
+/* Estado de los servicios: fila hairline. */
+[data-testid='documentacion'] [data-testid='ayuda-estado-servicios'] {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+}
+[data-testid='documentacion'] [data-testid='ayuda-estado-servicios']:hover {
+  border-color: rgb(var(--ds-border-strong));
+}
+
+/* Filtros: rótulo de grupo chico y elegido con borde de acento. */
+[data-testid='documentacion'] :is([data-testid='ayuda-filtros-dominio'], [data-testid='ayuda-filtros-modulo']) > p {
+  font-size: var(--ds-text-2xs);
+  letter-spacing: var(--ds-tracking-label);
+}
+[data-testid='documentacion'] [aria-pressed] {
+  border-radius: var(--ds-radius-pill);
+  border-color: rgb(var(--ds-border));
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  padding-inline: var(--ds-space-3);
+}
+[data-testid='documentacion'] [aria-pressed='true'] {
+  border-color: rgb(var(--ds-accent));
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-accent));
+}

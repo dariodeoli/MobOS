@@ -416,7 +416,7 @@ export default function Resumen() {
   }
 
   return (
-    <div className="inicio-f2 space-y-3">
+    <div className="inicio-f2 ds-pagina space-y-3">
 
       <InicioSaludo onIr={navigate} />
 

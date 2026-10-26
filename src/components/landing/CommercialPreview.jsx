@@ -12,11 +12,11 @@ function Phone() {
   return (
     <svg className="preview-phone" viewBox="0 0 110 190" fill="none" aria-hidden="true">
       <rect x="12" y="4" width="86" height="182" rx="19" fill="currentColor" />
-      <rect x="17" y="9" width="76" height="172" rx="15" fill="#c6dbcc" />
-      <path d="M17 119 93 44v85l-76 42Z" fill="#91bba2" />
-      <path d="M17 151 93 90v64l-33 27H32c-8 0-15-7-15-15Z" fill="#658b75" />
-      <rect x="38" y="15" width="34" height="10" rx="5" fill="#172b24" />
-      <path d="M42 173h26" stroke="#172b24" strokeWidth="3" strokeLinecap="round" />
+      <rect className="pp-screen" x="17" y="9" width="76" height="172" rx="15" />
+      <path className="pp-wave-1" d="M17 119 93 44v85l-76 42Z" />
+      <path className="pp-wave-2" d="M17 151 93 90v64l-33 27H32c-8 0-15-7-15-15Z" />
+      <rect className="pp-notch" x="38" y="15" width="34" height="10" rx="5" />
+      <path className="pp-bar" d="M42 173h26" strokeWidth="3" strokeLinecap="round" />
     </svg>
   )
 }
@@ -140,13 +140,24 @@ export default function CommercialPreview({ moment = 'all' }) {
       aria-label="Ejemplo ilustrativo de venta, unidad y seguimiento"
     >
       <div className="preview-heading">
+        <span className="preview-heading-mark" aria-hidden="true" />
         <span>MobOS / Operación conectada</span>
         <span>Ejemplo EJ-001</span>
       </div>
-      <div className="preview-moments">
-        {(moment === 'all' || moment === 'sell') && <Selling />}
-        {(moment === 'all' || moment === 'stock') && <Stock />}
-        {(moment === 'all' || moment === 'payment') && <Payment />}
+      <div className="preview-body">
+        {/* Riel de navegación dibujado: decorativo, sin controles. */}
+        <div className="preview-rail" aria-hidden="true">
+          <i data-active={moment === 'all' || moment === 'sell'} />
+          <i data-active={moment === 'stock'} />
+          <i data-active={moment === 'payment'} />
+          <i />
+          <i />
+        </div>
+        <div className="preview-moments">
+          {(moment === 'all' || moment === 'sell') && <Selling />}
+          {(moment === 'all' || moment === 'stock') && <Stock />}
+          {(moment === 'all' || moment === 'payment') && <Payment />}
+        </div>
       </div>
     </figure>
   )

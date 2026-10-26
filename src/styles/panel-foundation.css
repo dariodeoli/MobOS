@@ -1,0 +1,383 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Base del panel · dirección «Grafito» (tokens en src/styles/tokens.css)
+   ────────────────────────────────────────────────────────────────────────
+   Capa de presentación del shell autenticado, cargada DESPUÉS de
+   visual-v3.css: a igual especificidad gana por orden. Cambia el lenguaje
+   visual (cromo grafito, líneas hairline, radios chicos, Inter en toda la
+   UI, un solo acento) sin tocar geometría: los objetivos de 44 px, los
+   data-testid y la estructura (título · aviso · utilidades en una fila,
+   pestañas debajo) quedan como estaban.
+
+   Objetos y nombres que usan las páginas:
+   - Tokens --ds-* (tokens.css): tipo, radios, espacio, cromo, acento,
+     aviso y elevación. Colores como tripletes: rgb(var(--ds-border)).
+   - `.shell-page-header-wrap`: banda blanca del encabezado de página.
+   - `.shell-section-tabs`: pestañas de sección (subrayado de acento) y
+     `[data-segmented]` (grupo segmentado con borde hairline).
+   - Tarjetas: las reglas v3 siguen marcando qué es tarjeta; acá sus tokens
+     (--v3-*) pasan a borde hairline + radio 10, sin sombra en capas.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Tokens v3 reinterpretados: hairline en vez de sombra ───────────── */
+.shell-nav-v2,
+.v3-portal {
+  --v3-radius-card: var(--ds-radius-lg);
+  --v3-radius-control: var(--ds-radius-md);
+  --v3-radius-field: var(--ds-radius-md);
+  --v3-hairline: rgb(var(--c-ink-600));
+  --v3-ease: var(--ds-ease);
+  --v3-fast: var(--ds-fast);
+  --v3-elev-1: 0 0 0 1px rgb(var(--c-ink-600)), var(--ds-shadow-1);
+  --v3-elev-2: 0 0 0 1px rgb(var(--c-interactivo) / 0.55), var(--ds-shadow-1);
+  --v3-elev-3: 0 0 0 1px rgb(var(--c-ink-600)), var(--ds-shadow-modal);
+  --v3-glass: rgb(var(--c-ink));
+  --v3-brand-grad: linear-gradient(rgb(var(--c-fono)), rgb(var(--c-fono)));
+  --v3-bevel: inset 0 -1px 0 rgb(0 0 0 / 0.14);
+}
+.dark .shell-nav-v2,
+.dark .v3-portal,
+html.dark .v3-portal {
+  --v3-hairline: rgb(var(--c-ink-600));
+  --v3-elev-1: 0 0 0 1px rgb(var(--c-ink-600)), var(--ds-shadow-1);
+  --v3-elev-2: 0 0 0 1px rgb(var(--c-interactivo) / 0.6), var(--ds-shadow-1);
+  --v3-elev-3: 0 0 0 1px rgb(var(--c-ink-600)), var(--ds-shadow-modal);
+  --v3-glass: rgb(var(--c-ink));
+  --v3-brand-grad: linear-gradient(rgb(var(--c-fono)), rgb(var(--c-fono)));
+  --v3-bevel: inset 0 -1px 0 rgb(0 0 0 / 0.2);
+}
+
+/* ── 2. Tipografía: Inter en toda la UI, jerarquía por tamaño y peso ───── */
+.shell-nav-v2,
+.v3-portal {
+  font-family: var(--ds-font-sans);
+}
+.shell-nav-v2 :is(h1, h2, h3, h4, nav, button, label),
+.v3-portal :is(h1, h2, h3, h4, nav, button, label) {
+  font-family: var(--ds-font-sans);
+}
+.shell-nav-v2 :is(h1, h2, h3),
+.v3-portal :is(h1, h2, h3) {
+  letter-spacing: var(--ds-tracking-title);
+}
+.shell-nav-v2 :is(kbd, code, [data-mono]),
+.v3-portal :is(kbd, code, [data-mono]) {
+  font-family: var(--ds-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-page-title'] {
+  font-size: var(--ds-text-xl);
+  line-height: 1.75rem;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-title);
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2.shell-nav-v2 [data-testid='shell-page-title'] { font-size: var(--ds-text-2xl); }
+}
+
+/* ── 3. Cromo grafito: menú lateral y barra superior móvil ─────────────────
+   El cromo re-declara la paleta --c-* en su scope: todo lo que ya pinta
+   con bg-ink / text-fore / text-mute (filas, buscador, perfil, sucursal)
+   se vuelve grafito sin tocar el JSX. Contraste AA medido en
+   panelFoundation.test.js. */
+.shell-nav-v2 :is([data-testid='shell-lateral'], [data-testid='shell-mobile-header']) {
+  --c-paper: var(--ds-chrome);
+  --c-ink: var(--ds-chrome);
+  --c-ink-900: var(--ds-chrome);
+  --c-ink-800: var(--ds-chrome-raised);
+  --c-ink-700: var(--ds-chrome-hover);
+  --c-ink-600: var(--ds-chrome-border);
+  --c-ink-500: var(--ds-chrome-muted);
+  --c-fore: var(--ds-chrome-text);
+  --c-mute: var(--ds-chrome-muted);
+  --c-interactivo: var(--ds-chrome-muted);
+  --c-placeholder: var(--ds-chrome-muted);
+  --c-fono-light: var(--ds-chrome-accent);
+  --c-fono-text: var(--ds-chrome-accent);
+  --c-ok: 74 222 128;
+  --c-warn: 252 211 77;
+  --c-bad: 252 165 165;
+  --c-info: 159 184 255;
+  --c-on-bad: var(--ds-chrome);
+  --ds-canvas: var(--ds-chrome);
+  --ds-surface: var(--ds-chrome);
+  --ds-border: var(--ds-chrome-border);
+  --ds-text: var(--ds-chrome-text);
+  --ds-text-muted: var(--ds-chrome-muted);
+  color: rgb(var(--ds-chrome-text));
+  color-scheme: dark;
+}
+.shell-nav-v2.shell-nav-v2 aside[data-testid='shell-lateral'] {
+  background: rgb(var(--ds-chrome));
+  border-right-color: rgb(var(--ds-chrome-border));
+  padding-inline: var(--ds-space-2);
+}
+/* Marca: nombre fuerte, versión monoespaciada, empresa en gris. */
+.shell-nav-v2 [data-testid='shell-lateral'] [data-testid='shell-tienda'] {
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.01em;
+}
+.shell-nav-v2 [data-testid='shell-lateral'] [data-testid='shell-version'] {
+  font-family: var(--ds-font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+/* Buscador: campo hundido en el cromo. */
+.shell-nav-v2 [data-testid='shell-lateral'] [data-testid='shell-buscar'] {
+  background: rgb(var(--ds-chrome-raised));
+  border-color: rgb(var(--ds-chrome-border));
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-sm);
+}
+.shell-nav-v2 [data-testid='shell-lateral'] [data-testid='shell-buscar'] kbd {
+  border: 1px solid rgb(var(--ds-chrome-border));
+  border-radius: var(--ds-radius-xs);
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+}
+/* Filas del menú: 13 px, radio 6, activo = relleno claro + ícono de acento. */
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] nav button,
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] nav a,
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] [data-testid^='shell-pie-'] {
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] nav button:hover,
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] [data-testid^='shell-pie-']:hover {
+  background: rgb(var(--ds-chrome-hover));
+  color: rgb(var(--ds-chrome-text));
+}
+.shell-nav-v2.tema-v2 [data-testid='shell-lateral'] nav [aria-current='page'] {
+  background: rgb(var(--ds-chrome-hover));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  color: rgb(var(--ds-chrome-text));
+  font-weight: var(--ds-weight-semibold);
+  border-radius: var(--ds-radius-sm);
+}
+.shell-nav-v2.tema-v2 [data-testid='shell-lateral'] nav [aria-current='page'] > svg {
+  color: rgb(var(--ds-chrome-accent));
+}
+/* Submenú en acordeón: guía y marcador de acento. */
+.shell-nav-v2 [data-testid='shell-lateral'] [data-shell-acordeon] ul {
+  border-left-color: rgb(var(--ds-chrome-border));
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] [data-shell-sub] {
+  font-weight: var(--ds-weight-regular);
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] [data-shell-sub][aria-current='true'] {
+  color: rgb(var(--ds-chrome-text));
+  font-weight: var(--ds-weight-semibold);
+  background: transparent;
+}
+.shell-nav-v2 [data-testid='shell-lateral'] [data-shell-sub][aria-current='true']::before {
+  background: rgb(var(--ds-chrome-accent));
+}
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] :is([data-testid='shell-config-pie']),
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-lateral'] > div.border-t {
+  border-top-color: rgb(var(--ds-chrome-border));
+}
+
+/* Barra superior móvil: misma pieza de cromo, sin vidrio. */
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-mobile-header'] {
+  background: rgb(var(--ds-chrome));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom-color: rgb(var(--ds-chrome-border));
+}
+@media (min-width: 360px) {
+  .shell-nav-v2 [data-testid='shell-mobile-header'] > div {
+    padding-inline: var(--ds-gutter);
+  }
+}
+
+/* Menú de Configuración (segunda columna): superficie blanca con línea. */
+.shell-nav-v2.shell-nav-v2 aside[data-testid='shell-config-menu'] {
+  background: rgb(var(--c-ink));
+  border-right-color: rgb(var(--c-ink-600));
+}
+
+/* ── 4. Encabezado de página: banda blanca con línea inferior ─────────────
+   Título, aviso de la demo y utilidades en una fila; las pestañas apoyan su
+   subrayado sobre la línea de la banda. */
+.shell-nav-v2 .shell-page-header-wrap {
+  background: rgb(var(--c-ink));
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+  padding-top: var(--ds-space-2);
+  margin-bottom: var(--ds-space-3);
+  /* El degradé de borde de las pestañas con scroll toma el color de la banda. */
+  --c-paper: var(--c-ink);
+}
+.shell-nav-v2 .shell-page-header-wrap:not(:has(.shell-section-tabs)) {
+  padding-bottom: var(--ds-space-2);
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 .shell-page-header-wrap { padding-top: var(--ds-space-3); }
+  .shell-nav-v2 .shell-page-header-wrap:not(:has(.shell-section-tabs)) { padding-bottom: var(--ds-space-3); }
+}
+.shell-nav-v2 [data-testid='shell-page-header-row'] .shell-header-selector,
+.shell-nav-v2 [data-testid='shell-page-header-row'] [data-testid='shell-tema'],
+.shell-nav-v2 [data-testid='shell-page-header-row'] [data-testid='notificaciones-aviso'] {
+  border-radius: var(--ds-radius-md);
+}
+
+/* ── 5. Pestañas de sección ────────────────────────────────────────────── */
+.shell-nav-v2.shell-nav-v2 .shell-section-tabs:not([data-segmented]):not([data-vertical]) {
+  border-bottom-color: transparent;
+  margin-bottom: -1px;
+}
+.shell-nav-v2 .shell-section-tabs:not([data-segmented]):not([data-vertical]) [data-tab-id],
+.shell-nav-v2 .shell-section-tabs:not([data-segmented]):not([data-vertical]) [data-tab-more] {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  padding-inline: var(--ds-space-3);
+  border-bottom-width: 2px;
+}
+.shell-nav-v2 .shell-section-tabs:not([data-segmented]):not([data-vertical]) [aria-current='page'] {
+  border-bottom-color: rgb(var(--ds-accent));
+  color: rgb(var(--c-fore));
+  font-weight: var(--ds-weight-semibold);
+}
+.shell-nav-v2 .shell-section-tabs:not([data-segmented]):not([data-vertical]) :is([data-tab-id], [data-tab-more]):not([aria-current='page']):hover {
+  border-bottom-color: rgb(var(--c-ink-600));
+}
+.shell-nav-v2 .shell-section-tabs [data-tab-icon] {
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  opacity: 0.7;
+}
+.shell-nav-v2 .shell-section-tabs [aria-current='page'] [data-tab-icon] {
+  opacity: 1;
+  color: rgb(var(--ds-accent));
+}
+/* Segundo nivel: grupo segmentado con borde hairline (no píldora gris). */
+.shell-nav-v2.shell-nav-v2 .shell-section-tabs[data-segmented] > div,
+.shell-nav-v2.shell-nav-v2 .shell-section-tabs .rounded-lg.border.bg-ink-700 {
+  background: rgb(var(--c-ink-800));
+  border-color: rgb(var(--c-ink-600));
+  border-radius: var(--ds-radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+.shell-nav-v2 .shell-section-tabs[data-segmented] [data-tab-id] {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2.tema-v2 .shell-section-tabs[data-segmented] [aria-current='page'] {
+  background: rgb(var(--c-ink));
+  border-radius: var(--ds-radius-sm);
+  box-shadow: 0 0 0 1px rgb(var(--c-ink-600)), var(--ds-shadow-1);
+  font-weight: var(--ds-weight-semibold);
+}
+/* Riel vertical (Configuración): fila rellena con marcador de acento. */
+.shell-nav-v2.tema-v2 .shell-section-tabs[data-vertical] [aria-current='page'] {
+  background: rgb(var(--c-ink-700));
+  box-shadow: inset 2px 0 0 rgb(var(--ds-accent));
+  border-radius: var(--ds-radius-sm);
+}
+
+/* ── 6. Aviso de la demo: chip de modo, ámbar, radio chico ─────────────── */
+.shell-nav-v2 [data-testid='demo-aviso'] {
+  background: rgb(var(--ds-notice-bg));
+  border-color: rgb(var(--ds-notice-border));
+  border-radius: var(--ds-radius-md);
+  color: rgb(var(--ds-notice-text));
+}
+.shell-nav-v2 [data-testid='demo-aviso'] > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--ds-notice-text));
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+}
+.shell-nav-v2 [data-testid='demo-aviso'] > span:first-child::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
+}
+.shell-nav-v2 [data-testid='demo-aviso'] [data-inline-link] {
+  color: rgb(var(--ds-notice-text));
+  font-weight: var(--ds-weight-medium);
+}
+/* «Salir de la demo»: botón sólido grafito, el único control lleno del chip. */
+.shell-nav-v2.shell-nav-v2 [data-testid='demo-aviso'] [data-testid='demo-salir'] {
+  background: rgb(var(--ds-chrome));
+  color: rgb(var(--ds-chrome-text));
+  border-radius: var(--ds-radius-sm);
+}
+.dark .shell-nav-v2.shell-nav-v2 [data-testid='demo-aviso'] [data-testid='demo-salir'] {
+  background: rgb(var(--ds-notice-text));
+  color: rgb(var(--ds-notice-bg));
+}
+/* Guía de la demo (primera visita): aviso con línea, sin relleno de color. */
+.shell-nav-v2 [data-testid='demo-guia-aviso'] {
+  background: rgb(var(--c-ink));
+  border-color: rgb(var(--c-ink-600));
+  border-radius: var(--ds-radius-md);
+  box-shadow: inset 3px 0 0 rgb(var(--c-info));
+  margin-top: 0;
+  margin-bottom: var(--ds-space-3);
+}
+
+/* ── 7. Barra inferior móvil: superficie sólida y marcador de acento ───── */
+.shell-nav-v2.shell-nav-v2 [data-testid='shell-bottom-nav'] {
+  background: rgb(var(--c-ink));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-top-color: rgb(var(--c-ink-600));
+}
+.shell-nav-v2 [data-testid='shell-bottom-nav'] > button {
+  position: relative;
+  font-size: 11px;
+  font-weight: var(--ds-weight-medium);
+}
+.shell-nav-v2 [data-testid='shell-bottom-nav'] > button[aria-current='page'] {
+  font-weight: var(--ds-weight-semibold);
+}
+.shell-nav-v2 [data-testid='shell-bottom-nav'] > button[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 28px;
+  height: 2px;
+  transform: translateX(-50%);
+  border-radius: 0 0 2px 2px;
+  background: rgb(var(--ds-accent));
+}
+.shell-nav-v2 [data-testid='shell-bottom-nav'] > button[aria-current='page'] > svg {
+  color: rgb(var(--ds-accent));
+}
+
+/* ── 8. Superficies comunes ───────────────────────────────────────────── */
+/* Acción principal: verde plano, sin brillo ni degradé. */
+.shell-nav-v2.shell-nav-v2 button.bg-fono:not([role='switch']),
+.v3-portal button.bg-fono:not([role='switch']) {
+  background-image: none;
+  border-radius: var(--ds-radius-md);
+}
+/* Foco: anillo de acento, igual en todo el panel. */
+.shell-nav-v2 :is(button, a, [role='tab']):focus-visible {
+  outline: 2px solid rgb(var(--ds-accent));
+  outline-offset: 2px;
+}
+.shell-nav-v2 :is([data-testid='shell-lateral'], [data-testid='shell-mobile-header']) :is(button, a):focus-visible {
+  outline-color: rgb(var(--ds-chrome-accent));
+}
+/* Ventanas: radio de ventana y elevación modal. */
+.v3-portal .popup-panel { border-radius: var(--ds-radius-xl); }
+@media (min-width: 768px) { .v3-portal .popup-panel { border-radius: var(--ds-radius-xl); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-nav-v2 [data-testid='shell-bottom-nav'] > button::before { transition: none; }
+}
+@media (forced-colors: active) {
+  .shell-nav-v2 [data-testid='shell-bottom-nav'] > button[aria-current='page']::before { background: Highlight; }
+}
