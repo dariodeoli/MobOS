@@ -461,14 +461,14 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
   // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
   await expect(page.getByTestId('carrito-total')).toBeVisible()
 
-  // Rediseño: las herramientas secundarias (Ventas suspendidas, Gift cards) viven en
-  // el encabezado del bloque Productos, sin menú «Más» ni franja propia.
+  // Rediseño total: las herramientas secundarias (Ventas suspendidas, Gift cards…)
+  // son una fila de íconos del ticket, sin menú «Más» ni franja propia.
   const mas = page.getByTestId('pos-gift-cards')
   await expect(mas).toBeVisible()
   await expect(page.getByTestId('pos-mas')).toHaveCount(0)
   expect(
-    await mas.evaluate(el => Boolean(el.closest('[data-testid="pos-bloque-productos"]'))),
-    'lo secundario vive dentro del encabezado de Productos',
+    await mas.evaluate(el => Boolean(el.closest('[data-testid="pos-columna-venta"]'))),
+    'lo secundario vive en la fila de acciones del ticket',
   ).toBe(true)
   // Rediseño: catálogo a la izquierda y ticket a la derecha; el cliente abre el ticket, sobre sus líneas.
   const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
