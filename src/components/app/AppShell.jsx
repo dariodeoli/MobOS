@@ -41,6 +41,8 @@ import {
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
 import '@/styles/visual-v3.css'
+// Dirección «Grafito»: va después de v3 para ganarle a igual especificidad.
+import '@/styles/panel-foundation.css'
 
 function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
   if (sinEmpresa > 0) return `${sinEmpresa} venta${sinEmpresa === 1 ? '' : 's'} sin empresa por confirmar`
@@ -600,7 +602,7 @@ export default function AppShell({
           <div className="flex h-14 min-w-0 items-center gap-1 px-3 max-[359px]:gap-0 max-[359px]:px-1">
             {esDemo && stockCompacto ? <button type="button" aria-label="Modo demo: cómo funciona" onClick={() => setComoFunciona(true)} className="min-h-11 min-w-11 text-[11px] font-semibold text-fore">Demo</button> : (
               <>
-                <ThemeLogo data-testid="shell-mobile-brand" className="hidden h-6 w-[74px] shrink-0 min-[380px]:block" />
+                <ThemeLogo data-testid="shell-mobile-brand" className="hidden h-6 w-[74px] shrink-0 min-[380px]:block" variante="dark" />
                 <img data-testid="shell-mobile-brand-icon" src="/mobos-icon.svg" alt="MobOS" className="block h-7 w-7 shrink-0 min-[380px]:hidden" />
               </>
             )}
