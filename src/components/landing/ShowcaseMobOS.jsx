@@ -23,14 +23,16 @@ import {
   UsersRound,
   Wrench,
 } from 'lucide-react'
+import SeccionMarca from '@/components/landing/SeccionMarca'
 
 const modules = ['Punto de venta', 'Caja y finanzas', 'Inventario', 'Clientes', 'Taller', 'Delivery']
 
-function PreviewFrame({ id, title, label, icon: Icon, children, wide = false, tone = 'green', status = 'MUESTRA' }) {
+function PreviewFrame({ n, id, title, label, icon: Icon, children, wide = false, status = 'MUESTRA' }) {
   return (
-    <article className={`landing-showcase-card${wide ? ' landing-showcase-card--wide' : ''}`} data-testid={`showcase-${id}`} data-tone={tone} data-reveal>
+    <article className={`landing-showcase-card${wide ? ' landing-showcase-card--wide' : ''}`} data-testid={`showcase-${id}`} data-reveal>
       <div className="landing-showcase-title">
-        <span className="landing-showcase-icon" aria-hidden="true"><Icon size={18} /></span>
+        <span className="landing-showcase-num" aria-hidden="true">{n}</span>
+        <span className="landing-showcase-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.8} /></span>
         <h3>{title}</h3>
         <span className={`landing-showcase-sample${status === 'EN PREPARACIÓN' ? ' landing-showcase-sample--future' : ''}`}>{status}</span>
       </div>
@@ -158,24 +160,30 @@ function AnalyticsPreview() {
 }
 
 export default function ShowcaseMobOS() {
-  return <section className="landing-showcase landing-container" aria-labelledby="landing-showcase-title" data-testid="landing-showcase">
-    <header className="landing-showcase-heading" data-reveal><p className="landing-eyebrow">ASÍ SE VE EL TRABAJO DIARIO</p><h2 id="landing-showcase-title">Una vista clara de cada parte del negocio.</h2><p>Recorré ejemplos ilustrativos de las herramientas de MobOS. La información en pantalla es ficticia.</p></header>
-    <div className="landing-showcase-grid">
-      <PreviewFrame id="pos" title="Punto de venta" label="Catálogo y carrito" icon={ShoppingBag} tone="green"><SalePreview /></PreviewFrame>
-      <PreviewFrame id="caja" title="Caja" label="Apertura, movimientos y saldo" icon={CircleDollarSign} tone="amber"><CashPreview /></PreviewFrame>
-      <PreviewFrame id="stock" title="Stock por sucursal" label="Disponibilidad y conteo" icon={Package} tone="blue"><StockPreview /></PreviewFrame>
-      <PreviewFrame id="taller" title="Taller" label="Órdenes y diagnóstico" icon={Wrench} tone="violet"><WorkshopPreview /></PreviewFrame>
-      <PreviewFrame id="clientes" title="Clientes" label="Ficha y actividad" icon={UsersRound} tone="rose"><ClientPreview /></PreviewFrame>
-      <PreviewFrame id="portal" title="Portal del cliente" label="Seguimiento y documentos" icon={FileCheck2} tone="green"><PortalPreview /></PreviewFrame>
-      <PreviewFrame id="impresion" title="Impresión" label="Comprobante ilustrativo" icon={Printer} tone="slate"><PrintPreview /></PreviewFrame>
-      <PreviewFrame id="modulos" title="Módulos" label="Herramientas para tu operación" icon={Boxes} tone="blue"><ModulesPreview /></PreviewFrame>
-      <PreviewFrame id="analytics" title="Analytics" label="Métricas de muestra" icon={BarChart3} tone="violet"><AnalyticsPreview /></PreviewFrame>
-      <PreviewFrame id="delivery" title="Delivery" label="Asignación y seguimiento" icon={Truck} tone="amber"><DeliveryPreview /></PreviewFrame>
-      <PreviewFrame id="mensajes" title="Mensajes" label="Plantillas y avisos" icon={MessageSquareText} tone="rose"><MessagesPreview /></PreviewFrame>
-      <PreviewFrame id="imei" title="Verificación IMEI" label="Estados de ejemplo" icon={ScanLine} tone="green"><ImeiPreview /></PreviewFrame>
-      <PreviewFrame id="permisos" title="Permisos" label="Accesos según el rol" icon={KeyRound} tone="slate"><PermissionsPreview /></PreviewFrame>
-      <PreviewFrame id="facturacion" title="Facturación futura" label="Módulo en preparación" icon={Building2} tone="amber" status="EN PREPARACIÓN"><BillingPreview /></PreviewFrame>
+  return <section className="landing-showcase" aria-labelledby="landing-showcase-title" data-testid="landing-showcase">
+    <div className="landing-container">
+      <header className="landing-showcase-heading" data-reveal>
+        <SeccionMarca numero="05" etiqueta="ASÍ SE VE EL TRABAJO DIARIO" />
+        <h2 id="landing-showcase-title">Una vista clara de cada parte del negocio.</h2>
+        <p>Recorré ejemplos ilustrativos de las herramientas de MobOS. La información en pantalla es ficticia.</p>
+      </header>
+      <div className="landing-showcase-grid">
+        <PreviewFrame n="01" id="pos" title="Punto de venta" label="Catálogo y carrito" icon={ShoppingBag} wide><SalePreview /></PreviewFrame>
+        <PreviewFrame n="02" id="caja" title="Caja" label="Apertura, movimientos y saldo" icon={CircleDollarSign}><CashPreview /></PreviewFrame>
+        <PreviewFrame n="03" id="stock" title="Stock por sucursal" label="Disponibilidad y conteo" icon={Package}><StockPreview /></PreviewFrame>
+        <PreviewFrame n="04" id="taller" title="Taller" label="Órdenes y diagnóstico" icon={Wrench}><WorkshopPreview /></PreviewFrame>
+        <PreviewFrame n="05" id="clientes" title="Clientes" label="Ficha y actividad" icon={UsersRound}><ClientPreview /></PreviewFrame>
+        <PreviewFrame n="06" id="portal" title="Portal del cliente" label="Seguimiento y documentos" icon={FileCheck2}><PortalPreview /></PreviewFrame>
+        <PreviewFrame n="07" id="impresion" title="Impresión" label="Comprobante ilustrativo" icon={Printer}><PrintPreview /></PreviewFrame>
+        <PreviewFrame n="08" id="analytics" title="Analytics" label="Métricas de muestra" icon={BarChart3} wide><AnalyticsPreview /></PreviewFrame>
+        <PreviewFrame n="09" id="modulos" title="Módulos" label="Herramientas para tu operación" icon={Boxes}><ModulesPreview /></PreviewFrame>
+        <PreviewFrame n="10" id="delivery" title="Delivery" label="Asignación y seguimiento" icon={Truck}><DeliveryPreview /></PreviewFrame>
+        <PreviewFrame n="11" id="mensajes" title="Mensajes" label="Plantillas y avisos" icon={MessageSquareText}><MessagesPreview /></PreviewFrame>
+        <PreviewFrame n="12" id="imei" title="Verificación IMEI" label="Estados de ejemplo" icon={ScanLine}><ImeiPreview /></PreviewFrame>
+        <PreviewFrame n="13" id="permisos" title="Permisos" label="Accesos según el rol" icon={KeyRound}><PermissionsPreview /></PreviewFrame>
+        <PreviewFrame n="14" id="facturacion" title="Facturación futura" label="Módulo en preparación" icon={Building2} status="EN PREPARACIÓN"><BillingPreview /></PreviewFrame>
+      </div>
+      <p className="landing-showcase-disclaimer"><Clock3 size={14} /> Los ejemplos son ilustraciones de interfaz y no representan actividad de una tienda real.</p>
     </div>
-    <p className="landing-showcase-disclaimer"><Clock3 size={14} /> Los ejemplos son ilustraciones de interfaz y no representan actividad de una tienda real.</p>
   </section>
 }
