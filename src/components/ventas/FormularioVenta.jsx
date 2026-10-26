@@ -2,6 +2,7 @@ import '../control/inicioPosF2.css'
 import './posCobro.css'
 import './posUnaPantalla.css'
 import './posRediseno.css'
+import './posVender.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -51,7 +52,7 @@ import { alInvalidarSnapshots } from '@/lib/offline/snapshot'
 import { useRepartidores } from '@/hooks/useRepartidores'
 import { agruparProductos } from '@/utils/colores'
 import { pedidoPosDemo } from '@/lib/demo/pedidoPos.js'
-import { Aviso, Button, Card, EmptyState, Input, Label, Nota, useToast } from '@/components/ui'
+import { Aviso, Button, EmptyState, Input, Label, Nota, useToast } from '@/components/ui'
 import { ConfirmDialog, Modal } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import Popup from '@/components/shared/Popup'
@@ -2222,38 +2223,45 @@ export default function FormularioVenta({
     return () => document.removeEventListener('keydown', onKey)
   })
 
-  // Las herramientas del POS viven en el encabezado del bloque Productos: sin
-  // una franja propia sobre la grilla.
+  // Acciones secundarias de la venta: una fila de íconos con tooltip en el
+  // ticket, sobre el resumen (suspender, nota, envío, compartir, en espera,
+  // detalles y gift cards). Cada una abre lo que ya existía; ninguna calcula.
+  const accionTicket = ({ id, testId, icono, titulo, etiqueta = titulo, onClick, disabled = false, activa = false, haspopup }) => (
+    <Button
+      key={id}
+      type="button"
+      variant="outline"
+      className="pos-accion-icono"
+      data-testid={testId}
+      data-activa={activa ? 'si' : undefined}
+      onClick={onClick}
+      disabled={disabled}
+      title={titulo}
+      aria-label={etiqueta}
+      aria-haspopup={haspopup}
+    >
+      <Icon name={icono} className="h-4 w-4" />
+    </Button>
+  )
   const barraPos = (
       <BarraModulo
-        titulo="Nueva venta"
+        titulo="Acciones de la venta"
         testId="barra-pos"
-        className="w-auto justify-end border-b-0 pb-0"
+        className="pos-tk-acciones w-auto border-b-0 pb-0"
       >
-        {items.length > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            className="pos-accion-icono"
-            onClick={abrirSuspender}
-            disabled={guardando}
-            title="Suspender venta"
-            aria-label="Suspender venta"
-          >
-            <Icon name="save" className="h-4 w-4" />
-          </Button>
-        )}
-        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-suspendidas" onClick={abrirSuspendidas} title="Ventas suspendidas" aria-label="Ventas suspendidas">
-          <Icon name="clock" className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-detalles" onClick={() => setDetallesAbierto(true)} title="Detalles de la venta y atajos de teclado" aria-label="Detalles de la venta y del día" aria-haspopup="dialog">
-          <Icon name="info" className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)} title="Gift cards" aria-label="Gift cards">
-          <Icon name="card" className="h-4 w-4" />
-        </Button>
+        {items.length > 0 && accionTicket({ id: 'suspender', icono: 'save', titulo: 'Suspender venta', onClick: abrirSuspender, disabled: guardando })}
+        {accionTicket({ id: 'nota', testId: 'pos-nota', icono: 'edit', titulo: f.observacion ? 'Nota de la venta (cargada)' : 'Agregar nota', activa: Boolean(f.observacion), onClick: () => setHoja('nota'), haspopup: 'dialog' })}
+        {accionTicket({ id: 'envio', testId: 'pos-envio', icono: 'truck', titulo: f.entrega && f.entrega !== ENTREGA[0] ? `Envío: ${f.entrega}` : 'Agregar envío o delivery', activa: Boolean(f.entrega && f.entrega !== ENTREGA[0]), onClick: () => setHoja('envio'), haspopup: 'dialog' })}
+        {/* Compartir = suspender: la venta queda en «Ventas suspendidas», que ve todo el equipo. */}
+        {items.length > 0 && accionTicket({ id: 'compartir', testId: 'pos-compartir', icono: 'share', titulo: 'Compartir carrito con el equipo (queda en Ventas suspendidas)', onClick: abrirSuspender, disabled: guardando })}
+        {accionTicket({ id: 'suspendidas', testId: 'pos-suspendidas', icono: 'clock', titulo: 'Ventas suspendidas', onClick: abrirSuspendidas })}
+        {accionTicket({ id: 'detalles', testId: 'pos-detalles', icono: 'info', titulo: 'Detalles de la venta y atajos de teclado', etiqueta: 'Detalles de la venta y del día', onClick: () => setDetallesAbierto(true), haspopup: 'dialog' })}
+        {accionTicket({ id: 'giftcards', testId: 'pos-gift-cards', icono: 'card', titulo: 'Gift cards', onClick: () => setGiftCardsOpen(true) })}
       </BarraModulo>
   )
+  // Cantidad de cada producto en la venta: el mosaico del catálogo la muestra.
+  const enCarrito = {}
+  for (const it of items) if (it.productoId) enCarrito[it.productoId] = (enCarrito[it.productoId] || 0) + (Number(it.quantity) || 1)
 
   // ── POS en celular (#429) ───────────────────────────────────────────
   // El bloque de escritorio de abajo pasa cada pieza por `pos(...)`: en
@@ -2317,7 +2325,9 @@ export default function FormularioVenta({
 
   return (
     <RetencionContext.Provider value={retencion}>
-    <Card className="p-3 md:p-4">
+    {/* Sin tarjeta envolvente: en escritorio el POS es un espacio de trabajo
+        (catálogo | ticket) de borde a borde; ver posVender.css. */}
+    <div className="pos-vender">
       {accesoStockInvalidado && (
         <Aviso tono="error" como="div" role="alert" className="mb-4" data-testid="pos-acceso-stock-invalidado">
           <p>El acceso al stock cambió. Verificá tu sesión y sucursal antes de continuar.</p>
@@ -2474,14 +2484,15 @@ export default function FormularioVenta({
           </Popup>
         )}
 
-        {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
+        {/* Espacio de trabajo: catálogo (izquierda) | ticket en vivo (derecha),
+            dos paneles de alto completo separados por una línea. */}
         <div
           ref={layoutRef}
           data-testid="pos-layout"
           data-cobro={modoCobro && !esMovil && items.length > 0 ? 'si' : undefined}
           data-divisor={divisor.izq != null ? 'manual' : undefined}
           style={divisor.izq != null ? { '--pos-izq': divisor.izq } : undefined}
-          className={`pos-layout relative grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2${esMovil ? ' hidden' : ''}`}
+          className={`pos-layout pos-ws relative grid grid-cols-1 items-start${esMovil ? ' hidden' : ''}`}
         >
           <div
             role="separator"
@@ -2496,7 +2507,7 @@ export default function FormularioVenta({
             className="pos-divisor hidden lg:block"
             {...divisor.props}
           />
-          <div className="pos-col-izq flex min-w-0 flex-col gap-3">
+          <div className="pos-col-izq pos-ws-catalogo flex min-w-0 flex-col">
             {pos('productos',
             <PasoProductos
               sesion={sesion}
@@ -2541,26 +2552,22 @@ export default function FormularioVenta({
               hayItems={items.length > 0}
               onAgregarOtro={enfocarBusquedaProducto}
               onCobrar={irACobrarRapido}
-              acciones={barraPos}
+              enCarrito={enCarrito}
             />)}
           </div>
 
-          {/* Columna de la venta (carrito + cobro y entrega): pegada como un solo
-              bloque al deslizar el catálogo; si es más alta que la pantalla se
-              desplaza por dentro y «Cobrar» queda fijo al pie. */}
+          {/* Ticket en vivo (carrito + cobro y entrega): pegado arriba mientras se
+              desliza el catálogo; «Cobrar» queda fijo al pie de la pantalla. */}
           <div
             data-testid="pos-columna-venta"
-            className="pos-columna-venta flex min-w-0 flex-col gap-2"
+            className="pos-columna-venta pos-ws-ticket flex min-w-0 flex-col"
           >
-            {/* Cabecera del ticket (solo escritorio): el carrito es el área de
-                trabajo principal. El vendedor ya figura en el bloque Cliente. */}
+            {/* Cabecera del ticket (solo escritorio). */}
             <div data-testid="pos-ticket-cabecera" className="pos-ticket-cabecera hidden items-center justify-between gap-3 lg:flex">
-              <h2 className="text-base font-bold tracking-tight text-fore">Venta actual</h2>
-              {cantTotal > 0 && (
-                <span className="shrink-0 rounded-full bg-fono/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-fono">
-                  {cantTotal} {cantTotal === 1 ? 'ítem' : 'ítems'}
-                </span>
-              )}
+              <h2 className="pos-ticket-titulo">Venta actual</h2>
+              <span className="pos-ticket-cuenta tabular-nums" aria-live="polite">
+                {cantTotal > 0 ? `${cantTotal} ${cantTotal === 1 ? 'ítem' : 'ítems'}` : 'Sin productos'}
+              </span>
             </div>
             {/* El cliente queda junto al ticket y al total; el catálogo conserva el foco de búsqueda. */}
             {pos('cliente',
@@ -2597,6 +2604,7 @@ export default function FormularioVenta({
               modoCobro={modoCobro && !esMovil && items.length > 0}
               onListo={() => setModoCobro(true)}
               onEditar={() => setModoCobro(false)}
+              acciones={barraPos}
             />)}
 
             <div data-testid="pos-cobro-stage" className="flex min-w-0 flex-col gap-2">
@@ -2669,6 +2677,10 @@ export default function FormularioVenta({
             {elementosPos.productos && cloneElement(elementosPos.productos, { acciones: null })}
           </div>
         )}
+        {/* Nota y envío: en celular desde las acciones de inicio; en escritorio
+            desde la fila de acciones del ticket. Mismo estado `f` que el cobro. */}
+        <HojaEnvio open={hoja === 'envio'} onClose={() => setHoja(null)} f={f} setF={setF} />
+        <HojaNota open={hoja === 'nota'} onClose={() => setHoja(null)} f={f} setF={setF} />
         {esMovil && <BarraCarrito cantidad={cantTotal} total={totalGeneral} onAbrir={() => setHoja('carrito')} />}
         {esMovil && (
           <>
@@ -2681,11 +2693,9 @@ export default function FormularioVenta({
               cantidad={cantTotal}
               onCobrar={cobrarMovil}
             >
-              {elementosPos.carrito}
+              {elementosPos.carrito && cloneElement(elementosPos.carrito, { acciones: null })}
             </HojaCarrito>
             <HojaCliente open={hoja === 'cliente'} onClose={() => setHoja(null)}>{elementosPos.cliente}</HojaCliente>
-            <HojaEnvio open={hoja === 'envio'} onClose={() => setHoja(null)} f={f} setF={setF} />
-            <HojaNota open={hoja === 'nota'} onClose={() => setHoja(null)} f={f} setF={setF} />
             <HojaSinStock
               open={hoja === 'sinstock'}
               onClose={() => setHoja('carrito')}
@@ -3133,7 +3143,7 @@ export default function FormularioVenta({
       </Modal>
 
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
-    </Card>
+    </div>
     </RetencionContext.Provider>
   )
 }

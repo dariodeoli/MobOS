@@ -1,14 +1,6 @@
 /* POS (#390/#391): presentación del cobro. Se carga después de inicioPosF2.css
    y gana por especificidad; no toca montos ni reglas de negocio. */
 
-/* Catálogo: las columnas se ajustan al ancho real de su panel. */
-@media (min-width: 1024px) {
-  .pos-f2 .pos-product-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
-  }
-}
-
-
 /* Keep POS product identity readable in both themes. Several catalog cards
    inherit color from a legacy surface when the document switches to dark;
    these semantic tokens keep names, prices and muted metadata on the same
@@ -19,11 +11,10 @@ html.dark .pos-f2 [data-testid='pos-bloque-productos'] {
   color: rgb(var(--c-fore));
 }
 
-/* The legacy POS surface rules can win over the card tokens when the theme
-   changes after the page mounted. Keep the dark catalog on an opaque semantic
-   surface so the card text and controls are measured against the same color
-   that the user actually sees. The selector is intentionally scoped to POS;
-   generic button/input rules must not repaint these surfaces. */
+/* The legacy POS surface rules can win over the field tokens when the theme
+   changes after the page mounted. Keep the dark customer field on an opaque
+   semantic surface so its text is measured against the color the user sees.
+   The selector is intentionally scoped to POS. */
 html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input {
   background: rgb(var(--c-ink-900)) !important;
   background-color: rgb(var(--c-ink-900)) !important;
@@ -31,19 +22,9 @@ html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input {
   border-color: rgb(var(--c-ink-500)) !important;
   opacity: 1 !important;
 }
-html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input {
-  color: rgb(var(--c-fore)) !important;
-}
 html.dark .shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] input::placeholder {
   color: rgb(var(--c-mute)) !important;
   opacity: 1 !important;
-}
-
-/* Venta rápida: en escritorios amplios el catálogo respira y la foto ayuda a
-   identificar el producto antes de agregarlo. El carrito conserva su columna
-   independiente; no se cambia ninguna regla de stock, IMEI o cobro. */
-@media (min-width: 1280px) {
-  .pos-f2 .pos-layout { gap: 20px; }
 }
 
 /* Acciones del POS como íconos con tooltip. */

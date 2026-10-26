@@ -11,13 +11,14 @@ import PrecioStockProducto from './PrecioStockProducto'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import { useModulos } from '@/lib/useModulos'
-import EncabezadoBloque from './EncabezadoBloque'
+import Avatar from '@/components/shared/Avatar'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
 import FotoProducto from '@/components/shared/FotoProducto'
 import { CATEGORIAS_ACCESORIO, CLAVES_ACCESORIO, categoriaAccesorioDe, textoCompatibilidad } from '@/lib/categoriasAccesorio'
 import { categoriaMeta } from '@/lib/categoriasProducto'
 import { cn } from '@/lib/utils'
+import { ScanBarcode } from 'lucide-react'
 import './posProductos.css'
 
 const FILAS_INICIALES = 4
@@ -51,6 +52,27 @@ function useColumnasGrilla(ref, vista) {
     return () => obs.disconnect()
   }, [ref, vista])
   return columnas
+}
+
+// Pestañas de filtro que se desplazan: avisa si hay contenido oculto a cada
+// lado para desvanecer ese borde (solo cuando de verdad desbordan).
+function useBordesDesplazables(ref) {
+  const [bordes, setBordes] = useState({ izq: false, der: false })
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof window === 'undefined') return undefined
+    const medir = () => {
+      const izq = el.scrollLeft > 2
+      const der = el.scrollLeft + el.clientWidth < el.scrollWidth - 2
+      setBordes(actual => (actual.izq === izq && actual.der === der ? actual : { izq, der }))
+    }
+    medir()
+    el.addEventListener('scroll', medir, { passive: true })
+    const obs = typeof ResizeObserver === 'function' ? new ResizeObserver(medir) : null
+    obs?.observe(el)
+    return () => { el.removeEventListener('scroll', medir); obs?.disconnect() }
+  }, [ref])
+  return bordes
 }
 
 // La venta en una sola pantalla: para quién es y qué se vende. Primero el
@@ -95,10 +117,13 @@ export default function PasoProductos({
   hayItems = false,
   onAgregarOtro = null,
   onCobrar = null,
+  enCarrito = {},
 }) {
   const { activo: moduloOn } = useModulos()
   const mayoristas = moduloOn('mayoristas')
   const grillaRef = useRef(null)
+  const filtrosRef = useRef(null)
+  const bordeFiltros = useBordesDesplazables(filtrosRef)
   const [vista, setVista] = useState(leerVista)
   const columnasGrilla = useColumnasGrilla(grillaRef, vista)
   const enLista = vista === 'lista'
@@ -141,28 +166,11 @@ export default function PasoProductos({
   const preciosCargando = cotizacion.key !== clavePrecios || cotizacion.status === 'loading'
   return (
     <>
-      {/* #281 · identidad de color: Productos = acento de marca (fono). */}
-      <section data-testid="pos-bloque-productos" className="pos-prod rounded-2xl border border-ink-600 bg-ink p-3">
-        <EncabezadoBloque
-          compacto
-          titulo="Productos"
-          descripcion={<span className="pos-prod-cuenta">{catalogoServidor ? catalogoServidor.total : productos.length} disponibles</span>}
-          extra={
-            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-2">
-              {puedeCrearProducto && (
-                <button
-                  type="button"
-                  data-testid="pos-nuevo-producto"
-                  onClick={() => setNuevoProd(true)}
-                  className="pos-prod-nuevo inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1.5 text-xs font-semibold text-fore transition hover:bg-ink-800 md:min-h-9"
-                >
-                  <Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto
-                </button>
-              )}
-              {acciones}
-            </div>
-          }
-        />
+      {/* Panel del catálogo: barra de búsqueda tipo comando, filtros como
+          pestañas de texto y mosaicos con la foto adelante. El título queda
+          para lectores de pantalla; el contador va callado junto a los filtros. */}
+      <section data-testid="pos-bloque-productos" aria-labelledby="pos-prod-titulo" className="pos-prod">
+        <h3 id="pos-prod-titulo" className="sr-only">Productos</h3>
         <Popup
           open={Boolean(nuevoProd)}
           onClose={cancelarNuevoProd}
@@ -320,8 +328,8 @@ export default function PasoProductos({
           </div>
         </Popup>
           <>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <div id="pos-busqueda-producto" className="pos-prod-buscar relative min-w-0 flex-1 basis-56">
+            <div className="pos-prod-comando">
+              <div id="pos-busqueda-producto" className="pos-prod-buscar relative min-w-0 flex-1">
                 <ProductCombobox
                   products={productos}
                   placeholder="Buscar producto…"
@@ -339,16 +347,20 @@ export default function PasoProductos({
                   }}
                   className="pl-9"
                 />
-                <Icon
-                  name="search"
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
+                <ScanBarcode
+                  aria-hidden="true"
+                  strokeWidth={1.75}
+                  className="pos-prod-lector pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
                 />
+                <span className="pos-prod-pista pointer-events-none" aria-hidden="true">
+                  Nombre, código o IMEI · el lector escanea acá
+                </span>
               </div>
               {hayItems && onAgregarOtro && (
                 <button
                   type="button"
                   onClick={onAgregarOtro}
-                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-fono/30 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-9"
+                  className="pos-prod-otro inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition md:min-h-9"
                   title="Volver a buscar y agregar otro producto"
                 >
                   <Icon name="plus" className="h-3.5 w-3.5" /> Agregar otro
@@ -364,24 +376,42 @@ export default function PasoProductos({
                   Cobrar <kbd className="rounded bg-black/15 px-1.5 py-0.5 font-mono text-[10px]">F2</kbd>
                 </button>
               )}
+              {puedeCrearProducto && (
+                <button
+                  type="button"
+                  data-testid="pos-nuevo-producto"
+                  onClick={() => setNuevoProd(true)}
+                  className="pos-prod-nuevo inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-9"
+                >
+                  <Icon name="plus" className="h-3.5 w-3.5" /> <span className="pos-prod-nuevo-texto">Nuevo producto</span>
+                </button>
+              )}
+              {acciones}
             </div>
-            <div className="mb-2 flex items-center gap-2">
+            <div className="pos-prod-filtros">
               {setAccesorio ? (
-                <div className="pos-prod-segmento flex min-w-0 gap-0.5 overflow-x-auto" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="pos-chips-accesorio">
+                <div
+                  ref={filtrosRef}
+                  data-borde={[bordeFiltros.izq && 'izq', bordeFiltros.der && 'der'].filter(Boolean).join(' ') || undefined}
+                  className="pos-prod-tabs flex min-w-0 overflow-x-auto"
+                  role="group"
+                  aria-label="Filtrar por tipo de accesorio"
+                  data-testid="pos-chips-accesorio"
+                >
                   {[['todas', { label: 'Todos', icon: 'grid' }], ...CLAVES_ACCESORIO.map(clave => [clave, CATEGORIAS_ACCESORIO[clave]])].map(([clave, meta]) => (
                     <button
                       key={clave}
                       type="button"
                       aria-pressed={accesorio === clave}
                       onClick={() => setAccesorio(clave)}
-                      className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition md:min-h-8', accesorio === clave ? 'text-fore' : 'text-mute hover:text-fore')}
+                      className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 px-2.5 text-xs font-medium transition md:min-h-9', accesorio === clave ? 'text-fore' : 'text-mute hover:text-fore')}
                     >
                       <Icon name={meta.icon} className="h-3.5 w-3.5" />{meta.label}
                     </button>
                   ))}
                 </div>
-              ) : null}
-              <span className="flex-1" />
+              ) : <span className="flex-1" />}
+              <span className="pos-prod-cuenta shrink-0">{catalogoServidor ? catalogoServidor.total : productos.length} disponibles</span>
               <div role="group" aria-label="Vista del catálogo" data-testid="pos-vista-catalogo" className="pos-prod-segmento flex shrink-0 gap-0.5">
                 {[['cuadricula', 'grid', 'Cuadrícula'], ['lista', 'list', 'Lista']].map(([clave, icono, etiqueta]) => (
                   <button
@@ -440,6 +470,8 @@ export default function PasoProductos({
                 const unidadesFamilia = fam.items.reduce((suma, item) => suma + num(item.unitsCount), 0)
                 // #404: con foto, el stock se abrevia a la cifra para que la columna angosta no haga crecer la tarjeta.
                 const fotoFamilia = p.thumbUrl || p.imagen || p.imageUrl || p.imagenes?.[0] || ''
+                // Unidades de esta familia que ya están en la venta (insignia del mosaico).
+                const enLaVenta = fam.items.reduce((suma, item) => suma + (enCarrito[item.id] || 0), 0)
                 if (enLista) {
                   return (
                     <button
@@ -478,22 +510,28 @@ export default function PasoProductos({
                     key={fam.base}
                     disabled={guardando}
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
-                    className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition focus-visible:outline focus-visible:outline-fono"
+                    className="pos-product-card pos-tile min-h-11 min-w-0 text-left transition focus-visible:outline focus-visible:outline-fono"
                   >
-                    <span className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
+                    {/* Foto adelante: una banda de alto fijo (con o sin foto mide igual). */}
+                    <span className="pos-tile-foto">
                       <FotoProducto
                         src={fotoFamilia}
-                        size={40}
+                        size={64}
                         icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || categoriaMeta(p).icon}
                       />
-                        <strong className="pos-product-name col-span-2 min-w-0 break-words md:col-span-1 text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
-                        <PrecioStockProducto productos={fam.items} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
-                        {unidadesFamilia > 0 && (
-                          <span className="col-span-2 block truncate text-[11px] text-mute">
-                            {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
-                          </span>
-                        )}
+                      {enLaVenta > 0 && (
+                        <span data-testid="pos-tile-cantidad" className="pos-tile-cantidad tabular-nums" title={`${enLaVenta} en la venta`}>
+                          <span className="sr-only">En la venta: </span>{enLaVenta}
+                        </span>
+                      )}
                     </span>
+                    <strong className="pos-product-name line-clamp-2 min-w-0 break-words">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
+                    <PrecioStockProducto mosaico productos={fam.items} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
+                    {unidadesFamilia > 0 && (
+                      <span className="pos-tile-imei block truncate text-[11px] text-mute">
+                        {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -594,39 +632,49 @@ export function PosCustomer({
   const nombreVendedor =
     sesion?.rol === 'dueno' && perfilEmpresa?.name ? perfilEmpresa.name : sesion?.nombre
 
+  // Chip del cliente en el ticket: avatar con iniciales (Consumidor final si no
+  // hay ficha) y, al lado, el buscador o la tarjeta del cliente elegido (la
+  // misma de siempre). El vendedor va callado debajo.
+  const nombreCliente = String(customer?.name || '').trim()
   return (
     <section
       data-testid="pos-bloque-cliente"
-      className="rounded-2xl border border-info/35 bg-info/[.04] p-3"
+      aria-labelledby="pos-cliente-titulo"
+      data-con-cliente={customer?.id ? 'si' : undefined}
+      className="pos-cliente"
     >
-      <EncabezadoBloque
-        compacto
-        titulo="Cliente"
-        tono="text-info"
-
-        extra={
-          <div className="shrink-0 text-right text-xs text-mute">
-            <span className="block">
-              Vendedor:{' '}
-              <strong className="text-fore">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
-            </span>
-          </div>
-        }
-      />
-      <CheckoutCustomer
-        colapsarFicha
-        esDemo={esDemo}
-        value={customer}
-        onChange={c => {
-          setCustomer(c)
-          setF(current => ({ ...current, cliente: c?.name ?? '' }))
-        }}
-        billingTo={billingTo}
-        onBillingChange={setBillingTo}
-        nombreLista={nombreLista}
-        onStats={onStats}
-        onSelected={onSelected}
-      />
+      <h3 id="pos-cliente-titulo" className="sr-only">Cliente</h3>
+      <div className="pos-cliente-fila">
+        <Avatar
+          user={{ id: customer?.id || 'pos-consumidor-final', name: nombreCliente || 'Consumidor final' }}
+          hasAvatar={false}
+          size="lg"
+          className="pos-cliente-avatar"
+          title={nombreCliente || 'Consumidor final'}
+        />
+        <div className="min-w-0 flex-1">
+          {!customer?.id && (
+            <span className="pos-cliente-rotulo">{nombreCliente ? 'Cliente nuevo' : 'Consumidor final'}</span>
+          )}
+          <CheckoutCustomer
+            colapsarFicha
+            esDemo={esDemo}
+            value={customer}
+            onChange={c => {
+              setCustomer(c)
+              setF(current => ({ ...current, cliente: c?.name ?? '' }))
+            }}
+            billingTo={billingTo}
+            onBillingChange={setBillingTo}
+            nombreLista={nombreLista}
+            onStats={onStats}
+            onSelected={onSelected}
+          />
+        </div>
+      </div>
+      <p className="pos-cliente-vendedor">
+        Vendedor: <strong>{nombreVendedor || 'Ingresá con tu PIN'}</strong>
+      </p>
     </section>
   )
 }

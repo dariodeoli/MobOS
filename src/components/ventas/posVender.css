@@ -1,0 +1,578 @@
+/* Vender › Nueva venta · espacio de trabajo (rediseño total).
+   Escritorio (≥1024): sin tarjeta envolvente. El POS ocupa el área de
+   contenido de borde a borde con dos paneles de alto completo separados por
+   una línea: catálogo sobre el lienzo frío a la izquierda y el ticket en vivo
+   (superficie blanca, pegado arriba) a la derecha. Tokens --ds-* de
+   src/styles/tokens.css. Solo presentación: no toca montos, stock ni cobro.
+   Se carga después de posCobro.css, posUnaPantalla.css y posRediseno.css. */
+
+/* Las variables viven también en el carrito y el cliente: en celular se
+   montan dentro de hojas (portal), fuera de .pos-vender. */
+.pos-vender,
+.pos-carrito,
+.pos-cliente {
+  --pv-line: rgb(var(--ds-border));
+  --pv-surface: rgb(var(--ds-surface));
+  --pv-canvas: rgb(var(--ds-canvas));
+  --pv-muted: rgb(var(--ds-text-muted));
+  --pv-text: rgb(var(--ds-text));
+}
+.pos-vender {
+  min-width: 0;
+}
+
+/* Selector «Nueva venta | Trade-In» en la fila del título (PageHeader). */
+.shell-tabs-titulo [data-tab-id] {
+  min-height: 30px;
+  padding-inline: 8px;
+  font-size: var(--ds-text-sm);
+}
+.shell-tabs-titulo > div {
+  gap: 2px;
+  padding: 2px;
+}
+
+/* ───────────── Espacio de trabajo (≥1024) ───────────── */
+@media (min-width: 1024px) {
+  /* El área de contenido del shell tiene 24 px a los lados y 32 abajo
+     (md:px-6 md:pb-8): el POS los recupera para ir de borde a borde. */
+  .pos-vender {
+    margin: 0 -24px -32px;
+  }
+  /* Avisos (venta registrada, cola sin conexión, errores) conservan el margen. */
+  .pos-vender > :not(form),
+  .pos-vender .pos-f2 > :not(.pos-layout) {
+    margin-inline: 24px;
+  }
+  .pos-vender .pos-f2 {
+    gap: 12px;
+  }
+
+  .shell-nav-v2 .pos-f2 .pos-ws.pos-ws {
+    --pos-ticket: 400px;
+    --pos-gap: 0px;
+    --pv-ticket-ancho: var(--pos-ticket);
+    grid-template-columns: minmax(0, 1fr) var(--pos-ticket);
+    gap: 0;
+    height: auto;
+    min-height: var(--pos-alto, 0);
+    align-items: start;
+    border-top: 1px solid var(--pv-line);
+    /* La columna del ticket se pinta en la grilla (blanca, con su línea): el
+       panel llega al pie aunque el ticket pegado mida menos que el catálogo. */
+    background:
+      linear-gradient(to left, var(--pv-surface) var(--pv-ticket-ancho), var(--pv-line) var(--pv-ticket-ancho), var(--pv-line) calc(var(--pv-ticket-ancho) + 1px), var(--pv-canvas) calc(var(--pv-ticket-ancho) + 1px));
+  }
+  /* Reparto manual con el divisor: el ticket es la fracción que sobra. */
+  .shell-nav-v2 .pos-f2 .pos-ws.pos-ws[data-divisor] {
+    --pv-ticket-ancho: calc((1 - var(--pos-izq)) * 100%);
+    grid-template-columns: minmax(0, calc(100% * var(--pos-izq))) minmax(0, 1fr);
+  }
+  /* El divisor se monta sobre la línea entre paneles. */
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-divisor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(100% - var(--pv-ticket-ancho) - 5px);
+    width: 10px;
+    z-index: 5;
+    cursor: col-resize;
+    touch-action: none;
+    color: var(--pv-muted);
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-divisor::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 45%;
+    height: 40px;
+    width: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity var(--ds-fast) var(--ds-ease);
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-divisor:hover::after,
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-divisor:focus-visible::after {
+    opacity: 0.7;
+  }
+
+  /* ── Panel del catálogo: crece con su contenido (scroll de página). ── */
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-ws-catalogo {
+    min-height: var(--pos-alto, 0);
+    padding: 16px 24px 24px;
+    overflow: visible;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-ws-catalogo > [data-testid='pos-bloque-productos'] {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* ── Ticket en vivo: pegado arriba, alto de pantalla, «Cobrar» al pie. ── */
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-ws-ticket {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    min-height: max(var(--pos-alto, 0px), 100dvh);
+    gap: 0;
+    overflow: visible;
+    background: var(--pv-surface);
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws:not([data-cobro]) .pos-ws-ticket > [data-testid='pos-bloque-carrito'] {
+    flex: 1 0 auto;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws:not([data-cobro]) [data-testid='pos-carrito-cuerpo'] {
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    overflow: visible;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws [data-testid='pos-carrito-cuerpo'] > [data-carrito-vacio] {
+    flex: 1 0 auto;
+  }
+}
+@media (min-width: 1280px) {
+  .shell-nav-v2 .pos-f2 .pos-ws.pos-ws {
+    --pos-ticket: 440px;
+  }
+}
+@media (min-width: 1600px) {
+  .shell-nav-v2 .pos-f2 .pos-ws.pos-ws {
+    --pos-ticket: 480px;
+  }
+}
+
+/* ───────────── Ticket: cabecera, cliente, líneas y pie ───────────── */
+.pos-ticket-titulo {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+  color: var(--pv-text);
+}
+.pos-ticket-cuenta {
+  font-size: var(--ds-text-xs);
+  color: var(--pv-muted);
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-ticket-cabecera {
+    padding: 16px 20px 8px;
+    border: 0;
+    background: transparent;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-ticket-cabecera {
+    display: none;
+  }
+}
+
+/* Cliente: un chip (avatar + nombre o buscador) y el vendedor callado. */
+.shell-nav-v2 .pos-f2 .pos-ws [data-testid='pos-bloque-cliente'].pos-cliente {
+  padding: 4px 20px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--pv-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.pos-cliente-fila {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pos-cliente .pos-cliente-avatar {
+  margin-top: 2px;
+  border-color: var(--pv-line);
+  background: rgb(var(--ds-surface-subtle));
+  color: var(--pv-text);
+}
+.pos-cliente[data-con-cliente] .pos-cliente-avatar {
+  border-color: rgb(var(--ds-accent) / 0.4);
+  background: rgb(var(--ds-accent) / 0.1);
+  color: rgb(var(--ds-accent));
+}
+.pos-cliente-rotulo {
+  display: block;
+  margin-bottom: 2px;
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: var(--pv-muted);
+}
+.pos-cliente-vendedor {
+  margin: 6px 0 0 46px;
+  font-size: var(--ds-text-2xs);
+  color: var(--pv-muted);
+}
+.pos-cliente-vendedor strong {
+  font-weight: var(--ds-weight-medium);
+  color: var(--pv-muted);
+}
+/* El buscador del cliente es la píldora del chip. */
+.pos-cliente input[aria-label='Nombre, teléfono, CI o RUC del cliente'] {
+  min-height: 36px;
+  height: 36px;
+  border-radius: var(--ds-radius-pill);
+  border-color: var(--pv-line);
+  background: rgb(var(--ds-surface-subtle));
+  padding-inline: 14px;
+  font-size: var(--ds-text-sm);
+  box-shadow: none;
+}
+.pos-cliente input[aria-label='Nombre, teléfono, CI o RUC del cliente']:focus {
+  border-color: rgb(var(--ds-accent));
+  background: var(--pv-surface);
+  box-shadow: 0 0 0 3px rgb(var(--ds-accent) / 0.14);
+}
+html.dark .shell-nav-v2 .pos-f2 .pos-cliente input[aria-label='Nombre, teléfono, CI o RUC del cliente'] {
+  background: rgb(var(--c-ink-800)) !important;
+}
+/* «Datos de contacto…» es un enlace chico debajo del chip, sin caja. */
+.pos-cliente details {
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.pos-cliente details > summary {
+  font-size: var(--ds-text-xs);
+  color: var(--pv-muted);
+}
+@media (min-width: 1024px) {
+  .pos-cliente details > summary {
+    min-height: 32px;
+  }
+}
+.pos-cliente details > summary:hover {
+  color: var(--pv-text);
+}
+.pos-cliente details[open] {
+  padding: 4px 0 8px;
+}
+.pos-cliente .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 4px;
+}
+/* Cliente elegido: el nombre manda; sin caja verde. */
+.pos-cliente [data-testid='cliente-elegido'] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.pos-cliente [data-testid='cliente-elegido-nombre'] {
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+}
+
+/* Carrito: sin caja propia dentro del ticket. */
+@media (min-width: 1024px) {
+  .shell-nav-v2 .pos-f2 .pos-ws:not([data-cobro]) [data-testid='pos-bloque-carrito'] {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+}
+/* Rótulo de las líneas: callado, como el encabezado de un ticket. */
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > .pos-tk-cab {
+  padding: 10px 20px 6px;
+  border-bottom: 1px dashed var(--pv-line);
+  background: transparent;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > .pos-tk-cab h3 {
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: var(--pv-muted);
+}
+.pos-tk-cab [data-bloque-cab] > div {
+  min-width: 0;
+  flex: 1 1 0;
+}
+.pos-tk-cab [data-bloque-cab] p {
+  margin: 0;
+  font-size: var(--ds-text-2xs);
+  color: var(--pv-muted);
+}
+.pos-tk-vaciar {
+  border: 0;
+}
+
+/* Líneas: nombre y total arriba; IMEI/precio y el paso de cantidad abajo. */
+.pos-tk-lineas > .pos-linea {
+  padding: 10px 20px 10px 18px;
+}
+.pos-tk-lineas.divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-top-style: dashed;
+  border-color: var(--pv-line);
+}
+.pos-linea-paso {
+  border: 1px solid var(--pv-line);
+  border-radius: var(--ds-radius-md);
+  background: var(--pv-surface);
+}
+.pos-linea-total .pos-money-value {
+  color: var(--pv-text);
+  font-weight: var(--ds-weight-bold);
+}
+.pos-linea-unitario {
+  margin-top: 1px;
+}
+@media (min-width: 768px) {
+  .pos-linea-fila {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      'nombre total total total'
+      'nombre paso detalle quitar';
+    align-items: center;
+    column-gap: 4px;
+    row-gap: 2px;
+  }
+  .pos-linea-fila > .pos-linea-foto {
+    display: none;
+  }
+  .pos-linea-nombre {
+    grid-area: nombre;
+    align-self: start;
+  }
+  .pos-linea-acciones {
+    display: contents;
+  }
+  .pos-linea-paso {
+    grid-area: paso;
+  }
+  .pos-linea-total {
+    grid-area: total;
+    justify-self: end;
+    align-self: start;
+  }
+  .pos-linea-acciones > button[aria-expanded] {
+    grid-area: detalle;
+  }
+  .pos-linea-quitar {
+    grid-area: quitar;
+  }
+  .pos-linea-total .pos-money-value {
+    font-size: var(--ds-text-md);
+  }
+}
+/* Quitar aparece al pasar el mouse (o con el foco); en táctil queda visible. */
+@media (hover: hover) and (min-width: 768px) {
+  .pos-linea .pos-linea-quitar {
+    opacity: 0;
+    transition: opacity var(--ds-fast) var(--ds-ease);
+  }
+  .pos-linea:hover .pos-linea-quitar,
+  .pos-linea:focus-within .pos-linea-quitar {
+    opacity: 1;
+  }
+}
+.pos-tk-ajustes {
+  padding-inline: 20px;
+  border-top: 1px dashed var(--pv-line);
+}
+
+/* Ticket vacío: calmo. */
+.pos-tk-vacio-icono {
+  background: rgb(var(--ds-surface-subtle));
+  color: var(--pv-muted);
+}
+.pos-tk-vacio-atajo kbd,
+.pos-tk-atajo {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--ds-radius-xs);
+  font-family: var(--ds-font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+/* Pie: acciones · resumen · Total · Cobrar. Pegado al pie de la pantalla
+   mientras el ticket la supere. */
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > .pos-tk-pie {
+  padding: 8px 20px 16px;
+  border-top: 1px solid var(--pv-line);
+  background: var(--pv-surface);
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 .pos-f2 .pos-ws:not([data-cobro]) [data-testid='pos-bloque-carrito'] > .pos-tk-pie {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    box-shadow: 0 -10px 18px -16px rgb(15 15 20 / 0.35);
+  }
+}
+.pos-tk-acciones-fila {
+  margin: 0 -6px 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--pv-line);
+}
+.pos-tk-acciones-fila [data-testid='barra-pos'] {
+  border: 0;
+  padding: 0;
+}
+.pos-tk-acciones-fila [data-testid='barra-pos-toolbar'] > [role='group'] > :last-child {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 2px;
+  margin-left: 0;
+}
+.pos-tk-acciones-fila [data-testid='barra-pos-toolbar'] > [role='group'] {
+  justify-content: flex-start;
+}
+.pos-tk-acciones-fila .pos-accion-icono {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-color: transparent;
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  color: var(--pv-muted);
+  box-shadow: none;
+}
+.pos-tk-acciones-fila .pos-accion-icono:hover:not(:disabled) {
+  background: rgb(var(--ds-surface-hover));
+  color: var(--pv-text);
+}
+.pos-tk-acciones-fila .pos-accion-icono[data-activa] {
+  color: rgb(var(--ds-accent));
+  background: rgb(var(--ds-accent) / 0.08);
+}
+.pos-tk-resumen {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 6px;
+}
+.pos-tk-resumen > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pos-tk-resumen dd {
+  margin: 0;
+}
+.pos-tk-total {
+  gap: 10px;
+}
+.shell-nav-v2 .pos-f2 .pos-tk-total [data-testid='carrito-total'] {
+  font-size: 28px;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-title);
+}
+.shell-nav-v2 .pos-f2 .pos-tk-total-etiqueta {
+  font-size: var(--ds-text-xs);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+}
+/* «Cobrar Gs X»: grafito de alto contraste (en oscuro, el acento). */
+.shell-nav-v2 .pos-f2 .pos-tk-cobrar {
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-chrome));
+  color: rgb(var(--ds-chrome-text));
+  font-size: 16px;
+  font-weight: var(--ds-weight-semibold);
+}
+.shell-nav-v2 .pos-f2 .pos-tk-cobrar:hover {
+  background: rgb(var(--ds-chrome-hover));
+  filter: none;
+}
+.shell-nav-v2 .pos-f2 .pos-tk-cobrar:focus-visible {
+  outline: 2px solid rgb(var(--ds-accent));
+  outline-offset: 2px;
+}
+.shell-nav-v2 .pos-f2 .pos-tk-cobrar:active {
+  transform: scale(0.99);
+}
+html.dark .shell-nav-v2 .pos-f2 .pos-tk-cobrar {
+  background: rgb(var(--ds-accent-strong));
+  color: rgb(var(--c-onbrand));
+}
+html.dark .shell-nav-v2 .pos-f2 .pos-tk-cobrar:hover {
+  background: rgb(var(--ds-accent-strong));
+  filter: brightness(1.08);
+}
+
+/* ───────────── Cobro en pantalla propia (Paso 2) ───────────── */
+@media (min-width: 1024px) {
+  .shell-nav-v2 .pos-f2 .pos-ws.pos-ws[data-cobro] {
+    grid-template-columns: minmax(0, 1fr);
+    background: var(--pv-canvas);
+    padding: 16px 24px 24px;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-col-izq,
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-divisor {
+    display: none;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-ws-ticket {
+    position: static;
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    gap: 12px 16px;
+    align-content: start;
+    width: 100%;
+    max-width: 1100px;
+    min-height: 0;
+    margin-inline: auto;
+    background: transparent;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-ws-ticket > [data-testid='pos-bloque-cliente'] {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 12px 14px;
+    border: 1px solid var(--pv-line);
+    border-radius: var(--ds-radius-lg);
+    background: var(--pv-surface);
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-ws-ticket > [data-testid='pos-bloque-carrito'] {
+    grid-column: 1;
+    grid-row: 2;
+    border: 1px solid var(--pv-line);
+    border-radius: var(--ds-radius-lg);
+    background: var(--pv-surface);
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws[data-cobro] .pos-ws-ticket > [data-testid='pos-cobro-stage'] {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    min-width: 0;
+  }
+  /* En la pantalla de cobro el resumen del día no le quita alto a los pagos. */
+  .pos-f2:has(.pos-ws[data-cobro]) [data-testid='resumen-columna'] {
+    display: none;
+  }
+}
+
+/* ───────────── Tableta (768–1023): catálogo y ticket apilados ───────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .shell-nav-v2 .pos-f2 .pos-ws {
+    gap: 16px;
+  }
+  .shell-nav-v2 .pos-f2 .pos-ws .pos-ws-ticket {
+    overflow: hidden;
+    border: 1px solid var(--pv-line);
+    border-radius: var(--ds-radius-lg);
+    background: var(--pv-surface);
+  }
+}
+
+/* ───────────── Celular (<768): barra del carrito en grafito ───────────── */
+.shell-nav-v2 [data-testid='pos-barra-carrito-abrir'] {
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-chrome));
+  color: rgb(var(--ds-chrome-text));
+  box-shadow: var(--ds-shadow-pop);
+}
+.shell-nav-v2 [data-testid='pos-barra-carrito-abrir'] [data-testid='barra-total'] {
+  color: rgb(var(--ds-chrome-accent));
+}
+html.dark .shell-nav-v2 [data-testid='pos-barra-carrito-abrir'] {
+  background: rgb(var(--ds-chrome-raised));
+  box-shadow: var(--ds-shadow-pop), inset 0 0 0 1px rgb(var(--ds-chrome-border));
+}

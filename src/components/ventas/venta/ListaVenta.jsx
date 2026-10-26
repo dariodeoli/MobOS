@@ -1,4 +1,4 @@
-import { ShoppingCart } from 'lucide-react'
+import { ReceiptText } from 'lucide-react'
 import FilaVenta from './FilaVenta'
 import { separarColor } from '@/utils/colores'
 
@@ -23,32 +23,23 @@ export default function ListaVenta({
   }
 
   if (!items.length) {
-    // Carrito vacío: en celular, la línea de siempre; desde tableta, un estado
-    // vacío que explica cómo empezar (el ticket es el área principal del POS).
+    // Ticket vacío: un estado calmo (ícono, una línea y el atajo), sin listas
+    // de consejos. Compartir el carrito vive en la fila de acciones del ticket.
     return (
-      <div data-carrito-vacio className="px-4 py-8 text-center text-sm text-mute md:flex md:flex-col md:items-center md:justify-center md:gap-3 md:py-10">
-        <span aria-hidden="true" className="hidden h-14 w-14 items-center justify-center rounded-full bg-ink-700 text-mute md:inline-flex">
-          <ShoppingCart className="h-7 w-7" strokeWidth={1.75} />
+      <div data-carrito-vacio className="pos-tk-vacio px-4 py-8 text-center text-sm text-mute md:flex md:flex-col md:items-center md:justify-center md:gap-2 md:py-10">
+        <span aria-hidden="true" className="pos-tk-vacio-icono hidden h-12 w-12 items-center justify-center rounded-full md:inline-flex">
+          <ReceiptText className="h-6 w-6" strokeWidth={1.5} />
         </span>
-        <p className="hidden text-base font-semibold text-fore md:block">El carrito está vacío</p>
         <p>Tocá un producto o buscá para empezar.</p>
-        <ul className="hidden max-w-xs space-y-1 text-left text-xs md:block">
-          <li>· Buscá por nombre, código o IMEI, o escaneá con el lector.</li>
-          <li>· Elegí el cliente arriba (opcional) para facturar a su nombre.</li>
-          <li>· Con los productos cargados, «Cobrar» queda al pie (atajo F2).</li>
-        </ul>
-        <details className="inicio-disclosure text-xs"><summary>Compartir este carrito</summary>
-        <p>
-          Este carrito es tuyo (privado de tu sesión). Para pasarlo a otra persona, usá
-          «Suspender venta»: queda en Ventas suspendidas, compartidas con el equipo.
+        <p className="pos-tk-vacio-atajo hidden text-xs md:block">
+          Con productos cargados, <kbd>F2</kbd> cobra.
         </p>
-        </details>
       </div>
     )
   }
 
   return (
-    <div className="divide-y divide-ink-600">
+    <div className="pos-tk-lineas divide-y divide-ink-600">
       {items.map(it => (
         <FilaVenta
           key={it.key}

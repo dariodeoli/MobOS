@@ -38,9 +38,6 @@
   box-shadow: none;
   background-image: none;
 }
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'],
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'],
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'],
 .shell-nav-v2 .pos-f2 [data-testid='pos-cobro'],
 .shell-nav-v2 .pos-f2 [data-testid='resumen-compra'] {
   background: rgb(var(--c-ink));
@@ -64,10 +61,6 @@
   padding: 8px 0;
   border: 0;
   border-radius: 0;
-}
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'] h3,
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] h3 {
-  color: rgb(var(--c-fore));
 }
 .shell-nav-v2 .pos-f2 .uppercase,
 .inicio-f2 .uppercase {
@@ -108,11 +101,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (min-width: 1024px) {
-  .pos-product-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
-}
 
 .inicio-f2 > div > div.rounded-2xl,
 .inicio-f2 details div.rounded-2xl {
@@ -143,7 +131,7 @@
 }
 
 /* The shell already owns the page title; the module toolbar only holds actions
-   and lives inside the Productos header (no band of its own). */
+   and lives in the ticket's action row (no band of its own). */
 [data-testid='barra-pos-toolbar'] > [role='group'] > :first-child {
   display: none;
 }
@@ -177,10 +165,7 @@
   white-space: nowrap;
 }
 
-/* Columna de la venta (carrito + cobro): ocupa el alto de la grilla del POS
-   (que mide FormularioVenta con --pos-alto); las listas se desplazan por dentro
-   y el pie del cobro queda siempre a la vista (ver posUnaPantalla.css). */
-/* Cliente compacto sobre el catálogo: buscador + chip; el detalle se abre aparte. */
+/* Cliente compacto en el ticket: buscador + chip; el detalle se abre aparte. */
 [data-testid='pos-bloque-cliente'] details > summary {
   min-height: 44px;
   display: flex;
@@ -198,35 +183,6 @@
   .inicio-f2 button {
     min-width: 44px;
   }
-}
-
-/* Bloques diferenciados (encabezado con banda tintada). Cada bloque declara su
-   color con --bloque (terna RGB de un token); el título conserva el color de
-   texto principal para sostener contraste >= 4.5 en claro y oscuro. */
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] { --bloque: var(--c-info); }
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'] { --bloque: var(--c-fono); }
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] { --bloque: var(--c-ok); }
-.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] { --bloque: var(--c-fore); }
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'],
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'],
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'],
-.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] {
-  border-top: 3px solid rgb(var(--bloque));
-}
-.shell-nav-v2 .pos-f2 section[data-testid^='pos-'] > [data-bloque-cab] {
-  margin: -12px -12px 12px;
-  padding: 8px 12px;
-  background: rgb(var(--bloque) / 0.1);
-  border-bottom: 1px solid rgb(var(--bloque) / 0.25);
-  border-radius: 7px 7px 0 0;
-}
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > div:first-child {
-  background: rgb(var(--bloque) / 0.1);
-  border-bottom-color: rgb(var(--bloque) / 0.25);
-}
-.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] h3,
-.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] h3 {
-  color: rgb(var(--c-fore));
 }
 
 /* Mismo patrón de encabezado en tarjetas de Inicio, Análisis y Finanzas. */

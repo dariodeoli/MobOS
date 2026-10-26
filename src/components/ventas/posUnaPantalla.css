@@ -1,137 +1,28 @@
-/* POS en una sola pantalla (≥1024 px).
-   La grilla mide exactamente lo que queda de pantalla (--pos-alto, la fija
-   FormularioVenta): sin scroll de página. Solo se desplazan las listas por
-   dentro: catálogo, productos de la venta y pagos. Se carga después de
-   posCobro.css e inicioPosF2.css y gana por especificidad. */
-.pos-f2 .pos-layout {
-  --pos-izq: 0.55;
-  --pos-gap: 12px;
+/* POS · cobro y pagos en flujo normal. El documento es el scroll principal
+   (#620, decisión de Dario 22-10-2026): ningún bloque del cobro encierra su
+   contenido en una ventana propia. La grilla del espacio de trabajo (catálogo
+   | ticket) vive en posVender.css. */
+
+/* Never compress the payment block to fit a fixed height: payment rows can
+   contain a multi-line gift-card form and the payment column scrolls with
+   the page. */
+.pos-f2 [data-testid='pos-bloque-pagos'] {
+  flex: 0 0 auto;
 }
-@media (min-width: 1280px) {
-  .pos-f2 .pos-layout {
-    --pos-izq: 0.5;
-  }
+.pos-f2 [data-testid='pos-pagos-lista'] {
+  max-height: none;
+  flex: 0 0 auto;
+  overflow: visible;
 }
-@media (min-width: 1024px) {
-  .pos-f2 .pos-layout {
-    grid-template-columns: minmax(0, calc((100% - 12px) * var(--pos-izq))) minmax(0, 1fr);
-    height: var(--pos-alto, auto);
-    min-height: 0;
-    align-items: stretch;
-    gap: 12px;
-  }
-  .pos-f2 .pos-col-izq {
-    min-height: 0;
-    height: 100%;
-    gap: 8px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-  .pos-f2 .pos-col-izq > * {
-    flex: none;
-  }
-  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-productos'] {
-    /* An expanded customer card must push the catalog down. Keeping the
-       catalog as a flexing inner scroller made its original hitbox remain
-       underneath the open <details> panel (#602). */
-    flex: 0 0 auto;
-    min-height: 0;
-    overflow: visible;
-    position: relative;
-    z-index: 1;
-  }
-  .pos-f2 .pos-col-izq > [data-testid='pos-bloque-cliente'] {
-    flex: 0 0 auto;
-    position: relative;
-    z-index: 2;
-  }
-  .pos-f2 .pos-columna-venta {
-    height: 100%;
-    min-height: 0;
-    /* The payment column contains optional delivery, payment and stock
-       guidance blocks. Let the column scroll as one unit instead of shrinking
-       its children into each other at laptop heights (the warning used to sit
-       on top of the payment actions around 1280x720). */
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-bottom: 4px;
-  }
-  .pos-f2 .pos-carrito {
-    flex: 1 1 0;
-    min-height: 150px;
-  }
-  /* The one-screen checkout owns the column scroll. The cart body must stay
-     in normal flow so its rows cannot disappear behind the payment footer. */
-  .pos-f2 [data-testid='pos-carrito-cuerpo'] {
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-  .pos-f2 .pos-carrito.pos-carrito-colapsado {
-    flex: 0 0 auto;
-    min-height: 0;
-  }
-  .pos-f2 .pos-cobro {
-    flex: 0 0 auto;
-    min-height: 0;
-    overflow: visible;
-  }
-  /* Never compress the payment block to satisfy the fixed POS height. Its
-     payment rows are the only part that needs an internal scroll. */
-  .pos-f2 [data-testid='pos-bloque-pagos'] {
-    flex: 0 0 auto;
-  }
-  .pos-f2 [data-testid='pos-pagos-lista'] {
-    /* Payment rows can contain a multi-line gift-card form. Constraining this
-       list leaves its controls outside the block's hitbox, underneath the
-       guide/footer. The parent payment column is the scroll container. */
-    max-height: none;
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-  /* The sticky footer used to intercept payment controls when the warning or
-     an open customer/payment panel grew beyond the fixed POS height. The
-     parent column already scrolls, so keep the footer in normal flow. */
-  .pos-f2 [data-testid='pos-pie-cobro'] {
-    position: static;
-  }
-  .pos-f2 .pos-carrito.pos-carrito-colapsado + .pos-cobro {
-    flex: 1 1 0;
-  }
-  /* Densidad: cliente y catálogo con menos relleno. */
-  .pos-f2 [data-testid='pos-bloque-cliente'] {
-    padding: 8px 10px;
-  }
-  .pos-f2 [data-testid='pos-bloque-productos'] {
-    padding: 10px;
-  }
-  /* Divisor arrastrable entre catálogo y venta. */
-  .pos-divisor {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc((100% - var(--pos-gap)) * var(--pos-izq) + (var(--pos-gap) / 2) - 5px);
-    width: 10px;
-    z-index: 5;
-    cursor: col-resize;
-    border-radius: 6px;
-    touch-action: none;
-    color: rgb(var(--c-mute, 120 120 130));
-  }
-  .pos-divisor::after {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 38%;
-    bottom: 38%;
-    width: 2px;
-    border-radius: 2px;
-    background: currentColor;
-    opacity: 0.3;
-  }
-  .pos-divisor:hover::after,
-  .pos-divisor:focus-visible::after {
-    opacity: 0.8;
-  }
+.pos-f2 .pos-cobro {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+/* The sticky payment footer used to intercept controls when the warning or
+   an open customer/payment panel grew; keep it in normal flow. */
+.pos-f2 [data-testid='pos-pie-cobro'] {
+  position: static;
 }
 
 /* Cart rows are operational data, not decorative entrance animation. Once
@@ -141,68 +32,13 @@
   animation: none;
 }
 
-/* Tablet and small desktop widths: keep the two-column POS usable while
-   preserving comfortable control spacing. The right column becomes a normal
-   flow scroll area rather than a clipped fixed-height panel. */
+/* Small desktop widths: the payment summary tiles and the footer actions
+   take the full row. */
 @media (min-width: 1024px) and (max-width: 1199px) {
-  .pos-f2 .pos-layout {
-    --pos-gap: 16px;
-    gap: 16px;
-  }
-  .pos-f2 .pos-columna-venta {
-    max-height: var(--pos-alto, none);
-  }
   .pos-f2 [data-testid='pos-tiles-resumen'] {
     flex-basis: 100%;
   }
   .pos-f2 [data-testid='pos-pie-cobro'] > div:last-child {
     flex-basis: 100%;
-  }
-}
-
-/* Narrow viewports use the sheet-based POS, but these rules also protect the
-   inline layout when a tablet browser reports a narrow CSS viewport. */
-@media (max-width: 1023px) {
-  .pos-f2 [data-testid='pos-pie-cobro'] {
-    position: static;
-  }
-  .pos-f2 [data-testid='pos-bloque-pagos'] {
-    flex: 0 0 auto;
-  }
-}
-
-/* #620 · Operación primero: el documento es el scroll principal. El POS ya
-   no encierra catálogo, carrito y cobro en tres ventanas pequeñas que compiten
-   por el mismo alto; las columnas crecen con su contenido y el total queda
-   alcanzable debajo del ticket. */
-@media (min-width: 1024px) {
-  .pos-f2 .pos-layout {
-    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
-    height: auto !important;
-    min-height: 0;
-    align-items: start;
-  }
-  .pos-f2 .pos-col-izq,
-  .pos-f2 .pos-columna-venta {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
-  .pos-f2 .pos-carrito,
-  .pos-f2 .pos-cobro {
-    flex: 0 0 auto;
-  }
-  .pos-f2 [data-testid='pos-carrito-cuerpo'],
-  .pos-f2 [data-testid='pos-pagos-lista'] {
-    max-height: none;
-    overflow: visible;
-  }
-}
-
-@media (min-width: 1280px) {
-  .pos-f2 .pos-layout {
-    --pos-gap: 20px;
-    grid-template-columns: minmax(0, calc((100% - var(--pos-gap)) * var(--pos-izq))) minmax(0, 1fr);
-    gap: 20px;
   }
 }

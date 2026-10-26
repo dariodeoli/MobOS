@@ -69,7 +69,7 @@ export function BarraCarrito({ cantidad, total, onAbrir }) {
         type="button"
         data-testid="pos-barra-carrito-abrir"
         onClick={onAbrir}
-        className="flex min-h-14 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl bg-fono px-4 py-2 text-onbrand shadow-float transition active:scale-[.99]"
+        className="flex min-h-14 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-2xl px-4 py-2 transition active:scale-[.99]"
       >
         <span className="flex min-w-0 items-center gap-2 text-left">
           <Icon name="cart" className="h-5 w-5 shrink-0" />
