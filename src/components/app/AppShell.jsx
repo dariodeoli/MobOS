@@ -43,6 +43,8 @@ import './shellNavigation.css'
 import '@/styles/visual-v3.css'
 // Dirección «Grafito»: va después de v3 para ganarle a igual especificidad.
 import '@/styles/panel-foundation.css'
+// Páginas de listado (Stock, Clientes, Pedidos) en el mismo lenguaje.
+import '@/styles/panel-paginas.css'
 
 function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
   if (sinEmpresa > 0) return `${sinEmpresa} venta${sinEmpresa === 1 ? '' : 's'} sin empresa por confirmar`
