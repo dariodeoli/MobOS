@@ -1,0 +1,404 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Páginas · Inicio (Resumen), Análisis › Reportes y Finanzas
+   ────────────────────────────────────────────────────────────────────────
+   Contenido de página en el lenguaje «Grafito» (tokens --ds-* de
+   src/styles/tokens.css), la misma familia que Vender: superficies blancas
+   con borde hairline (sin sombras en capas ni degradés), radio 10, rótulos
+   chicos en gris, cifras grandes y UN solo acento para series, marcadores y
+   acción principal. Solo presentación: no cambia geometría de control (44 px
+   táctil), estructura ni data-testid.
+
+   Alcance: `.ds-pagina`, que llevan la raíz de Resumen, la de Reportes y el
+   contenedor de las pestañas de Finanzas. Especificidad: el doble
+   `.shell-nav-v2` + `.ds-pagina` gana a visual-v3.css sin `!important`.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 0. Paleta de gráficos: la serie principal es el acento ─────────────── */
+.shell-nav-v2 .ds-pagina {
+  --g-1: rgb(var(--ds-accent));
+  --g-previo: rgb(var(--ds-text-muted) / 0.55);
+  --gp-radius: var(--ds-radius-lg);
+  --gp-line: rgb(var(--ds-border));
+}
+
+/* ── 1. Superficies: hairline, radio 10, sin sombra ni degradé ──────────── */
+.shell-nav-v2.shell-nav-v2 .ds-pagina :is(
+  .shadow-card,
+  .graf-card,
+  .gp-tarjeta,
+  .gp-lista,
+  .inicio-kpi-stripe,
+  .inicio-actividad,
+  [role='group'].overflow-x-auto.rounded-xl,
+  [role='table'].rounded-xl,
+  :is(.bg-ink, .bg-ink-900).border:is(.rounded-xl, .rounded-2xl)
+):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab'], [role='switch']) {
+  border: 1px solid rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  background-color: rgb(var(--ds-surface));
+  background-image: none;
+  box-shadow: none;
+}
+/* Caja dentro de caja: la interior pierde la tarjeta y queda como bloque
+   tonal con la misma línea. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina :is(.shadow-card, .graf-card) :is(.shadow-card, [role='table'].rounded-xl, .bg-ink-800.border.rounded-xl, .bg-ink-800\/40.border.rounded-lg, .rounded-xl.border.px-3) {
+  border: 1px solid rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+  background-color: rgb(var(--ds-surface-subtle) / 0.6);
+  background-image: none;
+  box-shadow: none;
+}
+/* Paneles secundarios (bg-ink-800 con borde) y tarjetas-fila de las listas. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .bg-ink-800.border:is(.rounded-xl, .rounded-2xl, .rounded-lg):not(button, a, input, select, textarea, label, summary, [role='button'], [role='tab'], [role='group'], [role='table']) {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+  background-color: rgb(var(--ds-surface));
+}
+/* Filas-tarjeta tonales (stock bajo): blancas con línea. */
+.shell-nav-v2 .ds-pagina .bg-ink-700\/40.border.rounded-lg {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+  background-color: rgb(var(--ds-surface));
+}
+/* Avisos tintados (costo pendiente, créditos por cobrar): línea + marcador
+   lateral en vez de relleno de color. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .shadow-card.border-warn\/30 {
+  background-color: rgb(var(--ds-surface));
+  border-color: rgb(var(--ds-border));
+  box-shadow: inset 3px 0 0 rgb(var(--c-warn));
+}
+
+/* ── 2. Encabezados de tarjeta: título 14 semibold, detalle 12 gris ─────── */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .graf-card > header,
+.shell-nav-v2.shell-nav-v2 .ds-pagina.inicio-f2 .rounded-xl.border:not(.p-0) > div:first-child:has(h2),
+.shell-nav-v2.shell-nav-v2 .ds-pagina.inicio-f2 .rounded-xl.border.p-0 > div:first-child:has(h2) {
+  background: transparent;
+  border-bottom: 1px solid rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg) var(--ds-radius-lg) 0 0;
+}
+.shell-nav-v2 .ds-pagina :is(.graf-card > header h2, .graf-card > header h3, .shadow-card > div:first-child > h2, .shadow-card > div:first-child > h3, .shadow-card > h3) {
+  font-size: var(--ds-text-md);
+  line-height: 1.25rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
+  color: rgb(var(--ds-text));
+}
+.shell-nav-v2 .ds-pagina .graf-card > header p {
+  font-size: var(--ds-text-xs);
+  color: rgb(var(--ds-text-muted));
+}
+/* Títulos de sección sueltos (p. ej. «Métricas y evolución»). */
+.shell-nav-v2 .ds-pagina > section > h2,
+.shell-nav-v2 .ds-pagina section[data-testid] > h2 {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+}
+
+/* ── 3. KPI: rótulo chico en mayúsculas, cifra grande, una sola tinta ───── */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi-stripe {
+  border-top-width: 1px;
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi {
+  /* Tendencias de los indicadores: todas en el acento. */
+  --g-2: rgb(var(--ds-accent));
+  --g-3: rgb(var(--ds-accent));
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi:nth-child(even),
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi + .inicio-kpi {
+  border-left-color: rgb(var(--ds-border));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi:nth-child(n + 3) {
+  border-top-color: rgb(var(--ds-border));
+}
+.shell-nav-v2 .ds-pagina .inicio-kpi > div:first-child > span:first-child,
+.shell-nav-v2 .ds-pagina .gp-kpi > div:first-child,
+.shell-nav-v2 .ds-pagina [role='group'].overflow-x-auto > div > span:first-child {
+  font-size: var(--ds-text-2xs);
+  line-height: 1rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi-value {
+  margin-top: 2px;
+  font-size: var(--ds-text-xl);
+  line-height: 1.75rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+  color: rgb(var(--ds-text));
+}
+/* Celular: dos columnas angostas; la variación baja de línea antes que pisar
+   a la celda vecina y la cifra entra en una línea. */
+@media (max-width: 639.98px) {
+  .shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi {
+    padding: 10px var(--ds-space-3);
+  }
+  .shell-nav-v2 .ds-pagina .inicio-kpi > div:first-child {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi-value {
+    font-size: 1.125rem;
+    line-height: 1.5rem;
+  }
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi-value.text-bad {
+  color: rgb(var(--c-bad-text, var(--c-bad)));
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-kpi-value {
+    font-size: 1.625rem;
+    line-height: 2rem;
+  }
+}
+/* Barra de cobrado: acento plano. */
+.shell-nav-v2 .ds-pagina .inicio-kpi :is(.bg-ok, .bg-fono) {
+  background-color: rgb(var(--ds-accent));
+  background-image: none;
+}
+
+/* KPI de Reportes (.gp-kpis): una tarjeta con divisores, cifra grande. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .gp-kpis {
+  border: 1px solid rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+  overflow: hidden;
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .gp-kpi {
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .gp-kpi + .gp-kpi {
+  padding-left: var(--ds-space-4);
+  border-color: rgb(var(--ds-border));
+}
+.shell-nav-v2 .ds-pagina .gp-kpi > div:nth-child(2) {
+  margin-top: 2px;
+  font-size: var(--ds-text-xl);
+  line-height: 1.75rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+  color: rgb(var(--ds-text));
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 .ds-pagina .gp-kpi > div:nth-child(2) {
+    font-size: 1.625rem;
+    line-height: 2rem;
+  }
+}
+/* El destacado se marca con el acento a la izquierda, no con otra tinta. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .gp-kpi-destacado {
+  box-shadow: inset 2px 0 0 rgb(var(--ds-accent));
+}
+
+/* Tira de una línea (StatGrid de Finanzas): misma geometría, superficie
+   blanca con línea, cifra en tinta principal. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina [role='group'].overflow-x-auto > div {
+  border-color: rgb(var(--ds-border));
+  background-image: none;
+}
+.shell-nav-v2 .ds-pagina [role='group'].overflow-x-auto > div > span:nth-child(2) {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.015em;
+}
+
+/* Chip de variación: tinta plana, sin relleno de color. */
+.shell-nav-v2 .ds-pagina [data-testid='chip-delta'] {
+  border-radius: var(--ds-radius-xs);
+  background: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-border));
+}
+
+/* ── 4. Gráficos: barras del acento, pistas hairline ─────────────────────── */
+.shell-nav-v2 .ds-pagina [data-testid='grafico-barras'] .bg-ink-700 {
+  background-color: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-border) / 0.6);
+}
+.shell-nav-v2 .ds-pagina [data-testid='grafico-barras'] .graf-entra-barra,
+.shell-nav-v2 .ds-pagina [data-testid='grafico-barras'] .rounded-full {
+  border-radius: var(--ds-radius-xs);
+}
+.shell-nav-v2 .ds-pagina .graf-tooltip {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface));
+  box-shadow: var(--ds-shadow-pop);
+}
+/* Barras del ranking de vendedores (Resumen): acento y gris, sin degradé. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .bg-blue-line {
+  background-image: none;
+  background-color: rgb(var(--ds-text-muted) / 0.55);
+}
+
+/* ── 5. Tablas densas ─────────────────────────────────────────────────── */
+/* ListaDensa (rol table) y tablas HTML: encabezado de 11 px en mayúsculas
+   sobre una banda tenue, filas de 13 px con separador hairline. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina [role='table'] > [role='row']:first-child {
+  background: rgb(var(--ds-surface-subtle));
+  border-bottom-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg) var(--ds-radius-lg) 0 0;
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina [role='columnheader'] {
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--ds-tracking-label);
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina [role='table'] [role='row'] {
+  border-bottom-color: rgb(var(--ds-border));
+  font-size: var(--ds-text-sm);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina thead th {
+  background: rgb(var(--ds-surface-subtle));
+  font-size: var(--ds-text-2xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-label);
+  text-transform: uppercase;
+  color: rgb(var(--ds-text-muted));
+  border-bottom: 1px solid rgb(var(--ds-border));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina tbody :is(td) {
+  border-bottom-color: rgb(var(--ds-border));
+  font-size: var(--ds-text-sm);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina tbody tr:hover,
+.shell-nav-v2.shell-nav-v2 .ds-pagina [role='table'] [role='row'].cursor-pointer:hover {
+  background-color: rgb(var(--ds-surface-hover) / 0.6);
+}
+
+/* Listas de gestión (.gp-lista, .gp-fila): mismas líneas. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .gp-fila {
+  border-top-color: rgb(var(--ds-border));
+}
+@media (hover: hover) and (pointer: fine) {
+  .shell-nav-v2.shell-nav-v2 .ds-pagina .gp-fila:hover {
+    background-color: rgb(var(--ds-surface-hover) / 0.6);
+    box-shadow: none;
+  }
+}
+
+/* ── 6. Filtros y barras de herramientas ─────────────────────────────────── */
+.shell-nav-v2 .ds-pagina :is(select, input:not([type='checkbox'], [type='radio'])) {
+  border-radius: var(--ds-radius-md);
+}
+/* Selección activa de los grupos de modo (Caja: rápido/detallado): relleno
+   neutro con línea, no tinte verde. */
+.shell-nav-v2 .ds-pagina button.bg-fono\/15 {
+  background-color: rgb(var(--ds-surface));
+  box-shadow: 0 0 0 1px rgb(var(--ds-border)), var(--ds-shadow-1);
+  color: rgb(var(--ds-text));
+}
+/* Notas tintadas en verde (Caja): banda neutra con marcador de acento. */
+.shell-nav-v2 .ds-pagina :is(div, p).bg-fono\/10:not(button) {
+  background-color: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 2px 0 0 rgb(var(--ds-accent));
+}
+/* Filas marcadas (Conciliación): línea de acento, relleno apenas tintado. */
+.shell-nav-v2 .ds-pagina .border-fono\/50.bg-fono\/10 {
+  border-color: rgb(var(--ds-accent) / 0.55);
+  background-color: rgb(var(--ds-accent) / 0.05);
+}
+
+/* ── 7. Inicio: saludo, accesos y actividad ──────────────────────────────── */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-saludo__titulo {
+  font-size: var(--ds-text-xl);
+  line-height: 1.75rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+}
+.shell-nav-v2 .ds-pagina .inicio-saludo__sub {
+  font-size: var(--ds-text-xs);
+  color: rgb(var(--ds-text-muted));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajos {
+  gap: var(--ds-space-2);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo {
+  min-height: 56px;
+  border: 1px solid rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+  box-shadow: none;
+  animation: none;
+  transition: border-color var(--ds-fast) var(--ds-ease), background-color var(--ds-fast) var(--ds-ease);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo:hover {
+  border-color: rgb(var(--ds-border-strong));
+  background: rgb(var(--ds-surface-hover) / 0.5);
+  box-shadow: none;
+  transform: none;
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo:active {
+  transform: none;
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo__icono {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface-subtle));
+  box-shadow: inset 0 0 0 1px rgb(var(--ds-border));
+  color: rgb(var(--ds-accent));
+}
+.shell-nav-v2 .ds-pagina .inicio-atajo__titulo {
+  font-size: var(--ds-text-md);
+  line-height: 1.25rem;
+  font-weight: var(--ds-weight-semibold);
+}
+/* Acceso principal (Vender): acento plano, sin brillo ni sombra. */
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo[data-principal='true'] {
+  border-color: rgb(var(--ds-accent-strong));
+  background: rgb(var(--ds-accent-strong));
+  background-image: none;
+  box-shadow: none;
+  color: rgb(var(--c-onbrand));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo[data-principal='true']:hover {
+  background: rgb(var(--ds-accent-strong) / 0.92);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo[data-principal='true'] .inicio-atajo__icono {
+  background: rgb(var(--c-onbrand) / 0.14);
+  box-shadow: none;
+  color: rgb(var(--c-onbrand));
+}
+@media (min-width: 900px) {
+  .shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-atajo { min-height: 60px; }
+}
+
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-actividad {
+  padding: 0 var(--ds-space-4) var(--ds-space-1);
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-actividad__cab h3 {
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+}
+.shell-nav-v2 .ds-pagina .inicio-actividad__ver {
+  color: rgb(var(--ds-accent));
+}
+.shell-nav-v2.shell-nav-v2 .ds-pagina .inicio-actividad__fila {
+  border-top-color: rgb(var(--ds-border));
+  font-size: var(--ds-text-sm);
+}
+.shell-nav-v2 .ds-pagina .inicio-actividad__punto {
+  width: 6px;
+  height: 6px;
+  background: rgb(var(--ds-accent));
+}
+.shell-nav-v2 .ds-pagina .inicio-actividad__monto {
+  font-weight: var(--ds-weight-semibold);
+}
+
+/* Desplegable «Métricas, evolución y stock»: fila con línea y chevron. */
+.shell-nav-v2 .ds-pagina .inicio-disclosure > summary {
+  border-top: 1px solid rgb(var(--ds-border));
+  border-bottom: 1px solid rgb(var(--ds-border));
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: rgb(var(--ds-text));
+}
+.shell-nav-v2 .ds-pagina .inicio-disclosure > summary::marker {
+  color: rgb(var(--ds-text-muted));
+}
