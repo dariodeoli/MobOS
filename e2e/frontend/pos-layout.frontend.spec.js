@@ -125,8 +125,9 @@ for (const width of [1280, 1440, 1920]) {
     expect(productos.x + productos.width).toBeLessThanOrEqual(columna.x + 1)
     expect(Math.abs(cliente.x - carrito.x)).toBeLessThan(2)
     expect(cliente.y + cliente.height).toBeLessThanOrEqual(carrito.y + 1)
-    // Ticket de ancho fijo: 410 px desde 1280, algo menos en pantallas más chicas.
-    if (width >= 1280) expect(Math.abs(columna.width - 410)).toBeLessThanOrEqual(2)
+    // Ticket de ancho fijo (el carrito es el área principal): 460 px desde 1280,
+    // 500 px desde 1600, algo menos en pantallas más chicas.
+    if (width >= 1280) expect(Math.abs(columna.width - (width >= 1600 ? 500 : 460))).toBeLessThanOrEqual(2)
     // Scroll de PÁGINA (sin scroll interno): ni el catálogo ni el ticket encierran su contenido
     // en una ventana propia, y el ticket queda pegado arriba mientras se desliza el catálogo.
     const interno = await page.evaluate(() => ['pos-bloque-productos', 'pos-columna-venta', 'pos-carrito-cuerpo'].map(id => {
@@ -268,12 +269,12 @@ async function elegirClienteDemo(page, texto = 'Luc') {
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
 }
 
-test('escritorio 1440: catálogo flexible, ticket de 410 px y primer contenido arriba', async ({ page }) => {
+test('escritorio 1440: catálogo flexible, ticket de 460 px y primer contenido arriba', async ({ page }) => {
   await mkdir(out, { recursive: true })
   await enterPos(page, 1440, 900, false, true, 0, false)
   const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
   const der = await page.getByTestId('pos-columna-venta').boundingBox()
-  expect(Math.abs(der.width - 410), `ticket ${der.width}`).toBeLessThanOrEqual(2)
+  expect(Math.abs(der.width - 460), `ticket ${der.width}`).toBeLessThanOrEqual(2)
   expect(izq.width).toBeGreaterThan(der.width)
   expect(Math.min(izq.y, der.y)).toBeLessThanOrEqual(132)
   const columnas = await page.locator('.pos-product-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
