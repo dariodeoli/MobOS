@@ -7,7 +7,9 @@ import Icon from '@/components/shared/Icon'
 // current section. `utilities` (desktop only) sits at the end of the title row:
 // bell and profile avatar. Mirrors the owncoding-ui PageHeader props (title,
 // subtitle, actions, backTo) so it can be swapped for the package one.
-export default function PageHeader({ title, subtitle, actions, aviso, backTo, breadcrumb = '', utilities, children, record = false, recordRef }) {
+// `tituloExtra` (escritorio) va pegado al H1 en la misma fila: el selector
+// «Nueva venta | Trade-In» de Vender, para que el POS gane alto.
+export default function PageHeader({ title, subtitle, actions, aviso, backTo, breadcrumb = '', utilities, children, record = false, recordRef, tituloExtra = null }) {
   // #356: en celular, con pestañas debajo, el H1 y el subtítulo son redundantes
   // (la pestaña activa ya nombra la pantalla): el H1 queda como sr-only para
   // lectores de pantalla y se recupera ~32px. Las acciones siguen visibles.
@@ -37,6 +39,7 @@ export default function PageHeader({ title, subtitle, actions, aviso, backTo, br
             </button>
           )}
           <h1 data-testid="shell-page-title" className={`min-w-0 text-[22px] font-semibold leading-7 tracking-tight ${conPestanas ? 'max-lg:sr-only' : ''}`}>{title}</h1>
+          {tituloExtra && <div className="hidden min-w-0 lg:block">{tituloExtra}</div>}
         </div>
         {(actions || utilities || aviso) && (
           <div data-testid="shell-page-header-actions" data-solo-escritorio={!actions && !aviso ? '' : undefined} className={`shell-page-header-actions flex min-w-0 items-center gap-2 max-lg:flex-wrap ${!actions && !aviso ? 'max-lg:hidden' : ''}`}>

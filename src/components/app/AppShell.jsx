@@ -80,6 +80,9 @@ export default function AppShell({
   breadcrumb,
   backTo,
   pageTabs,
+  // Pantallas de trabajo (Vender › Nueva venta): las pestañas del grupo van
+  // como control segmentado en la fila del título para ganar alto.
+  tabsEnTitulo = false,
   perfilEmpresa,
   roleLabel = 'Vendedor',
   notificacionesActivas = false,
@@ -489,8 +492,13 @@ export default function AppShell({
       items={itemsContexto}
       value={currentGroup?.id}
       onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
+      variant={tabsEnTitulo && !angosta ? 'segmented' : undefined}
+      className={tabsEnTitulo && !angosta ? 'shell-tabs-titulo' : undefined}
     />
   ) : null
+  // Solo en escritorio y sin pestañas propias de la página: en celular la fila
+  // de pestañas sigue debajo (el H1 queda para lectores de pantalla).
+  const tabsJuntoAlTitulo = tabsEnTitulo && !angosta && !pageTabs && Boolean(groupTabs)
   const enToolbar = segmentosEnToolbar(currentGroup)
   const segmentsNode =
     segments.length > 1 ? (
@@ -633,6 +641,7 @@ export default function AppShell({
           breadcrumb={breadcrumbs.join(' / ')}
           record={recordActivo}
           recordRef={setRecordSlot}
+          tituloExtra={tabsJuntoAlTitulo ? tabsNode : null}
           utilities={
             <>
               <SelectorEmpresa control={cambioEmpresa} className="shell-header-selector shrink-0" />
@@ -644,7 +653,7 @@ export default function AppShell({
             </>
           }
         >
-          {tabsNode}
+          {!tabsJuntoAlTitulo && tabsNode}
           {!enToolbar && segmentsNode}
         </PageHeader>
         {esDemo && avisoGuiaDemo && (
