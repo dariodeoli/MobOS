@@ -228,7 +228,7 @@ export default function Reportes() {
   }
 
   return (
-    <div className="gp ventas-f3 finanzas-tactil space-y-4" data-testid="reportes-pagina">
+    <div className="gp ventas-f3 finanzas-tactil ds-pagina space-y-4" data-testid="reportes-pagina">
       <div>
         <Toolbar
           plano
@@ -421,7 +421,7 @@ export default function Reportes() {
                 )}
                 {itemsBarras.length > 0 && (
                   <TarjetaGrafico testId="reportes-grafico-grupos" titulo={tituloBarras} detalle={grupo === 'product' || grupo === 'category' ? 'Venta por línea' : 'Total del período'}>
-                    <GraficoBarras items={itemsBarras} etiqueta={tituloBarras} />
+                    <GraficoBarras items={itemsBarras} etiqueta={tituloBarras} unico />
                   </TarjetaGrafico>
                 )}
               </div>
