@@ -1,0 +1,143 @@
+/* Taller · dirección «Grafito» (tokens --ds-* en src/styles/tokens.css).
+   Solo presentación y acotado a la raíz de Taller y garantías: la lista de
+   órdenes pasa de cápsulas apiladas a un bloque hairline con filas
+   divididas, sin sombras de hover ni rellenos grises, y con un solo acento.
+   Geometría táctil (44 px) y data-testid quedan como estaban. */
+
+/* Contenedor de la lista: superficie blanca con línea, radio de tarjeta. */
+.taller-rd .taller-f3 {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+  box-shadow: var(--ds-shadow-1);
+}
+
+/* Pestañas de estado: 13 px, subrayado de acento. */
+.taller-rd.op-rd .ventas-f3-chips > button {
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: rgb(var(--ds-text-muted));
+}
+.taller-rd.op-rd .ventas-f3-chips > button:hover {
+  background: rgb(var(--ds-surface-hover));
+  color: rgb(var(--ds-text));
+}
+.taller-rd.op-rd .ventas-f3-chips > button[aria-pressed='true'] {
+  background: transparent;
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+}
+.taller-rd.op-rd .ventas-f3-chips > button[aria-pressed='true']::after {
+  background: rgb(var(--ds-accent));
+}
+
+/* Barra de herramientas: campos y botones con radio de control. */
+.taller-rd [data-testid='barra-taller'] :is(input, select, button:not([role='switch'])) {
+  border-radius: var(--ds-radius-md);
+}
+
+/* KPI: una tira con línea inferior, rótulo chico y cifra tabular. */
+.taller-rd [data-testid='resumen-taller'] {
+  border-bottom-color: rgb(var(--ds-border));
+}
+.taller-rd [data-testid='resumen-taller'] > div {
+  border-right-color: rgb(var(--ds-border));
+}
+.taller-rd [data-testid='resumen-taller'] > div > span:first-child {
+  font-size: var(--ds-text-xs);
+  color: rgb(var(--ds-text-muted));
+}
+.taller-rd [data-testid='resumen-taller'] > div > span:last-child {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+/* Cápsulas (debajo de 1280 px): blancas con línea, sin relleno gris. */
+.taller-rd .taller-f3-row {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+}
+.taller-rd.op-rd .taller-f3-row:hover {
+  box-shadow: none;
+  border-color: rgb(var(--ds-border-strong) / 0.6);
+}
+.taller-rd .taller-f3-code {
+  font-family: var(--ds-font-mono);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: 0;
+  color: rgb(var(--ds-text-muted));
+}
+.taller-rd .taller-f3-identity b {
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.005em;
+}
+.taller-rd .taller-f3-issue,
+.taller-rd .taller-f3-meta {
+  font-size: var(--ds-text-xs);
+}
+.taller-rd .taller-f3-foot {
+  border-top-color: rgb(var(--ds-border));
+}
+.taller-rd .taller-f3-money b {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+}
+.taller-rd .taller-f3-actions > button {
+  border-radius: var(--ds-radius-md);
+  font-weight: var(--ds-weight-medium);
+}
+/* Avance de estado: botón secundario hairline, no contorno oscuro. */
+.taller-rd .taller-f3-actions > button:not([aria-haspopup]):not(.bg-fono) {
+  border-color: rgb(var(--ds-border));
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+}
+.taller-rd .taller-f3-actions > button:not([aria-haspopup]):not(.bg-fono):hover {
+  border-color: rgb(var(--ds-border-strong));
+  background: rgb(var(--ds-surface-hover));
+}
+.taller-rd .taller-f3-feedback {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+}
+
+/* Densa (desde 1280 px): una sola tabla con filas divididas por línea. */
+@media (min-width: 1280px) {
+  .taller-rd .taller-f3-rows {
+    gap: 0;
+    border: 1px solid rgb(var(--ds-border));
+    border-radius: var(--ds-radius-lg);
+    overflow: hidden;
+  }
+  .taller-rd .taller-f3-row,
+  .taller-rd.op-rd .taller-f3-row {
+    border: 0;
+    border-radius: 0;
+    background: rgb(var(--ds-surface));
+  }
+  .taller-rd .taller-f3-row + .taller-f3-row {
+    border-top: 1px solid rgb(var(--ds-border));
+  }
+  .taller-rd.op-rd .taller-f3-row:hover {
+    background: rgb(var(--ds-surface-subtle));
+  }
+}
+
+/* Garantías y tablero dentro de Taller: mismas líneas y radios. */
+.taller-rd :is([data-testid='garantia-fila'], [data-testid='servicio-garantia-fila']) {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+}
+.taller-rd.op-rd :is([data-testid='garantia-fila'], [data-testid='servicio-garantia-fila']):hover {
+  box-shadow: none;
+}
+.taller-rd .shadow-card {
+  border-color: rgb(var(--ds-border));
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-1);
+}
