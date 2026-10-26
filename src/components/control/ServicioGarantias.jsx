@@ -15,6 +15,7 @@ import { ESTADO_GARANTIA, ESTADO_GARANTIA_BADGE, SIGUIENTE_GARANTIA } from '@/li
 import { SIGUIENTE_SERVICIO, etiquetaServicio } from '@/lib/estadosServicio'
 import Garantias from './Garantias'
 import '@/components/shared/operacionRediseno.css'
+import './tallerRediseno.css'
 import ServicioTecnico from './ServicioTecnico'
 import TableroServicioGarantias from './TableroServicioGarantias'
 
@@ -171,7 +172,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
   }
 
   return (
-    <div className="op-rd space-y-4" data-testid="servicio-garantias">
+    <div className="op-rd taller-rd space-y-4" data-testid="servicio-garantias">
       {vista !== 'servicio' && (
         <div className="flex flex-wrap items-center gap-2">
           <SegmentedField value={vista} onChange={setVista} ariaLabel="Ver taller o garantías" options={TABS} />
