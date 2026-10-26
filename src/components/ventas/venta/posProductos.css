@@ -1,0 +1,307 @@
+/* Vender · zona de productos con el lenguaje «Grafito» (src/styles/tokens.css).
+   Solo capa visual, acotada al bloque de productos (.pos-prod): superficie
+   blanca con líneas hairline, sin sombras, radios chicos y un único acento
+   para lo elegido y el foco. No toca datos, búsqueda, stock ni el carrito. */
+
+.pos-f2 .pos-prod {
+  --pp-line: rgb(var(--ds-border));
+  --pp-line-strong: rgb(var(--c-ink-500));
+  --pp-accent: rgb(var(--ds-accent));
+  --pp-ease: var(--ds-ease);
+  border: 1px solid var(--pp-line);
+  border-radius: 16px;
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  box-shadow: none;
+  padding: var(--ds-space-3);
+}
+@media (min-width: 768px) {
+  .pos-f2 .pos-prod { padding: var(--ds-space-4); }
+}
+
+/* ── Encabezado: título, contador discreto y acciones a la derecha ── */
+.pos-f2 .pos-prod > [data-bloque-cab] {
+  align-items: center;
+  margin: 0 0 var(--ds-space-3);
+}
+.shell-nav-v2 .pos-f2 .pos-prod > [data-bloque-cab] h3,
+.pos-f2 .pos-prod > [data-bloque-cab] h3 {
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-title);
+  line-height: var(--ds-leading-tight);
+  color: rgb(var(--ds-text));
+}
+.pos-f2 .pos-prod .pos-prod-cuenta {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--ds-text-muted));
+}
+.pos-f2 .pos-prod .pos-prod-nuevo,
+.pos-f2 .pos-prod [data-testid='barra-pos'] .pos-accion-icono {
+  border: 1px solid var(--pp-line);
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  box-shadow: none;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  transition: background-color var(--ds-fast) var(--pp-ease), border-color var(--ds-fast) var(--pp-ease);
+}
+.pos-f2 .pos-prod .pos-prod-nuevo:hover,
+.pos-f2 .pos-prod [data-testid='barra-pos'] .pos-accion-icono:hover {
+  background: rgb(var(--ds-surface-hover));
+  border-color: var(--pp-line-strong);
+}
+.pos-f2 .pos-prod [data-testid='barra-pos'] .pos-accion-icono { color: rgb(var(--ds-text-muted)); }
+.pos-f2 .pos-prod [data-testid='barra-pos'] .pos-accion-icono:hover { color: rgb(var(--ds-text)); }
+
+/* ── Buscador: un único campo grande ── */
+.pos-f2 .pos-prod .pos-prod-buscar > div { padding-left: 0; }
+.pos-f2 .pos-prod .pos-prod-buscar input {
+  min-height: 48px;
+  padding-left: 40px;
+  border: 1px solid var(--pp-line-strong);
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-size: 15px;
+  box-shadow: none;
+  transition: border-color var(--ds-fast) var(--pp-ease), box-shadow var(--ds-fast) var(--pp-ease);
+}
+.pos-f2 .pos-prod .pos-prod-buscar input::placeholder {
+  color: rgb(var(--ds-text-muted));
+  opacity: 1;
+}
+.pos-f2 .pos-prod .pos-prod-buscar input:focus {
+  outline: none;
+  border-color: var(--pp-accent);
+  box-shadow: 0 0 0 3px rgb(var(--ds-accent) / 0.16);
+}
+.pos-f2 .pos-prod .pos-prod-buscar > svg {
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: rgb(var(--ds-text-muted));
+}
+html.dark .shell-nav-v2 .pos-f2 .pos-prod .pos-prod-buscar input {
+  background: rgb(var(--c-ink-900));
+  color: rgb(var(--c-fore));
+}
+
+/* ── Filtros y vista: control segmentado ── */
+.pos-f2 .pos-prod .pos-prod-segmento {
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 2px;
+  border: 1px solid var(--pp-line);
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface-subtle));
+  scrollbar-width: none;
+}
+.pos-f2 .pos-prod .pos-prod-segmento::-webkit-scrollbar { display: none; }
+.pos-f2 .pos-prod .pos-prod-segmento > button {
+  position: relative;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: rgb(var(--ds-text-muted));
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background-color var(--ds-fast) var(--pp-ease), color var(--ds-fast) var(--pp-ease);
+}
+.pos-f2 .pos-prod .pos-prod-segmento > button:hover { color: rgb(var(--ds-text)); }
+.pos-f2 .pos-prod .pos-prod-segmento > button[aria-pressed='true'] {
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: 0 0 0 1px var(--pp-line), var(--ds-shadow-1);
+}
+.pos-f2 .pos-prod .pos-prod-segmento > button[aria-pressed='true'] svg { color: var(--pp-accent); }
+.pos-f2 .pos-prod .pos-prod-segmento > button:focus-visible {
+  outline: 2px solid var(--pp-accent);
+  outline-offset: -2px;
+}
+/* Celular: los filtros se desplazan; el borde derecho se desvanece. */
+@media (max-width: 767px) {
+  .pos-f2 .pos-prod [data-testid='pos-chips-accesorio'] {
+    flex: 1 1 auto;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  }
+}
+/* Los íconos de los filtros sobran en escritorio: el texto alcanza. */
+@media (min-width: 768px) {
+  .pos-f2 .pos-prod [data-testid='pos-chips-accesorio'] > button svg { display: none; }
+  .pos-f2 .pos-prod [data-testid='pos-chips-accesorio'] > button { padding-inline: 8px; }
+}
+
+/* ── Cuadrícula: mosaicos planos con borde hairline ── */
+.pos-f2 .pos-prod .pos-product-grid { gap: var(--ds-space-2); }
+.pos-f2 .pos-prod .pos-product-card {
+  gap: 0;
+  padding: 10px;
+  border: 1px solid var(--pp-line);
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+  color: rgb(var(--ds-text));
+  box-shadow: none;
+  transition: border-color var(--ds-fast) var(--pp-ease), background-color var(--ds-fast) var(--pp-ease);
+}
+.pos-f2 .pos-prod .pos-product-card:hover:not(:disabled) {
+  border-color: var(--pp-line-strong);
+  background: rgb(var(--ds-surface-subtle));
+}
+.pos-f2 .pos-prod .pos-product-card:active:not(:disabled) {
+  border-color: var(--pp-accent);
+  background: rgb(var(--ds-accent) / 0.06);
+}
+.pos-f2 .pos-prod .pos-product-card:focus-visible {
+  outline: 2px solid var(--pp-accent);
+  outline-offset: 1px;
+  border-color: var(--pp-accent);
+}
+.pos-f2 .pos-prod .pos-product-card:disabled { opacity: 0.6; }
+/* Nombre y foto arriba; precio y stock abajo, separados por una línea. */
+.pos-f2 .pos-prod .pos-product-grid .pos-product-card > span:first-child {
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-items: start;
+  row-gap: 4px;
+}
+@media (min-width: 768px) {
+  .pos-f2 .pos-prod .pos-product-grid .pos-product-card > span:first-child {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    row-gap: 0;
+  }
+  .pos-f2 .pos-prod .pos-product-grid .pos-product-card > span:first-child > [data-testid='foto-producto'] + .pos-product-name {
+    align-self: center;
+  }
+}
+.pos-f2 .pos-prod .pos-product-name {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  line-height: var(--ds-leading-tight);
+  color: rgb(var(--ds-text));
+}
+.pos-f2 .pos-prod .pos-product-grid .pos-product-card > span:first-child > span:has(> [data-testid='pos-precio-aplicable']) {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--pp-line);
+  row-gap: 0;
+}
+.pos-f2 .pos-prod .pos-product-grid [data-testid='pos-precio-aplicable'] {
+  flex-basis: 100%;
+  font-size: 15px;
+  line-height: var(--ds-leading-tight);
+}
+.pos-f2 .pos-prod [data-testid='pos-precio-aplicable'] b {
+  font-weight: var(--ds-weight-semibold);
+  color: rgb(var(--ds-text));
+  font-variant-numeric: tabular-nums;
+}
+.pos-f2 .pos-prod [data-testid='pos-stock-condicion'],
+.pos-f2 .pos-prod [data-testid='pos-stock-por-sucursal'] {
+  font-size: var(--ds-text-xs);
+  color: rgb(var(--ds-text-muted));
+}
+
+/* Miniaturas más calladas: sin marco, fondo tenue y el ícono en gris. */
+.pos-f2 .pos-prod [data-testid='foto-producto'] {
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: rgb(var(--ds-surface-subtle));
+  color: rgb(var(--ds-text-muted) / 0.7);
+}
+
+@media (min-width: 1280px) {
+  .pos-f2 .pos-prod .pos-product-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 10px;
+  }
+  .pos-f2 .pos-prod .pos-product-grid .pos-product-card { min-height: 44px; padding: 12px; }
+  .pos-f2 .pos-prod .pos-product-grid .pos-product-card > span:first-child { grid-template-columns: 64px minmax(0, 1fr); column-gap: 10px; }
+  .pos-f2 .pos-prod .pos-product-grid .pos-product-card [data-testid='foto-producto'] { width: 64px !important; height: 64px !important; }
+}
+
+/* ── Lista: tabla densa con filas separadas por líneas ── */
+.pos-f2 .pos-prod .pos-product-list {
+  container: pos-lista / inline-size;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--pp-line);
+  border-radius: var(--ds-radius-lg);
+  background: rgb(var(--ds-surface));
+}
+.pos-f2 .pos-prod .pos-product-list > :not(.pos-product-card) { margin: var(--ds-space-2); }
+.pos-f2 .pos-prod .pos-product-fila {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  grid-template-areas: 'foto nombre mas' 'foto precio mas';
+  align-items: center;
+  column-gap: var(--ds-space-3);
+  row-gap: 2px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--pp-line);
+  border-radius: 0;
+  background: transparent;
+}
+.pos-f2 .pos-prod .pos-product-fila:last-of-type { border-bottom: 0; }
+.pos-f2 .pos-prod .pos-product-fila:hover:not(:disabled) {
+  border-color: var(--pp-line);
+  background: rgb(var(--ds-surface-hover));
+}
+.pos-f2 .pos-prod .pos-product-fila:focus-visible { outline-offset: -2px; }
+.pos-f2 .pos-prod .pos-product-fila .pos-fila-foto {
+  grid-area: foto;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: var(--ds-radius-sm);
+}
+.pos-f2 .pos-prod .pos-product-fila .pos-fila-nombre { grid-area: nombre; }
+.pos-f2 .pos-prod .pos-product-fila .pos-fila-precio { grid-area: precio; }
+.pos-f2 .pos-prod .pos-product-fila .pos-fila-mas {
+  grid-area: mas;
+  justify-self: end;
+  transition: background-color var(--ds-fast) var(--pp-ease), color var(--ds-fast) var(--pp-ease);
+}
+.pos-f2 .pos-prod .pos-product-fila:hover:not(:disabled) .pos-fila-mas {
+  background: rgb(var(--ds-accent) / 0.1);
+  color: var(--pp-accent);
+}
+@container pos-lista (min-width: 420px) {
+  .pos-f2 .pos-prod .pos-product-fila {
+    grid-template-columns: 32px minmax(0, 1fr) minmax(0, 12rem) 32px;
+    grid-template-areas: 'foto nombre precio mas';
+    min-height: 52px;
+    padding-block: 6px;
+  }
+  .pos-f2 .pos-prod .pos-product-fila .pos-fila-precio > span {
+    justify-content: flex-end;
+    text-align: right;
+  }
+  .pos-f2 .pos-prod .pos-product-fila [data-testid='pos-precio-aplicable'] {
+    flex-basis: 100%;
+  }
+  .pos-f2 .pos-prod .pos-product-fila [data-testid='pos-precio-aplicable'] b { font-size: var(--ds-text-md); }
+}
+
+/* Pie del catálogo (contador y paginado) en tono secundario. */
+.pos-f2 .pos-prod [data-testid='pos-catalogo-pie'] {
+  margin-top: var(--ds-space-3);
+}
+.pos-f2 .pos-prod [data-testid='pos-catalogo-contador'] {
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--ds-text-muted));
+}
+
+/* Oscuro: el borde de los mosaicos mantiene 3:1 contra su superficie. */
+html.dark .pos-f2 .pos-prod .pos-product-grid .pos-product-card {
+  border-color: rgb(var(--c-ink-500));
+}

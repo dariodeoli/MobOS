@@ -182,27 +182,7 @@
   }
 }
 
-/* ───────────── Catálogo: tarjetas y chips del prototipo ───────────── */
-.pos-f2 .pos-product-card {
-  border-radius: 16px;
-  background: rgb(var(--c-ink));
-  border: 1px solid rgb(var(--c-ink-600));
-}
-.pos-f2 .pos-product-card:hover { border-color: rgb(var(--c-fono)); }
-.pos-f2 .pos-product-card:active { transform: scale(0.98); }
-.pos-f2 [data-testid='pos-chips-accesorio'] button {
-  border-radius: 999px;
-  font-weight: 600;
-}
-.pos-f2 [data-testid='pos-chips-accesorio'] button[aria-pressed='true'] {
-  background: rgb(var(--c-fore));
-  color: rgb(var(--c-paper));
-  border-color: transparent;
-}
-.pos-f2 #pos-busqueda-producto input {
-  min-height: 44px;
-  border-radius: 12px;
-}
+/* Catálogo (tarjetas, filtros, buscador y lista): ver venta/posProductos.css. */
 /* «Cobrar» del catálogo repetía la acción del ticket. */
 @media (min-width: 1024px) {
   .pos-f2 [data-testid='pos-bloque-productos'] button[title='Ir al cobro'] { display: none; }
@@ -512,7 +492,3 @@ button[data-testid='cobro-confirmar-venta']:disabled,
     box-shadow: 0 -6px 12px -8px rgb(0 0 0 / 0.25);
   }
 }
-
-/* Vista Lista del catálogo: miniatura de 40 px y fila compacta (la «venta rápida» de 64 px es de la cuadrícula). */
-.pos-f2 .pos-product-fila { padding: 6px 10px; min-height: 52px; gap: 10px; }
-.pos-f2 .pos-product-fila [data-testid='foto-producto'] { width: 40px !important; height: 40px !important; }

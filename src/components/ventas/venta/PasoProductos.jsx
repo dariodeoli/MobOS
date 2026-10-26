@@ -18,6 +18,7 @@ import FotoProducto from '@/components/shared/FotoProducto'
 import { CATEGORIAS_ACCESORIO, CLAVES_ACCESORIO, categoriaAccesorioDe, textoCompatibilidad } from '@/lib/categoriasAccesorio'
 import { categoriaMeta } from '@/lib/categoriasProducto'
 import { cn } from '@/lib/utils'
+import './posProductos.css'
 
 const FILAS_INICIALES = 4
 // En la lista cada producto es una fila compacta: entran más por pantalla.
@@ -141,20 +142,19 @@ export default function PasoProductos({
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
-      <section data-testid="pos-bloque-productos" className="rounded-2xl border border-fono/35 bg-fono/[.04] p-3">
+      <section data-testid="pos-bloque-productos" className="pos-prod rounded-2xl border border-ink-600 bg-ink p-3">
         <EncabezadoBloque
           compacto
           titulo="Productos"
-          tono="text-fono-light"
+          descripcion={<span className="pos-prod-cuenta">{catalogoServidor ? catalogoServidor.total : productos.length} disponibles</span>}
           extra={
-            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2">
-              <span className="shrink-0 text-xs font-medium text-fono-light">{catalogoServidor ? catalogoServidor.total : productos.length} disponibles</span>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-2 gap-y-2">
               {puedeCrearProducto && (
                 <button
                   type="button"
                   data-testid="pos-nuevo-producto"
                   onClick={() => setNuevoProd(true)}
-                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-9"
+                  className="pos-prod-nuevo inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1.5 text-xs font-semibold text-fore transition hover:bg-ink-800 md:min-h-9"
                 >
                   <Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto
                 </button>
@@ -321,7 +321,7 @@ export default function PasoProductos({
         </Popup>
           <>
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <div id="pos-busqueda-producto" className="relative min-w-0 flex-1 basis-56">
+              <div id="pos-busqueda-producto" className="pos-prod-buscar relative min-w-0 flex-1 basis-56">
                 <ProductCombobox
                   products={productos}
                   placeholder="Buscar producto…"
@@ -367,21 +367,22 @@ export default function PasoProductos({
             </div>
             <div className="mb-2 flex items-center gap-2">
               {setAccesorio ? (
-                <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="pos-chips-accesorio">
+                <div className="pos-prod-segmento flex min-w-0 gap-0.5 overflow-x-auto" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="pos-chips-accesorio">
                   {[['todas', { label: 'Todos', icon: 'grid' }], ...CLAVES_ACCESORIO.map(clave => [clave, CATEGORIAS_ACCESORIO[clave]])].map(([clave, meta]) => (
                     <button
                       key={clave}
                       type="button"
                       aria-pressed={accesorio === clave}
                       onClick={() => setAccesorio(clave)}
-                      className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition md:min-h-8', accesorio === clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+                      className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition md:min-h-8', accesorio === clave ? 'text-fore' : 'text-mute hover:text-fore')}
                     >
                       <Icon name={meta.icon} className="h-3.5 w-3.5" />{meta.label}
                     </button>
                   ))}
                 </div>
-              ) : <span className="flex-1" />}
-              <div role="group" aria-label="Vista del catálogo" data-testid="pos-vista-catalogo" className="flex shrink-0 gap-0.5 rounded-lg border border-ink-600 p-0.5">
+              ) : null}
+              <span className="flex-1" />
+              <div role="group" aria-label="Vista del catálogo" data-testid="pos-vista-catalogo" className="pos-prod-segmento flex shrink-0 gap-0.5">
                 {[['cuadricula', 'grid', 'Cuadrícula'], ['lista', 'list', 'Lista']].map(([clave, icono, etiqueta]) => (
                   <button
                     key={clave}
@@ -391,7 +392,7 @@ export default function PasoProductos({
                     aria-label={etiqueta}
                     title={etiqueta}
                     onClick={() => elegirVista(clave)}
-                    className={cn('inline-flex h-11 w-11 items-center justify-center rounded-md transition md:h-8 md:w-8', vista === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+                    className={cn('inline-flex h-11 w-11 items-center justify-center rounded-md transition md:h-8 md:w-8', vista === clave ? 'text-fore' : 'text-mute hover:text-fore')}
                   >
                     <Icon name={icono} className="h-4 w-4" />
                   </button>
@@ -401,7 +402,7 @@ export default function PasoProductos({
             <div
               ref={grillaRef}
               data-vista={vista}
-              className={enLista ? 'pos-product-list flex flex-col gap-1.5' : 'pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3'}
+              className={enLista ? 'pos-product-list flex flex-col' : 'pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3'}
               aria-label="Resultados de productos"
             >
               {!esDemo && combos.length > 0 && (
@@ -446,23 +447,26 @@ export default function PasoProductos({
                       key={fam.base}
                       disabled={guardando}
                       onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
-                      className="pos-product-card pos-product-fila flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl border border-ink-600 px-2.5 py-1.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
+                      className="pos-product-card pos-product-fila min-h-11 min-w-0 text-left transition focus-visible:outline focus-visible:outline-fono"
                     >
                       <FotoProducto
                         src={fotoFamilia}
                         size={36}
                         icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || categoriaMeta(p).icon}
+                        className="pos-fila-foto"
                       />
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="pos-fila-nombre flex min-w-0 flex-col gap-0.5">
                         <strong className="line-clamp-1 break-words text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
-                        <PrecioStockProducto fila productos={fam.items} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
                         {unidadesFamilia > 0 && (
                           <span className="truncate text-[11px] text-mute">
                             {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
                           </span>
                         )}
                       </span>
-                      <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light">
+                      <span className="pos-fila-precio min-w-0">
+                        <PrecioStockProducto fila productos={fam.items} precios={precios} cargando={preciosCargando} sucursal={sucursal} sucursales={sucursales} />
+                      </span>
+                      <span aria-hidden="true" className="pos-fila-mas grid h-8 w-8 shrink-0 place-items-center rounded-md text-mute">
                         <Icon name="plus" className="h-4 w-4" />
                       </span>
                     </button>
@@ -474,7 +478,7 @@ export default function PasoProductos({
                     key={fam.base}
                     disabled={guardando}
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
-                    className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
+                    className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition focus-visible:outline focus-visible:outline-fono"
                   >
                     <span className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
                       <FotoProducto
