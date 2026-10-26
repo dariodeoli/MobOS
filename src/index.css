@@ -20,6 +20,9 @@
    define más en la app: un rol semántico que necesite ajuste va a la
    biblioteca (docs/ALIMENTAR.md). */
 @import 'owncoding-ui/styles.css';
+/* Tokens del panel (dirección «Grafito»): tipo, radios, espacio, elevación,
+   cromo y acento. Van después de la biblioteca para poder usar sus --c-*. */
+@import './styles/tokens.css';
 
 @tailwind base;
 @tailwind components;

@@ -1,15 +1,16 @@
 /* Scoped to the authenticated shell; landing, portal and demo data are unchanged. */
 .shell-nav-v2 {
-  /* Visual v3 (docs/visual-v3/DIRECCION.md): lienzo con tinte cálido,
-     tarjetas blancas elevadas y líneas hairline. */
-  --c-paper: 244 244 240;
+  /* Dirección «Grafito» (src/styles/tokens.css): lienzo neutro frío,
+     superficies blancas y líneas hairline; el cromo grafito del menú se
+     aplica en panel-foundation.css. */
+  --c-paper: 241 241 243;
   --c-ink: 255 255 255;
   --c-ink-900: 255 255 255;
-  --c-ink-800: 249 249 246;
-  --c-ink-600: 228 229 222;
-  --c-ink-700: 239 240 235;
-  --c-fore: 16 20 18;
-  --c-mute: 84 92 90;
+  --c-ink-800: 248 248 249;
+  --c-ink-600: 225 225 229;
+  --c-ink-700: 238 238 241;
+  --c-fore: 24 24 27;
+  --c-mute: 90 92 100;
   --shell-bottom-space: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 /* #587: el rail colapsado es una columna de iconos estable. Nunca se desplaza
@@ -54,14 +55,14 @@
 }
 .dark .shell-nav-v2 {
   /* Oscuro de verdad: cuanto más elevada la superficie, más clara. */
-  --c-paper: 10 11 13;
-  --c-ink: 23 25 29;
-  --c-ink-900: 18 20 23;
-  --c-ink-800: 29 32 37;
-  --c-ink-600: 50 54 62;
-  --c-ink-700: 36 39 45;
-  --c-fore: 243 244 246;
-  --c-mute: 165 172 182;
+  --c-paper: 17 17 19;
+  --c-ink: 27 27 30;
+  --c-ink-900: 22 22 25;
+  --c-ink-800: 33 33 37;
+  --c-ink-600: 58 58 64;
+  --c-ink-700: 42 42 47;
+  --c-fore: 244 244 245;
+  --c-mute: 163 164 172;
 }
 .shell-nav-v2 .shell-body {
   padding-bottom: var(--shell-bottom-space);
