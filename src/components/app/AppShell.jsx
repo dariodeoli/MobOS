@@ -326,7 +326,9 @@ export default function AppShell({
       />
       {label}
       {infoBadge({ badge: pendientes }) && (
-        <span data-testid="menu-badge-pendientes" aria-label={infoBadge({ badge: pendientes }).etiqueta} className="ml-auto inline-grid min-w-5 place-items-center rounded-full bg-warn/20 px-1.5 text-[11px] font-bold tabular-nums text-warn">{infoBadge({ badge: pendientes }).texto}</span>
+        // Con el menú plegado el contador va como globito sobre la esquina del
+        // ícono: si ocupara lugar, ese ícono quedaría corrido respecto del resto.
+        <span data-testid="menu-badge-pendientes" aria-label={infoBadge({ badge: pendientes }).etiqueta} className={cn('inline-grid min-w-5 place-items-center rounded-full bg-warn/20 px-1.5 text-[11px] font-bold tabular-nums text-warn', collapsed ? 'absolute right-0 top-0 h-4 min-w-4 bg-warn px-1 text-[10px] text-ink' : 'ml-auto')}>{infoBadge({ badge: pendientes }).texto}</span>
       )}
     </button>
   )
@@ -335,7 +337,7 @@ export default function AppShell({
     sectionButton(section, {
       className: cn(
         'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
-        collapsed ? 'w-11 justify-center px-0' : 'lg:min-h-9',
+        collapsed ? 'relative w-11 justify-center px-0' : 'lg:min-h-9',
         conDesplegable && 'w-full pr-10',
         currentId === section.id && 'bg-ink-700 font-semibold text-fore',
       ),

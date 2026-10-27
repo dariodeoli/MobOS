@@ -156,8 +156,10 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
 
       {editando && (
         <form onSubmit={guardar} className="space-y-3" data-testid="datos-tienda-form">
-          {/* #298: formulario en 2 columnas; la dirección va a ancho completo. */}
-          <div className={GRILLA_DOS_COLUMNAS}>
+          {/* #298: formulario en 2 columnas; la dirección va a ancho completo.
+              En la ventana (512 px) va en una columna: con dos, el teléfono no
+              entra y el código de país queda partido arriba del número. */}
+          <div className={enVentana ? 'grid gap-3 [&_*]:max-w-none' : GRILLA_DOS_COLUMNAS}>
             {ver('name') && <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
               <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value, nameOfficial: null })} placeholder="Nombre de la tienda" />
             </FormField>}
@@ -179,10 +181,16 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
           </div>
           <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
           {error && <Aviso tono="error">{error}</Aviso>}
-          {enVentana && !hayCambios && (
-            <div className="flex justify-end"><Button type="button" variant="ghost" onClick={cancelar} disabled={busy}>Cancelar</Button></div>
+          {/* En la ventana el pie es siempre el mismo: Cancelar y Guardar (este
+              último solo se habilita con cambios). */}
+          {enVentana && (
+            <div data-testid="datos-tienda-pie" className="flex items-center justify-end gap-2 border-t border-ink-600 pt-3">
+              {hayCambios && <span className="mr-auto text-xs text-mute">Tenés cambios sin guardar.</span>}
+              <Button type="button" variant="ghost" onClick={cancelar} disabled={busy}>Cancelar</Button>
+              <Button type="submit" disabled={busy || !hayCambios}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
+            </div>
           )}
-          {hayCambios && (
+          {!enVentana && hayCambios && (
             <div data-testid="datos-tienda-barra" className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 shadow-lg shadow-black/10">
               <span className="text-xs text-mute">Tenés cambios sin guardar.</span>
               <span className="flex items-center gap-2">
