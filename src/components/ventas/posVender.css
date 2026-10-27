@@ -219,6 +219,10 @@
   font-size: var(--ds-text-sm);
   box-shadow: none;
 }
+/* En móvil los campos van a 16px: debajo de eso iOS hace zoom al enfocar. */
+@media (max-width: 767px) {
+  .pos-cliente input[aria-label='Nombre, teléfono, CI o RUC del cliente'] { font-size: 16px; }
+}
 .pos-cliente input[aria-label='Nombre, teléfono, CI o RUC del cliente']:focus {
   border-color: rgb(var(--ds-accent));
   background: var(--pv-surface);

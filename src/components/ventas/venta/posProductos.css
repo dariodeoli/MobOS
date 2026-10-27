@@ -43,6 +43,10 @@
   box-shadow: var(--ds-shadow-1);
   transition: border-color var(--ds-fast) var(--pp-ease), box-shadow var(--ds-fast) var(--pp-ease);
 }
+/* En móvil los campos van a 16px: debajo de eso iOS hace zoom al enfocar. */
+@media (max-width: 767px) {
+  .pos-f2 .pos-prod .pos-prod-buscar input { font-size: 16px; }
+}
 .pos-f2 .pos-prod .pos-prod-buscar input::placeholder {
   color: rgb(var(--ds-text-muted));
   opacity: 1;
