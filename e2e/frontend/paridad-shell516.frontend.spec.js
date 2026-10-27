@@ -35,7 +35,9 @@ async function medir(page){return page.evaluate(()=>{
  return {smallTouch,overflow:document.documentElement.scrollWidth>innerWidth,header:box(innerWidth<1024?'[data-testid="shell-mobile-header"]':'div:has(> [data-testid="shell-breadcrumb"])'),productos:box('[data-testid="pos-bloque-productos"]'),foto:box('[data-testid="pos-bloque-productos"] [data-testid="foto-producto"]'),busqueda:[...document.querySelectorAll('input')].filter(el=>el.placeholder==='Buscar producto…').map(el=>({height:Math.round(el.getBoundingClientRect().height),font:getComputedStyle(el).fontSize})),cobro:box(innerWidth<768?'[data-testid="cobro-movil"]':'[data-testid="pos-cobro"]'),total:box('[data-testid="cobro-total-grande"]'),pedido:box('[data-testid="pedido-fila"]')}
 })}
 async function agregarYCobrar(page,width){
- const prod=await page.evaluate(async()=>{const s=await import('/src/lib/storage.js'),{agruparProductos}=await import('/src/utils/colores.js');const f=agruparProductos(s.getProductos().filter(p=>p.activo)).find(f=>f.items.length===1&&Number(f.items[0].stock)>=2&&/Funda|Cargador/.test(f.base));return {nombre:f.base,precio:Number(f.items[0].precioVenta)}})
+ // El ticket cobra el precio que resuelve la lista de precios demo (el mismo del
+ // mosaico), no el precioVenta base.
+ const prod=await page.evaluate(async()=>{const s=await import('/src/lib/storage.js'),{agruparProductos}=await import('/src/utils/colores.js'),{pricingDemo}=await import('/src/lib/demo/precios.js');const productos=s.getProductos();const f=agruparProductos(productos.filter(p=>p.activo)).find(f=>f.items.length===1&&Number(f.items[0].stock)>=2&&/Funda|Cargador/.test(f.base));const item=f.items[0];const resuelto=pricingDemo({productId:item.id,quantity:'1'},productos);return {nombre:f.base,precio:Number(resuelto?.unitPricePyg||item.precioVenta)}})
  await page.getByPlaceholder('Buscar producto…').fill(prod.nombre)
  await page.locator('.pos-product-card',{hasText:prod.nombre}).first().click()
  if(width<768){await page.getByTestId('pos-barra-carrito-abrir').click();await page.getByTestId('carrito-cobrar').click();await expect(page.getByTestId('cobro-movil')).toBeVisible();await expect.poll(async()=>Math.round((await page.getByTestId('cobro-movil').boundingBox()).y)).toBe(0);await expect(page.getByTestId('cobro-total-grande')).toContainText(prod.precio.toLocaleString('es-PY'))}
@@ -219,6 +221,8 @@ for (const width of [320, 375, 390, 430]) test(`#546 cabecera móvil ${width}px:
 async function geometria516(locator){await locator.page().evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>null))));return locator.evaluate(el=>{const r=el.getBoundingClientRect();return {x:Math.round(r.x),width:Math.round(r.width),height:Math.round(r.height)}})}
 async function campo516(locator,width){
  await expect(locator).toBeVisible()
+ // Medir con las animaciones de entrada terminadas: a mitad de un scale la caja da 43.99px.
+ await esperarAnimaciones(locator.page())
  const r=await locator.boundingBox();expect(r.width).toBeGreaterThanOrEqual(44);expect(r.height).toBeGreaterThanOrEqual(44)
  expect(r.x).toBeGreaterThanOrEqual(0);expect(r.x+r.width).toBeLessThanOrEqual(width+1)
  expect(await locator.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12)

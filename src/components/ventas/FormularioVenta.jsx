@@ -2490,6 +2490,10 @@ export default function FormularioVenta({
         <div
           ref={layoutRef}
           data-testid="pos-layout"
+          // Región accesible del espacio de trabajo (catálogo | ticket); en
+          // celular la expone `pos-movil` y este bloque queda oculto.
+          role="region"
+          aria-label="Nueva venta"
           data-cobro={modoCobro && !esMovil && items.length > 0 ? 'si' : undefined}
           data-divisor={divisor.izq != null ? 'manual' : undefined}
           style={divisor.izq != null ? { '--pos-izq': divisor.izq } : undefined}

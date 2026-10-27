@@ -556,7 +556,9 @@ export default function AppShell({
         </div>
         {searchButton()}
         <nav aria-label="Navegación principal" className={cn('flex min-h-0 flex-1 flex-col', collapsed && 'w-full items-center')}>
-          <div className={cn('flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto', collapsed && 'w-full items-center')}>
+          {/* Scroll propio intencional: el menú lateral es fijo al alto de la
+              pantalla y, con el acordeón de una sección abierto, puede no entrar. */}
+          <div data-scroll-ok className={cn('flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto', collapsed && 'w-full items-center')}>
             {sections.filter(section => section.id !== 'configuracion').map(section => seccionLateral(section))}
           </div>
           {/* Configuración va abajo, separada: ahí se cambian ajustes, no se opera. */}

@@ -732,3 +732,20 @@
     transition: none;
   }
 }
+
+/* Menús «…» y popovers de fila: las superficies de tabla recortan las esquinas
+   con overflow: clip, lo que también recortaba el menú abierto de la última
+   fila (quedaba invisible e imposible de tocar). Mientras haya un menú o
+   popover abierto dentro, la superficie deja de recortar. */
+.shell-nav-v2 :is(
+  .ped-rd .ventas-f3-list,
+  .clientes-f3 .clientes-f3-table,
+  .clientes-f3 .clientes-f3-cards,
+  .stock-rediseno [data-testid='inventario-tabla'],
+  .stock-rediseno .stock-toque [data-testid$='-tabla'],
+  .stock-rediseno .stock-toque .space-y-1,
+  .stock-rediseno [data-testid='certificaciones-tablero'] > .space-y-1,
+  .prod-rediseno [data-testid='catalogo-tabla']
+):has([role='menu'], [role='dialog'], [role='listbox']) {
+  overflow: visible !important;
+}
