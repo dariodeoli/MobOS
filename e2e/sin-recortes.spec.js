@@ -64,7 +64,13 @@ function medir() {
     return r.width > 1 && r.height > 1
   }
   const ocultos = new Map()
-  const oculto = el => Boolean(el.closest('[aria-hidden="true"], [inert], [hidden], .sr-only, [data-recorte-ok]'))
+  // El contenido de un <details> cerrado no se pinta, aunque Chromium le siga
+  // dando geometría (::details-content): no es un recorte visible.
+  const plegado = el => {
+    const d = el.closest('details:not([open])')
+    return Boolean(d && !el.closest('summary'))
+  }
+  const oculto = el => Boolean(el.closest('[aria-hidden="true"], [inert], [hidden], .sr-only, [data-recorte-ok]')) || plegado(el)
   const nombre = el => {
     const id = el.getAttribute('data-testid') || el.getAttribute('data-tab-id')
     const clase = typeof el.className === 'string' ? el.className.trim().split(/\s+/).slice(0, 3).join('.') : ''
