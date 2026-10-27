@@ -15,7 +15,7 @@ const copia = (prefs) => ({ orders: { ...prefs.orders }, portal: { ...prefs.port
 
 export function getDemoPreferencias() {
   try {
-    const guardado = JSON.parse(leerDemo(KEY))
+    const guardado = JSON.parse(leerDemo(KEY, { demo: true }))
     if (guardado && typeof guardado === 'object') {
       return {
         orders: { ...PREFERENCIAS_DEMO.orders, ...(guardado.orders || {}) },
@@ -32,6 +32,6 @@ export function setDemoPreferencias(cambios = {}) {
   const siguiente = copia(actual)
   if (typeof cambios?.orders?.autoArchivePrepared === 'boolean') siguiente.orders.autoArchivePrepared = cambios.orders.autoArchivePrepared
   if (typeof cambios?.portal?.showStoreCredit === 'boolean') siguiente.portal.showStoreCredit = cambios.portal.showStoreCredit
-  guardarDemo(KEY, JSON.stringify(siguiente))
+  guardarDemo(KEY, JSON.stringify(siguiente), { demo: true })
   return siguiente
 }

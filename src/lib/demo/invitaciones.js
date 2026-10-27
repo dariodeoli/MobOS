@@ -21,13 +21,13 @@ export function semillaInvitacionesDemo(ahora = Date.now()) {
 
 function leer() {
   try {
-    const guardado = JSON.parse(leerDemo(KEY))
+    const guardado = JSON.parse(leerDemo(KEY, { demo: true }))
     if (Array.isArray(guardado)) return guardado
   } catch { /* dato dañado: semilla */ }
   return semillaInvitacionesDemo()
 }
 
-const escribir = (lista) => { guardarDemo(KEY, JSON.stringify(lista)); return lista }
+const escribir = (lista) => { guardarDemo(KEY, JSON.stringify(lista), { demo: true }); return lista }
 
 // Una pendiente cuyo plazo ya pasó se muestra vencida, como en el servidor.
 const vigente = (invitacion, ahora) => (invitacion.status === 'PENDING' && new Date(invitacion.expiresAt).getTime() <= ahora ? { ...invitacion, status: 'EXPIRED' } : { ...invitacion })
