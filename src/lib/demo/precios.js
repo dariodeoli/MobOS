@@ -109,7 +109,7 @@ export function pricingDemo({ productId = '', quantity = '1', customerId = '' } 
         : fila.productId === productId
       if (!aplica) continue
       const tier = [...(fila.tiers || [])].filter((escalon) => cantidad >= Number(escalon.minQty)).sort((a, b) => Number(b.minQty) - Number(a.minQty))[0]
-      if (tier) return { productId, quantity: cantidad, customerId: customerId || null, priceList: { id: lista.id, name: lista.name }, unitPricePyg: Number(tier.unitPricePyg), origin: 'TIER', currency: 'PYG', minQty: Number(tier.minQty), tiers: fila.tiers || [], unitPricePygFallback: Number(fila.unitPricePyg ?? base) }
+      if (tier) return { productId, quantity: cantidad, customerId: customerId || null, priceList: { id: lista.id, name: lista.name }, unitPricePyg: Number(tier.unitPricePyg), origin: 'TIER', currency: 'PYG', minQty: Number(tier.minQty), tiers: fila.tiers || [], unitPricePygFallback: Number(tier.unitPricePyg) }
       const descuento = Number(fila.discountPct || 0)
       const unitario = descuento > 0 ? Math.round(base * (1 - descuento / 100)) : base
       return { productId, quantity: cantidad, customerId: customerId || null, priceList: { id: lista.id, name: lista.name }, unitPricePyg: unitario, origin: 'LIST', currency: 'PYG', minQty: null, tiers: [], unitPricePygFallback: unitario }

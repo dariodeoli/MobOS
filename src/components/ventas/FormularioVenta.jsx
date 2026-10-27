@@ -729,8 +729,10 @@ export default function FormularioVenta({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imeiPara, sucursal?.id])
 
+  // En la demo `priceLists.pricing` resuelve con las listas locales: el ticket
+  // cobra el mismo precio que muestra el mosaico del catálogo.
   async function resolverPrecio(productoId, quantity) {
-    if (esDemo || !productoId) return null
+    if (!productoId) return null
     const clienteId = customer?.id || ''
     const clave = `${clienteId}:${productoId}:${quantity}`
     if (preciosCache.current.has(clave)) return preciosCache.current.get(clave)
@@ -792,7 +794,6 @@ export default function FormularioVenta({
   // filas sin precio manual, cupón ni combo. Corre también al montar para
   // refrescar un carrito restaurado.
   useEffect(() => {
-    if (esDemo) return
     if (clientePreciosRef.current === (customer?.id || '')) return
     clientePreciosRef.current = customer?.id || ''
     preciosCache.current.clear()
