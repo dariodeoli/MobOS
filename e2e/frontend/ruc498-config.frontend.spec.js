@@ -101,10 +101,16 @@ for (const [kind, name] of [['titular', 'Ana Prueba'], ['empresa', 'Empresa Fict
     await expect(page.getByText(`${kind === 'titular' ? 'Titular registrado' : 'Empresa registrada'} · se completa solo`, { exact: true })).toBeVisible()
     const stored = await page.evaluate(async () => {
       const { getAccountHolders, getPrivateCompanies } = await import('/src/lib/accountParties.js')
-      return { active: [await getAccountHolders({ demo: true, empresaId: 'empresa-qa-498' }), await getPrivateCompanies({ demo: true, empresaId: 'empresa-qa-498' })], other: [await getAccountHolders({ demo: true, empresaId: 'mobos-demo' }), await getPrivateCompanies({ demo: true, empresaId: 'mobos-demo' })] }
+      const { TITULARES_FISCALES_DEMO, EMPRESAS_FISCALES_DEMO } = await import('/src/lib/demo/datosFiscales.js')
+      return {
+        active: [await getAccountHolders({ demo: true, empresaId: 'empresa-qa-498' }), await getPrivateCompanies({ demo: true, empresaId: 'empresa-qa-498' })],
+        other: [await getAccountHolders({ demo: true, empresaId: 'mobos-demo' }), await getPrivateCompanies({ demo: true, empresaId: 'mobos-demo' })],
+        semilla: [TITULARES_FISCALES_DEMO, EMPRESAS_FISCALES_DEMO],
+      }
     })
     expect(stored.active[kind === 'titular' ? 0 : 1]).toHaveLength(1)
-    expect(stored.other).toEqual([[], []])
+    // La empresa demo conserva solo su semilla: lo creado en la otra empresa no se cruza.
+    expect(stored.other).toEqual(stored.semilla)
     await page.locator('#pa-name').fill(`Cuenta QA ${kind}`)
     await page.getByRole('button', { name: 'Guardar cuenta', exact: true }).click()
     await expect(page.getByRole('button', { name: `Editar Cuenta QA ${kind}`, exact: true })).toBeVisible()
