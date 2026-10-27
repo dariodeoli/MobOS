@@ -1,7 +1,8 @@
 // #299 · Organización y Equipo: dividir por tareas y normalizar roles.
 //
 // - Negocio en secciones por tarea: Datos generales · Identidad visual ·
-//   Sucursales y depósitos · Datos fiscales · Numeración · Plan · Zona de peligro
+//   Sucursales y depósitos · Datos fiscales · Numeración · Plan (la Zona de
+//   peligro vive al final de Mi cuenta)
 //   (los módulos y las notificaciones tienen su propio grupo en Configuración).
 //   Cada sección muestra solo su contenido (nada de una columna con todo).
 // - Equipo en pestañas: Miembros · Invitaciones · Permisos · Rendimiento.
@@ -33,7 +34,6 @@ const ORG = [
   ['Políticas', 'Políticas de la tienda'],
   ['Portal de clientes', 'Cuentas de cliente'],
   ['Plan y facturación', 'Plan y facturación'],
-  ['Zona de peligro', 'Archivar empresa'],
 ]
 
 test('#299 · Organización se abre por tareas, sin mezclar todo en una columna', async ({ page }) => {

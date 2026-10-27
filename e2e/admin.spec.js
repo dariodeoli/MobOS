@@ -1334,10 +1334,8 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   await expect(page.locator('#pref-bloqueo')).toBeVisible()
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
-  // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
-  await selectConfigSection(page, 'Negocio')
-  // #299: archivar/eliminar y la verificación de identidad están en Zona de peligro.
-  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
+  // Eliminar empresa: Configuración → Mi cuenta › Zona de peligro, con reauth + palabra ELIMINAR.
+  await expect(page.getByTestId('zona-peligro')).toBeVisible()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()
   await page.getByLabel('Contraseña para reautenticar').fill(SEED.company.password)
   await page.getByLabel('Contraseña para reautenticar').press('Enter')

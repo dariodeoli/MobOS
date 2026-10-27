@@ -19,10 +19,10 @@ test.describe('Seguridad de la cuenta', () => {
     await loginCompany(page)
     await page.locator('#seller-pin').pressSequentially(SEED.admin.pin)
     await expect(page).toHaveURL(/\/resumen$/)
-    await page.goto('/configuracion/negocio')
-    // #299: archivar/eliminar y la verificación de identidad viven en la
-    // sección Zona de peligro.
-    await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
+    // Archivar/eliminar y la verificación de identidad viven en la Zona de
+    // peligro, al final de Mi cuenta.
+    await page.goto('/configuracion/mi-cuenta')
+    await expect(page.getByTestId('zona-peligro')).toBeVisible()
 
     const confirmar = page.getByText('Confirmar identidad')
     await expect(confirmar).toBeVisible()

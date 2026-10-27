@@ -1140,7 +1140,13 @@ export default function PanelVendedor() {
           {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
             <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
-              {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
+              {vista === 'mi-cuenta' && (
+                <div className="space-y-3">
+                  <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />
+                  {/* Archivar o eliminar la empresa cierra Mi cuenta (solo dueño). */}
+                  <Config seccion="peligro" />
+                </div>
+              )}
               {vista === 'negocio' && <Config seccion="organizacion" />}
               {vista === 'modulos' && <Modulos />}
               {vista === 'equipo' && <Equipo />}
