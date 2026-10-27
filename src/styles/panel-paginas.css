@@ -429,6 +429,14 @@
   border-radius: 0;
   padding-inline: var(--ds-space-2);
 }
+/* El esqueleto de carga usa la misma fila plana: sin el borde de tarjeta que
+   lo corría 1px respecto del encabezado. */
+.shell-nav-v2 .stock-rediseno [data-testid='unidades-cargando'] > .stock-lista-grid {
+  border: 0;
+  border-bottom: 1px solid var(--pg-line);
+  border-radius: 0;
+  padding-inline: var(--ds-space-2);
+}
 .shell-nav-v2 .stock-rediseno .pl-fila {
   background: color-mix(in srgb, rgb(var(--pl-bg)) 38%, rgb(var(--ds-surface)));
   box-shadow: inset 3px 0 0 rgb(var(--pl-bd));
