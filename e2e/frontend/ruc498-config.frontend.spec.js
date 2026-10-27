@@ -66,9 +66,14 @@ for (const [width, dark] of [[390, false], [1440, true]]) {
       const { getAccountHolders } = await import('/src/lib/accountParties.js')
       return { current: await getAccountHolders({ demo: true, empresaId: 'mobos-demo' }), other: await getAccountHolders({ demo: true, empresaId: 'otra-empresa-498' }) }
     })
-    expect(stored.current).toHaveLength(1)
-    expect(stored.current[0].nameOfficial).toBe(raw)
-    expect(stored.current[0].personConfirmed).toBe(true)
+    // La demo arranca con sus titulares ficticios; el nuevo se suma a ellos y
+    // la otra empresa no ve ninguno.
+    const { TITULARES_FISCALES_DEMO } = await page.evaluate(async () => import('/src/lib/demo/datosFiscales.js').then(m => ({ TITULARES_FISCALES_DEMO: m.TITULARES_FISCALES_DEMO })))
+    expect(stored.current).toHaveLength(TITULARES_FISCALES_DEMO.length + 1)
+    const nuevo = stored.current.filter(holder => !TITULARES_FISCALES_DEMO.some(semilla => semilla.id === holder.id))
+    expect(nuevo).toHaveLength(1)
+    expect(nuevo[0].nameOfficial).toBe(raw)
+    expect(nuevo[0].personConfirmed).toBe(true)
     expect(stored.other).toEqual([])
     verifyApi()
   })
