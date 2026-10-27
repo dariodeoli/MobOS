@@ -7,12 +7,12 @@
 // Configuración. El archivado de la empresa queda en un único lugar de la
 // sección (con motivo y reautenticación), sin repetir el flujo acá.
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { obligatorio } from 'owncoding-ui'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
+import { resources } from '@/lib/api'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
-import { Aviso, Badge, Button, Card, EmptyState, FormField, Input, Subtabs, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, FormField, Input, Subtabs, useToast } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
@@ -45,7 +45,7 @@ const REGLAS_SUCURSAL = { nombre: [obligatorio('Completá el nombre de la sucurs
 
 export default function TiendasSucursales({ account }) {
   const toast = useToast()
-  const { salir, esDemo } = useSesion()
+  const { salir, esDemo, empresa } = useSesion()
   const guardado = useGuardadoCuenta({ id: 'sucursal' })
   const cambioEmpresa = useCambioEmpresa()
   const [branches, setBranches] = useState(null)
@@ -64,20 +64,19 @@ export default function TiendasSucursales({ account }) {
   const hayCambios = firmaSucursal(form) !== inicialSucursal.current
 
   const delContexto = getCompanyContext()?.stores || []
-  const stores = Array.isArray(account?.stores) && account.stores.length ? account.stores : delContexto
+  // La demo lista su tienda ficticia (la empresa de la sesión) como la actual.
+  const tiendaDemo = esDemo ? [{ id: empresa?.id || 'mobos-demo', name: empresa?.nombre || 'Tienda demo', current: true }] : null
+  const stores = tiendaDemo || (Array.isArray(account?.stores) && account.stores.length ? account.stores : delContexto)
   const otras = stores.filter((store) => !store.current)
   const hayOtra = otras.length > 0 || (stores.length > 1 && !stores.some((store) => store.current))
 
   const cargar = async () => {
     setErrorSucursales('')
-    try { setBranches(await api.get('/api/branches')) } catch (cause) { setErrorSucursales(cause?.message || 'No se pudieron cargar las sucursales.') }
+    try { setBranches(await resources.branches.list()) } catch (cause) { setErrorSucursales(cause?.message || 'No se pudieron cargar las sucursales.') }
   }
-  useEffect(() => {
-    // En demo no se consulta el API: la sección muestra un aviso claro en vez
-    // de quedarse en "Cargando sucursales…" (#205).
-    if (esDemo) { setBranches([]); return }
-    cargar()
-  }, [esDemo])
+  // En demo las sucursales salen de la memoria de la pestaña (mismas que usa
+  // Inventario): se crean, editan y activan igual que con una cuenta real.
+  useEffect(() => { cargar() }, [esDemo])
 
   function irAlFormulario() {
     document.getElementById('sucursal-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
@@ -119,7 +118,7 @@ export default function TiendasSucursales({ account }) {
         instagram: form.instagram?.trim() || null,
       }
       const resultado = await guardado.ejecutar(
-        () => (form.id ? api.patch('/api/branches', { id: form.id, ...payload }) : api.post('/api/branches', payload)),
+        () => (form.id ? resources.branches.update({ id: form.id, ...payload }) : resources.branches.create(payload)),
         { etiqueta: 'la sucursal' },
       )
       if (resultado) {
@@ -136,7 +135,7 @@ export default function TiendasSucursales({ account }) {
   async function alternar(branch) {
     setBusy(true); setErrorSucursales('')
     try {
-      const resultado = await guardado.ejecutar(() => api.patch('/api/branches', { id: branch.id, isActive: !branch.isActive }), { etiqueta: 'la sucursal' })
+      const resultado = await guardado.ejecutar(() => resources.branches.update({ id: branch.id, isActive: !branch.isActive }), { etiqueta: 'la sucursal' })
       if (resultado) {
         toast.success(branch.isActive ? 'Sucursal desactivada.' : 'Sucursal reactivada.')
         await cargar()
@@ -172,13 +171,12 @@ export default function TiendasSucursales({ account }) {
           <h3 className="font-semibold">Tiendas</h3>
           <p className="mt-1 text-sm text-mute">Las tiendas de las que sos dueño con esta cuenta de Google.</p>
         </div>
-        {!esDemo && <Button type="button" variant="outline" onClick={crearOtra}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>}
+        <Button type="button" variant="outline" onClick={crearOtra} disabled={esDemo} aria-describedby={esDemo ? 'tiendas-demo-nota' : undefined}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>
       </div>
       {cambioEmpresa.sinCuenta && !esDemo && <Aviso tono="info" data-testid="tiendas-sin-cuenta">{MENSAJE_SIN_CUENTA} Mientras tanto podés crear otra tienda con Google.</Aviso>}
       {errorTiendas && !dialogo && <Aviso tono="error">{errorTiendas}</Aviso>}
-      {esDemo ? (
-        <p className="text-sm text-mute">La demo opera en una tienda ficticia: crear otra tienda o abandonar la actual se hace con una cuenta real.</p>
-      ) : stores.length === 0 ? (
+      {esDemo && <p id="tiendas-demo-nota" className="text-xs text-mute" data-testid="tiendas-demo-nota">En la demo no se crean ni se abandonan tiendas: eso se hace con tu cuenta.</p>}
+      {stores.length === 0 ? (
         <p className="text-sm text-mute">Todavía no se pudieron cargar tus tiendas. Recargá la página para volver a intentarlo.</p>
       ) : (
         <div className="space-y-2">
@@ -215,9 +213,9 @@ export default function TiendasSucursales({ account }) {
           <h3 className="font-semibold">Sucursales</h3>
           <p className="mt-1 text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto.</p>
         </div>
-        {!esDemo && <Button type="button" onClick={() => { pedirAbrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>}
+        <Button type="button" onClick={() => { pedirAbrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>
       </div>
-      {!esDemo && branches !== null && branches.length > 0 && (
+      {branches !== null && branches.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2" data-config-anchor="sucursales-uso">
           {/* El plan todavía no define un máximo de sucursales (no hay límite en el
               backend): se informa el uso real, sin inventar un «de M». */}
@@ -231,14 +229,7 @@ export default function TiendasSucursales({ account }) {
           />
         </div>
       )}
-      {esDemo ? (
-        <EmptyState
-          icon="store"
-          title="Las sucursales se administran con una cuenta real"
-          description="En la demo operás en Tienda demo; con tu cuenta podés crear sucursales, editarlas y activarlas."
-          action={<Link to="/login" className="inline-flex min-h-11 items-center rounded-lg border border-ink-600 px-4 text-sm font-semibold text-fono-light transition hover:border-fono/50">Ingresar con mi cuenta</Link>}
-        />
-      ) : branches === null ? <p className="text-sm text-mute">Cargando sucursales…</p> : branches.length === 0 ? <p className="text-sm text-mute">Todavía no hay sucursales. Creá la primera.</p> : (
+      {branches === null ? <p className="text-sm text-mute">Cargando sucursales…</p> : branches.length === 0 ? <p className="text-sm text-mute">Todavía no hay sucursales. Creá la primera.</p> : (
         <div className="space-y-2">
           {sucursalesVisibles.length === 0 && <p className="text-sm text-mute">No hay sucursales en este filtro.</p>}
           {sucursalesVisibles.map(branch => (
@@ -260,20 +251,6 @@ export default function TiendasSucursales({ account }) {
       )}
     </section>
   )
-
-  if (esDemo) {
-    return (
-      <Card className="space-y-4" data-testid="tiendas-sucursales">
-        <div>
-          <h2 className="font-semibold">Tiendas y sucursales</h2>
-          <p className="mt-1 text-sm text-mute">Las tiendas y las sucursales de tu negocio, en un solo lugar.</p>
-        </div>
-        {bloqueTiendas}
-        <div className="border-t border-ink-600" />
-        {bloqueSucursales}
-      </Card>
-    )
-  }
 
   const formularioSucursal = (
     <Card className="space-y-3">
@@ -312,7 +289,7 @@ export default function TiendasSucursales({ account }) {
 
   return (
     <>
-      <DialogosEmpresa control={cambioEmpresa} />
+      {!esDemo && <DialogosEmpresa control={cambioEmpresa} />}
       <PanelDerecho id="sucursal-form" panel={formularioSucursal}>
         <Card className="space-y-4" data-testid="tiendas-sucursales">
           <div>

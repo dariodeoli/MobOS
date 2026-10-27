@@ -2,6 +2,8 @@ import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
 import { nombreCompleto, textoBuscable, validarRevisionTitular } from './accountNames'
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { semillaEmpresasFiscalesDemo, semillaTitularesFiscalesDemo } from './demo/datosFiscales.js'
+import { EMPRESA_DEMO } from './demo/empresa.js'
 
 export { nombreCompleto, textoBuscable }
 
@@ -57,12 +59,15 @@ function validarEmpresa(data, partial = false) {
   return result
 }
 
-function demoStore(clave) {
+// La demo arranca con datos fiscales cargados (empresa y titulares ficticios):
+// la primera lectura de la pestaña devuelve la semilla; después manda lo que la
+// persona agregó o editó. Al salir de la demo la memoria se vacía y vuelve.
+function demoStore(clave, semilla = () => []) {
   return {
     read() {
       try {
         const raw = leerDemo(clave, { demo: true })
-        if (raw === null) return []
+        if (raw === null) return semilla()
         const rows = JSON.parse(raw)
         if (!Array.isArray(rows)) throw new Error()
         return rows
@@ -77,8 +82,11 @@ function demoStore(clave) {
 }
 
 const scope = empresaId => encodeURIComponent(empresaId || 'mobos-demo')
-const demoHolders = empresaId => demoStore(`${HOLDERS_DEMO_KEY}:${scope(empresaId)}`)
-const demoCompanies = empresaId => demoStore(`${COMPANIES_DEMO_KEY}:${scope(empresaId)}`)
+// Solo la empresa ficticia de la demo (Aurora) arranca cargada; cualquier otro
+// alcance empieza vacío, así los datos no se cruzan entre empresas.
+const semillaDe = (empresaId, semilla) => (scope(empresaId) === scope(EMPRESA_DEMO.id) ? semilla : () => [])
+const demoHolders = empresaId => demoStore(`${HOLDERS_DEMO_KEY}:${scope(empresaId)}`, semillaDe(empresaId, semillaTitularesFiscalesDemo))
+const demoCompanies = empresaId => demoStore(`${COMPANIES_DEMO_KEY}:${scope(empresaId)}`, semillaDe(empresaId, semillaEmpresasFiscalesDemo))
 const fiscalDemo = data => Object.hasOwn(data, 'nameOfficial') ? { nameOfficial: data.nameOfficial, personConfirmed: data.personConfirmed === true } : {}
 
 const listaDe = (payload) => {

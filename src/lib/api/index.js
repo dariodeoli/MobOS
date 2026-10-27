@@ -2,8 +2,10 @@ import { api, request, apiFetch, API_URL } from './client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getProductos } from '@/lib/storage'
 import { cancelarVerificacionDemo, crearVerificacionDemo, detalleVerificacionDemo, escanearVerificacionDemo, listVerificacionesDemo, terminarVerificacionDemo } from '@/lib/demoVerificacion.js'
-import { createDemoTransfer, createDemoTransitAssignment, createDemoUnit, listDemoSharedGrants, searchDemoTenants, setDemoSharedGrant, updateDemoTransfer, updateDemoTransitAssignment, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit, undoVerifyDemoUnit } from '@/lib/demoInventory'
+import { createDemoTransfer, createDemoTransitAssignment, createDemoUnit, listDemoSharedGrants, searchDemoTenants, setDemoSharedGrant, updateDemoTransfer, updateDemoTransitAssignment, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoBranch, saveDemoLocation, updateDemoUnit, verifyDemoUnit, undoVerifyDemoUnit } from '@/lib/demoInventory'
 import { listarStockItemsDemo } from '@/lib/demo/stockItems.js'
+import { getDemoPreferencias, setDemoPreferencias } from '@/lib/demo/preferencias.js'
+import { invitarDemo, listarInvitacionesDemo, reenviarInvitacionDemo, revocarInvitacionDemo } from '@/lib/demo/invitaciones.js'
 import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
 import { actualizarCompraSinStockDemo, avisarClienteDemo, comprarSinStockDemo, esCompraDemoSinStock, esNecesidadDemoSinStock, listarVentasSinStockDemo, recibirRapidoSinStockDemo } from '@/lib/demo/ventaSinStock.js'
@@ -27,7 +29,8 @@ export const resources = {
   // la misma respuesta desde el inventario session-only.
   stockItems: { list: demo((params) => api.get(`/api/stock/items?${params}`), (params) => listarStockItemsDemo(params, { units: listDemoUnits('', 'active'), removed: listDemoUnits('', 'removed'), products: getProductos(), branches: listDemoBranches() })) },
   inventoryBranches: { list: demo(() => api.get('/api/inventory-branches'), () => listDemoBranches()) },
-  branches: { list: () => api.get('/api/branches'), create: data => api.post('/api/branches', data), update: data => api.patch('/api/branches', data) },
+  // Configuración → Sucursales: en demo, alta/edición/activación en memoria de la pestaña.
+  branches: { list: demo(() => api.get('/api/branches'), () => listDemoBranches()), create: demo(data => api.post('/api/branches', data), data => saveDemoBranch(data)), update: demo(data => api.patch('/api/branches', data), data => saveDemoBranch(data)) },
   inventoryUnits: { list: demo((q = '', view = 'active', opciones = {}) => api.get(`/api/inventory-units?${new URLSearchParams({ ...(q ? { q } : {}), ...(view !== 'active' ? { view } : {}), ...(opciones.productId ? { productId: opciones.productId } : {}), ...(opciones.branchId ? { branchId: opciones.branchId } : {}), ...(opciones.status ? { status: opciones.status } : {}) })}`), (q = '', view = 'active', opciones = {}) => filtrarUnidadesDemo(listDemoUnits(q, view), opciones)), create: demo(data => api.post('/api/inventory-units', data), data => createDemoUnit(data)), update: demo(data => api.patch('/api/inventory-units', data), data => updateDemoUnit(data)), verify: demo(data => api.post('/api/inventory-units/verify', data), data => verifyDemoUnit(data)), undoVerify: demo(data => api.delete('/api/inventory-units/verify', { body: data }), data => undoVerifyDemoUnit(data)) },
   stockVerifications: { list: demo(branchId => api.get(`/api/stock-verifications${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`), () => listVerificacionesDemo()), create: demo(data => api.post('/api/stock-verifications', data), data => crearVerificacionDemo(data)), get: demo(id => api.get(`/api/stock-verifications/${encodeURIComponent(id)}`), id => detalleVerificacionDemo(id)), scan: demo((id, serial) => api.patch(`/api/stock-verifications/${encodeURIComponent(id)}`, { action: 'scan', serial }), (id, serial, usuario) => escanearVerificacionDemo(id, serial, usuario)), finish: demo(id => api.patch(`/api/stock-verifications/${encodeURIComponent(id)}`, { action: 'finish' }), id => terminarVerificacionDemo(id)), cancel: demo(id => api.patch(`/api/stock-verifications/${encodeURIComponent(id)}`, { action: 'cancel' }), id => cancelarVerificacionDemo(id)) },
   // Retención de IMEI del carrito (apartado corto con latido). En la demo es simulada.
@@ -60,6 +63,14 @@ export const resources = {
     issue: demo(data => api.post('/api/gift-cards', data), data => emitirGiftCardDemo(data)),
     get: demo(id => api.get(`/api/gift-cards/${encodeURIComponent(id)}`), id => detalleGiftCardDemo(id)),
     cancel: demo(id => api.patch(`/api/gift-cards/${encodeURIComponent(id)}`, { action: 'cancel' }), id => anularGiftCardDemo(id)),
+  },
+  // Invitaciones del equipo: en demo, pendientes/vencidas ficticias que se
+  // invitan, reenvían y revocan en memoria (sin enviar correos).
+  userInvitations: {
+    list: demo(() => api.get('/api/user-invitations'), () => listarInvitacionesDemo()),
+    create: demo(data => api.post('/api/user-invitations', data), data => invitarDemo(data)),
+    resend: demo(id => api.post(`/api/user-invitations/${encodeURIComponent(id)}/resend`, {}), id => reenviarInvitacionDemo(id)),
+    revoke: demo(id => api.post(`/api/user-invitations/${encodeURIComponent(id)}/revoke`, {}), id => revocarInvitacionDemo(id)),
   },
   users: { list: demo(() => api.get('/api/users'), () => EQUIPO_DEMO.map((persona) => ({ id: persona.id, name: persona.nombre, email: persona.email, role: persona.rol, status: persona.activo ? 'ACTIVE' : 'INACTIVE' }))), create: data => api.post('/api/users', data) },
   // Abastecimiento F1 (#250/#254): necesidades consolidadas de compra.
@@ -149,6 +160,12 @@ export const resources = {
     },
     create: demo(data => api.post('/api/transit-assignments', data), data => createDemoTransitAssignment(data)),
     update: demo(data => api.patch('/api/transit-assignments', data), data => updateDemoTransitAssignment(data)),
+  },
+  // Preferencias de la tienda (archivado automático, saldo a favor en el
+  // portal). En demo viven en memoria de la pestaña.
+  tenantPreferences: {
+    get: demo(() => api.get('/api/tenant/preferences'), () => getDemoPreferencias()),
+    put: demo(data => api.put('/api/tenant/preferences', data), data => setDemoPreferencias(data)),
   },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },

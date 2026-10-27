@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
-import { api } from '@/lib/api/client'
+import { resources } from '@/lib/api'
 import { Aviso, Button, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { copiarValor } from '@/utils/portapapeles'
@@ -21,9 +21,9 @@ export default function PortalClientes() {
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
-    if (esDemo) return undefined
+    // En demo las preferencias viven en memoria de la pestaña.
     let vivo = true
-    api.get('/api/tenant/preferences')
+    resources.tenantPreferences.get()
       .then((datos) => { if (vivo) setPreferencias(datos) })
       .catch((cause) => { if (vivo) setError(cause?.message || 'No se pudieron cargar los ajustes del portal.') })
     return () => { vivo = false }
@@ -35,7 +35,7 @@ export default function PortalClientes() {
     const anterior = preferencias
     setPreferencias({ ...preferencias, portal: { ...preferencias.portal, showStoreCredit: valor } })
     try {
-      const guardado = await api.put('/api/tenant/preferences', { portal: { showStoreCredit: valor } })
+      const guardado = await resources.tenantPreferences.put({ portal: { showStoreCredit: valor } })
       setPreferencias({ orders: guardado.orders, portal: guardado.portal })
       toast.success(valor ? 'El portal muestra el saldo a favor.' : 'El portal oculta el saldo a favor.')
     } catch (cause) {
@@ -51,10 +51,10 @@ export default function PortalClientes() {
         <FilaConfig
           icono="wallet"
           titulo="Mostrar el saldo a favor en el portal"
-          descripcion={esDemo ? 'Disponible con una cuenta real.' : 'El cliente ve cuánto crédito de tienda tiene disponible. Si lo apagás, el portal no lo muestra.'}
+          descripcion="El cliente ve cuánto crédito de tienda tiene disponible. Si lo apagás, el portal no lo muestra."
           checked={preferencias ? preferencias.portal.showStoreCredit : true}
           onCambio={cambiarSaldo}
-          disabled={esDemo || !preferencias || guardando}
+          disabled={!preferencias || guardando}
           anchor="portal-saldo"
           testId="fila-portal-saldo"
         />

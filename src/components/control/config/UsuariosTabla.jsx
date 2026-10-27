@@ -11,6 +11,7 @@ import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { getVendedores } from '@/lib/storage'
 import { SUCURSALES_DEMO } from '@/lib/demo/empresa'
+import { listarInvitacionesDemo } from '@/lib/demo/invitaciones'
 import { GrupoConfig, FilaConfig } from './FilasConfig'
 import { FILTROS_USUARIOS, ESTADOS_USUARIO, contarUsuarios, csvUsuarios, filasUsuarios, filtrarUsuarios } from './modeloUsuarios'
 
@@ -30,7 +31,7 @@ export default function UsuariosTabla({ onGestionar, onAgregar, onRoles }) {
     // La demo no llama a la API: lista el equipo ficticio con la misma forma.
     if (esDemo) {
       const usuarios = getVendedores().map((v) => ({ id: v.id, name: v.nombre, email: v.email || '', role: v.role || 'VENDEDOR', status: v.activo ? 'ACTIVE' : 'INACTIVE', branchId: v.branchId || null, hasAvatar: Boolean(v.hasAvatar) }))
-      setDatos({ usuarios, invitaciones: [], sucursales: SUCURSALES_DEMO })
+      setDatos({ usuarios, invitaciones: listarInvitacionesDemo(), sucursales: SUCURSALES_DEMO })
       return undefined
     }
     let vivo = true
