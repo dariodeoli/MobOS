@@ -45,6 +45,92 @@ const GRUPO_DE_MODULO = {
 
 export const grupoDeModulo = id => GRUPO_DE_MODULO[id] || 'integraciones'
 
+/** Grupos de la grilla en el orden del filtro: `[id, título]` (sin Todos ni Activos). */
+export const GRUPOS_MODULOS = FILTROS_MODULOS.filter(([id]) => id !== 'todos' && id !== 'activos')
+
+/** Lista agrupada por área, en el orden de GRUPOS_MODULOS; omite los grupos vacíos. */
+export function agruparModulos(lista) {
+  return GRUPOS_MODULOS
+    .map(([id, titulo]) => ({ id, titulo, modulos: lista.filter(def => grupoDeModulo(def.id) === id) }))
+    .filter(grupo => grupo.modulos.length)
+}
+
+// Beneficios de cada módulo, en lenguaje de dueño (2-3 viñetas en la tarjeta).
+export const BENEFICIOS = {
+  'inventario-unidades': ['Cada iPhone con su IMEI: sabés cuál está, cuál se vendió y a quién.', 'Vendés o reservás una unidad desde su ficha, sin buscarla en el POS.', 'Lo vendido y lo dado de baja queda con su historial.'],
+  'venta-sin-stock': ['Vendés aunque el equipo todavía no llegó y lo dejás sobre pedido.', 'Ves en «Por comprar» todo lo que ya vendiste y falta traer.'],
+  mayoristas: ['El POS aplica solo el precio mayorista al cliente mayorista.', 'Filtrás a tus mayoristas en Clientes y les mandás la lista de precios.'],
+  tradein: ['Cotizás el usado del cliente en segundos y lo tomás como parte de pago.', 'El equipo recibido entra a tu stock con su valor de toma.'],
+  'catalogo-modelos': ['Todos los iPhone, iPad, Mac y AirPods con sus capacidades y colores.', 'Las tasaciones y cotizaciones eligen el modelo exacto, sin tipear.'],
+  servicios: ['Cada reparación con su orden, su estado y su fecha de entrega.', 'Los reclamos de garantía quedan registrados con el equipo y el cliente.'],
+  delivery: ['Asignás repartos y ves en qué está cada pedido.', 'Cada repartidor rinde lo que cobró en la calle y cerrás el día sin diferencias.'],
+  'campanas-recompra': ['Te recuerda escribirle al cliente para que vuelva a comprar.', 'Ves quién respondió y quién compró después del mensaje.'],
+  'campanas-mensajes': ['Mandás un mismo mensaje de WhatsApp o correo a un grupo de clientes.', 'Elegís a quién le llega: por compra, por sucursal o por tipo de cliente.'],
+  publicidad: ['Medís cuánto te trae cada campaña de publicidad.', 'Comparás lo que gastaste contra lo que vendiste.'],
+  comisiones: ['Definís cuánto cobra cada vendedor por venta.', 'Liquidás las comisiones del mes con el detalle por venta.'],
+  cuotas: ['Vendés a crédito y cada cuota queda con su vencimiento.', 'Ves quién te debe, cuánto y desde cuándo, y cobrás en el momento.'],
+  conciliacion: ['Cerrás el día comparando lo vendido con lo que entró al banco.', 'Las diferencias quedan marcadas para revisarlas.'],
+  'gift-cards': ['Vendés tarjetas de regalo y el cliente las canjea en el POS.', 'Cada tarjeta muestra su saldo y sus movimientos.'],
+  promociones: ['Creás cupones y descuentos con fecha de inicio y fin.', 'Armás combos (funda + vidrio) que el POS cobra solos.'],
+  'listas-precios': ['Cada cliente especial tiene su lista de precios negociada.', 'Precios por cantidad: más llevan, mejor precio.'],
+  comparador: ['Una lista de precios por modelo lista para compartir.', 'Comparás modelos lado a lado para ayudar al cliente a elegir.'],
+  abastecimiento: ['Te dice qué comprar según lo que se vende y lo que falta.', 'Preparás la compra, recibís la mercadería y medís a cada proveedor.'],
+  multisucursal: ['Mandás equipos de una sucursal a otra y ves lo que está en camino.', 'El stock compartido muestra qué hay en cada local.'],
+  'stock-avanzado': ['Contás el inventario con el lector y ves las diferencias al instante.', 'Reservás equipos para un cliente sin que otro los venda.'],
+  ops: ['Ves en vivo las ventas, los pedidos y las entregas del día.', 'Detectás atrasos antes de que el cliente reclame.'],
+  'ia-conectores': ['Le preguntás al asistente cómo van las ventas y te responde con tus números.', 'Conectás tus asistentes de IA con permisos que vos controlás.'],
+  'portal-clientes': ['Cada cliente sigue su pedido desde un enlace seguro.', 'Garantías y comprobantes con el logo de tu empresa.'],
+  'verificacion-imei': ['Consultás el IMEI antes de comprar o recibir un equipo.', 'El último resultado queda guardado en la ficha de la unidad.'],
+  'impresion-pro': ['Diseños profesionales para tickets, cotizaciones, remitos y etiquetas.', 'Tus comprobantes salen con la imagen de tu marca.'],
+  asistentes: ['Ayuda guiada para las tareas que repetís todos los días.'],
+  facturacion: ['Conexión directa con tu proveedor de facturación.'],
+  autofacturacion: ['Emitís el documento desde la venta, sin cargar todo de nuevo.'],
+  'facturacion-electronica': ['Preparación para emitir con SIFEN desde la venta.'],
+  salud: ['Preparación para fichas con datos sensibles de salud.'],
+}
+
+/** Viñetas de la tarjeta: los beneficios propios o, si no hay, lo que incluye. */
+export const beneficiosDe = def => (BENEFICIOS[def.id] || INCLUYE[def.id] || def.capabilities || []).slice(0, 3)
+
+// Dónde vive cada módulo en el menú (`vive`) y adónde lleva «Ir a …» (`ir`).
+// Sin `ir` cuando el módulo no tiene pantalla propia (se usa desde Configurar).
+export const DESTINOS = {
+  'inventario-unidades': { vive: ['Stock', 'Unidades'], ir: ['Unidades', '/stock/unidades'] },
+  'venta-sin-stock': { vive: ['Vender', 'Nueva venta'], ir: ['Vender', '/pos'] },
+  mayoristas: { vive: ['Vender', 'Nueva venta'], ir: ['Vender', '/pos'] },
+  tradein: { vive: ['Vender', 'Trade-In'], ir: ['Trade-In', '/trade-in'] },
+  'catalogo-modelos': { vive: ['Vender', 'Trade-In'], ir: ['Trade-In', '/trade-in'] },
+  servicios: { vive: ['Taller', 'Servicio'], ir: ['Taller', '/servicio'] },
+  delivery: { vive: ['Pedidos', 'Entregas'], ir: ['Entregas', '/delivery'] },
+  'campanas-recompra': { vive: ['Clientes', 'Campañas'], ir: ['Campañas', '/campanas'] },
+  'campanas-mensajes': { vive: ['Clientes', 'Campañas'], ir: ['Campañas', '/campanas'] },
+  publicidad: { vive: ['Finanzas', 'Publicidad'], ir: ['Publicidad', '/finanzas/publicidad'] },
+  comisiones: { vive: ['Finanzas', 'Comisiones'], ir: ['Comisiones', '/finanzas/comisiones'] },
+  cuotas: { vive: ['Finanzas', 'Créditos'], ir: ['Créditos', '/finanzas/creditos'] },
+  conciliacion: { vive: ['Finanzas', 'Conciliación'], ir: ['Conciliación', '/finanzas/conciliacion'] },
+  'gift-cards': { vive: ['Vender', 'Nueva venta'], ir: ['Vender', '/pos'] },
+  promociones: { vive: ['Clientes', 'Promociones'], ir: ['Promociones', '/promociones'] },
+  'listas-precios': { vive: ['Stock', 'Precios'], ir: ['Precios', '/precios'] },
+  comparador: { vive: ['Stock', 'Precios', 'Lista por modelo'], ir: ['Lista por modelo', '/celulares'] },
+  abastecimiento: { vive: ['Stock', 'Abastecimiento'], ir: ['Abastecimiento', '/abastecimiento'] },
+  multisucursal: { vive: ['Stock', 'Traslados'], ir: ['Traslados', '/stock/traslados'] },
+  'stock-avanzado': { vive: ['Stock', 'Control'], ir: ['Control', '/stock/conteos'] },
+  ops: { vive: ['Inicio', 'Operaciones'], ir: ['Operaciones', '/ops'] },
+  'ia-conectores': { vive: ['Inicio', 'Reportes', 'Asistente'], ir: ['Asistente', '/analisis/asistente'] },
+  'portal-clientes': { vive: ['Configuración', 'Negocio', 'Portal'] },
+  'verificacion-imei': { vive: ['Stock', 'Unidades'] },
+  'impresion-pro': { vive: ['Configuración', 'Impresión y documentos'] },
+}
+
+/** Ruta del menú donde vive el módulo («Stock › Unidades») o null. */
+export const viveEn = def => DESTINOS[def.id]?.vive?.join(' › ') || null
+
+/** `{ label, href }` del botón «Ir a …» o null si el módulo no tiene pantalla propia. */
+export function irA(def) {
+  const ir = DESTINOS[def.id]?.ir
+  return ir ? { label: ir[0], href: ir[1] } : null
+}
+
 // Qué incluye cada módulo, en lenguaje de producto.
 export const INCLUYE = {
   tradein: ['Cotizador de equipos usados', 'Equipo recibido como parte de pago', 'Pipeline de trade-in para el dueño'],

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { MODULE_CATALOG } from './modulos.js'
 import { nuevoModuleStore } from '../../backend/lib/modulos-catalogo.mjs'
 import { avisoModuloApagado, rutaPadreDeVista, textoModuloDesactivado } from './modulosAviso.js'
-import { FILTROS_MODULOS, INCLUYE, dependenciasFaltantes, dependientesActivos, filtrarModulos, grupoDeModulo, hrefConfigurar, modulosOpcionales } from './modulosPantalla.js'
+import { DESTINOS, FILTROS_MODULOS, GRUPOS_MODULOS, INCLUYE, agruparModulos, beneficiosDe, irA, viveEn, dependenciasFaltantes, dependientesActivos, filtrarModulos, grupoDeModulo, hrefConfigurar, modulosOpcionales } from './modulosPantalla.js'
 
 const nuevo = () => ({ state: nuevoModuleStore('2026-10-21T00:00:00.000Z') })
 const conActivos = (...ids) => { const f = nuevo(); for (const id of ids) f.state.modules[id] = { enabled: true }; return f }
@@ -72,4 +72,28 @@ test('Mayoristas: aparece en Ventas, nace apagado, se prende solo y explica su r
   assert.ok(filtrarModulos(conActivos('mayoristas'), 'activos').some(item => item.id === 'mayoristas'))
   assert.match(INCLUYE.mayoristas.join(' '), /Listas de precios/)
   assert.deepEqual(def.dependencies.slice().sort(), ['clientes', 'ventas'])
+})
+
+test('grilla: grupos en el orden del filtro, beneficios y destino de cada módulo', () => {
+  const opcionales = modulosOpcionales()
+  const grupos = agruparModulos(opcionales)
+  assert.deepEqual(grupos.map(grupo => grupo.id), GRUPOS_MODULOS.map(([id]) => id))
+  assert.equal(grupos.reduce((total, grupo) => total + grupo.modulos.length, 0), opcionales.length)
+  assert.deepEqual(agruparModulos(filtrarModulos(nuevo(), 'finanzas')).map(grupo => grupo.id), ['finanzas'])
+  for (const def of opcionales) {
+    const beneficios = beneficiosDe(def)
+    assert.ok(beneficios.length >= 1 && beneficios.length <= 3, `${def.id}: 1 a 3 beneficios`)
+    if (def.status === 'available') assert.ok(viveEn(def), `${def.id} sin «Vive en»`)
+  }
+  // Cada «Ir a» lleva a una ruta propia de la app.
+  for (const id of Object.keys(DESTINOS)) {
+    const def = MODULE_CATALOG.find(item => item.id === id)
+    assert.ok(def, `${id} no está en el catálogo`)
+    const destino = irA(def)
+    if (destino) {
+      assert.match(destino.href, /^\/[a-z]/, id)
+    }
+  }
+  assert.equal(viveEn(MODULE_CATALOG.find(def => def.id === 'delivery')), 'Pedidos › Entregas')
+  assert.deepEqual(irA(MODULE_CATALOG.find(def => def.id === 'delivery')), { label: 'Entregas', href: '/delivery' })
 })
