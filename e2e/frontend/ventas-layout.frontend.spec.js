@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
-import { openShellDestination } from '../helpers/shell-navigation.js'
+import { openShellDestination, shellSubmenuLateral } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
 import { entrarDemoComo } from '../helpers/demo.js'
 
@@ -144,7 +144,10 @@ test('Inicio → Operaciones mantiene el shell (header y navegación) sin recarg
   await expect(page).toHaveURL(/\/ops$/)
   await expect(page.getByTestId('ops-tablero')).toBeVisible()
   await expect(page.getByTestId('shell')).toBeVisible()
-  await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="resumen"]')).toBeVisible()
+  // Escritorio con el menú expandido: las páginas de Inicio van en el submenú lateral.
+  const inicio = await shellSubmenuLateral(page)
+  await expect(inicio.locator('[data-shell-sub="resumen"]')).toBeVisible()
+  await expect(inicio.locator('[data-shell-sub="ops"]')).toHaveAttribute('aria-current', 'true')
   await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="ops"]')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('shell-lateral')).toBeVisible()
   expect(await page.evaluate(() => window.__sinRecarga), 'no hubo recarga completa').toBe(true)
@@ -519,6 +522,9 @@ for (const dark of [false, true]) {
             interiores: [...el.querySelectorAll('[data-testid="catalogo-tabla"], [data-testid="servicio-tabla"]')].filter(visible).map(nodo => ({ ancho: nodo.clientWidth, contenido: nodo.scrollWidth })),
             pequenos: botones.filter(nodo => { const r = nodo.getBoundingClientRect(); return r.height < 43.9 || r.width < 43.9 }).map(nodo => nodo.getAttribute('aria-label') || nodo.textContent.trim() || nodo.title),
             primeraOrden: el.querySelector('[data-testid="servicio-fila"]')?.getBoundingClientRect().top,
+            // Selector «Ver taller o garantías» (siempre visible desde el submenú lateral):
+            // su fila más el espacio (space-y-4) se descuenta del presupuesto de controles.
+            selector: (() => { const fila = document.querySelector('[data-testid="servicio-garantias"] > div:first-child'); return fila ? fila.getBoundingClientRect().height + 16 : 0 })(),
           }
         })
         const etiqueta = `${ruta} ${width}px ${dark ? 'dark' : 'light'}`
@@ -526,7 +532,11 @@ for (const dark of [false, true]) {
         expect.soft(medidas.scroll, etiqueta).toBe(false)
         for (const caja of medidas.interiores) expect.soft(caja.contenido, etiqueta).toBeLessThanOrEqual(caja.ancho)
         if (width < 1024) expect.soft(medidas.pequenos, etiqueta).toEqual([])
-        if (ruta === '/servicio' && width < 640) expect.soft(medidas.primeraOrden, 'Primera orden accesible sin nueve filas de controles').toBeLessThanOrEqual(430)
+        if (ruta === '/servicio' && width < 640) {
+          // Una sola fila de selector de vista (≤ 56 px + 16 de separación) y después el mismo presupuesto de antes.
+          expect.soft(medidas.selector, 'selector de vista en una fila').toBeLessThanOrEqual(72)
+          expect.soft(medidas.primeraOrden - medidas.selector, 'Primera orden accesible sin nueve filas de controles').toBeLessThanOrEqual(430)
+        }
       }
     }
   })

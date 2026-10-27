@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
-import { shellPrimary } from '../helpers/shell-navigation.js'
+import { clickShellTab, shellPrimary } from '../helpers/shell-navigation.js'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
 import { entrarDemoComo } from '../helpers/demo.js'
 
@@ -172,8 +172,9 @@ test.describe('entrada a una sección', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
     const primary = await shellPrimary(page)
-    // Compras es un grupo de Stock: se llega por su pestaña y se vuelve a la primera.
-    await page.getByTestId('shell-contexto').locator('[data-tab-id="compras"]').click()
+    // Compras es un grupo de Stock: se llega por su pestaña (o su entrada del
+    // submenú lateral en escritorio) y se vuelve a la primera.
+    await clickShellTab(page, 'shell-contexto', 'compras')
     await expect(page).toHaveURL(/\/compras$/)
     await primary.getByRole('button', { name: 'Stock', exact: true }).click()
     await expect(page).toHaveURL(/\/stock\/unidades/)

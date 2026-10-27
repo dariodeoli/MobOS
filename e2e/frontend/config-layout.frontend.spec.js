@@ -143,7 +143,8 @@ test('Configuración is the last owner destination: visible, reachable by click,
   const primary = page
     .getByTestId('shell-lateral')
     .getByRole('navigation', { name: 'Navegación principal', exact: true })
-  const labels = await primary.getByRole('button').allTextContents()
+  // Solo las secciones: el chevrón del submenú (Finanzas despliega sus páginas) no es una sección.
+  const labels = await primary.locator('button:not([data-testid^="shell-desplegar-"])').allTextContents()
   expect(labels.at(-1)?.trim()).toBe('Configuración')
   expect(labels.at(-2)?.trim()).toBe('Finanzas')
   await primary.getByRole('button', { name: 'Configuración', exact: true }).click()

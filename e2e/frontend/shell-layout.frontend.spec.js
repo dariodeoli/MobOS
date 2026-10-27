@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { esperarAnimaciones } from '../helpers/animaciones.js'
-import { clickShellTab, openShellDestination } from '../helpers/shell-navigation.js'
+import { clickShellTab, openShellDestination, setShellCollapsed, shellSubmenuLateral } from '../helpers/shell-navigation.js'
 import { expectLayoutContract, measureLayout } from './helpers/layoutContract.js'
 import { entrarDemoComo } from '../helpers/demo.js'
 
@@ -89,7 +89,7 @@ for (const [role, screens] of Object.entries(ROLES)) {
   }
 }
 
-test('owner Stock: tabs end at y<=110 at 1440 and header chrome stays compact at 390', async ({
+test('owner Stock: submenu lateral at 1440, tabs end at y<=110 with the menu folded and header chrome stays compact at 390', async ({
   page,
 }) => {
   await mkdir(out, { recursive: true })
@@ -98,15 +98,31 @@ test('owner Stock: tabs end at y<=110 at 1440 and header chrome stays compact at
   await openShellDestination(page, 'Unidades')
   await settle(page)
   const tabs = page.getByTestId('shell-contexto')
-  const box = await tabs.boundingBox()
-  expect(box.y + box.height, 'tabs end').toBeLessThanOrEqual(110)
+  // Menú expandido: las páginas de la sección van en el acordeón lateral y la
+  // fila de pestañas del header no se repite.
+  await expect(tabs).toBeHidden()
+  const stock = await shellSubmenuLateral(page)
+  await expect(stock.locator('[data-shell-sub="unidades"]')).toHaveAttribute('aria-current', 'true')
   await page.screenshot({ path: `${out}/1440-owner-stock.png` })
-  for (const [name, screen] of [
+  const screens = [
     ['finanzas', 'Finanzas'],
     ['analisis', 'Análisis'],
     ['pedidos', 'Pedidos'],
     ['compras', 'Compras'],
-  ]) {
+  ]
+  for (const [name, screen] of screens) {
+    await openShellDestination(page, screen)
+    await settle(page)
+    await expect(page.getByTestId(name === 'finanzas' ? 'shell-pestanas' : 'shell-contexto')).toBeHidden()
+    await expect((await shellSubmenuLateral(page)).locator('[data-shell-sub][aria-current="true"]').first()).toBeVisible()
+  }
+  // Menú plegado: vuelven las pestañas del header, compactas.
+  await setShellCollapsed(page, true)
+  await openShellDestination(page, 'Unidades')
+  await settle(page)
+  const box = await tabs.boundingBox()
+  expect(box.y + box.height, 'tabs end').toBeLessThanOrEqual(110)
+  for (const [name, screen] of screens) {
     await openShellDestination(page, screen)
     await settle(page)
     const nav = page.getByTestId(name === 'finanzas' ? 'shell-pestanas' : 'shell-contexto')
@@ -133,6 +149,11 @@ test('aria-current marks the active tab on both levels and no select is used', a
   await expect(level1.locator('[data-tab-id="precios"]')).toHaveAttribute('aria-current', 'page')
   await expect(level2.locator('[aria-current="page"]')).toHaveCount(1)
   await expect(level2.locator('[data-tab-id="celulares"]')).toHaveAttribute('aria-current', 'page')
+  // El submenú lateral marca los mismos dos niveles.
+  const lateral = await shellSubmenuLateral(page)
+  await expect(lateral.locator('[data-shell-sub][aria-current="true"]')).toHaveCount(2)
+  await expect(lateral.locator('ul[aria-label^="Páginas de"] > li > [data-shell-sub="precios"]')).toHaveAttribute('aria-current', 'true')
+  await expect(lateral.locator('ul[aria-label^="Vistas de"] [data-shell-sub="celulares"]')).toHaveAttribute('aria-current', 'true')
   await expect(page).toHaveURL(/\/celulares$/)
   await clickShellTab(page, 'shell-subcontexto', 'comparador')
   await expect(page).toHaveURL(/\/comparador$/)
@@ -147,6 +168,8 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
   await enterDemo(page)
   // Larger text makes the seven Stock tabs wider than the row.
   await page.addStyleTag({ content: 'html { font-size: 20px; }' })
+  // La fila del header es la del menú plegado (expandido, va el submenú lateral).
+  await setShellCollapsed(page, true)
   await openShellDestination(page, 'Unidades')
   await settle(page)
   const tabs = page.getByTestId('shell-contexto')
@@ -341,8 +364,9 @@ for (const dark of [false, true]) {
         expect(Math.abs(h1.y + h1.height / 2 - (bb.y + bb.height / 2))).toBeLessThanOrEqual(12)
         await openShellDestination(page, 'Unidades')
         await settle(page)
-        const tabs = await page.getByTestId('shell-contexto').boundingBox()
-        expect(tabs.y + tabs.height, 'tabs end').toBeLessThanOrEqual(110)
+        // Menú expandido: las páginas de Stock van en el submenú lateral, no en el header.
+        await expect(page.getByTestId('shell-contexto')).toBeHidden()
+        await expect((await shellSubmenuLateral(page)).locator('[data-shell-sub="unidades"]')).toBeVisible()
         if (width === 1440 && !dark) await page.screenshot({ path: `${out}/header-1440.png`, clip: { x: 232, y: 0, width: 1208, height: 140 } })
       }
       // Esc closes both popovers and returns focus to the trigger.
