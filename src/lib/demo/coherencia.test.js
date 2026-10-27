@@ -184,6 +184,11 @@ test('#324 · precios demo: listas coherentes y escalones que bajan el precio', 
   assert.equal(porMayor.origin, 'TIER')
   assert.ok(porMayor.unitPricePyg < unitario.unitPricePyg, 'el escalón mejora el precio')
   assert.ok(porMayor.priceList?.name)
+  // Como el backend: en PYG el fallback es el mismo precio cotizado (mosaico y ticket coinciden).
+  assert.equal(porMayor.unitPricePygFallback, porMayor.unitPricePyg)
+  const cargador = pricingDemo({ productId: 'demo-cargador-usbc-20w', quantity: '1' }, productos)
+  assert.equal(cargador.unitPricePygFallback, cargador.unitPricePyg)
+  assert.ok(cargador.unitPricePyg <= 220000)
 })
 
 test('#324 · reportes demo: totales, grupos y comisiones salen de las mismas ventas', () => {
