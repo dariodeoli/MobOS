@@ -67,7 +67,7 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
 
 // #299 · Organización en secciones por tarea: cada una se abre con su tarea
 // clara y no se mezcla con el resto. El orden es el del uso cotidiano.
-const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', plan: 'card', peligro: 'alert' }
+const ORG_ICONOS = { datos: 'store', identidad: 'image', sucursales: 'building', fiscales: 'receipt', numeracion: 'list', politicas: 'shield', portal: 'globe', plan: 'card' }
 const ORG_SECCIONES = [
   ['datos', 'Datos generales'],
   ['identidad', 'Identidad visual'],
@@ -77,7 +77,6 @@ const ORG_SECCIONES = [
   ['politicas', 'Políticas'],
   ['portal', 'Portal de clientes'],
   ['plan', 'Plan y facturación'],
-  ['peligro', 'Zona de peligro'],
 ]
 
 export default function Config({ seccion = 'organizacion' } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, esDemo } = useSesion()
@@ -289,7 +288,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
       {seccion === 'organizacion' && (
         <div className="space-y-3" data-testid="organizacion-pantalla">
           <div data-testid="organizacion-secciones">
-            <Subtabs value={org} onChange={(next) => { setOrg(next); if (new URLSearchParams(location.search).has('org')) navigate(location.pathname, { replace: true }) }} items={pestanasConIconos(seccionesOrg, ORG_ICONOS, { peligro: 'peligro' })} ariaLabel="Secciones de Negocio" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
+            <Subtabs value={org} onChange={(next) => { setOrg(next); if (new URLSearchParams(location.search).has('org')) navigate(location.pathname, { replace: true }) }} items={pestanasConIconos(seccionesOrg, ORG_ICONOS)} ariaLabel="Secciones de Negocio" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
           </div>
           {org === 'datos' && (
             <General tenant={account?.tenant} onIrANumeracion={() => setOrg('numeracion')} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onTenantChange={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
@@ -361,7 +360,13 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
         </Card>}
           {org === 'politicas' && esDueno && <Politicas />}
-          {org === 'peligro' && <>
+        </div>
+      )}
+      {/* Zona de peligro: archivar o eliminar la empresa. Vive al final de
+          Mi cuenta, lejos de los ajustes de todos los días. */}
+      {seccion === 'peligro' && esDueno && (
+        <div className="space-y-3" data-testid="zona-peligro">
+        <h2 className="pt-2 text-xs font-semibold uppercase tracking-wider text-bad">Zona de peligro</h2>
         <Card data-config-anchor="peligro" className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
 
         {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
@@ -384,7 +389,6 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
             )}
           </form>
         )}
-          </>}
         </div>
       )}
       {seccion === 'comercial' && (

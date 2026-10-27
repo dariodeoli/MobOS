@@ -94,11 +94,12 @@ test('Configuración tiene nueve grupos y ninguno duplica contenido', async ({ p
   await page.getByTestId('sucursales-bloque').scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(DIR, 'ia-config-organizacion-sucursales.png') })
 
-  // Zona de peligro: el archivado de la empresa queda en un único lugar.
-  await org.getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Archivar tienda' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Archivar empresa' })).toHaveCount(1)
+  // Zona de peligro: el archivado de la empresa queda en un único lugar, al
+  // final de Mi cuenta (Negocio ya no la tiene).
+  await expect(org.getByRole('tab', { name: 'Zona de peligro', exact: true })).toHaveCount(0)
   await selectConfigSection(page, 'Mi cuenta')
+  await expect(page.getByRole('button', { name: 'Archivar tienda' })).toHaveCount(0)
+  await expect(page.getByTestId('zona-peligro').getByRole('button', { name: 'Archivar empresa' })).toHaveCount(1)
   await expect(page.getByText('Mi foto')).toHaveCount(1)
 })
 
@@ -189,7 +190,6 @@ test('Organización: capturas por bloque (#253/#299)', async ({ page }) => {
     ['Datos fiscales', 'Empresas/personas jurídicas (privado)', 'organizacion-legales'],
     ['Sucursales y depósitos', 'Tiendas', 'organizacion-tiendas-sucursales'],
     ['Numeración', 'Identificador de pedidos', 'organizacion-numeracion'],
-    ['Zona de peligro', 'Archivar empresa', 'organizacion-archivar'],
   ]
   for (const [tab, titulo, nombre] of bloques) {
     await org.getByRole('tab', { name: tab, exact: true }).click()

@@ -136,19 +136,22 @@ test('un vendedor no ve ajustes de administración en ⌘K, solo lo personal', a
   await expect(page).toHaveURL(/\/mi-cuenta/)
 })
 
-test('pestaña «Zona de peligro» en rojo y con íconos en las pestañas internas', async ({ page }) => {
+test('pestañas de Negocio con íconos y Zona de peligro en rojo al final de Mi cuenta', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
   await page.goto('/configuracion/negocio')
   const tabs = page.getByRole('tablist', { name: 'Secciones de Negocio' })
   for (const tab of await tabs.getByRole('tab').all()) await expect(tab.locator('svg')).toHaveCount(1)
-  const peligro = tabs.getByRole('tab', { name: 'Zona de peligro' })
-  const rojo = await peligro.evaluate(el => getComputedStyle(el).color)
-  const neutro = await tabs.getByRole('tab', { name: 'Numeración' }).evaluate(el => getComputedStyle(el).color)
-  expect(rojo).not.toBe(neutro)
-  const [r, g, b] = rojo.match(/\d+/g).map(Number)
+  await expect(tabs.getByRole('tab', { name: 'Zona de peligro' })).toHaveCount(0)
+  await page.goto('/configuracion/mi-cuenta')
+  const zona = page.getByTestId('zona-peligro')
+  await expect(zona).toBeVisible()
+  const titulo = zona.getByRole('heading', { name: 'Zona de peligro', exact: true })
+  const [r, g, b] = (await titulo.evaluate(el => getComputedStyle(el).color)).match(/\d+/g).map(Number)
   expect(r, 'rojo domina').toBeGreaterThan(g + 40)
   expect(r).toBeGreaterThan(b + 40)
+  // Es lo último de Mi cuenta: nada de la cuenta queda debajo.
+  expect(await zona.evaluate(el => !el.parentElement.nextElementSibling)).toBe(true)
 })
 
 test('celular 390: lista de secciones con íconos, sin scroll horizontal y con 44px', async ({ page }) => {
