@@ -11,6 +11,18 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.241 — 2026-10-27
+
+Primera publicación desde v1.0.240: incluye también todo lo anotado más abajo
+(venta sin stock, demo, app de iPhone y las secciones v1.0.241 a v1.0.243), que
+no había llegado a producción.
+
+- **Otros:** la app tiene un diseño nuevo en todas las pantallas y en la página de inicio: menú lateral oscuro, fondo gris claro y un solo color de acento. Las secciones del menú se abren y cierran como acordeón (Configuración queda igual).
+- **Ventas:** Vender es ahora un espacio de trabajo con el catálogo a la izquierda y el ticket a la derecha; «Nueva venta | Trade-In» está en la fila del título y «Cobrar» queda siempre a la vista.
+- **Ventas:** en la demo, el ticket cobra el mismo precio de lista que muestra el catálogo; en el celular los buscadores de Vender ya no hacen zoom en iPhone.
+- **Clientes · Inventario · Pedidos:** los menús «…» de las listas se ven y se pueden tocar también en la última fila.
+- **Otros:** la página de inicio tiene todos sus textos legibles y el menú lateral se puede desplazar cuando una sección tiene muchas opciones.
+
 ### Venta sin stock
 - Por comprar muestra cada venta sin stock paso a paso: comprar, cargar costo, pagar, recibir y avisar al cliente, con una sola acción por fila.
 - El costo cargado después llega a la venta original: la ganancia cuenta en la fecha de la venta.
