@@ -6,6 +6,7 @@
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
 import { PROVEEDORES_DEMO } from './demo/proveedores.js'
+import { SUCURSALES_DEMO } from './demo/empresa.js'
 import { guardarDemo, leerDemo } from './demoStorage.js'
 import { resumenInspection } from './phonecheck.js'
 import { formatGs } from '../utils/moneda.js'
@@ -14,11 +15,9 @@ const KEY = 'mobos:demo-inventory:v1'
 export const DEMO_BRANCH = 'mobos-demo-central'
 export const DEMO_BRANCH_2 = 'mobos-demo-villa-morra'
 
-const SUCURSALES = [
-  { id: DEMO_BRANCH, name: 'Casa Central', city: 'Asunción', isActive: true },
-  { id: DEMO_BRANCH_2, name: 'Sucursal Villa Morra', city: 'Asunción', isActive: true },
-  { id: 'mobos-demo-luque', name: 'Sucursal Luque', city: 'Luque', isActive: true },
-]
+// Una sola fuente para las sucursales de la demo: las de `empresa.js` (con
+// dirección, ciudad y contacto), que también ve Configuración → Sucursales.
+const SUCURSALES = SUCURSALES_DEMO.map(({ id, name, address, city, department, phone, instagram }) => ({ id, name, address, city, department, phone, instagram, isActive: true }))
 
 const UBICACIONES = [
   { id: 'demo-ubic-deposito-1', branchId: DEMO_BRANCH, name: 'Depósito 1', code: 'D1', color: '#60a5fa', icon: 'DEPOSITO', isActive: true },
@@ -362,6 +361,39 @@ export function saveDemoLocation(data = {}) {
 export function listDemoBranches() {
   const state = read()
   return state.branches.map(item => ({ ...item, _count: { inventoryUnits: activos(state).filter(u => u.branchId === item.id).length } }))
+}
+
+// Configuración → Sucursales en la demo: alta, edición y activación sobre la
+// misma lista que usa Inventario (una sucursal nueva aparece también en los
+// filtros de stock). Mismo contrato que `POST/PATCH /api/branches`.
+const textoSucursal = (valor, max) => {
+  const texto = String(valor ?? '').trim()
+  return texto ? texto.slice(0, max) : null
+}
+
+export function saveDemoBranch(data = {}) {
+  const state = read()
+  const nombre = data.name === undefined ? undefined : String(data.name ?? '').trim()
+  if (nombre !== undefined && !nombre) throw new Error('Completá el nombre de la sucursal.')
+  if (nombre && state.branches.some(item => item.id !== data.id && item.name.toLowerCase() === nombre.toLowerCase())) throw new Error('Ya existe una sucursal con ese nombre.')
+  const campos = {}
+  if (nombre !== undefined) campos.name = nombre.slice(0, 100)
+  for (const [clave, max] of [['address', 200], ['city', 100], ['department', 100], ['phone', 40], ['instagram', 60]]) {
+    if (data[clave] !== undefined) campos[clave] = textoSucursal(data[clave], max)
+  }
+  if (typeof data.isActive === 'boolean') campos.isActive = data.isActive
+  let sucursal
+  if (data.id) {
+    sucursal = state.branches.find(item => item.id === data.id)
+    if (!sucursal) throw new Error('La sucursal ya no está disponible.')
+    Object.assign(sucursal, campos)
+  } else {
+    if (!nombre) throw new Error('Completá el nombre de la sucursal.')
+    sucursal = { id: `demo-sucursal-${Date.now().toString(36)}${state.branches.length}`, address: null, city: null, department: null, phone: null, instagram: null, ...campos, isActive: true }
+    state.branches.push(sucursal)
+  }
+  write(state)
+  return { ...sucursal }
 }
 
 export function listDemoTransfers() {

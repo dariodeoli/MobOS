@@ -499,13 +499,17 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
 
-  // Sucursales explican que se administran con una cuenta real; Precios ya
-  // muestra listas ficticias auditables (#324).
+  // Las sucursales demo se listan y se operan en memoria (sin el cartel de
+  // «cuenta real»); Precios ya muestra listas ficticias auditables (#324).
   await page.goto('/configuracion/negocio')
   // #299: las sucursales viven en su propia sección de Organización.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
-  await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
+  const sucursales = page.getByTestId('sucursales-bloque')
+  await expect(sucursales.getByText('Casa Central', { exact: true })).toBeVisible()
+  await expect(sucursales.getByText('Sucursal Villa Morra', { exact: true })).toBeVisible()
+  await expect(page.getByText('Las sucursales se administran con una cuenta real')).toHaveCount(0)
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
+  await expect(page.getByTestId('tiendas-bloque').getByText('Actual', { exact: true })).toBeVisible()
   await page.goto('/configuracion/ventas-cobros')
   await expect(page.getByTestId('lista-precio-fila').first()).toBeVisible()
   await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toHaveCount(0)
