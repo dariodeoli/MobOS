@@ -36,7 +36,7 @@ const SECCIONES = [
 const DONDE_VIVE = [
   ['Mi cuenta (perfil, preferencias, sesiones)', 'mi-cuenta', /Tu perfil|Mi cuenta/],
   ['Datos de la tienda, sucursales, logo, numeración', 'negocio', /Datos de la tienda/],
-  ['Módulos activos y desactivados', 'modulos', /Activar|Desactivar/],
+  ['Módulos activos y desactivados', 'modulos', /módulos activos/],
   ['Equipo, invitaciones, roles, horarios', 'equipo', /Integrantes|Equipo/],
   ['Ventas y cobros (seguro de ventas, límites)', 'ventas-cobros', /Seguro de ventas/],
   ['Seguridad, sesiones y auditoría', 'seguridad', /Auditor|Historial|Seguridad/],
