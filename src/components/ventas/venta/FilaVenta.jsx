@@ -16,6 +16,7 @@ import { ROTULO_DATO } from '@/components/shared/tabla'
 import { TONOS } from '@/lib/estadoEquipo'
 import { cn } from '@/lib/utils'
 import IconoCategoria from '@/components/shared/IconoCategoria'
+import { Minus, Plus } from 'lucide-react'
 
 // Fila editable de la venta (#225, colapso máximo #243): la línea colapsada
 // muestra solo lo esencial — foto/ícono, nombre, estado del IMEI y total de la
@@ -128,23 +129,30 @@ export default function FilaVenta({
     else onQuitar()
   }
 
+  // Paso de cantidad en la misma línea: usa el mismo cambio que el campo
+  // «Cantidad» del detalle (nunca baja de 1; quitar es el tacho).
+  const cambiarCantidad = delta => onEditar({ quantity: Math.max(1, cantidad + delta) })
+
   return (
     <div
       data-estado={estadoFila}
-      className={cn('mobos-aparece border-l-2 px-3 py-2', ACENTO[estadoFila])}
+      className={cn('pos-linea mobos-aparece border-l-2 px-3 py-2', ACENTO[estadoFila])}
     >
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="pos-linea-fila flex flex-wrap items-center gap-2.5">
         {imagen ? (
-          <FotoProducto src={imagen} size={40} />
+          <FotoProducto src={imagen} size={40} className="pos-linea-foto" />
         ) : (
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
+          <span className="pos-linea-foto grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
             <IconoCategoria categoria={producto?.category || producto?.categoria || producto?.name || producto?.nombre || ''} className="h-5 w-5" />
           </span>
         )}
 
-        <div className="min-w-0 flex-1 basis-40">
+        <div className="pos-linea-nombre min-w-0 flex-1 basis-40">
           {/* Nombre completo en 2 líneas antes de cortar; los avisos van debajo. */}
           <b className="line-clamp-2 break-words text-sm leading-snug" title={item.nombre}>{item.nombre}</b>
+          {cantidad > 1 && (
+            <span className="pos-linea-unitario block font-mono text-[11px] tabular-nums text-mute">{cantidad} × {gs(precio)}</span>
+          )}
           {/* IMEI en línea con el nombre (se toca para elegir/cambiar), cupón y
               descuento de la línea: una sola fila compacta que envuelve. */}
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 whitespace-nowrap empty:hidden">
@@ -191,8 +199,33 @@ export default function FilaVenta({
           </div>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          <div className="text-right">
+        <div className="pos-linea-acciones ml-auto flex shrink-0 items-center gap-1">
+          <div role="group" aria-label={`Unidades de ${item.nombre}`} className="pos-linea-paso inline-flex items-center">
+            <button
+              type="button"
+              data-testid="linea-restar"
+              className="toque-44 grid h-11 w-11 place-items-center rounded-md text-mute transition hover:bg-ink-700 hover:text-fore disabled:opacity-40 md:h-7 md:w-7"
+              aria-label={`Restar uno a ${item.nombre}`}
+              title="Restar uno"
+              disabled={guardando || cantidad <= 1}
+              onClick={() => cambiarCantidad(-1)}
+            >
+              <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <span data-testid="linea-cantidad" className="min-w-6 text-center text-sm font-semibold tabular-nums">{cantidad}</span>
+            <button
+              type="button"
+              data-testid="linea-sumar"
+              className="toque-44 grid h-11 w-11 place-items-center rounded-md text-mute transition hover:bg-ink-700 hover:text-fore disabled:opacity-40 md:h-7 md:w-7"
+              aria-label={`Sumar uno a ${item.nombre}`}
+              title="Sumar uno"
+              disabled={guardando}
+              onClick={() => cambiarCantidad(1)}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="pos-linea-total text-right">
             <span className="pos-money-value v2-numero block whitespace-nowrap text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
           </div>
           <button
@@ -207,7 +240,7 @@ export default function FilaVenta({
           </button>
           <button
             type="button"
-            className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
+            className="pos-linea-quitar toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
             title="Eliminar línea"
             aria-label={`Eliminar ${item.nombre}`}
             disabled={guardando}

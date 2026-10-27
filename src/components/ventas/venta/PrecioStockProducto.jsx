@@ -8,7 +8,8 @@ function amount(info) {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 /** Quotes are for one unit; stock only describes rows in the permitted catalog. */
-export default function PrecioStockProducto({ productos = [], precios = {}, cargando = false, sucursal = null, sucursales = [], compacto = false, fila = false }) {
+/** `mosaico`: el mosaico del catálogo (precio grande, stock como punto y cifra, condición callada). */
+export default function PrecioStockProducto({ productos = [], precios = {}, cargando = false, sucursal = null, sucursales = [], compacto = false, fila = false, mosaico = false }) {
   const quotes = productos.map(product => precios[product.id])
   const complete = quotes.length > 0 && quotes.every(info => amount(info) !== null && ['PYG', 'USD'].includes(info?.currency) && ['TIER', 'LIST', 'WHOLESALE', 'RETAIL', 'USD'].includes(info.origin))
   const comparable = complete && new Set(quotes.map(info => info.currency)).size === 1
@@ -40,7 +41,7 @@ export default function PrecioStockProducto({ productos = [], precios = {}, carg
   const precio = (
     <span data-testid="pos-precio-aplicable" aria-busy={cargando} className="min-w-0 break-words">
       {cargando ? <span className="text-mute">Consultando precio…</span> : quote ? (
-        <b className="font-semibold tabular-nums text-fore">{productos.length > 1 ? 'Desde ' : ''}{quote.currency === 'USD' ? `USD ${amount(quote).toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : gs(amount(quote))}</b>
+        <b className="font-semibold tabular-nums text-fore">{productos.length > 1 ? <span className="pos-precio-desde">Desde </span> : ''}{quote.currency === 'USD' ? `USD ${amount(quote).toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : gs(amount(quote))}</b>
       ) : <span className="text-mute">{complete ? 'Precio según variante' : 'Precio no disponible'}</span>}
     </span>
   )
@@ -50,6 +51,32 @@ export default function PrecioStockProducto({ productos = [], precios = {}, carg
     </span>
   )
   const stockCondicion = textoCondicion ? <span data-testid="pos-stock-condicion" className="tabular-nums text-mute">{textoCondicion}</span> : null
+  if (mosaico) {
+    // Mismos datos y textos que la lista (los lee el resto de la app); solo
+    // cambia el peso: el precio manda, el stock es un punto con su cifra y la
+    // sucursal se nombra solo cuando hay más de una.
+    const propia = rows[0]?.[1]
+    const nivel = !propia || propia.stock === null ? 'sin-dato' : propia.stock === 0 ? 'agotado' : propia.stock <= 3 ? 'bajo' : 'ok'
+    const variasSucursales = rows.length > 1
+    const condicionCallada = condiciones.length === 1 ? (CONDICION[condiciones[0]] || condiciones[0]) : textoCondicion
+    return (
+      <span className="pos-tile-datos flex min-w-0 flex-col">
+        {precio}
+        <span className="pos-tile-meta flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+          <span aria-hidden="true" className="pos-stock-punto" data-nivel={nivel} />
+          <span data-testid="pos-stock-por-sucursal" className="inline-flex min-w-0 flex-wrap gap-x-2 text-mute">
+            {rows.map(([id, row]) => (
+              <span key={id} className={`break-words tabular-nums ${id === sucursal?.id ? 'font-semibold text-fore' : ''}`}>
+                <span className={variasSucursales ? undefined : 'sr-only'}>{row.name}: </span>
+                {row.stock === null ? 'Sin dato' : row.stock === 0 ? 'Agotado' : row.stock}
+              </span>
+            ))}
+          </span>
+          {textoCondicion && <span data-testid="pos-stock-condicion" className="pos-tile-condicion tabular-nums">{condicionCallada}</span>}
+        </span>
+      </span>
+    )
+  }
   // Una sola forma para cuadrícula y lista; la lista la reparte en una línea.
   return (
     <span className={cn('flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0 text-xs', !fila && !compacto && 'col-span-2')}>

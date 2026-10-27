@@ -998,6 +998,7 @@ export default function PanelVendedor() {
         onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
         onHelp={() => setAyudaAbierto(true)}
+        tabsEnTitulo={!subpadre && vista === 'cargar'}
         pageTabs={
           esOwner && (subpadre === 'finanzas' || subpadre === 'analisis')
             ? {

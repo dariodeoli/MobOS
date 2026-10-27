@@ -243,7 +243,7 @@ test('divisor arrastrable: cambia el reparto catálogo/venta y se recuerda', asy
   const d = await page.getByTestId('pos-divisor').boundingBox()
   await page.mouse.move(d.x + d.width / 2, d.y + d.height / 2)
   await page.mouse.down()
-  // El ticket de 460 px es el reparto por defecto: se arrastra hacia la izquierda para ensancharlo.
+  // El ticket de 440 px es el reparto por defecto: se arrastra hacia la izquierda para ensancharlo.
   await page.mouse.move(d.x - 120, d.y + d.height / 2, { steps: 6 })
   await page.mouse.up()
   const despues = (await page.getByTestId('pos-bloque-productos').boundingBox()).width

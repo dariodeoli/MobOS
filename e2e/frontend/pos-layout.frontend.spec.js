@@ -125,9 +125,9 @@ for (const width of [1280, 1440, 1920]) {
     expect(productos.x + productos.width).toBeLessThanOrEqual(columna.x + 1)
     expect(Math.abs(cliente.x - carrito.x)).toBeLessThan(2)
     expect(cliente.y + cliente.height).toBeLessThanOrEqual(carrito.y + 1)
-    // Ticket de ancho fijo (el carrito es el área principal): 460 px desde 1280,
-    // 500 px desde 1600, algo menos en pantallas más chicas.
-    if (width >= 1280) expect(Math.abs(columna.width - (width >= 1600 ? 500 : 460))).toBeLessThanOrEqual(2)
+    // Rediseño total: ticket de ancho fijo de 440 px desde 1280 y 480 px desde
+    // 1600 (400 px más abajo); el catálogo se lleva el resto.
+    if (width >= 1280) expect(Math.abs(columna.width - (width >= 1600 ? 480 : 440))).toBeLessThanOrEqual(2)
     // Scroll de PÁGINA (sin scroll interno): ni el catálogo ni el ticket encierran su contenido
     // en una ventana propia, y el ticket queda pegado arriba mientras se desliza el catálogo.
     const interno = await page.evaluate(() => ['pos-bloque-productos', 'pos-columna-venta', 'pos-carrito-cuerpo'].map(id => {
@@ -168,7 +168,7 @@ test('POS 375px sin scroll horizontal', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
 })
 
-test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y una sola franja de acciones', async ({ page }) => {
+test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y las acciones en la fila del ticket', async ({ page }) => {
   await mkdir(out, { recursive: true })
   await enterPos(page, 1440, 900)
   const cards = page.locator('.pos-product-card')
@@ -176,11 +176,17 @@ test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y una sola fr
   const boxes = await cards.evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return { y: r.y, b: r.bottom, h: r.height, w: r.width } }))
   expect(boxes.filter(b => b.b <= 900).length).toBeGreaterThanOrEqual(12)
   for (const b of boxes) expect(b.h).toBeGreaterThanOrEqual(44)
-  // Las acciones (Ventas suspendidas · Gift cards) viven en el encabezado de Productos, no en una franja aparte.
-  const head = await page.getByTestId('pos-bloque-productos').boundingBox()
+  // Rediseño total: las acciones secundarias (Ventas suspendidas · Gift cards…)
+  // son una fila de íconos del ticket, sobre el resumen y el Total.
+  const ticket = await page.getByTestId('pos-columna-venta').boundingBox()
   const mas = await page.getByTestId('pos-suspendidas').boundingBox()
-  expect(mas.y).toBeGreaterThanOrEqual(head.y)
-  expect(mas.y + mas.height).toBeLessThanOrEqual(head.y + 70)
+  const gift = await page.getByTestId('pos-gift-cards').boundingBox()
+  const total = await page.getByTestId('carrito-total').boundingBox()
+  expect(mas.x).toBeGreaterThanOrEqual(ticket.x)
+  expect(mas.x + mas.width).toBeLessThanOrEqual(ticket.x + ticket.width)
+  expect(Math.abs(mas.y - gift.y), 'una sola fila de acciones').toBeLessThan(4)
+  expect(mas.y + mas.height).toBeLessThanOrEqual(total.y)
+  expect(mas.height).toBeGreaterThanOrEqual(36)
   await page.screenshot({ path: `${out}/1440-pos-light.png` })
 })
 
@@ -269,17 +275,17 @@ async function elegirClienteDemo(page, texto = 'Luc') {
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
 }
 
-test('escritorio 1440: catálogo flexible, ticket de 460 px y primer contenido arriba', async ({ page }) => {
+test('escritorio 1440: catálogo flexible, ticket de 440 px y primer contenido arriba', async ({ page }) => {
   await mkdir(out, { recursive: true })
   await enterPos(page, 1440, 900, false, true, 0, false)
   const izq = await page.getByTestId('pos-bloque-productos').boundingBox()
   const der = await page.getByTestId('pos-columna-venta').boundingBox()
-  expect(Math.abs(der.width - 460), `ticket ${der.width}`).toBeLessThanOrEqual(2)
+  expect(Math.abs(der.width - 440), `ticket ${der.width}`).toBeLessThanOrEqual(2)
   expect(izq.width).toBeGreaterThan(der.width)
   expect(Math.min(izq.y, der.y)).toBeLessThanOrEqual(132)
   const columnas = await page.locator('.pos-product-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
   expect(columnas).toBeGreaterThanOrEqual(3)
-  // 1024-1280: el ticket cede ancho (360 px) y Productos lleva más.
+  // 1024-1280: el ticket cede ancho (400 px) y Productos lleva más.
   await page.setViewportSize({ width: 1100, height: 900 })
   const p2 = await page.getByTestId('pos-bloque-productos').boundingBox()
   const c2 = await page.getByTestId('pos-bloque-carrito').boundingBox()
@@ -411,14 +417,17 @@ for (const width of [320, 390, 1440]) for (const dark of [false, true]) {
 
 // ── POS con espacio (22-10-2026): catálogo a todo el alto, lista/cuadrícula, «Nuevo producto» en
 // la cabecera con X roja, nada suelto en una fila y Paso 2 con «Volver» y «Nueva venta».
-test('vista Lista/Cuadrícula del catálogo: filas compactas, persiste y «Nuevo producto» va en la cabecera', async ({ page }) => {
+test('vista Lista/Cuadrícula del catálogo: filas compactas, persiste y «Nuevo producto» va en la barra de búsqueda', async ({ page }) => {
   await enterPos(page, 1440, 900)
   const bloque = page.getByTestId('pos-bloque-productos')
   const nuevo = bloque.getByTestId('pos-nuevo-producto')
   await expect(nuevo).toBeVisible()
-  const titulo = await bloque.getByRole('heading', { name: 'Productos', exact: true }).boundingBox()
+  // Rediseño total: sin título visible «Productos»; «Nuevo producto» comparte la
+  // fila de la barra de búsqueda (comando).
+  const buscar = await page.locator('#pos-busqueda-producto input').boundingBox()
   const nb = await nuevo.boundingBox()
-  expect(Math.abs((nb.y + nb.height / 2) - (titulo.y + titulo.height / 2)), 'Nuevo producto en la fila del título').toBeLessThan(30)
+  expect(Math.abs((nb.y + nb.height / 2) - (buscar.y + buscar.height / 2)), 'Nuevo producto en la fila de la búsqueda').toBeLessThan(8)
+  expect(nb.x).toBeGreaterThan(buscar.x + buscar.width - 1)
   // El selector de vista comparte fila con los chips: ningún control solo.
   const vista = await page.getByTestId('pos-vista-catalogo').boundingBox()
   const chips = await page.getByTestId('pos-chips-accesorio').boundingBox()
