@@ -305,7 +305,8 @@ html.dark .shell-nav-v2 .pos-f2 .pos-cliente input[aria-label='Nombre, teléfono
 
 /* Líneas: nombre y total arriba; IMEI/precio y el paso de cantidad abajo. */
 .pos-tk-lineas > .pos-linea {
-  padding: 10px 20px 10px 18px;
+  /* 8px arriba/abajo: la línea de dos renglones queda en ≤70px (densidad #249). */
+  padding: 8px 20px 8px 18px;
 }
 .pos-tk-lineas.divide-y > :not([hidden]) ~ :not([hidden]) {
   border-top-style: dashed;
