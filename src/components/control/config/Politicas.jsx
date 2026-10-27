@@ -15,9 +15,18 @@ import { mensajeErrorPoliticas } from '@/lib/politicasUx'
 // ventana con plantilla inicial, contador y publicar/borrador. Solo el dueño
 // llega acá (el servidor lo vuelve a exigir en cada llamada).
 // Demo (#192): ninguna llamada sale al API real; las políticas viven solo en este navegador.
+// Arranca con una mezcla realista: garantía, envíos y contacto publicadas,
+// términos en borrador, y cambios/privacidad sin texto para probar la plantilla.
+const POLITICAS_DEMO_PUBLICADAS = { garantia: 9, envios: 9, contacto: 20 }
+const POLITICAS_DEMO_BORRADOR = ['terminos']
+function politicaInicialDemo(tipo) {
+  if (tipo in POLITICAS_DEMO_PUBLICADAS) return { content: plantillaPolitica(tipo), published: true, updatedAt: new Date(Date.now() - POLITICAS_DEMO_PUBLICADAS[tipo] * 86_400_000).toISOString() }
+  if (POLITICAS_DEMO_BORRADOR.includes(tipo)) return { content: plantillaPolitica(tipo), published: false, updatedAt: new Date(Date.now() - 2 * 86_400_000).toISOString() }
+  return { content: '', published: false, updatedAt: null }
+}
 let demoPoliticas = null
 const politicasDemo = () => {
-  if (!demoPoliticas) demoPoliticas = { slug: 'tienda-demo', policies: POLITICAS.map(({ tipo, etiqueta }) => ({ type: tipo, label: etiqueta, content: '', published: false, updatedAt: null })) }
+  if (!demoPoliticas) demoPoliticas = { slug: 'tienda-demo', policies: POLITICAS.map(({ tipo, etiqueta }) => ({ type: tipo, label: etiqueta, ...politicaInicialDemo(tipo) })) }
   return demoPoliticas
 }
 
