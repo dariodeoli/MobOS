@@ -115,6 +115,10 @@ export async function measureLayout(page) {
           const b = boxes[j]
           if (a.el.contains(b.el) || b.el.contains(a.el)) continue
           if (a.pinned !== b.pinned) continue
+          // Adorno del campo (p. ej. «Mostrar contraseña» dentro del input): el
+          // botón vive dentro del contenedor del input y el solape es intencional.
+          const [campo, otro] = a.el.tagName === 'INPUT' ? [a.el, b.el] : [b.el, a.el]
+          if (campo.tagName === 'INPUT' && otro.tagName === 'BUTTON' && campo.parentElement?.contains(otro)) continue
           const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.x, b.r.x)
           const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.y, b.r.y)
           if (w > 1 && h > 1)

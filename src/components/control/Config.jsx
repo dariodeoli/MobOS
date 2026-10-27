@@ -382,8 +382,8 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
             {account?.reauthValidUntil ? (
               <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>
             ) : (
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 sm:w-56" />
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                <PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" />
                 <Button type="submit" disabled={busy || !password}>Verificar contraseña</Button>
               </div>
             )}
