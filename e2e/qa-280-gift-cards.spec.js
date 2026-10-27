@@ -133,9 +133,16 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await cerrarGuiaDemo(page)
 
-  // Producto del catálogo demo con el precio exacto de la gift card emitida.
+  // Producto del catálogo demo con el precio exacto de la gift card emitida: el
+  // ticket demo cobra el precio que resuelve la lista de precios (el del mosaico).
   const productoDemo = 'Funda Silicona Negra'
-  const precioDemo = 150000
+  const precioDemo = await page.evaluate(async (nombre) => {
+    const { getProductos } = await import('/src/lib/storage.js')
+    const { pricingDemo } = await import('/src/lib/demo/precios.js')
+    const productos = getProductos()
+    const producto = productos.find((row) => row.nombre === nombre)
+    return Number(pricingDemo({ productId: producto.id, quantity: '1' }, productos)?.unitPricePyg || producto.precioVenta)
+  }, productoDemo)
   const codigo = await emitirDesdePos(page, precioDemo)
   expect(codigo).toMatch(/^GC-/)
   await captura(page, 'gift-cards-demo-emision')
@@ -149,7 +156,7 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
   await page.getByTestId('codigo-celda-0').fill(codigo)
   await page.getByRole('button', { name: 'Consultar saldo' }).click()
-  await expect(page.getByText(/Saldo disponible: Gs 150\.000/)).toBeVisible()
+  await expect(page.getByText(`Saldo disponible: Gs ${new Intl.NumberFormat('es-PY').format(precioDemo)}`)).toBeVisible()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page).toHaveURL(/\/pedidos\//, { timeout: 15_000 })
 

@@ -65,25 +65,39 @@ async function reportValues(page) {
   return { sold: await parse('Total del período'), collected: await parse('Cobrado') }
 }
 const line = { key: 'qa-funda', productoId: 'demo-funda-magsafe-transparente', nombre: 'Funda MagSafe Transparente', quantity: 1, precio: 180000 }
+// El ticket demo cobra el precio que resuelve la lista de precios (el mismo del
+// mosaico del catálogo): el oráculo parte de ese precio unitario, no del base.
+async function precioLista(page, productId) {
+  return page.evaluate(async productId => {
+    const { getProductos } = await import('/src/lib/storage.js')
+    const { pricingDemo } = await import('/src/lib/demo/precios.js')
+    const productos = getProductos()
+    const resuelto = pricingDemo({ productId, quantity: '1' }, productos)
+    return Number(resuelto?.unitPricePyg || productos.find(row => row.id === productId)?.precioVenta)
+  }, productId)
+}
 const pay = (accountId, n) => ({ medioPago: 'x', cuenta: 'x', accountId, originalAmount: String(n), exchangeRatePyg: '', monto: String(n) })
 
 test('461-1 dos artículos, dos medios parciales, saldo, CRM, caja y reportes con oráculo fijo', async ({ page }) => {
   const clean = await enter(page)
   const reportBefore = await reportValues(page)
   const cashBefore = await cashValue(page)
-  await cart(page, [{ ...line }, { key: 'qa-telefono', productoId: 'demo-iphone-15-128-azul', nombre: 'iPhone 15 128GB Azul', quantity: 1, precio: 4850000, requiereSerie: true }], [pay('demo-cash-pyg', 300000), pay('demo-transfer-itau', 700000)])
-  // Oráculo externo al producto: 180000 + 4850000 = 5030000;
-  // 300000 + 700000 = 1000000, restante4030000; efectivo final4330000.
-  await expect(page.getByTestId('carrito-total')).toContainText('5.030.000')
+  const funda = await precioLista(page, line.productoId)
+  const telefono = await precioLista(page, 'demo-iphone-15-128-azul')
+  await cart(page, [{ ...line, precio: funda }, { key: 'qa-telefono', productoId: 'demo-iphone-15-128-azul', nombre: 'iPhone 15 128GB Azul', quantity: 1, precio: telefono, requiereSerie: true }], [pay('demo-cash-pyg', 300000), pay('demo-transfer-itau', 700000)])
+  // Oráculo: total = funda + teléfono (precios de lista); pagos 300000 + 700000
+  // = 1000000; el saldo se cobra en efectivo (caja suma 300000 + saldo).
+  const total = funda + telefono, restante = total - 1000000
+  await expect(page.getByTestId('carrito-total')).toContainText(gs(total))
   await finish(page)
   const summary = page.getByTestId('pedido-totales-f3')
-  for (const n of [5030000, 1000000, 4030000]) await expect(summary).toContainText(gs(n))
+  for (const n of [total, 1000000, restante]) await expect(summary).toContainText(gs(n))
   const sale = await page.evaluate(async () => (await import('/src/lib/storage.js')).listVentas().find(row => row.items?.some(item => item.description === 'Funda MagSafe Transparente') && row.items?.some(item => item.description === 'iPhone 15 128GB Azul')))
   expect(sale.pagos.map(row => Number(row.monto)).sort((a, b) => a-b)).toEqual([300000, 700000])
   await page.getByTestId('pedido-cobrar').click()
   const modal = page.getByRole('dialog').filter({ hasText: /^Pagos ·/ })
   await modal.getByLabel('Cuenta de destino').selectOption('demo-cash-pyg')
-  await modal.getByLabel('Monto del pago').fill('4030000')
+  await modal.getByLabel('Monto del pago').fill(String(restante))
   await modal.getByRole('button', { name: 'Registrar pago' }).click()
   await expect(modal.getByTestId('pago-aviso')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -95,14 +109,14 @@ test('461-1 dos artículos, dos medios parciales, saldo, CRM, caja y reportes co
     return { rows: (await import('/src/lib/storage.js')).listVentas().filter(row => row.orderNumber === sale.orderNumber).length, price: sale.precio, payments: sale.pagos.map(row => ({ amount: Number(row.monto), method: row.medioPago, accountId: row.accountId })), crm, sale }
   }, sale.id)
   expect(ledger.rows).toBe(1)
-  expect(ledger.payments.reduce((sum, row) => sum + row.amount, 0)).toBe(5030000)
+  expect(ledger.payments.reduce((sum, row) => sum + row.amount, 0)).toBe(total)
   expect(ledger.crm.pendingPyg).toBe(0)
-  expect(ledger.crm.collectedPyg).toBe(5030000)
+  expect(ledger.crm.collectedPyg).toBe(total)
   const cashAfter = await cashValue(page)
-  expect(cashAfter-cashBefore).toBe(4330000)
+  expect(cashAfter-cashBefore).toBe(300000 + restante)
   const reportAfter = await reportValues(page)
-  expect(reportAfter.sold-reportBefore.sold).toBe(5030000)
-  expect(reportAfter.collected-reportBefore.collected).toBe(5030000)
+  expect(reportAfter.sold-reportBefore.sold).toBe(total)
+  expect(reportAfter.collected-reportBefore.collected).toBe(total)
   console.log('QA461-1', JSON.stringify({ cashBefore, cashAfter, delta: cashAfter-cashBefore, payments: ledger.payments, crm: { collectedPyg: ledger.crm.collectedPyg, pendingPyg: ledger.crm.pendingPyg }, reportBefore, reportAfter }))
   clean()
 })
@@ -141,23 +155,27 @@ test('461-2 cotización convierte una vez con número único y total igual a sus
 
 test('461-3 residuo USD se completa en Gs y pedido sin saldo fantasma', async ({ page }) => {
   const clean = await enter(page)
-  await cart(page, [{ ...line }])
+  const total = await precioLista(page, line.productoId)
+  // USD que deja un residuo chico en Gs: centavos enteros a 7300 Gs/USD.
+  const centavos = Math.floor(total * 100 / 7300), enGs = centavos * 73, residuo = total - enGs
+  expect(residuo, 'el caso necesita un residuo en Gs').toBeGreaterThan(0)
+  await cart(page, [{ ...line, precio: total }])
   await page.getByTestId('pos-cobro').getByRole('button', { name: '+ Agregar pago', exact: true }).click()
   const row = page.getByTestId('pago-fila-0')
   await row.getByLabel('Cuenta de cobro').click()
   await page.getByRole('listbox', { name: 'Cuentas de cobro' }).getByRole('option', { name: /Caja.*Dólares/ }).first().click()
-  await row.getByLabel('Monto original').fill('24,65')
+  await row.getByLabel('Monto original').fill(`${Math.floor(centavos / 100)},${String(centavos % 100).padStart(2, '0')}`)
   await row.getByLabel(/^Cotización manual USD/).fill('7300')
-  // 2465centavos×7300/100 =179945Gs. Resto55, sin usar helper de producto.
-  await expect(page.getByTestId('cobro-pendiente')).toContainText('55')
+  // centavos×7300/100 = enGs; el resto (residuo) se completa en Gs.
+  await expect(page.getByTestId('cobro-pendiente')).toContainText(gs(residuo))
   await page.getByTestId('cobro-completar-gs').click()
   await expect(page.getByTestId('cobro-pendiente')).toContainText('Gs 0')
   await finish(page)
   await expect(page.getByTestId('pedido-cobrar')).toHaveCount(0)
   const payment = await page.evaluate(async () => (await import('/src/lib/storage.js')).listVentas()[0])
-  expect(payment.totalPyg).toBe(180000)
+  expect(payment.totalPyg).toBe(total)
   expect(payment.totalPendiente).toBe(0)
-  expect(payment.pagos.map(row => Number(row.monto))).toEqual([179945, 55])
+  expect(payment.pagos.map(row => Number(row.monto))).toEqual([enGs, residuo])
   console.log('QA461-3', JSON.stringify({ total: payment.totalPyg, pending: payment.totalPendiente, payments: payment.pagos.map(row => ({ amount: row.monto, currency: row.currency, original: row.originalAmount })) }))
   clean()
 })
