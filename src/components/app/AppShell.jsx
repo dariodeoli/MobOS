@@ -341,7 +341,7 @@ export default function AppShell({
         // que sus páginas (que van en gris, más chicas y con sangría).
         'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-[14px] font-semibold text-fore/80 hover:bg-ink-700 hover:text-fore',
         collapsed ? 'w-11 justify-center px-0' : 'lg:min-h-9',
-        conDesplegable && 'w-full pr-10',
+        conDesplegable && 'min-w-0 flex-1',
         currentId === section.id && 'bg-ink-700 text-fore',
       ),
       children: !collapsed && section.label,
@@ -407,7 +407,9 @@ export default function AppShell({
     const panelId = `shell-submenu-${section.id}`
     return (
       <div key={section.id} data-shell-acordeon={section.id} className="flex shrink-0 flex-col">
-        <div className="relative flex">
+        {/* Fila y chevrón lado a lado (sin superponerse): el fondo de la sección
+            activa va en la fila contenedora para que se lea como un solo bloque. */}
+        <div className={cn('flex items-center rounded-lg', currentId === section.id && 'bg-ink-700')}>
           {botonLateral(section, { conDesplegable: true })}
           <button
             type="button"
@@ -417,7 +419,7 @@ export default function AppShell({
             aria-expanded={abierta}
             aria-controls={abierta ? panelId : undefined}
             onClick={() => alternarSeccion(section.id)}
-            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-mute hover:bg-ink-700 hover:text-fore"
+            className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-mute hover:bg-ink-700 hover:text-fore"
           >
             <Icon name="chevron" className={cn('h-3.5 w-3.5 transition-transform motion-reduce:transition-none', !abierta && '-rotate-90')} />
           </button>
