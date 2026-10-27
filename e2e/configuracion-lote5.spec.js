@@ -103,7 +103,7 @@ test.describe('Configuración Lote 5', () => {
     for (const fila of [asistentesFila, facturacionFila]) {
       await expect(fila).toHaveAttribute('data-estado', 'proximamente')
       await expect(fila).toContainText('Próximamente')
-      await expect(fila.getByRole('button', { name: /^(Activar|Desactivar) / })).toHaveCount(0)
+      await expect(fila.getByRole('switch')).toHaveCount(0)
     }
     await expect(page.getByTestId('modulos-pantalla')).not.toContainText('Solo catálogo')
     await imeiFila.getByRole('button', { name: 'Verificación de IMEI: ver detalle', exact: true }).click()

@@ -7,7 +7,8 @@ import { entrarDemoComo } from '../helpers/demo.js'
 
 // Módulos: un módulo apagado desaparece del menú y su URL vuelve a la vista padre
 // con aviso; la pantalla «Módulos» (lista tipo tienda de apps) se maneja con
-// teclado y se ve bien a 375 px en claro y oscuro. Frontend solo: la API es un
+// teclado y se ve bien a 375 px en claro y oscuro. Cada módulo es una tarjeta
+// con un interruptor (role=switch) cuyo nombre accesible es el del módulo. Frontend solo: la API es un
 // doble local con el mismo contrato que /api/tenant/modules.
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-modulos'
 
@@ -66,6 +67,8 @@ async function entrarDemo(page, rol = 'Dueño') {
 
 const sinScrollHorizontal = page => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)
 const aviso = page => page.getByTestId('aviso-modulo-apagado')
+const interruptor = (page, nombre) => page.getByRole('switch', { name: nombre, exact: true })
+const tarjetas = page => page.getByTestId('modulos-lista').locator('[data-testid^="modulo-fila-"]')
 
 test('módulo apagado: no está en el menú y la URL vuelve a la vista padre con aviso y enlace a Módulos', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -139,25 +142,30 @@ test('pantalla Módulos: activar y desactivar con confirmación, Esc, detalle po
   for (const interno of ['Solo catálogo', 'Control pendiente', 'Catálogo v', 'Preset'])
     await expect(page.getByTestId('modulos-pantalla')).not.toContainText(interno)
 
-  // Activar: sin confirmación, guarda y la fila pasa a Activo.
-  await page.getByRole('button', { name: 'Activar Delivery externo', exact: true }).click()
+  // Activar: sin confirmación, guarda y la tarjeta pasa a Activo con «Ir a Entregas».
+  await expect(interruptor(page, 'Delivery externo')).not.toBeChecked()
+  await interruptor(page, 'Delivery externo').click()
   await expect(page.getByTestId('modulo-fila-delivery')).toHaveAttribute('data-estado', 'activo')
+  await expect(interruptor(page, 'Delivery externo')).toBeChecked()
+  await expect(page.getByTestId('modulo-fila-delivery').getByRole('link', { name: /Ir a Entregas/ })).toHaveAttribute('href', '/delivery')
   expect(cambios).toEqual([{ moduleId: 'delivery', enabled: true }])
 
-  // Desactivar pide confirmación: Esc la cierra sin guardar.
-  await page.getByRole('button', { name: 'Desactivar Trade-In', exact: true }).click()
+  // Desactivar pide confirmación: Esc la cierra sin guardar y el interruptor sigue prendido.
+  await interruptor(page, 'Trade-In').click()
   const confirmar = page.getByRole('alertdialog')
   await expect(confirmar).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(confirmar).toHaveCount(0)
+  await expect(interruptor(page, 'Trade-In')).toBeChecked()
   expect(cambios).toHaveLength(1)
-  // Confirmar con saldos abiertos: el 409 se muestra con texto claro y la fila no cambia.
-  await page.getByRole('button', { name: 'Desactivar Trade-In', exact: true }).click()
+  // Confirmar con saldos abiertos: el 409 se muestra con texto claro y la tarjeta no cambia.
+  await interruptor(page, 'Trade-In').click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Desactivar', exact: true }).click()
   const error = page.getByTestId('modulos-error')
   await expect(error).toContainText('No se pudo desactivar Trade-In.')
   await expect(error).toContainText('2 trade-ins en curso')
   await expect(page.getByTestId('modulo-fila-tradein')).toHaveAttribute('data-estado', 'activo')
+  await expect(interruptor(page, 'Trade-In')).toBeChecked()
 
   // Teclado: el nombre abre el detalle (qué incluye, dependencias, qué pasa al desactivar) y Esc lo cierra.
   const abrir = page.getByRole('button', { name: 'Taller y servicios: ver detalle', exact: true })
@@ -170,9 +178,15 @@ test('pantalla Módulos: activar y desactivar con confirmación, Esc, detalle po
   await expect(detalle).toHaveCount(0)
   await expect(abrir).toBeFocused()
 
+  // Grilla agrupada por área, cada tarjeta con su ilustración de ejemplo.
+  for (const grupo of ['Ventas', 'Stock', 'Finanzas', 'Clientes', 'Integraciones'])
+    await expect(page.getByTestId('modulos-lista').getByRole('heading', { level: 2, name: new RegExp(`^${grupo}`) })).toBeVisible()
+  await expect(page.getByTestId('modulo-fila-delivery')).toContainText('Ilustración de ejemplo: los datos no son reales.')
+  await expect(page.getByTestId('modulo-fila-delivery')).toContainText('Vive en: Pedidos › Entregas')
+
   // Filtros: Activos y un grupo.
   await page.getByRole('tab', { name: 'Finanzas', exact: true }).click()
-  await expect(page.getByTestId('modulos-lista').getByRole('listitem')).toHaveCount(3)
+  await expect(tarjetas(page)).toHaveCount(3)
   await page.getByRole('tab', { name: 'Activos', exact: true }).click()
   await expect(page.getByTestId('modulo-fila-servicios')).toHaveCount(1)
 })
@@ -182,8 +196,10 @@ test('solo el dueño edita: los demás ven la lista en lectura', async ({ page }
   await entrarConModulos(page, { apagados: ['delivery'], rol: 'ADMIN', canManage: false })
   await page.goto('/configuracion/modulos')
   await expect(page.getByTestId('modulos-solo-lectura')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Activar Delivery externo', exact: true })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Desactivar Trade-In', exact: true })).toBeDisabled()
+  await expect(interruptor(page, 'Delivery externo')).toBeDisabled()
+  await expect(interruptor(page, 'Delivery externo')).not.toBeChecked()
+  await expect(interruptor(page, 'Trade-In')).toBeDisabled()
+  await expect(interruptor(page, 'Trade-In')).toBeChecked()
 })
 
 for (const esquema of ['light', 'dark']) {
@@ -199,14 +215,24 @@ for (const esquema of ['light', 'dark']) {
     await expect(page.locator('html')).toHaveClass(esquema === 'dark' ? /dark/ : /^((?!dark).)*$/)
     await esperarAnimaciones(page)
     expect(await sinScrollHorizontal(page), 'sin scroll horizontal').toBe(true)
-    const botones = page.getByTestId('modulos-lista').getByRole('button')
+    const botones = page.getByTestId('modulos-lista').locator('button, a')
     expect(await botones.count()).toBeGreaterThan(10)
     for (const boton of await botones.all()) {
       const caja = await boton.boundingBox()
       if (caja) expect(caja.height, await boton.textContent()).toBeGreaterThanOrEqual(43.5)
     }
-    // Todo texto del listado se lee: ninguna fila se corta fuera de la pantalla.
-    for (const fila of await page.getByTestId('modulos-lista').getByRole('listitem').all()) {
+    // Interruptores: zona de toque de 44 px (la etiqueta que envuelve al control).
+    const switches = page.getByTestId('modulos-lista').getByRole('switch')
+    expect(await switches.count()).toBeGreaterThan(10)
+    for (const control of await switches.all()) {
+      const caja = await control.locator('xpath=ancestor::label[1]').boundingBox()
+      if (caja) {
+        expect(caja.height).toBeGreaterThanOrEqual(43.5)
+        expect(caja.width).toBeGreaterThanOrEqual(43.5)
+      }
+    }
+    // Todo texto del listado se lee: ninguna tarjeta se corta fuera de la pantalla.
+    for (const fila of await tarjetas(page).all()) {
       const caja = await fila.boundingBox()
       expect(caja.x).toBeGreaterThanOrEqual(0)
       expect(caja.x + caja.width).toBeLessThanOrEqual(376)
@@ -228,11 +254,14 @@ test('demo: todos los módulos activos y la pantalla Módulos los apaga y reacti
   await expect(page.getByTestId('modulos-demo')).toBeVisible()
   await expect(page.getByTestId('modulo-fila-delivery')).toHaveAttribute('data-estado', 'activo')
   const fila = page.getByTestId('modulo-fila-delivery')
-  await page.getByRole('button', { name: 'Desactivar Delivery externo', exact: true }).click()
+  await interruptor(page, 'Delivery externo').click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Desactivar' }).click()
   // En demo el cambio se aplica en pantalla (sin guardar): el módulo queda apagado hasta salir.
   await expect(fila).toHaveAttribute('data-estado', 'apagado')
-  await page.getByRole('button', { name: 'Activar Delivery externo', exact: true }).click()
+  await expect(interruptor(page, 'Delivery externo')).not.toBeChecked()
+  await expect(fila.getByRole('link', { name: /Ir a Entregas/ })).toHaveCount(0)
+  await interruptor(page, 'Delivery externo').click()
   await expect(fila).toHaveAttribute('data-estado', 'activo')
+  await expect(interruptor(page, 'Delivery externo')).toBeChecked()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
 })
