@@ -53,6 +53,8 @@ function fakePage({ desktop, sectionsInBar = [], segmentsPresent = false }) {
   })
   const container = scope => ({
     count: async () => 1,
+    // Fila del header visible (celular o menú plegado): se navega por sus pestañas.
+    first: () => ({ isVisible: async () => true }),
     waitFor: async () => {},
     locator: selector => {
       const match = selector.match(/\[data-tab-id="([^"]+)"\]\[aria-current="page"\]/)
