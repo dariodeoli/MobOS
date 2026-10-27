@@ -95,3 +95,18 @@ test('sucursales: se crean, editan y desactivan en memoria y vuelven al salir', 
   limpiarMemoriaDemo()
   assert.ok(!listDemoBranches().some((sucursal) => sucursal.id === nueva.id), 'al salir vuelve la semilla')
 })
+
+test('preferencias: archivado y saldo a favor se guardan en memoria y vuelven al salir', async () => {
+  const { getDemoPreferencias, setDemoPreferencias, PREFERENCIAS_DEMO } = await import('./preferencias.js')
+  limpiarMemoriaDemo()
+  assert.deepEqual(getDemoPreferencias(), { orders: { ...PREFERENCIAS_DEMO.orders }, portal: { ...PREFERENCIAS_DEMO.portal } })
+  assert.equal(getDemoPreferencias().portal.showStoreCredit, true, 'el portal muestra el saldo por defecto')
+  const conPortal = setDemoPreferencias({ portal: { showStoreCredit: false } })
+  assert.equal(conPortal.portal.showStoreCredit, false)
+  assert.equal(conPortal.orders.autoArchivePrepared, false, 'un cambio parcial no toca el otro grupo')
+  setDemoPreferencias({ orders: { autoArchivePrepared: 'sí' } })
+  assert.equal(getDemoPreferencias().orders.autoArchivePrepared, false, 'solo acepta booleanos')
+  assert.equal(setDemoPreferencias({ orders: { autoArchivePrepared: true } }).orders.autoArchivePrepared, true)
+  limpiarMemoriaDemo()
+  assert.equal(getDemoPreferencias().portal.showStoreCredit, true)
+})

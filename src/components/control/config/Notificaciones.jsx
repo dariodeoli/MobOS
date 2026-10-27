@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { Aviso } from '@/components/ui'
 import { rutaDeVista } from '@/lib/rutas'
+import { getDemoTenant } from '@/lib/demoTenant'
 import { GrupoConfig, FilaConfig } from './FilasConfig'
 import { dominioDeCorreo, esDominioPublico } from './dominioPublico'
 
@@ -10,9 +11,10 @@ import { dominioDeCorreo, esDominioPublico } from './dominioPublico'
 // de la cuenta) y correo saliente / webhooks (estado del sistema). No duplica
 // pantallas: cada fila lleva a la suya.
 export default function Notificaciones() {
-  const { empresa } = useSesion()
+  const { empresa, esDemo } = useSesion()
   const navigate = useNavigate()
-  const correo = empresa?.email || ''
+  // La demo usa el correo de su empresa ficticia (el mismo de Datos generales).
+  const correo = empresa?.email || (esDemo ? getDemoTenant().email : '') || ''
   const publico = esDominioPublico(correo)
 
   return (

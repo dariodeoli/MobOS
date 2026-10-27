@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
-import { api } from '@/lib/api/client'
+import { resources } from '@/lib/api'
 import { Aviso, useToast } from '@/components/ui'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
@@ -25,9 +25,9 @@ export default function General({ tenant, onTenantChange, onReauthValid, onIrANu
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
-    if (esDemo) return undefined
+    // En demo las preferencias viven en memoria de la pestaña.
     let vivo = true
-    api.get('/api/tenant/preferences')
+    resources.tenantPreferences.get()
       .then((datos) => { if (vivo) setPreferencias(datos) })
       .catch((cause) => { if (vivo) setError(cause?.message || 'No se pudieron cargar los ajustes de pedidos.') })
     return () => { vivo = false }
@@ -39,7 +39,7 @@ export default function General({ tenant, onTenantChange, onReauthValid, onIrANu
     const anterior = preferencias
     setPreferencias({ ...preferencias, orders: { ...preferencias.orders, autoArchivePrepared: valor } })
     try {
-      const guardado = await api.put('/api/tenant/preferences', { orders: { autoArchivePrepared: valor } })
+      const guardado = await resources.tenantPreferences.put({ orders: { autoArchivePrepared: valor } })
       setPreferencias({ orders: guardado.orders, portal: guardado.portal })
       toast.success(valor ? 'Los pedidos preparados y pagados se archivan solos.' : 'Los pedidos preparados y pagados quedan en Activos.')
     } catch (cause) {
@@ -104,11 +104,11 @@ export default function General({ tenant, onTenantChange, onReauthValid, onIrANu
           icono="archive"
           titulo="Archivar automáticamente los pedidos preparados y pagados"
           descripcion={esDemo
-            ? 'Disponible con una cuenta real.'
+            ? 'Salen de la lista activa apenas el pedido está pagado y listo para entregar. Demo: el ajuste se guarda en esta pestaña y los pedidos de ejemplo no se mueven.'
             : 'Salen de la lista activa apenas el pedido está pagado y listo para entregar; los encontrás en Archivados.'}
           checked={Boolean(preferencias?.orders?.autoArchivePrepared)}
           onCambio={cambiarArchivado}
-          disabled={esDemo || !preferencias || guardando}
+          disabled={!preferencias || guardando}
           testId="fila-archivar-preparados"
         />
       </GrupoConfig>

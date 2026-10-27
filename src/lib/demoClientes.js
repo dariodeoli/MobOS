@@ -1,4 +1,5 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { getDemoPreferencias } from './demo/preferencias.js'
 import { identidadesFacturacionDemo } from './demoBillingIdentities.js'
 import { formatGs } from '../utils/moneda.js'
 import { codigoPedido, totalesPedido } from '../utils/pedido.js'
@@ -660,7 +661,7 @@ export function demoCuentaPayload(token) {
     customer: { name: cliente.name, ...(cliente.publicNote ? { publicNote: cliente.publicNote } : {}) },
     balancePyg: saldoDeuda(cliente),
     // Tus beneficios (#240 → portal): saldo a favor y puntos del cliente.
-    saldoFavorPyg: Number(cliente.saldoFavorPyg || 0),
+    saldoFavorPyg: getDemoPreferencias().portal.showStoreCredit ? Number(cliente.saldoFavorPyg || 0) : 0,
     puntosPyg: Number(cliente.puntosPyg || 0),
     // Reservas (#240 → portal): equipos guardados a nombre del cliente.
     reservas: (cliente.reservas || []).map((reserva) => ({
@@ -756,7 +757,7 @@ export function demoVitrinaPayload(token) {
     nivel,
     tienda: { nombre: 'Aurora Móviles', tieneLogo: false },
     cliente: { nombre: cliente.name, ...(cliente.publicNote ? { notaPublica: cliente.publicNote } : {}) },
-    saldoFavorPyg: Number(cliente.saldoFavorPyg || 0),
+    saldoFavorPyg: getDemoPreferencias().portal.showStoreCredit ? Number(cliente.saldoFavorPyg || 0) : 0,
     puntosPyg: Number(cliente.puntosPyg || 0),
     // Seguimiento de la entrega (#240 → portal): los pasos del método, igual
     // que la cuenta completa.

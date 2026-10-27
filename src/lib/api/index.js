@@ -4,6 +4,7 @@ import { getProductos } from '@/lib/storage'
 import { cancelarVerificacionDemo, crearVerificacionDemo, detalleVerificacionDemo, escanearVerificacionDemo, listVerificacionesDemo, terminarVerificacionDemo } from '@/lib/demoVerificacion.js'
 import { createDemoTransfer, createDemoTransitAssignment, createDemoUnit, listDemoSharedGrants, searchDemoTenants, setDemoSharedGrant, updateDemoTransfer, updateDemoTransitAssignment, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoBranch, saveDemoLocation, updateDemoUnit, verifyDemoUnit, undoVerifyDemoUnit } from '@/lib/demoInventory'
 import { listarStockItemsDemo } from '@/lib/demo/stockItems.js'
+import { getDemoPreferencias, setDemoPreferencias } from '@/lib/demo/preferencias.js'
 import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
 import { actualizarCompraSinStockDemo, avisarClienteDemo, comprarSinStockDemo, esCompraDemoSinStock, esNecesidadDemoSinStock, listarVentasSinStockDemo, recibirRapidoSinStockDemo } from '@/lib/demo/ventaSinStock.js'
@@ -150,6 +151,12 @@ export const resources = {
     },
     create: demo(data => api.post('/api/transit-assignments', data), data => createDemoTransitAssignment(data)),
     update: demo(data => api.patch('/api/transit-assignments', data), data => updateDemoTransitAssignment(data)),
+  },
+  // Preferencias de la tienda (archivado automático, saldo a favor en el
+  // portal). En demo viven en memoria de la pestaña.
+  tenantPreferences: {
+    get: demo(() => api.get('/api/tenant/preferences'), () => getDemoPreferencias()),
+    put: demo(data => api.put('/api/tenant/preferences', data), data => setDemoPreferencias(data)),
   },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
