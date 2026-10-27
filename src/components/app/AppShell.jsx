@@ -80,6 +80,9 @@ export default function AppShell({
   breadcrumb,
   backTo,
   pageTabs,
+  // Secciones de un solo destino cuyas pestañas de página van al submenú lateral
+  // (Finanzas › Caja · Gastos…): `{ [idSeccion]: [[idPestaña, etiqueta]] }`.
+  subseccionesLaterales,
   // Pantallas de trabajo (Vender › Nueva venta): las pestañas del grupo van
   // como control segmentado en la fila del título para ganar alto.
   tabsEnTitulo = false,
@@ -393,7 +396,10 @@ export default function AppShell({
     )
   }
   const seccionLateral = section => {
-    const grupos = section.id === 'configuracion' || collapsed ? [] : shellContextGroups(section)
+    const propias = collapsed ? null : subseccionesLaterales?.[section.id]
+    const grupos = propias?.length > 1
+      ? propias.map(([id, label]) => ({ id, label, items: [[id, label]], propia: true }))
+      : section.id === 'configuracion' || collapsed ? [] : shellContextGroups(section)
     if (grupos.length < 2) return botonLateral(section)
     const abierta = desplegadas.ids.includes(section.id)
     const panelId = `shell-submenu-${section.id}`
@@ -421,7 +427,7 @@ export default function AppShell({
             className="ml-[21px] mt-0.5 mb-1 flex flex-col gap-0.5 border-l border-ink-600 pl-2"
           >
             {grupos.map(group => {
-              const grupoActivo = currentId === section.id && currentGroup?.id === group.id
+              const grupoActivo = currentId === section.id && (group.propia ? subpaginaActiva === group.id : currentGroup?.id === group.id)
               return (
                 <li key={group.id} className="flex min-w-0 flex-col">
                   {entradaLateral({
@@ -432,7 +438,7 @@ export default function AppShell({
                     nivel: 1,
                     onClick: () => navegar(group.items[0][0]),
                   })}
-                  {grupoActivo && subpaginas.length > 1 && (
+                  {grupoActivo && !group.propia && subpaginas.length > 1 && (
                     <ul
                       aria-label={`Vistas de ${group.label}`}
                       className="mb-0.5 ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-ink-600 pl-2"
