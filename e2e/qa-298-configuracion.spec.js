@@ -90,17 +90,20 @@ test('#298 · Datos de la tienda: filas que abren su formulario y sin resumen du
   await expect(page.getByTestId('datos-tienda-form')).toBeVisible()
   await expect(page.getByTestId('cuenta-form-ventana')).toBeVisible()
   await expect(page.locator('#edit-direccion')).toBeVisible()
-  // Sin diferencias no hay barra de guardado.
-  await expect(page.getByTestId('datos-tienda-barra')).toHaveCount(0)
+  // La ventana tiene siempre el mismo pie; sin diferencias «Guardar cambios» está deshabilitado.
+  const pie = page.getByTestId('datos-tienda-pie')
+  const guardar = pie.getByRole('button', { name: 'Guardar cambios' })
+  await expect(guardar).toBeDisabled()
   await capturar(page, '04-datos-edicion')
 
-  // Tocar un campo crea el cambio: la barra aparece; revertirlo la esconde.
+  // Tocar un campo crea el cambio y habilita guardar; revertirlo lo vuelve a deshabilitar.
   const original = await page.locator('#edit-direccion').inputValue()
   await page.locator('#edit-direccion').fill(`${original} QA 298`)
-  await expect(page.getByTestId('datos-tienda-barra')).toContainText('Guardar cambios')
+  await expect(guardar).toBeEnabled()
+  await expect(pie).toContainText('Tenés cambios sin guardar.')
   await capturar(page, '05-datos-con-cambios')
   await page.locator('#edit-direccion').fill(original)
-  await expect(page.getByTestId('datos-tienda-barra')).toHaveCount(0)
+  await expect(guardar).toBeDisabled()
 
   // Cancelar cierra la ventana y deja las filas.
   await page.getByRole('button', { name: 'Cancelar' }).click()
