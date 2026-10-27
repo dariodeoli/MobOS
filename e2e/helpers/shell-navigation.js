@@ -320,14 +320,9 @@ export async function selectInventorySection(page, value) {
   await expect(vistas.getByRole('tab', { name: new RegExp(`^${ETIQUETA_VISTA[value]}`) })).toHaveAttribute('aria-selected', 'true')
 }
 
-// #396: Taller mantiene las vistas alternativas en «Más acciones» para
-// dejar espacio a las órdenes; la barra segmentada aparece en la vista Todo.
+// Taller muestra siempre su selector de vista (Todo · Tablero · Servicio · Garantías).
 export async function openTallerTabs(page) {
   const tabs = page.getByRole('group', { name: 'Ver taller o garantías', exact: true })
-  if (!(await tabs.isVisible())) {
-    await page.locator('.taller-f3').getByRole('button', { name: /^Más acciones/ }).click()
-    await page.getByRole('menuitem', { name: 'Ver todo', exact: true }).click()
-  }
   await expect(tabs).toBeVisible()
   return tabs
 }

@@ -337,10 +337,12 @@ export default function AppShell({
   const botonLateral = (section, { conDesplegable = false } = {}) =>
     sectionButton(section, {
       className: cn(
-        'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+        // Las secciones se leen como títulos del menú: más peso y más contraste
+        // que sus páginas (que van en gris, más chicas y con sangría).
+        'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-[14px] font-semibold text-fore/80 hover:bg-ink-700 hover:text-fore',
         collapsed ? 'w-11 justify-center px-0' : 'lg:min-h-9',
         conDesplegable && 'w-full pr-10',
-        currentId === section.id && 'bg-ink-700 font-semibold text-fore',
+        currentId === section.id && 'bg-ink-700 text-fore',
       ),
       children: !collapsed && section.label,
       pendientes: section.id === 'pedidos' ? badgesPestanas[claveBadge('pedidos', 'autorizaciones')] : 0,
@@ -382,7 +384,7 @@ export default function AppShell({
           'relative flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 text-left hover:bg-ink-700 hover:text-fore',
           nivel === 1 ? 'min-h-11 text-[13px] lg:min-h-8' : 'min-h-11 text-xs lg:min-h-7',
           activa
-            ? "font-semibold text-fore before:absolute before:inset-y-1.5 before:-left-[9px] before:w-0.5 before:rounded-full before:bg-fono before:content-['']"
+            ? "font-medium text-fore before:absolute before:inset-y-1.5 before:-left-[9px] before:w-0.5 before:rounded-full before:bg-fono before:content-['']"
             : 'text-mute',
         )}
       >
@@ -505,6 +507,10 @@ export default function AppShell({
   // Solo en escritorio y sin pestañas propias de la página: en celular la fila
   // de pestañas sigue debajo (el H1 queda para lectores de pantalla).
   const tabsJuntoAlTitulo = tabsEnTitulo && !angosta && !pageTabs && Boolean(groupTabs)
+  // La sección actual ya muestra sus páginas en el acordeón del menú lateral.
+  const submenuLateral = !collapsed && Boolean(currentSection) && (
+    subseccionesLaterales?.[currentId]?.length > 1 || (currentId !== 'configuracion' && contextGroups.length > 1)
+  )
   const enToolbar = segmentosEnToolbar(currentGroup)
   const segmentsNode =
     segments.length > 1 ? (
@@ -661,8 +667,15 @@ export default function AppShell({
             </>
           }
         >
-          {!tabsJuntoAlTitulo && tabsNode}
-          {!enToolbar && segmentsNode}
+          {/* Con el submenú lateral desplegable (escritorio, menú expandido) las
+              pestañas repetirían el mismo menú: quedan solo en celular y con el
+              menú plegado. Vender conserva su selector en la fila del título. */}
+          {!tabsJuntoAlTitulo && tabsNode && (
+            <div data-testid="shell-pestanas-header" className={cn(submenuLateral && 'lg:hidden')}>{tabsNode}</div>
+          )}
+          {!enToolbar && segmentsNode && (
+            <div className={cn(submenuLateral && 'lg:hidden')}>{segmentsNode}</div>
+          )}
         </PageHeader>
         {esDemo && avisoGuiaDemo && (
           <div role="status" data-testid="demo-guia-aviso" className="mx-4 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-info/30 bg-info/10 px-3 py-1.5 text-xs text-fore md:mx-6">
