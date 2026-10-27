@@ -96,6 +96,42 @@ test('sucursales: se crean, editan y desactivan en memoria y vuelven al salir', 
   assert.ok(!listDemoBranches().some((sucursal) => sucursal.id === nueva.id), 'al salir vuelve la semilla')
 })
 
+test('invitaciones: pendiente, vencida y aceptada coherentes con el equipo demo', async () => {
+  const { listarInvitacionesDemo } = await import('./invitaciones.js')
+  limpiarMemoriaDemo()
+  const lista = listarInvitacionesDemo()
+  assert.deepEqual(new Set(lista.map((invitacion) => invitacion.status)), new Set(['PENDING', 'EXPIRED', 'ACCEPTED']))
+  const correosEquipo = new Map(EQUIPO_DEMO.map((persona) => [persona.email, persona.nombre]))
+  for (const invitacion of lista) {
+    assert.match(invitacion.email, /^\d{8}@correo\.com\.py$/, `${invitacion.name}: correo ficticio del patrón demo`)
+    if (invitacion.status === 'ACCEPTED') assert.equal(correosEquipo.get(invitacion.email), invitacion.name, 'la aceptada es de alguien del equipo')
+    else assert.ok(!correosEquipo.has(invitacion.email), 'una pendiente o vencida no es de alguien que ya está en el equipo')
+  }
+})
+
+test('invitaciones: se invitan, reenvían y revocan en memoria, sin duplicar pendientes', async () => {
+  const { invitarDemo, listarInvitacionesDemo, reenviarInvitacionDemo, revocarInvitacionDemo } = await import('./invitaciones.js')
+  limpiarMemoriaDemo()
+  const ahora = Date.now()
+  const { invitation, deliveryState } = invitarDemo({ name: ' Carla Duarte ', email: 'Carla@Ejemplo.com', role: 'GERENTE' }, ahora)
+  assert.equal(deliveryState, 'sent')
+  assert.equal(invitation.name, 'Carla Duarte')
+  assert.equal(invitation.email, 'carla@ejemplo.com')
+  assert.equal(invitation.status, 'PENDING')
+  assert.equal(listarInvitacionesDemo(ahora)[0].id, invitation.id, 'la más nueva arriba')
+  assert.throws(() => invitarDemo({ name: 'Otra', email: 'carla@ejemplo.com' }, ahora), (error) => error.details?.invitation?.id === invitation.id)
+  assert.throws(() => invitarDemo({ name: 'Sin correo', email: 'no-es-correo' }, ahora), /correo válido/)
+  const renovada = reenviarInvitacionDemo(invitation.id, ahora + 3 * 86_400_000).invitation
+  assert.ok(new Date(renovada.expiresAt) > new Date(invitation.expiresAt))
+  assert.throws(() => reenviarInvitacionDemo('demo-inv-pablo', ahora), /pendientes/)
+  assert.equal(revocarInvitacionDemo('demo-inv-pablo', ahora).status, 'REVOKED')
+  assert.throws(() => revocarInvitacionDemo('demo-inv-marcos', ahora), /ya no se puede revocar/)
+  // Una pendiente cuyo plazo pasó se lista vencida.
+  assert.equal(listarInvitacionesDemo(ahora + 30 * 86_400_000).find((fila) => fila.id === invitation.id).status, 'EXPIRED')
+  limpiarMemoriaDemo()
+  assert.ok(!listarInvitacionesDemo().some((fila) => fila.id === invitation.id))
+})
+
 test('preferencias: archivado y saldo a favor se guardan en memoria y vuelven al salir', async () => {
   const { getDemoPreferencias, setDemoPreferencias, PREFERENCIAS_DEMO } = await import('./preferencias.js')
   limpiarMemoriaDemo()

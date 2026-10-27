@@ -5,6 +5,7 @@ import { cancelarVerificacionDemo, crearVerificacionDemo, detalleVerificacionDem
 import { createDemoTransfer, createDemoTransitAssignment, createDemoUnit, listDemoSharedGrants, searchDemoTenants, setDemoSharedGrant, updateDemoTransfer, updateDemoTransitAssignment, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoBranch, saveDemoLocation, updateDemoUnit, verifyDemoUnit, undoVerifyDemoUnit } from '@/lib/demoInventory'
 import { listarStockItemsDemo } from '@/lib/demo/stockItems.js'
 import { getDemoPreferencias, setDemoPreferencias } from '@/lib/demo/preferencias.js'
+import { invitarDemo, listarInvitacionesDemo, reenviarInvitacionDemo, revocarInvitacionDemo } from '@/lib/demo/invitaciones.js'
 import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
 import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
 import { actualizarCompraSinStockDemo, avisarClienteDemo, comprarSinStockDemo, esCompraDemoSinStock, esNecesidadDemoSinStock, listarVentasSinStockDemo, recibirRapidoSinStockDemo } from '@/lib/demo/ventaSinStock.js'
@@ -62,6 +63,14 @@ export const resources = {
     issue: demo(data => api.post('/api/gift-cards', data), data => emitirGiftCardDemo(data)),
     get: demo(id => api.get(`/api/gift-cards/${encodeURIComponent(id)}`), id => detalleGiftCardDemo(id)),
     cancel: demo(id => api.patch(`/api/gift-cards/${encodeURIComponent(id)}`, { action: 'cancel' }), id => anularGiftCardDemo(id)),
+  },
+  // Invitaciones del equipo: en demo, pendientes/vencidas ficticias que se
+  // invitan, reenvían y revocan en memoria (sin enviar correos).
+  userInvitations: {
+    list: demo(() => api.get('/api/user-invitations'), () => listarInvitacionesDemo()),
+    create: demo(data => api.post('/api/user-invitations', data), data => invitarDemo(data)),
+    resend: demo(id => api.post(`/api/user-invitations/${encodeURIComponent(id)}/resend`, {}), id => reenviarInvitacionDemo(id)),
+    revoke: demo(id => api.post(`/api/user-invitations/${encodeURIComponent(id)}/revoke`, {}), id => revocarInvitacionDemo(id)),
   },
   users: { list: demo(() => api.get('/api/users'), () => EQUIPO_DEMO.map((persona) => ({ id: persona.id, name: persona.nombre, email: persona.email, role: persona.rol, status: persona.activo ? 'ACTIVE' : 'INACTIVE' }))), create: data => api.post('/api/users', data) },
   // Abastecimiento F1 (#250/#254): necesidades consolidadas de compra.

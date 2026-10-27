@@ -116,8 +116,11 @@ test('Usuarios: tabla con estado, rol, filtros y exportación; Roles y Seguridad
   await expect(tabla.getByRole('columnheader', { name: 'Seguridad' })).toBeVisible()
   const filtros = page.getByRole('tablist', { name: 'Filtrar usuarios' })
   for (const nombre of ['Todos', 'Activos', 'Pendientes', 'Solo POS']) await expect(filtros.getByRole('tab', { name: new RegExp(`^${nombre}`) })).toBeVisible()
+  // La demo trae invitaciones sin responder: una pendiente y una vencida.
+  await expect(filtros.getByRole('tab', { name: /^Pendientes/ })).toHaveText(/2/)
   await filtros.getByRole('tab', { name: /^Pendientes/ }).click()
-  await expect(page.getByTestId('usuarios-tabla')).toHaveCount(0)
+  await expect(page.getByTestId('usuario-fila').filter({ hasText: 'Lorena Ortiz' })).toBeVisible()
+  await expect(page.getByTestId('usuario-fila').filter({ hasText: 'Hernán Acosta' })).toHaveCount(0)
   await filtros.getByRole('tab', { name: /^Solo POS/ }).click()
   await expect(page.getByTestId('usuario-fila').first()).toBeVisible()
   const descarga = page.waitForEvent('download')

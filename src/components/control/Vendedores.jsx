@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api/client'
+import { resources } from '@/lib/api'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
@@ -99,7 +100,8 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   const horarioInicial = useRef('')
   const [historialDe, setHistorialDe] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
-  const [modoInvitacion, setModoInvitacion] = useState('correo')
+  // En la demo arranca en «Agregar directamente» (el alta más rápida para probar).
+  const [modoInvitacion, setModoInvitacion] = useState(() => (esDemo ? 'directo' : 'correo'))
   // Permisos por integrante: el rol define el máximo y acá se recorta.
   const [permisosDe, setPermisosDe] = useState(null)
   const [catalogo, setCatalogo] = useState(null)
@@ -117,9 +119,8 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   const [pinCopiado, setPinCopiado] = useState(false)
 
   const cargarInvitaciones = useCallback(async () => {
-    if (esDemo) return
-    try { setInvitaciones(await api.get('/api/user-invitations')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.') }
-  }, [esDemo])
+    try { setInvitaciones(await resources.userInvitations.list()) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.') }
+  }, [])
   useEffect(() => { cargarInvitaciones() }, [cargarInvitaciones])
   // Nombre de sucursal para la ficha: la API de usuarios solo trae branchId.
   const [sucursales, setSucursales] = useState([])
@@ -152,8 +153,8 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invitacion.email.trim())) return setError('Ingresá un correo válido.')
     setBusy(true)
     try {
-      const result = await api.post('/api/user-invitations', { ...invitacion, name: invitacion.name.trim(), email: invitacion.email.trim().toLowerCase() })
-      setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación enviada correctamente.' : 'Invitación guardada. El correo quedó pendiente; volvé a intentar el reenvío en unos minutos.')
+      const result = await resources.userInvitations.create({ ...invitacion, name: invitacion.name.trim(), email: invitacion.email.trim().toLowerCase() })
+      setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); await cargarInvitaciones(); notifySuccess(esDemo ? 'Invitación guardada en la demo: no se envía ningún correo.' : result.deliveryState === 'sent' ? 'Invitación enviada correctamente.' : 'Invitación guardada. El correo quedó pendiente; volvé a intentar el reenvío en unos minutos.')
     } catch (cause) {
       if (cause?.details?.invitation) { setConflicto({ email: invitacion.email.trim().toLowerCase(), invitation: cause.details.invitation }); return }
       setError(cause?.message || 'No se pudo enviar la invitación.')
@@ -292,14 +293,14 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   }
   async function resend(invite) {
     setBusy(true); setError('')
-    try { const result = await api.post(`/api/user-invitations/${encodeURIComponent(invite.id)}/resend`, {}); setConflicto(null); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación reenviada.' : 'El correo sigue pendiente. Podés volver a intentar más tarde.') }
+    try { const result = await resources.userInvitations.resend(invite.id); setConflicto(null); await cargarInvitaciones(); notifySuccess(esDemo ? 'Invitación renovada en la demo: no se envía ningún correo.' : result.deliveryState === 'sent' ? 'Invitación reenviada.' : 'El correo sigue pendiente. Podés volver a intentar más tarde.') }
     catch (cause) { setError(cause?.message || 'No se pudo reenviar la invitación.') }
     finally { setBusy(false) }
   }
   async function revokeInvitation() {
     if (!confirmarRevocar) return
     setBusy(true); setError('')
-    try { await api.post(`/api/user-invitations/${encodeURIComponent(confirmarRevocar.id)}/revoke`, {}); setConfirmarRevocar(null); setConflicto(null); await cargarInvitaciones(); notifySuccess('Invitación revocada.') }
+    try { await resources.userInvitations.revoke(confirmarRevocar.id); setConfirmarRevocar(null); setConflicto(null); await cargarInvitaciones(); notifySuccess('Invitación revocada.') }
     catch (cause) { setError(cause?.message || 'No se pudo revocar la invitación.') }
     finally { setBusy(false) }
   }
@@ -344,13 +345,12 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
         <h2 className="font-bold">Sumar integrante</h2>
         <p className="mt-1 text-sm text-mute">Por correo recibe un enlace seguro y elige su PIN; directo queda con un PIN temporal (4 a 6 dígitos).</p>
       </div>
-      {!esDemo && (
-        <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-          {[['correo', 'Invitar por correo'], ['directo', 'Agregar directamente']].map(([key, label]) => (
-            <button key={key} type="button" aria-pressed={modoInvitacion === key} onClick={() => setModoInvitacion(key)} className={`min-h-11 flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0 ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
+        {[['correo', 'Invitar por correo'], ['directo', 'Agregar directamente']].map(([key, label]) => (
+          <button key={key} type="button" aria-pressed={modoInvitacion === key} onClick={() => setModoInvitacion(key)} className={`min-h-11 flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0 ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
+        ))}
+      </div>
+      {esDemo && modoInvitacion === 'correo' && <p className="text-xs text-mute" data-testid="invitar-demo-nota">En la demo la invitación queda en la lista, pero no se envía ningún correo.</p>}
       {conflicto && (
         <div role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
           <p className="font-semibold">Ya existe una invitación activa para {conflicto.email}.</p>
@@ -364,7 +364,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
           </div>
         </div>
       )}
-      {esDemo || modoInvitacion === 'directo' ? (
+      {modoInvitacion === 'directo' ? (
         <form onSubmit={crearDirecto} className="space-y-3">
           <FormField label="Nombre" htmlFor="direct-name">
             <Input id="direct-name" className={ANCHO_CAMPO.nombre} value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required />
@@ -534,7 +534,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
       </div>}
     </Card>}
 
-    {seccion === 'invitaciones' && !esDemo && <Card>
+    {seccion === 'invitaciones' && <Card>
       <h2 className="font-bold">Invitaciones</h2>
       {invitaciones.length > 0 ? (
         <div className="mt-4 space-y-2">{invitaciones.map(invite => {
