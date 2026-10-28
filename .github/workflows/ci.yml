@@ -160,8 +160,9 @@ jobs:
     # comparten nada.
     name: E2E (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    # ~22 min estimados (tests + setup) + margen para la varianza del runner.
-    timeout-minutes: 40
+    # Medido oct-2026: 26-36 min por lote según el runner; 50 deja margen a la
+    # varianza sin esconder un cuelgue real.
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -315,7 +316,7 @@ jobs:
         if: matrix.shard == 4
         run: npx playwright test --config e2e/demo-acceso.frontend.config.js
       - name: Demo profiles and theme branding
-        if: matrix.shard == 4
+        if: matrix.shard == 1
         env:
           MOBOS_QA_PORT: "5351"
         run: npx playwright test --config e2e/demo350.frontend.config.js

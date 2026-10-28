@@ -42,7 +42,7 @@ fallback.
 
 ### 1.1 Workflow paso a paso (job E2E)
 
-Los cuatro shards corren la misma receta (timeout 40 min por job):
+Los cuatro shards corren la misma receta (timeout 50 min por job):
 
 | Paso | Qué hace |
 | --- | --- |
