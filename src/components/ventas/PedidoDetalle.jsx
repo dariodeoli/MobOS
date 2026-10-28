@@ -900,7 +900,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <MenuDesplegable
                 alineacion="right"
                 ariaLabel="Más acciones del pedido"
-                trigger={<span className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border border-ink-500 px-2.5 text-xs font-semibold leading-none text-fore"><span className="sr-only sm:not-sr-only">Más acciones</span><Icon name="dots" className="h-4 w-4 sm:hidden" /><Icon name="chevron" className="hidden h-3.5 w-3.5 sm:inline" /></span>}
+                // «Más acciones» con texto solo desde 2xl (como «Volver al POS»): por debajo,
+                // el «⋯» deja título, estado y acciones en una sola fila del encabezado.
+                trigger={<span className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border border-ink-500 px-2.5 text-xs font-semibold leading-none text-fore"><span className="sr-only 2xl:not-sr-only">Más acciones</span><Icon name="dots" className="h-4 w-4 2xl:hidden" /><Icon name="chevron" className="hidden h-3.5 w-3.5 2xl:inline" /></span>}
                 items={[
                   ...(!esDemo && !anulado ? [{ id: 'devolver', label: 'Devolver / postventa', onClick: () => setCobroAbierto(true) }] : []),
                   { id: 'pagina-estado', label: 'Ver página de estado del pedido', onClick: verPaginaEstado },

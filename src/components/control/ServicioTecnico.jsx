@@ -663,7 +663,10 @@ export default function ServicioTecnico({ accionesVista = [] }) {
           />
         }
         primary={
+          // En celular queda solo el «+» (44 px): búsqueda y acciones entran en
+          // una fila y el selector de vista de Taller no empuja la lista.
           <Button
+            className="max-sm:w-11 max-sm:px-0 max-sm:text-lg"
             onClick={() => {
               setEditing(null)
               const vacio = { ...FORM_VACIO }
@@ -672,7 +675,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
               setReferenciaForm(JSON.stringify(vacio))
             }}
           >
-            + Nueva orden
+            +<span className="max-sm:sr-only"> Nueva orden</span>
           </Button>
         }
       />
