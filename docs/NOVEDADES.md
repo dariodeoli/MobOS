@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.243 — 2026-10-28
+
+- **Otros:** en la computadora, cada sección muestra sus páginas en el menú lateral y ya no se repiten como pestañas arriba. En el celular y con el menú plegado, las pestañas siguen como antes.
+- **Finanzas:** Caja, Gastos, Bancos y el resto se abren directamente desde el menú lateral, igual que Inicio.
+- **Otros:** los títulos de sección del menú se distinguen más de sus páginas, y la flecha para desplegar ya no se encima con el nombre.
+- **Pedidos:** Taller muestra siempre el selector Todo · Tablero · Servicio · Garantías para cambiar de vista sin perderse.
+
 ## v1.0.242 — 2026-10-27
 
 - **Otros:** Módulos tiene un diseño nuevo: tarjetas agrupadas, con ilustraciones animadas y un interruptor para activar o desactivar cada módulo.
