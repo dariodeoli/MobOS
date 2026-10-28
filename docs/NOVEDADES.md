@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.242 — 2026-10-27
+
+- **Otros:** Módulos tiene un diseño nuevo: tarjetas agrupadas, con ilustraciones animadas y un interruptor para activar o desactivar cada módulo.
+- **Otros:** en la demo, Configuración ya viene cargada: datos fiscales, sucursales, invitaciones y preferencias de ejemplo.
+- **Otros:** la Zona de peligro (archivar o eliminar la empresa) pasó al final de Mi cuenta, en rojo; el campo de contraseña ocupa todo el ancho.
+- **Otros:** la ventana «Contacto de la tienda» muestra los campos en una sola columna, con Cancelar y Guardar siempre al pie.
+- **Otros:** con el menú lateral plegado, los contadores aparecen como globito sobre el ícono y los íconos ya no se corren.
+
 ## v1.0.241 — 2026-10-27
 
 Primera publicación desde v1.0.240: incluye también todo lo anotado más abajo
