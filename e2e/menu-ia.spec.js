@@ -34,7 +34,8 @@ test('el tablero real (/ops) y las herramientas de precios se abren desde el men
   await expect(page).toHaveURL(/\/ops$/)
   await expect(page.getByRole('heading', { name: 'Tablero de operaciones' })).toBeVisible()
   // Ops va embebido en el panel: el shell es la navegación, sin «Volver a la app».
-  await expect(page.getByRole('tab', { name: /Operaciones/ }).or(page.getByRole('button', { name: /Operaciones/ })).first()).toBeVisible()
+  // En escritorio con el menú expandido la página activa se ve en el submenú lateral.
+  await expect(page.getByRole('tab', { name: /Operaciones/ }).or(page.getByRole('button', { name: /Operaciones/ })).or(page.getByTestId('shell-lateral').getByRole('link', { name: /Operaciones/ })).first()).toBeVisible()
   await expect(page.getByRole('link', { name: /Volver a la app/ })).toHaveCount(0)
 
   // Lista por modelo y comparador viven en Inventario.

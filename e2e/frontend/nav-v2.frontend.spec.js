@@ -3,6 +3,8 @@ import { mkdir } from 'node:fs/promises'
 import { rutaDeVista } from '../../src/lib/rutas.js'
 import {
   clickShellTab,
+  expectShellGroupsVisible,
+  lateralIds,
   openShellDestination,
   selectFinanceSection,
   selectInventorySection,
@@ -967,8 +969,8 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
 const f3Output = '/tmp/mobos-redesign-f3-qa'
 
 async function selectVentas(page, width, label) {
-  const context = page.getByTestId('shell-contexto')
-  await context.locator(`[data-tab-id="${label.toLowerCase()}"]`).click()
+  // Pestaña del header (celular) o entrada del submenú lateral (escritorio).
+  await clickShellTab(page, 'shell-contexto', label.toLowerCase())
 }
 
 async function setF3Theme(page, width, dark) {
@@ -1941,9 +1943,13 @@ for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
       // Una sola fila: Clientes · Campañas · Promociones · Plantillas, sin «Clientes» repetido.
       await expect(tabs.locator('[data-tab-id]')).toHaveText(['Clientes', 'Campañas', 'Promociones', 'Plantillas'])
       await expect(tabs.locator('[data-tab-id] svg[data-tab-icon]')).toHaveCount(4)
-      await tabs.locator('[data-tab-id="campanas"]').click()
+      // Escritorio con el menú expandido: la fila queda oculta y el submenú
+      // lateral ofrece las mismas cuatro páginas, en el mismo orden.
+      await expect(tabs).toBeHidden()
+      expect(await lateralIds(page, 1)).toEqual(['clientes', 'campanas', 'promociones', 'plantillas'])
+      await clickShellTab(page, 'shell-contexto', 'campanas')
       await expect(page).toHaveURL(/\/campanas$/)
-      await tabs.locator('[data-tab-id="clientes"]').click()
+      await clickShellTab(page, 'shell-contexto', 'clientes')
       await expect(root.getByTestId('cliente-fila')).toHaveCount(2)
     }
     expect(state.posts).toEqual([])
@@ -3646,8 +3652,8 @@ test('U3 /inventario/* redirige a /stock/* y las doce vistas siguen abriendo', a
   const contexto = page.getByTestId('shell-contexto')
   await abrirStock(page, 1440)
   await expect(page).toHaveURL(/\/stock\/unidades$/)
-  for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios'])
-    await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
+  // Escritorio con el menú expandido: las cinco pestañas son el submenú lateral.
+  await expectShellGroupsVisible(page, ['unidades', 'productos', 'traslados', 'control', 'precios'])
   await expect(page.getByTestId('tabs-inventario')).toHaveCount(0)
   const grupoDe = { unidades: 'unidades', vendidos: 'unidades', eliminados: 'unidades', traslados: 'traslados', transito: 'traslados' }
   for (const [id, etiqueta] of Object.entries(vistas)) {

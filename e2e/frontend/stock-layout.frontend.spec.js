@@ -129,7 +129,10 @@ const unidadesMedidas = page =>
   page.evaluate(() => {
     const primera = document.querySelector('[data-testid="inventario-fila"], [data-testid="inventario-tarjeta-movil"]')
     const barra = document.querySelector('[data-testid="barra-inventario"]')
-    const tabs = document.querySelector('[data-testid="shell-contexto"]')
+    // Escritorio con el menú expandido: la fila de pestañas va oculta (las
+    // páginas están en el submenú lateral) y la barra sigue a la fila del título.
+    const fila = document.querySelector('[data-testid="shell-contexto"]')
+    const tabs = fila && fila.getBoundingClientRect().height > 0 ? fila : document.querySelector('[data-testid="shell-page-header-row"]')
     const visible = el => el.getBoundingClientRect().width > 1 && getComputedStyle(el).visibility !== 'hidden'
     const antes = [...document.querySelectorAll('main select')].filter(visible).filter(
       el => !primera || el.compareDocumentPosition(primera) & Node.DOCUMENT_POSITION_FOLLOWING,

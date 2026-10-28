@@ -80,6 +80,9 @@ export default function AppShell({
   breadcrumb,
   backTo,
   pageTabs,
+  // Secciones de un solo destino cuyas pestañas de página van al submenú lateral
+  // (Finanzas › Caja · Gastos…): `{ [idSeccion]: [[idPestaña, etiqueta]] }`.
+  subseccionesLaterales,
   // Pantallas de trabajo (Vender › Nueva venta): las pestañas del grupo van
   // como control segmentado en la fila del título para ganar alto.
   tabsEnTitulo = false,
@@ -336,10 +339,12 @@ export default function AppShell({
   const botonLateral = (section, { conDesplegable = false } = {}) =>
     sectionButton(section, {
       className: cn(
-        'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+        // Las secciones se leen como títulos del menú: más peso y más contraste
+        // que sus páginas (que van en gris, más chicas y con sangría).
+        'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-[14px] font-semibold text-fore/80 hover:bg-ink-700 hover:text-fore',
         collapsed ? 'relative w-11 justify-center px-0' : 'lg:min-h-9',
-        conDesplegable && 'w-full pr-10',
-        currentId === section.id && 'bg-ink-700 font-semibold text-fore',
+        conDesplegable && 'min-w-0 flex-1',
+        currentId === section.id && 'bg-ink-700 text-fore',
       ),
       children: !collapsed && section.label,
       pendientes: section.id === 'pedidos' ? badgesPestanas[claveBadge('pedidos', 'autorizaciones')] : 0,
@@ -381,7 +386,7 @@ export default function AppShell({
           'relative flex w-full min-w-0 items-center gap-2 rounded-md px-2.5 text-left hover:bg-ink-700 hover:text-fore',
           nivel === 1 ? 'min-h-11 text-[13px] lg:min-h-8' : 'min-h-11 text-xs lg:min-h-7',
           activa
-            ? "font-semibold text-fore before:absolute before:inset-y-1.5 before:-left-[9px] before:w-0.5 before:rounded-full before:bg-fono before:content-['']"
+            ? "font-medium text-fore before:absolute before:inset-y-1.5 before:-left-[9px] before:w-0.5 before:rounded-full before:bg-fono before:content-['']"
             : 'text-mute',
         )}
       >
@@ -395,13 +400,18 @@ export default function AppShell({
     )
   }
   const seccionLateral = section => {
-    const grupos = section.id === 'configuracion' || collapsed ? [] : shellContextGroups(section)
+    const propias = collapsed ? null : subseccionesLaterales?.[section.id]
+    const grupos = propias?.length > 1
+      ? propias.map(([id, label]) => ({ id, label, items: [[id, label]], propia: true }))
+      : section.id === 'configuracion' || collapsed ? [] : shellContextGroups(section)
     if (grupos.length < 2) return botonLateral(section)
     const abierta = desplegadas.ids.includes(section.id)
     const panelId = `shell-submenu-${section.id}`
     return (
       <div key={section.id} data-shell-acordeon={section.id} className="flex shrink-0 flex-col">
-        <div className="relative flex">
+        {/* Fila y chevrón lado a lado (sin superponerse): el fondo de la sección
+            activa va en la fila contenedora para que se lea como un solo bloque. */}
+        <div className={cn('flex items-center rounded-lg', currentId === section.id && 'bg-ink-700')}>
           {botonLateral(section, { conDesplegable: true })}
           <button
             type="button"
@@ -411,7 +421,7 @@ export default function AppShell({
             aria-expanded={abierta}
             aria-controls={abierta ? panelId : undefined}
             onClick={() => alternarSeccion(section.id)}
-            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-mute hover:bg-ink-700 hover:text-fore"
+            className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-mute hover:bg-ink-700 hover:text-fore"
           >
             <Icon name="chevron" className={cn('h-3.5 w-3.5 transition-transform motion-reduce:transition-none', !abierta && '-rotate-90')} />
           </button>
@@ -423,7 +433,7 @@ export default function AppShell({
             className="ml-[21px] mt-0.5 mb-1 flex flex-col gap-0.5 border-l border-ink-600 pl-2"
           >
             {grupos.map(group => {
-              const grupoActivo = currentId === section.id && currentGroup?.id === group.id
+              const grupoActivo = currentId === section.id && (group.propia ? subpaginaActiva === group.id : currentGroup?.id === group.id)
               return (
                 <li key={group.id} className="flex min-w-0 flex-col">
                   {entradaLateral({
@@ -434,7 +444,7 @@ export default function AppShell({
                     nivel: 1,
                     onClick: () => navegar(group.items[0][0]),
                   })}
-                  {grupoActivo && subpaginas.length > 1 && (
+                  {grupoActivo && !group.propia && subpaginas.length > 1 && (
                     <ul
                       aria-label={`Vistas de ${group.label}`}
                       className="mb-0.5 ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-ink-600 pl-2"
@@ -501,6 +511,10 @@ export default function AppShell({
   // Solo en escritorio y sin pestañas propias de la página: en celular la fila
   // de pestañas sigue debajo (el H1 queda para lectores de pantalla).
   const tabsJuntoAlTitulo = tabsEnTitulo && !angosta && !pageTabs && Boolean(groupTabs)
+  // La sección actual ya muestra sus páginas en el acordeón del menú lateral.
+  const submenuLateral = !collapsed && Boolean(currentSection) && (
+    subseccionesLaterales?.[currentId]?.length > 1 || (currentId !== 'configuracion' && contextGroups.length > 1)
+  )
   const enToolbar = segmentosEnToolbar(currentGroup)
   const segmentsNode =
     segments.length > 1 ? (
@@ -657,8 +671,15 @@ export default function AppShell({
             </>
           }
         >
-          {!tabsJuntoAlTitulo && tabsNode}
-          {!enToolbar && segmentsNode}
+          {/* Con el submenú lateral desplegable (escritorio, menú expandido) las
+              pestañas repetirían el mismo menú: quedan solo en celular y con el
+              menú plegado. Vender conserva su selector en la fila del título. */}
+          {!tabsJuntoAlTitulo && tabsNode && (
+            <div data-testid="shell-pestanas-header" className={cn(submenuLateral && 'lg:hidden')}>{tabsNode}</div>
+          )}
+          {!enToolbar && segmentsNode && (
+            <div className={cn(submenuLateral && 'lg:hidden')}>{segmentsNode}</div>
+          )}
         </PageHeader>
         {esDemo && avisoGuiaDemo && (
           <div role="status" data-testid="demo-guia-aviso" className="mx-4 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-info/30 bg-info/10 px-3 py-1.5 text-xs text-fore md:mx-6">

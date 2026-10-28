@@ -173,13 +173,13 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
 
   return (
     <div className="op-rd taller-rd space-y-4" data-testid="servicio-garantias">
-      {vista !== 'servicio' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <SegmentedField value={vista} onChange={setVista} ariaLabel="Ver taller o garantías" options={TABS} />
-        </div>
-      )}
+      {/* Un solo selector de vista, siempre en el mismo lugar: cambiar de vista
+          nunca esconde el camino de vuelta (antes Servicio lo mandaba al «…»). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentedField value={vista} onChange={setVista} ariaLabel="Ver taller o garantías" options={TABS} />
+      </div>
 
-      {vista === 'servicio' && <ServicioTecnico accionesVista={TABS.filter(([id]) => id !== 'servicio').map(([id, label]) => ({ label: `Ver ${label.toLowerCase()}`, onClick: () => setVista(id) }))} />}
+      {vista === 'servicio' && <ServicioTecnico />}
       {vista === 'garantias' && <Garantias />}
 
       {vista === 'tablero' && (

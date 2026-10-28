@@ -92,6 +92,10 @@ export async function shellPrimary(page) {
 // through it; single-section roles have no primary navigation at all.
 async function enterShellSection(page, primary, section) {
   const button = primary.getByRole('button', { name: section, exact: true })
+  // Secciones que dependen de módulos o permisos (Taller) llegan un instante
+  // después del primer pintado: en escritorio, sin «Más», se las espera.
+  if (!(await button.count()) && !(await page.getByTestId('shell-mas').isVisible()))
+    await button.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
   if (await button.count()) {
     await button.click()
     await expect.poll(() => button.getAttribute('aria-current')).toBe('page')
@@ -133,6 +137,84 @@ async function clickTab(container, id) {
     .toBe(1)
   return true
 }
+// Submenú lateral (escritorio ≥1024 con el menú expandido): la sección actual
+// despliega sus páginas en el acordeón del menú lateral y las filas de pestañas
+// del header (`shell-contexto` / `shell-pestanas` / `shell-subcontexto`) quedan
+// montadas pero ocultas (`lg:hidden`). Nivel 1 = grupos de la sección (o las
+// pestañas propias de Finanzas); nivel 2 = vistas del grupo activo.
+const visible = async locator => (await locator.count()) > 0 && locator.first().isVisible()
+export async function shellSubmenuLateral(page) {
+  const acordeon = page
+    .getByTestId('shell-lateral')
+    .locator('[data-shell-acordeon]:has(> div > button[aria-current="page"])')
+  await expect(acordeon).toHaveCount(1)
+  const chevron = acordeon.locator('[data-testid^="shell-desplegar-"]')
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click()
+  await expect(chevron).toHaveAttribute('aria-expanded', 'true')
+  return acordeon
+}
+const ENTRADA_LATERAL = {
+  1: (acordeon, id) => acordeon.locator(`ul[aria-label^="Páginas de"] > li > [data-shell-sub="${id}"]`),
+  2: (acordeon, id) => acordeon.locator(`ul[aria-label^="Vistas de"] [data-shell-sub="${id}"]`),
+}
+// Pliega o expande el menú lateral de escritorio (con el menú plegado vuelven
+// las pestañas del header).
+export async function setShellCollapsed(page, plegado) {
+  const lateral = page.getByTestId('shell-lateral')
+  const boton = lateral.getByRole('button', { name: plegado ? 'Colapsar menú' : 'Expandir menú', exact: true })
+  if (await boton.count()) await boton.click()
+  await expect(lateral).toHaveAttribute('data-shell-collapsed', plegado ? '1' : '0')
+}
+// Las páginas de la sección se ofrecen visibles: en la fila `shell-contexto`
+// (celular, menú plegado) o, en escritorio con el menú expandido, en el submenú
+// lateral con la fila del header oculta (no se repite el mismo menú).
+export async function expectShellGroupsVisible(page, ids) {
+  const fila = page.getByTestId('shell-contexto')
+  await fila.waitFor({ state: 'attached' })
+  if (await fila.isVisible()) {
+    for (const id of ids) await expect(fila.locator(`[data-tab-id="${id}"]`)).toBeVisible()
+    return
+  }
+  const acordeon = await shellSubmenuLateral(page)
+  for (const id of ids) await expect(ENTRADA_LATERAL[1](acordeon, id)).toBeVisible()
+  await expect(fila).toBeHidden()
+}
+// Ids de un nivel del submenú lateral de la sección actual.
+export async function lateralIds(page, nivel = 1) {
+  const acordeon = await shellSubmenuLateral(page)
+  const selector = nivel === 1 ? 'ul[aria-label^="Páginas de"] > li > [data-shell-sub]' : 'ul[aria-label^="Vistas de"] [data-shell-sub]'
+  return acordeon.locator(selector).evaluateAll(nodes => nodes.map(n => n.dataset.shellSub))
+}
+// Abre una página del submenú lateral por id (primero en el nivel pedido; los
+// ids de nivel 1 y 2 pueden coincidir, p. ej. Precios › Listas = «precios»).
+// Devuelve false cuando la sección no ofrece ese id.
+export async function clickLateral(page, id, { nivel = 1 } = {}) {
+  const acordeon = await shellSubmenuLateral(page)
+  // El acordeón puede volver a pintarse al entrar a la sección (contadores,
+  // preferencias del servidor): se espera la entrada en vez de contar en frío.
+  const cualquiera = ENTRADA_LATERAL[1](acordeon, id).or(ENTRADA_LATERAL[2](acordeon, id)).first()
+  if (!(await cualquiera.waitFor({ state: 'attached', timeout: 5000 }).then(() => true, () => false))) return false
+  for (const n of nivel === 2 ? [2, 1] : [1, 2]) {
+    const entrada = ENTRADA_LATERAL[n](acordeon, id)
+    if (!(await entrada.count())) continue
+    await entrada.click()
+    await expect(ENTRADA_LATERAL[n](acordeon, id)).toHaveAttribute('aria-current', 'true')
+    return true
+  }
+  return false
+}
+// Clic en una fila de pestañas del shell; con la fila oculta por el submenú
+// lateral se navega por el acordeón y se verifica que la fila (montada) quedó
+// en el mismo destino: las dos vías son equivalentes.
+async function clickShellRow(page, container, id, nivel) {
+  if (await visible(container)) return clickTab(container, id)
+  if (!(await clickLateral(page, id, { nivel }))) return false
+  const activa = id === 'analisis' ? 'reportes' : id
+  await expect
+    .poll(() => container.locator(`[data-tab-id="${activa}"][aria-current="page"]`).count())
+    .toBe(1)
+  return true
+}
 // Every tab id of a container, including the ones inside the "Más" popover.
 async function tabIds(container) {
   const read = () =>
@@ -150,7 +232,8 @@ async function tabIds(container) {
 export async function clickShellTab(page, containerTestId, id) {
   const container = page.getByTestId(containerTestId)
   await container.waitFor({ state: 'attached' })
-  if (!(await clickTab(container, id))) throw new Error(`Tab ${id} not offered in ${containerTestId}`)
+  const nivel = containerTestId === 'shell-subcontexto' ? 2 : 1
+  if (!(await clickShellRow(page, container, id, nivel))) throw new Error(`Tab ${id} not offered in ${containerTestId}`)
 }
 export async function openShellProfile(page) {
   const dialog = page.getByRole('dialog', { name: 'Perfil y preferencias', exact: true })
@@ -186,20 +269,34 @@ export async function openShellDestination(page, label) {
   await enterShellSection(page, primary, section)
   // Level 1 tabs exist only when the section has more than one group.
   const context = page.getByTestId('shell-contexto')
-  if (await context.count()) await clickTab(context, group)
+  if (await context.count()) await clickShellRow(page, context, group, 1)
   // Level 2 (segmented) exists only for groups with several destinations.
   const segments = page.getByTestId('shell-subcontexto')
   // Precios pone su segundo nivel en la barra de la vista (carga perezosa): esperar la fila.
   if (group === 'precios') await segments.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
-  if (await segments.count()) await clickTab(segments, destination)
+  if (await segments.count()) await clickShellRow(page, segments, destination, 2)
 }
 // In-page sections (Análisis, Finanzas, Configuración) are SectionTabs: tabs
 // below lg / inline with a "Más" popover on desktop, a vertical rail for
 // Configuración on desktop. All share the aria-label of the old selectors.
 export async function selectSectionOption(page, ariaLabel, label) {
-  const nav = page.getByRole('navigation', { name: ariaLabel, exact: true })
+  // includeHidden: en escritorio con el menú expandido la fila sigue montada
+  // pero oculta, y la sección se elige en el submenú lateral.
+  const nav = page.getByRole('navigation', { name: ariaLabel, exact: true, includeHidden: true })
   // The tabs mount with the section: wait for them before choosing a branch.
   await nav.waitFor({ state: 'attached' })
+  if (!(await nav.isVisible())) {
+    const acordeon = await shellSubmenuLateral(page)
+    // Análisis: sus secciones son las vistas (nivel 2) del grupo «Reportes»,
+    // que se llama igual que la primera; Finanzas las lista en el nivel 1.
+    const vista = acordeon.locator('ul[aria-label^="Vistas de"]').getByRole('link', { name: label, exact: true })
+    const entrada = (await vista.count()) ? vista : acordeon.getByRole('link', { name: label, exact: true })
+    await entrada.click()
+    await expect(entrada).toHaveAttribute('aria-current', 'true')
+    // La fila oculta queda en la misma sección: las dos vías son equivalentes.
+    await expect(nav.getByRole('button', { name: label, exact: true, includeHidden: true })).toHaveAttribute('aria-current', 'page')
+    return
+  }
   const tab = nav.getByRole('button', { name: label, exact: true })
   // El ancho se mide al montar y se reajusta (fuentes, barra lateral): la
   // pestaña puede pasar un instante por «Más». Se reintenta hasta que el clic
@@ -275,11 +372,29 @@ export async function shellCatalog(page) {
       destinations.add(SINGLE_SECTION_LABEL[section] || section)
       continue
     }
-    for (const group of await tabIds(context)) {
-      await clickTab(context, group)
+    let groups = await tabIds(context)
+    // Escritorio con menú expandido: el submenú lateral ofrece los mismos grupos
+    // (los que dependen de permisos o módulos pueden llegar un instante después:
+    // se relee hasta que la fila y el submenú coinciden).
+    const lateral = !(await visible(context))
+    if (lateral)
+      await expect(async () => {
+        groups = await tabIds(context)
+        expect(await lateralIds(page, 1)).toEqual(groups)
+      }).toPass({ timeout: 10_000 })
+    for (const group of groups) {
+      await clickShellRow(page, context, group, 1)
       const segments = page.getByTestId('shell-subcontexto')
       if (group === 'precios') await segments.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
-      if (await segments.count()) for (const id of await tabIds(segments)) destinations.add(label(id))
+      if (await segments.count()) {
+        let ids = await tabIds(segments)
+        if (lateral)
+          await expect(async () => {
+            ids = await tabIds(segments)
+            expect(await lateralIds(page, 2)).toEqual(ids)
+          }).toPass({ timeout: 10_000 })
+        for (const id of ids) destinations.add(label(id))
+      }
       else
         destinations.add(
           section === 'Entregas' && group === 'repartos' ? 'Mis repartos' : label(group),
@@ -320,14 +435,9 @@ export async function selectInventorySection(page, value) {
   await expect(vistas.getByRole('tab', { name: new RegExp(`^${ETIQUETA_VISTA[value]}`) })).toHaveAttribute('aria-selected', 'true')
 }
 
-// #396: Taller mantiene las vistas alternativas en «Más acciones» para
-// dejar espacio a las órdenes; la barra segmentada aparece en la vista Todo.
+// Taller muestra siempre su selector de vista (Todo · Tablero · Servicio · Garantías).
 export async function openTallerTabs(page) {
   const tabs = page.getByRole('group', { name: 'Ver taller o garantías', exact: true })
-  if (!(await tabs.isVisible())) {
-    await page.locator('.taller-f3').getByRole('button', { name: /^Más acciones/ }).click()
-    await page.getByRole('menuitem', { name: 'Ver todo', exact: true }).click()
-  }
   await expect(tabs).toBeVisible()
   return tabs
 }

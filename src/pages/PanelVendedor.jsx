@@ -467,7 +467,12 @@ export default function PanelVendedor() {
     () => tabsRutaTodas.filter(([id]) => (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)),
     [tabsRutaTodas, modulos],
   )
-  const seccionRuta = subpadre && tabsRutaTodas.some(([id]) => id === routeSeccion) ? routeSeccion : null
+  // Finanzas despliega sus pestañas en el menú lateral, como Inicio sus grupos.
+  const tabsFinanzasMenu = useMemo(
+    () => tabsDe('finanzas').filter(([id]) => (modulos.resuelto || !moduloDeVista(id)) && modulos.vistaVisible(id)),
+    [tabsDe, modulos],
+  )
+  const seccionRuta = subpadre &&tabsRutaTodas.some(([id]) => id === routeSeccion) ? routeSeccion : null
   // #247: adelanta los chunks de las secciones más usadas cuando el equipo está
   // ocioso (una sola vez por carga y solo si la conexión lo permite).
   usePrefetchSecciones(esOwner ? 'dueno' : esTecnico ? 'tecnico' : 'vendedor')
@@ -999,6 +1004,7 @@ export default function PanelVendedor() {
         onSearch={() => setBusquedaAbierta(true)}
         onHelp={() => setAyudaAbierto(true)}
         tabsEnTitulo={!subpadre && vista === 'cargar'}
+        subseccionesLaterales={esOwner ? { finanzas: tabsFinanzasMenu } : undefined}
         pageTabs={
           esOwner && (subpadre === 'finanzas' || subpadre === 'analisis')
             ? {

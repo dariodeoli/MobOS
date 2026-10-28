@@ -1,4 +1,4 @@
-import { selectInventorySection } from './helpers/shell-navigation.js'
+import { clickShellTab, expectShellGroupsVisible, selectInventorySection } from './helpers/shell-navigation.js'
 // #256 · Composición compacta: POS y Clientes usan la barra de módulo única
 // (identidad + contexto + acciones) y el resumen con alcance explícito. Sin
 // encabezados duplicados, sin botones aislados y sin desbordes en mobile.
@@ -101,15 +101,13 @@ test.describe('composición compacta', () => {
 
     // #305/U3 + rediseño 2A: navegación agrupada en pestañas del shell (Unidades ·
     // Productos · Traslados · Control · Precios), con las vistas de cada pestaña
-    // como segundo nivel en su barra.
-    const contexto = page.getByTestId('shell-contexto')
-    for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios']) {
-      await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
-    }
+    // como segundo nivel en su barra. En escritorio con el menú expandido las
+    // pestañas son el submenú lateral de Stock.
+    await expectShellGroupsVisible(page, ['unidades', 'productos', 'traslados', 'control', 'precios'])
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
-    await contexto.locator('[data-tab-id="traslados"]').click()
+    await clickShellTab(page, 'shell-contexto', 'traslados')
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toBeVisible()
-    await contexto.locator('[data-tab-id="control"]').click()
+    await clickShellTab(page, 'shell-contexto', 'control')
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'Conteos', exact: true })).toBeVisible()
     for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
 
