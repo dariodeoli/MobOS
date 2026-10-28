@@ -65,9 +65,17 @@ export default function SuperadminLayout() {
 
   useEffect(() => {
     let vivo = true
-    api.get('/api/superadmin/access', { cacheMs: 0 })
+    // Un 401 de otra consulta (p. ej. /api/auth/me sin sesión de tienda)
+    // invalida las consultas en vuelo y esta vuelve con CONTEXT_CHANGED: eso no
+    // es una denegación, se pregunta de nuevo (una vez) antes de echar.
+    const consultar = (intento = 0) => api.get('/api/superadmin/access', { cacheMs: 0 })
       .then(() => { if (vivo) setAcceso('ok') })
-      .catch(() => { if (vivo) setAcceso('denegado') })
+      .catch(error => {
+        if (!vivo) return
+        if (error?.code === 'CONTEXT_CHANGED' && intento < 1) return consultar(intento + 1)
+        setAcceso('denegado')
+      })
+    consultar()
     return () => { vivo = false }
   }, [])
 
