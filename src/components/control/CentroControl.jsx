@@ -172,12 +172,13 @@ function SeccionCelulares() {
               <ul className="space-y-1.5">
                 {items.map(c => (
                   <li key={c.id} data-testid="fila-celular" className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2">
-                    <div className="min-w-0 flex-1">
+                    {/* En celular el modelo ocupa su renglón y abajo van estado, precio y borrar. */}
+                    <div className="w-full min-w-0 sm:w-auto sm:flex-1">
                       <b className="text-sm">{c.modelo}</b>
                       <span className="text-sm text-mute"> · {c.capacidad}{c.color ? ` · ${c.color}` : ''}</span>
                     </div>
                     <Badge color={tema.badge}>{c.estado}</Badge>
-                    <div className="w-36 shrink-0">
+                    <div className="min-w-0 flex-1 sm:w-36 sm:flex-none">
                       <Input
                         aria-label={`Precio de ${c.modelo} ${c.capacidad}${c.color ? ` ${c.color}` : ''}`}
                         inputMode="numeric"

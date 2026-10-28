@@ -192,13 +192,16 @@ function TallerRackContexto({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <SearchField
-          value={busqueda}
-          onChange={(event) => setBusqueda(event.target.value)}
-          placeholder="Buscar IMEI o modelo en el taller"
-          ariaLabel="Buscar en el taller"
-          className="min-w-0 flex-1"
-        />
+        {/* En celular el buscador va en su renglón: al lado del filtro quedaba en «Busca…». */}
+        <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+          <SearchField
+            value={busqueda}
+            onChange={(event) => setBusqueda(event.target.value)}
+            placeholder="Buscar IMEI o modelo en el taller"
+            ariaLabel="Buscar en el taller"
+            className="min-w-0 flex-1"
+          />
+        </div>
         <Select
           aria-label="Filtrar por ubicación"
           className="w-auto"
@@ -238,7 +241,7 @@ function TallerRackContexto({
         </Button>
       </BarraLote>
 
-      <div className={cn('mt-4 grid gap-3', visibles.length > 1 ? 'lg:grid-cols-3' : '')}>
+      <div className={cn('mt-4 grid grid-cols-1 gap-3', visibles.length > 1 ? 'lg:grid-cols-3' : '')}>
         {visibles.map((estado) => {
           const lista = grupos[estado]
           const todos = lista.length > 0 && lista.every((unit) => seleccionados.includes(unit.id))
@@ -246,9 +249,9 @@ function TallerRackContexto({
             <section
               key={estado}
               data-testid={`rack-columna-${estado}`}
-              className="rounded-2xl border border-ink-600 bg-ink-800/40 p-3"
+              className="min-w-0 rounded-2xl border border-ink-600 bg-ink-800/40 p-3"
             >
-              <header className="flex items-center justify-between gap-2">
+              <header className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
                   <Badge color={TONO_RACK[estado]}>{ETIQUETA_RACK[estado]}</Badge>
                   <ContadorLote recibidos={lista.length} total={filtradas.length} variante="chip" className="tabular-nums" />

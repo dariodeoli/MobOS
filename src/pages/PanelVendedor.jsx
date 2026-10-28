@@ -655,7 +655,10 @@ export default function PanelVendedor() {
   // accesible de una sola vez. Sin el navigate acá, los dos efectos se pisan en
   // bucle: uno fuerza la vista y el otro vuelve a leer la URL.
   useEffect(() => {
-    const requerido = subpadre ? SUBPAGINAS[subpadre].vista : vista
+    // Sin sección, manda la vista de la URL: al volver con el historial a una
+    // ruta fuera del rol, la vista anterior seguía en pantalla (o quedaba en blanco).
+    const deUrl = routeVista && !SUBPAGINA_DE_VISTA[routeVista] && !SUBPAGINA_DE_TAB[routeVista] ? routeVista : null
+    const requerido = subpadre ? SUBPAGINAS[subpadre].vista : (deUrl || vista)
     // Un módulo apagado avisa y vuelve a la vista padre (efecto aparte).
     if (moduloApagado) return
     if (!accesibles.includes(requerido)) {
@@ -663,7 +666,7 @@ export default function PanelVendedor() {
       setVista(primera)
       navigate(rutaDeVista(primera) || '/pos', { replace: true })
     }
-  }, [subpadre, accesibles, vista, navigate, moduloApagado])
+  }, [subpadre, routeVista, accesibles, vista, navigate, moduloApagado])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
   useEffect(() => {
     if (subpadre) {
