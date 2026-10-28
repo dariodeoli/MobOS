@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.244 — 2026-10-28
+
+- **Pedidos:** en Taller desde el celular, «Nueva orden» queda como un botón «+» junto a la búsqueda: la lista de órdenes arranca más arriba.
+- **Pedidos:** en el detalle de un pedido, título, estado y botones entran en una sola fila también en pantallas medianas.
+- **Otros:** el centro de control de plataforma ya no manda al login de forma intermitente al entrar.
+
 ## v1.0.243 — 2026-10-28
 
 - **Otros:** en la computadora, cada sección muestra sus páginas en el menú lateral y ya no se repiten como pestañas arriba. En el celular y con el menú plegado, las pestañas siguen como antes.
