@@ -10,6 +10,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { ensureCobro } from './helpers/ensure-cobro.js'
 import { SEED } from './helpers/seed-data.js'
+import { expectShellGroupsVisible, lateralIds } from './helpers/shell-navigation.js'
 
 const API = SEED.api
 const SALIDA = process.env.MOBOS_QA_OUT || 'test-results/modulos-stock'
@@ -50,7 +51,9 @@ test('módulo apagado: Stock abre en Productos y las vistas de unidades no exist
   await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="unidades"]')).toHaveCount(0)
   await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="productos"]')).toHaveCount(1)
   await page.waitForTimeout(2000) // solo para la captura: deja que termine de cargar la lista
-  await expect(page.getByTestId('shell-contexto')).toBeVisible()
+  // Escritorio con el menú expandido: Stock ofrece Productos en el submenú lateral, sin Unidades.
+  await expectShellGroupsVisible(page, ['productos'])
+  expect(await lateralIds(page, 1)).not.toContain('unidades')
   await page.screenshot({ path: `${SALIDA}/stock-modulo-apagado.png` })
 })
 

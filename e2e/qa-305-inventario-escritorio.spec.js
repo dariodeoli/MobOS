@@ -1,4 +1,4 @@
-import { selectInventorySection } from './helpers/shell-navigation.js'
+import { expectShellGroupsVisible, selectInventorySection } from './helpers/shell-navigation.js'
 // #305 · Stock escritorio: menos capas antes de la tabla, navegación agrupada
 // (Unidades · Reservas · Movimientos · Control) y tabla sin scroll horizontal ni
 // datos recortados (IMEI de 15 dígitos completo). La garantía, los locks y la
@@ -47,11 +47,9 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
   await expect(page.getByTestId('resumen-inventario')).toHaveCount(0)
 
   // Navegación agrupada: las pestañas son del shell y solo la pestaña activa
-  // muestra sus vistas (segundo nivel en su barra).
-  const contexto = page.getByTestId('shell-contexto')
-  for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios']) {
-    await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
-  }
+  // muestra sus vistas (segundo nivel en su barra). En escritorio con el menú
+  // expandido las pestañas son el submenú lateral de Stock.
+  await expectShellGroupsVisible(page, ['unidades', 'productos', 'traslados', 'control', 'precios'])
   await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
   for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
 

@@ -4,7 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { selectAnalysisSection } from './helpers/shell-navigation.js'
+import { selectAnalysisSection, shellSubmenuLateral } from './helpers/shell-navigation.js'
 
 // Capturas: `QA_GANADORES_CAPTURAS` (default test-results/qa-ganadores) — se
 // versionan en docs/qa/finanzas-ganadores/.
@@ -48,7 +48,10 @@ test.describe('análisis', () => {
   test('la vista extendida abre en Reportes y comparte el período con Ganancias', async ({ page }) => {
     await page.goto('/analisis')
     await expect(page).toHaveURL(/\/analisis\/reportes$/)
-    await expect(page.getByRole('navigation', { name: 'Secciones de Análisis', exact: true }).locator('[data-tab-id="reportes"]')).toHaveAttribute('aria-current', 'page')
+    // La fila del header queda oculta en escritorio con el menú expandido: el
+    // submenú lateral de Inicio marca la misma vista.
+    await expect(page.getByRole('navigation', { name: 'Secciones de Análisis', exact: true, includeHidden: true }).locator('[data-tab-id="reportes"]')).toHaveAttribute('aria-current', 'page')
+    await expect((await shellSubmenuLateral(page)).locator('ul[aria-label^="Vistas de"] [data-shell-sub="reportes"]')).toHaveAttribute('aria-current', 'true')
     await expect(page.getByText('Total del período')).toBeVisible()
 
     await selectAnalysisSection(page, 'Ganancias')
