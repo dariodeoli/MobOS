@@ -320,12 +320,12 @@ jobs:
           MOBOS_QA_PORT: "5351"
         run: npx playwright test --config e2e/demo350.frontend.config.js
       - name: Demo memory context and reload isolation
-        if: matrix.shard == 4
+        if: matrix.shard == 3
         env:
           MOBOS_QA_PORT: "5352"
         run: npx playwright test --config e2e/demo350-scope.frontend.config.js
       - name: Demo customer card save, edits and reset
-        if: matrix.shard == 4
+        if: matrix.shard == 3
         env:
           MOBOS_QA_PORT: "5391"
         run: npx playwright test --config e2e/demo350-clientes.frontend.config.js
@@ -347,10 +347,10 @@ jobs:
         # e2e/tiempos.json → e2e/sharding.json; matriz 1-4). Nada de
         # reintentos: un flake se aísla y se corrige la raíz (#245).
         run: npx playwright test $(node scripts/e2e-shards.mjs --shard ${{ matrix.shard }})
-      # Solo se guarda cuando hay algo que mirar: subirlo en cada corrida verde
-      # acumulaba ~16 GB de informes sin uso.
+      # El informe es la fuente de e2e/tiempos.json (docs/CI-HARNESS.md §1.0.1):
+      # se sube siempre, pero vive 3 días (con 14 se acumulaban ~16 GB).
       - name: Upload Playwright report (shard ${{ matrix.shard }})
-        if: failure() || cancelled()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -363,7 +363,7 @@ jobs:
             test-results/**/trace.zip
             /tmp/mobos-superadmin508/results/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 3
 
   e2e-aggregate:
     name: E2E (Playwright + self-hosted backend/Postgres)
