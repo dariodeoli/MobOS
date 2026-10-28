@@ -347,8 +347,10 @@ jobs:
         # e2e/tiempos.json → e2e/sharding.json; matriz 1-4). Nada de
         # reintentos: un flake se aísla y se corrige la raíz (#245).
         run: npx playwright test $(node scripts/e2e-shards.mjs --shard ${{ matrix.shard }})
+      # Solo se guarda cuando hay algo que mirar: subirlo en cada corrida verde
+      # acumulaba ~16 GB de informes sin uso.
       - name: Upload Playwright report (shard ${{ matrix.shard }})
-        if: always()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -361,7 +363,7 @@ jobs:
             test-results/**/trace.zip
             /tmp/mobos-superadmin508/results/
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7
 
   e2e-aggregate:
     name: E2E (Playwright + self-hosted backend/Postgres)
