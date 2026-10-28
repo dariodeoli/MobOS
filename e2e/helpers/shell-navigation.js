@@ -92,6 +92,10 @@ export async function shellPrimary(page) {
 // through it; single-section roles have no primary navigation at all.
 async function enterShellSection(page, primary, section) {
   const button = primary.getByRole('button', { name: section, exact: true })
+  // Secciones que dependen de módulos o permisos (Taller) llegan un instante
+  // después del primer pintado: en escritorio, sin «Más», se las espera.
+  if (!(await button.count()) && !(await page.getByTestId('shell-mas').isVisible()))
+    await button.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
   if (await button.count()) {
     await button.click()
     await expect.poll(() => button.getAttribute('aria-current')).toBe('page')
@@ -186,6 +190,10 @@ export async function lateralIds(page, nivel = 1) {
 // Devuelve false cuando la sección no ofrece ese id.
 export async function clickLateral(page, id, { nivel = 1 } = {}) {
   const acordeon = await shellSubmenuLateral(page)
+  // El acordeón puede volver a pintarse al entrar a la sección (contadores,
+  // preferencias del servidor): se espera la entrada en vez de contar en frío.
+  const cualquiera = ENTRADA_LATERAL[1](acordeon, id).or(ENTRADA_LATERAL[2](acordeon, id)).first()
+  if (!(await cualquiera.waitFor({ state: 'attached', timeout: 5000 }).then(() => true, () => false))) return false
   for (const n of nivel === 2 ? [2, 1] : [1, 2]) {
     const entrada = ENTRADA_LATERAL[n](acordeon, id)
     if (!(await entrada.count())) continue
@@ -364,17 +372,27 @@ export async function shellCatalog(page) {
       destinations.add(SINGLE_SECTION_LABEL[section] || section)
       continue
     }
-    const groups = await tabIds(context)
-    // Escritorio con menú expandido: el submenú lateral ofrece los mismos grupos.
+    let groups = await tabIds(context)
+    // Escritorio con menú expandido: el submenú lateral ofrece los mismos grupos
+    // (los que dependen de permisos o módulos pueden llegar un instante después:
+    // se relee hasta que la fila y el submenú coinciden).
     const lateral = !(await visible(context))
-    if (lateral) expect(await lateralIds(page, 1)).toEqual(groups)
+    if (lateral)
+      await expect(async () => {
+        groups = await tabIds(context)
+        expect(await lateralIds(page, 1)).toEqual(groups)
+      }).toPass({ timeout: 10_000 })
     for (const group of groups) {
       await clickShellRow(page, context, group, 1)
       const segments = page.getByTestId('shell-subcontexto')
       if (group === 'precios') await segments.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
       if (await segments.count()) {
-        const ids = await tabIds(segments)
-        if (lateral) expect(await lateralIds(page, 2)).toEqual(ids)
+        let ids = await tabIds(segments)
+        if (lateral)
+          await expect(async () => {
+            ids = await tabIds(segments)
+            expect(await lateralIds(page, 2)).toEqual(ids)
+          }).toPass({ timeout: 10_000 })
         for (const id of ids) destinations.add(label(id))
       }
       else
