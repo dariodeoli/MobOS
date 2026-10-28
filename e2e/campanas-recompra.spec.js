@@ -2,6 +2,7 @@
 // de inactivos, el consentimiento habilita el envío y al abrir WhatsApp la
 // ficha queda marcada como contactada.
 import { test, expect } from '@playwright/test'
+import { clickLateral } from './helpers/shell-navigation.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -28,7 +29,11 @@ test('la sección Campañas lista el segmento y marca el contacto en la ficha', 
   })
   expect(cliente.status).toBe(201)
 
-  await page.getByRole('button', { name: 'Campañas' }).click()
+  // En escritorio con el menú expandido Campañas vive en el submenú lateral;
+  // en celular o con el menú plegado, en la fila de pestañas.
+  const pestana = page.getByRole('button', { name: 'Campañas' })
+  if (await pestana.isVisible()) await pestana.click()
+  else expect(await clickLateral(page, 'campanas')).toBe(true)
   await expect(page.getByRole('heading', { name: 'Campañas de recompra' })).toBeVisible()
 
   // La plantilla de clientes se siembra sola y la vista previa usa el nombre.

@@ -2,6 +2,7 @@
 // campaña registrada con enlaces wa.me y sin repetir al ya contactado.
 
 import { test, expect } from '@playwright/test'
+import { clickLateral } from './helpers/shell-navigation.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -48,7 +49,9 @@ test.describe('campañas de recompra', () => {
 
     await page.goto('/clientes')
     await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
-    await page.getByRole('button', { name: 'Campañas' }).click()
+    const pestana = page.getByRole('button', { name: 'Campañas' })
+    if (await pestana.isVisible()) await pestana.click()
+    else expect(await clickLateral(page, 'campanas')).toBe(true)
     const panel = page.getByTestId('marketing-panel')
     await expect(panel).toBeVisible()
 
