@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.245 — 2026-10-28
+
+- **Inventario:** en el celular, Modo taller (Stock › Taller) entra completo en pantalla: se ven el modelo y los botones Verificar y Etiqueta, y el buscador tiene su propio renglón.
+- **Otros:** en el celular, la lista de precios del Centro de Control muestra el modelo arriba y debajo el estado, el precio y el botón de borrar, sin partir el nombre.
+- **Ventas:** si un vendedor vuelve con «atrás» a una pantalla que no le corresponde (por ejemplo Garantías), la app lo lleva a Vender en lugar de quedar en blanco.
+
 ## v1.0.244 — 2026-10-28
 
 - **Pedidos:** en Taller desde el celular, «Nueva orden» queda como un botón «+» junto a la búsqueda: la lista de órdenes arranca más arriba.
