@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.246 — 2026-11-02
+
+- **Abastecimiento:** cuando se vende algo sin stock, a quien compra (dueño o gerente de la sucursal) le llega un aviso al celular: «Hay que comprar …», con la fecha prometida.
+- **Abastecimiento:** la campanita muestra cada venta sin stock pendiente de compra; tocándola se abre directo la lista «Ventas sin stock».
+- **Ventas:** la fecha que el vendedor promete en un pedido especial ahora se guarda en el pedido y ordena las compras por urgencia.
+
 ## v1.0.245 — 2026-10-28
 
 - **Inventario:** en el celular, Modo taller (Stock › Taller) entra completo en pantalla: se ven el modelo y los botones Verificar y Etiqueta, y el buscador tiene su propio renglón.
