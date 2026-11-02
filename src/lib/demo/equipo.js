@@ -38,6 +38,7 @@ const DESCRIPCIONES = {
   CAJERA: { nombre: 'Caja', description: 'Cobros y conciliación.', permissions: 'Ventas, cobros, conciliación de pagos y consulta de pedidos.' },
   TECNICO: { nombre: 'Técnico', description: 'Taller y servicio.', permissions: 'Recepción, diagnóstico, reparación y entrega de equipos.' },
   REPARTIDOR: { nombre: 'Delivery', description: 'Reparto y rendición.', permissions: 'Pedidos asignados, cobro en la calle y rendición al volver.' },
+  COMPRAS: { nombre: 'Compras', description: 'Lo que falta comprar.', permissions: 'Ventas sin stock, compras, lotes y recepción; sin caja ni ventas.' },
 }
 
 export const PERFILES_DEMO = ROLE_ORDER.map((rol) => {

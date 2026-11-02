@@ -21,7 +21,7 @@ export const IPHONES_DEMO = [
 // Equipo demo (#213): roles, PINs ficticios y meta diaria (#324: los seis roles
 // del sistema están representados). Los PINs son de demostración y coinciden
 // con el acceso de `/demo`: 3001 dueño, 2001 vendedor, 2002 gerente, 2004 caja,
-// 2005 técnico y 2007 delivery.
+// 2005 técnico, 2007 delivery y 2008 compras.
 // `hasAvatar: true` habilita la foto ficticia del modo demo (#219): el retrato
 // sale de `demo/avatares.js` (data URI local, determinista por id).
 // Contactos ficticios para probar la ficha; no deben usarse para llamar ni enviar mensajes.
@@ -33,6 +33,7 @@ export const EQUIPO_DEMO = [
   { id: 'demo-user-tecnico', nombre: 'Jorge Villalba', rol: 'TECNICO', role: 'TECNICO', email: '35800105@correo.com.py', phone: '+595 981 000 105', branchId: 'mobos-demo-central', pin: '2005', metaDiaria: 0, activo: true, hasAvatar: true },
   { id: 'demo-user-vendedora', nombre: 'Sofía Cáceres', rol: 'VENDEDOR', role: 'VENDEDOR', email: '35800106@correo.com.py', phone: '+595 981 000 106', branchId: 'mobos-demo-central', pin: '2006', metaDiaria: 1200000, activo: true, hasAvatar: true },
   { id: 'demo-user-repartidor', nombre: 'Marcos Aquino', rol: 'REPARTIDOR', role: 'REPARTIDOR', email: '35800107@correo.com.py', phone: '+595 981 000 107', branchId: 'mobos-demo-central', pin: '2007', metaDiaria: 0, activo: true, hasAvatar: true },
+  { id: 'demo-user-compras', nombre: 'Lucía Ortiz', rol: 'COMPRAS', role: 'COMPRAS', email: '35800110@correo.com.py', phone: '+595 981 000 110', branchId: 'mobos-demo-central', pin: '2008', metaDiaria: 0, activo: true, hasAvatar: true },
 ]
 
 // IMEIs del modo demo (#450): 15 dígitos con aspecto real (TAC 35xxxxxx de

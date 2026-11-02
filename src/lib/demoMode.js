@@ -3,7 +3,7 @@
 // Caja, Técnico y Delivery). El rol guardado se valida contra esa lista; sin
 // dato (o inválido) la sesión cae a Vendedor, como antes.
 const KEY = 'mobos:demo-session'
-export const ROLES_DEMO = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR']
+export const ROLES_DEMO = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR', 'COMPRAS']
 export function demoSessionActive() {
   try { return sessionStorage.getItem(KEY) === 'active' } catch { return false }
 }

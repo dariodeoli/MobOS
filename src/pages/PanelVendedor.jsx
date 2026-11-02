@@ -238,6 +238,21 @@ const TECNICO_NAV = [
   },
 ]
 
+// Compras: entra directo a lo que falta comprar (ventas sin stock incluidas).
+const COMPRAS_NAV = [
+  {
+    titulo: 'Abastecimiento',
+    items: [
+      ['abastecimiento', 'Por comprar', 'box'],
+      ['compras-centro', 'Compras del Centro', 'store'],
+      ['preparacion', 'Preparar compra', 'tag'],
+      ['lotes', 'Preparar lote', 'tag'],
+      ['recepcion', 'Recepción', 'truck'],
+      ['metricas', 'Métricas de abastecimiento', 'chart'],
+    ],
+  },
+]
+
 // Cada apartado con pestañas vive en /<padre>/<slug> (slug hijo en la URL).
 
 const TABS_ANALISIS = [
@@ -456,7 +471,8 @@ export default function PanelVendedor() {
   const modulos = useModulos()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
-  const esVerificador = !esOwner && !esTecnico && puedeVerificarPagos(usuario?.role)
+  const esCompras = !esOwner && (usuario?.role === 'COMPRAS' || sesion?.rol === 'COMPRAS')
+  const esVerificador = !esOwner && !esTecnico && !esCompras && puedeVerificarPagos(usuario?.role)
   // Pestañas que el rol puede abrir: gerente y caja ven de Finanzas solo la verificación.
   const tabsDe = useCallback(slug => {
     const tabs = tabsDeSubpagina(slug)
@@ -540,11 +556,11 @@ export default function PanelVendedor() {
   // Catálogo del rol sin el filtro de módulos (decide qué rutas son válidas
   // mientras el estado de módulos todavía carga).
   const navDelRol = useMemo(() => {
-    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : esVerificador ? [...SELLER_NAV, ...VERIFICADOR_NAV] : SELLER_NAV
+    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : esCompras ? COMPRAS_NAV : esVerificador ? [...SELLER_NAV, ...VERIFICADOR_NAV] : SELLER_NAV
     return base
       .map(group => ({ ...group, items: group.items.filter(([id]) => (puedeCampanas || id !== 'campanas')) }))
       .filter(group => group.items.length)
-  }, [esOwner, esTecnico, esVerificador, puedeCampanas])
+  }, [esOwner, esTecnico, esCompras, esVerificador, puedeCampanas])
   // Los módulos solo RESTAN a lo que el rol ya ve: nunca amplían permisos. El
   // técnico conserva su Taller (es todo su rol). Hasta que carga el estado, los
   // ítems de módulos no se muestran (evita que aparezcan y desaparezcan).
@@ -950,6 +966,7 @@ export default function PanelVendedor() {
           const destino = elegido?.rol === 'ADMIN' ? '/'
             : elegido?.rol === 'TECNICO' ? '/servicio'
               : elegido?.rol === 'REPARTIDOR' ? '/delivery/repartos'
+                : elegido?.rol === 'COMPRAS' ? '/abastecimiento'
                 : '/pos'
           navigate(destino)
         }
@@ -1140,13 +1157,13 @@ export default function PanelVendedor() {
             </div>
           )}
           {vista === 'precios' && <Precios />}
-          {esOwner && vista === 'abastecimiento' && <PorComprar />}
-          {esOwner && vista === 'compras-centro' && <ComprasCentro />}
-          {esOwner && vista === 'preparacion' && <PrepararCompra />}
-          {esOwner && vista === 'lotes' && <PrepararLote />}
-          {esOwner && vista === 'recepcion' && <Recepcion />}
+          {(esOwner || esCompras) && vista === 'abastecimiento' && <PorComprar />}
+          {(esOwner || esCompras) && vista === 'compras-centro' && <ComprasCentro />}
+          {(esOwner || esCompras) && vista === 'preparacion' && <PrepararCompra />}
+          {(esOwner || esCompras) && vista === 'lotes' && <PrepararLote />}
+          {(esOwner || esCompras) && vista === 'recepcion' && <Recepcion />}
           {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
-          {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
+          {(esOwner || esCompras) && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
             <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
               {vista === 'mi-cuenta' && (

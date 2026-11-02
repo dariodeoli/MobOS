@@ -6,7 +6,7 @@ import { guardarDemo, leerDemo } from '../demoStorage.js'
 
 const KEY = 'mobos:demo-invitaciones:v1'
 const DIA = 86_400_000
-const ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR']
+const ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR', 'COMPRAS']
 const INVITA = 'Hernán Acosta'
 
 const enDias = (dias, ahora) => new Date(ahora + dias * DIA).toISOString()

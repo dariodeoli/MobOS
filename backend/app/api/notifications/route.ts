@@ -8,7 +8,7 @@ import { parseCreditConfig } from '../../../lib/credit-config'
 import { PAYMENT_VERIFIER_ROLES } from '../../../lib/payment-verification-policy'
 import { verificationOrderScope } from '../../../lib/payment-verification-scope'
 import { METHOD_LABELS } from '../../../lib/reconciliation'
-import { ORIGENES_VENTA_SIN_STOCK, URL_VENTAS_SIN_STOCK, diaMesAsuncion } from '../../../lib/supply-aviso'
+import { ORIGENES_VENTA_SIN_STOCK, ROLES_COMPRADORES, URL_VENTAS_SIN_STOCK, diaMesAsuncion } from '../../../lib/supply-aviso'
 import { ACCIONES_PRODUCTO, ACCIONES_UNIDAD, avisosDeStock, claveDisponibilidad, eventosDeAuditoria } from '../../../lib/stock-notices'
 
 // Centro de notificaciones del panel: lista corta y accionable, sin tabla
@@ -379,7 +379,7 @@ export async function GET(request: Request) {
 
   // Venta sin stock: lo que quedó por comprar para un cliente, para quien
   // compra. Desaparece de la campana apenas se marca como comprado.
-  if (canAccessAny(user, ['stock:manage'])) {
+  if ((ROLES_COMPRADORES as readonly string[]).includes(user.role) && canAccessAny(user, ['stock:manage'])) {
     const porComprar = await prisma.supplyNeed.findMany({
       where: {
         tenantId: user.tenantId,

@@ -11,7 +11,7 @@ globalThis.localStorage = { getItem: k => datos.get(k) ?? null, setItem: (k,v) =
 const { getDemoTenant } = await import('../demoTenant.js')
 
 test('#350: equipo ficticio completo con roles y sucursales consistentes, sin cambiar sus metas', () => {
-  assert.deepEqual(EQUIPO_DEMO.map(v=>v.metaDiaria), [0,3000000,1500000,0,0,1200000,0])
+  assert.deepEqual(EQUIPO_DEMO.map(v=>v.metaDiaria), [0,3000000,1500000,0,0,1200000,0,0])
   for (const v of EQUIPO_DEMO) {
     assert.ok(telefonoValido(v.phone), v.nombre)
     assert.match(v.email, /^[^@]+@[^@]+\.[^@]+$/)

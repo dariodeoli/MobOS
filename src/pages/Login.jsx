@@ -62,7 +62,7 @@ export default function Login() {
   useEffect(() => {
     if (modo !== 'entrar' || estado !== 'dentro' || !usuario) return
     const next = rutaInterna(new URLSearchParams(window.location.search).get('next'))
-    window.location.assign(next || (usuario.role === 'REPARTIDOR' ? '/delivery/repartos' : '/ventas'))
+    window.location.assign(next || (usuario.role === 'REPARTIDOR' ? '/delivery/repartos' : usuario.role === 'COMPRAS' ? '/abastecimiento' : '/ventas'))
   }, [modo, estado, usuario])
 
   function showCompany(result) {

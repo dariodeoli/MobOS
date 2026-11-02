@@ -12,10 +12,15 @@ export const ORIGENES_VENTA_SIN_STOCK = ['SALE_NO_STOCK', 'ORDER_COMMITTED', 'QU
 
 export const URL_VENTAS_SIN_STOCK = '/abastecimiento?tab=ventas'
 
+// Quienes abren el abastecimiento en la app: el dueño y el rol Compras. El
+// gerente tiene stock:manage pero no ve esas pantallas, así que no se le avisa.
+export const ROLES_COMPRADORES = ['ADMIN', 'COMPRAS'] as const
+
 type Candidato = { id: string; role: string; branchId: string | null; permissions: unknown }
 
-/** Puede comprar (stock:manage) y ve la sucursal de la venta. */
+/** Puede comprar (rol comprador con stock:manage) y ve la sucursal de la venta. */
 export function esCompradorDeLaVenta(usuario: Candidato, branchId: string | null) {
+  if (!(ROLES_COMPRADORES as readonly string[]).includes(usuario.role)) return false
   const permisos = effectivePermissions(usuario.role, usuario.permissions)
   if (!permisos.includes('*') && !permisos.includes('stock:manage')) return false
   if (usuario.role === 'ADMIN' || !usuario.branchId || !branchId) return true
@@ -47,7 +52,7 @@ export async function notifyVentaSinStock(input: { tenantId: string; orderId: st
     })
     if (!necesidades.length) return
     const usuarios = await prisma.user.findMany({
-      where: { tenantId: input.tenantId, status: 'ACTIVE', role: { in: ['ADMIN', 'GERENTE'] } },
+      where: { tenantId: input.tenantId, status: 'ACTIVE', role: { in: [...ROLES_COMPRADORES] } },
       select: { id: true, role: true, branchId: true, permissions: true },
     })
     const destinatarios = usuarios.filter((usuario) => usuario.id !== input.excluirUserId && esCompradorDeLaVenta(usuario, input.branchId))

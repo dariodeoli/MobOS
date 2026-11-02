@@ -7,6 +7,7 @@ import type { FulfillmentStatus } from '@prisma/client'
 import { prisma } from './prisma'
 import { mencionadosEn, variantesDeNombre } from './menciones'
 import { enviarWebPush } from './web-push'
+import { ORIGENES_VENTA_SIN_STOCK, URL_VENTAS_SIN_STOCK, esCompradorDeLaVenta } from './supply-aviso'
 
 const VENTANA_DIAS = 7
 const ESTADOS_ENTREGA_LISTA: FulfillmentStatus[] = ['READY_FOR_PICKUP', 'READY_TO_SHIP']
@@ -27,6 +28,7 @@ export const CATALOGO_WEB_PUSH: Record<string, { url: string; titulo: string; cu
   PEDIDO_LISTO: { url: '/pedidos', titulo: 'Un pedido está listo', cuerpo: 'Abrí MobOS para verlo.' },
   ALTERNATIVA: { url: '/compras', titulo: 'Hay una alternativa propuesta', cuerpo: 'Abrí MobOS para decidirla.', pendiente: 'A5' },
   TRANSITO: { url: '/recepcion', titulo: 'Llegó un producto vendido en tránsito', cuerpo: 'Abrí MobOS para asignarlo.', pendiente: 'A4' },
+  COMPRAS_DEL_DIA: { url: URL_VENTAS_SIN_STOCK, titulo: 'Compras pendientes', cuerpo: 'Hay ventas sin stock por comprar.' },
 }
 
 /** Clave de dedupe (usuario + evento): un aviso por evento, nunca repetido. */
@@ -43,7 +45,7 @@ const recorte = (texto: string | null | undefined, largo = 90) => String(texto |
  */
 export async function eventosDeUsuario({ tenantId, userId, ahora = new Date(), desde = new Date(ahora.getTime() - VENTANA_DIAS * 86_400_000) }: { tenantId: string; userId: string; ahora?: Date; desde?: Date }): Promise<EventoWebPush[]> {
   const eventos: EventoWebPush[] = []
-  const usuario = await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, role: true } })
+  const usuario = await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, role: true, branchId: true, permissions: true } })
   if (!usuario) return eventos
 
   // 1) Menciones en comentarios internos (mismo criterio que la bandeja).
@@ -81,7 +83,40 @@ export async function eventosDeUsuario({ tenantId, userId, ahora = new Date(), d
   const pedidos = await prisma.order.findMany({ where: { tenantId, sellerId: userId, fulfillmentStatus: { in: ESTADOS_ENTREGA_LISTA }, updatedAt: { gte: desde } }, orderBy: { updatedAt: 'desc' }, take: 5, select: { id: true, orderNumber: true, fulfillmentStatus: true } })
   for (const pedido of pedidos) eventos.push({ kind: 'PEDIDO_LISTO', itemId: `pedido-listo-${pedido.id}`, ...CATALOGO_WEB_PUSH.PEDIDO_LISTO, url: `/pedidos/${pedido.id}`, cuerpo: `${recorte(pedido.orderNumber || 'Pedido', 24)} ${pedido.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'está listo para retirar' : 'está listo para enviar'}.` })
 
+  // 5) Resumen diario de compras: desde las 8:00 de Asunción, una vez por día
+  //    (la clave lleva la fecha), solo si queda algo vendido sin comprar.
+  const resumen = await resumenDeCompras({ tenantId, usuario, ahora })
+  if (resumen) eventos.push(resumen)
+
   return eventos
+}
+
+/** «AAAA-MM-DD» y hora de Asunción (UTC-3 fijo). */
+function diaYHoraAsuncion(ahora: Date) {
+  const local = new Date(ahora.getTime() - 3 * 3_600_000)
+  return { dia: local.toISOString().slice(0, 10), hora: local.getUTCHours() }
+}
+
+export function textoResumenCompras(pendientes: number, vencidas: number) {
+  const ventas = `${pendientes} ${pendientes === 1 ? 'venta sin stock' : 'ventas sin stock'} por comprar`
+  return vencidas > 0 ? `${ventas}, ${vencidas} con la fecha prometida vencida.` : `${ventas}.`
+}
+
+async function resumenDeCompras({ tenantId, usuario, ahora }: { tenantId: string; usuario: { id: string; role: string; branchId: string | null; permissions: unknown }; ahora: Date }): Promise<EventoWebPush | null> {
+  const { dia, hora } = diaYHoraAsuncion(ahora)
+  if (hora < 8 || !esCompradorDeLaVenta(usuario, null)) return null
+  const where = {
+    tenantId,
+    status: { in: ['ABIERTA', 'ASIGNADA'] },
+    source: { in: [...ORIGENES_VENTA_SIN_STOCK] },
+    ...(usuario.role !== 'ADMIN' && usuario.branchId ? { OR: [{ branchId: usuario.branchId }, { branchId: null }] } : {}),
+  }
+  const [pendientes, vencidas] = await Promise.all([
+    prisma.supplyNeed.count({ where }),
+    prisma.supplyNeed.count({ where: { ...where, promisedAt: { lt: ahora } } }),
+  ])
+  if (!pendientes) return null
+  return { kind: 'COMPRAS_DEL_DIA', itemId: `compras-${dia}`, ...CATALOGO_WEB_PUSH.COMPRAS_DEL_DIA, cuerpo: textoResumenCompras(pendientes, vencidas) }
 }
 
 /**

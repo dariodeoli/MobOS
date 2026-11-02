@@ -1,4 +1,4 @@
-export const ROLE_ORDER = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR']
+export const ROLE_ORDER = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR', 'COMPRAS']
 
 export const ROLE_LABELS = {
   ADMIN: 'Dueño',
@@ -7,6 +7,7 @@ export const ROLE_LABELS = {
   CAJERA: 'Cajera',
   TECNICO: 'Técnico',
   REPARTIDOR: 'Repartidor',
+  COMPRAS: 'Compras',
 }
 
 // #299: el backend usa ADMIN/GERENTE/…; la sesión de la app expone `dueno`.
@@ -35,6 +36,7 @@ export const ROLE_DESCRIPTIONS = {
   CAJERA: 'Cajera: carga ventas y cobros, concilia pagos y consulta pedidos, clientes y catálogo.',
   TECNICO: 'Técnico: recibe equipos, diagnostica y gestiona las órdenes de servicio técnico.',
   REPARTIDOR: 'Repartidor: entra con su propio usuario, ve solo los pedidos que le asignan, registra el cobro en la calle y rinde en la tienda.',
+  COMPRAS: 'Compras: ve lo vendido sin stock y lo que falta comprar, registra compras, lotes y recepción. No vende, no cobra ni maneja la caja.',
 }
 
 export const CAPACIDAD_DOMINIOS = [
@@ -52,6 +54,7 @@ export const CAPACIDADES = [
   { id: 'panel-pos', dominio: 'Panel', label: 'Punto de venta', description: 'Vender, pedidos, clientes, productos, promociones, Trade-In y cotizaciones.', roles: ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'] },
   { id: 'panel-taller', dominio: 'Panel', label: 'Panel del taller', description: 'Servicio Técnico: recepción, diagnóstico, reparación y entrega.', roles: ['ADMIN', 'TECNICO'] },
   { id: 'panel-delivery', dominio: 'Panel', label: 'Panel de reparto', description: 'Pedidos asignados, pre-cobro en la calle y rendición en la tienda.', roles: ['ADMIN', 'REPARTIDOR'] },
+  { id: 'panel-compras', dominio: 'Panel', label: 'Abastecimiento', description: 'Por comprar, ventas sin stock, compras, lotes y recepción.', roles: ['ADMIN', 'COMPRAS'] },
 
   { id: 'cargar-ventas', dominio: 'Ventas', label: 'Cargar ventas', description: 'Cliente, productos, IMEI, pagos, entrega y comprobante.', roles: ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'] },
   { id: 'descuentos', dominio: 'Ventas', label: 'Aplicar descuentos', description: 'Descuento extra de la venta y descuento por línea, sin pedir autorización.', roles: ['ADMIN', 'GERENTE'] },

@@ -59,7 +59,7 @@ export function requiresAdminPinSetup(settings: unknown) {
   return !!onboarding && typeof onboarding === 'object' && !Array.isArray(onboarding) && (onboarding as Record<string, unknown>).adminPinPending === true
 }
 
-export const USER_ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR'] as const
+export const USER_ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR', 'COMPRAS'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 // This is a strict allow-list. Existing server-side role checks remain the
@@ -74,6 +74,9 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
   // Reparto propio: solo sus pedidos asignados, el pre-cobro en la calle y la
   // rendición en la tienda. No cobra ni vende desde el panel de venta.
   REPARTIDOR: ['delivery:use'],
+  // Compras: lo que falta comprar, compras, lotes y recepción. No vende, no
+  // cobra y no paga (marcar pagado sigue siendo de quien maneja la caja).
+  COMPRAS: ['stock:manage', 'stock:read', 'products:read'],
 }
 
 type ScheduleWindow = { days: number[]; start: string; end: string }

@@ -150,6 +150,18 @@ function SoloPropietario({ children }) {
   return children
 }
 
+// Abastecimiento: el dueño y el rol Compras (lo que falta comprar, compras,
+// lotes y recepción). El resto de los roles vuelve al inicio.
+function SoloAbastecimiento({ children }) {
+  const { estado, sesion } = useSesion()
+  const ubicacion = useLocation()
+  if (estado === 'cargando') return <Cargando />
+  if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
+  if (estado === 'sinEmpresa') return <SinEmpresa />
+  if (!sesion?.esPropietario && sesion?.rol !== 'COMPRAS') return <Navigate to="/" replace />
+  return children
+}
+
 // Finanzas: el dueño la ve completa; gerente y caja entran solo a «Verificación»
 // (el panel les deja esa pestaña). El resto de los roles vuelve al inicio.
 function SoloFinanzas({ children }) {
@@ -168,6 +180,7 @@ function InicioPorRol() {
   // al POS; el técnico a su taller y el repartidor a su reparto.
   if (sesion?.rol === 'TECNICO') return <Navigate to="/servicio" replace />
   if (sesion?.rol === 'REPARTIDOR') return <Navigate to="/delivery/repartos" replace />
+  if (sesion?.rol === 'COMPRAS') return <Navigate to="/abastecimiento" replace />
   return <Navigate to={sesion?.esPropietario ? "/resumen" : "/pos"} replace />
 }
 
@@ -412,15 +425,15 @@ export default function App() {
           <Route path="/campanas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/precios" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           {/* Abastecimiento F1 (#254): panel «Por comprar» (dueño/gerencia). */}
-          <Route path="/abastecimiento" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/abastecimiento" element={<SoloAbastecimiento><PanelVendedor /></SoloAbastecimiento>} />
           {/* Abastecimiento F2: compras del Centro (líneas, IMEI y cancelación). */}
-          <Route path="/compras-centro" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/compras-centro" element={<SoloAbastecimiento><PanelVendedor /></SoloAbastecimiento>} />
           {/* Abastecimiento F3/F5: preparar la compra (IMEI), preparar el lote (IMEI diferido) y recibir el lote. */}
-          <Route path="/preparacion" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/preparar-lote" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/recepcion" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/preparacion" element={<SoloAbastecimiento><PanelVendedor /></SoloAbastecimiento>} />
+          <Route path="/preparar-lote" element={<SoloAbastecimiento><PanelVendedor /></SoloAbastecimiento>} />
+          <Route path="/recepcion" element={<SoloAbastecimiento><PanelVendedor /></SoloAbastecimiento>} />
           {/* Abastecimiento F6 (#250): métricas de proveedores, tránsito y atrasos. */}
-          <Route path="/metricas" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/metricas" element={<SoloAbastecimiento><PanelVendedor /></SoloAbastecimiento>} />
           <Route path="/cotizaciones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/plantillas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/trade-in" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
