@@ -151,6 +151,7 @@ test('#324 · roles secundarios: el menú dice la misma persona y rol que Equipo
     ['Caja', 'María Benítez', 'Cajera', /\/pos$/],
     ['Técnico', 'Jorge Villalba', 'Técnico', /\/servicio$/],
     ['Delivery', 'Marcos Aquino', 'Repartidor', /\/delivery\/repartos$/],
+    ['Compras', 'Lucía Ortiz', 'Compras', /\/abastecimiento$/],
     ['Dueño', 'Hernán Acosta', 'Dueño', /\/resumen$/],
   ]
   for (const [perfil, persona, rol, url] of perfiles) {

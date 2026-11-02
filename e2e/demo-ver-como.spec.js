@@ -28,7 +28,7 @@ test('Ver como: Vendedor -> Técnico -> Dueño en 2 toques, Esc cierra el desple
   // Toque 1: abrir. Toque 2: elegir. La app aterriza en el inicio del rol.
   await toggle.click()
   const menu = page.getByTestId('demo-ver-como-menu')
-  await expect(menu.getByRole('menuitemradio')).toHaveCount(6)
+  await expect(menu.getByRole('menuitemradio')).toHaveCount(7)
   await expect(menu.getByRole('menuitemradio', { name: /Vendedor/ })).toHaveAttribute('aria-checked', 'true')
   await menu.getByRole('menuitemradio', { name: /Técnico/ }).click()
   await expect(page).toHaveURL(HOME.tecnico)

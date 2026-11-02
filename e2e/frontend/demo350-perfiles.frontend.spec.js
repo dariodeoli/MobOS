@@ -20,7 +20,7 @@ for (const width of [390,1440]) for (const dark of [false,true]) {
     await page.evaluate(dark=>document.documentElement.classList.toggle('dark',dark),dark)
     await page.goto('/configuracion/equipo')
     await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark).*$/)
-    await expect(page.getByTestId('integrante-fila')).toHaveCount(7)
+    await expect(page.getByTestId('integrante-fila')).toHaveCount(8)
     const diego=page.getByTestId('integrante-fila').filter({has:page.getByRole('textbox',{name:'Nombre de Diego López',exact:true})})
     await expect(diego).toContainText('+595 981 000 103')
     await expect(diego).toContainText('Casa Central')
