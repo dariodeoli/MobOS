@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BottomSheet from '@/components/shared/BottomSheet'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import './compras.css'
@@ -104,7 +104,9 @@ export default function PorComprar() {
   const [contadores, setContadores] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
-  const [vista, setVista] = useState('pendientes')
+  // `?tab=ventas` (aviso de venta sin stock) abre directo la pestaña de ventas.
+  const [searchParams] = useSearchParams()
+  const [vista, setVista] = useState(() => (ESTADOS.some(([id]) => id === searchParams.get('tab')) ? searchParams.get('tab') : 'pendientes'))
   const movil = usePantallaAngosta('(min-width: 768px)')
   const [verFiltros, setVerFiltros] = useState(false)
   const [prioridad, setPrioridad] = useState('todas')

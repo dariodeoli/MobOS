@@ -8,6 +8,7 @@ import { parseCreditConfig } from '../../../lib/credit-config'
 import { PAYMENT_VERIFIER_ROLES } from '../../../lib/payment-verification-policy'
 import { verificationOrderScope } from '../../../lib/payment-verification-scope'
 import { METHOD_LABELS } from '../../../lib/reconciliation'
+import { ORIGENES_VENTA_SIN_STOCK, URL_VENTAS_SIN_STOCK, diaMesAsuncion } from '../../../lib/supply-aviso'
 import { ACCIONES_PRODUCTO, ACCIONES_UNIDAD, avisosDeStock, claveDisponibilidad, eventosDeAuditoria } from '../../../lib/stock-notices'
 
 // Centro de notificaciones del panel: lista corta y accionable, sin tabla
@@ -374,6 +375,32 @@ export async function GET(request: Request) {
       at: apartado.linkedAt || new Date(),
       href: apartado.orderId ? `/pedidos/${apartado.orderId}` : '/pedidos',
     })
+  }
+
+  // Venta sin stock: lo que quedó por comprar para un cliente, para quien
+  // compra. Desaparece de la campana apenas se marca como comprado.
+  if (canAccessAny(user, ['stock:manage'])) {
+    const porComprar = await prisma.supplyNeed.findMany({
+      where: {
+        tenantId: user.tenantId,
+        status: { in: ['ABIERTA', 'ASIGNADA'] },
+        source: { in: [...ORIGENES_VENTA_SIN_STOCK] },
+        createdAt: { gte: desde },
+        ...(user.role !== 'ADMIN' && user.branchId ? { OR: [{ branchId: user.branchId }, { branchId: null }] } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, quantity: true, promisedAt: true, createdAt: true, product: { select: { name: true } }, customer: { select: { name: true } }, order: { select: { orderNumber: true } } },
+    })
+    for (const necesidad of porComprar) {
+      const detalle = [
+        `${necesidad.quantity > 1 ? `${necesidad.quantity} × ` : ''}${recorte(necesidad.product?.name || 'Producto', 50)}`,
+        necesidad.customer?.name ? `para ${recorte(necesidad.customer.name, 30)}` : '',
+        necesidad.promisedAt ? `prometido ${diaMesAsuncion(necesidad.promisedAt)}` : '',
+        necesidad.order?.orderNumber || '',
+      ].filter(Boolean).join(' · ')
+      items.push({ id: `venta-sin-stock-${necesidad.id}`, kind: 'VENTA_SIN_STOCK', title: 'Venta sin stock: hay que comprar', detail: detalle, at: necesidad.createdAt, href: URL_VENTAS_SIN_STOCK })
+    }
   }
 
   items.sort((a, b) => b.at.getTime() - a.at.getTime())

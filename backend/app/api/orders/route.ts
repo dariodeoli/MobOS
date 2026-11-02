@@ -26,6 +26,7 @@ import { residueMessage, subCentResidue } from '../../../lib/payment-residue'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback, PricingError } from '../../../lib/pricing'
 import { changeStock, linkSoldUnits } from '../../../lib/stock'
 import { crearDemandas, demandasDePedido, revisarMinimoDeStock } from '../../../lib/supply-demand'
+import { notifyVentaSinStock } from '../../../lib/supply-aviso'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
 import { LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
@@ -352,9 +353,11 @@ export async function POST(request: Request) {
   // administración recién cuando la venta quedó confirmada.
   let creditHeld: { authorizationId: string; orderId: string; branchId: string | null } | null = null
     let paymentsToVerify: Array<{ paymentId: string; orderId: string; branchId: string | null }> = []
+    let ventaSinStock: { orderId: string; branchId: string | null; needIds: string[] } | null = null
     const crearPedido = () => prisma.$transaction(async tx => {
       creditHeld = null
       paymentsToVerify = []
+      ventaSinStock = null
       // #286: sin sucursal asignada la venta opera con la efectiva (última usada → primera creada).
       const branchId = await sucursalEfectiva(session)
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
@@ -466,7 +469,10 @@ export async function POST(request: Request) {
       // productos a revisar por punto de reposición se juntan acá.
       const demandaItems: Array<{ productId: string; condition?: string | null; quantity: number; stockPending: number; serialsPending: number; stockFaltante: number; unitPricePyg: number; costPyg: number | null; orderItemId?: string | null }> = []
       const productosDelPedido = new Map<string, { condition: string | null; reorderPoint: number | null }>()
-      const prometida = body.promisedAt !== undefined && body.promisedAt !== null && String(body.promisedAt).trim() ? new Date(String(body.promisedAt)) : null
+      // El POS manda la fecha del pedido especial como `expectedAt` (solo día):
+      // se acepta igual que `promisedAt` y el día se ancla al mediodía de Asunción.
+      const fechaPrometida = String(body.promisedAt ?? body.expectedAt ?? '').trim()
+      const prometida = fechaPrometida ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(fechaPrometida) ? `${fechaPrometida}T12:00:00-03:00` : fechaPrometida) : null
       if (prometida && Number.isNaN(prometida.getTime())) throw new InputError('La fecha prometida del pedido no es válida.')
       let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; stockPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
@@ -770,7 +776,7 @@ export async function POST(request: Request) {
       // transaccional del tenant; un número explícito del cliente manda.
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(paymentOnDelivery ? { paymentOnDelivery: true } : {}), ...(esEncomienda ? { shippingCarrier, shippingBranch, shippingAddressId, shippingAddress } : {}), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(paymentOnDelivery ? { paymentOnDelivery: true } : {}), ...(esEncomienda ? { shippingCarrier, shippingBranch, shippingAddressId, shippingAddress } : {}), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(prometida ? { expectedAt: prometida } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       if (blockedSale !== null) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_BLOCKED_CUSTOMER_SALE', entity: 'Order', entityId: order.id, metadata: { customerId, reason: blockedSale || null, paymentOnDelivery, totalPyg: total } } })
       // El enlace de seguimiento se emite como token de nivel rápido del pedido:
       // el panel puede volver a copiarlo y «Regenerar acceso QR» lo rota (#178).
@@ -787,7 +793,10 @@ export async function POST(request: Request) {
         }
       }
       const demandas = demandasDePedido({ orderId: order.id, items: demandaItems, promisedAt: prometida, customerId, branchId, ventaConfirmada: confirmed > 0, ahora: new Date() })
-      if (demandas.length) await crearDemandas(tx, tenant, demandas, session.user.id)
+      if (demandas.length) {
+        const needIds = await crearDemandas(tx, tenant, demandas, session.user.id)
+        if (needIds.length) ventaSinStock = { orderId: order.id, branchId, needIds }
+      }
       // #250 F1: reposición automática por punto de mínimos de los vendidos.
       for (const productId of productosDelPedido.keys()) {
         await revisarMinimoDeStock(tx, { tenantId: tenant, userId: session.user.id, productId, branchId })
@@ -914,6 +923,8 @@ export async function POST(request: Request) {
     const held = creditHeld as { authorizationId: string; orderId: string; branchId: string | null } | null
     for (const aviso of paymentsToVerify) await notifyPaymentToVerify({ tenantId: tenant, ...aviso })
     if (held) await notifyCreditHold({ tenantId: tenant, orderId: held.orderId, authorizationId: held.authorizationId, branchId: held.branchId })
+    const sinStock = ventaSinStock as { orderId: string; branchId: string | null; needIds: string[] } | null
+    if (sinStock) await notifyVentaSinStock({ tenantId: tenant, ...sinStock, excluirUserId: session.user.id })
     return json({ ...await withCreditAuthorization(prisma, tenant, redactOrderCosts(result, await canSeeCostForSession(session))), publicToken }, { status: 201 })
   } catch (e) {
     // Dos reintentos concurrentes con la misma clave: el segundo choca con el

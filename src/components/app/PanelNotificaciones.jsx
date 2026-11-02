@@ -24,6 +24,8 @@ const ICONO = {
   SIN_STOCK: 'alert',
   // #279 (A4) · vender en tránsito: llegó el equipo que estaba apartado.
   TRANSITO: 'truck',
+  // Venta sin stock → quien compra: hay algo vendido esperando la compra.
+  VENTA_SIN_STOCK: 'cart',
 }
 
 function hace(at) {
