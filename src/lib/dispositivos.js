@@ -1,3 +1,5 @@
+import { CATALOGO_APPLE } from '../../backend/lib/catalogo-apple.mjs'
+
 // Puente entre el `BuscadorDispositivo` de la biblioteca (#250) y las piezas
 // que usan el formulario y las listas: el objeto compone la etiqueta con
 // `etiquetaDispositivo` («iPhone 15 · 256 GB · Azul») y acá se vuelve a abrir
@@ -37,3 +39,10 @@ export function tipoDeDispositivo(modelo) {
   const familia = FAMILIAS.find(([, patron]) => patron.test(texto))
   return familia ? familia[0] : 'Otros'
 }
+
+// Catálogo del `BuscadorDispositivo` (Taller): el catálogo Apple versionado de
+// MobOS con capacidades y colores por modelo, en lugar de la lista genérica que
+// trae la biblioteca. Mismo origen que Lista de precios, Comparador y Trade-in.
+export const CATALOGO_DISPOSITIVOS = Object.freeze({
+  modelos: CATALOGO_APPLE.map((modelo) => ({ nombre: modelo.nombre, capacidades: [...modelo.capacidades], colores: [...modelo.colores] })),
+})
