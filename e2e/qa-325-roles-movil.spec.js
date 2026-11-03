@@ -222,7 +222,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       titulo: 'Vender',
       entradaListo: (p) => p.getByPlaceholder('Buscar producto…'),
       // Gerente y caja (verificadores) suman Autorizaciones › Pagos y Finanzas › Verificación.
-      primarias: ['Vender', 'Pedidos', 'Clientes', 'Stock', 'Finanzas'],
+      primarias: ['Vender', 'Pedidos', 'Stock', 'Clientes', 'Finanzas'],
       menu: ['POS', 'Mis pedidos', 'Clientes', 'Productos', 'Precios', 'Autorizaciones', 'Finanzas'],
       ocultos: ['Inicio', 'Configuración', 'Unidades'],
       paginas: [
@@ -274,7 +274,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       await page.setViewportSize(DESKTOP)
       await expect(await shellPrimary(page)).toBeVisible({ timeout: 20_000 })
       const catalog = await shellCatalog(page)
-      expect(catalog.primary).toEqual(rol.primarias || (rol.id === 'tecnico' ? ['Taller'] : rol.id === 'delivery' ? ['Entregas'] : ['Vender', 'Pedidos', 'Clientes', 'Stock']))
+      expect(catalog.primary).toEqual(rol.primarias || (rol.id === 'tecnico' ? ['Taller'] : rol.id === 'delivery' ? ['Entregas'] : ['Vender', 'Pedidos', 'Stock', 'Clientes']))
       for (const item of rol.menu) {
         expect(catalog.destinations, `${rol.id}: menú ${item}`).toContain(item === 'POS' ? 'Nueva venta' : item)
       }

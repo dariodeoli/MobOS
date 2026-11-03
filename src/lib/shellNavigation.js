@@ -6,6 +6,8 @@
 // segmented level. Groups are `[id, label | null, [catalog ids]]`: the id is the
 // first catalog id (stable tab key) and a null label reads the catalog label.
 export const PRIMARY_SECTIONS = [
+  // Orden del menú pedido por el dueño: Inicio, Pedidos, Stock (productos) y
+  // Clientes primero; después Vender, Taller, Finanzas y Configuración.
   {
     id: 'inicio',
     label: 'Inicio',
@@ -18,16 +20,6 @@ export const PRIMARY_SECTIONS = [
     ],
   },
   {
-    id: 'vender',
-    label: 'Vender',
-    icon: 'plus',
-    groups: [
-      ['cargar', 'Nueva venta', ['cargar']],
-      // Módulo Trade-In: el vendedor cotiza, el dueño ve la pipeline.
-      ['cotizador', 'Trade-In', ['cotizador', 'tradein-admin']],
-    ],
-  },
-  {
     id: 'pedidos',
     label: 'Pedidos',
     icon: 'receipt',
@@ -36,27 +28,6 @@ export const PRIMARY_SECTIONS = [
       ['cotizaciones', null, ['cotizaciones']],
       ['repartos', 'Entregas', ['repartos']],
       ['autorizaciones', 'Por aprobar', ['autorizaciones']],
-    ],
-  },
-  {
-    id: 'clientes',
-    label: 'Clientes',
-    icon: 'users',
-    groups: [
-      ['clientes', null, ['clientes']],
-      ['campanas', 'Campañas', ['campanas']],
-      ['promociones', null, ['promociones']],
-      ['plantillas', null, ['plantillas']],
-    ],
-  },
-  // Taller es una sección solo con el módulo `servicios` activo.
-  {
-    id: 'taller',
-    label: 'Taller',
-    icon: 'wrench',
-    groups: [
-      ['servicio', 'Servicio', ['servicio']],
-      ['garantias', 'Garantías', ['garantias']],
     ],
   },
   {
@@ -72,6 +43,37 @@ export const PRIMARY_SECTIONS = [
       ['control', 'Control', ['control']],
       ['precios', 'Precios', ['precios', 'celulares', 'comparador', 'centro-control']],
       ['abastecimiento', 'Abastecimiento', ['abastecimiento', 'compras-centro', 'preparacion', 'lotes', 'recepcion', 'metricas']],
+    ],
+  },
+  {
+    id: 'clientes',
+    label: 'Clientes',
+    icon: 'users',
+    groups: [
+      ['clientes', null, ['clientes']],
+      ['campanas', 'Campañas', ['campanas']],
+      ['promociones', null, ['promociones']],
+      ['plantillas', null, ['plantillas']],
+    ],
+  },
+  {
+    id: 'vender',
+    label: 'Vender',
+    icon: 'plus',
+    groups: [
+      ['cargar', 'Nueva venta', ['cargar']],
+      // Módulo Trade-In: el vendedor cotiza, el dueño ve la pipeline.
+      ['cotizador', 'Trade-In', ['cotizador', 'tradein-admin']],
+    ],
+  },
+  // Taller es una sección solo con el módulo `servicios` activo.
+  {
+    id: 'taller',
+    label: 'Taller',
+    icon: 'wrench',
+    groups: [
+      ['servicio', 'Servicio', ['servicio']],
+      ['garantias', 'Garantías', ['garantias']],
     ],
   },
   { id: 'finanzas', label: 'Finanzas', icon: 'wallet', groups: [['finanzas', null, ['finanzas']]] },
@@ -94,7 +96,7 @@ const SEGMENT_LABELS = {
 }
 
 // Owner mobile bottom bar (D2): the rest of the sections live in the "Más" sheet.
-const BOTTOM_PRIORITY = ['inicio', 'vender', 'pedidos', 'stock']
+const BOTTOM_PRIORITY = ['inicio', 'pedidos', 'stock', 'clientes']
 const BOTTOM_MAX = 5
 
 // `opciones.modulos` (opcional): función `(idDeVista) => boolean` que dice si la
@@ -118,6 +120,11 @@ export function shellNavigation(nav = [], opciones = {}) {
     label: section.label,
     items: section.destinations.flatMap(id => projected.filter(([key]) => key === id)),
   })).filter(section => section.items.length)
+  // Sin Inicio (vendedor y verificadores), vender es la tarea principal: va primero.
+  if (!ids.has('resumen')) {
+    const vender = sections.findIndex(section => section.id === 'vender')
+    if (vender > 0) sections.unshift(...sections.splice(vender, 1))
+  }
   const mapped = new Set(sections.flatMap(section => section.items.map(([id]) => id)))
   const remaining = destinations.filter(
     ([id]) => !mapped.has(id) && id !== 'equipo' && id !== 'ayuda',

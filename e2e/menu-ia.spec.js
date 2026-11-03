@@ -17,7 +17,7 @@ async function entrarComoDueno(page) {
 test('el dueño ve siete secciones del núcleo más Taller y conserva todas sus herramientas', async ({ page }) => {
   await entrarComoDueno(page)
   const catalog = await shellCatalog(page)
-  expect(catalog.primary).toEqual(['Inicio', 'Vender', 'Pedidos', 'Clientes', 'Taller', 'Stock', 'Finanzas', 'Configuración'])
+  expect(catalog.primary).toEqual(['Inicio', 'Pedidos', 'Stock', 'Clientes', 'Vender', 'Taller', 'Finanzas', 'Configuración'])
   for (const label of ['Nueva venta', 'Pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Clientes', 'Productos (stock)', 'Unidades (IMEI)', 'Compras', 'Traslados y tránsito', 'Precios', 'Lista por modelo', 'Comparador', 'Delivery', 'Taller y garantías', 'Trade-In', 'Autorizaciones', 'Tablero de operaciones']) {
     expect(catalog.destinations).toContain(label)
   }
