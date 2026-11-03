@@ -67,10 +67,10 @@ for (const [tema, modo] of TEMAS) {
       // El modelo manda: recién al elegirlo se despliegan capacidad y color.
       await expect(dialogo.getByLabel('Capacidad', { exact: true })).toHaveCount(0)
       await elegirModelo(dialogo, 'iPhone 17', 'iPhone 17')
-      await dialogo.getByLabel('Capacidad', { exact: true }).selectOption('256 GB')
+      await dialogo.getByLabel('Capacidad', { exact: true }).selectOption('256GB')
       const color = await dialogo.getByLabel('Color', { exact: true }).locator('option').nth(1).getAttribute('value')
       await dialogo.getByLabel('Color', { exact: true }).selectOption(color)
-      const etiqueta = `iPhone 17 · 256 GB · ${color}`
+      const etiqueta = `iPhone 17 · 256GB · ${color}`
 
       await dialogo.locator('#cliente').fill('Lucía Fernández')
       await dialogo.getByPlaceholder('Qué reporta el cliente').fill('No enciende.')

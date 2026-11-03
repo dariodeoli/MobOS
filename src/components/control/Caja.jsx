@@ -1270,7 +1270,7 @@ export default function Caja() {
         {expectedUsd !== 0 && (
           <div className="mt-4">
             <Label htmlFor="counted-usd">Dólares contados (US$)</Label>
-            <Input id="counted-usd" inputMode="decimal" value={contadoUsd} onChange={e => setContadoUsd(e.target.value)} placeholder={`Esperado US$ ${formatoUsd(expectedUsd)}`} />
+            <MoneyInput id="counted-usd" currency="USD" value={contadoUsd} onValueChange={setContadoUsd} placeholder={`Esperado ${formatoUsd(expectedUsd)}`} />
           </div>
         )}
         <div className="mt-4">

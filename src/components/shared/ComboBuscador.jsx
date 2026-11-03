@@ -61,7 +61,8 @@ export default function ComboBuscador({
       return
     }
     if (evento.key === 'Enter' && abierto && filtradas.length) { evento.preventDefault(); elegir(filtradas[resaltado]) }
-    if (evento.key === 'Escape') setAbierto(false)
+    // Con la lista abierta, Escape solo la cierra (no cierra el modal que la contiene).
+    if (evento.key === 'Escape' && abierto) { evento.stopPropagation(); setAbierto(false) }
   }
 
   return (

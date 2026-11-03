@@ -79,7 +79,7 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   await page.screenshot({ path: join(DIR, 'lista-por-modelo-1280-light.png') })
 
   await page.goto('/comparador')
-  await expect(page.getByText('No hay modelos nuevos cargados')).toHaveCount(0)
+  await expect(page.getByTestId('comparador-sin-precios')).toHaveCount(0)
   await page.screenshot({ path: join(DIR, 'comparador-1280-light.png') })
 
   // Editar un precio desde el Centro de Control se refleja en la lista. La
@@ -109,6 +109,47 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   await expect(page.frameLocator('iframe').getByText('Gs 9.999.000').first()).toBeVisible()
 })
 
+test('#303 · el formulario elige modelo del catálogo, filtra capacidad y color, y el precio es numérico con miles', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await entrarDemo(page)
+  await openShellDestination(page, 'Centro de Control')
+  const form = page.getByTestId('form-celular')
+
+  // Modelo: buscador del catálogo iPhone; al elegir, capacidad y color son los del modelo.
+  await form.getByRole('combobox', { name: 'Modelo' }).fill('17 pro max')
+  await page.getByRole('option', { name: /iPhone 17 Pro Max/ }).click()
+  await expect(page.getByTestId('cc-modelo-elegido')).toContainText('iPhone 17 Pro Max')
+  await expect(form.locator('#cc-capacidad option')).toHaveText(['Elegí la capacidad', '256GB', '512GB', '1TB', '2TB'])
+  await expect(form.locator('#cc-color option')).toHaveText(['Sin color', 'Plata', 'Azul intenso', 'Naranja cósmico'])
+  await form.locator('#cc-capacidad').selectOption('2TB')
+  await form.locator('#cc-color').selectOption('Naranja cósmico')
+
+  // Precio: las letras no entran y los miles se separan al escribir.
+  await form.locator('#cc-precio').pressSequentially('fdwf12850000')
+  await expect(form.locator('#cc-precio')).toHaveValue('12.850.000')
+  await form.getByRole('button', { name: 'Agregar modelo' }).click()
+  const fila = page.getByTestId('fila-celular').filter({ hasText: 'iPhone 17 Pro Max' }).filter({ hasText: '2TB' }).first()
+  await expect(fila.getByRole('textbox')).toHaveValue('12.850.000')
+
+  // El precio de la fila tampoco acepta letras.
+  await fila.getByRole('textbox').fill('')
+  await fila.getByRole('textbox').pressSequentially('fdaf13000000')
+  await expect(fila.getByRole('textbox')).toHaveValue('13.000.000')
+
+  // El Comparador ofrece el catálogo completo en cada selector.
+  await page.getByTestId('guardar-precios').click()
+  await openShellDestination(page, 'Comparador')
+  // Mismo buscador del catálogo en cada columna: «Cambiar» y buscar cualquier iPhone.
+  const columna = page.getByTestId('comparador-modelo-0-elegido')
+  await expect(columna).toContainText('iPhone 17 Pro Max')
+  await columna.getByRole('button', { name: 'Cambiar modelo' }).click()
+  const buscador = page.getByRole('combobox', { name: 'Modelo a comparar' }).first()
+  await buscador.fill('13 mini')
+  await page.getByRole('option', { name: /iPhone 13 mini/ }).click()
+  await expect(page.getByTestId('comparador-modelo-0-elegido')).toContainText('iPhone 13 mini')
+  await expect(page.getByRole('button', { name: 'Color Medianoche', exact: true }).first()).toBeVisible()
+})
+
 test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 900 })
@@ -122,8 +163,11 @@ test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ p
 
   const pendientes = page.getByTestId('fotos-pendientes')
   await expect(pendientes).toBeVisible()
-  await pendientes.getByLabel('Modelo').selectOption('iPhone 15 Pro Max')
-  await pendientes.getByLabel('Color').fill('Titanio')
+  // El modelo sale del buscador del catálogo y el color, de los colores de ese modelo.
+  await pendientes.getByRole('combobox', { name: 'Modelo' }).fill('15 pro max')
+  await page.getByRole('option', { name: /iPhone 15 Pro Max/ }).click()
+  await expect(pendientes.getByLabel('Color').locator('option')).toHaveText(['Elegí el color', 'Titanio natural', 'Titanio azul', 'Titanio blanco', 'Titanio negro'])
+  await pendientes.getByLabel('Color').selectOption('Titanio natural')
   await page.getByTestId('guardar-fotos').click()
   await expect(page.getByText(/1 foto\(s\) guardadas/)).toBeVisible()
   await expect(page.getByTestId('fotos-guardadas').getByText('iPhone 15 Pro Max')).toBeVisible()
@@ -131,7 +175,7 @@ test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ p
 
   // La primera columna es iPhone 15 Pro Max y toma el color de la foto subida.
   await openShellDestination(page, 'Comparador')
-  await page.getByRole('button', { name: 'Color Titanio', exact: true }).first().click()
-  await expect(page.locator('main img[alt="iPhone 15 Pro Max Titanio"]:visible')).toBeVisible()
+  await page.getByRole('button', { name: 'Color Titanio natural', exact: true }).first().click()
+  await expect(page.locator('main img[alt="iPhone 15 Pro Max Titanio natural"]:visible')).toBeVisible()
   await page.screenshot({ path: join(DIR, 'comparador-con-foto-1280-light.png') })
 })

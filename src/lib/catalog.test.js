@@ -19,7 +19,8 @@ test('las capacidades dependen del modelo: lineup + lo ya cargado', () => {
   // El lineup seminuevo trae más capacidades para el mismo modelo.
   const seminuevo = capacidadesDeModelo({ productos: [], modelo: 'iPhone 15', condicion: 'USED' })
   assert.ok(seminuevo.length >= capacidadesDeModelo({ productos: [], modelo: 'iPhone 15', condicion: 'NEW' }).length)
-  assert.deepEqual(capacidadesDeModelo({ productos: [], modelo: 'iPhone 15 Pro Max' }).slice(0, 2), ['128GB', '256GB'])
+  // Las capacidades salen del catálogo Apple: el 15 Pro Max arranca en 256GB.
+  assert.deepEqual(capacidadesDeModelo({ productos: [], modelo: 'iPhone 15 Pro Max' }).slice(0, 2), ['256GB', '512GB'])
 })
 
 test('los modelos sugeridos salen del lineup y del catálogo real', () => {
@@ -47,4 +48,16 @@ test('la variante existente se detecta para no duplicar el producto', () => {
   assert.equal(varianteExistente({ productos, modelo: 'iPhone 15', capacidad: '128GB', color: 'Negro' })?.id, 'p1')
   assert.equal(varianteExistente({ productos, modelo: 'iPhone 15', capacidad: '128GB', color: 'Verde' }), null)
   assert.equal(varianteExistente({ productos, modelo: 'iPhone 15', capacidad: '512GB' }), null)
+})
+
+test('el lineup sale del catálogo Apple: del iPhone 11 al 17 Pro Max con sus capacidades', async () => {
+  const { LINEUP_NUEVO, LINEUP_SEMINUEVO, MODELOS_IPHONE } = await import('./catalog.js')
+  const { CATALOGO_APPLE } = await import('../../backend/lib/catalogo-apple.mjs')
+  const iphones = CATALOGO_APPLE.filter(item => item.familia === 'iPhone')
+  assert.equal(LINEUP_SEMINUEVO.length, iphones.length)
+  assert.equal(MODELOS_IPHONE[0], 'iPhone 17 Pro Max')
+  for (const nombre of ['iPhone 11', 'iPhone 13 mini', 'iPhone 16e', 'iPhone 17e', 'iPhone Air', 'iPhone 17 Pro Max']) assert.ok(MODELOS_IPHONE.includes(nombre), nombre)
+  const nuevo = new Map(LINEUP_NUEVO)
+  assert.deepEqual(nuevo.get('iPhone 17 Pro Max'), ['256GB', '512GB', '1TB', '2TB'])
+  assert.ok(nuevo.has('iPhone 13') && !nuevo.has('iPhone 12') && !nuevo.has('iPhone 13 mini'))
 })

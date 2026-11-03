@@ -7,7 +7,7 @@ import IconoCategoria from '@/components/shared/IconoCategoria'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
 import Icon from '@/components/shared/Icon'
-import { Badge, Button, Input } from '@/components/ui'
+import { Badge, Button, MoneyInput } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
 import { estiloCondicion } from '@/lib/stockDisplay'
@@ -240,13 +240,13 @@ export function FilaUnidad({
       <span className="flex items-center justify-end gap-1 text-right text-xs font-semibold tabular-nums text-fore">
         {costoAbierto ? (
           <span className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
-            <Input
+            <MoneyInput
               autoFocus
+              currency="USD"
               aria-label={`Costo en USD de ${serial}`}
-              className="h-7 w-20 px-1 text-right text-xs"
-              inputMode="decimal"
+              className="h-7 w-24 text-right text-xs"
               value={costoUsd}
-              onChange={(event) => setCostoUsd(event.target.value.replace(/[^0-9.,]/g, ''))}
+              onValueChange={setCostoUsd}
               onKeyDown={(event) => {
                 event.stopPropagation()
                 if (event.key === 'Enter') {

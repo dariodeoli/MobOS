@@ -36,7 +36,7 @@ import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, EST
 import { advanceService, advanceSelectedServices, serviceAdvanceFeedback } from '@/lib/tallerAvance'
 import '@/components/ventas/ventasF3.css'
 import './tallerF3.css'
-import { partesDispositivo, tipoDeDispositivo } from '@/lib/dispositivos'
+import { CATALOGO_DISPOSITIVOS, partesDispositivo, tipoDeDispositivo } from '@/lib/dispositivos'
 import { BuscadorDispositivo, etiquetaDispositivo } from 'owncoding-ui'
 import SelectorResultadoCompacto from '@/components/shared/SelectorResultadoCompacto'
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
@@ -1026,7 +1026,7 @@ export default function ServicioTecnico({ accionesVista = [] }) {
                     etiquetaQuitar="Quitar equipo"
                     testId="taller-dispositivo-seleccionado"
                   />}
-                  <BuscadorDispositivo className={dispositivo.modelo ? 'selector-dispositivo-elegido' : ''} valor={dispositivo} tipo="servicio" onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
+                  <BuscadorDispositivo className={dispositivo.modelo ? 'selector-dispositivo-elegido' : ''} valor={dispositivo} tipo="servicio" catalogo={CATALOGO_DISPOSITIVOS} onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
                 </div>
               </FormField>
               {editing?.receivedAt && <div><Label>Recibido</Label><p className="mt-2 text-sm text-mute">{fechaHora(editing.receivedAt)}</p></div>}

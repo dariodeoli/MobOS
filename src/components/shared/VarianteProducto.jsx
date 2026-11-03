@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Aviso, Button, Input } from '@/components/ui'
-import { capacidadesDeModelo, coloresDeVariante, modelosDeCatalogo, skuDeVariante, varianteExistente } from '@/lib/catalog'
+import { Aviso, Button } from '@/components/ui'
+import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
+import CampoVarianteCatalogo from '@/components/shared/CampoVarianteCatalogo'
+import { capacidadesDeModelo, coloresDeVariante, skuDeVariante, varianteExistente } from '@/lib/catalog'
 import { addProductoApi } from '@/lib/storage'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 
@@ -20,7 +22,6 @@ export default function VarianteProducto({ productos = [], modeloInicial = '', b
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const modelos = useMemo(() => modelosDeCatalogo(productos), [productos])
   const capacidades = useMemo(() => capacidadesDeModelo({ productos, modelo, condicion }), [productos, modelo, condicion])
   const colores = useMemo(() => coloresDeVariante({ productos, modelo, capacidad }), [productos, modelo, capacidad])
   // Si la variante ya está en el catálogo no se crea otra igual: se usa esa.
@@ -54,47 +55,51 @@ export default function VarianteProducto({ productos = [], modeloInicial = '', b
     <div className={`space-y-3 rounded-xl border border-fono/25 bg-fono/5 p-3 ${className || ''}`} data-testid="variante-producto">
       <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Producto nuevo · modelo → capacidad → color</p>
       <div className="grid gap-2 sm:grid-cols-3">
-        <label className="block text-xs text-mute">
-          Modelo *
-          <Input
-            className="mt-1"
-            autoFocus
-            list="variante-producto-modelos"
-            aria-label="Modelo del producto"
-            autoCapitalize="words"
-            value={modelo}
-            onChange={event => { setModelo(event.target.value); setCapacidad(''); setColor('') }}
-            placeholder="iPhone 15"
-          />
-        </label>
+        <div className="block text-xs text-mute">
+          <label htmlFor="variante-producto-modelo">Modelo *</label>
+          <div className="mt-1">
+            <ModeloCatalogoField
+              id="variante-producto-modelo"
+              ariaLabel="Modelo del producto"
+              testId="variante-producto-modelo"
+              value={modelo}
+              onChange={valor => { setModelo(valor); setCapacidad(''); setColor('') }}
+              placeholder="Buscar modelo (ej. iPhone 15)"
+            />
+          </div>
+        </div>
         <label className="block text-xs text-mute">
           Capacidad *
-          <Input
+          <CampoVarianteCatalogo
             className="mt-1"
+            campo="capacidad"
+            modelo={modelo}
+            extras={capacidades}
             list="variante-producto-capacidades"
-            aria-label="Capacidad del producto"
-            autoCapitalize="characters"
+            ariaLabel="Capacidad del producto"
             disabled={!modelo.trim()}
             value={capacidad}
-            onChange={event => { setCapacidad(event.target.value); setColor('') }}
+            onChange={valor => { setCapacidad(valor); setColor('') }}
             placeholder={modelo.trim() ? '128GB' : 'Elegí el modelo primero'}
           />
         </label>
         <label className="block text-xs text-mute">
           Color
-          <Input
+          <CampoVarianteCatalogo
             className="mt-1"
+            campo="color"
+            modelo={modelo}
+            extras={colores}
+            vacio="Sin color"
             list="variante-producto-colores"
-            aria-label="Color del producto"
-            autoCapitalize="words"
+            ariaLabel="Color del producto"
             disabled={!capacidad.trim()}
             value={color}
-            onChange={event => setColor(event.target.value)}
+            onChange={setColor}
             placeholder={capacidad.trim() ? 'Negro' : 'Elegí la capacidad primero'}
           />
         </label>
       </div>
-      <datalist id="variante-producto-modelos">{modelos.map(valor => <option key={valor} value={valor} />)}</datalist>
       <datalist id="variante-producto-capacidades">{capacidades.map(valor => <option key={valor} value={valor} />)}</datalist>
       <datalist id="variante-producto-colores">{colores.map(valor => <option key={valor} value={valor} />)}</datalist>
       <p className="text-xs text-mute" data-testid="variante-producto-preview">

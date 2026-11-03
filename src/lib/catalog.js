@@ -1,57 +1,29 @@
+import { CATALOGO_APPLE } from '../../backend/lib/catalogo-apple.mjs'
+
 export const ESTADOS_CELULAR = ['Nuevo', 'Seminuevo']
 
-// Lineup de iPhone para cargar rápido la lista de precios. El precio en ₲ lo
-// define el propietario. Hay dos listas según la condición del equipo.
-export const LINEUP_NUEVO = [
-  ['iPhone 17 Pro Max', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone 17 Pro', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone Air', ['256GB', '512GB', '1TB']],
-  ['iPhone 17', ['256GB', '512GB']],
-  ['iPhone 17E', ['256GB']],
-  ['iPhone 16', ['128GB']],
-  ['iPhone 15', ['128GB']],
-]
+// Lineup de iPhone para cargar rápido la lista de precios: sale del catálogo
+// Apple versionado (todos los modelos con sus capacidades reales), así el botón
+// «Cargar modelos iPhone» y los selectores no se desfasan del catálogo. El
+// precio en ₲ lo define el propietario. Nuevos: del iPhone 13 en adelante (lo
+// que todavía se consigue sellado); semi-nuevos: el catálogo completo.
+const IPHONES_CATALOGO = CATALOGO_APPLE.filter(item => item.familia === 'iPhone')
+const generacion = (nombre) => parseInt((String(nombre).match(/iphone\s*(\d+)/i) || [])[1] || '0', 10)
+const aLineup = (items) => items
+  .map(item => [item.nombre, [...item.capacidades]])
+  .sort((a, b) => rankCelular(a[0]) - rankCelular(b[0]))
 
-export const LINEUP_SEMINUEVO = [
-  ['iPhone 17 Pro Max', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone 17 Pro', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone Air', ['256GB', '512GB', '1TB']],
-  ['iPhone 17', ['256GB', '512GB']],
-  ['iPhone 17E', ['256GB']],
-  ['iPhone 16 Pro Max', ['128GB', '256GB']],
-  ['iPhone 16 Pro', ['128GB', '256GB']],
-  ['iPhone 16', ['128GB']],
-  ['iPhone 15 Pro Max', ['128GB', '256GB']],
-  ['iPhone 15 Pro', ['128GB', '256GB']],
-  ['iPhone 15', ['128GB']],
-  ['iPhone 14 Pro Max', ['128GB', '256GB']],
-  ['iPhone 14 Pro', ['128GB', '256GB']],
-  ['iPhone 14', ['128GB']],
-  ['iPhone 13 Pro Max', ['128GB', '256GB']],
-  ['iPhone 13 Pro', ['128GB', '256GB']],
-  ['iPhone 13', ['128GB']],
-]
+export const LINEUP_NUEVO = aLineup(IPHONES_CATALOGO.filter(item => item.anio >= 2021 && (generacion(item.nombre) >= 13 || item.nombre === 'iPhone Air') && !/mini/i.test(item.nombre)))
 
-// Orden visual de los modelos (más nuevo arriba). Se usa para ordenar la lista
-// sin depender de cómo se hayan ido cargando.
-export const ORDEN_MODELOS = [
-  'iPhone 17 Pro Max',
-  'iPhone 17 Pro',
-  'iPhone Air',
-  'iPhone 17',
-  'iPhone 17E',
-  'iPhone 16 Pro Max',
-  'iPhone 16 Pro',
-  'iPhone 16 Plus',
-  'iPhone 16',
-  'iPhone 16e',
-  'iPhone 15 Pro Max',
-  'iPhone 15 Pro',
-  'iPhone 15 Plus',
-  'iPhone 15',
-  'iPhone 14',
-  'iPhone 13',
-]
+export const LINEUP_SEMINUEVO = aLineup(IPHONES_CATALOGO)
+
+/** Modelos iPhone del catálogo, del más nuevo al más viejo (selectores del Comparador y del Centro de Control). */
+export const MODELOS_IPHONE = LINEUP_SEMINUEVO.map(([nombre]) => nombre)
+
+// Orden visual de los modelos (más nuevo arriba): el mismo del catálogo, sin
+// otra lista escrita a mano.
+export const ORDEN_MODELOS = MODELOS_IPHONE
+
 // Devuelve un número menor para los modelos más nuevos, listo para ordenar
 // ascendente. Se calcula por generación (17 antes que 16…) y, dentro de la
 // misma, por variante: Pro Max → Pro → Air → Plus → base → E. Es tolerante a

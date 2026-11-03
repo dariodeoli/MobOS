@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useModulos } from '@/lib/useModulos'
 import { Link } from 'react-router-dom'
 import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
+import CampoVarianteCatalogo from '@/components/shared/CampoVarianteCatalogo'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import MenuSecundario from '@/components/shared/MenuSecundario'
@@ -419,9 +421,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <div><Label htmlFor="accesorio">Tipo de accesorio</Label><Select id="accesorio" value={form.accesorio} onChange={event => setForm(current => ({ ...current, accesorio: event.target.value }))}><option value="">No es accesorio</option>{CLAVES_ACCESORIO.map(clave => <option key={clave} value={clave}>{CATEGORIAS_ACCESORIO[clave].singular}</option>)}</Select></div>
               <div><Label htmlFor="compatibles">Compatible con</Label><Input id="compatibles" value={form.compatibles} onChange={event => setForm(current => ({ ...current, compatibles: event.target.value }))} placeholder="iPhone 17 Pro, iPhone 17" /></div>
               <div><Label htmlFor="condicion">Condición</Label><Select id="condicion" value={form.condicion} onChange={event => setForm(current => ({ ...current, condicion: event.target.value }))}>{Object.entries(CONDITION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
-              <div><Label htmlFor="modelo">Modelo</Label><Input id="modelo" value={form.modelo} onChange={event => setForm(current => ({ ...current, modelo: event.target.value }))} placeholder="Ej. iPhone 15 Pro Max" /></div>
-              <div><Label htmlFor="color">Color</Label><Input id="color" value={form.color} onChange={event => setForm(current => ({ ...current, color: event.target.value }))} placeholder="Ej. Titanio Negro" /></div>
-              <div><Label htmlFor="capacidad">Capacidad</Label><Input id="capacidad" value={form.capacidad} onChange={event => setForm(current => ({ ...current, capacidad: event.target.value }))} placeholder="Ej. 256GB" /></div>
+              <div><Label htmlFor="modelo">Modelo</Label><ModeloCatalogoField id="modelo" testId="producto-modelo" value={form.modelo} onChange={modelo => setForm(current => ({ ...current, modelo }))} placeholder="Buscar modelo (ej. 15 pro max)" /></div>
+              <div><Label htmlFor="capacidad">Capacidad</Label><CampoVarianteCatalogo id="capacidad" campo="capacidad" modelo={form.modelo} value={form.capacidad} onChange={capacidad => setForm(current => ({ ...current, capacidad }))} vacio="Sin capacidad" placeholder="Ej. 256GB" /></div>
+              <div><Label htmlFor="color">Color</Label><CampoVarianteCatalogo id="color" campo="color" modelo={form.modelo} value={form.color} onChange={color => setForm(current => ({ ...current, color }))} vacio="Sin color" placeholder="Ej. Titanio Negro" /></div>
               <div><Label htmlFor="precio-de-venta-gs">Precio de venta (Gs)</Label><MoneyInput id="precio-de-venta-gs" value={form.precio} onValueChange={value => setForm(current => ({ ...current, precio: value === '' ? '' : String(value) }))} /></div>
               {mayoristasOn && <div><Label htmlFor="precio-mayorista-gs">Precio mayorista (Gs)</Label><MoneyInput id="precio-mayorista-gs" value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>}
               <div><Label htmlFor="costo-gs">Costo (Gs)</Label><MoneyInput id="costo-gs" value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>

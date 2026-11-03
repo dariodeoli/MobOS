@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listCelulares, rankCelular, rankCapacidad, getComparadorImagenes } from '@/lib/storage'
+import { MODELOS_IPHONE } from '@/lib/catalog'
+import { capacidadesDeModelo, coloresDeModelo } from '../../backend/lib/catalogo-apple.mjs'
 import { useLive } from '@/hooks/useLive'
 import { gs } from '@/utils/calculos'
 import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
-import { Button, Select } from '@/components/ui'
+import { Button } from '@/components/ui'
+import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
 import BarraModulo from '@/components/shared/BarraModulo'
 import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import Icon from '@/components/shared/Icon'
@@ -35,20 +38,22 @@ function Telefono({ hex, imagen, alt }) {
   )
 }
 
-function Columna({ info, valor, onModelo, onColor, modelos }) {
+function Columna({ indice, info, valor, onModelo, onColor }) {
   const { modelo, color } = valor
   const hex = colorHex(color)
   const imagen = info?.imagenes?.[color] || null
 
   return (
     <div className="flex flex-col rounded-2xl border border-ink-600 bg-ink-800 p-4">
-      <Select value={modelo} onChange={(e) => onModelo(e.target.value)} className="font-semibold">
-        {modelos.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </Select>
+      <ModeloCatalogoField
+        id={`comparador-modelo-${indice}`}
+        familia="iPhone"
+        sinDetalles
+        ariaLabel="Modelo a comparar"
+        testId={`comparador-modelo-${indice}`}
+        value={modelo}
+        onChange={onModelo}
+      />
 
       <div className="my-4">
         <Telefono hex={hex} imagen={imagen} alt={`${modelo} ${color}`} />
@@ -106,9 +111,20 @@ export default function Comparador() {
     [condicion],
   )
 
-  const modelos = useMemo(() => {
-    const set = [...new Set(activos.map((c) => c.modelo))]
+  // Modelos con precio cargado en esta condición: arman las columnas iniciales
+  // (las filas del lineup sin precio no cuentan).
+  const cargados = useMemo(() => {
+    const set = [...new Set(activos.filter((c) => c.precio > 0).map((c) => c.modelo))]
     return set.sort((a, b) => rankCelular(a) - rankCelular(b))
+  }, [activos])
+
+  // Modelos para armar la grilla: todo el catálogo iPhone (del más nuevo al más
+  // viejo) más los cargados fuera del catálogo. El selector de cada columna es
+  // el buscador compartido del catálogo (`ModeloCatalogoField`).
+  const modelos = useMemo(() => {
+    const vistos = new Set(MODELOS_IPHONE.map((m) => m.toLowerCase()))
+    const extra = [...new Set(activos.map((c) => c.modelo))].filter((m) => !vistos.has(m.toLowerCase()))
+    return [...MODELOS_IPHONE, ...extra].sort((a, b) => rankCelular(a) - rankCelular(b))
   }, [activos])
 
   const imgStore = getComparadorImagenes()
@@ -117,20 +133,22 @@ export default function Comparador() {
   const infoPorModelo = useMemo(() => {
     const map = new Map()
     modelos.forEach((modelo) => {
-      const items = activos.filter((c) => c.modelo === modelo)
+      const items = activos.filter((c) => c.modelo.toLowerCase() === modelo.toLowerCase())
       // Imágenes subidas para este modelo (mapa color dataUrl PNG).
       const imagenes = { ...(imgStore[modelo] || {}) }
       items.forEach((c) => {
         if (c.color && c.imagen && !imagenes[c.color]) imagenes[c.color] = c.imagen
       })
-      // Colores = los de las filas + los que tengan imagen subida.
-      const colores = [
-        ...new Set([...Object.keys(imagenes), ...items.map((c) => c.color).filter(Boolean)]),
-      ]
-      const capMap = new Map()
+      // Colores = los de las filas + los que tengan imagen subida + los del catálogo.
+      // Sin repetir por mayúsculas («Titanio Natural» cargado = «Titanio natural» del catálogo).
+      const porClave = new Map()
+      ;[...Object.keys(imagenes), ...items.map((c) => c.color).filter(Boolean), ...coloresDeModelo(modelo)]
+        .forEach((c) => { if (!porClave.has(c.toLowerCase())) porClave.set(c.toLowerCase(), c) })
+      const colores = [...porClave.values()]
+      const capMap = new Map(capacidadesDeModelo(modelo).map((capacidad) => [capacidad, 0]))
       items.forEach((c) => {
         const prev = capMap.get(c.capacidad)
-        if (prev == null || (c.precio > 0 && c.precio < prev)) capMap.set(c.capacidad, c.precio)
+        if (!prev || (c.precio > 0 && c.precio < prev)) capMap.set(c.capacidad, c.precio)
       })
       const capacidades = [...capMap.entries()]
         .map(([capacidad, precio]) => ({ capacidad, precio }))
@@ -146,17 +164,18 @@ export default function Comparador() {
 
   // Columnas: hasta 3 modelos, cada una con su color elegido. Se reinician al
   // cambiar de condición (clave en el render).
+  const iniciales = () => (cargados.length ? cargados : modelos).slice(0, 3)
   const [columnas, setColumnas] = useState(() =>
-    modelos.slice(0, 3).map((m) => ({ modelo: m, color: '' })),
+    iniciales().map((m) => ({ modelo: m, color: '' })),
   )
 
   // Sincroniza columnas cuando cambian los modelos disponibles (cambio de
   // condición o datos nuevos): toma los primeros disponibles.
-  const claveModelos = modelos.join('|')
+  const claveModelos = cargados.join('|')
   const [claveActual, setClaveActual] = useState(claveModelos)
   if (claveModelos !== claveActual) {
     setClaveActual(claveModelos)
-    setColumnas(modelos.slice(0, 3).map((m) => ({ modelo: m, color: primerColor(m) })))
+    setColumnas(iniciales().map((m) => ({ modelo: m, color: primerColor(m) })))
   }
 
   function cambiarModelo(i, modelo) {
@@ -192,34 +211,27 @@ export default function Comparador() {
       </BarraModulo>
 
       <main className="mx-auto max-w-5xl space-y-5 p-4">
-        {modelos.length === 0 ? (
-          <div className="rounded-2xl border border-ink-600 bg-ink-800 py-16 text-center text-mute">
-            <div className="mb-2 text-4xl">
+        {cargados.length === 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-600 bg-ink-800 px-4 py-3 text-sm text-mute" data-testid="comparador-sin-precios">
+            <span className="flex items-center gap-2">
               <Icon name="phone" className="h-4 w-4" />
-            </div>
-            <p className="text-sm">
-              No hay modelos {condicion === 'Nuevo' ? 'nuevos' : 'semi-nuevos'} cargados.
-              <br />
-              Cargalos en el Centro de Control Celulares y aparecen acá.
-            </p>
-            <div className="mt-4 flex justify-center">
-              <Button variant="outline" onClick={() => navigate('/centro-control')}>Abrir Centro de Control</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {columnas.map((col, i) => (
-              <Columna
-                key={i}
-                info={infoPorModelo.get(col.modelo)}
-                valor={col}
-                modelos={modelos}
-                onModelo={(m) => cambiarModelo(i, m)}
-                onColor={(c) => cambiarColor(i, c)}
-              />
-            ))}
+              No hay precios de modelos {condicion === 'Nuevo' ? 'nuevos' : 'semi-nuevos'} cargados: cargalos en el Centro de Control y aparecen acá.
+            </span>
+            <Button variant="outline" onClick={() => navigate('/centro-control')}>Abrir Centro de Control</Button>
           </div>
         )}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {columnas.map((col, i) => (
+            <Columna
+              key={i}
+              info={infoPorModelo.get(col.modelo)}
+              valor={col}
+              indice={i}
+              onModelo={(m) => cambiarModelo(i, m)}
+              onColor={(c) => cambiarColor(i, c)}
+            />
+          ))}
+        </div>
 
         <p className="text-center text-xs text-mute">
           Subí las fotos reales en Centro de Control Imágenes. Donde no haya foto, se muestra una
