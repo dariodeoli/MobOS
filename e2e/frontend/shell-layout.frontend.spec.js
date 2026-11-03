@@ -190,14 +190,14 @@ test('desktop overflow moves tabs that do not fit to a measured Más popover and
   await expect(tabs.locator('[data-tab-id="abastecimiento"]')).toHaveAttribute('aria-current', 'page')
 })
 
-test('mobile owner bottom bar is Inicio, Vender, Pedidos, Stock and Más; the sheet reaches the rest and Esc closes it', async ({
+test('mobile owner bottom bar is Inicio, Pedidos, Stock, Vender and Más; the sheet reaches the rest and Esc closes it', async ({
   page,
 }) => {
   await mkdir(out, { recursive: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await enterDemo(page)
   const bar = page.getByTestId('shell-bottom-nav')
-  await expect(bar.getByRole('button')).toHaveText(['Inicio', 'Vender', 'Pedidos', 'Stock', 'Más'])
+  await expect(bar.getByRole('button')).toHaveText(['Inicio', 'Pedidos', 'Stock', 'Vender', 'Más'])
   const barBox = await bar.boundingBox()
   expect(barBox.height).toBeLessThanOrEqual(64)
   await page.getByTestId('shell-mas').click()

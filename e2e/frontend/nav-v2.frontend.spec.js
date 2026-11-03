@@ -68,15 +68,15 @@ for (const width of widths) {
           .getByRole('navigation', { name: 'Navegación principal', exact: true })
     await expect(navigation.getByRole('button')).toHaveText(
       mobile
-        ? ['Inicio', 'Vender', /^Pedidos\d*$/, 'Stock', 'Más']
+        ? ['Inicio', /^Pedidos\d*$/, 'Stock', 'Vender', 'Más']
         : [
             'Inicio',
-            'Vender',
             // Pedidos lleva la insignia de pendientes junto al nombre.
             /^Pedidos\d*$/,
-            'Clientes',
-            'Taller',
             'Stock',
+            'Clientes',
+            'Vender',
+            'Taller',
             'Finanzas',
             'Configuración',
           ],
@@ -181,9 +181,9 @@ for (const width of widths) {
 }
 
 for (const [role, landing, labels] of [
-  ['Vendedor', /\/pos/, ['Vender', 'Pedidos', 'Clientes', 'Stock']],
-  ['Gerente', /\/pos/, ['Vender', 'Pedidos', 'Clientes', 'Stock']],
-  ['Caja', /\/pos/, ['Vender', 'Pedidos', 'Clientes', 'Stock']],
+  ['Vendedor', /\/pos/, ['Vender', 'Pedidos', 'Stock', 'Clientes']],
+  ['Gerente', /\/pos/, ['Vender', 'Pedidos', 'Stock', 'Clientes']],
+  ['Caja', /\/pos/, ['Vender', 'Pedidos', 'Stock', 'Clientes']],
   // A single section needs no bottom bar.
   ['Técnico', /\/servicio/, null],
   ['Delivery', /\/delivery\/repartos/, null],
