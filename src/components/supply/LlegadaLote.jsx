@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Badge, Button, Card, FormField, Input, Select, Textarea, useResultado } from '@/components/ui'
+import { Badge, Button, Card, FormField, Input, MoneyInput, Select, Textarea, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { resources } from '@/lib/api'
 import { suppliersApi } from '@/lib/api/suppliers'
@@ -20,7 +20,6 @@ const hoy = () => {
   const ahora = new Date()
   return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`
 }
-const soloNumero = (valor) => String(valor || '').replace(/[^\d.,]/g, '')
 const aNumero = (valor) => Number(String(valor || '').replace(/\./g, '').replace(',', '.'))
 
 // IMEI pendientes después de confirmar: cada uno con su campo en la misma fila.
@@ -231,7 +230,7 @@ export default function LlegadaLote({ onVolver }) {
             </FormField>
             {moneda === 'USD' && (
               <FormField label="Cotización (Gs. por USD)" hint={origenCotizacion || 'Cargala a mano'} className="md:w-52">
-                <Input inputMode="decimal" value={cotizacion} onChange={(evento) => setCotizacion(soloNumero(evento.target.value))} placeholder="7500" aria-label="Cotización USD a guaraníes" />
+                <MoneyInput value={cotizacion} onValueChange={(valor) => setCotizacion(valor === '' ? '' : String(valor))} placeholder="7.500" aria-label="Cotización USD a guaraníes" />
               </FormField>
             )}
             {envios.length > 0 && (
