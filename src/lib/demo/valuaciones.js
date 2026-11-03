@@ -11,7 +11,7 @@ const BASE_SEMINUEVO = {
   'iPhone 14': 2600000, 'iPhone 14 Plus': 2900000, 'iPhone 14 Pro': 3800000, 'iPhone 14 Pro Max': 4300000,
   'iPhone 15': 3500000, 'iPhone 15 Plus': 3900000, 'iPhone 15 Pro': 4700000, 'iPhone 15 Pro Max': 5600000,
   'iPhone 16e': 3000000, 'iPhone 16': 4300000, 'iPhone 16 Plus': 4800000, 'iPhone 16 Pro': 5600000, 'iPhone 16 Pro Max': 6700000,
-  'iPhone 17': 5600000, 'iPhone Air': 5900000, 'iPhone 17 Pro': 7600000, 'iPhone 17 Pro Max': 8700000,
+  'iPhone 17e': 3900000, 'iPhone 17': 5600000, 'iPhone Air': 5900000, 'iPhone 17 Pro': 7600000, 'iPhone 17 Pro Max': 8700000,
   'iPad (9na gen)': 1100000, 'iPad (10ma gen)': 1800000, 'iPad (A16)': 2300000, 'iPad mini (6ta gen)': 2200000, 'iPad mini (A17 Pro)': 3000000,
   'iPad Air 10.9 (M1)': 2800000, 'iPad Air 11 (M2)': 3500000, 'iPad Air 13 (M2)': 4300000, 'iPad Air 11 (M3)': 4000000, 'iPad Air 13 (M3)': 4900000,
   'iPad Pro 11 (M4)': 6500000, 'iPad Pro 13 (M4)': 8000000, 'iPad Pro 11 (M5)': 7600000, 'iPad Pro 13 (M5)': 9200000,

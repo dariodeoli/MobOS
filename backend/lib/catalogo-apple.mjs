@@ -7,7 +7,7 @@
 // Formato: modelo(familia, nombre, año, capacidades, colores).
 // Las capacidades vacías (AirPods) significan «sin capacidad».
 
-export const CATALOGO_APPLE_VERSION = '2026.10.1'
+export const CATALOGO_APPLE_VERSION = '2026.11.1'
 export const FAMILIAS_APPLE = Object.freeze(['iPhone', 'iPad', 'Mac', 'Apple Watch', 'AirPods'])
 
 const GB = (...valores) => valores.map(valor => (valor >= 1024 ? `${valor / 1024}TB` : `${valor}GB`))
@@ -71,6 +71,7 @@ modelo('iPhone', 'iPhone 16 Pro', 2024, GB(128, 256, 512, 1024), CPRO16)
 modelo('iPhone', 'iPhone 16 Pro Max', 2024, GB(256, 512, 1024), CPRO16)
 modelo('iPhone', 'iPhone 17', 2025, GB(256, 512), C17)
 modelo('iPhone', 'iPhone Air', 2025, GB(256, 512, 1024), ['Negro espacial', 'Blanco nube', 'Oro claro', 'Azul cielo'])
+modelo('iPhone', 'iPhone 17e', 2026, GB(256, 512), ['Negro', 'Blanco', 'Rosa claro'])
 modelo('iPhone', 'iPhone 17 Pro', 2025, GB(256, 512, 1024), CPRO17)
 modelo('iPhone', 'iPhone 17 Pro Max', 2025, GB(256, 512, 1024, 2048), CPRO17)
 
