@@ -31,6 +31,8 @@ for (const width of [1440, 390]) {
         ? { status: 409, json: { message: 'Conflicto de catálogo simulado' } }
         : { status: 200, json: fixture.unit })
     })
+    // El modelo es el buscador del catálogo: se reabre con «Cambiar modelo».
+    await field.getByRole('button', { name: 'Cambiar modelo' }).click()
     await field.getByLabel('Modelo Apple').fill('iPhone 15 Pro')
     await field.getByTestId('unidad-variante-apple-guardar').click()
     expect(requests).toHaveLength(0)

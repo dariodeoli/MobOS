@@ -48,15 +48,15 @@ test('Stock: el alta del modelo depende de capacidad → color y crea el product
     await expect(color).toBeDisabled()
     await expect(cascada.getByLabel('Modelo del producto')).toHaveValue(modelo)
 
-    // Con un modelo del lineup, las capacidades sugeridas salen del catálogo.
+    // Con un modelo del catálogo, capacidad y color son selectores con sus opciones reales.
     await cascada.getByLabel('Modelo del producto').fill('iPhone 15')
     await expect(capacidad).toBeEnabled()
-    const sugeridas = await cascada.locator('#variante-producto-capacidades option').evaluateAll((opciones) => opciones.map((opcion) => opcion.value))
-    expect(sugeridas, 'capacidades del lineup para iPhone 15').toContain('128GB')
-    // Y al elegir la capacidad se habilita el color (sugerencias del catálogo real).
-    await capacidad.fill('128GB')
+    const sugeridas = await capacidad.locator('option').evaluateAll((opciones) => opciones.map((opcion) => opcion.value))
+    expect(sugeridas, 'capacidades del catálogo para iPhone 15').toContain('128GB')
+    // Y al elegir la capacidad se habilita el color (colores del catálogo real).
+    await capacidad.selectOption('128GB')
     await expect(color).toBeEnabled()
-    await color.fill('Verde QA')
+    await color.selectOption('Verde')
 
     // Se vuelve al modelo nuevo (cambiar el modelo resetea la dependencia) y se
     // completa de nuevo la cascada antes de crear.
