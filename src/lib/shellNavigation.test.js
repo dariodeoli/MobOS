@@ -85,16 +85,16 @@ test('owner gets eight primary destinations (seven core + Taller) and every exis
   assert.equal(activeShellSection(sections, 'equipo'), config)
 })
 
-test('owner mobile bottom bar is Inicio, Pedidos, Stock, Clientes and a Más sheet (D2)', () => {
+test('owner mobile bottom bar is Inicio, Pedidos, Stock, Vender and a Más sheet (D2)', () => {
   const sections = shellNavigation(catalog('OWNER_NAV'))
   const { bottom, more } = shellBottomNav(sections)
   assert.deepEqual(
     bottom.map(section => section.label),
-    ['Inicio', 'Pedidos', 'Stock', 'Clientes'],
+    ['Inicio', 'Pedidos', 'Stock', 'Vender'],
   )
   assert.deepEqual(
     more.map(section => section.label),
-    ['Vender', 'Taller', 'Finanzas', 'Configuración'],
+    ['Clientes', 'Taller', 'Finanzas', 'Configuración'],
   )
   assert.equal(bottom.length + more.length, sections.length)
 })

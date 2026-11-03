@@ -68,7 +68,7 @@ for (const width of widths) {
           .getByRole('navigation', { name: 'Navegación principal', exact: true })
     await expect(navigation.getByRole('button')).toHaveText(
       mobile
-        ? ['Inicio', /^Pedidos\d*$/, 'Stock', 'Clientes', 'Más']
+        ? ['Inicio', /^Pedidos\d*$/, 'Stock', 'Vender', 'Más']
         : [
             'Inicio',
             // Pedidos lleva la insignia de pendientes junto al nombre.

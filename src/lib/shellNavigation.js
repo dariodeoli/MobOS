@@ -96,7 +96,8 @@ const SEGMENT_LABELS = {
 }
 
 // Owner mobile bottom bar (D2): the rest of the sections live in the "Más" sheet.
-const BOTTOM_PRIORITY = ['inicio', 'pedidos', 'stock', 'clientes']
+// Sigue el orden del menú, pero Vender queda a un toque en el celular.
+const BOTTOM_PRIORITY = ['inicio', 'pedidos', 'stock', 'vender']
 const BOTTOM_MAX = 5
 
 // `opciones.modulos` (opcional): función `(idDeVista) => boolean` que dice si la
