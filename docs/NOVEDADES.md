@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.248 — 2026-11-03
+
+- **Otros:** el menú del dueño arranca con Inicio, Pedidos, Stock y Clientes; después siguen Vender, Taller, Finanzas y Configuración.
+- **Otros:** en el celular, la barra de abajo del dueño muestra Inicio, Pedidos, Stock y Vender; Clientes y el resto quedan en «Más». Vendedores y cajeros siguen viendo Vender primero.
+- **Inventario:** la lista de precios y el comparador traen todos los iPhone hasta el 17 Pro Max: el modelo se busca en vez de escribirse, y la capacidad y el color se eligen según el modelo (también en las fotos del comparador).
+- **Inventario:** todos los campos de precio en guaraníes y dólares aceptan solo números y muestran los puntos de miles.
+
 ## v1.0.247 — 2026-11-02
 
 - **Equipo:** nuevo rol «Compras» para quien se encarga de comprar: entra directo a Abastecimiento y ve solo las pantallas de compras, preparación, lotes, recepción y métricas.
