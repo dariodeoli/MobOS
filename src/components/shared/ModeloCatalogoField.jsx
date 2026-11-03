@@ -9,13 +9,14 @@ import { CATALOGO_APPLE, modeloApple } from '../../../backend/lib/catalogo-apple
 // «Cambiar» (un control por estado). También acepta un
 // modelo que no es Apple escrito a mano (ej. Samsung): ahí no hay capacidades
 // ni colores del catálogo y la pantalla pide la capacidad como texto.
-// Con `familia` (ej. «iPhone») la lista se limita a esa familia, del más nuevo al más viejo.
+// Con `familia` (ej. «iPhone») la lista se limita a esa familia, del más nuevo al más viejo;
+// `sinDetalles` deja solo el nombre en la fila elegida (columnas angostas).
 const OPCIONES = CATALOGO_APPLE.map((modelo) => ({ value: modelo.nombre, label: modelo.nombre, detail: modelo.familia }))
 const opcionesDe = (familia) => (familia
   ? CATALOGO_APPLE.filter((modelo) => modelo.familia === familia).sort((a, b) => (familia === 'iPhone' ? rankCelular(a.nombre) - rankCelular(b.nombre) : 0) || b.anio - a.anio).map((modelo) => ({ value: modelo.nombre, label: modelo.nombre, detail: modelo.familia }))
   : OPCIONES)
 
-export default function ModeloCatalogoField({ id = 'modelo-catalogo', value = '', onChange, disabled = false, placeholder = 'Buscar modelo (ej. 15 pro max)', testId = 'modelo-catalogo', familia = '' }) {
+export default function ModeloCatalogoField({ id = 'modelo-catalogo', value = '', onChange, disabled = false, placeholder = 'Buscar modelo (ej. 15 pro max)', testId = 'modelo-catalogo', familia = '', ariaLabel = 'Modelo', sinDetalles = false }) {
   // La fila compacta aparece al elegir de la lista, no mientras se escribe «iPhone 13» camino a «iPhone 13 Pro».
   const [escribiendo, setEscribiendo] = useState(false)
   const [enfocar, setEnfocar] = useState(false)
@@ -28,7 +29,7 @@ export default function ModeloCatalogoField({ id = 'modelo-catalogo', value = ''
     return <SelectorResultadoCompacto
       testId={`${testId}-elegido`}
       nombre={elegido.nombre}
-      detalles={[elegido.familia, caps ? `${caps} capacidad${caps === 1 ? '' : 'es'}` : '']}
+      detalles={sinDetalles ? [] : [elegido.familia, caps ? `${caps} capacidad${caps === 1 ? '' : 'es'}` : '']}
       onCambiar={disabled ? undefined : () => { setEscribiendo(true); setEnfocar(true); onChange?.('') }}
       etiquetaCambiar="Cambiar modelo"
     />
@@ -36,7 +37,7 @@ export default function ModeloCatalogoField({ id = 'modelo-catalogo', value = ''
   return <div ref={caja} data-testid={testId}>
     <ComboBuscador
       id={id}
-      ariaLabel="Modelo"
+      ariaLabel={ariaLabel}
       value={value}
       onChange={(texto) => { setEscribiendo(true); onChange?.(texto) }}
       onSelect={(opcion) => { setEscribiendo(false); onChange?.(opcion.value) }}

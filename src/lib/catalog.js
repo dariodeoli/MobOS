@@ -20,26 +20,10 @@ export const LINEUP_SEMINUEVO = aLineup(IPHONES_CATALOGO)
 /** Modelos iPhone del catálogo, del más nuevo al más viejo (selectores del Comparador y del Centro de Control). */
 export const MODELOS_IPHONE = LINEUP_SEMINUEVO.map(([nombre]) => nombre)
 
-// Orden visual de los modelos (más nuevo arriba). Se usa para ordenar la lista
-// sin depender de cómo se hayan ido cargando.
-export const ORDEN_MODELOS = [
-  'iPhone 17 Pro Max',
-  'iPhone 17 Pro',
-  'iPhone Air',
-  'iPhone 17',
-  'iPhone 17e',
-  'iPhone 16 Pro Max',
-  'iPhone 16 Pro',
-  'iPhone 16 Plus',
-  'iPhone 16',
-  'iPhone 16e',
-  'iPhone 15 Pro Max',
-  'iPhone 15 Pro',
-  'iPhone 15 Plus',
-  'iPhone 15',
-  'iPhone 14',
-  'iPhone 13',
-]
+// Orden visual de los modelos (más nuevo arriba): el mismo del catálogo, sin
+// otra lista escrita a mano.
+export const ORDEN_MODELOS = MODELOS_IPHONE
+
 // Devuelve un número menor para los modelos más nuevos, listo para ordenar
 // ascendente. Se calcula por generación (17 antes que 16…) y, dentro de la
 // misma, por variante: Pro Max → Pro → Air → Plus → base → E. Es tolerante a
