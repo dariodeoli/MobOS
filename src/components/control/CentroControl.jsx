@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ESTADOS_CELULAR, addCelular, cargarLineupIphone, deleteCelular, deleteComparadorImagen, listCelulares, listComparadorImagenes, modoDatosActual, rankCelular, setComparadorImagen, updateCelular } from '@/lib/storage'
 import { procesarImagenComparador } from '@/utils/imagen'
 import { useLive } from '@/hooks/useLive'
-import { Badge, Button, Card, EmptyState, IconAction, Input, Label, MoneyInput, Select, Subtabs, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, IconAction, Label, MoneyInput, Select, Subtabs, useToast } from '@/components/ui'
 import BarraModulo from '@/components/shared/BarraModulo'
 import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import Icon from '@/components/shared/Icon'
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import PopupConfirmar from '@/components/shared/PopupConfirmar'
 import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
+import CampoVarianteCatalogo from '@/components/shared/CampoVarianteCatalogo'
 import { capacidadesDeModelo, coloresDeModelo, modeloApple } from '../../../backend/lib/catalogo-apple.mjs'
 
 // #303 · Centro de Control: el lugar donde se cargan los datos que consumen
@@ -57,12 +58,8 @@ function SeccionCelulares() {
   const [form, setForm] = useState(VACIO)
   const [draft, setDraft] = useState({})
   const [aBorrar, setABorrar] = useState(null)
-  // Capacidad y color salen del modelo elegido; un modelo fuera del catálogo
-  // (escrito a mano) vuelve a los campos de texto.
-  const capacidades = capacidadesDeModelo(form.modelo)
-  const colores = coloresDeModelo(form.modelo)
-  const enCatalogo = Boolean(modeloApple(form.modelo))
-
+  // Capacidad y color salen del modelo elegido (`CampoVarianteCatalogo`); un
+  // modelo fuera del catálogo (escrito a mano) vuelve a los campos de texto.
   function cambiarModelo(modelo) {
     setForm(actual => ({
       ...actual,
@@ -137,21 +134,11 @@ function SeccionCelulares() {
           </div>
           <div className="md:col-span-3 xl:col-span-2">
             <Label htmlFor="cc-capacidad">Capacidad</Label>
-            {enCatalogo
-              ? <Select id="cc-capacidad" value={form.capacidad} onChange={e => setForm({ ...form, capacidad: e.target.value })}>
-                <option value="">Elegí la capacidad</option>
-                {capacidades.map(capacidad => <option key={capacidad} value={capacidad}>{capacidad}</option>)}
-              </Select>
-              : <Input id="cc-capacidad" value={form.capacidad} onChange={e => setForm({ ...form, capacidad: e.target.value })} placeholder={form.modelo ? '256GB' : 'Elegí el modelo'} disabled={!form.modelo} maxLength={20} />}
+            <CampoVarianteCatalogo id="cc-capacidad" campo="capacidad" modelo={form.modelo} value={form.capacidad} onChange={capacidad => setForm(actual => ({ ...actual, capacidad }))} disabled={!form.modelo} placeholder={form.modelo ? '256GB' : 'Elegí el modelo'} />
           </div>
           <div className="md:col-span-3 xl:col-span-2">
             <Label htmlFor="cc-color">Color</Label>
-            {enCatalogo
-              ? <Select id="cc-color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })}>
-                <option value="">Sin color</option>
-                {colores.map(color => <option key={color} value={color}>{color}</option>)}
-              </Select>
-              : <Input id="cc-color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} placeholder={form.modelo ? 'Color' : 'Elegí el modelo'} disabled={!form.modelo} maxLength={60} />}
+            <CampoVarianteCatalogo id="cc-color" campo="color" modelo={form.modelo} value={form.color} onChange={color => setForm(actual => ({ ...actual, color }))} vacio="Sin color" disabled={!form.modelo} placeholder={form.modelo ? 'Color' : 'Elegí el modelo'} />
           </div>
           <div className="md:col-span-3 xl:col-span-2">
             <Label htmlFor="cc-estado">Condición</Label>
@@ -241,15 +228,13 @@ function SeccionImagenes() {
   const [procesando, setProcesando] = useState(false)
   const [aBorrar, setABorrar] = useState(null)
 
-  const celulares = listCelulares()
-  const modelos = [...new Set(celulares.map(c => c.modelo).filter(Boolean))].sort((a, b) => rankCelular(a) - rankCelular(b))
   const registros = listComparadorImagenes()
 
   async function agregarArchivo(file) {
     setProcesando(true)
     try {
       const src = await procesarImagenComparador(file)
-      setPendientes(acumuladas => [...acumuladas, { key: nuevoKey(), src, modelo: modelos[0] || '', color: '' }])
+      setPendientes(acumuladas => [...acumuladas, { key: nuevoKey(), src, modelo: '', color: '' }])
     } catch {
       toast.error('No se pudo procesar la imagen', 'Probá con otra foto (JPG, PNG o WebP).')
     } finally {
@@ -258,14 +243,14 @@ function SeccionImagenes() {
   }
 
   function guardarImagenes() {
-    const completas = pendientes.filter(p => p.modelo && p.color.trim() && p.src)
+    const completas = pendientes.filter(p => modeloApple(p.modelo) && p.color.trim() && p.src)
     if (!completas.length) {
-      toast.error('Faltan datos', 'Elegí el modelo y escribí el color de al menos una foto.')
+      toast.error('Faltan datos', 'Elegí el modelo y el color de al menos una foto.')
       return
     }
     completas.forEach(p => setComparadorImagen(p.modelo, p.color, p.src))
     toast.success(`${completas.length} foto(s) guardadas`, 'El Comparador las muestra en lugar de la maqueta.')
-    setPendientes(actuales => actuales.filter(p => !(p.modelo && p.color.trim() && p.src)))
+    setPendientes(actuales => actuales.filter(p => !(modeloApple(p.modelo) && p.color.trim() && p.src)))
   }
 
   function eliminar() {
@@ -310,21 +295,15 @@ function SeccionImagenes() {
                 <img src={p.src} alt="" className="h-12 w-12 shrink-0 rounded-lg border border-ink-600 object-contain" />
                 <div className="min-w-0 flex-1">
                   <Label htmlFor={`foto-modelo-${p.key}`}>Modelo</Label>
-                  <Select id={`foto-modelo-${p.key}`} value={p.modelo} onChange={e => setPendientes(actuales => actuales.map(x => x.key === p.key ? { ...x, modelo: e.target.value } : x))}>
-                    <option value="">Elegí el modelo</option>
-                    {modelos.map(m => <option key={m} value={m}>{m}</option>)}
-                  </Select>
+                  <ModeloCatalogoField id={`foto-modelo-${p.key}`} familia="iPhone" value={p.modelo} testId={`foto-modelo-${p.key}`} onChange={modelo => setPendientes(actuales => actuales.map(x => x.key === p.key ? { ...x, modelo, color: coloresDeModelo(modelo).includes(x.color) ? x.color : '' } : x))} />
                 </div>
-                <div className="w-40">
+                <div className="w-full sm:w-48">
                   <Label htmlFor={`foto-color-${p.key}`}>Color</Label>
-                  <Input id={`foto-color-${p.key}`} value={p.color} onChange={e => setPendientes(actuales => actuales.map(x => x.key === p.key ? { ...x, color: e.target.value } : x))} placeholder="Titanio natural" />
+                  <CampoVarianteCatalogo id={`foto-color-${p.key}`} campo="color" modelo={p.modelo} value={p.color} disabled={!modeloApple(p.modelo)} onChange={color => setPendientes(actuales => actuales.map(x => x.key === p.key ? { ...x, color } : x))} placeholder="Elegí el modelo" />
                 </div>
                 <IconAction icon="trash" tone="bad" label="Quitar la foto" onClick={() => setPendientes(actuales => actuales.filter(x => x.key !== p.key))} />
               </div>
             ))}
-            {!modelos.length && (
-              <p className="text-xs text-warn">Primero cargá la lista de celulares: de ahí salen los modelos para asignar la foto.</p>
-            )}
             <div className="flex justify-end">
               <Button type="button" onClick={guardarImagenes} data-testid="guardar-fotos">Guardar fotos</Button>
             </div>

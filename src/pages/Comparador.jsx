@@ -7,7 +7,8 @@ import { useLive } from '@/hooks/useLive'
 import { gs } from '@/utils/calculos'
 import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
-import { Button, Select } from '@/components/ui'
+import { Button } from '@/components/ui'
+import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
 import BarraModulo from '@/components/shared/BarraModulo'
 import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import Icon from '@/components/shared/Icon'
@@ -37,20 +38,22 @@ function Telefono({ hex, imagen, alt }) {
   )
 }
 
-function Columna({ info, valor, onModelo, onColor, modelos }) {
+function Columna({ indice, info, valor, onModelo, onColor }) {
   const { modelo, color } = valor
   const hex = colorHex(color)
   const imagen = info?.imagenes?.[color] || null
 
   return (
     <div className="flex flex-col rounded-2xl border border-ink-600 bg-ink-800 p-4">
-      <Select value={modelo} onChange={(e) => onModelo(e.target.value)} className="font-semibold" aria-label="Modelo a comparar" data-testid="comparador-modelo">
-        {modelos.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </Select>
+      <ModeloCatalogoField
+        id={`comparador-modelo-${indice}`}
+        familia="iPhone"
+        sinDetalles
+        ariaLabel="Modelo a comparar"
+        testId={`comparador-modelo-${indice}`}
+        value={modelo}
+        onChange={onModelo}
+      />
 
       <div className="my-4">
         <Telefono hex={hex} imagen={imagen} alt={`${modelo} ${color}`} />
@@ -115,8 +118,9 @@ export default function Comparador() {
     return set.sort((a, b) => rankCelular(a) - rankCelular(b))
   }, [activos])
 
-  // El selector ofrece todo el catálogo iPhone (del más nuevo al más viejo) más
-  // los modelos cargados que no son del catálogo.
+  // Modelos para armar la grilla: todo el catálogo iPhone (del más nuevo al más
+  // viejo) más los cargados fuera del catálogo. El selector de cada columna es
+  // el buscador compartido del catálogo (`ModeloCatalogoField`).
   const modelos = useMemo(() => {
     const vistos = new Set(MODELOS_IPHONE.map((m) => m.toLowerCase()))
     const extra = [...new Set(activos.map((c) => c.modelo))].filter((m) => !vistos.has(m.toLowerCase()))
@@ -222,7 +226,7 @@ export default function Comparador() {
               key={i}
               info={infoPorModelo.get(col.modelo)}
               valor={col}
-              modelos={modelos}
+              indice={i}
               onModelo={(m) => cambiarModelo(i, m)}
               onColor={(c) => cambiarColor(i, c)}
             />
