@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.247 — 2026-11-02
+
+- **Equipo:** nuevo rol «Compras» para quien se encarga de comprar: entra directo a Abastecimiento y ve solo las pantallas de compras, preparación, lotes, recepción y métricas.
+- **Abastecimiento:** el aviso de venta sin stock ahora le llega al dueño y a las personas con rol Compras de esa sucursal (el gerente ya no lo recibe porque no abre esa pantalla).
+- **Abastecimiento:** cada mañana, quien compra recibe un resumen: cuántas ventas sin stock quedan por comprar y cuántas ya pasaron la fecha prometida.
+
 ## v1.0.246 — 2026-11-02
 
 - **Abastecimiento:** cuando se vende algo sin stock, a quien compra (dueño o gerente de la sucursal) le llega un aviso al celular: «Hay que comprar …», con la fecha prometida.
