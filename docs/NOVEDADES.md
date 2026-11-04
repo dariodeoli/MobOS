@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.250 — 2026-11-04
+
+- **Ventas:** en el carrito, el campo Cliente tiene una X para vaciarlo o quitar el cliente con un toque.
+- **Otros:** en la app de iPhone, las ventanas como Cliente quedan arriba del teclado (arreglo del caso que seguía tapado).
+- **Otros:** el ingreso con PIN tiene teclas y círculos más grandes en los celulares actuales.
+
 ## v1.0.249 — 2026-11-04
 
 - **Otros:** en la app de iPhone, «Continuar con Google» vuelve a funcionar también para quien ya había entrado antes con Google.
