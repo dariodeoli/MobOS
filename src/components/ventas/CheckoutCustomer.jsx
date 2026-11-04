@@ -2,6 +2,7 @@ import { guardarFichaClienteDemo } from '@/lib/demoCheckoutCustomer'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, IconAction, Input } from '@/components/ui'
+import BotonDentroCampo from '@/components/shared/BotonDentroCampo'
 import { ConfirmDialog, FormActions, Modal } from '@/components/shared/popupKit'
 import { Info } from 'lucide-react'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -630,7 +631,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       if (matches[0]) elegirCliente(matches[0])
       else if (detectarDocumento(value.name)) resolverDocumento(value.name)
       else if (value.name.trim()) onSelected?.()
-    }} /></label>
+    }} fin={value.name ? <BotonDentroCampo integrado icono="close" etiqueta="Quitar cliente" onClick={quitarCliente} /> : undefined} /></label>
     {errorNombre && <p role="alert" className="mt-1 text-xs text-bad-text">{errorNombre}</p>}
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{borradores.map(borrador => <button type="button" key={`borrador-${borrador.document}`} className="block w-full rounded-xl border border-dashed border-fono/40 bg-fono/[.04] p-3 text-left text-sm hover:border-fono" onClick={() => usarBorrador(borrador)}><strong>{borrador.name}</strong><span className="ml-2 rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">Pre-cliente</span><span className="ml-3 text-mute">{borrador.document}</span></button>)}{!matches.length && !borradores.length && !error && !consultandoDoc && <p className="text-xs text-fono-light">Cliente nuevo: completá sus datos y confirmá la ficha para guardarlo.</p>}{!matches.length && !consultandoDoc && detectarDocumento(value.name)?.estado === 'valido' && <button type="button" data-testid="consultar-ruc-buscador" className="min-h-11 rounded-lg border border-fono/40 px-3 text-sm font-semibold text-fono-light hover:border-fono md:min-h-9" onClick={() => resolverDocumento(value.name)}>Consultar RUC y crear cliente</button>}</div>}
     {consultandoDoc && <p role="status" data-testid="consultando-ruc" className="text-xs font-semibold text-fono-light">Consultando RUC…</p>}

@@ -78,7 +78,7 @@ test('venta rápida: Enter confirma cliente, enfoca productos y cobra con F2', a
 
   const cliente = page.getByPlaceholder('Buscar cliente o escribir un nombre nuevo')
   await cliente.fill('Mar')
-  await expect(page.getByTestId('pos-bloque-cliente').getByRole('button').first()).toBeVisible()
+  await expect(page.getByTestId('pos-bloque-cliente').locator('button.block').first()).toBeVisible()
   await cliente.press('Enter')
   await expect(page.getByTestId('cliente-elegido-nombre')).toContainText('María')
 

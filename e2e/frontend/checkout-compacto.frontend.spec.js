@@ -34,6 +34,18 @@ test('checkout: Enter confirma y el botón OK colapsa la ficha del cliente', asy
   await expect(page.getByTestId('cliente-guardado')).toContainText('Cliente guardado en esta demo')
 })
 
+test('checkout: la X dentro del campo vacía el cliente escrito', async ({ page }) => {
+  await enterPos(page)
+  const cliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
+  const limpiar = page.getByTestId('pos-bloque-cliente').getByRole('button', { name: 'Quitar cliente', exact: true })
+  await expect(limpiar).toHaveCount(0)
+  await cliente.fill('7001535')
+  await page.screenshot({ path: test.info().outputPath('cliente-x.png') })
+  await limpiar.click()
+  await expect(cliente).toHaveValue('')
+  await expect(limpiar).toHaveCount(0)
+})
+
 test('checkout: muestra facturación alternativa y direcciones guardadas sin perder ids', async ({ page }) => {
   await enterPos(page)
   const cliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')

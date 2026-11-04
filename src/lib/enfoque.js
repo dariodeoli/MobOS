@@ -74,9 +74,11 @@ export function ubicarEnMitadSuperior(el, { win = window, forzar = false } = {})
 
 // Relleno inferior (`html.teclado-abierto`, ver index.css): iOS no redimensiona
 // el layout con el teclado y un campo bajo no tendría recorrido para subir.
+// En la app nativa manda el plugin del teclado (seguirTeclado): ahí visualViewport
+// no refleja el teclado y este cálculo daría 0, borrando la altura real.
 function aplicarRelleno(win) {
   const vv = win.visualViewport
-  if (!vv) return
+  if (!vv || win.__mobosTecladoNativo) return
   const teclado = Math.max(0, win.innerHeight - vv.height - (vv.offsetTop || 0))
   const raiz = win.document.documentElement
   if (teclado > 80) raiz.style.setProperty('--teclado-alto', `${Math.round(teclado)}px`)

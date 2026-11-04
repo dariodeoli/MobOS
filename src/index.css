@@ -626,16 +626,18 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
 /* Con alto de sobra (iPhone actuales) el PIN usa teclas y nombre grandes; en
    pantallas bajas conserva las medidas que entran sin scroll. */
 @media (max-width: 767px) and (min-height: 700px) {
-  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad { --pin-tecla: clamp(48px, min(22vw, 10dvh), 88px); max-width: 21rem; margin-inline: auto; }
-  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: clamp(8px, 3dvh, 40px); gap: clamp(4px, 1.8dvh, 20px) 0; }
+  .auth-login-pin:not(:has(details[open])) .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad { --pin-tecla: clamp(56px, min(25vw, 11dvh), 104px); max-width: 24rem; margin-inline: auto; }
+  .auth-login-pin:not(:has(details[open])) .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: clamp(12px, 3.5dvh, 44px); gap: clamp(6px, 2dvh, 22px) 0; }
+  .auth-login-pin:not(:has(details[open])) .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] .pin-tecla { font-size: clamp(1.75rem, calc(var(--pin-tecla) * .4), 2.5rem); }
   .auth-login-pin .auth-shell-grid { align-items: stretch; }
   .auth-login-pin .login-panel { display: flex; flex-direction: column; }
   .auth-login-pin .auth-form[data-etapa='vendedor'] { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; }
   .auth-login-pin .login-pin-tienda { font-size: clamp(1.5rem, 7vw, 2rem); }
   .auth-login-pin .auth-form[data-etapa='vendedor'] label[for='seller-pin'] { display: block; text-align: center; }
-  .auth-login-pin .pin-seg-discreto [data-testid='pin-indicadores'] > div { gap: 20px; }
-  .auth-login-pin .pin-seg-discreto .pin-seg-celda { width: 18px; height: 18px; }
-  .auth-login-pin .pin-seg-discreto .pin-seg-punto { width: 12px; height: 12px; }
+  .auth-login-pin .pin-seg-discreto [data-testid='pin-indicadores'] > div { gap: 26px; }
+  .auth-login-pin .pin-seg-discreto .pin-seg-celda { width: 24px; height: 24px; border-width: 2px; }
+  .auth-login-pin .pin-seg-discreto .pin-seg-punto { width: 16px; height: 16px; }
+  .auth-login-pin .pin-seg-discreto .pin-seg-check { width: 16px; height: 16px; }
 }
 @keyframes login-pin-entra { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes login-pin-tecla { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
