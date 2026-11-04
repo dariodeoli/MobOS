@@ -67,6 +67,7 @@ test('seguirTeclado publica la altura del teclado en la raíz y la retira al cer
   const raiz = { style: { setProperty: (k, v) => props.set(k, v), removeProperty: k => props.delete(k) }, classList: { add: c => clases.add(c), remove: c => clases.delete(c) } }
   const win = Object.assign(new EventTarget(), { document: { documentElement: raiz, activeElement: campo } })
   const soltar = seguirTeclado({ win })
+  assert.equal(win.__mobosTecladoNativo, true)
   win.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 336 }))
   assert.equal(props.get('--teclado-alto'), '336px')
   assert.ok(clases.has('teclado-abierto'))
@@ -78,4 +79,5 @@ test('seguirTeclado publica la altura del teclado en la raíz y la retira al cer
   win.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 300 }))
   soltar()
   assert.equal(clases.has('teclado-abierto'), false)
+  assert.equal(win.__mobosTecladoNativo, undefined)
 })

@@ -71,6 +71,7 @@ export function ajustarDialogoAlTeclado(form, { win = window } = {}) {
 // ventanas arriba del teclado y el campo enfocado se desplaza a la vista.
 export function seguirTeclado({ win = window } = {}) {
   const raiz = win.document.documentElement
+  win.__mobosTecladoNativo = true
   const mostrar = event => {
     const alto = Math.max(0, Number(event.keyboardHeight ?? event.detail?.keyboardHeight) || 0)
     if (!alto) return ocultar()
@@ -96,6 +97,7 @@ export function seguirTeclado({ win = window } = {}) {
     win.removeEventListener('keyboardDidShow', enfocar)
     win.removeEventListener('keyboardWillHide', ocultar)
     win.removeEventListener('keyboardDidHide', ocultar)
+    delete win.__mobosTecladoNativo
     ocultar()
   }
 }
