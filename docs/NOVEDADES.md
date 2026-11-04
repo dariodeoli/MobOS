@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.249 — 2026-11-04
+
+- **Otros:** en la app de iPhone, «Continuar con Google» vuelve a funcionar también para quien ya había entrado antes con Google.
+- **Otros:** en la app de iPhone, las ventanas (cliente, cobro y demás) suben arriba del teclado y ya no quedan tapadas.
+- **Otros:** en la app de iPhone, el ingreso con PIN ocupa toda la pantalla, con números grandes y una entrada animada.
+
 ## v1.0.248 — 2026-11-03
 
 - **Otros:** el menú del dueño arranca con Inicio, Pedidos, Stock y Clientes; después siguen Vender, Taller, Finanzas y Configuración.
