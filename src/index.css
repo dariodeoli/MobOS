@@ -625,17 +625,21 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login-pin .auth-shell-grid { align-items: stretch; }
   .auth-login-pin .login-panel { display: flex; flex-direction: column; }
   .auth-login-pin .auth-form[data-etapa='vendedor'] { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; }
-  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad { --pin-tecla: clamp(64px, min(22vw, 10.5dvh), 88px); max-width: 21rem; margin-inline: auto; }
-  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: clamp(20px, 4dvh, 40px); gap: clamp(10px, 2dvh, 20px) 0; }
+  .auth-login-pin .auth-form[data-etapa='vendedor'] label[for='seller-pin'] { display: block; text-align: center; }
+}
+/* Con alto de sobra (iPhone actuales) el PIN usa teclas y nombre grandes; en
+   pantallas bajas conserva las medidas que entran sin scroll. */
+@media (max-width: 767px) and (min-height: 700px) {
+  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad { --pin-tecla: clamp(48px, min(22vw, 10dvh), 88px); max-width: 21rem; margin-inline: auto; }
+  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: clamp(8px, 3dvh, 40px); gap: clamp(4px, 1.8dvh, 20px) 0; }
+  .auth-login-pin .login-pin-tienda { font-size: clamp(1.5rem, 7vw, 2rem); }
   .auth-login-pin .pin-seg-discreto [data-testid='pin-indicadores'] > div { gap: 20px; }
   .auth-login-pin .pin-seg-discreto .pin-seg-celda { width: 18px; height: 18px; }
   .auth-login-pin .pin-seg-discreto .pin-seg-punto { width: 12px; height: 12px; }
-  .auth-login-pin .login-pin-tienda { font-size: clamp(1.5rem, 7vw, 2rem); }
-  .auth-login-pin .auth-form[data-etapa='vendedor'] label[for='seller-pin'] { display: block; text-align: center; }
 }
 @keyframes login-pin-entra { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes login-pin-tecla { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
-@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+@media (max-width: 767px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
   .auth-login-pin .login-panel > * { animation: login-pin-entra .45s cubic-bezier(.2,.8,.3,1) both; }
   .auth-login-pin .login-panel > :nth-child(2) { animation-delay: .06s; }
   .auth-login-pin .login-panel > :nth-child(3) { animation-delay: .12s; }
