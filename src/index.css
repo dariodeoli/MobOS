@@ -378,6 +378,14 @@ html.app-ios .fixed.inset-0.z-50 {
   padding-top: max(0.75rem, env(safe-area-inset-top));
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+/* Con el teclado abierto (lib/nativo/teclado.js): toda ventana termina arriba
+   del teclado y su panel se achica al espacio que queda, en vez de quedar tapada. */
+html.app-ios.teclado-abierto .fixed.inset-0.z-50 {
+  bottom: var(--teclado-alto, 0px);
+  padding-bottom: 0.5rem;
+}
+html.app-ios.teclado-abierto .fixed.inset-0.z-50 > :is(.popup-panel, [role='dialog'], [role='alertdialog']) { max-height: 100%; }
+html.app-ios.teclado-abierto .popup-pie-espacio { display: none; }
 /* Pantalla de bloqueo del PIN. */
 html.app-ios .fixed.inset-0.z-\[70\] {
   padding-top: max(1rem, env(safe-area-inset-top));

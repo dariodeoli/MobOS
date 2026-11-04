@@ -64,3 +64,38 @@ export function ajustarDialogoAlTeclado(form, { win = window } = {}) {
     dialog.style.removeProperty('--identidad-viewport-top')
   }
 }
+
+// Toda la app: WKWebView no mueve los overlays fijos al abrir el teclado, así
+// que las ventanas («fixed inset-0») quedaban debajo. Se publica la altura del
+// teclado en `--teclado-alto` y `html.teclado-abierto`; index.css termina las
+// ventanas arriba del teclado y el campo enfocado se desplaza a la vista.
+export function seguirTeclado({ win = window } = {}) {
+  const raiz = win.document.documentElement
+  const mostrar = event => {
+    const alto = Math.max(0, Number(event.keyboardHeight ?? event.detail?.keyboardHeight) || 0)
+    if (!alto) return ocultar()
+    raiz.style.setProperty('--teclado-alto', `${alto}px`)
+    raiz.classList.add('teclado-abierto')
+  }
+  const ocultar = () => {
+    raiz.style.removeProperty('--teclado-alto')
+    raiz.classList.remove('teclado-abierto')
+  }
+  const enfocar = () => {
+    const campo = win.document.activeElement
+    if (campo?.matches?.('input, textarea, select') && campo.closest?.('[role="dialog"], [role="alertdialog"]')) campo.scrollIntoView?.({ block: 'nearest' })
+  }
+  win.addEventListener('keyboardWillShow', mostrar)
+  win.addEventListener('keyboardDidShow', mostrar)
+  win.addEventListener('keyboardDidShow', enfocar)
+  win.addEventListener('keyboardWillHide', ocultar)
+  win.addEventListener('keyboardDidHide', ocultar)
+  return () => {
+    win.removeEventListener('keyboardWillShow', mostrar)
+    win.removeEventListener('keyboardDidShow', mostrar)
+    win.removeEventListener('keyboardDidShow', enfocar)
+    win.removeEventListener('keyboardWillHide', ocultar)
+    win.removeEventListener('keyboardDidHide', ocultar)
+    ocultar()
+  }
+}
