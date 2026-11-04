@@ -621,11 +621,10 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
    entra animado. El PIN no usa el teclado de iOS, así que la altura reducida que
    dejó el campo de empresa con el teclado abierto no se hereda (pantalla a medias). */
 @media (max-width: 767px) {
-  .auth-login.auth-login-pin[data-teclado-visible='true'] { height: auto; min-height: 100dvh; overflow-y: visible; }
+  .auth-login.auth-login-pin[data-teclado-visible='true'] { height: 100dvh; }
   .auth-login-pin .auth-shell-grid { align-items: stretch; }
   .auth-login-pin .login-panel { display: flex; flex-direction: column; }
   .auth-login-pin .auth-form[data-etapa='vendedor'] { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; }
-  .auth-login-pin .auth-form[data-etapa='vendedor'] label[for='seller-pin'] { display: block; text-align: center; }
 }
 /* Con alto de sobra (iPhone actuales) el PIN usa teclas y nombre grandes; en
    pantallas bajas conserva las medidas que entran sin scroll. */
@@ -633,6 +632,7 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad { --pin-tecla: clamp(48px, min(22vw, 10dvh), 88px); max-width: 21rem; margin-inline: auto; }
   .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: clamp(8px, 3dvh, 40px); gap: clamp(4px, 1.8dvh, 20px) 0; }
   .auth-login-pin .login-pin-tienda { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .auth-login-pin .auth-form[data-etapa='vendedor'] label[for='seller-pin'] { display: block; text-align: center; }
   .auth-login-pin .pin-seg-discreto [data-testid='pin-indicadores'] > div { gap: 20px; }
   .auth-login-pin .pin-seg-discreto .pin-seg-celda { width: 18px; height: 18px; }
   .auth-login-pin .pin-seg-discreto .pin-seg-punto { width: 12px; height: 12px; }
