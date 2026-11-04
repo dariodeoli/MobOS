@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { geometriaDialogoTeclado, ajustarDialogoAlTeclado } from './teclado.js'
+import { geometriaDialogoTeclado, ajustarDialogoAlTeclado, seguirTeclado } from './teclado.js'
 
 test('geometría limita altura visual/nativa/pan y body ya reducido sin doble resta', () => {
   assert.deepEqual(geometriaDialogoTeclado({ layoutHeight: 844, visualHeight: 844, keyboardHeight: 444 }), { height: 400, top: 0, visible: true })
@@ -57,4 +57,25 @@ test('body-only y WebView con innerHeight ya reducido no dejan altura1 y restaur
   mutate()
   await Promise.resolve()
   assert.equal(values.size, 0)
+})
+
+test('seguirTeclado publica la altura del teclado en la raíz y la retira al cerrarse', () => {
+  const props = new Map()
+  const clases = new Set()
+  let desplazado = null
+  const campo = { matches: () => true, closest: () => ({}), scrollIntoView: opciones => { desplazado = opciones } }
+  const raiz = { style: { setProperty: (k, v) => props.set(k, v), removeProperty: k => props.delete(k) }, classList: { add: c => clases.add(c), remove: c => clases.delete(c) } }
+  const win = Object.assign(new EventTarget(), { document: { documentElement: raiz, activeElement: campo } })
+  const soltar = seguirTeclado({ win })
+  win.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 336 }))
+  assert.equal(props.get('--teclado-alto'), '336px')
+  assert.ok(clases.has('teclado-abierto'))
+  win.dispatchEvent(Object.assign(new Event('keyboardDidShow'), { keyboardHeight: 336 }))
+  assert.deepEqual(desplazado, { block: 'nearest' })
+  win.dispatchEvent(new Event('keyboardWillHide'))
+  assert.equal(props.has('--teclado-alto'), false)
+  assert.equal(clases.has('teclado-abierto'), false)
+  win.dispatchEvent(Object.assign(new Event('keyboardWillShow'), { keyboardHeight: 300 }))
+  soltar()
+  assert.equal(clases.has('teclado-abierto'), false)
 })

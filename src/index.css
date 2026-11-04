@@ -378,6 +378,14 @@ html.app-ios .fixed.inset-0.z-50 {
   padding-top: max(0.75rem, env(safe-area-inset-top));
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
+/* Con el teclado abierto (lib/nativo/teclado.js): toda ventana termina arriba
+   del teclado y su panel se achica al espacio que queda, en vez de quedar tapada. */
+html.app-ios.teclado-abierto .fixed.inset-0.z-50 {
+  bottom: var(--teclado-alto, 0px);
+  padding-bottom: 0.5rem;
+}
+html.app-ios.teclado-abierto .fixed.inset-0.z-50 > :is(.popup-panel, [role='dialog'], [role='alertdialog']) { max-height: 100%; }
+html.app-ios.teclado-abierto .popup-pie-espacio { display: none; }
 /* Pantalla de bloqueo del PIN. */
 html.app-ios .fixed.inset-0.z-\[70\] {
   padding-top: max(1rem, env(safe-area-inset-top));
@@ -607,6 +615,38 @@ html.app-ios [data-testid='pantalla-bloqueada'] .lock-eyebrow { display: none; }
   .auth-login-pin:has(details[open]) .pin-seg.pin-pad { --pin-celda: 16px; }
   .auth-login-pin:has(details[open]) .pin-seg.pin-pad .pin-seg-celda { border-radius: 6px; }
   .auth-login-pin:has(details[open]) .pin-seg.pin-pad .pin-seg-punto { width: 8px; height: 8px; }
+}
+
+/* Ingreso con PIN en el celular: ocupa la pantalla entera con teclas grandes y
+   entra animado. El PIN no usa el teclado de iOS, así que la altura reducida que
+   dejó el campo de empresa con el teclado abierto no se hereda (pantalla a medias). */
+@media (max-width: 767px) {
+  .auth-login.auth-login-pin[data-teclado-visible='true'] { height: 100dvh; }
+}
+/* Con alto de sobra (iPhone actuales) el PIN usa teclas y nombre grandes; en
+   pantallas bajas conserva las medidas que entran sin scroll. */
+@media (max-width: 767px) and (min-height: 700px) {
+  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad { --pin-tecla: clamp(48px, min(22vw, 10dvh), 88px); max-width: 21rem; margin-inline: auto; }
+  .auth-login-pin .auth-form[data-etapa='vendedor'] .pin-seg.pin-pad[data-teclado-tactil='true'] [data-testid='pin-teclado'] { margin-top: clamp(8px, 3dvh, 40px); gap: clamp(4px, 1.8dvh, 20px) 0; }
+  .auth-login-pin .auth-shell-grid { align-items: stretch; }
+  .auth-login-pin .login-panel { display: flex; flex-direction: column; }
+  .auth-login-pin .auth-form[data-etapa='vendedor'] { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .auth-login-pin .login-pin-tienda { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .auth-login-pin .auth-form[data-etapa='vendedor'] label[for='seller-pin'] { display: block; text-align: center; }
+  .auth-login-pin .pin-seg-discreto [data-testid='pin-indicadores'] > div { gap: 20px; }
+  .auth-login-pin .pin-seg-discreto .pin-seg-celda { width: 18px; height: 18px; }
+  .auth-login-pin .pin-seg-discreto .pin-seg-punto { width: 12px; height: 12px; }
+}
+@keyframes login-pin-entra { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes login-pin-tecla { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+@media (max-width: 767px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  .auth-login-pin .login-panel > * { animation: login-pin-entra .45s cubic-bezier(.2,.8,.3,1) both; }
+  .auth-login-pin .login-panel > :nth-child(2) { animation-delay: .06s; }
+  .auth-login-pin .login-panel > :nth-child(3) { animation-delay: .12s; }
+  .auth-login-pin [data-testid='pin-teclado'] > * { animation: login-pin-tecla .35s cubic-bezier(.2,.8,.3,1) both; }
+  .auth-login-pin [data-testid='pin-teclado'] > :nth-child(3n+1) { animation-delay: .15s; }
+  .auth-login-pin [data-testid='pin-teclado'] > :nth-child(3n+2) { animation-delay: .2s; }
+  .auth-login-pin [data-testid='pin-teclado'] > :nth-child(3n) { animation-delay: .25s; }
 }
 
 /* Foco y desplazamiento (src/lib/enfoque.js): con el teclado abierto la página

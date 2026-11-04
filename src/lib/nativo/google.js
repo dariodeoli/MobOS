@@ -26,7 +26,9 @@ export async function iniciarSesionConGoogle({ purpose = 'login' } = {}) {
   const nonce = await pedirNonce(purpose)
   let respuesta
   try {
-    respuesta = await SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'], nonce } })
+    // forcePrompt: sin él, el plugin restaura la sesión anterior de Google y devuelve
+    // un idToken viejo sin este nonce (el API lo rechaza con «nonce_missing»).
+    respuesta = await SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'], nonce, forcePrompt: true } })
   } catch (error) {
     const cancelado = /cancel|1001|-5/i.test(String(error?.code || error?.message || ''))
     const e = new Error(cancelado ? 'Cancelaste el acceso con Google.' : 'No se pudo completar el acceso con Google. Probá de nuevo.')

@@ -1,5 +1,6 @@
 import { fijarVersionNativa, isNativeIOS } from '../plataforma.js'
 import { cargarTokens, limpiarTokens } from '../api/nativo.js'
+import { seguirTeclado } from './teclado.js'
 
 // Arranque de la app de iPhone: antes del primer render se lee la versión del
 // bundle y los tokens del Keychain (el primer pedido ya sale con Bearer), y
@@ -43,6 +44,7 @@ export async function prepararNativo() {
     console.error('[nativo] no se pudo abrir el Keychain:', error)
   }
   document.documentElement.classList.add('app-ios')
+  seguirTeclado()
   await conLimite(sincronizarBarraDeEstado())
   observarTema()
 }

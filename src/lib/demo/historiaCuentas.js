@@ -236,7 +236,7 @@ export function construirLibrosDemo({ ventas = [], gastos = [], ads = [], compra
     const h = hash(clave)
     if (d % 7 === 3 && d > 0) propios.push({ t: en(d, 9, 10), tipo: 'APORTE', concepto: 'Aporte de caja para vueltos', ingresoPyg: 300000, desde: 'demo-transfer-itau' })
     if (h % 3 === 0) { const [concepto, monto] = EGRESOS_CHICOS[h % EGRESOS_CHICOS.length]; propios.push({ t: en(d, 13, 10 + (h % 40)), tipo: 'GASTO', concepto, egresoPyg: monto }) }
-    if (h % 5 === 1) { const [concepto, monto] = EGRESOS_CHICOS[(h >> 3) % EGRESOS_CHICOS.length]; propios.push({ t: en(d, 16, 5 + (h % 45)), tipo: 'GASTO', concepto, egresoPyg: monto }) }
+    if (h % 5 === 1) { const [concepto, monto] = EGRESOS_CHICOS[(h >>> 3) % EGRESOS_CHICOS.length]; propios.push({ t: en(d, 16, 5 + (h % 45)), tipo: 'GASTO', concepto, egresoPyg: monto }) }
     // Neto del día (sin depósito) con los gastos del libro que caen ese día en caja.
     const gastosCaja = eventos.filter((e) => e.cuentaId === 'demo-cash-pyg' && e.tipo === 'GASTO' && claveDia(e.t) === clave).reduce((suma, e) => suma + e.egresoPyg, 0)
     const aportes = propios.reduce((suma, e) => suma + (e.ingresoPyg || 0), 0)
