@@ -19,7 +19,20 @@
 @media (prefers-reduced-motion: reduce) {
   .popup-fondo, .popup-panel, .popup-fondo[data-saliendo='true'], .popup-panel[data-saliendo='true'] { animation: none; }
 }
-/* iOS nativo: el panel ya aplica el margen seguro (igual que BottomSheet). */
+/* Móvil (web y app): la ventana flota como tarjeta con aire arriba y a los
+   costados, en vez de pegarse a los bordes. El margen seguro (notch, barra de
+   inicio) lo pone el fondo, así que el pie ya no lo suma. Las hojas a pantalla
+   completa (BottomSheet `completa`, p. ej. el cobro) siguen de borde a borde.
+   El selector le gana a las reglas de `html.app-ios` de abajo y de index.css. */
+@media (max-width: 767px) {
+  :root .popup-fondo.fixed.inset-0.z-50:not(:has(> .popup-panel.rounded-none)) {
+    padding: max(1.25rem, calc(env(safe-area-inset-top) + 0.75rem)) 0.75rem max(0.75rem, calc(env(safe-area-inset-bottom) + 0.25rem));
+  }
+  .popup-panel:not(.rounded-none) { max-height: 100%; border-radius: 1.5rem; }
+  .popup-panel:not(.rounded-none) :is(.popup-pie, :has(> [data-testid='popup-acciones'])) { padding-bottom: 0.75rem; }
+  .popup-panel:not(.rounded-none) .popup-pie-espacio { display: none; }
+}
+/* iOS nativo, hojas a pantalla completa: el panel ya aplica el margen seguro. */
 html.app-ios .popup-fondo.fixed.inset-0.z-50 { padding-top: 0; padding-bottom: 0; }
 /* Si el pie fijo de formularios tiene contenido, el espaciador seguro sobra. */
 .popup-pie:not(:empty) + .popup-pie-espacio { display: none; }

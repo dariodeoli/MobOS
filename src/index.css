@@ -395,6 +395,24 @@ html.app-ios .fixed.inset-0.z-\[70\] {
 html.app-ios .fixed[class*='z-[60]'] {
   bottom: calc(56px + 1rem + env(safe-area-inset-bottom));
 }
+/* Celular (web y app): los textos largos (nombres de producto, proveedores,
+   descripciones) se leen en hasta 2 renglones en vez de cortarse con «…» en
+   media palabra. Quedan de un renglón los botones, pestañas, pastillas y
+   celdas de tabla, donde el corte es parte del diseño. */
+@media (max-width: 767px) {
+  :is(p, span, a, strong, h1, h2, h3, h4, h5, h6, dt, dd, div, label).truncate:not(button *, [role='tab'] *, [class*='rounded-full'], [class*='rounded-full'] *, td *, th *, .truncar-siempre) {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Selectores segmentados (SegmentedField de owncoding-ui): si las opciones no
+   entran en un renglón pasan al siguiente en vez de cortarse en «To…», «Pa…». */
+:is([data-oc-segmentado], [role='group'].flex-wrap.rounded-xl.bg-ink-800) > button.flex-1 { flex: 1 0 auto; }
+
 /* Campos a 16px en pantallas angostas (web móvil y app): iOS no hace zoom
    automático al enfocar un input. Misma regla en ambas plataformas. */
 @media (max-width: 767px) {
