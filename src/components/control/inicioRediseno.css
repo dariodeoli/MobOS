@@ -23,7 +23,7 @@
 .inicio-atajo[data-principal='true'] .inicio-atajo__ayuda { color: rgb(var(--c-onbrand)); }
 .inicio-atajo__texto { display: grid; min-width: 0; }
 .inicio-atajo__titulo { font-size: 16px; font-weight: 700; line-height: 22px; }
-.inicio-atajo__ayuda { font-size: 12px; line-height: 16px; color: rgb(var(--c-mute)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inicio-atajo__ayuda { font-size: 12px; line-height: 16px; color: rgb(var(--c-mute)); }
 @media (min-width: 900px) {
   .inicio-atajos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .inicio-atajo { min-height: 76px; }

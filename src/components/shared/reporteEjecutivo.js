@@ -91,6 +91,8 @@ body { font: 9.5px/1.35 -apple-system, 'Segoe UI', system-ui, sans-serif; color:
 .card h2 { font-size: 8px; text-transform: uppercase; letter-spacing: .09em; margin: 0 0 1.6mm; color: #222; border-bottom: .7pt solid #b5b5b5; padding-bottom: .9mm; }
 .grid2 { display: grid; grid-template-columns: 1.1fr .9fr; gap: 3.2mm; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.2mm; }
+/* Vista previa en el celular (la hoja A4 impresa no entra acá): los montos no se pisan. */
+@media screen and (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } .grid2, .grid3 { grid-template-columns: 1fr; } }
 .grafico { display: flex; align-items: flex-end; justify-content: center; gap: .8mm; height: 36mm; margin-top: .6mm; }
 .barra { flex: 1 1 8mm; max-width: 14mm; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 0; }
 .barra .valor { font-size: 6.5px; color: #333; height: 2.6mm; white-space: nowrap; }
