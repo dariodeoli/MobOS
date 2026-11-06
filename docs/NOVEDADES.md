@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.251 — 2026-11-06
+
+- **Otros:** en el celular (web y app), las ventanas ya no se pegan a los bordes: flotan con aire arriba y a los costados. El cobro sigue ocupando toda la pantalla.
+- **Otros:** las pestañas como «Todas / Pagadas / Pendientes / Envíos» se leen completas y bajan a un segundo renglón si no entran.
+- **Otros:** los nombres largos de productos y proveedores se leen en dos renglones en vez de cortarse con «…».
+- **Reportes:** la vista previa del resumen para imprimir ya no pisa los montos en el celular.
+
 ## v1.0.250 — 2026-11-04
 
 - **Ventas:** en el carrito, el campo Cliente tiene una X para vaciarlo o quitar el cliente con un toque.
