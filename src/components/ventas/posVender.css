@@ -327,16 +327,21 @@ html.dark .shell-nav-v2 .pos-f2 .pos-cliente input[aria-label='Nombre, teléfono
 @media (min-width: 768px) {
   .pos-linea-fila {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     grid-template-areas:
-      'nombre total total total'
-      'nombre paso detalle quitar';
+      'foto nombre total total total'
+      'foto nombre paso detalle quitar';
     align-items: center;
     column-gap: 4px;
     row-gap: 2px;
   }
+  /* La miniatura acompaña al nombre: se reconoce el producto de un vistazo. */
   .pos-linea-fila > .pos-linea-foto {
-    display: none;
+    grid-area: foto;
+    align-self: start;
+    width: 36px !important;
+    height: 36px !important;
+    margin-right: 6px;
   }
   .pos-linea-nombre {
     grid-area: nombre;
@@ -363,16 +368,21 @@ html.dark .shell-nav-v2 .pos-f2 .pos-cliente input[aria-label='Nombre, teléfono
     font-size: var(--ds-text-md);
   }
 }
-/* Quitar aparece al pasar el mouse (o con el foco); en táctil queda visible. */
+/* Quitar siempre a la vista (callado); se enciende con el mouse o el foco. */
 @media (hover: hover) and (min-width: 768px) {
   .pos-linea .pos-linea-quitar {
-    opacity: 0;
+    opacity: 0.55;
     transition: opacity var(--ds-fast) var(--ds-ease);
   }
   .pos-linea:hover .pos-linea-quitar,
   .pos-linea:focus-within .pos-linea-quitar {
     opacity: 1;
   }
+}
+/* El cuerpo apila aparte: el prefijo «Gs.» de los campos (z-10) no se asoma
+   por encima del pie pegado al scrollear. */
+.pos-carrito-cuerpo {
+  isolation: isolate;
 }
 .pos-tk-ajustes {
   padding-inline: 20px;

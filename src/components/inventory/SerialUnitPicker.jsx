@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { resources } from '@/lib/api'
 import { Badge, Button, Input, Skeleton } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
-import Icon from '@/components/shared/Icon'
+import { Camera } from 'lucide-react'
 import { useRetencion } from '@/components/ventas/usePosRetencion'
 import { retenidaPorOtro, textoRetenida } from '@/lib/posRetencion'
 import SerialTexto from '@/components/shared/SerialTexto'
@@ -129,7 +129,7 @@ export default function SerialUnitPicker({ product, branchId = '', usuarioId = '
     {units.length > 1 && (
       <div className="mt-3 flex items-center gap-2" data-testid="picker-busqueda">
         <Input aria-label="Buscar o escanear IMEI" inputMode="search" autoComplete="off" value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar o escanear IMEI, últimos 4 o proveedor" className="min-w-0 flex-1" />
-        <Button type="button" variant="outline" className="shrink-0" aria-label="Escanear IMEI con la cámara" title="Escanear con la cámara" onClick={() => setCamara(abierta => !abierta)}><Icon name="camera" className="h-4 w-4" /></Button>
+        <Button type="button" variant="outline" className="shrink-0" aria-label="Escanear IMEI con la cámara" title="Escanear con la cámara" onClick={() => setCamara(abierta => !abierta)}><Camera className="h-4 w-4" aria-hidden="true" /></Button>
       </div>
     )}
     {camara && <div className="mt-2"><CameraScan titulo="Enfocá el código del IMEI" onDetected={valor => { setBusqueda(String(valor || '').trim()); setCamara(false) }} onClose={() => setCamara(false)} /></div>}
