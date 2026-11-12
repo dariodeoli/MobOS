@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Aviso, Badge, Button, Card, Skeleton } from '@/components/ui'
 import { ConfirmDialog } from '@/components/shared/popupKit'
 import Icon from '@/components/shared/Icon'
+import { BookOpen, Plug } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { fechaHora } from '@/utils/fecha'
@@ -112,7 +113,7 @@ export default function McpConexiones() {
       <Card className="space-y-4" data-testid="mcp-conexiones-resumen">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light"><Icon name="plug" className="h-5 w-5" aria-hidden="true" /></span>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light"><Plug className="h-5 w-5" aria-hidden="true" /></span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold">Conexiones IA y MCP</h2><Badge color={oauthReady ? 'green' : 'orange'}>{oauthReady ? 'Disponible' : 'Pendiente'}</Badge></div>
               <p className="mt-1 max-w-2xl text-sm text-mute">Conectá ChatGPT o Claude con los datos y acciones que tu usuario ya tiene permitidos en MobOS.</p>
@@ -148,7 +149,7 @@ export default function McpConexiones() {
       </Card>
 
       <Card className="space-y-2" data-testid="mcp-guia">
-        <div className="flex items-start gap-3"><Icon name="book" className="mt-0.5 h-5 w-5 shrink-0 text-mute" aria-hidden="true" /><div><h2 className="font-semibold">Guía de conexión</h2><p className="mt-1 text-sm text-mute">Copiá la dirección, agregala como conector en ChatGPT o Claude y autorizá tu empresa.</p><div className="mt-3 flex flex-wrap gap-2"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt" target="_blank" rel="noreferrer">Guía de ChatGPT <Icon name="external" className="h-3.5 w-3.5" /></a><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Guía de Claude <Icon name="external" className="h-3.5 w-3.5" /></a></div></div></div>
+        <div className="flex items-start gap-3"><BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-mute" aria-hidden="true" /><div><h2 className="font-semibold">Guía de conexión</h2><p className="mt-1 text-sm text-mute">Copiá la dirección, agregala como conector en ChatGPT o Claude y autorizá tu empresa.</p><div className="mt-3 flex flex-wrap gap-2"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt" target="_blank" rel="noreferrer">Guía de ChatGPT <Icon name="external" className="h-3.5 w-3.5" /></a><a className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-ink-600 px-3 text-sm font-medium hover:bg-ink-700" href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noreferrer">Guía de Claude <Icon name="external" className="h-3.5 w-3.5" /></a></div></div></div>
       </Card>
 
       <ConfirmDialog open={Boolean(confirm)} onCancel={() => setConfirm(null)} onConfirm={() => revoke(confirm)} title="¿Revocar esta conexión?" description="El proveedor perderá acceso inmediatamente. Los permisos de MobOS y la auditoría se mantienen." confirmLabel="Revocar conexión" variant="danger" busy={busy} />

@@ -6,6 +6,7 @@ import { Aviso, Badge, Button, EmptyState, Input, Label, Money, MoneyInput, Sele
 import ModeloCatalogoField from '@/components/shared/ModeloCatalogoField'
 import CampoVarianteCatalogo from '@/components/shared/CampoVarianteCatalogo'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
+import Popup from '@/components/shared/Popup'
 import Icon from '@/components/shared/Icon'
 import MenuSecundario from '@/components/shared/MenuSecundario'
 import './productosRediseno.css'
@@ -75,6 +76,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   const [errorUnits, setErrorUnits] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // Sumar stock rápido: solo productos que se controlan por cantidad (sin IMEI).
+  const [sumarAbierto, setSumarAbierto] = useState(false)
+  const [sumarCantidad, setSumarCantidad] = useState('')
   const [editando, setEditando] = useState(false)
   const [cronologiaAbierta, setCronologiaAbierta] = useState(false)
   const [kardexAbierto, setKardexAbierto] = useState(false)
@@ -155,6 +159,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     if (esDemo && unidadesDemo.length) return unidadesDemo.filter((unidad) => unidad.status === 'AVAILABLE' && !unidad.removedAt).length
     return Number(current?.stock ?? 0)
   }, [esDemo, unidadesDemo, current?.stock])
+  // Sin unidades con IMEI el stock es un contador: se puede sumar a mano. Los
+  // equipos entran siempre por unidad (Recibir unidad), nunca por cantidad.
+  const porCantidad = !loadingUnits && !errorUnits && units.length === 0 && !unidadesDemo.length && current?.stockKind !== 'EQUIPO'
   const productoKardex = useMemo(() => (esDemo ? { ...current, stock: stockMostrado } : current), [esDemo, current, stockMostrado])
 
   const resumen = useMemo(() => {
@@ -240,6 +247,20 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
       onChanged?.()
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el producto.') } finally { setBusy(false) }
   }
+  async function sumarStock() {
+    const cantidad = Number(sumarCantidad)
+    if (busy || !current?.id || !Number.isInteger(cantidad) || cantidad <= 0) return
+    setBusy(true); setError('')
+    try {
+      const payload = { id: current.id, stock: Number(current.stock ?? 0) + cantidad }
+      const updated = esDemo ? actualizarProductoDemo(current, payload) : await api.patch('/api/products', payload)
+      setCurrent(updated)
+      setSumarAbierto(false)
+      setSumarCantidad('')
+      toast.success(`Stock actualizado: ${Number(updated?.stock ?? payload.stock)} ${Number(updated?.stock ?? payload.stock) === 1 ? 'unidad' : 'unidades'}.`)
+      onChanged?.()
+    } catch (cause) { setError(cause?.message || 'No se pudo sumar el stock.'); setSumarAbierto(false) } finally { setBusy(false) }
+  }
   async function desactivar() {
     if (busy || !current?.id) return
     setBusy(true); setError('')
@@ -306,6 +327,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <div className="mt-4 flex flex-wrap gap-2">
               <Button disabled={busy} onClick={() => onSell?.(current)}>Vender</Button>
               <Button variant="outline" disabled={busy} onClick={() => setEtiquetasOpen(true)}>Etiqueta de precio</Button>
+              {canManage && porCantidad && <Button variant="outline" disabled={busy} data-testid="producto-sumar-stock" onClick={() => { setSumarCantidad(''); setSumarAbierto(true) }}><Icon name="plus" className="h-4 w-4" />Sumar stock</Button>}
               {canManage && <Button variant="outline" disabled={busy} onClick={() => { if (!editando) irASeccion('precios'); setEditando(value => !value) }}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
               {canManage && <MenuSecundario direccion="abajo" acciones={[{ icon: 'trash', label: 'Desactivar', disabled: busy, onClick: desactivar }]} />}
             </div>
@@ -496,6 +518,29 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         </section>
       </div>
       </VentanaDetalle>
+      <Popup
+        open={sumarAbierto}
+        onClose={() => setSumarAbierto(false)}
+        busy={busy}
+        tipo="formulario"
+        tamano="sm"
+        title="Sumar stock"
+        description={`${nombre(current)} · hoy hay ${stockMostrado}`}
+        testId="producto-sumar-stock-popup"
+        acciones={{
+          primaria: {
+            label: busy ? 'Guardando…' : Number(sumarCantidad) > 0 ? `Sumar · quedan ${stockMostrado + Number(sumarCantidad)}` : 'Sumar',
+            onClick: sumarStock,
+            disabled: busy || !(Number(sumarCantidad) > 0),
+          },
+        }}
+      >
+        <form onSubmit={event => { event.preventDefault(); sumarStock() }}>
+          <Label htmlFor="sumar-stock-cantidad">Cuántas unidades entran</Label>
+          <Input id="sumar-stock-cantidad" autoFocus inputMode="numeric" maxLength={6} className="tabular-nums" value={sumarCantidad} onChange={event => setSumarCantidad(event.target.value.replace(/\D/g, ''))} placeholder="Ej. 10" />
+          <p className="mt-1 text-[11px] text-mute">Queda registrado en el kardex del producto. Para una compra con proveedor y costo, usá Compras.</p>
+        </form>
+      </Popup>
       <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={[current]} seleccionInicial={[current?.id || current?.sku]} />
     </>
   )
