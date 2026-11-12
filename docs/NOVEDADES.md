@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.252 — 2026-11-11
+
+- **Inventario:** en la ficha de un accesorio (o cualquier producto sin IMEI) hay un botón «Sumar stock»: escribís cuántas unidades entran y queda anotado en el historial del producto.
+- **Ventas:** el carrito de la computadora muestra la foto de cada producto y el tacho para quitarlo está siempre a la vista.
+- **Ventas:** al abrir el detalle de una línea, el «Gs.» del precio ya no se encima sobre el total.
+- **Ventas:** el botón de la cámara para escanear el IMEI ya no aparece vacío.
+
 ## v1.0.251 — 2026-11-06
 
 - **Otros:** en el celular (web y app), las ventanas ya no se pegan a los bordes: flotan con aire arriba y a los costados. El cobro sigue ocupando toda la pantalla.
